@@ -1,0 +1,47 @@
+@startuml seq_startup
+!include ../../../../resources/doc/plantuml/clean.skin
+
+
+participant "Ankaios Server" as ankaios_server
+
+box gRPC Communication Middleware #DarkGray
+    box gRPC Server
+        participant "gRPC Server" as grpc_server
+        participant "gRPC Agent Connection" as agent_connection
+    end box
+
+    box gRPC Client
+        participant "gRPC Client" as grpc_client
+    end box
+end box
+
+participant "Ankaios Agent" as ankaios_agent
+
+activate ankaios_server
+
+ankaios_server -> grpc_server ++: start
+
+grpc_server -> agent_connection **: create with reference \n to AgentSendersMap \n and rx channel to server
+grpc_server ->> agent_connection ++: spawn tonic gRPC service \nin green thread
+
+activate ankaios_agent
+ankaios_agent -> grpc_client ++: start
+
+loop reconnect with timeout if connection breaks
+grpc_client -> grpc_client ++: start internal
+
+grpc_client -> grpc_client ++--: create channel pair \n for communication \n with Agent
+
+grpc_client -> agent_connection ++: connect to Server with \n AgentHello and rx channel end \nfor communication with Agent
+agent_connection -> agent_connection ++--: add Agent to shared \n AgentSendersMap
+
+agent_connection -> agent_connection ++--: create channel for this agent
+
+agent_connection ->> ankaios_server ++: AgentHello
+
+agent_connection ->> agent_connection ++--: start listening for \n messages from Agent
+
+agent_connection -->> grpc_client --: send rx channel end \n for communication with Server
+
+end
+@enduml

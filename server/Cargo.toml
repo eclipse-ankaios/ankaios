@@ -1,0 +1,34 @@
+[package]
+name = "ank-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description.workspace = true
+documentation.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+common = { package = "common", version = "0.1", path = "../common" }
+grpc = { package = "grpc", version = "0.1", path = "../grpc" }
+log = "0.4"
+env_logger = "0.10"
+async-trait = "0.1"
+tokio = { version = "1.28", features = [
+    "macros",
+    "rt-multi-thread",
+    "fs",
+    "io-util",
+    "process",
+] }
+tokio-stream = "0.1"
+nix = { version = "0.26", features = ["fs"] }
+tonic = "0.9"
+async-stream = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
+clap = { version = "4.0", features = ["derive"] }
+
+[dev-dependencies]
+common = { package = "common", path = "../common", features = ["test_utils"] }
+serde_json = "1.0"

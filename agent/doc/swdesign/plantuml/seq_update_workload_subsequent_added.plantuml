@@ -1,0 +1,53 @@
+@startuml seq_update_workload_subsequent_added
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "Ankaios Agent"
+    participant "AgentManager" as manager
+
+    participant "<<RuntimeAdapter>>\ne.g. PodmanAdapter" as runtime_adapter
+    participant "Workload Facade" as wl_facade
+
+end box
+
+box "Ankaios Server"
+    participant "Ankaios Server" as server
+end box
+
+activate manager
+activate server
+
+note over manager, server
+The communication between the Agent Manager ans the Ankaios Server is simpliefied here. The actuall calls go over the Communication Middleware.
+end note
+
+manager <<- server ++: UpdateWorkload
+
+... general steps of handling the UpdateWorkload command ...
+
+
+... handle deleted Workloads ...
+
+loop for each added Worload
+    opt do we know this workload already? (can happen if the server got restarted)
+    manager -> runtime_adapter ++: update Workload
+... see update handling above for more details ...
+    runtime_adapter -->> manager --
+    else
+        manager -> runtime_adapter ++: add Workload
+        runtime_adapter -> runtime_adapter ++--: create specific Workload \n object for the specific runtime
+        runtime_adapter -> wl_facade ++: start a new Workload (specific Workload)
+        wl_facade ->> wl_facade ++--: decopule the action
+        wl_facade -->> runtime_adapter --: Workload Facade object
+        runtime_adapter -> runtime_adapter ++--: store the Workload Facade object
+        runtime_adapter -->> manager --
+    end
+end
+
+
+... Workloads get started ...
+
+manager ->> server --++: forward UpdateWorkloadState
+
+... 
+
+@enduml

@@ -1,0 +1,69 @@
+@startuml seq_update_workload_initial
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "Ankaios Agent"
+    participant "AgentManager" as manager
+
+    participant "<<RuntimeAdapter>>\ne.g. PodmanAdapter" as runtime_adapter
+    participant "Workload Facade" as wl_facade
+
+end box
+
+box "Ankaios Server"
+    participant "Ankaios Server" as server
+end box
+
+activate manager
+activate server
+
+note over manager, server
+The communication between the Agent Manager ans the Ankaios Server is simpliefied here. The actuall calls go over the Communication Middleware.
+end note
+
+manager <<- server ++: UpdateWorkload
+
+... general steps of handling the UpdateWorkload command ...
+
+manager -> runtime_adapter ++: start (initial list of required Workloads)
+
+runtime_adapter -> runtime_adapter ++--: finds existing Workloads via the specific runtime
+
+loop for each required Worload
+    runtime_adapter -> runtime_adapter ++--: create dedicated Workload \n object for the specific runtime \n (channel for UpdateWorkloadState)
+    note right 
+        the dedicated object implements 
+        a common interface and handles
+        runtime specific tasks. e.g.,
+        starting a container
+    end note
+
+    opt no existing workload found 
+        runtime_adapter -> wl_facade ++: start a new Workload (dedicated Workload)
+        wl_facade ->> wl_facade ++--: decopule the action
+        wl_facade -->> runtime_adapter --: Workload Facade object
+    else existing workload with same config found
+        runtime_adapter -> wl_facade ++: resume existing Workload (dedicated Workload)
+        wl_facade ->> wl_facade ++--: decopule the action
+        wl_facade -->> runtime_adapter --: Workload Facade object
+    else existing workload with old config found
+        runtime_adapter -> wl_facade ++: replace updated Workload (dedicated Workload)
+        wl_facade ->> wl_facade ++--: decopule the action
+        wl_facade -->> runtime_adapter --: Workload Facade object
+    end
+
+    runtime_adapter -> runtime_adapter ++--: store the Workload Facade object
+end
+
+loop remaining existing workloads for which no workload \n in the list of required workloads was found
+        runtime_adapter -> runtime_adapter ++--: stops unneeded Workload
+end
+
+runtime_adapter -->> manager --
+
+...
+
+manager ->> server --++: forward UpdateWorkloadState
+
+... 
+
+@enduml

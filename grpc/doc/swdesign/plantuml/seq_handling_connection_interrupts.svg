@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css" height="276px" preserveAspectRatio="none" style="width:518px;height:276px;background:#FFFFFF;" version="1.1" viewBox="0 0 518 276" width="518px" zoomAndPan="magnify"><defs/><g><rect fill="#A9A9A9" height="264.8984" style="stroke:#D3D3D3;stroke-width:0.5;" width="299" x="137" y="6"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing" textLength="250" x="159" y="18.0669">gRPC Communication Middleware</text><rect fill="#EEEEEE" height="244.7656" style="stroke:#D3D3D3;stroke-width:0.5;" width="299" x="137" y="26.1328"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing" textLength="92" x="240.5" y="38.1997">gRPC Server</text><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="63" x2="63" y1="76.5625" y2="84.5625"/><line style="stroke:#383838;stroke-width:1.0;stroke-dasharray:1.0,4.0;" x1="63" x2="63" y1="84.5625" y2="125.3672"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="63" x2="63" y1="125.3672" y2="264.8984"/><rect fill="#FFFFFF" height="139.5313" style="stroke:#181818;stroke-width:1.0;" width="10" x="58" y="125.3672"/><rect fill="#FFFFFF" height="18" style="stroke:#181818;stroke-width:1.0;" width="10" x="63" y="246.8984"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="191" x2="191" y1="76.5625" y2="84.5625"/><line style="stroke:#383838;stroke-width:1.0;stroke-dasharray:1.0,4.0;" x1="191" x2="191" y1="84.5625" y2="125.3672"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="191" x2="191" y1="125.3672" y2="264.8984"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="341.5" x2="341.5" y1="76.5625" y2="84.5625"/><line style="stroke:#383838;stroke-width:1.0;stroke-dasharray:1.0,4.0;" x1="341.5" x2="341.5" y1="84.5625" y2="125.3672"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="341.5" x2="341.5" y1="125.3672" y2="264.8984"/><rect fill="#FFFFFF" height="134.5313" style="stroke:#181818;stroke-width:1.0;" width="10" x="336.5" y="125.3672"/><rect fill="#FFFFFF" height="13" style="stroke:#181818;stroke-width:1.0;" width="10" x="341.5" y="217.7656"/><rect fill="#E3E3E3" height="30.2969" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="116" x="5" y="45.2656"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="102" x="12" y="65.2607">Ankaios Server</text><rect fill="#E3E3E3" height="30.2969" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="100" x="141" y="45.2656"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="86" x="148" y="65.2607">gRPC Server</text><rect fill="#E3E3E3" height="30.2969" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="181" x="251" y="45.2656"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="167" x="258" y="65.2607">gRPC Agent Connection</text><text fill="#000000" font-family="sans-serif" font-size="11" lengthAdjust="spacing" textLength="42" x="181.25" y="108.7729">Startup</text><rect fill="#EEEEEE" height="3" style="stroke:#EEEEEE;stroke-width:1.0;" width="506.5" x="5" y="145.9336"/><line style="stroke:#000000;stroke-width:1.0;" x1="5" x2="511.5" y1="145.9336" y2="145.9336"/><line style="stroke:#000000;stroke-width:1.0;" x1="5" x2="511.5" y1="148.9336" y2="148.9336"/><rect fill="#EEEEEE" height="23.1328" style="stroke:#000000;stroke-width:2.0;" width="233" x="141.75" y="135.3672"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing" textLength="214" x="147.75" y="151.4341">Ankaios Agent not reachable</text><line style="stroke:#181818;stroke-width:1.0;" x1="346.5" x2="393.5" y1="204.7656" y2="204.7656"/><line style="stroke:#181818;stroke-width:1.0;" x1="393.5" x2="393.5" y1="204.7656" y2="217.7656"/><line style="stroke:#181818;stroke-width:1.0;" x1="352.5" x2="393.5" y1="217.7656" y2="217.7656"/><line style="stroke:#181818;stroke-width:1.0;" x1="352.5" x2="362.5" y1="217.7656" y2="213.7656"/><line style="stroke:#181818;stroke-width:1.0;" x1="352.5" x2="362.5" y1="217.7656" y2="221.7656"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="102" x="358.5" y="184.5669">stop listening to</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="142" x="362.5" y="199.6997">messages from Agent</text><line style="stroke:#181818;stroke-width:1.0;" x1="74" x2="84" y1="246.8984" y2="242.8984"/><line style="stroke:#181818;stroke-width:1.0;" x1="74" x2="84" y1="246.8984" y2="250.8984"/><line style="stroke:#181818;stroke-width:1.0;" x1="73" x2="335.5" y1="246.8984" y2="246.8984"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="72" x="90" y="241.8325">AgentGone</text><!--MD5=[db769828de59ff5bd2e61277f772f2f4]
+@startuml seq_handling_connection_interrupts
+!include ../../../../doc/plantuml/clean.skin
+
+
+participant "Ankaios Server" as ankaios_server
+
+box gRPC Communication Middleware #DarkGray
+    box gRPC Server
+        participant "gRPC Server" as grpc_server
+        participant "gRPC Agent Connection" as agent_connection
+    end box
+end box
+
+activate ankaios_server
+activate agent_connection
+
+... Startup ...
+
+== Ankaios Agent not reachable ==
+
+agent_connection ->> agent_connection ++- -: stop listening to \n messages from Agent
+agent_connection ->> ankaios_server ++- -: AgentGone
+@end
+
+@startuml seq_handling_connection_interrupts
+skinparam monochrome true
+skinparam guillemet true
+skinparam style strictuml
+hide empty members
+hide empty methods
+
+skinparam class {
+    BorderColor<<logical entity>> grey
+    FontColor<<logical entity>> grey
+    StereotypeFontColor<<logical entity>> grey
+}
+
+skinparam sequenceBox {
+    BorderColor #LightGrey
+    BackgroundColor #EEEEEE
+    FontColor #777777
+}
+
+skinparam BoxPadding 10
+
+skinparam note {
+    BackgroundColor #FFFFFF
+}
+
+skinparam nodesep 30
+skinparam ranksep 30
+
+!pragma teoz true
+
+
+participant "Ankaios Server" as ankaios_server
+
+box gRPC Communication Middleware #DarkGray
+    box gRPC Server
+        participant "gRPC Server" as grpc_server
+        participant "gRPC Agent Connection" as agent_connection
+    end box
+end box
+
+activate ankaios_server
+activate agent_connection
+
+... Startup ...
+
+== Ankaios Agent not reachable ==
+
+agent_connection ->> agent_connection ++- -: stop listening to \n messages from Agent
+agent_connection ->> ankaios_server ++- -: AgentGone
+@end
+
+PlantUML version 1.2022.7(Mon Aug 22 17:01:30 UTC 2022)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Default Encoding: ANSI_X3.4-1968
+Language: en
+Country: US
+--></g></svg>

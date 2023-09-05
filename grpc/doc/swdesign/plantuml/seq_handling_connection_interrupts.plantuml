@@ -1,0 +1,23 @@
+@startuml seq_handling_connection_interrupts
+!include ../../../../resources/doc/plantuml/clean.skin
+
+
+participant "Ankaios Server" as ankaios_server
+
+box gRPC Communication Middleware #DarkGray
+    box gRPC Server
+        participant "gRPC Server" as grpc_server
+        participant "gRPC Agent Connection" as agent_connection
+    end box
+end box
+
+activate ankaios_server
+activate agent_connection
+
+... Startup ...
+
+== Ankaios Agent not reachable ==
+
+agent_connection ->> agent_connection ++--: stop listening to \n messages from Agent
+agent_connection ->> ankaios_server ++--: AgentGone
+@enduml

@@ -1,0 +1,59 @@
+@startuml seq_startup
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "Ankaios Agent"
+    participant Main as main
+
+    participant "<<thread>>\nAgentManager" as manager
+
+    participant "PodmanAdapter" as podman
+
+    participant "<<thread>>\nMiddleware (gRPC)" as grpc_client
+    participant "<<task>>\nListen to Ankaios\nServer" as listen_to_server
+    participant "<<task>>\nListen to Agent \nManager" as listen_to_manager
+end box
+
+box "Ankaios Server"
+    participant "Ankaios Server" as server
+end box
+
+-> main ++
+main -> main ++--: create communication channels
+main ->> grpc_client ** : create and start in a new thread
+activate grpc_client
+main ->> podman ** : create
+activate podman
+main ->> manager **: create and start in a new thread \nproviding all RuntimeAdapters
+activate manager
+
+grpc_client -> grpc_client ++: start and endless loop \ntrying to (re)connect to the server
+
+manager -> manager ++: start listening for \nexecution requests
+
+grpc_client ->> listen_to_server **: create an async task
+
+activate listen_to_server
+listen_to_server ->> server ++: AgentHello
+note right
+        ""agentName: Node 1""
+end note
+listen_to_server -> listen_to_server ++: start listening for \nexecution requests
+
+grpc_client ->> listen_to_manager **: create an async task
+activate listen_to_manager
+listen_to_manager -> listen_to_manager ++: start listening for \nstate change requests
+
+listen_to_server <<- server --: UpdateWorkload
+note right
+        ""addedWorkloads:""
+        ""- name: Workload 1""
+        ""deletedWorloads:""
+        ""- name: Workload 4""
+        ""...""
+end note
+
+listen_to_server ->> manager ++--: forward UpdateWorkload
+
+... Start Workload ...
+
+@enduml

@@ -1,0 +1,252 @@
+// Copyright (c) 2023 Elektrobit Automotive GmbH
+//
+// This program and the accompanying materials are made available under the
+// terms of the Apache License, Version 2.0 which is available at
+// https://www.apache.org/licenses/LICENSE-2.0.
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+/**
+* The Ankaios communication protocol is used in the communcation between the following components:
+*
+* 1. Ankaios Agent and Ankaios Server,
+*
+* 2. Ankaios CLI and Ankaios Server,
+*
+* 3. Workload and Ankaios Server through the control interface.
+*
+* The protocol consists of the following top-level message types:
+*
+* 1. [StateChangeRequest](#statechangerequest): agent/cli -> server
+*
+* 2. [ExecutionRequest](#executionrequest): server -> agent/cli
+*
+*/
+syntax = "proto3";
+package ankaios;
+ 
+service AgentConnection {
+  rpc ConnectAgent (stream StateChangeRequest) returns (stream ExecutionRequest);
+}
+
+service CliConnection {
+  rpc ConnectCli (stream StateChangeRequest) returns (stream ExecutionRequest);
+}
+
+/**
+* Messages to the Ankaios server.
+*/
+message StateChangeRequest {
+  oneof stateChangeRequestEnum {
+    AgentHello agentHello = 1; /// This message is for internal usage only!
+    UpdateWorkloadState updateWorkloadState = 2; /// A message to Ankaios server to update the execution state of a workload.
+    UpdateStateRequest updateState = 3; /// A message to Ankaios server to update the State of one or more agent(s).
+    RequestCompleteState requestCompleteState = 4; /// A message to Ankaios server to request the complete state by the given request id and the optional field mask.
+  }
+}
+
+/**
+* Messages to the Ankaios server.
+*/
+message ExecutionRequest {
+  oneof executionRequestEnum {
+    UpdateWorkload updateWorkload = 1; /// A message containing lists of workloads to be added or deleted.
+    UpdateWorkloadState updateWorkloadState = 2; /// A message containing list of workload execution states.
+    CompleteState completeState = 3; /// A message containing the complete state (startup state, current state, workload states) of the Anakios system.
+  }
+}
+
+/**
+* A message to the Ankaios server to register a new agent. 
+*/
+message AgentHello {
+  string agentName = 1; /// A unique agent name.
+}
+
+/**
+* A message providing information about the workloads to be added and/or deleted. 
+*/
+message UpdateWorkload {
+  repeated AddedWorkload addedWorkloads = 1; /// A list of messages containing information about a workload to be added by an Ankaios agent.
+  repeated DeletedWorkload deletedWorkloads = 2; /// A list of messages containing information about a workload to be deleted by an Ankaios agent.
+}
+
+/**
+* A message containing information about a workload to be added to the Ankaios cluster.
+*/
+message AddedWorkload {
+  string name = 1; /// The name of the workload.
+  string runtime = 2; /// The name of the runtime, e.g., podman.
+  map<string, ExpectedState> dependencies = 3; /// A list of dependencies to other workloads with their corresponding, expected states. Can be used to enable a synchronized start of a workload.
+  bool restart = 4; /// A flag indicating to restart the workload in case of an intentional or an unintentional stop of the workload.
+  UpdateStrategy updateStrategy = 5; /// An enum to specify the update strategy.
+  AccessRights accessRights = 6; /// Lists of authorizations of the workload.
+  repeated Tag tags = 7; /// A list of tags.
+  string runtimeConfig = 8; /// The configuration information specific to the runtime.
+}
+
+/**
+* A message containing information about a workload to be deleted from the Anakaios system.
+*/
+message DeletedWorkload {
+  string name = 1; /// The name of the workload.
+  map<string, ExpectedState> dependencies = 2; /// A list of dependencies to other workloads with their corresponding, expected states. Can be used to enable a synchronized stop of a workload.
+}
+
+/**
+* An enum type describing the expected workload state. Used for dependency management.
+*/
+enum  ExpectedState {
+  STOPPED = 0; /// The workload is stopped.
+  RUNNING = 1; /// The workload is running.
+}
+
+/**
+* An enum type describing the workload execution state.
+*/
+enum ExecutionState {
+    EXEC_PENDING = 0; /// The workload is pending.
+    EXEC_RUNNING = 1; /// The workload is running.
+    EXEC_SUCCEEDED = 2; /// The workload has run successfully and is stopped.
+    EXEC_FAILED = 3; /// The workload has failed.
+    EXEC_UNKNOWN = 4; /// The workload is in unknown state. This is the case if the owning agent is disconnected from the Ankaios server.
+    EXEC_REMOVED = 5; /// The workload has been deleted.
+}
+
+/**
+* A message containing the information about the workload state.
+*/
+message WorkloadState {
+    string workloadName = 1; /// The name of the workload.
+    string agentName = 2; /// The name of the owning Agent.
+    ExecutionState executionState = 3; /// The workload execution state.
+}
+
+/**
+* A message containing the list the workload states.
+*/
+message UpdateWorkloadState {
+  repeated WorkloadState workloadStates = 1; /// A list of workload states.
+}
+
+/**
+* A message containing the complete state of the Ankaios system.
+* This is a response to the [RequestCompletestate](#requestcompletestate) message.
+*/
+message CompleteState {
+  string requestId = 1; /// The request id corresponding to a sent [RequestCompletestate](#requestcompletestate) message.
+  State startupState = 2; /// The State information at the startup of the Ankaios System.
+  State currentState = 3; /// The current state information.
+  repeated WorkloadState workloadStates = 4; /// The current states of the workloads.
+}
+
+// Common messages
+
+/**
+* A message containing a request for the complete/partial state of the Ankaios system.
+* This is usually answered with a [CompleteState](#completestate) message.
+*/
+message RequestCompleteState {
+  string requestId = 1; /// A request id. This can be any string literal.
+  repeated string fieldMask = 2; /// A list of symbolic field paths within the State message structure e.g. 'current_state.workloads.nginx'.
+}
+
+/**
+* A message containing a request to update the state of the Ankaios system.
+* The new state is provided as state object. 
+* To specify which part(s) of the new state object should be updated
+* a list of update mask (same as field mask) paths needs to be provided.
+*/
+message UpdateStateRequest {
+  CompleteState newState = 1; /// The new state of the Ankaios system.
+  repeated string updateMask = 2; /// A list of symbolic field paths within the state message structure e.g. 'current_state.workloads.nginx' to specify what to be updated.
+}
+
+/**
+* A message containing the state information.
+*/
+message State {
+  map<string, Workload> workloads = 1; /// A mapping from workload names to workload configurations.
+  map<string, string> configs = 2; /// A key value storage for reusable configuration items.
+  map<string, Cronjob> cronjobs = 3; /// A mapping from workload names to cron job configurations.
+}
+
+/**
+* A message containing the configuration of a workload.
+*/
+message Workload {
+  string agent = 1; /// The name of the owning Agent.
+  bool restart = 2; /// A flag indicating to restart the workload in case of an intentional or an unintentional stop of the workload.
+  map<string, ExpectedState> dependencies = 3; /// A map of workload names and expected states to enable a synchronized start of the workload.
+  UpdateStrategy updateStrategy = 4; /// An enum to specify the update strategy.
+  repeated Tag tags = 5; /// A list of tag names.
+  AccessRights accessRights = 6; /// Lists of authorizations of the workload.
+  string runtime = 7; /// The name of the runtime e.g. podman.
+  string runtimeConfig  = 8; /// The configuration information specific to the runtime.
+}
+
+/**
+* An enum type for specifing the update strategy.
+*/
+enum UpdateStrategy {
+    UNSPECIFIED = 0; /// The update order is irrelevant.
+    AT_LEAST_ONCE = 1; /// At least one instance shall be running - start the new before stopping the old one.
+    AT_MOST_ONCE = 2; /// At most one instance shall be running - stop the old before starting the new one.
+}
+
+/**
+* A message to store a tag.
+*/
+message Tag {
+  string key = 1; /// The key of the tag.
+  string value = 2; /// The value of the tag.
+}
+
+/**
+* A message containing lists of access rules that are allowed or denied.
+*/
+message AccessRights {
+  repeated AccessRightsRule allow = 1; /// A list of access rules that are allowed.
+  repeated AccessRightsRule deny = 2; /// A list of access rules that are denied.
+}
+
+/**
+* A message describing an access rule for the given patch operation for given object fields and values.
+*/
+message AccessRightsRule {
+  PatchOperation operation = 1; /// The patch operation of interrest.
+  repeated string updateMask = 2; /// A List of field names.
+  repeated string value = 3; /// A list of accepted values.
+}
+
+/**
+* An enum type for specifing the patch operation.
+*/
+enum PatchOperation {
+  REPLACE = 0; /// The replace operation.
+  ADD = 1; /// The add operation.
+  REMOVE =2; /// the remove operation.
+}
+
+/**
+* A message containing the cron job information.
+*/
+message Cronjob {
+  string workload = 1; /// The name of the workload.
+  Interval interval = 2; /// The interval of the cron job.
+}
+
+/**
+* A message containing the interval information for the cron job.
+*/
+message Interval {
+  uint32 hours = 1; /// The number of hours.
+  uint32 minutes = 2; /// The number of minutes.
+  uint32 seconds = 3; /// The number of seconds.
+}

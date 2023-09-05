@@ -1,0 +1,21 @@
+[package]
+name = "api"
+# Note: Workspace values cannot be referenced from here as the api defintion is used also in 
+#       the example workloads which are built in a container.
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "API definition for Eclipse Ankaios"
+documentation = "https://eclipse-ankaios.github.io/ankaios"
+authors = ["Elektrobit Automotive GmbH and Ankaios contributors"]
+repository = "https://github.com/eclipse-ankaios/ankaios"
+
+[dependencies]
+prost = "0.11"
+tonic = "0.9"
+
+
+[dev-dependencies]
+
+[build-dependencies]
+tonic-build = "0.9"

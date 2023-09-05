@@ -1,0 +1,19 @@
+[workspace]
+
+members = [
+    "api",
+    "common",
+    "agent",
+    "server",
+    "grpc",
+    "ank",
+    "examples/workload_api_example"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Eclipse Ankaios provides workload and container orchestration for automotive High Performance Computing Software (HPCs)."
+documentation = "https://eclipse-ankaios.github.io/ankaios"
+authors = ["Elektrobit Automotive GmbH and Ankaios contributors"]
+repository = "https://github.com/eclipse-ankaios/ankaios"

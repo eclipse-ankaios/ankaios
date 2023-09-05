@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css" height="465px" preserveAspectRatio="none" style="width:1363px;height:465px;background:#FFFFFF;" version="1.1" viewBox="0 0 1363 465" width="1363px" zoomAndPan="magnify"><defs/><g><!--MD5=[8dad76bf7ab6589a2a16aed7e391ed29]
+class Get--><g id="elem_Get"><rect codeLine="6" fill="#F1F1F1" height="50.5938" id="Get" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="259" x="207.5" y="114"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="25" x="324.5" y="131.9951">Get</text><line style="stroke:#181818;stroke-width:0.5;" x1="208.5" x2="465.5" y1="140.2969" y2="140.2969"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="247" x="213.5" y="157.292">Option&lt;GetCommands&gt; command</text></g><!--MD5=[73145e46247802284b2f7aaef1fa1797]
+class Set--><g id="elem_Set"><rect codeLine="7" fill="#F1F1F1" height="50.5938" id="Set" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="257" x="496.5" y="114"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="23" x="613.5" y="131.9951">Set</text><line style="stroke:#181818;stroke-width:0.5;" x1="497.5" x2="752.5" y1="140.2969" y2="140.2969"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="245" x="502.5" y="157.292">Option&lt;SetCommands&gt; command</text></g><!--MD5=[9d82e49cffacc5184d1149ac06d87e9b]
+class Delete--><g id="elem_Delete"><rect codeLine="8" fill="#F1F1F1" height="50.5938" id="Delete" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="280" x="784" y="114"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="46" x="901" y="131.9951">Delete</text><line style="stroke:#181818;stroke-width:0.5;" x1="785" x2="1063" y1="140.2969" y2="140.2969"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="268" x="790" y="157.292">Option&lt;DeleteCommands&gt; command</text></g><!--MD5=[8c2f4329bae024304d629f7fadea7029]
+class Run--><g id="elem_Run"><rect codeLine="9" fill="#F1F1F1" height="50.5938" id="Run" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="262" x="1094" y="114"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="28" x="1211" y="131.9951">Run</text><line style="stroke:#181818;stroke-width:0.5;" x1="1095" x2="1355" y1="140.2969" y2="140.2969"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="250" x="1100" y="157.292">Option&lt;RunCommands&gt; command</text></g><!--MD5=[eb675c038822013868da5fdb082dda01]
+entity ##15--><!--MD5=[093ed4082292ecbe1c7f4622f4555adf]
+class Commands--><g id="elem_Commands"><rect codeLine="3" fill="#F1F1F1" height="42.5938" id="Commands" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="93" x="727.5" y="7"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="87" x="730.5" y="24.9951">&lt;&lt;union&gt;&gt;</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="79" x="734.5" y="41.292">Commands</text></g><!--MD5=[765c2de0c61552f5601639e7898a1f7a]
+class GetState--><g id="elem_GetState"><rect codeLine="26" fill="#F1F1F1" height="66.8906" id="GetState" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="228" x="251" y="363.5"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="36" x="347" y="381.4951">State</text><line style="stroke:#181818;stroke-width:0.5;" x1="252" x2="478" y1="389.7969" y2="389.7969"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="197" x="257" y="406.792">OutputFormat output_format</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="216" x="257" y="423.0889">Vec&lt;String&gt; object_field_mask</text></g><!--MD5=[a9ad716be0597f766ffec3209dbc5301]
+class GetWorkload--><g id="elem_GetWorkload"><rect codeLine="27" fill="#F1F1F1" height="83.1875" id="GetWorkload" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="214" x="7" y="355.5"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="64" x="82" y="373.4951">Workload</text><line style="stroke:#181818;stroke-width:0.5;" x1="8" x2="220" y1="381.7969" y2="381.7969"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="200" x="13" y="398.792">Option&lt;String&gt; agent_name</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="149" x="13" y="415.0889">Option&lt;String&gt; state</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="202" x="13" y="431.3857">Vec&lt;String&gt; workload_name</text></g><!--MD5=[823786b02bfb4ef64d36625476f0368b]
+class GetCommands--><g id="elem_GetCommands"><rect codeLine="30" fill="#F1F1F1" height="42.5938" id="GetCommands" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="110" x="263" y="245"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="87" x="274.5" y="262.9951">&lt;&lt;union&gt;&gt;</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="104" x="266" y="279.292">GetCommands</text></g><!--MD5=[8aa93a54597524d17b327d3e33dbcffd]
+class SetState--><g id="elem_SetState"><rect codeLine="43" fill="#F1F1F1" height="66.8906" id="SetState" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="237" x="515.5" y="363.5"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="36" x="616" y="381.4951">State</text><line style="stroke:#181818;stroke-width:0.5;" x1="516.5" x2="751.5" y1="389.7969" y2="389.7969"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="216" x="521.5" y="406.792">Vec&lt;String&gt; object_field_mask</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="225" x="521.5" y="423.0889">Option&lt;String&gt; state_object_file</text></g><!--MD5=[b3d587c3f73fd254fc9938a899bdaae4]
+class SetCommands--><g id="elem_SetCommands"><rect codeLine="47" fill="#F1F1F1" height="42.5938" id="SetCommands" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="108" x="580" y="245"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="87" x="590.5" y="262.9951">&lt;&lt;union&gt;&gt;</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="102" x="583" y="279.292">SetCommands</text></g><!--MD5=[50a7f8a55cc756021fcac45e4ef9c3a9]
+class DeleteWorkload--><g id="elem_DeleteWorkload"><rect codeLine="51" fill="#F1F1F1" height="50.5938" id="DeleteWorkload" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="214" x="827" y="371.5"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="64" x="902" y="389.4951">Workload</text><line style="stroke:#181818;stroke-width:0.5;" x1="828" x2="1040" y1="397.7969" y2="397.7969"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="202" x="833" y="414.792">Vec&lt;String&gt; workload_name</text></g><!--MD5=[86c4d26de20f115149211474fdf1f70f]
+class DeleteCommands--><g id="elem_DeleteCommands"><rect codeLine="54" fill="#F1F1F1" height="42.5938" id="DeleteCommands" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="131" x="868.5" y="245"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="87" x="890.5" y="262.9951">&lt;&lt;union&gt;&gt;</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="125" x="871.5" y="279.292">DeleteCommands</text></g><!--MD5=[da512529ab2d75b561b1338c6bf97fca]
+class RunWorkload--><g id="elem_RunWorkload"><rect codeLine="58" fill="#F1F1F1" height="123.7813" id="RunWorkload" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="186" x="1132" y="335"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="64" x="1193" y="352.9951">Workload</text><line style="stroke:#181818;stroke-width:0.5;" x1="1133" x2="1317" y1="361.2969" y2="361.2969"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="152" x="1138" y="378.292">String workload_name</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="143" x="1138" y="394.5889">String runtime_name</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="146" x="1138" y="410.8857">String runtime_config</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="130" x="1138" y="427.1826">String agent_name</text><line style="stroke:#181818;stroke-width:0.5;" x1="1133" x2="1317" y1="434.4844" y2="434.4844"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="174" x="1138" y="451.4795">Vec&lt;(String, String)&gt; tag</text></g><!--MD5=[209ee6afed0750b7123781d2a10edf82]
+class RunCommands--><g id="elem_RunCommands"><rect codeLine="65" fill="#F1F1F1" height="42.5938" id="RunCommands" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="113" x="1168.5" y="245"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="87" x="1181.5" y="262.9951">&lt;&lt;union&gt;&gt;</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="107" x="1171.5" y="279.292">RunCommands</text></g><!--MD5=[50431dfef53f3a7a985d00c5f8a2d920]
+link Commands to Get--><g id="link_Commands_Get"><path codeLine="12" d="M727.5,45.69 C722.3,47.26 717.06,48.73 712,50 C610.93,75.31 582,64.41 481,90 C461.73,94.88 441.33,101.09 422.13,107.43 " fill="none" id="Commands-to-Get" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="none" points="424.23,114.11,403.04,113.89,419.74,100.85,424.23,114.11" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="40" x="633" y="78.0669">one of</text></g><!--MD5=[c5fd7bde8d96394486dca83af318bc5a]
+link Commands to Set--><g id="link_Commands_Set"><path codeLine="13" d="M745.97,50 C726.03,64.59 698.69,84.59 675.04,101.89 " fill="none" id="Commands-to-Set" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="none" points="678.91,107.73,658.64,113.89,670.65,96.43,678.91,107.73" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="40" x="722" y="78.0669">one of</text></g><!--MD5=[1882bf84e9530aaf6737dd6e0389d9b6]
+link Commands to Delete--><g id="link_Commands_Delete"><path codeLine="14" d="M802.21,50 C822.29,64.59 849.82,84.59 873.62,101.89 " fill="none" id="Commands-to-Delete" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="none" points="878.07,96.47,890.14,113.89,869.84,107.8,878.07,96.47" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="40" x="845" y="78.0669">one of</text></g><!--MD5=[c6991807ba33145e62466f7026c46ef8]
+link Commands to Run--><g id="link_Commands_Run"><path codeLine="15" d="M820.66,36.89 C880.85,46.85 988.58,66.11 1079,90 C1098.17,95.06 1118.5,101.27 1137.7,107.53 " fill="none" id="Commands-to-Run" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="none" points="1140.06,100.94,1156.83,113.89,1135.64,114.22,1140.06,100.94" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="40" x="1047" y="78.0669">one of</text></g><!--MD5=[804df1df070ae07e7c87e5bfbdd1a5e8]
+link GetCommands to GetState--><g id="link_GetCommands_GetState"><path codeLine="31" d="M325.55,288.15 C331.12,303.36 338.94,324.76 346.16,344.49 " fill="none" id="GetCommands-to-GetState" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="none" points="352.77,342.18,353.06,363.37,339.62,346.99,352.77,342.18" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="40" x="337" y="316.0669">one of</text></g><!--MD5=[7fc891d3ff11ff8fbbf072fb2d58a5eb]
+link GetCommands to GetWorkload--><g id="link_GetCommands_GetWorkload"><path codeLine="32" d="M285.22,288.15 C260.99,303.41 226.89,324.89 195.49,344.67 " fill="none" id="GetCommands-to-GetWorkload" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="none" points="199.06,350.69,178.4,355.43,191.6,338.85,199.06,350.69" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="40" x="259" y="316.0669">one of</text></g><!--MD5=[f10733bd0ca2716a2fc2b7a01a6c1532]
+link GetCommands to Get--><g id="link_GetCommands_Get"><path codeLine="41" d="M328.63,231.82 C328.76,231.21 328.88,230.6 329,230 C332.32,213.19 335.4753,176.9881 335.4753,176.9881 " fill="none" id="GetCommands-Get" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="none" points="336.2,165.01,331.8449,170.7575,335.4753,176.9881,339.8303,171.2406,336.2,165.01" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="#181818" points="325.26,244.66,331.4037,236.9623,326.523,239.8221,323.6631,234.9415,325.26,244.66" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;" x1="326.523" x2="328.555" y1="239.8221" y2="232.09"/></g><!--MD5=[2e9db7d88248c74bdabcfca4a3227049]
+link Get to GetCommands--><!--MD5=[762021464b2e7124021c41d3016f93b1]
+link SetCommands to SetState--><g id="link_SetCommands_SetState"><path codeLine="48" d="M634,288.15 C634,303.05 634,323.87 634,343.25 " fill="none" id="SetCommands-to-SetState" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="none" points="641,343.37,634,363.37,627,343.37,641,343.37" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="40" x="635" y="316.0669">one of</text></g><!--MD5=[da1ba92edb889ca022026a21855ac43b]
+link SetCommands to Set--><g id="link_SetCommands_Set"><path codeLine="49" d="M631.56,231.57 C630.37,215.14 627.6368,177.1694 627.6368,177.1694 " fill="none" id="SetCommands-Set" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="none" points="626.78,165.2,623.2186,171.4703,627.6368,177.1694,631.1982,170.8991,626.78,165.2" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="#181818" points="632.52,244.99,635.8672,235.7274,632.163,240.0028,627.8876,236.2986,632.52,244.99" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;" x1="632.163" x2="631.59" y1="240.0028" y2="232.025"/></g><!--MD5=[42e20dedd119f71aef26642cd469319d]
+link Set to SetCommands--><!--MD5=[d2ab82308e2da980d91c211204b75fe9]
+link DeleteCommands to DeleteWorkload--><g id="link_DeleteCommands_DeleteWorkload"><path codeLine="55" d="M934,288.15 C934,305.17 934,329.94 934,351.44 " fill="none" id="DeleteCommands-to-DeleteWorkload" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="none" points="941,351.45,934,371.45,927,351.45,941,351.45" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="40" x="935" y="316.0669">one of</text></g><!--MD5=[1f1fb868d6ca5e3df03796647fe3edeb]
+link DeleteCommands to Delete--><g id="link_DeleteCommands_Delete"><path codeLine="56" d="M931.29,231.57 C929.97,215.14 926.9427,177.1613 926.9427,177.1613 " fill="none" id="DeleteCommands-Delete" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="none" points="925.98,165.2,922.4742,171.5016,926.9427,177.1613,930.4485,170.8598,925.98,165.2" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="#181818" points="932.36,244.99,935.6353,235.7017,931.9643,240.0057,927.6603,236.3348,932.36,244.99" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;" x1="931.9643" x2="931.325" y1="240.0057" y2="232.03"/></g><!--MD5=[c72dfc87797133fa4cc0493eab0bc1b9]
+link Delete to DeleteCommands--><!--MD5=[501bf7722e04209c36428fab2d46d40e]
+link RunCommands to RunWorkload--><g id="link_RunCommands_RunWorkload"><path codeLine="66" d="M1225,288.15 C1225,295.73 1225,304.84 1225,314.52 " fill="none" id="RunCommands-to-RunWorkload" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="none" points="1232,314.87,1225,334.87,1218,314.87,1232,314.87" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="40" x="1226" y="316.0669">one of</text></g><!--MD5=[858f7b35b05fa648ba086f2dbb223ab0]
+link RunCommands to Run--><g id="link_RunCommands_Run"><path codeLine="67" d="M1225,231.57 C1225,215.14 1225,177.2 1225,177.2 " fill="none" id="RunCommands-Run" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="none" points="1225,165.2,1221,171.2,1225,177.2,1229,171.2,1225,165.2" style="stroke:#181818;stroke-width:1.0;"/><polygon fill="#181818" points="1225,244.99,1229,235.99,1225,239.99,1221,235.99,1225,244.99" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;" x1="1225" x2="1225" y1="239.99" y2="231.99"/></g><!--MD5=[c3521dd3d2bfb1f77bc6305ab6a73d9a]
+link Run to RunCommands--><!--MD5=[e712accc55d683b704b9306ae7ab5ea1]
+@startuml class_data-structures
+!include ../../../../doc/plantuml/clean.skin
+
+struct "<<union>>\nCommands" as Commands
+
+together {
+    struct Get
+    struct Set
+    struct Delete
+    struct Run
+}
+
+Commands - -|> Get : one of
+Commands - -|> Set : one of
+Commands - -|> Delete: one of
+Commands - -|> Run : one of
+
+Get : Option<GetCommands> command
+Set : Option<SetCommands> command
+Delete : Option<DeleteCommands> command
+Run : Option<RunCommands> command
+
+struct "State" as GetState
+struct "Workload" as GetWorkload
+
+together {
+    struct GetState
+    struct GetWorkload
+}
+
+struct "<<union>>\nGetCommands" as GetCommands
+GetCommands - -|> GetState : one of
+GetCommands - -|> GetWorkload : one of
+
+GetState : OutputFormat output_format
+GetState : Vec<String> object_field_mask
+
+GetWorkload : Option<String> agent_name
+GetWorkload : Option<String> state
+GetWorkload : Vec<String> workload_name
+
+GetCommands <- -o Get
+
+struct "State" as SetState
+SetState : Vec<String> object_field_mask
+SetState : Option<String> state_object_file
+
+struct "<<union>>\nSetCommands" as SetCommands
+SetCommands - -|> SetState : one of
+SetCommands <- -o Set
+
+struct "Workload" as DeleteWorkload
+DeleteWorkload : Vec<String> workload_name
+
+struct "<<union>>\nDeleteCommands" as DeleteCommands
+DeleteCommands - -|> DeleteWorkload : one of
+DeleteCommands <- -o Delete
+
+struct "Workload" as RunWorkload
+RunWorkload : String workload_name
+RunWorkload : String runtime_name
+RunWorkload : String runtime_config
+RunWorkload : String agent_name
+RunWorkload : Vec<(String, String)> tag
+
+struct "<<union>>\nRunCommands" as RunCommands
+RunCommands - -|> RunWorkload : one of
+RunCommands <- -o Run
+
+'This helps to organize the layout (forces to place objects vertically)
+Set -[hidden]down- -> SetCommands
+Get -[hidden]down- -> GetCommands
+Delete -[hidden]down- -> DeleteCommands
+Run -[hidden]down- -> RunCommands
+@enduml
+
+@startuml class_data-structures
+skinparam monochrome true
+skinparam guillemet true
+skinparam style strictuml
+hide empty members
+hide empty methods
+
+skinparam class {
+    BorderColor<<logical entity>> grey
+    FontColor<<logical entity>> grey
+    StereotypeFontColor<<logical entity>> grey
+}
+
+skinparam sequenceBox {
+    BorderColor #LightGrey
+    BackgroundColor #EEEEEE
+    FontColor #777777
+}
+
+skinparam BoxPadding 10
+
+skinparam note {
+    BackgroundColor #FFFFFF
+}
+
+skinparam nodesep 30
+skinparam ranksep 30
+
+!pragma teoz true
+
+struct "<<union>>\nCommands" as Commands
+
+together {
+    struct Get
+    struct Set
+    struct Delete
+    struct Run
+}
+
+Commands - -|> Get : one of
+Commands - -|> Set : one of
+Commands - -|> Delete: one of
+Commands - -|> Run : one of
+
+Get : Option<GetCommands> command
+Set : Option<SetCommands> command
+Delete : Option<DeleteCommands> command
+Run : Option<RunCommands> command
+
+struct "State" as GetState
+struct "Workload" as GetWorkload
+
+together {
+    struct GetState
+    struct GetWorkload
+}
+
+struct "<<union>>\nGetCommands" as GetCommands
+GetCommands - -|> GetState : one of
+GetCommands - -|> GetWorkload : one of
+
+GetState : OutputFormat output_format
+GetState : Vec<String> object_field_mask
+
+GetWorkload : Option<String> agent_name
+GetWorkload : Option<String> state
+GetWorkload : Vec<String> workload_name
+
+GetCommands <- -o Get
+
+struct "State" as SetState
+SetState : Vec<String> object_field_mask
+SetState : Option<String> state_object_file
+
+struct "<<union>>\nSetCommands" as SetCommands
+SetCommands - -|> SetState : one of
+SetCommands <- -o Set
+
+struct "Workload" as DeleteWorkload
+DeleteWorkload : Vec<String> workload_name
+
+struct "<<union>>\nDeleteCommands" as DeleteCommands
+DeleteCommands - -|> DeleteWorkload : one of
+DeleteCommands <- -o Delete
+
+struct "Workload" as RunWorkload
+RunWorkload : String workload_name
+RunWorkload : String runtime_name
+RunWorkload : String runtime_config
+RunWorkload : String agent_name
+RunWorkload : Vec<(String, String)> tag
+
+struct "<<union>>\nRunCommands" as RunCommands
+RunCommands - -|> RunWorkload : one of
+RunCommands <- -o Run
+
+Set -[hidden]down- -> SetCommands
+Get -[hidden]down- -> GetCommands
+Delete -[hidden]down- -> DeleteCommands
+Run -[hidden]down- -> RunCommands
+@enduml
+
+PlantUML version 1.2022.7(Mon Aug 22 17:01:30 UTC 2022)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Default Encoding: ANSI_X3.4-1968
+Language: en
+Country: US
+--></g></svg>

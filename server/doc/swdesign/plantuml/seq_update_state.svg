@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css" height="565px" preserveAspectRatio="none" style="width:1001px;height:565px;background:#FFFFFF;" version="1.1" viewBox="0 0 1001 565" width="1001px" zoomAndPan="magnify"><defs/><g><rect fill="#EEEEEE" height="553.4531" style="stroke:#D3D3D3;stroke-width:0.5;" width="498" x="21" y="6"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing" textLength="110" x="215" y="18.0669">Ankaios Server</text><rect fill="#EEEEEE" height="553.4531" style="stroke:#D3D3D3;stroke-width:0.5;" width="271" x="551" y="6"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing" textLength="115" x="629" y="18.0669">Ankaios Agents</text><rect fill="none" height="98.3984" style="stroke:#000000;stroke-width:1.5;" width="555" x="245" y="314.6563"/><rect fill="none" height="98.3984" style="stroke:#000000;stroke-width:1.5;" width="750" x="245" y="431.0547"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="81" x2="81" y1="72.7266" y2="80.7266"/><line style="stroke:#383838;stroke-width:1.0;stroke-dasharray:1.0,4.0;" x1="81" x2="81" y1="80.7266" y2="108.7266"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="81" x2="81" y1="108.7266" y2="553.4531"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="261" x2="261" y1="72.7266" y2="80.7266"/><line style="stroke:#383838;stroke-width:1.0;stroke-dasharray:1.0,4.0;" x1="261" x2="261" y1="80.7266" y2="108.7266"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="261" x2="261" y1="108.7266" y2="553.4531"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="446.5" x2="446.5" y1="72.7266" y2="80.7266"/><line style="stroke:#383838;stroke-width:1.0;stroke-dasharray:1.0,4.0;" x1="446.5" x2="446.5" y1="80.7266" y2="108.7266"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="446.5" x2="446.5" y1="108.7266" y2="553.4531"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="589" x2="589" y1="72.7266" y2="80.7266"/><line style="stroke:#383838;stroke-width:1.0;stroke-dasharray:1.0,4.0;" x1="589" x2="589" y1="80.7266" y2="108.7266"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="589" x2="589" y1="108.7266" y2="553.4531"/><rect fill="#FFFFFF" height="21.1328" style="stroke:#181818;stroke-width:1.0;" width="10" x="584" y="108.7266"/><rect fill="#FFFFFF" height="190.5313" style="stroke:#181818;stroke-width:1.0;" width="10" x="584" y="362.9219"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="784" x2="784" y1="72.7266" y2="80.7266"/><line style="stroke:#383838;stroke-width:1.0;stroke-dasharray:1.0,4.0;" x1="784" x2="784" y1="80.7266" y2="108.7266"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="784" x2="784" y1="108.7266" y2="553.4531"/><rect fill="#FFFFFF" height="74.1328" style="stroke:#181818;stroke-width:1.0;" width="10" x="779" y="479.3203"/><rect fill="#E3E3E3" height="46.5938" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="112" x="25" y="25.1328"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="93" x="34.5" y="45.1279">&lt;&lt;thread&gt;&gt;</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="98" x="32" y="61.4248">AnkaiosServer</text><rect fill="#E3E3E3" height="46.5938" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="214" x="154" y="25.1328"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="93" x="214.5" y="45.1279">&lt;&lt;thread&gt;&gt;</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="200" x="161" y="61.4248">GRPCCommunicationsServer</text><rect fill="#E3E3E3" height="46.5938" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="137" x="378" y="25.1328"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="93" x="400" y="45.1279">&lt;&lt;thread&gt;&gt;</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="123" x="385" y="61.4248">tonic gRPC server</text><rect fill="#E3E3E3" height="30.2969" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="68" x="555" y="41.4297"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="54" x="562" y="61.4248">Agent 1</text><rect fill="#E3E3E3" height="30.2969" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="68" x="750" y="41.4297"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="54" x="757" y="61.4248">Agent 2</text><line style="stroke:#181818;stroke-width:1.0;" x1="447.5" x2="457.5" y1="129.8594" y2="125.8594"/><line style="stroke:#181818;stroke-width:1.0;" x1="447.5" x2="457.5" y1="129.8594" y2="133.8594"/><line style="stroke:#181818;stroke-width:1.0;" x1="446.5" x2="583" y1="129.8594" y2="129.8594"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="82" x="463.5" y="124.7935">UpdateState</text><line style="stroke:#181818;stroke-width:1.0;" x1="82" x2="92" y1="158.9922" y2="154.9922"/><line style="stroke:#181818;stroke-width:1.0;" x1="82" x2="92" y1="158.9922" y2="162.9922"/><line style="stroke:#181818;stroke-width:1.0;" x1="81" x2="445.5" y1="158.9922" y2="158.9922"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="82" x="98" y="153.9263">UpdateState</text><line style="stroke:#181818;stroke-width:1.0;" x1="81" x2="123" y1="188.125" y2="188.125"/><line style="stroke:#181818;stroke-width:1.0;" x1="123" x2="123" y1="188.125" y2="201.125"/><line style="stroke:#181818;stroke-width:1.0;" x1="82" x2="123" y1="201.125" y2="201.125"/><polygon fill="#181818" points="92,197.125,82,201.125,92,205.125" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="132" x="88" y="183.0591">update CurrentState</text><line style="stroke:#181818;stroke-width:1.0;" x1="81" x2="123" y1="260.5234" y2="260.5234"/><line style="stroke:#181818;stroke-width:1.0;" x1="123" x2="123" y1="260.5234" y2="273.5234"/><line style="stroke:#181818;stroke-width:1.0;" x1="82" x2="123" y1="273.5234" y2="273.5234"/><polygon fill="#181818" points="92,269.5234,82,273.5234,92,277.5234" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="166" x="88" y="225.1919">create ExecutionRequests</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="154" x="88" y="240.3247">from comparison of new</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="134" x="88" y="255.4575">and old CurrentState</text><line style="stroke:#181818;stroke-width:1.0;" x1="259" x2="249" y1="302.6563" y2="298.6563"/><line style="stroke:#181818;stroke-width:1.0;" x1="259" x2="249" y1="302.6563" y2="306.6563"/><line style="stroke:#181818;stroke-width:1.0;" x1="81" x2="260" y1="302.6563" y2="302.6563"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="156" x="88" y="297.5903">send ExecutionRequests</text><path d="M245,314.6563 L309,314.6563 L309,321.7891 L299,331.7891 L245,331.7891 L245,314.6563 " fill="#EEEEEE" style="stroke:#000000;stroke-width:1.5;"/><rect fill="none" height="98.3984" style="stroke:#000000;stroke-width:1.5;" width="555" x="245" y="314.6563"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing" textLength="19" x="260" y="327.7231">alt</text><text fill="#000000" font-family="sans-serif" font-size="11" font-weight="bold" lengthAdjust="spacing" textLength="214" x="324" y="326.8667">[ExuectionsRequests for Agent 1]</text><line style="stroke:#181818;stroke-width:1.0;" x1="582" x2="572" y1="362.9219" y2="358.9219"/><line style="stroke:#181818;stroke-width:1.0;" x1="582" x2="572" y1="362.9219" y2="366.9219"/><line style="stroke:#181818;stroke-width:1.0;" x1="261" x2="583" y1="362.9219" y2="362.9219"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="156" x="268" y="357.856">send ExecutionRequests</text><line style="stroke:#181818;stroke-width:1.0;" x1="594" x2="636" y1="392.0547" y2="392.0547"/><line style="stroke:#181818;stroke-width:1.0;" x1="636" x2="636" y1="392.0547" y2="405.0547"/><line style="stroke:#181818;stroke-width:1.0;" x1="595" x2="636" y1="405.0547" y2="405.0547"/><polygon fill="#181818" points="605,401.0547,595,405.0547,605,409.0547" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="176" x="601" y="386.9888">execute ExecutionRequests</text><path d="M245,431.0547 L309,431.0547 L309,438.1875 L299,448.1875 L245,448.1875 L245,431.0547 " fill="#EEEEEE" style="stroke:#000000;stroke-width:1.5;"/><rect fill="none" height="98.3984" style="stroke:#000000;stroke-width:1.5;" width="750" x="245" y="431.0547"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing" textLength="19" x="260" y="444.1216">alt</text><text fill="#000000" font-family="sans-serif" font-size="11" font-weight="bold" lengthAdjust="spacing" textLength="214" x="324" y="443.2651">[ExuectionsRequests for Agent 2]</text><line style="stroke:#181818;stroke-width:1.0;" x1="777" x2="767" y1="479.3203" y2="475.3203"/><line style="stroke:#181818;stroke-width:1.0;" x1="777" x2="767" y1="479.3203" y2="483.3203"/><line style="stroke:#181818;stroke-width:1.0;" x1="261" x2="778" y1="479.3203" y2="479.3203"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="156" x="268" y="474.2544">send ExecutionRequests</text><line style="stroke:#181818;stroke-width:1.0;" x1="789" x2="831" y1="508.4531" y2="508.4531"/><line style="stroke:#181818;stroke-width:1.0;" x1="831" x2="831" y1="508.4531" y2="521.4531"/><line style="stroke:#181818;stroke-width:1.0;" x1="790" x2="831" y1="521.4531" y2="521.4531"/><polygon fill="#181818" points="800,517.4531,790,521.4531,800,525.4531" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="176" x="796" y="503.3872">execute ExecutionRequests</text><!--MD5=[6eb12bec2af862b68213714e9217a3a6]
+@startuml seq_update_state
+!include ../../../../doc/plantuml/clean.skin
+
+box "Ankaios Server"
+participant "<<thread>>\nAnkaiosServer" as server
+participant "<<thread>>\nGRPCCommunicationsServer" as grpc_server
+participant "<<thread>>\ntonic gRPC server" as tonic_server
+end box
+
+
+box "Ankaios Agents" 
+participant "Agent 1" as agent1
+participant "Agent 2" as agent2
+end box
+
+activate agent1
+
+...
+agent1 ->> tonic_server- -: UpdateState
+tonic_server ->> server: UpdateState
+server -> server: update CurrentState
+server -> server: create ExecutionRequests\nfrom comparison of new\nand old CurrentState
+server ->> grpc_server: send ExecutionRequests
+alt ExuectionsRequests for Agent 1
+grpc_server ->> agent1++:send ExecutionRequests
+agent1 -> agent1: execute ExecutionRequests
+end
+alt ExuectionsRequests for Agent 2
+grpc_server ->> agent2++:send ExecutionRequests
+agent2 -> agent2: execute ExecutionRequests
+end
+
+
+@enduml
+
+@startuml seq_update_state
+skinparam monochrome true
+skinparam guillemet true
+skinparam style strictuml
+hide empty members
+hide empty methods
+
+skinparam class {
+    BorderColor<<logical entity>> grey
+    FontColor<<logical entity>> grey
+    StereotypeFontColor<<logical entity>> grey
+}
+
+skinparam sequenceBox {
+    BorderColor #LightGrey
+    BackgroundColor #EEEEEE
+    FontColor #777777
+}
+
+skinparam BoxPadding 10
+
+skinparam note {
+    BackgroundColor #FFFFFF
+}
+
+skinparam nodesep 30
+skinparam ranksep 30
+
+!pragma teoz true
+
+box "Ankaios Server"
+participant "<<thread>>\nAnkaiosServer" as server
+participant "<<thread>>\nGRPCCommunicationsServer" as grpc_server
+participant "<<thread>>\ntonic gRPC server" as tonic_server
+end box
+
+
+box "Ankaios Agents" 
+participant "Agent 1" as agent1
+participant "Agent 2" as agent2
+end box
+
+activate agent1
+
+...
+agent1 ->> tonic_server- -: UpdateState
+tonic_server ->> server: UpdateState
+server -> server: update CurrentState
+server -> server: create ExecutionRequests\nfrom comparison of new\nand old CurrentState
+server ->> grpc_server: send ExecutionRequests
+alt ExuectionsRequests for Agent 1
+grpc_server ->> agent1++:send ExecutionRequests
+agent1 -> agent1: execute ExecutionRequests
+end
+alt ExuectionsRequests for Agent 2
+grpc_server ->> agent2++:send ExecutionRequests
+agent2 -> agent2: execute ExecutionRequests
+end
+
+
+@enduml
+
+PlantUML version 1.2022.7(Mon Aug 22 17:01:30 UTC 2022)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Default Encoding: ANSI_X3.4-1968
+Language: en
+Country: US
+--></g></svg>

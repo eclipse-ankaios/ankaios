@@ -1,0 +1,14 @@
+target
+build
+temp
+req_in
+dist
+
+#ignore plantuml out folder
+/out
+
+#ignore profiling data
+*.profraw
+*.profdata
+**/coverage
+.cache

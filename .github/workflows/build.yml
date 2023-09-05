@@ -1,0 +1,91 @@
+name: Build
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  workflow_call:
+  
+jobs:      
+  test_and_build_linux_amd64:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.4.0
+    steps:
+      - uses: actions/checkout@v3.5.3
+      - uses: Swatinem/rust-cache@v2.6.2
+
+      - name: Run tests
+        run: RUST_LOG=debug cargo test -- --show-output --nocapture
+
+      - name: Create code coverage report
+        run: |
+          rustup component add llvm-tools-preview
+          tools/generate_test_coverage_report.sh test --html
+      - uses: actions/upload-artifact@v3.1.2
+        with:
+          name: code-coverage
+          path: target/llvm-cov/html
+
+      - name: Build linux-amd64 release-mode
+        run: |
+          cargo build --release
+          mkdir -p dist/
+          cp target/release/ank target/release/ank-server target/release/ank-agent dist/
+      - uses: actions/upload-artifact@v3.1.2
+        with:
+          name: ankaios-linux-amd64-bin
+          path: dist/
+          
+      - name: Build linux-amd64 debian package
+        run: |
+          cargo deb -p ank
+      - uses: actions/upload-artifact@v3.1.2
+        with:
+          name: ankaios-linux-amd64-deb
+          path: target/debian/ankaios*.deb
+
+  build_linux_arm64:
+    # currently there is no arm64 github built-in runner available
+    # however, there is an issue in progress on the github runner repo
+    # requesting the support for arm64: https://github.com/actions/runner-images/issues/5631
+    # if arm64 variants will be released we can switch to an arm64 image and save the longer built time for cross platform build
+    # and in addition, tests for arm64 can be enabled in this job, too
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.4.0
+    steps:
+      - uses: actions/checkout@v3.5.3
+      
+      - name: Build linux-arm64 release-mode
+        run: |
+          cargo build --target aarch64-unknown-linux-gnu --release
+          mkdir -p dist/
+          cp target/aarch64-unknown-linux-gnu/release/ank target/aarch64-unknown-linux-gnu/release/ank-server target/aarch64-unknown-linux-gnu/release/ank-agent dist/
+      - uses: actions/upload-artifact@v3.1.2
+        with:
+          name: ankaios-linux-arm64-bin
+          path: dist/
+
+      - name: Build linux-arm64 debian package
+        run: |
+          cargo deb -p ank --target aarch64-unknown-linux-gnu
+      - uses: actions/upload-artifact@v3.1.2
+        with:
+          name: ankaios-linux-arm64-deb
+          path: target/aarch64-unknown-linux-gnu/debian/ankaios*.deb
+
+  requirements:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.4.0
+    steps:
+      - uses: actions/checkout@v3.5.3
+      - run: |
+          mkdir -p dist
+          oft trace $(find . -type d -name "src" -o -name "doc") -a swdd,utest,itest,stest,impl -o html -f dist/req_tracing_report.html || true
+      - uses: actions/upload-artifact@v3.1.2
+        with:
+          name: requirement-tracing-report
+          path: dist/

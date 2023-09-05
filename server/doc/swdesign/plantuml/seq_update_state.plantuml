@@ -1,0 +1,34 @@
+@startuml seq_update_state
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "Ankaios Server"
+participant "<<thread>>\nAnkaiosServer" as server
+participant "<<thread>>\nGRPCCommunicationsServer" as grpc_server
+participant "<<thread>>\ntonic gRPC server" as tonic_server
+end box
+
+
+box "Ankaios Agents" 
+participant "Agent 1" as agent1
+participant "Agent 2" as agent2
+end box
+
+activate agent1
+
+...
+agent1 ->> tonic_server--: UpdateState
+tonic_server ->> server: UpdateState
+server -> server: update CurrentState
+server -> server: create ExecutionRequests\nfrom comparison of new\nand old CurrentState
+server ->> grpc_server: send ExecutionRequests
+alt ExuectionsRequests for Agent 1
+grpc_server ->> agent1++:send ExecutionRequests
+agent1 -> agent1: execute ExecutionRequests
+end
+alt ExuectionsRequests for Agent 2
+grpc_server ->> agent2++:send ExecutionRequests
+agent2 -> agent2: execute ExecutionRequests
+end
+
+
+@enduml

@@ -1,0 +1,32 @@
+@startuml seq_cmd_overview
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "Ankaios Ank"
+    actor "user" as user
+    participant Main as main
+    participant "Cli" as cli
+    participant "CliCommands" as cli_commands
+end box
+
+box "Ankaios Server"
+    participant "Ankaios Server" as server
+end box
+
+user-> main ++ : a command
+
+== startup ==
+... parse the user input and initialize connection to the server ...
+
+== command ==
+
+main -> cli_commands : command implementation
+... call server and process the command ...
+
+alt a command returns text to display
+    main -> main : print text to the stdout
+end
+
+user <- main -- : exit
+note right: terminate the connection and exit the application
+
+@enduml

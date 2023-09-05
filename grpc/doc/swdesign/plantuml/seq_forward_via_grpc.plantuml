@@ -1,0 +1,52 @@
+@startuml seq_forward_via_grpc
+!include ../../../../resources/doc/plantuml/clean.skin
+
+participant "Ankaios Server" as ankaios_server
+
+box gRPC Communication Middleware #DarkGray
+    box gRPC Server
+        participant "gRPC Server" as grpc_server
+        participant "gRPC Agent Connection" as agent_connection
+    end box
+
+    box gRPC Client
+        participant "gRPC Client" as grpc_client
+    end box
+end box
+
+participant "Ankaios Agent" as ankaios_agent
+
+
+activate ankaios_server
+activate ankaios_agent
+
+... Startup ...
+
+== Forward Execution Commands ==
+
+ankaios_server ->> grpc_server ++: send Execution Command
+
+grpc_server -> grpc_server ++--: use Common lib to find \n commands per Agent
+
+loop for every Agent
+
+    grpc_server -> grpc_server ++--: Find Agent tx in AgentSendersMap
+
+    grpc_server ->> grpc_client ++--: forward Exection Command over gRPC
+
+    grpc_client ->> ankaios_agent ++--: forward Exection Command
+
+    deactivate ankaios_agent
+
+    ...
+
+end
+
+== Forward State Change Commands ==
+
+ankaios_agent ->> grpc_client ++--: send State Change Command
+
+grpc_client ->> agent_connection ++--: forward State Change \n Command over gRPC
+
+agent_connection -->> ankaios_server ++--: forward State Change Command
+@enduml

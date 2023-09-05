@@ -1,0 +1,42 @@
+@startuml seq_wl_state_update
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "Ankaios Server"
+participant "<<thread>>\nAnkaiosServer" as server
+participant "<<thread>>\nGRPCCommunicationsServer" as grpc_server
+participant "<<thread>>\ntonic gRPC server" as tonic_server
+end box
+
+
+box "Ankaios Agents" 
+participant "Agent1" as agent1
+participant "Agent2" as agent2
+end box
+
+...Two agents are connected to Ankiaos Server...
+note right agent1
+        ""workloadStates:""
+        ""- workload: Workload 1""
+        ""  node: Node 1""
+        ""  executionState: ExecSucceeded""
+end note
+agent1 ->> tonic_server ++--: UpdateWorkloadState
+tonic_server ->> server ++--: UpdateWorkloadState
+note left server
+        ""workloadStates:""
+        ""- workload: Workload 1""
+        ""  node: Node 1""
+        ""  executionState: ExecSucceeded""
+end note
+server -> server : store workload states in WorkloadStateDB
+
+server ->> grpc_server ++--: UpdateWorkloadState
+grpc_server ->> agent2 ++--: UpdateWorkloadState
+note right agent2
+        ""workloadStates:""
+        ""- workload: Workload 1""
+        ""  node: Node 1""
+        ""  executionState: ExecSucceeded""
+end note
+
+@enduml

@@ -1,0 +1,33 @@
+name: Documentation
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'doc/**'
+      - '.github/workflows/documentation.yml'
+  pull_request:
+    paths:
+      - 'doc/**'
+      - '.github/workflows/documentation.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.4.0
+    steps:
+      - uses: actions/checkout@v3.5.3
+
+      - name: Generate documentation and deploy (push on main)
+        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
+        run: |
+            git config --global --add safe.directory $PWD
+            tools/generate_docs.sh deploy
+
+      - name: Generate documentation (for pull requests)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+            tools/generate_docs.sh build

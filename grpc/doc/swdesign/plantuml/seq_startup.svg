@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css" height="717px" preserveAspectRatio="none" style="width:946px;height:717px;background:#FFFFFF;" version="1.1" viewBox="0 0 946 717" width="946px" zoomAndPan="magnify"><defs/><g><rect fill="#A9A9A9" height="705.6172" style="stroke:#D3D3D3;stroke-width:0.5;" width="626" x="156" y="6"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing" textLength="250" x="341.5" y="18.0669">gRPC Communication Middleware</text><rect fill="#EEEEEE" height="685.4844" style="stroke:#D3D3D3;stroke-width:0.5;" width="422" x="156" y="26.1328"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing" textLength="92" x="321" y="38.1997">gRPC Server</text><rect fill="#EEEEEE" height="685.4844" style="stroke:#D3D3D3;stroke-width:0.5;" width="111" x="671" y="26.1328"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing" textLength="87" x="683" y="38.1997">gRPC Client</text><rect fill="none" height="431.125" style="stroke:#000000;stroke-width:1.5;" width="891.5" x="8" y="250.4922"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="82" x2="82" y1="76.5625" y2="705.6172"/><rect fill="#FFFFFF" height="621.0547" style="stroke:#181818;stroke-width:1.0;" width="10" x="77" y="84.5625"/><rect fill="#FFFFFF" height="133.5313" style="stroke:#181818;stroke-width:1.0;" width="10" x="82" y="572.0859"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="210" x2="210" y1="76.5625" y2="705.6172"/><rect fill="#FFFFFF" height="599.9219" style="stroke:#181818;stroke-width:1.0;" width="10" x="205" y="105.6953"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="483.5" x2="483.5" y1="113.6953" y2="705.6172"/><rect fill="#FFFFFF" height="496.2578" style="stroke:#181818;stroke-width:1.0;" width="10" x="478.5" y="209.3594"/><rect fill="#FFFFFF" height="230.0625" style="stroke:#181818;stroke-width:1.0;" width="10" x="483.5" y="443.5547"/><rect fill="#FFFFFF" height="13" style="stroke:#181818;stroke-width:1.0;" width="10" x="488.5" y="500.8203"/><rect fill="#FFFFFF" height="13" style="stroke:#181818;stroke-width:1.0;" width="10" x="488.5" y="542.9531"/><rect fill="#FFFFFF" height="13" style="stroke:#181818;stroke-width:1.0;" width="10" x="488.5" y="629.3516"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="726.5" x2="726.5" y1="76.5625" y2="705.6172"/><rect fill="#FFFFFF" height="467.125" style="stroke:#181818;stroke-width:1.0;" width="10" x="721.5" y="238.4922"/><rect fill="#FFFFFF" height="393.8594" style="stroke:#181818;stroke-width:1.0;" width="10" x="726.5" y="311.7578"/><rect fill="#FFFFFF" height="13" style="stroke:#181818;stroke-width:1.0;" width="10" x="731.5" y="384.1563"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="883.5" x2="883.5" y1="76.5625" y2="705.6172"/><rect fill="#FFFFFF" height="488.2578" style="stroke:#181818;stroke-width:1.0;" width="10" x="878.5" y="217.3594"/><rect fill="#E3E3E3" height="30.2969" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="116" x="24" y="45.2656"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="102" x="31" y="65.2607">Ankaios Server</text><rect fill="#E3E3E3" height="30.2969" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="100" x="160" y="45.2656"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="86" x="167" y="65.2607">gRPC Server</text><rect fill="#E3E3E3" height="30.2969" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="95" x="679" y="45.2656"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="81" x="686" y="65.2607">gRPC Client</text><rect fill="#E3E3E3" height="30.2969" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="113" x="827" y="45.2656"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="99" x="834" y="65.2607">Ankaios Agent</text><polygon fill="#181818" points="193,101.6953,203,105.6953,193,109.6953" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;" x1="87" x2="199" y1="105.6953" y2="105.6953"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="30" x="94" y="100.6294">start</text><rect fill="#E3E3E3" height="30.2969" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="181" x="393" y="113.6953"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="167" x="400" y="133.6904">gRPC Agent Connection</text><polygon fill="#181818" points="381,161.0938,391,165.0938,381,169.0938" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;" x1="215" x2="387" y1="165.0938" y2="165.0938"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="135" x="222" y="129.7622">create with reference</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="135" x="226" y="144.895">to AgentSendersMap</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="155" x="226" y="160.0278">and rx channel to server</text><line style="stroke:#181818;stroke-width:1.0;" x1="476.5" x2="466.5" y1="209.3594" y2="205.3594"/><line style="stroke:#181818;stroke-width:1.0;" x1="476.5" x2="466.5" y1="209.3594" y2="213.3594"/><line style="stroke:#181818;stroke-width:1.0;" x1="215" x2="477.5" y1="209.3594" y2="209.3594"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="161" x="222" y="189.1606">spawn tonic gRPC service</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="98" x="222" y="204.2935">in green thread</text><polygon fill="#181818" points="742.5,234.4922,732.5,238.4922,742.5,242.4922" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;" x1="736.5" x2="877.5" y1="238.4922" y2="238.4922"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="30" x="748.5" y="233.4263">start</text><path d="M8,250.4922 L85,250.4922 L85,257.625 L75,267.625 L8,267.625 L8,250.4922 " fill="#EEEEEE" style="stroke:#000000;stroke-width:1.5;"/><rect fill="none" height="431.125" style="stroke:#000000;stroke-width:1.5;" width="891.5" x="8" y="250.4922"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing" textLength="32" x="23" y="263.5591">loop</text><text fill="#000000" font-family="sans-serif" font-size="11" font-weight="bold" lengthAdjust="spacing" textLength="294" x="100" y="262.7026">[reconnect with timeout if connection breaks]</text><line style="stroke:#181818;stroke-width:1.0;" x1="731.5" x2="778.5" y1="298.7578" y2="298.7578"/><line style="stroke:#181818;stroke-width:1.0;" x1="778.5" x2="778.5" y1="298.7578" y2="311.7578"/><line style="stroke:#181818;stroke-width:1.0;" x1="737.5" x2="778.5" y1="311.7578" y2="311.7578"/><polygon fill="#181818" points="747.5,307.7578,737.5,311.7578,747.5,315.7578" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="82" x="743.5" y="293.6919">start internal</text><line style="stroke:#181818;stroke-width:1.0;" x1="736.5" x2="783.5" y1="371.1563" y2="371.1563"/><line style="stroke:#181818;stroke-width:1.0;" x1="783.5" x2="783.5" y1="371.1563" y2="384.1563"/><line style="stroke:#181818;stroke-width:1.0;" x1="742.5" x2="783.5" y1="384.1563" y2="384.1563"/><polygon fill="#181818" points="752.5,380.1563,742.5,384.1563,752.5,388.1563" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="123" x="748.5" y="335.8247">create channel pair</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="120" x="752.5" y="350.9575">for communication</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="67" x="752.5" y="366.0903">with Agent</text><polygon fill="#181818" points="504.5,439.5547,494.5,443.5547,504.5,447.5547" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;" x1="498.5" x2="720.5" y1="443.5547" y2="443.5547"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="143" x="510.5" y="408.2231">connect to Server with</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="196" x="514.5" y="423.356">AgentHello and rx channel end</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="191" x="510.5" y="438.4888">for communication with Agent</text><line style="stroke:#181818;stroke-width:1.0;" x1="493.5" x2="540.5" y1="487.8203" y2="487.8203"/><line style="stroke:#181818;stroke-width:1.0;" x1="540.5" x2="540.5" y1="487.8203" y2="500.8203"/><line style="stroke:#181818;stroke-width:1.0;" x1="499.5" x2="540.5" y1="500.8203" y2="500.8203"/><polygon fill="#181818" points="509.5,496.8203,499.5,500.8203,509.5,504.8203" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="131" x="505.5" y="467.6216">add Agent to shared</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="118" x="509.5" y="482.7544">AgentSendersMap</text><line style="stroke:#181818;stroke-width:1.0;" x1="493.5" x2="540.5" y1="529.9531" y2="529.9531"/><line style="stroke:#181818;stroke-width:1.0;" x1="540.5" x2="540.5" y1="529.9531" y2="542.9531"/><line style="stroke:#181818;stroke-width:1.0;" x1="499.5" x2="540.5" y1="542.9531" y2="542.9531"/><polygon fill="#181818" points="509.5,538.9531,499.5,542.9531,509.5,546.9531" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="184" x="505.5" y="524.8872">create channel for this agent</text><line style="stroke:#181818;stroke-width:1.0;" x1="93" x2="103" y1="572.0859" y2="568.0859"/><line style="stroke:#181818;stroke-width:1.0;" x1="93" x2="103" y1="572.0859" y2="576.0859"/><line style="stroke:#181818;stroke-width:1.0;" x1="92" x2="477.5" y1="572.0859" y2="572.0859"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="70" x="109" y="567.02">AgentHello</text><line style="stroke:#181818;stroke-width:1.0;" x1="493.5" x2="540.5" y1="616.3516" y2="616.3516"/><line style="stroke:#181818;stroke-width:1.0;" x1="540.5" x2="540.5" y1="616.3516" y2="629.3516"/><line style="stroke:#181818;stroke-width:1.0;" x1="499.5" x2="540.5" y1="629.3516" y2="629.3516"/><line style="stroke:#181818;stroke-width:1.0;" x1="499.5" x2="509.5" y1="629.3516" y2="625.3516"/><line style="stroke:#181818;stroke-width:1.0;" x1="499.5" x2="509.5" y1="629.3516" y2="633.3516"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="108" x="505.5" y="596.1528">start listening for</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="142" x="509.5" y="611.2856">messages from Agent</text><line style="stroke:#181818;stroke-width:1.0;" x1="724.5" x2="714.5" y1="673.6172" y2="669.6172"/><line style="stroke:#181818;stroke-width:1.0;" x1="724.5" x2="714.5" y1="673.6172" y2="677.6172"/><line style="stroke:#181818;stroke-width:1.0;stroke-dasharray:2.0,2.0;" x1="493.5" x2="725.5" y1="673.6172" y2="673.6172"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="129" x="500.5" y="653.4185">send rx channel end</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="195" x="504.5" y="668.5513">for communication with Server</text><!--MD5=[585945a48d5d7c42719ef07860522c1e]
+@startuml seq_startup
+!include ../../../../doc/plantuml/clean.skin
+
+
+participant "Ankaios Server" as ankaios_server
+
+box gRPC Communication Middleware #DarkGray
+    box gRPC Server
+        participant "gRPC Server" as grpc_server
+        participant "gRPC Agent Connection" as agent_connection
+    end box
+
+    box gRPC Client
+        participant "gRPC Client" as grpc_client
+    end box
+end box
+
+participant "Ankaios Agent" as ankaios_agent
+
+activate ankaios_server
+
+ankaios_server -> grpc_server ++: start
+
+grpc_server -> agent_connection **: create with reference \n to AgentSendersMap \n and rx channel to server
+grpc_server ->> agent_connection ++: spawn tonic gRPC service \nin green thread
+
+activate ankaios_agent
+ankaios_agent -> grpc_client ++: start
+
+loop reconnect with timeout if connection breaks
+grpc_client -> grpc_client ++: start internal
+
+grpc_client -> grpc_client ++- -: create channel pair \n for communication \n with Agent
+
+grpc_client -> agent_connection ++: connect to Server with \n AgentHello and rx channel end \nfor communication with Agent
+agent_connection -> agent_connection ++- -: add Agent to shared \n AgentSendersMap
+
+agent_connection -> agent_connection ++- -: create channel for this agent
+
+agent_connection ->> ankaios_server ++: AgentHello
+
+agent_connection ->> agent_connection ++- -: start listening for \n messages from Agent
+
+agent_connection - ->> grpc_client - -: send rx channel end \n for communication with Server
+
+end
+@end
+
+@startuml seq_startup
+skinparam monochrome true
+skinparam guillemet true
+skinparam style strictuml
+hide empty members
+hide empty methods
+
+skinparam class {
+    BorderColor<<logical entity>> grey
+    FontColor<<logical entity>> grey
+    StereotypeFontColor<<logical entity>> grey
+}
+
+skinparam sequenceBox {
+    BorderColor #LightGrey
+    BackgroundColor #EEEEEE
+    FontColor #777777
+}
+
+skinparam BoxPadding 10
+
+skinparam note {
+    BackgroundColor #FFFFFF
+}
+
+skinparam nodesep 30
+skinparam ranksep 30
+
+!pragma teoz true
+
+
+participant "Ankaios Server" as ankaios_server
+
+box gRPC Communication Middleware #DarkGray
+    box gRPC Server
+        participant "gRPC Server" as grpc_server
+        participant "gRPC Agent Connection" as agent_connection
+    end box
+
+    box gRPC Client
+        participant "gRPC Client" as grpc_client
+    end box
+end box
+
+participant "Ankaios Agent" as ankaios_agent
+
+activate ankaios_server
+
+ankaios_server -> grpc_server ++: start
+
+grpc_server -> agent_connection **: create with reference \n to AgentSendersMap \n and rx channel to server
+grpc_server ->> agent_connection ++: spawn tonic gRPC service \nin green thread
+
+activate ankaios_agent
+ankaios_agent -> grpc_client ++: start
+
+loop reconnect with timeout if connection breaks
+grpc_client -> grpc_client ++: start internal
+
+grpc_client -> grpc_client ++- -: create channel pair \n for communication \n with Agent
+
+grpc_client -> agent_connection ++: connect to Server with \n AgentHello and rx channel end \nfor communication with Agent
+agent_connection -> agent_connection ++- -: add Agent to shared \n AgentSendersMap
+
+agent_connection -> agent_connection ++- -: create channel for this agent
+
+agent_connection ->> ankaios_server ++: AgentHello
+
+agent_connection ->> agent_connection ++- -: start listening for \n messages from Agent
+
+agent_connection - ->> grpc_client - -: send rx channel end \n for communication with Server
+
+end
+@end
+
+PlantUML version 1.2022.7(Mon Aug 22 17:01:30 UTC 2022)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Default Encoding: ANSI_X3.4-1968
+Language: en
+Country: US
+--></g></svg>

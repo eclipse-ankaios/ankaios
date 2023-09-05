@@ -1,0 +1,40 @@
+@startuml seq_update_workload
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "Ankaios Agent"
+    participant "AgentManager" as manager
+    participant "Control Interface Instance" as control
+    participant "<<task>>\nHandle\nControl Interface" as control_task
+
+end box
+
+box "Ankaios Server"
+    participant "Ankaios Server" as server
+end box
+
+activate manager
+activate server
+
+... Ankaios Agent startup ... 
+
+note over manager, server
+The call to the Agent Manager is simpliefied here. The actuall call goes over the Communication Middleware.
+end note
+
+manager <<- server ++: UpdateWorkload
+
+loop for each worload
+    manager -> manager: skip workloads with unknown runtime
+    manager -> control **: create Control Interface Instance
+    activate control
+    control -> control: create input-output pipe pair per Workload
+    control -> control_task **: start Control Interface task
+    manager -> manager: store Control Interface Instance
+    manager -> manager: store Workload to runtime mapping
+
+    ... handle initial or subsequent added and deleted workload lists ...
+end
+
+
+
+@enduml

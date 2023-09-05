@@ -1,0 +1,27 @@
+{
+    "files.insertFinalNewline": true,
+    "cSpell.words": [
+        "ankaios",
+        "Comms",
+        "Northstar",
+        "protobuf",
+        "swdd"
+    ],
+    "markdown-preview-github-styles.colorTheme": "light",
+    "hediet.vscode-drawio.theme": "min",
+    "[rust]": {
+        "editor.defaultFormatter": "rust-lang.rust-analyzer",
+        "editor.formatOnSave": true
+    },
+    "rust-analyzer.cargo.loadOutDirsFromCheck": true,
+    "yaml.schemas": {
+        "https://squidfunk.github.io/mkdocs-material/schema.json": "mkdocs.yml"
+    },
+    "yaml.customTags": [
+        "!ENV scalar",
+        "!ENV sequence",
+        "tag:yaml.org,2002:python/name:materialx.emoji.to_svg",
+        "tag:yaml.org,2002:python/name:materialx.emoji.twemoji",
+        "tag:yaml.org,2002:python/name:pymdownx.superfences.fence_code_format"
+    ]    
+}

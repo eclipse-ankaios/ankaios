@@ -1,0 +1,86 @@
+site_name: Eclipse Ankaios
+site_url: https://eclipse-ankaios.github.io/ankaios
+repo_url: https://github.com/eclipse-ankaios/ankaios
+repo_name: eclipse-ankaios/ankaios
+edit_uri: edit/main/doc/docs/
+copyright: Copyright &copy; 2023 Elektrobit Automotive GmbH
+
+theme:
+  name: material
+  logo: assets/Ankaios__logo_for_dark_bgrd_clipped.png
+  favicon: assets/favicon128x128.png
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-7 
+        name: Switch to dark mode
+      primary: teal
+
+    # Palette toggle for dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+      primary: teal
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.tabs
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+    - navigation.footer
+
+markdown_extensions:
+  - attr_list
+  - md_in_html
+  - admonition
+  - footnotes
+  - pymdownx.highlight:
+      anchor_linenums: true
+      # line_spans: __span
+      # pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.smartsymbols
+  - pymdownx.superfences
+  - pymdownx.tasklist
+  - pymdownx.tabbed:
+      alternate_style: true 
+  - toc:
+      permalink: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+plugins:
+  - social
+  - search
+  
+nav:
+  - index.md
+  - architecture.md
+  - Getting started:
+    - usage/installation.md
+    - usage/quickstart.md
+  - Reference:
+    - reference/api.md
+    - Protocol documentation: reference/_ankaios.proto.md
+    - reference/control-interface.md
+    - reference/startup-configuration.md
+    - reference/complete-state.md
+    - reference/glossary.md
+  - Development:
+    - development/build.md
+    - development/rust-coding-guidelines.md
+    - development/unit-verification.md
+    - development/run-unit-tests.md
+    - development/test-coverage.md
+    - development/requirement-tracing.md
+    - development/extending-dev-container.md
+    - development/ci-cd.md
+    - development/ci-cd-release.md
+    - development/documentation-guidelines.md
+    

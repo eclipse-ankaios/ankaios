@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css" height="518px" preserveAspectRatio="none" style="width:711px;height:518px;background:#FFFFFF;" version="1.1" viewBox="0 0 711 518" width="711px" zoomAndPan="magnify"><defs/><g><rect fill="#EEEEEE" height="506.5625" style="stroke:#D3D3D3;stroke-width:0.5;" width="516.5" x="21" y="6"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing" textLength="91" x="233.75" y="18.0669">Ankaios Ank</text><rect fill="#EEEEEE" height="506.5625" style="stroke:#D3D3D3;stroke-width:0.5;" width="134" x="569.5" y="6"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing" textLength="110" x="581.5" y="18.0669">Ankaios Server</text><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="43.5" x2="43.5" y1="101.4297" y2="181.6953"/><line style="stroke:#383838;stroke-width:1.0;stroke-dasharray:1.0,4.0;" x1="43.5" x2="43.5" y1="181.6953" y2="222.5"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="43.5" x2="43.5" y1="222.5" y2="506.5625"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="95.5" x2="95.5" y1="101.4297" y2="181.6953"/><line style="stroke:#383838;stroke-width:1.0;stroke-dasharray:1.0,4.0;" x1="95.5" x2="95.5" y1="181.6953" y2="222.5"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="95.5" x2="95.5" y1="222.5" y2="506.5625"/><rect fill="#FFFFFF" height="51.1328" style="stroke:#FFFFFF;stroke-width:1.0;" width="10" x="90.5" y="130.5625"/><line style="stroke:#181818;stroke-width:1.0;" x1="90.5" x2="90.5" y1="130.5625" y2="181.6953"/><line style="stroke:#181818;stroke-width:1.0;" x1="100.5" x2="100.5" y1="130.5625" y2="181.6953"/><line style="stroke:#181818;stroke-width:1.0;" x1="90.5" x2="100.5" y1="130.5625" y2="130.5625"/><rect fill="#FFFFFF" height="266.0625" style="stroke:#FFFFFF;stroke-width:1.0;" width="10" x="90.5" y="222.5"/><line style="stroke:#181818;stroke-width:1.0;" x1="90.5" x2="90.5" y1="222.5" y2="488.5625"/><line style="stroke:#181818;stroke-width:1.0;" x1="100.5" x2="100.5" y1="222.5" y2="488.5625"/><line style="stroke:#181818;stroke-width:1.0;" x1="90.5" x2="100.5" y1="488.5625" y2="488.5625"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="183" x2="183" y1="101.4297" y2="181.6953"/><line style="stroke:#383838;stroke-width:1.0;stroke-dasharray:1.0,4.0;" x1="183" x2="183" y1="181.6953" y2="222.5"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="183" x2="183" y1="222.5" y2="506.5625"/><rect fill="#FFFFFF" height="172.6641" style="stroke:#181818;stroke-width:1.0;" width="10" x="178" y="286.7656"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="336" x2="336" y1="101.4297" y2="181.6953"/><line style="stroke:#383838;stroke-width:1.0;stroke-dasharray:1.0,4.0;" x1="336" x2="336" y1="181.6953" y2="222.5"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="336" x2="336" y1="222.5" y2="506.5625"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="472.5" x2="472.5" y1="101.4297" y2="181.6953"/><line style="stroke:#383838;stroke-width:1.0;stroke-dasharray:1.0,4.0;" x1="472.5" x2="472.5" y1="181.6953" y2="222.5"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="472.5" x2="472.5" y1="222.5" y2="506.5625"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="636.5" x2="636.5" y1="101.4297" y2="181.6953"/><line style="stroke:#383838;stroke-width:1.0;stroke-dasharray:1.0,4.0;" x1="636.5" x2="636.5" y1="181.6953" y2="222.5"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="636.5" x2="636.5" y1="222.5" y2="506.5625"/><rect fill="#FFFFFF" height="71.2656" style="stroke:#181818;stroke-width:1.0;" width="10" x="631.5" y="345.0313"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="31" x="25" y="98.1279">user</text><ellipse cx="43.5" cy="33.6328" fill="#E3E3E3" rx="8" ry="8" style="stroke:#181818;stroke-width:0.5;"/><path d="M43.5,41.6328 L43.5,68.6328 M30.5,49.6328 L56.5,49.6328 M43.5,68.6328 L30.5,83.6328 M43.5,68.6328 L56.5,83.6328 " fill="none" style="stroke:#181818;stroke-width:0.5;"/><rect fill="#E3E3E3" height="30.2969" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="46" x="72.5" y="70.1328"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="32" x="79.5" y="90.1279">Main</text><rect fill="#E3E3E3" height="30.2969" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="109" x="128.5" y="70.1328"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="95" x="135.5" y="90.1279">CliCommands</text><rect fill="#E3E3E3" height="62.8906" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="131" x="270.5" y="37.5391"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="77" x="297.5" y="57.5342">&lt;&lt;task&gt;&gt;</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="117" x="277.5" y="73.8311">Listen to Ankaios</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="44" x="314" y="90.1279">Server</text><rect fill="#E3E3E3" height="62.8906" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="122" x="411.5" y="37.5391"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="77" x="434" y="57.5342">&lt;&lt;task&gt;&gt;</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="104" x="418.5" y="73.8311">Listen to Agent</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="60" x="442.5" y="90.1279">Manager</text><rect fill="#E3E3E3" height="30.2969" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="116" x="578.5" y="70.1328"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="102" x="585.5" y="90.1279">Ankaios Server</text><polygon fill="#181818" points="78.5,126.5625,88.5,130.5625,78.5,134.5625" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;" x1="5" x2="84.5" y1="130.5625" y2="130.5625"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="57" x="12" y="125.4966">set state</text><rect fill="#EEEEEE" height="3" style="stroke:#EEEEEE;stroke-width:1.0;" width="699.5" x="5" y="159.1289"/><line style="stroke:#000000;stroke-width:1.0;" x1="5" x2="704.5" y1="159.1289" y2="159.1289"/><line style="stroke:#000000;stroke-width:1.0;" x1="5" x2="704.5" y1="162.1289" y2="162.1289"/><rect fill="#EEEEEE" height="23.1328" style="stroke:#000000;stroke-width:2.0;" width="73" x="318.25" y="148.5625"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing" textLength="54" x="324.25" y="164.6294">startup</text><text fill="#000000" font-family="sans-serif" font-size="11" lengthAdjust="spacing" textLength="66" x="307" y="205.9058">initialization</text><rect fill="#EEEEEE" height="3" style="stroke:#EEEEEE;stroke-width:1.0;" width="699.5" x="5" y="243.0664"/><line style="stroke:#000000;stroke-width:1.0;" x1="5" x2="704.5" y1="243.0664" y2="243.0664"/><line style="stroke:#000000;stroke-width:1.0;" x1="5" x2="704.5" y1="246.0664" y2="246.0664"/><rect fill="#EEEEEE" height="23.1328" style="stroke:#000000;stroke-width:2.0;" width="92" x="308.75" y="232.5"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing" textLength="73" x="314.75" y="248.5669">command</text><polygon fill="#181818" points="166,282.7656,176,286.7656,166,290.7656" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;" x1="100.5" x2="172" y1="286.7656" y2="286.7656"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="57" x="107.5" y="281.6997">set state</text><line style="stroke:#181818;stroke-width:1.0;" x1="470.5" x2="460.5" y1="315.8984" y2="311.8984"/><line style="stroke:#181818;stroke-width:1.0;" x1="470.5" x2="460.5" y1="315.8984" y2="319.8984"/><line style="stroke:#181818;stroke-width:1.0;" x1="188" x2="471.5" y1="315.8984" y2="315.8984"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="135" x="195" y="310.8325">request update state</text><line style="stroke:#181818;stroke-width:1.0;" x1="629.5" x2="619.5" y1="345.0313" y2="341.0313"/><line style="stroke:#181818;stroke-width:1.0;" x1="629.5" x2="619.5" y1="345.0313" y2="349.0313"/><line style="stroke:#181818;stroke-width:1.0;" x1="472.5" x2="630.5" y1="345.0313" y2="345.0313"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="135" x="479.5" y="339.9653">request update state</text><line style="stroke:#181818;stroke-width:1.0;" x1="188" x2="230" y1="374.1641" y2="374.1641"/><line style="stroke:#181818;stroke-width:1.0;" x1="230" x2="230" y1="374.1641" y2="387.1641"/><line style="stroke:#181818;stroke-width:1.0;" x1="189" x2="230" y1="387.1641" y2="387.1641"/><polygon fill="#181818" points="199,383.1641,189,387.1641,199,391.1641" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="134" x="195" y="369.0981">wait for the response</text><line style="stroke:#181818;stroke-width:1.0;" x1="337" x2="347" y1="416.2969" y2="412.2969"/><line style="stroke:#181818;stroke-width:1.0;" x1="337" x2="347" y1="416.2969" y2="420.2969"/><line style="stroke:#181818;stroke-width:1.0;" x1="336" x2="630.5" y1="416.2969" y2="416.2969"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="59" x="353" y="411.231">response</text><line style="stroke:#181818;stroke-width:1.0;" x1="189" x2="199" y1="445.4297" y2="441.4297"/><line style="stroke:#181818;stroke-width:1.0;" x1="189" x2="199" y1="445.4297" y2="449.4297"/><line style="stroke:#181818;stroke-width:1.0;" x1="188" x2="335" y1="445.4297" y2="445.4297"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="59" x="205" y="440.3638">response</text><polygon fill="#181818" points="111.5,455.4297,101.5,459.4297,111.5,463.4297" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;" x1="105.5" x2="177" y1="459.4297" y2="459.4297"/><polygon fill="#181818" points="54.5,484.5625,44.5,488.5625,54.5,492.5625" style="stroke:#181818;stroke-width:1.0;"/><line style="stroke:#181818;stroke-width:1.0;" x1="48.5" x2="89.5" y1="488.5625" y2="488.5625"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="23" x="60.5" y="483.4966">exit</text><!--MD5=[d05269fccb1613b58f458c2bd008497f]
+@startuml seq_set_state
+!include ../../../../doc/plantuml/clean.skin
+
+box "Ankaios Ank"
+    actor "user" as user
+    participant Main as main
+    participant "CliCommands" as cli_commands
+    participant "<<task>>\nListen to Ankaios\nServer" as listen_to_server
+    participant "<<task>>\nListen to Agent \nManager" as listen_to_manager
+end box
+
+box "Ankaios Server"
+    participant "Ankaios Server" as server
+end box
+
+-> main ++ : set state
+
+== startup ==
+
+... initialization ...
+
+== command ==
+
+main -> cli_commands ++ : set state
+cli_commands ->> listen_to_manager : request update state
+listen_to_manager ->> server ++ : request update state
+
+cli_commands -> cli_commands : wait for the response
+
+listen_to_server <<- server - -: response
+listen_to_server ->> cli_commands : response
+main <- cli_commands - -
+
+destroy cli_commands
+destroy listen_to_manager
+destroy listen_to_server
+
+user <- main - - : exit
+
+@enduml
+
+@startuml seq_set_state
+skinparam monochrome true
+skinparam guillemet true
+skinparam style strictuml
+hide empty members
+hide empty methods
+
+skinparam class {
+    BorderColor<<logical entity>> grey
+    FontColor<<logical entity>> grey
+    StereotypeFontColor<<logical entity>> grey
+}
+
+skinparam sequenceBox {
+    BorderColor #LightGrey
+    BackgroundColor #EEEEEE
+    FontColor #777777
+}
+
+skinparam BoxPadding 10
+
+skinparam note {
+    BackgroundColor #FFFFFF
+}
+
+skinparam nodesep 30
+skinparam ranksep 30
+
+!pragma teoz true
+
+box "Ankaios Ank"
+    actor "user" as user
+    participant Main as main
+    participant "CliCommands" as cli_commands
+    participant "<<task>>\nListen to Ankaios\nServer" as listen_to_server
+    participant "<<task>>\nListen to Agent \nManager" as listen_to_manager
+end box
+
+box "Ankaios Server"
+    participant "Ankaios Server" as server
+end box
+
+-> main ++ : set state
+
+== startup ==
+
+... initialization ...
+
+== command ==
+
+main -> cli_commands ++ : set state
+cli_commands ->> listen_to_manager : request update state
+listen_to_manager ->> server ++ : request update state
+
+cli_commands -> cli_commands : wait for the response
+
+listen_to_server <<- server - -: response
+listen_to_server ->> cli_commands : response
+main <- cli_commands - -
+
+destroy cli_commands
+destroy listen_to_manager
+destroy listen_to_server
+
+user <- main - - : exit
+
+@enduml
+
+PlantUML version 1.2022.7(Mon Aug 22 17:01:30 UTC 2022)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Default Encoding: ANSI_X3.4-1968
+Language: en
+Country: US
+--></g></svg>

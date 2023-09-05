@@ -1,0 +1,59 @@
+@startuml seq_startup
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "Ankaios Server"
+participant Main as main
+participant "<<thread>>\nAnkaiosServer" as server
+
+
+participant "<<thread>>\nGRPCCommunicationsServer" as grpc_server
+participant "<<thread>>\ntonic gRPC server" as tonic_server
+
+
+participant "<<thread>>\nStartupStateLoader" as state_loader
+end box
+
+box "Ankaios Agent"
+    participant "Ankaios Agent" as agent
+end box
+
+-> main ++
+main -> main ++--: create communication channels
+main ->> server **: create and start in a new thread
+activate server
+main ->> grpc_server ** : create and start in a new thread
+activate grpc_server
+
+activate agent
+loop per agent
+    agent -> grpc_server ++: agent hello (name)
+    deactivate grpc_server
+end
+
+main ->> state_loader ** : create and start in a new thread
+activate state_loader
+
+server -> server ++: start listening for \nstate change requests
+
+grpc_server ->> tonic_server **: spawn gRPC server thread
+activate tonic_server
+tonic_server -> tonic_server ++--: start listening for state change requests
+
+grpc_server -> grpc_server ++--: start listening for execution requests /'evil laughter'/
+
+state_loader -> state_loader ++: load startup config
+state_loader ->> server --++: send startup state
+
+server -> server ++: calculate execution request
+
+server ->> grpc_server --++: send execution request
+
+grpc_server -> grpc_server ++: find concerned agents
+
+loop for each agent
+    grpc_server ->> agent ++:send execution request \nwith workload list
+end
+loop for each other agent
+    grpc_server ->> agent ++:send execution request \nwith list of workload states
+end
+@enduml

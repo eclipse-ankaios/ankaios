@@ -1,0 +1,75 @@
+@startuml class_data-structures
+!include ../../../../resources/doc/plantuml/clean.skin
+
+struct "<<union>>\nCommands" as Commands
+
+together {
+    struct Get
+    struct Set
+    struct Delete
+    struct Run
+}
+
+Commands --|> Get : one of
+Commands --|> Set : one of
+Commands --|> Delete: one of
+Commands --|> Run : one of
+
+Get : Option<GetCommands> command
+Set : Option<SetCommands> command
+Delete : Option<DeleteCommands> command
+Run : Option<RunCommands> command
+
+struct "State" as GetState
+struct "Workload" as GetWorkload
+
+together {
+    struct GetState
+    struct GetWorkload
+}
+
+struct "<<union>>\nGetCommands" as GetCommands
+GetCommands --|> GetState : one of
+GetCommands --|> GetWorkload : one of
+
+GetState : OutputFormat output_format
+GetState : Vec<String> object_field_mask
+
+GetWorkload : Option<String> agent_name
+GetWorkload : Option<String> state
+GetWorkload : Vec<String> workload_name
+
+GetCommands <--o Get
+
+struct "State" as SetState
+SetState : Vec<String> object_field_mask
+SetState : Option<String> state_object_file
+
+struct "<<union>>\nSetCommands" as SetCommands
+SetCommands --|> SetState : one of
+SetCommands <--o Set
+
+struct "Workload" as DeleteWorkload
+DeleteWorkload : Vec<String> workload_name
+
+struct "<<union>>\nDeleteCommands" as DeleteCommands
+DeleteCommands --|> DeleteWorkload : one of
+DeleteCommands <--o Delete
+
+struct "Workload" as RunWorkload
+RunWorkload : String workload_name
+RunWorkload : String runtime_name
+RunWorkload : String runtime_config
+RunWorkload : String agent_name
+RunWorkload : Vec<(String, String)> tag
+
+struct "<<union>>\nRunCommands" as RunCommands
+RunCommands --|> RunWorkload : one of
+RunCommands <--o Run
+
+'This helps to organize the layout (forces to place objects vertically)
+Set -[hidden]down--> SetCommands
+Get -[hidden]down--> GetCommands
+Delete -[hidden]down--> DeleteCommands
+Run -[hidden]down--> RunCommands
+@enduml

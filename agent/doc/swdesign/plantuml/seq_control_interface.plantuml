@@ -1,0 +1,53 @@
+@startuml seq_control_interface
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "Ankaios Agent"
+    participant Workload as workload
+
+    participant "Input Pipe" as input
+    participant "Output Pipe" as output
+    participant "<<task>>\nHandle Pipe\nCommunication" as pipes_task
+
+
+    participant "Listen to Ankaios\nServer task" as listen_to_server
+    participant "Listen to Agent \nManager task" as listen_to_manager
+
+    participant "AgentManager" as manager
+
+
+    participant "Listen to Ankaios\nServer task" as listen_to_server
+    participant "Listen to Agent \nManager task" as listen_to_manager
+
+end box
+
+box "Ankaios Server"
+    participant "Ankaios Server" as server
+end box
+
+
+activate workload
+activate listen_to_server
+activate listen_to_manager
+
+...
+
+
+
+loop
+pipes_task -> output++: read
+workload ->> output: write request
+workload -> input++: read response
+pipes_task <<-- output--
+pipes_task -> pipes_task: add workload name\nas request ID prefix
+pipes_task ->> listen_to_manager++: request
+listen_to_manager ->> server--++: request
+server ->> listen_to_server++--: response
+listen_to_server ->> manager++--: response
+manager -> manager: extract workload name\nfrom requeset ID
+manager ->> input--: write response
+workload <<-- input--
+end
+
+... 
+
+@enduml

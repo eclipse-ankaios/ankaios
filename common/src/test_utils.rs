@@ -1,0 +1,272 @@
+// Copyright (c) 2023 Elektrobit Automotive GmbH
+//
+// This program and the accompanying materials are made available under the
+// terms of the Apache License, Version 2.0 which is available at
+// https://www.apache.org/licenses/LICENSE-2.0.
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+use std::collections::HashMap;
+
+use api::proto;
+
+use crate::commands::CompleteState;
+use crate::objects::{
+    AccessRights, Cronjob, DeletedWorkload, ExpectedState, Interval, RuntimeWorkload, State, Tag,
+    UpdateStrategy, WorkloadSpec, WorkloadState,
+};
+
+#[cfg(feature = "test_utils")]
+pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State {
+    State {
+        workloads: workloads
+            .into_iter()
+            .map(|v| (v.workload.name.clone(), v))
+            .collect(),
+        configs: HashMap::new(),
+        cron_jobs: HashMap::new(),
+    }
+}
+
+#[cfg(feature = "test_utils")]
+pub fn generate_test_complete_state(
+    request_id: String,
+    workloads: Vec<WorkloadSpec>,
+) -> CompleteState {
+    CompleteState {
+        current_state: State {
+            workloads: workloads
+                .clone()
+                .into_iter()
+                .map(|v| (v.workload.name.clone(), v))
+                .collect(),
+            configs: HashMap::new(),
+            cron_jobs: HashMap::new(),
+        },
+        request_id,
+        workload_states: workloads
+            .into_iter()
+            .map(|v| WorkloadState {
+                workload_name: v.workload.name.clone(),
+                agent_name: v.agent,
+                execution_state: crate::objects::ExecutionState::ExecRunning,
+            })
+            .collect(),
+        ..Default::default()
+    }
+}
+
+pub fn generate_test_state() -> State {
+    let workload_name_1 = "workload_name_1".to_string();
+    let workload_name_2 = "workload_name_2".to_string();
+    let config_key_1 = "key1".to_string();
+    let config_value_1 = "value1".to_string();
+    let config_key_2 = "key2".to_string();
+    let config_value_2 = "value2".to_string();
+    let cronjob_name_1 = "cronjob1".to_string();
+    let cronjob_name_2 = "cronjob2".to_string();
+
+    let mut ankaios_workloads = HashMap::new();
+
+    let mut workload_1 = generate_test_workload_spec();
+    let mut workload_2 = generate_test_workload_spec();
+
+    workload_1.workload.name = "workload_name_1".to_string();
+    workload_2.workload.name = "workload_name_2".to_string();
+
+    ankaios_workloads.insert(workload_name_1, workload_1);
+    ankaios_workloads.insert(workload_name_2, workload_2);
+    let mut ankaios_configs = HashMap::new();
+    ankaios_configs.insert(config_key_1, config_value_1);
+    ankaios_configs.insert(config_key_2, config_value_2);
+    let mut ankaios_cronjobs = HashMap::new();
+    ankaios_cronjobs.insert(cronjob_name_1, generate_test_cronjob());
+    ankaios_cronjobs.insert(cronjob_name_2, generate_test_cronjob());
+
+    State {
+        workloads: ankaios_workloads,
+        configs: ankaios_configs,
+        cron_jobs: ankaios_cronjobs,
+    }
+}
+
+pub fn generate_test_proto_state() -> proto::State {
+    let workload_name_1 = "workload_name_1".to_string();
+    let workload_name_2 = "workload_name_2".to_string();
+    let config_key_1 = "key1".to_string();
+    let config_value_1 = "value1".to_string();
+    let config_key_2 = "key2".to_string();
+    let config_value_2 = "value2".to_string();
+    let cronjob_name_1 = "cronjob1".to_string();
+    let cronjob_name_2 = "cronjob2".to_string();
+
+    let mut proto_workloads = HashMap::new();
+    proto_workloads.insert(workload_name_1, generate_test_proto_workload());
+    proto_workloads.insert(workload_name_2, generate_test_proto_workload());
+    let mut proto_configs = HashMap::new();
+    proto_configs.insert(config_key_1, config_value_1);
+    proto_configs.insert(config_key_2, config_value_2);
+    let mut proto_cronjobs = HashMap::new();
+    proto_cronjobs.insert(cronjob_name_1, generate_test_proto_cronjob());
+    proto_cronjobs.insert(cronjob_name_2, generate_test_proto_cronjob());
+
+    proto::State {
+        workloads: proto_workloads,
+        configs: proto_configs,
+        cronjobs: proto_cronjobs,
+    }
+}
+
+fn generate_test_dependencies() -> HashMap<String, ExpectedState> {
+    HashMap::from([
+        (String::from("workload A"), ExpectedState::Running),
+        (String::from("workload C"), ExpectedState::Stopped),
+    ])
+}
+
+fn generate_test_proto_dependencies() -> HashMap<String, i32> {
+    HashMap::from([
+        (
+            String::from("workload A"),
+            proto::ExpectedState::Running.into(),
+        ),
+        (
+            String::from("workload C"),
+            proto::ExpectedState::Stopped.into(),
+        ),
+    ])
+}
+
+pub fn generate_test_workload_spec_with_param(
+    agent_name: String,
+    workload_name: String,
+    runtime_name: String,
+) -> crate::objects::WorkloadSpec {
+    WorkloadSpec {
+        agent: agent_name,
+        dependencies: generate_test_dependencies(),
+        update_strategy: UpdateStrategy::Unspecified,
+        access_rights: AccessRights::default(),
+        runtime: runtime_name,
+        workload: RuntimeWorkload {
+            name: workload_name,
+            restart: true,
+            tags: vec![Tag {
+                key: "key".into(),
+                value: "value".into(),
+            }],
+            runtime_config: "image: alpine:latest\ncommand: [\"echo\"]\nargs: [\"Hello Ankaios\"]"
+                .to_string(),
+        },
+    }
+}
+
+pub fn generate_test_workload_spec() -> WorkloadSpec {
+    generate_test_workload_spec_with_param(
+        "agent".to_string(),
+        "name".to_string(),
+        "runtime".to_string(),
+    )
+}
+
+pub fn generate_test_proto_workload() -> proto::Workload {
+    proto::Workload {
+        agent: String::from("agent"),
+        dependencies: generate_test_proto_dependencies(),
+        restart: true,
+        update_strategy: proto::UpdateStrategy::Unspecified.into(),
+        access_rights: None,
+        runtime: String::from("runtime"),
+        runtime_config: "image: alpine:latest\ncommand: [\"echo\"]\nargs: [\"Hello Ankaios\"]"
+            .to_string(),
+        tags: vec![proto::Tag {
+            key: "key".into(),
+            value: "value".into(),
+        }],
+    }
+}
+
+pub fn generate_test_deleted_workload(
+    agent: String,
+    name: String,
+) -> crate::objects::DeletedWorkload {
+    DeletedWorkload {
+        agent,
+        name,
+        dependencies: generate_test_dependencies(),
+    }
+}
+
+pub fn generate_test_proto_deleted_workload() -> proto::DeletedWorkload {
+    proto::DeletedWorkload {
+        name: "workload X".to_string(),
+        dependencies: generate_test_proto_dependencies(),
+    }
+}
+
+pub fn generate_test_cronjob() -> Cronjob {
+    Cronjob {
+        workload: String::from("some job"),
+        interval: Interval {
+            hours: 4,
+            minutes: 3,
+            seconds: 42,
+        },
+    }
+}
+
+pub fn generate_test_proto_cronjob() -> proto::Cronjob {
+    proto::Cronjob {
+        workload: String::from("some job"),
+        interval: Some(proto::Interval {
+            hours: 4,
+            minutes: 3,
+            seconds: 42,
+        }),
+    }
+}
+
+pub fn generate_test_cronjob_empty_interval() -> Cronjob {
+    Cronjob {
+        workload: String::from("some job"),
+        interval: Interval {
+            hours: 0,
+            minutes: 0,
+            seconds: 0,
+        },
+    }
+}
+pub struct MockAllContextSync {
+    mutex_tokio: tokio::sync::Mutex<()>,
+    mutex_std: std::sync::Mutex<()>,
+}
+impl MockAllContextSync {
+    pub fn new() -> Self {
+        Self {
+            mutex_tokio: tokio::sync::Mutex::new(()),
+            mutex_std: std::sync::Mutex::new(()),
+        }
+    }
+    pub async fn get_lock_async(&self) -> tokio::sync::MutexGuard<()> {
+        self.mutex_tokio.lock().await
+    }
+
+    pub fn get_lock(&self) -> std::sync::MutexGuard<()> {
+        match self.mutex_std.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        }
+    }
+}
+
+impl Default for MockAllContextSync {
+    fn default() -> Self {
+        Self::new()
+    }
+}
