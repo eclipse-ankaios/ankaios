@@ -1,7 +1,3 @@
-> :bulb: **Initial contribution in progress**<br> We are currently in the process of contributing Ankaios to the community. To avoid getting lost in the space-time continuum, please wait until the official announcement before starting to evaluate Ankaios. It won't take long, we promise :wink:
-
-<br><br>
-
 <picture style="padding-bottom: 1em;">
   <source media="(prefers-color-scheme: dark)" srcset="logo/Ankaios__logo_for_dark_bgrd_clipped.png">
   <source media="(prefers-color-scheme: light)" srcset="logo/Ankaios__logo_for_light_bgrd_clipped.png">
