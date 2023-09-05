@@ -1,4 +1,5 @@
-# CompleteState
+# Working with CompleteState
+## CompleteState
 The complete state data structure [CompleteState](./_ankaios.proto.md#completestate) is used for building a request to Ankaios server to change or receive the state of the Ankaios system. It contains the `startupState` which describes the states provided at the start of the Ankaios system via the [startup configuration](./startup-configuration.md), the `currentState` which describes the current state of the Ankaios system and the `workloadStates` which gives the information about the execution state of all the workloads. By using of [CompleteState](./_ankaios.proto.md#completestate) in conjunction with the object field mask specific parts of the Ankaios state could be retrieved or updated.
 
 Example: `ank get state` returns the complete state of Ankaios system:
@@ -108,7 +109,7 @@ currentState:
       restart: false
 ```
 
-# Object field mask
+## Object field mask
 With the object field mask only specific parts of the Ankaios state could be retrieved or updated.
 The object field mask can be constructed using the field names of the [CompleteState](./_ankaios.proto.md#completestate) data structure:
 ```text
