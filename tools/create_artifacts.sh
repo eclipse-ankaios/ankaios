@@ -38,6 +38,7 @@ RELEASE_FILE_NAME_BASE="ankaios-${RELEASE_ARCHITECTURE}"
 
 echo "Creating the archive for '$RELEASE_FILE_NAME_BASE'"
 cd "${DIST_DIR}"
+chmod +x ank{,-server,-agent}
 tar -cvzf "${RELEASE_FILE_NAME_BASE}".tar.gz --directory=${ANK_BIN_DIR} $(ls "${ANK_BIN_DIR}")
 
 echo "Creating checksums"
