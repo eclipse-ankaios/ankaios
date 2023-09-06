@@ -7,9 +7,8 @@ env:
   
 jobs:
   task-check:
-    permissions: write-all
     runs-on: ubuntu-latest
     steps:
       - uses: kentaro-m/task-completed-checker-action@v0.1.2
         with:
-          repo-token: "${{ secrets.GITHUB_TOKEN }}"
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
