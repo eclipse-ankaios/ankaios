@@ -4,7 +4,7 @@
   <img alt="Shows Ankaios logo" src="logo/Ankaios__logo_for_light_bgrd_clipped.png">
 </picture>
 
-# Eclipse Ankaios
+# Eclipse Ankaios (a great project)
 
 Eclipse Ankaios provides workload and container orchestration for automotive
 High Performance Computing Software (HPCs). While it can be used for various
