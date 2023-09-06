@@ -125,16 +125,16 @@ fn get_filtered_value<'a>(
 
 fn update_compact_state(
     new_compact_state: &mut serde_yaml::Value,
-    masks: &[&str],
+    mask: &[&str],
     new_mapping: serde_yaml::Value,
 ) -> Option<()> {
-    if masks.is_empty() {
+    if mask.is_empty() {
         return Some(());
     }
 
     let mut current_level = new_compact_state;
 
-    for mask_part in masks {
+    for mask_part in mask {
         if current_level.get(mask_part).is_some() {
             current_level = current_level.get_mut(mask_part)?;
             continue;
@@ -503,12 +503,18 @@ mod tests {
         execution_interface::ExecutionCommand,
         objects::{RuntimeWorkload, Tag, WorkloadSpec},
         state_change_interface::{StateChangeCommand, StateChangeReceiver},
-        test_utils,
+        test_utils::{self, generate_test_complete_state},
     };
     use tabled::{settings::Style, Table};
     use tokio::sync::mpsc::Sender;
 
-    use crate::cli_commands::WorkloadInfo;
+    use crate::{
+        cli::OutputFormat,
+        cli_commands::{
+            generate_compact_state_output, get_filtered_value, 
+            update_compact_state, WorkloadInfo,
+        },
+    };
 
     use super::CliCommands;
 
@@ -552,6 +558,20 @@ mod tests {
         });
         sync_code.join().unwrap()
     }
+
+    const EXAMPLE_STATE_INPUT: &str = r#"{
+        "currentState": {
+            "workloads": {
+                "nginx": {
+                    "restart": true,
+                    "agent": "agent_A"
+                },
+                "hello1": {
+                    "agent": "agent_B"
+                }
+            }
+        }
+    }"#;
 
     // [utest->swdd~cli-shall-print-empty-table~1]
     #[tokio::test]
@@ -1153,9 +1173,7 @@ mod tests {
             ],
         );
 
-        let complete_state = vec![
-            ExecutionCommand::CompleteState(Box::new(test_data.clone())),
-        ];
+        let complete_state = vec![ExecutionCommand::CompleteState(Box::new(test_data.clone()))];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
         mock_client
@@ -1444,5 +1462,320 @@ mod tests {
 
         // Make sure that we have read all commands from the channel.
         assert!(test_server_receiver.try_recv().is_err());
+    }
+
+    #[test]
+    fn utest_generate_compact_state_output_empty_filter_masks() {
+        let input_state = generate_test_complete_state(
+            "request_id".to_owned(),
+            vec![
+                test_utils::generate_test_workload_spec_with_param(
+                    "agent_A".to_string(),
+                    "name1".to_string(),
+                    "podman".to_string(),
+                ),
+                test_utils::generate_test_workload_spec_with_param(
+                    "agent_B".to_string(),
+                    "name2".to_string(),
+                    "podman".to_string(),
+                ),
+                test_utils::generate_test_workload_spec_with_param(
+                    "agent_B".to_string(),
+                    "name3".to_string(),
+                    "podman".to_string(),
+                ),
+            ],
+        );
+
+        let cli_output =
+            generate_compact_state_output(&input_state, vec![], OutputFormat::Yaml).unwrap();
+
+        // state shall remain unchanged
+        assert_eq!(cli_output, serde_yaml::to_string(&input_state).unwrap());
+    }
+
+    #[test]
+    fn utest_generate_compact_state_output_single_filter_mask() {
+        let input_state = generate_test_complete_state(
+            "request_id".to_owned(),
+            vec![
+                test_utils::generate_test_workload_spec_with_param(
+                    "agent_A".to_string(),
+                    "name1".to_string(),
+                    "podman".to_string(),
+                ),
+                test_utils::generate_test_workload_spec_with_param(
+                    "agent_B".to_string(),
+                    "name2".to_string(),
+                    "podman".to_string(),
+                ),
+                test_utils::generate_test_workload_spec_with_param(
+                    "agent_B".to_string(),
+                    "name3".to_string(),
+                    "podman".to_string(),
+                ),
+            ],
+        );
+
+        let expected_state = r#"{
+            "currentState": {
+                "workloads": {
+                    "name1": {
+                    "agent": "agent_A",
+                    "dependencies": {
+                        "workload A": "RUNNING",
+                        "workload C": "STOPPED"
+                    },
+                    "updateStrategy": "UNSPECIFIED",
+                    "accessRights": {
+                        "allow": [],
+                        "deny": []
+                    },
+                    "runtime": "podman",
+                    "name": "name1",
+                    "restart": true,
+                    "tags": [
+                        {
+                        "key": "key",
+                        "value": "value"
+                        }
+                    ],
+                    "runtimeConfig": "image: alpine:latest\ncommand: [\"echo\"]\nargs: [\"Hello Ankaios\"]"
+                    }
+                }
+            }
+        }"#;
+
+        let cli_output = generate_compact_state_output(
+            &input_state,
+            vec!["currentState.workloads.name1".to_string()],
+            OutputFormat::Yaml,
+        )
+        .unwrap();
+
+        let expected_value: serde_yaml::Value = serde_yaml::from_str(expected_state).unwrap();
+
+        assert_eq!(cli_output, serde_yaml::to_string(&expected_value).unwrap());
+    }
+
+    #[test]
+    fn utest_generate_compact_state_output_multiple_filter_masks() {
+        let input_state = generate_test_complete_state(
+            "request_id".to_owned(),
+            vec![
+                test_utils::generate_test_workload_spec_with_param(
+                    "agent_A".to_string(),
+                    "name1".to_string(),
+                    "podman".to_string(),
+                ),
+                test_utils::generate_test_workload_spec_with_param(
+                    "agent_B".to_string(),
+                    "name2".to_string(),
+                    "podman".to_string(),
+                ),
+                test_utils::generate_test_workload_spec_with_param(
+                    "agent_B".to_string(),
+                    "name3".to_string(),
+                    "podman".to_string(),
+                ),
+            ],
+        );
+
+        let expected_state = r#"{
+            "currentState": {
+                "workloads": {
+                    "name1": {
+                        "agent": "agent_A",
+                        "dependencies": {
+                            "workload A": "RUNNING",
+                            "workload C": "STOPPED"
+                        },
+                        "updateStrategy": "UNSPECIFIED",
+                        "accessRights": {
+                            "allow": [],
+                            "deny": []
+                        },
+                        "runtime": "podman",
+                        "name": "name1",
+                        "restart": true,
+                        "tags": [
+                            {
+                            "key": "key",
+                            "value": "value"
+                            }
+                        ],
+                        "runtimeConfig": "image: alpine:latest\ncommand: [\"echo\"]\nargs: [\"Hello Ankaios\"]"
+                    },
+                    "name2": {
+                        "agent": "agent_B"
+                    }
+                }
+            }
+        }"#;
+
+        let cli_output = generate_compact_state_output(
+            &input_state,
+            vec![
+                "currentState.workloads.name1".to_string(),
+                "currentState.workloads.name2.agent".to_string(),
+            ],
+            OutputFormat::Yaml,
+        )
+        .unwrap();
+
+        let expected_value: serde_yaml::Value = serde_yaml::from_str(expected_state).unwrap();
+
+        assert_eq!(cli_output, serde_yaml::to_string(&expected_value).unwrap());
+    }
+
+    #[test]
+    fn utest_get_filtered_value_filter_key_with_mapping() {
+        let deserialized_map: serde_yaml::Value = serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
+        let result =
+            get_filtered_value(&deserialized_map, &["currentState", "workloads", "nginx"]).unwrap();
+        assert_eq!(
+            result.get("restart").unwrap(),
+            &serde_yaml::Value::Bool(true)
+        );
+    }
+
+    #[test]
+    fn utest_get_filtered_value_filter_key_without_mapping() {
+        let deserialized_map: serde_yaml::Value = serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
+        let result = get_filtered_value(
+            &deserialized_map,
+            &["currentState", "workloads", "nginx", "agent"],
+        )
+        .unwrap();
+        let expected = serde_yaml::Value::String("agent_A".to_string());
+        assert_eq!(result, &expected);
+    }
+
+    #[test]
+    fn utest_get_filtered_value_empty_mask() {
+        let deserialized_map: serde_yaml::Value = serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
+        let result = get_filtered_value(&deserialized_map, &[]).unwrap();
+        assert!(result.get("currentState").is_some());
+    }
+
+    #[test]
+    fn utest_get_filtered_value_not_existing_keys() {
+        let deserialized_map: serde_yaml::Value = serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
+
+        let result = get_filtered_value(
+            &deserialized_map,
+            &["currentState", "workloads", "notExistingWorkload", "nginx"],
+        );
+        assert!(result.is_none());
+
+        let result = get_filtered_value(
+            &deserialized_map,
+            &[
+                "currentState",
+                "workloads",
+                "notExistingWorkload",
+                "notExistingField",
+            ],
+        );
+        assert!(result.is_none());
+
+        let result = get_filtered_value(
+            &deserialized_map,
+            &[
+                "currentState",
+                "workloads",
+                "nginx",
+                "agent",
+                "notExistingField",
+            ],
+        );
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn utest_update_compact_state_create_two_keys() {
+        let mut deserialized_map: serde_yaml::Value = serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
+
+        // update by inserting two new nested keys and a new empty mapping as value
+        update_compact_state(
+            &mut deserialized_map,
+            &[
+                "currentState",
+                "workloads",
+                "createThisKey",
+                "createThisKey",
+            ],
+            serde_yaml::Value::Mapping(Default::default()),
+        );
+
+        assert!(deserialized_map
+            .get("currentState")
+            .and_then(|next| next.get("workloads").and_then(|next| next
+                .get("createThisKey")
+                .and_then(|next| next.get("createThisKey"))))
+            .is_some());
+    }
+
+    #[test]
+    fn utest_update_compact_state_keep_value_of_existing_key() {
+        let mut deserialized_map: serde_yaml::Value = serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
+        // do not update value of existing key
+        update_compact_state(
+            &mut deserialized_map,
+            &[
+                "currentState",
+                "workloads",
+                "nginx",
+                "restart",
+                "createThisKey",
+            ],
+            serde_yaml::Value::Mapping(Default::default()),
+        );
+
+        assert_eq!(
+            deserialized_map
+                .get("currentState")
+                .and_then(|next| next
+                    .get("workloads")
+                    .and_then(|next| next.get("nginx").and_then(|next| next.get("restart"))))
+                .unwrap(),
+            &serde_yaml::Value::Bool(true)
+        );
+    }
+
+    #[test]
+    fn utest_update_compact_state_insert_into_empty_map() {
+        // insert keys nested into empty map and add empty mapping as value
+        let mut empty_map = serde_yaml::Value::Mapping(Default::default());
+        update_compact_state(
+            &mut empty_map,
+            &["currentState", "workloads", "nginx"],
+            serde_yaml::Value::Mapping(Default::default()),
+        );
+
+        assert!(empty_map
+            .get("currentState")
+            .and_then(|next| next.get("workloads").and_then(|next| next.get("nginx")))
+            .is_some());
+    }
+
+    #[test]
+    fn utest_update_compact_state_do_not_update_on_empty_mask() {
+        let mut deserialized_map: serde_yaml::Value = serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
+
+        let mut empty_map = serde_yaml::Value::Mapping(Default::default());
+        empty_map.as_mapping_mut().unwrap().insert(
+            "currentState".into(),
+            serde_yaml::Value::Mapping(Default::default()),
+        );
+        let expected_map = empty_map.clone();
+
+        // do not update map if no masks are provided
+        update_compact_state(
+            &mut empty_map,
+            &[],
+            serde_yaml::Value::Mapping(Default::default()),
+        );
+        assert_eq!(empty_map, expected_map);
     }
 }
