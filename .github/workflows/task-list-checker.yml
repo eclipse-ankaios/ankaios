@@ -1,6 +1,6 @@
 name: 'PR Tasks Completed Check'
 on: 
-  pull_request_target:
+  pull_request:
     types: [opened, edited]
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -11,4 +11,4 @@ jobs:
     steps:
       - uses: kentaro-m/task-completed-checker-action@v0.1.2
         with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          repo-token: "${{ secrets.GITHUB_TOKEN }}"
