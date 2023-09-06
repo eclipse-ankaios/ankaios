@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashMap, fmt, time::Duration};
+use std::{fmt, time::Duration};
 
 #[cfg(not(test))]
 async fn read_file_to_string(file: String) -> std::io::Result<String> {
@@ -48,6 +48,7 @@ const BUFFER_SIZE: usize = 20;
 pub enum CliError {
     InvalidObjectFieldMask(String),
     YamlSerialization(String),
+    JsonSerialization(String),
 }
 
 impl fmt::Display for CliError {
@@ -59,6 +60,9 @@ impl fmt::Display for CliError {
             CliError::YamlSerialization(message) => {
                 write!(f, "Could not serialize YAML object: '{message}'")
             }
+            CliError::JsonSerialization(message) => {
+                write!(f, "Could not serialize JSON object: '{message}'")
+            }
         }
     }
 }
@@ -69,78 +73,87 @@ impl From<serde_yaml::Error> for CliError {
     }
 }
 
+impl From<serde_json::Error> for CliError {
+    fn from(value: serde_json::Error) -> Self {
+        CliError::JsonSerialization(format!("{value}"))
+    }
+}
+
 fn generate_compact_state_output(
     state: &CompleteState,
     object_field_mask: Vec<String>,
     output_format: OutputFormat,
 ) -> Result<String, CliError> {
-    let mut top_level_map: serde_yaml::Value = serde_yaml::to_value(state)?;
-    if !object_field_mask.is_empty() {
-        let state_value = serde_yaml::to_value(state)?;
-        let mut obj_map: HashMap<String, serde_yaml::Value> = HashMap::new();
+    let convert_to_output = |map: serde_yaml::Value| -> Result<String, CliError> {
+        match output_format {
+            // [impl -> swdd~cli-shall-support-current-state-yaml~1]
+            OutputFormat::Yaml => Ok(serde_yaml::to_string(&map)?),
+            // [impl -> swdd~cli-shall-support-current-state-json~1]
+            OutputFormat::Json => Ok(serde_json::to_string_pretty(&map)?),
+        }
+    };
 
-        // build compact output for each object field mask
-        for mask in object_field_mask.iter() {
-            obj_map.insert(
-                mask.to_string(),
-                serde_yaml::Value::Mapping(serde_yaml::Mapping::new()),
+    let deserialized_state: serde_yaml::Value = serde_yaml::to_value(state)?;
+
+    if object_field_mask.is_empty() {
+        return convert_to_output(deserialized_state);
+    }
+
+    let mut compact_state = serde_yaml::Value::Mapping(Default::default());
+    for mask in object_field_mask {
+        let splitted_masks: Vec<&str> = mask.split('.').collect();
+        if let Some(filtered_mapping) = get_filtered_value(&deserialized_state, &splitted_masks) {
+            update_compact_state(
+                &mut compact_state,
+                &splitted_masks,
+                filtered_mapping.to_owned(),
             );
-            let mut cur_level_map = obj_map.get_mut(mask).unwrap();
-            let mask_vec: Vec<&str> = mask.split('.').collect();
-            let mask_vec_len = mask_vec.len();
-            let mut cur_state_value: &serde_yaml::Value = &state_value;
-            for (field_index, cur_field) in mask_vec.iter().enumerate() {
-                if let Some(obj) = cur_state_value.get(cur_field) {
-                    if field_index == mask_vec_len - 1 {
-                        cur_level_map.as_mapping_mut().unwrap().insert(
-                            serde_yaml::Value::String(cur_field.to_string()),
-                            obj.clone(),
-                        );
-                    } else {
-                        if cur_level_map.get(cur_field).is_none() {
-                            cur_level_map.as_mapping_mut().unwrap().insert(
-                                serde_yaml::Value::String(cur_field.to_string()),
-                                serde_yaml::Value::Mapping(serde_yaml::Mapping::new()),
-                            );
-                        }
-
-                        cur_level_map = cur_level_map.get_mut(cur_field).unwrap();
-                        cur_state_value = cur_state_value.get(cur_field).unwrap()
-                    }
-                } else {
-                    return Err(CliError::InvalidObjectFieldMask(mask.to_string()));
-                }
-            }
-        }
-
-        // merge the compact output for each object field mask to form single compact output
-        top_level_map = serde_yaml::Value::Mapping(serde_yaml::Mapping::new());
-        for (mask, obj) in obj_map {
-            let mask_vec: Vec<&str> = mask.split('.').collect();
-            let mut cur_obj = &obj;
-            let mut cur_level_map = &mut top_level_map;
-            for cur_field in mask_vec.iter() {
-                let cur_level = cur_level_map.as_mapping_mut().unwrap();
-                if cur_level.get(cur_field).is_none() {
-                    cur_level.insert(
-                        serde_yaml::Value::String(cur_field.to_string()),
-                        cur_obj.get(cur_field).unwrap().to_owned(),
-                    );
-                    break;
-                } else {
-                    cur_level_map = cur_level_map.get_mut(cur_field).unwrap();
-                    cur_obj = cur_obj.get(cur_field).unwrap();
-                }
-            }
         }
     }
 
-    match output_format {
-        // [impl -> swdd~cli-shall-support-current-state-yaml~1]
-        OutputFormat::Yaml => Ok(serde_yaml::to_string(&top_level_map).unwrap()),
-        // [impl -> swdd~cli-shall-support-current-state-json~1]
-        OutputFormat::Json => Ok(serde_json::to_string_pretty(&top_level_map).unwrap()),
+    convert_to_output(compact_state)
+}
+
+fn get_filtered_value<'a>(
+    map: &'a serde_yaml::Value,
+    mask: &[&str],
+) -> Option<&'a serde_yaml::Value> {
+    mask.iter().fold(Some(map), |current_level, mask_part| {
+        current_level?.get(mask_part)
+    })
+}
+
+fn update_compact_state(
+    new_compact_state: &mut serde_yaml::Value,
+    masks: &[&str],
+    new_mapping: serde_yaml::Value,
+) -> Option<()> {
+    if masks.is_empty() {
+        return Some(());
     }
+
+    let mut current_level = new_compact_state;
+
+    for mask_part in masks {
+        if current_level.get(mask_part).is_some() {
+            current_level = current_level.get_mut(mask_part)?;
+            continue;
+        }
+
+        if let serde_yaml::Value::Mapping(current_mapping) = current_level {
+            current_mapping.insert(
+                (*mask_part).into(),
+                serde_yaml::Value::Mapping(Default::default()),
+            );
+
+            current_level = current_mapping.get_mut(mask_part)?;
+        } else {
+            return None;
+        }
+    }
+
+    *current_level = new_mapping;
+    Some(())
 }
 
 // [impl->swdd~server-handle-cli-communication~1]
