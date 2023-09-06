@@ -31,8 +31,14 @@ pub fn update_state(
     }
 
     // [impl->swdd~update-current-state-with-update-mask~1]
-    let mut new_state: Object = current_state.try_into().unwrap();
-    let state_from_update: Object = update.state.try_into().unwrap();
+    let mut new_state: Object = current_state.try_into().map_err(|err| {
+        log::error!("Could not update state, failed to parse current state, reason: '{err}'");
+        Error::ResultInvalid
+    })?;
+    let state_from_update: Object = update.state.try_into().map_err(|err| {
+        log::error!("Could not update state, failed to parse new state, reason: '{err}'");
+        Error::ResultInvalid
+    })?;
 
     for field in update.update_mask {
         let field: Path = field.into();

@@ -1761,8 +1761,6 @@ mod tests {
 
     #[test]
     fn utest_update_compact_state_do_not_update_on_empty_mask() {
-        let mut deserialized_map: serde_yaml::Value = serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
-
         let mut empty_map = serde_yaml::Value::Mapping(Default::default());
         empty_map.as_mapping_mut().unwrap().insert(
             "currentState".into(),
