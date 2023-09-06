@@ -62,7 +62,9 @@ async fn main() {
     let mut adapter_interface_map: HashMap<&str, Box<dyn RuntimeAdapter + Send + Sync>> =
         HashMap::new();
 
-    let run_directory = args.get_run_directory().unwrap();
+    let run_directory = args
+        .get_run_directory()
+        .expect("Run folder creation failed. Cannot continue without run folder.");
 
     // Podman currently directly gets the server StateChangeInterface, but it shall get the agent manager interface
     // This is needed to be able to filter/authorize the commands towards the Ankaios server
