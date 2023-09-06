@@ -1,7 +1,5 @@
 Issues: #
 
-<!--  Description of the change in case no issue is mentioned -->
-
 # Definition of Done
 
 The PR shall be merged **only if all of following items were checked.** In case an item is not applicable as described, please provide a short explanation right after the item in question. Separate the explanation by a semicolon and write it as bold text like **; requirements are handled in issue #xyz**:
