@@ -126,6 +126,5 @@ fi
 
 echo "Extracting the binaries into install folder: '${BIN_DESTINATION}'"
 ${PREFIX} tar -xvzf "${RELEASE_FILE_NAME}" -C "${BIN_DESTINATION}"
-${PREFIX} chmod +x "${BIN_DESTINATION}"/ank{,-agent,-server}
 
 echo "Installation has finished."

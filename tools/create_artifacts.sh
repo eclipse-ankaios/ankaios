@@ -37,6 +37,7 @@ ANK_BIN_DIR="${DIST_DIR}/bin"
 RELEASE_FILE_NAME_BASE="ankaios-${RELEASE_ARCHITECTURE}"
 
 echo "Creating the archive for '$RELEASE_FILE_NAME_BASE'"
+chmod +x "${ANK_BIN_DIR}"/ank{,-server,-agent}
 cd "${DIST_DIR}"
 tar -cvzf "${RELEASE_FILE_NAME_BASE}".tar.gz --directory=${ANK_BIN_DIR} $(ls "${ANK_BIN_DIR}")
 
