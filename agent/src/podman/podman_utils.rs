@@ -133,8 +133,7 @@ impl PodmanUtils {
     ) -> ExecutionState {
         if let Some(status) = &value.state {
             let is_status_exited = status.to_lowercase() == "exited"
-                && value.exited.is_some()
-                && value.exited.unwrap()
+                && value.exited.unwrap_or(false)
                 && value.exit_code.is_some();
             match status.parse::<ExecutionState>() {
                 Ok(_) if is_status_exited && value.exit_code.unwrap() == 0 => {
