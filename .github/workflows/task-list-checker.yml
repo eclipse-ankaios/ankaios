@@ -1,9 +1,7 @@
 name: 'PR Tasks Completed Check'
 on: 
-  pull_request:
-    types: [opened, edited]
-env:
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  pull_request_target:
+    types: [opened, edited, reopened, synchronized]
   
 jobs:
   task-check:
