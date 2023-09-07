@@ -186,6 +186,7 @@ impl AnkaiosServer {
                                 &self.current_complete_state.current_state,
                                 &new_state.current_state,
                             );
+
                             if cmd.is_some() {
                                 self.to_agents.send(cmd.unwrap()).await.unwrap();
                             } else {
@@ -194,7 +195,7 @@ impl AnkaiosServer {
                             self.current_complete_state = new_state;
                         }
                         Err(error) => {
-                            log::debug!("Could no execute UpdateRequest: {:?}", error)
+                            log::warn!("Could not execute UpdateRequest: '{}'", error)
                         }
                     }
                 }

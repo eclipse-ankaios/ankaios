@@ -31,14 +31,13 @@ pub fn update_state(
     }
 
     // [impl->swdd~update-current-state-with-update-mask~1]
-    let mut new_state: Object = current_state.try_into().map_err(|err| {
-        log::error!("Could not update state, failed to parse current state, reason: '{err}'");
-        Error::ResultInvalid
-    })?;
-    let state_from_update: Object = update.state.try_into().map_err(|err| {
-        log::error!("Could not update state, failed to parse new state, reason: '{err}'");
-        Error::ResultInvalid
-    })?;
+    let mut new_state: Object = current_state
+        .try_into()
+        .map_err(|err| Error::ResultInvalid(format!("failed to parse current state, '{}'", err)))?;
+    let state_from_update: Object = update
+        .state
+        .try_into()
+        .map_err(|err| Error::ResultInvalid(format!("failed to parse new state, '{}'", err)))?;
 
     for field in update.update_mask {
         let field: Path = field.into();
@@ -54,7 +53,9 @@ pub fn update_state(
     if let Ok(new_state) = new_state.try_into() {
         Ok(new_state)
     } else {
-        Err(Error::ResultInvalid)
+        Err(Error::ResultInvalid(
+            "could not parse into CompleteState.".to_string(),
+        ))
     }
 }
 
@@ -119,7 +120,7 @@ pub fn prepare_update_workload(
 pub enum Error {
     CouldNotChangeField(String),
     CouldNotRemoveField(String),
-    ResultInvalid,
+    ResultInvalid(String),
 }
 
 impl Display for Error {
@@ -127,7 +128,9 @@ impl Display for Error {
         match self {
             Error::CouldNotChangeField(field) => write!(f, "Could not change field {}", field),
             Error::CouldNotRemoveField(field) => write!(f, "Could not remove field {}", field),
-            Error::ResultInvalid => write!(f, "Resulting State is invalid"),
+            Error::ResultInvalid(reason) => {
+                write!(f, "Resulting State is invalid, reason: '{}'", reason)
+            }
         }
     }
 }
