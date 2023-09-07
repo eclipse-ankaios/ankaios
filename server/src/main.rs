@@ -37,12 +37,24 @@ async fn main() -> Result<(), BoxedStdError> {
 
     let args = cli::parse();
 
-    let data = fs::read_to_string(args.path)
-        .unwrap_or_else(|error| panic!("Could not read the startup state.\nError: {error}"));
+    let data = fs::read_to_string(args.path).unwrap_or_else(|error| {
+        use std::io::ErrorKind as EK;
+        match error.kind() {
+            EK::NotFound => log::error!("Startup configuration file not found."),
+            EK::InvalidData => log::error!("Startup configuration file contains non UTF-8 data."),
+            e => log::error!("Error reading startup configuration file: {}.", e),
+        }
+        std::process::exit(1);
+    });
     // [impl->swdd~server-state-in-memory~1]
     // [impl->swdd~server-loads-startup-state-file~1]
-    let state: State = state_parser::parse(data)
-        .unwrap_or_else(|error| panic!("Parsing start config failed with error {}", error));
+    let state: State = state_parser::parse(data).unwrap_or_else(|error| {
+        log::error!(
+            "Parsing start configuration file failed with error: {}.",
+            error
+        );
+        std::process::exit(1);
+    });
     log::debug!(
         "The state is initialized with the following workloads: {:?}",
         state.workloads

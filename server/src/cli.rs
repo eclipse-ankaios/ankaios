@@ -26,7 +26,7 @@ pub fn parse() -> Arguments {
         about="Ankaios - your friendly automotive workload orchestrator.\nWhat can the server do for you?")]
 pub struct Arguments {
     #[clap(short = 'c', long = "startup-config")]
-    /// The path to the startup config yaml.
+    /// The path to the startup configuration file in yaml format.
     pub path: String,
     #[clap(short = 'a', long = "address", default_value_t = DEFAULT_SOCKET_ADDRESS.parse().unwrap())]
     /// The address, including the port, the server shall listen at.
