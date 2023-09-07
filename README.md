@@ -28,7 +28,7 @@ For using Ankaios see [documentation](https://eclipse-ankaios.github.io/ankaios)
 ## Contribution
 
 This project welcomes contributions and suggestions. Before contributing, make sure to read the
-[contribution guideline](https://github.com/eclipse-ankaios/ankaios/blob/master/CONTRIBUTING.md).
+[contribution guideline](CONTRIBUTING.md).
 
 ## License
 
