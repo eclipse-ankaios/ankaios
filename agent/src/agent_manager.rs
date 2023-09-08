@@ -341,13 +341,13 @@ impl AgentManager<'_> {
                             .await
                         {
                             log::warn!(
-                                "Could not forward response to workload {}: {}",
+                                "Could not forward response to workload '{}': '{}'",
                                 workload,
                                 err
                             );
                         }
                     } else {
-                        log::warn!("Got response for unknown workload: {}", workload);
+                        log::warn!("Got response for unknown workload: '{}'", workload);
                     }
                 }
                 ExecutionCommand::Stop(_method_obj) => {

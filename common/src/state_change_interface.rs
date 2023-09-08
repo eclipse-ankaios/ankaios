@@ -33,8 +33,11 @@ impl TryFrom<proto::StateChangeRequest> for StateChangeCommand {
 
     fn try_from(item: proto::StateChangeRequest) -> Result<Self, Self::Error> {
         use proto::state_change_request::StateChangeRequestEnum;
+        let state_change_request = item
+            .state_change_request_enum
+            .ok_or("StateChangeRequest is None.".to_string())?;
 
-        Ok(match item.state_change_request_enum.unwrap() {
+        Ok(match state_change_request {
             StateChangeRequestEnum::AgentHello(protobuf) => {
                 StateChangeCommand::AgentHello(protobuf.into())
             }

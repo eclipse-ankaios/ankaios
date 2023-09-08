@@ -138,6 +138,8 @@ pub async fn forward_from_ankaios_to_proto(
                                     "Could not send a CompleteState to agent {agent_name}. Error: {error}"
                                 )
                             })
+                } else {
+                    log::warn!("Unknown agent with name: '{}'", agent_name);
                 }
             }
             ExecutionCommand::Stop(_method_obj) => {
