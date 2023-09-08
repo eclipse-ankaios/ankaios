@@ -1,4 +1,4 @@
-# Architecure
+# Architecture
 
 ## Overview
 
