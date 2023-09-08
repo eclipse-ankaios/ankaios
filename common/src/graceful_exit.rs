@@ -64,7 +64,7 @@ impl<T, E: std::fmt::Display> ExitGracefully<T, E> for Result<T, E> {
         match self {
             Ok(value) => value,
             Err(error) => {
-                eprintln!("{message}: {error}");
+                log::error!("{message}: {error}");
                 std::process::exit(1);
             }
         }

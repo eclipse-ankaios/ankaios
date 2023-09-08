@@ -77,7 +77,9 @@ impl AnkaiosServer {
 
         // [impl->swdd~server-filters-get-complete-state-result~1]
         if !request_complete_state.field_mask.is_empty() {
-            let current_complete_state: Object = current_complete_state.try_into().unwrap();
+            let current_complete_state: Object = current_complete_state
+                .try_into()
+                .unwrap_or_exit("Internal complete state is broken.");
             let mut return_state = Object::default();
 
             return_state
