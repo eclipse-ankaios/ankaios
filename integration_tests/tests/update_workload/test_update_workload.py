@@ -29,3 +29,7 @@ def test_update_workload(ank_server, ank_agent, ank_cli):
 
     # curl to nginx service 8082
     assert run_command("curl localhost:8082", wait=True, max_retires=100).returncode == 0
+
+    if os.path.exists(new_state_file):
+        os.remove(new_state_file)
+    assert os.path.exists(new_state_file) == False, "Expected delete of new state config"

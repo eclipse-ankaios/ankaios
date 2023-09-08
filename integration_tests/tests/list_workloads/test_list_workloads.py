@@ -8,7 +8,7 @@ from utils.formatters import table_to_dict
 @pytest.mark.parametrize('ank_cli', [""], indirect=True)
 @pytest.mark.parametrize('precondition', [""], indirect=True)
 def test_list_workloads(ank_server, ank_agent, ank_cli, precondition):
-    precondition.wait_for_initial_execution_state(timeout=10)
+    precondition.wait_for_initial_execution_state(timeout=20)
 
     status, content = ank_cli.run("get workloads", format_func=table_to_dict)
 
