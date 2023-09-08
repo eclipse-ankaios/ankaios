@@ -15,7 +15,13 @@ assignees: ''
 
 <!-- describe the goals you want to achieve with this enhancement -->
 
-## Tasks
+## Final result
+
+### Summary
+
+**To be filled when final solution is sketched.**
+
+### Tasks
 
 <!--
 An optional lists of tasks that need to be executed
