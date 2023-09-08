@@ -29,6 +29,7 @@ mod workload_facade;
 mod workload_trait;
 
 use common::execution_interface::ExecutionCommand;
+use common::graceful_exit::ExitGracefully;
 use grpc::client::GRPCCommunicationsClient;
 
 use agent_manager::AgentManager;
@@ -64,7 +65,7 @@ async fn main() {
 
     let run_directory = args
         .get_run_directory()
-        .expect("Run folder creation failed. Cannot continue without run folder.");
+        .unwrap_or_exit("Run folder creation failed. Cannot continue without run folder.");
 
     // Podman currently directly gets the server StateChangeInterface, but it shall get the agent manager interface
     // This is needed to be able to filter/authorize the commands towards the Ankaios server

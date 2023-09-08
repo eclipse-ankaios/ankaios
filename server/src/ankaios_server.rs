@@ -22,7 +22,10 @@ use update_state::update_state;
 use common::commands::{CompleteState, RequestCompleteState};
 use common::execution_interface::ExecutionCommand;
 use common::objects::State;
-use common::{execution_interface::ExecutionInterface, state_change_interface::StateChangeCommand};
+use common::{
+    execution_interface::ExecutionInterface, graceful_exit::ExitGracefully,
+    state_change_interface::StateChangeCommand,
+};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 use crate::ankaios_server::update_state::prepare_update_workload;
@@ -82,7 +85,7 @@ impl AnkaiosServer {
                     &"requestId".into(),
                     request_complete_state.request_id.to_owned().into(),
                 )
-                .expect("unreachable");
+                .unwrap_or_exit("unreachable");
 
             for field in &request_complete_state.field_mask {
                 if let Some(value) = current_complete_state.get(&field.into()) {

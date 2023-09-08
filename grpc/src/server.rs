@@ -29,6 +29,7 @@ use crate::execution_command_proxy;
 use crate::grpc_agent_connection::GRPCAgentConnection;
 
 use common::execution_interface::ExecutionCommand;
+use common::graceful_exit::ExitGracefully;
 use common::state_change_interface::StateChangeCommand;
 
 use async_trait::async_trait;
@@ -59,7 +60,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                 .add_service(CliConnectionServer::new(my_cli_connection))
                 .serve(addr)
                 .await
-                .expect("Could not start the gRPC service.");
+                .unwrap_or_exit("Could not start the gRPC service.");
         });
 
         // TODO these two awaits one after the other do not seem correct ...

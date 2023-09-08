@@ -20,6 +20,7 @@ pub mod commands;
 pub mod communications_client;
 pub mod communications_server;
 pub mod execution_interface;
+pub mod graceful_exit;
 pub mod helpers;
 pub mod objects;
 pub mod request_id_prepending;

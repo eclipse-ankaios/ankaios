@@ -22,6 +22,7 @@ use std::fs;
 use tokio::try_join;
 
 use common::communications_server::CommunicationsServer;
+use common::graceful_exit::ExitGracefully;
 use common::objects::State;
 use common::state_change_interface::StateChangeInterface;
 
@@ -37,12 +38,11 @@ async fn main() -> Result<(), BoxedStdError> {
 
     let args = cli::parse();
 
-    let data = fs::read_to_string(args.path)
-        .unwrap_or_else(|error| panic!("Could not read the startup state.\nError: {error}"));
+    let data = fs::read_to_string(args.path).unwrap_or_exit("Could not read the startup state");
     // [impl->swdd~server-state-in-memory~1]
     // [impl->swdd~server-loads-startup-state-file~1]
-    let state: State = state_parser::parse(data)
-        .unwrap_or_else(|error| panic!("Parsing start config failed with error {}", error));
+    let state: State =
+        state_parser::parse(data).unwrap_or_exit("Parsing start config failed with error");
     log::debug!(
         "The state is initialized with the following workloads: {:?}",
         state.workloads

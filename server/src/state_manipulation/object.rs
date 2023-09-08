@@ -95,7 +95,9 @@ impl Object {
 
         for path_part in path_head.parts() {
             if current.contains_key(path_part) {
-                let next = current.get_mut(path_part).expect("unreachable");
+                let next = current
+                    .get_mut(path_part)
+                    .ok_or("unreachable".to_string())?;
                 if let Value::Mapping(next) = next {
                     current = next;
                 } else {
