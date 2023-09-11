@@ -34,3 +34,7 @@ assignees: ''
 
 ## Additional Information
 <!-- Please provide any additional information that may be helpful in understanding the issue. -->
+
+## Final result
+
+**To be filled by the one closing the issue.**
