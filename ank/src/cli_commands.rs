@@ -523,6 +523,20 @@ mod tests {
     const BUFFER_SIZE: usize = 20;
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
+    const EXAMPLE_STATE_INPUT: &str = r#"{
+        "currentState": {
+            "workloads": {
+                "nginx": {
+                    "restart": true,
+                    "agent": "agent_A"
+                },
+                "hello1": {
+                    "agent": "agent_B"
+                }
+            }
+        }
+    }"#;
+
     mockall::lazy_static! {
         pub static ref FAKE_READ_TO_STRING_MOCK_RESULT_LIST: tokio::sync::Mutex<std::collections::VecDeque<io::Result<String>>>  =
         tokio::sync::Mutex::new(std::collections::VecDeque::new());
@@ -558,20 +572,6 @@ mod tests {
         });
         sync_code.join().unwrap()
     }
-
-    const EXAMPLE_STATE_INPUT: &str = r#"{
-        "currentState": {
-            "workloads": {
-                "nginx": {
-                    "restart": true,
-                    "agent": "agent_A"
-                },
-                "hello1": {
-                    "agent": "agent_B"
-                }
-            }
-        }
-    }"#;
 
     // [utest->swdd~cli-shall-print-empty-table~1]
     #[tokio::test]
