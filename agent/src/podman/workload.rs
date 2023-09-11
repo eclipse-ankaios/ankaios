@@ -18,16 +18,13 @@ use common::state_change_interface::StateChangeInterface;
 use common::state_change_interface::StateChangeSender;
 
 use hyper::http;
-use podman_api::models::{ContainerMount, PortMapping};
-use podman_api::opts::{ImageListFilter, ImageListOpts, PullOpts};
 use podman_api::Error;
 use std::path::{Path, PathBuf};
 use tokio::task::JoinHandle;
 
-use std::collections::HashMap;
-
 use podman_api::Podman;
 
+use crate::podman::podman_runtime_config::PodmanRuntimeConfig;
 use crate::podman::podman_utils::PodmanUtils;
 use crate::workload_trait::{Workload, WorkloadError};
 use common::objects::{WorkloadExecutionInstanceName, WorkloadInstanceName};
@@ -37,68 +34,6 @@ use mockall::automock;
 
 const API_PIPES_MOUNT_POINT: &str = "/run/ankaios/control_interface";
 const BIND_MOUNT: &str = "bind";
-
-#[derive(Debug, serde::Deserialize)]
-struct PodmanRuntimeConfig {
-    image: String,
-    #[serde(default)]
-    command: Vec<String>,
-    #[serde(default)]
-    args: Vec<String>,
-    #[serde(default)]
-    env: HashMap<String, String>,
-    #[serde(default)]
-    ports: Vec<Mapping>,
-    #[serde(default)]
-    remove: bool,
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Mapping {
-    container_port: String,
-    host_port: String,
-}
-
-fn convert_to_port_mapping(item: &[Mapping]) -> Vec<PortMapping> {
-    item.iter()
-        .map(|value| PortMapping {
-            container_port: value.container_port.parse::<u16>().ok(),
-            host_port: value.host_port.parse::<u16>().ok(),
-            host_ip: None,
-            protocol: None,
-            range: None,
-        })
-        .collect()
-}
-
-impl PodmanRuntimeConfig {
-    pub fn get_command_with_args(&self) -> Vec<String> {
-        let mut command = vec![];
-        command.extend(self.command.iter().cloned());
-        command.extend(self.args.iter().cloned());
-        command
-    }
-}
-
-#[derive(Debug)]
-pub struct TryFromWorkloadSpecError(String);
-
-impl TryFrom<&WorkloadSpec> for PodmanRuntimeConfig {
-    type Error = TryFromWorkloadSpecError;
-    fn try_from(workload_spec: &WorkloadSpec) -> Result<Self, Self::Error> {
-        match serde_yaml::from_str(workload_spec.workload.runtime_config.as_str()) {
-            Ok(workload_cfg) => Ok(workload_cfg),
-            Err(e) => Err(TryFromWorkloadSpecError(e.to_string())),
-        }
-    }
-}
-
-impl From<TryFromWorkloadSpecError> for WorkloadError {
-    fn from(value: TryFromWorkloadSpecError) -> Self {
-        WorkloadError::StartError(value.0)
-    }
-}
 
 #[derive(Debug)]
 pub struct PodmanWorkload {
@@ -178,32 +113,16 @@ impl PodmanWorkload {
                 ))
             })?;
         }
-        use podman_api::opts::ContainerCreateOpts;
 
         // [impl->swdd~podman-workload-creates-container~1]
         // [impl->swdd~podman-adapt-mount-interface-pipes-into-workload~2]
-        match self
-            .podman
-            .containers()
-            .create(
-                &ContainerCreateOpts::builder()
-                    .image(&workload_cfg.image)
-                    .command(&workload_cfg.get_command_with_args())
-                    .name(self.workload_spec.instance_name().to_string())
-                    .env(&workload_cfg.env)
-                    .portmappings(convert_to_port_mapping(&workload_cfg.ports))
-                    .mounts(vec![ContainerMount {
-                        destination: Some(String::from(API_PIPES_MOUNT_POINT)),
-                        options: None,
-                        source: Some(self.api_pipes_location.to_string_lossy().to_string()),
-                        _type: Some(String::from(BIND_MOUNT)),
-                        uid_mappings: None,
-                        gid_mappings: None,
-                    }])
-                    .remove(workload_cfg.remove)
-                    .build(),
-            )
-            .await
+        match PodmanUtils::create_container(
+            &self.podman,
+            workload_cfg,
+            self.workload_spec.instance_name().to_string(),
+            self.api_pipes_location.to_string_lossy().to_string(),
+        )
+        .await
         {
             Ok(result) => {
                 // [impl->swdd~podman-workload-stores-container-id~1]
@@ -217,16 +136,7 @@ impl PodmanWorkload {
     }
 
     async fn has_image(&self, image: &str) -> Result<bool, Error> {
-        let list = self
-            .podman
-            .images()
-            .list(
-                &ImageListOpts::builder()
-                    .filter(vec![ImageListFilter::Reference(image.into(), None)])
-                    .build(),
-            )
-            .await?;
-
+        let list = PodmanUtils::list_images(&self.podman, image).await?;
         Ok(!list.is_empty())
     }
 
@@ -235,19 +145,7 @@ impl PodmanWorkload {
         &self,
         image: &String,
     ) -> Result<Vec<podman_api::models::LibpodImagesPullReport>, Error> {
-        use futures_util::{StreamExt, TryStreamExt};
-
-        self.podman
-            .images()
-            .pull(&PullOpts::builder().reference(image).build())
-            .map(|report| {
-                report.and_then(|report| match report.error {
-                    Some(error) => Err(Error::InvalidResponse(error)),
-                    None => Ok(report),
-                })
-            })
-            .try_collect::<Vec<_>>()
-            .await
+        PodmanUtils::pull_image(&self.podman, image).await
     }
 
     // [impl->swdd~podman-workload-monitors-workload-state~1]

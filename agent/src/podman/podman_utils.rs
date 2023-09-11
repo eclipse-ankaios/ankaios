@@ -14,9 +14,16 @@
 
 use common::state_change_interface::StateChangeInterface;
 use common::state_change_interface::StateChangeSender;
+use podman_api::models;
+use podman_api::models::ContainerMount;
 use podman_api::models::ListContainer;
+use podman_api::opts::ContainerCreateOpts;
 use podman_api::opts::ContainerDeleteOpts;
 use podman_api::opts::ContainerStopOpts;
+use podman_api::opts::ImageListFilter;
+use podman_api::opts::ImageListOpts;
+use podman_api::opts::PullOpts;
+use podman_api::Error;
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time;
@@ -26,6 +33,8 @@ use podman_api::{
     opts::{ContainerListFilter, ContainerListOpts},
     Podman,
 };
+
+use crate::podman::podman_runtime_config::{convert_to_port_mapping, PodmanRuntimeConfig};
 
 use common::objects::WorkloadExecutionInstanceName;
 #[cfg(test)]
@@ -37,6 +46,9 @@ use mockall::automock;
 
 // [impl->swdd~podman-workload-monitor-interval~1]
 const STATUS_CHECK_INTERVAL_MS: u64 = 1000;
+
+const API_PIPES_MOUNT_POINT: &str = "/run/ankaios/control_interface";
+const BIND_MOUNT: &str = "bind";
 
 pub struct PodmanUtils {}
 
@@ -151,6 +163,20 @@ impl PodmanUtils {
         }
     }
 
+    pub async fn list_images(
+        podman: &Podman,
+        image_name: &str,
+    ) -> podman_api::Result<Vec<models::LibpodImageSummary>> {
+        podman
+            .images()
+            .list(
+                &ImageListOpts::builder()
+                    .filter(vec![ImageListFilter::Reference(image_name.into(), None)])
+                    .build(),
+            )
+            .await
+    }
+
     pub async fn list_containers(
         podman: &Podman,
         name_filter: &str,
@@ -161,6 +187,54 @@ impl PodmanUtils {
                 &ContainerListOpts::builder()
                     .all(true)
                     .filter([ContainerListFilter::Name(name_filter.to_string())])
+                    .build(),
+            )
+            .await
+    }
+
+    pub async fn pull_image(
+        podman: &Podman,
+        image: &String,
+    ) -> Result<Vec<podman_api::models::LibpodImagesPullReport>, Error> {
+        use futures_util::{StreamExt, TryStreamExt};
+
+        podman
+            .images()
+            .pull(&PullOpts::builder().reference(image).build())
+            .map(|report| {
+                report.and_then(|report| match report.error {
+                    Some(error) => Err(Error::InvalidResponse(error)),
+                    None => Ok(report),
+                })
+            })
+            .try_collect::<Vec<_>>()
+            .await
+    }
+
+    pub async fn create_container(
+        podman: &Podman,
+        workload_cfg: PodmanRuntimeConfig,
+        container_name: String,
+        api_pipes_location: String,
+    ) -> podman_api::Result<models::ContainerCreateCreatedBody> {
+        podman
+            .containers()
+            .create(
+                &ContainerCreateOpts::builder()
+                    .image(&workload_cfg.image)
+                    .command(&workload_cfg.get_command_with_args())
+                    .name(container_name)
+                    .env(&workload_cfg.env)
+                    .portmappings(convert_to_port_mapping(&workload_cfg.ports))
+                    .mounts(vec![ContainerMount {
+                        destination: Some(String::from(API_PIPES_MOUNT_POINT)),
+                        options: None,
+                        source: Some(api_pipes_location),
+                        _type: Some(String::from(BIND_MOUNT)),
+                        uid_mappings: None,
+                        gid_mappings: None,
+                    }])
+                    .remove(workload_cfg.remove)
                     .build(),
             )
             .await
