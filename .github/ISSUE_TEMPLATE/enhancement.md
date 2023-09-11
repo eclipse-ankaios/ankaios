@@ -19,7 +19,7 @@ assignees: ''
 
 ### Summary
 
-**To be filled when final solution is sketched.**
+**To be filled when the final solution is sketched.**
 
 ### Tasks
 
