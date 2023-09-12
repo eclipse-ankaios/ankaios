@@ -31,12 +31,6 @@ impl From<ExecutionCommandError> for GrpcProxyError {
     }
 }
 
-// impl From<String> for GrpcProxyError {
-//     fn from(value: String) -> Self {
-//         GrpcProxyError::Abort(value)
-//     }
-// }
-
 impl fmt::Display for GrpcProxyError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
