@@ -13,15 +13,17 @@ def table_to_list(raw):
     splitted = raw.split('\n')
     header = splitted.pop(0)
     columns = []
-    index = 0
-    while index < (len(header) - 1):
-        while index < len(header) - 1 and not (header[index] == ' ' and header[index + 1] == ' '):
-            index += 1
+    next_start_index = 0
+    index = header.find("  ", next_start_index)
+    while index > -1:
         while index < len(header) and header[index] == ' ':
             index += 1
         
         columns.append(index)
-        index += 1
+        next_start_index = index + 1
+        index = header.find("  ", next_start_index)
+
+    columns.append(len(header))
 
     table = []
     for row in splitted:
@@ -34,20 +36,24 @@ def table_to_list(raw):
 
     return table
 
-def wait_for_initial_execution_state(command, agent_name, timeout=10):
+def table_to_dict(input_list, key):
+    out_dict = {}
+    for item in input_list:
+        out_dict[item[key]] = item
+        del item[key]
+    return out_dict
+
+def wait_for_initial_execution_state(command, agent_name, next_try_in_sec=1,timeout=10):
         start_time = time.time()
-        print("exec run")
         res = run_command(command)
         table = table_to_list(res.stdout if res else "")
         while (time.time() - start_time) < timeout:
             if table and all([len(row["EXECUTION STATE"].strip()) > 0 for row in filter(lambda r: r["AGENT"] == agent_name, table)]):
                 return True
 
-            print("exec run")
-            time.sleep(1)
+            time.sleep(next_try_in_sec)
             res = run_command(command)
             table = table_to_list(res.stdout if res else "")
-        print("timeout!!!")
         return False
 
 

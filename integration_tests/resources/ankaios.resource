@@ -15,19 +15,23 @@ Clean up Podman
     LOG    Clean up Podman
     RUN COMMAND    podman stop -a    timeout=20
     RUN COMMAND    podman rm -a    timeout=20
-Ankaios server is started with "${startup_config}"
-    LOG    Ankaios server is started with ${startup_config}
-    Start Process    %{ANK_BIN_DIR}${/}ank-server    --startup-config    ${startup_config}
+
+Run in background
+    [Arguments]    ${location}    ${cli_command}
+    Log    Run in background: ${cli_command}
+    ${cmd}=    Split Command Line    ${cli_command}
+    Set List Value    ${cmd}    0    ${location}${/}${cmd}[0]  
+    Start Process    @{cmd}
+Ankaios server is started with "${ank_server_cli_command}"
+    LOG    Ankaios server is started with ${ank_server_cli_command}
+    Run in background    %{ANK_BIN_DIR}    ${ank_server_cli_command}
     
 Ankaios server is started
     LOG    Ankaios server is started
 
-Ankaios agent is started with "${cli_command}"
-    LOG    Ankaios agent is started with ${cli_command}
-    ${cmd}=    Split Command Line    ${cli_command}
-    LOG    ${cmd}
-    Set List Value    ${cmd}    0    %{ANK_BIN_DIR}${/}${cmd}[0]  
-    Start Process    @{cmd}
+Ankaios agent is started with "${ank_agent_cli_command}"
+    LOG    Ankaios agent is started with ${ank_agent_cli_command}
+    Run in background    %{ANK_BIN_DIR}    ${ank_agent_cli_command}
 
 all workloads of agent "${agent_name}" have an initial execution state
     LOG    Waiting for initial execution states of agent '${agent_name}'
@@ -48,4 +52,16 @@ result should be "${expected}"
     LOG    Dict result: @{DICT_RESULT}
     ${VAL}=     Get From List   ${DICT_RESULT}  0
     LOG    result: ${VAL}
-    
+
+the workload "${workload_name}" shall have the execution state "${expected_execution_state}" from agent "${expected_agent_name}"
+    the workload "${workload_name}" shall have the execution state "${expected_execution_state}" on agent "${expected_agent_name}"
+
+the workload "${workload_name}" shall have the execution state "${expected_execution_state}" on agent "${expected_agent_name}" 
+    LOG    Assert: ${workload_name} shall have execution state ${expected_execution_state}
+    @{list_result}=    table to list   ${CURRENT_RESULT.stdout}
+    &{dict_result}=    table to dict    ${list_result}    WORKLOAD NAME
+    &{item}=    Get From Dictionary    ${dict_result}    ${workload_name}
+    ${actual_execution_state}=    Get From Dictionary    ${item}    EXECUTION STATE
+    ${actual_agent_name}=    Get From Dictionary    ${item}    AGENT
+    Should be equal    ${actual_execution_state}    ${expected_execution_state}
+    Should be equal    ${actual_agent_name}    ${expected_agent_name}
