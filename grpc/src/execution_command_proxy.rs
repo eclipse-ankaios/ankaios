@@ -14,6 +14,7 @@
 
 use crate::agent_senders_map::AgentSendersMap;
 use crate::ankaios_streaming::GRPCStreaming;
+use crate::proxy_error::GrpcProxyError;
 use api::proto;
 use api::proto::execution_request::ExecutionRequestEnum;
 
@@ -50,42 +51,49 @@ pub async fn forward_from_proto_to_ankaios(
     agent_name: &str,
     grpc_streaming: &mut impl GRPCStreaming<proto::ExecutionRequest>,
     agent_tx: &Sender<ExecutionCommand>,
-) -> Result<(), tonic::Status> {
+) -> Result<(), GrpcProxyError> {
     while let Some(value) = grpc_streaming.message().await? {
         log::debug!("RESPONSE={:?}", value);
 
         let try_block = async {
-            match value.execution_request_enum.ok_or("Missing AgentReply.")? {
+            match value
+                .execution_request_enum
+                .ok_or(GrpcProxyError::Abort("Missing AgentReply.".to_string()))?
+            {
                 ExecutionRequestEnum::UpdateWorkload(obj) => {
                     agent_tx
                         .update_workload(
                             obj.added_workloads
                                 .into_iter()
                                 .map(|x| (agent_name.to_string(), x).try_into())
-                                .collect::<Result<Vec<WorkloadSpec>, String>>()?,
+                                .collect::<Result<Vec<WorkloadSpec>, _>>()
+                                .map_err(GrpcProxyError::Abort)?,
                             obj.deleted_workloads
                                 .into_iter()
                                 .map(|x| (agent_name.to_string(), x).try_into())
-                                .collect::<Result<Vec<DeletedWorkload>, String>>()?,
+                                .collect::<Result<Vec<DeletedWorkload>, _>>()
+                                .map_err(GrpcProxyError::Abort)?,
                         )
-                        .await;
+                        .await?;
                 }
                 ExecutionRequestEnum::UpdateWorkloadState(obj) => {
                     agent_tx
                         .update_workload_state(
                             obj.workload_states.into_iter().map(|x| x.into()).collect(),
                         )
-                        .await;
+                        .await?;
                 }
                 ExecutionRequestEnum::CompleteState(complete_state) => {
-                    agent_tx.complete_state(complete_state.try_into()?).await;
+                    agent_tx
+                        .complete_state(complete_state.try_into().map_err(GrpcProxyError::Abort)?)
+                        .await?;
                 }
             }
-            Ok(())
+            Ok(()) as Result<(), GrpcProxyError>
         }
-        .await as Result<(), String>;
+        .await;
 
-        if let Err(error) = try_block {
+        if let Err::<(), GrpcProxyError>(error) = try_block {
             log::debug!("Could not forward execution request: {}", error);
         }
     }
@@ -335,7 +343,8 @@ mod tests {
                     "workload X".to_string(),
                 )],
             )
-            .await;
+            .await
+            .unwrap();
 
         let handle = forward_from_ankaios_to_proto(&agent_senders_map, &mut manager_receiver);
 
@@ -364,7 +373,8 @@ mod tests {
                 workload_name: "workload_1".into(),
                 execution_state: common::objects::ExecutionState::ExecRunning,
             }])
-            .await;
+            .await
+            .unwrap();
 
         let handle = forward_from_ankaios_to_proto(&agent_senders_map, &mut manager_receiver);
 
@@ -695,7 +705,10 @@ mod tests {
             workload_states: vec![],
         };
 
-        to_manager.complete_state(test_complete_state.clone()).await;
+        to_manager
+            .complete_state(test_complete_state.clone())
+            .await
+            .unwrap();
 
         let handle = forward_from_ankaios_to_proto(&agent_senders_map, &mut manager_receiver);
         let proto_complete_state = proto::CompleteState {

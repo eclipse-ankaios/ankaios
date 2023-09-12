@@ -16,6 +16,28 @@ use crate::commands;
 use crate::objects::{DeletedWorkload, WorkloadSpec, WorkloadState};
 use api::proto;
 use async_trait::async_trait;
+use std::fmt;
+use tokio::sync::mpsc::error::SendError;
+#[derive(Debug)]
+pub struct ExecutionCommandError(String);
+
+impl fmt::Display for ExecutionCommandError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "ExecutionCommandError: '{}'", self.0)
+    }
+}
+
+impl From<SendError<ExecutionCommand>> for ExecutionCommandError {
+    fn from(error: SendError<ExecutionCommand>) -> Self {
+        ExecutionCommandError(error.to_string())
+    }
+}
+
+impl From<String> for ExecutionCommandError {
+    fn from(value: String) -> Self {
+        ExecutionCommandError(value)
+    }
+}
 
 // [impl->swdd~execution-command-channel~1]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -89,10 +111,16 @@ pub trait ExecutionInterface {
         &self,
         added_workloads: Vec<WorkloadSpec>,
         deleted_workloads: Vec<DeletedWorkload>,
-    );
-    async fn update_workload_state(&self, workload_running: Vec<WorkloadState>);
-    async fn complete_state(&self, complete_state: commands::CompleteState);
-    async fn stop(&self);
+    ) -> Result<(), ExecutionCommandError>;
+    async fn update_workload_state(
+        &self,
+        workload_running: Vec<WorkloadState>,
+    ) -> Result<(), ExecutionCommandError>;
+    async fn complete_state(
+        &self,
+        complete_state: commands::CompleteState,
+    ) -> Result<(), ExecutionCommandError>;
+    async fn stop(&self) -> Result<(), ExecutionCommandError>;
 }
 
 pub type ExecutionSender = tokio::sync::mpsc::Sender<ExecutionCommand>;
@@ -104,33 +132,37 @@ impl ExecutionInterface for ExecutionSender {
         &self,
         added_workloads: Vec<WorkloadSpec>,
         deleted_workloads: Vec<DeletedWorkload>,
-    ) {
-        self.send(ExecutionCommand::UpdateWorkload(commands::UpdateWorkload {
-            added_workloads,
-            deleted_workloads,
-        }))
-        .await
-        .unwrap();
+    ) -> Result<(), ExecutionCommandError> {
+        Ok(self
+            .send(ExecutionCommand::UpdateWorkload(commands::UpdateWorkload {
+                added_workloads,
+                deleted_workloads,
+            }))
+            .await?)
     }
 
-    async fn update_workload_state(&self, workload_states: Vec<WorkloadState>) {
-        self.send(ExecutionCommand::UpdateWorkloadState(
-            commands::UpdateWorkloadState { workload_states },
-        ))
-        .await
-        .unwrap();
+    async fn update_workload_state(
+        &self,
+        workload_states: Vec<WorkloadState>,
+    ) -> Result<(), ExecutionCommandError> {
+        Ok(self
+            .send(ExecutionCommand::UpdateWorkloadState(
+                commands::UpdateWorkloadState { workload_states },
+            ))
+            .await?)
     }
 
-    async fn complete_state(&self, complete_state: commands::CompleteState) {
-        self.send(ExecutionCommand::CompleteState(Box::new(complete_state)))
-            .await
-            .unwrap();
+    async fn complete_state(
+        &self,
+        complete_state: commands::CompleteState,
+    ) -> Result<(), ExecutionCommandError> {
+        Ok(self
+            .send(ExecutionCommand::CompleteState(Box::new(complete_state)))
+            .await?)
     }
 
-    async fn stop(&self) {
-        self.send(ExecutionCommand::Stop(commands::Stop {}))
-            .await
-            .unwrap();
+    async fn stop(&self) -> Result<(), ExecutionCommandError> {
+        Ok(self.send(ExecutionCommand::Stop(commands::Stop {})).await?)
     }
 }
 

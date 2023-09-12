@@ -448,7 +448,8 @@ mod tests {
                 vec![workload_spec_1.clone(), workload_spec_2.clone()],
                 vec![],
             )
-            .await;
+            .await
+            .unwrap();
 
         let handle = agent_manager.start();
 
@@ -499,7 +500,8 @@ mod tests {
 
         to_manager
             .update_workload(vec![workload_spec.clone()], vec![])
-            .await;
+            .await
+            .unwrap();
 
         let handle = agent_manager.start();
 
@@ -550,7 +552,8 @@ mod tests {
 
         to_manager
             .update_workload(vec![workload_spec.clone()], vec![])
-            .await;
+            .await
+            .unwrap();
 
         let handle = agent_manager.start();
 
@@ -597,7 +600,8 @@ mod tests {
 
         to_manager
             .update_workload(vec![workload_spec.clone()], vec![])
-            .await;
+            .await
+            .unwrap();
 
         let handle = agent_manager.start();
 
@@ -651,7 +655,8 @@ mod tests {
 
         to_manager
             .update_workload(vec![workload_spec.clone()], vec![deleted_workload.clone()])
-            .await;
+            .await
+            .unwrap();
 
         let handle = agent_manager.start();
 
@@ -694,7 +699,8 @@ mod tests {
 
         to_manager
             .update_workload(vec![workload_spec.clone()], vec![])
-            .await;
+            .await
+            .unwrap();
 
         to_manager
             .update_workload(
@@ -704,7 +710,8 @@ mod tests {
                     WORKLOAD_TO_DELETE_NAME.into(),
                 )],
             )
-            .await;
+            .await
+            .unwrap();
         let handle = agent_manager.start();
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
@@ -750,7 +757,8 @@ mod tests {
 
         to_manager
             .update_workload(vec![workload_spec_for_del.clone()], vec![])
-            .await;
+            .await
+            .unwrap();
 
         to_manager
             .update_workload(
@@ -760,7 +768,8 @@ mod tests {
                     WORKLOAD_TO_DELETE_NAME.into(),
                 )],
             )
-            .await;
+            .await
+            .unwrap();
         let handle = agent_manager.start();
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
@@ -817,7 +826,8 @@ mod tests {
                 vec![workload_spec.clone(), updated_workload_spec],
                 vec![delete_workload, updated_workload_spec_delete],
             )
-            .await;
+            .await
+            .unwrap();
 
         let handle = agent_manager.start();
 
@@ -849,7 +859,10 @@ mod tests {
             agent_name: AGENT_NAME.into(),
             execution_state: common::objects::ExecutionState::ExecFailed,
         }];
-        to_manager.update_workload_state(workload_states).await;
+        to_manager
+            .update_workload_state(workload_states)
+            .await
+            .unwrap();
 
         let handle = agent_manager.start();
 
@@ -906,11 +919,16 @@ mod tests {
         };
         to_manager
             .update_workload(vec![workload_spec1], vec![])
-            .await;
+            .await
+            .unwrap();
         to_manager
             .update_workload(vec![workload_spec2], vec![])
-            .await;
-        to_manager.complete_state(complete_state.clone()).await;
+            .await
+            .unwrap();
+        to_manager
+            .complete_state(complete_state.clone())
+            .await
+            .unwrap();
 
         let handle = agent_manager.start();
 

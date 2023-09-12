@@ -16,6 +16,7 @@ use std::fmt;
 
 use crate::execution_command_proxy;
 use crate::execution_command_proxy::GRPCExecutionRequestStreaming;
+use crate::proxy_error::GrpcProxyError;
 use crate::state_change_proxy;
 use api::proto;
 use api::proto::agent_connection_client::AgentConnectionClient;
@@ -139,6 +140,12 @@ impl From<SendError<proto::StateChangeRequest>> for GrpcConnectionError {
 
 impl From<tonic::Status> for GrpcConnectionError {
     fn from(err: tonic::Status) -> Self {
+        GrpcConnectionError::ConnectionInterrupted(err.to_string())
+    }
+}
+
+impl From<GrpcProxyError> for GrpcConnectionError {
+    fn from(err: GrpcProxyError) -> Self {
         GrpcConnectionError::ConnectionInterrupted(err.to_string())
     }
 }

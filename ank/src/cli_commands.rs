@@ -46,7 +46,6 @@ const BUFFER_SIZE: usize = 20;
 
 #[derive(Debug, Clone)]
 pub enum CliError {
-    InvalidObjectFieldMask(String),
     YamlSerialization(String),
     JsonSerialization(String),
 }
@@ -54,9 +53,6 @@ pub enum CliError {
 impl fmt::Display for CliError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            CliError::InvalidObjectFieldMask(message) => {
-                write!(f, "Invalid object field mask: '{message}'")
-            }
             CliError::YamlSerialization(message) => {
                 write!(f, "Could not serialize YAML object: '{message}'")
             }

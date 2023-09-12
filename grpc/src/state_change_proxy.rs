@@ -13,6 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ankaios_streaming::GRPCStreaming;
+use crate::proxy_error::GrpcProxyError;
 use api::proto;
 use api::proto::state_change_request::StateChangeRequestEnum;
 use api::proto::UpdateStateRequest;
@@ -49,14 +50,15 @@ pub async fn forward_from_proto_to_ankaios(
     agent_name: String,
     grpc_streaming: &mut impl GRPCStreaming<proto::StateChangeRequest>,
     sink: Sender<StateChangeCommand>,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<(), GrpcProxyError> {
     while let Some(message) = grpc_streaming.message().await? {
         log::debug!("REQUEST={:?}", message);
 
         match message
             .state_change_request_enum
-            .ok_or("Missing state_change_request")?
-        {
+            .ok_or(GrpcProxyError::Abort(
+                "Missing state_change_request".to_string(),
+            ))? {
             StateChangeRequestEnum::UpdateState(UpdateStateRequest {
                 new_state,
                 update_mask,
@@ -114,7 +116,7 @@ pub async fn forward_from_proto_to_ankaios(
 pub async fn forward_from_ankaios_to_proto(
     grpc_tx: Sender<proto::StateChangeRequest>,
     server_rx: &mut StateChangeReceiver,
-) -> Result<(), tonic::Status> {
+) -> Result<(), GrpcProxyError> {
     while let Some(x) = server_rx.recv().await {
         match x {
             StateChangeCommand::UpdateState(method_obj) => {
@@ -314,7 +316,7 @@ mod tests {
         )
         .await;
         assert!(forward_result.is_err());
-        assert_eq!(forward_result.unwrap_err().to_string(), String::from("status: Unknown, message: \"test\", details: [], metadata: MetadataMap { headers: {} }"));
+        assert_eq!(forward_result.unwrap_err().to_string(), String::from("StreamingError: 'status: Unknown, message: \"test\", details: [], metadata: MetadataMap { headers: {} }'"));
 
         // pick received execution command
         let result = server_rx.recv().await;
@@ -349,7 +351,7 @@ mod tests {
         assert!(forward_result.is_err());
         assert_eq!(
             forward_result.unwrap_err().to_string(),
-            String::from("Missing state_change_request")
+            String::from("Abort: 'Missing state_change_request'")
         );
 
         // pick received execution command

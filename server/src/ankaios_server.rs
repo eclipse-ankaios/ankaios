@@ -153,7 +153,8 @@ impl AnkaiosServer {
                             // It's a newly connected agent, no need to delete anything.
                             vec![],
                         )
-                        .await;
+                        .await
+                        .unwrap_or_exit("Failed to send workloads to newly connected agent");
 
                     // [impl->swdd~server-informs-a-newly-connected-agent-workload-states~1]
                     // [impl->swdd~server-sends-all-workload-states-on-agent-connect~1]
@@ -161,7 +162,12 @@ impl AnkaiosServer {
                         .workload_state_db
                         .get_workload_state_excluding_agent(&method_obj.agent_name);
                     if !workload_states.is_empty() {
-                        self.to_agents.update_workload_state(workload_states).await;
+                        self.to_agents
+                            .update_workload_state(workload_states)
+                            .await
+                            .unwrap_or_exit(
+                                "Failed to send workload states to newly connected agent",
+                            );
                     } else {
                         log::debug!("No workload states to send. Nothing to do.");
                     }
@@ -172,14 +178,15 @@ impl AnkaiosServer {
                     self.workload_state_db
                         .mark_all_workload_state_for_agent_unknown(&method_obj.agent_name);
 
-                    // now tell everybody the exciting news ;)
+                    // communicate the workload changes to other agents
                     // [impl->swdd~server-distribute-workload-state-unknown-on-disconnect~1]
                     self.to_agents
                         .update_workload_state(
                             self.workload_state_db
                                 .get_workload_state_for_agent(&method_obj.agent_name),
                         )
-                        .await;
+                        .await
+                        .unwrap_or_exit("Failed to send workload states to remaining agents after agent was gone");
                 }
                 // [impl->swdd~server-provides-update-current-state-interface~1]
                 StateChangeCommand::UpdateState(update_request) => {
@@ -216,7 +223,8 @@ impl AnkaiosServer {
                     // [impl->swdd~server-forwards-workload-state~1]
                     self.to_agents
                         .update_workload_state(method_obj.workload_states)
-                        .await;
+                        .await
+                        .unwrap_or_exit("Failed to send workload states to agents");
                 }
                 // [impl->swdd~server-provides-interface-get-complete-state~1]
                 // [impl->swdd~server-includes-id-in-control-interface-response~1]
@@ -227,7 +235,12 @@ impl AnkaiosServer {
 
                     if let Some(complete_state) = self.get_complete_state_by_field_mask(&method_obj)
                     {
-                        self.to_agents.complete_state(complete_state).await;
+                        self.to_agents
+                            .complete_state(complete_state)
+                            .await
+                            .unwrap_or_exit(
+                            "Failed to send complete state to agents after request complete state",
+                        );
                     } else {
                         self.to_agents
                             .complete_state(common::commands::CompleteState {
@@ -237,6 +250,7 @@ impl AnkaiosServer {
                                 workload_states: vec![],
                             })
                             .await
+                            .unwrap_or_exit("Failed to send default complete state to agents after request complete state");
                     }
                 }
                 StateChangeCommand::Stop(_method_obj) => {
