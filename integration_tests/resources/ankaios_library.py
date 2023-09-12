@@ -1,5 +1,6 @@
 import subprocess
 import time
+import yaml
 
 def run_command(command, timeout=3):
     try:
@@ -56,4 +57,35 @@ def wait_for_initial_execution_state(command, agent_name, next_try_in_sec=1,time
             table = table_to_list(res.stdout if res else "")
         return False
 
+def replace_key(data, match, func):
+    if isinstance(data, dict):
+        for k, v in data.items():
+            if k == match:
+                data[k] = func(v)
+            replace_key(data[k], match, func)
+    elif isinstance(data, list):
+        for item in data:
+            replace_key(item, match, func)
 
+def yaml_to_dict(raw):
+    y = yaml.safe_load(raw)
+    replace_key(y, "runtimeConfig", yaml.safe_load)
+    return y
+
+def replace_config(data, filter_path, new_value):
+    filter_path = filter_path.split('.')
+    filter_iterator = iter(filter_path)
+    next_level = data[next(filter_iterator)]
+    for level in filter_iterator:
+        if filter_path[-1] == level:
+            break
+
+        next_level = next_level[level] if isinstance(next_level, dict) else next_level[int(level)]
+    next_level[filter_path[-1]] = new_value
+    return data
+
+# def replace_config(data, filter_path, new_value):
+#     if len(filter_path) == 1:
+#         data[filter_path[0]] = new_value
+#         return data
+#     return replace_config(data[filter_path[0]], filter_path[1:], new_value)

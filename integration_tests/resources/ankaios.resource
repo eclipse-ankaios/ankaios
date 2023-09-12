@@ -22,6 +22,7 @@ Run in background
     ${cmd}=    Split Command Line    ${cli_command}
     Set List Value    ${cmd}    0    ${location}${/}${cmd}[0]  
     Start Process    @{cmd}
+
 Ankaios server is started with "${ank_server_cli_command}"
     LOG    Ankaios server is started with ${ank_server_cli_command}
     Run in background    %{ANK_BIN_DIR}    ${ank_server_cli_command}
@@ -42,16 +43,9 @@ user triggers "${cli_command}"
     ${cmd}=    Split Command Line    ${cli_command}
     LOG    ${cmd}
     Set List Value    ${cmd}    0    %{ANK_BIN_DIR}${/}${cmd}[0]  
-    ${CURRENT_RESULT} =    Run Process    @{cmd}    timeout=20
+    ${CURRENT_RESULT} =    Run Process    @{cmd}    timeout=20    shell=True
     LOG    ${CURRENT_RESULT.stdout}
     SET GLOBAL VARIABLE    ${CURRENT_RESULT}
-
-result should be "${expected}"
-    LOG    Checking result ${CURRENT_RESULT.stdout}
-    @{DICT_RESULT}=    table to list   ${CURRENT_RESULT.stdout}
-    LOG    Dict result: @{DICT_RESULT}
-    ${VAL}=     Get From List   ${DICT_RESULT}  0
-    LOG    result: ${VAL}
 
 the workload "${workload_name}" shall have the execution state "${expected_execution_state}" from agent "${expected_agent_name}"
     the workload "${workload_name}" shall have the execution state "${expected_execution_state}" on agent "${expected_agent_name}"
