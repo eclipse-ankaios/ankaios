@@ -18,17 +18,16 @@ use common::state_change_interface::StateChangeInterface;
 use common::state_change_interface::StateChangeSender;
 
 use hyper::http;
-use podman_api::models::{ContainerMount, PortMapping};
+use podman_api::models::ContainerMount;
 use podman_api::opts::{ImageListFilter, ImageListOpts, PullOpts};
 use podman_api::Error;
 use std::path::{Path, PathBuf};
 use tokio::task::JoinHandle;
 
-use std::collections::HashMap;
-
 use podman_api::Podman;
 
 use crate::podman::podman_utils::PodmanUtils;
+use crate::podman::runtime_config::{convert_to_port_mapping, Mount, PodmanRuntimeConfig};
 use crate::workload_trait::{Workload, WorkloadError};
 use common::objects::{WorkloadExecutionInstanceName, WorkloadInstanceName};
 
@@ -37,68 +36,6 @@ use mockall::automock;
 
 const API_PIPES_MOUNT_POINT: &str = "/run/ankaios/control_interface";
 const BIND_MOUNT: &str = "bind";
-
-#[derive(Debug, serde::Deserialize)]
-struct PodmanRuntimeConfig {
-    image: String,
-    #[serde(default)]
-    command: Vec<String>,
-    #[serde(default)]
-    args: Vec<String>,
-    #[serde(default)]
-    env: HashMap<String, String>,
-    #[serde(default)]
-    ports: Vec<Mapping>,
-    #[serde(default)]
-    remove: bool,
-}
-
-#[derive(Debug, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Mapping {
-    container_port: String,
-    host_port: String,
-}
-
-fn convert_to_port_mapping(item: &[Mapping]) -> Vec<PortMapping> {
-    item.iter()
-        .map(|value| PortMapping {
-            container_port: value.container_port.parse::<u16>().ok(),
-            host_port: value.host_port.parse::<u16>().ok(),
-            host_ip: None,
-            protocol: None,
-            range: None,
-        })
-        .collect()
-}
-
-impl PodmanRuntimeConfig {
-    pub fn get_command_with_args(&self) -> Vec<String> {
-        let mut command = vec![];
-        command.extend(self.command.iter().cloned());
-        command.extend(self.args.iter().cloned());
-        command
-    }
-}
-
-#[derive(Debug)]
-pub struct TryFromWorkloadSpecError(String);
-
-impl TryFrom<&WorkloadSpec> for PodmanRuntimeConfig {
-    type Error = TryFromWorkloadSpecError;
-    fn try_from(workload_spec: &WorkloadSpec) -> Result<Self, Self::Error> {
-        match serde_yaml::from_str(workload_spec.workload.runtime_config.as_str()) {
-            Ok(workload_cfg) => Ok(workload_cfg),
-            Err(e) => Err(TryFromWorkloadSpecError(e.to_string())),
-        }
-    }
-}
-
-impl From<TryFromWorkloadSpecError> for WorkloadError {
-    fn from(value: TryFromWorkloadSpecError) -> Self {
-        WorkloadError::StartError(value.0)
-    }
-}
 
 #[derive(Debug)]
 pub struct PodmanWorkload {
@@ -192,14 +129,7 @@ impl PodmanWorkload {
                     .name(self.workload_spec.instance_name().to_string())
                     .env(&workload_cfg.env)
                     .portmappings(convert_to_port_mapping(&workload_cfg.ports))
-                    .mounts(vec![ContainerMount {
-                        destination: Some(String::from(API_PIPES_MOUNT_POINT)),
-                        options: None,
-                        source: Some(self.api_pipes_location.to_string_lossy().to_string()),
-                        _type: Some(String::from(BIND_MOUNT)),
-                        uid_mappings: None,
-                        gid_mappings: None,
-                    }])
+                    .mounts(self.create_mounts(workload_cfg.mounts))
                     .remove(workload_cfg.remove)
                     .build(),
             )
@@ -248,6 +178,24 @@ impl PodmanWorkload {
             })
             .try_collect::<Vec<_>>()
             .await
+    }
+
+    fn create_mounts(&self, mounts: Vec<Mount>) -> Vec<ContainerMount> {
+        let mut res = Vec::with_capacity(mounts.len() + 1);
+        res.push(ContainerMount {
+            destination: Some(String::from(API_PIPES_MOUNT_POINT)),
+            options: None,
+            source: Some(self.api_pipes_location.to_string_lossy().to_string()),
+            _type: Some(String::from(BIND_MOUNT)),
+            uid_mappings: None,
+            gid_mappings: None,
+        });
+
+        for m in mounts {
+            res.push(m.into());
+        }
+
+        res
     }
 
     // [impl->swdd~podman-workload-monitors-workload-state~1]
