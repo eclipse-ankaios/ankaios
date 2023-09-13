@@ -14,7 +14,6 @@
 
 use common::state_change_interface::StateChangeInterface;
 use common::state_change_interface::StateChangeSender;
-use podman_api::models;
 use podman_api::models::ContainerMount;
 use podman_api::models::ListContainer;
 use podman_api::opts::ContainerCreateOpts;
@@ -50,13 +49,22 @@ const STATUS_CHECK_INTERVAL_MS: u64 = 1000;
 const API_PIPES_MOUNT_POINT: &str = "/run/ankaios/control_interface";
 const BIND_MOUNT: &str = "bind";
 
-pub struct PodmanUtils {}
+#[derive(Debug)]
+pub struct PodmanUtils {
+    podman: Podman,
+}
 
 #[cfg_attr(test, automock)]
 impl PodmanUtils {
+    pub fn new(socket_path: String) -> Self {
+        Self {
+            podman: Podman::unix(socket_path.as_str()),
+        }
+    }
+
     pub async fn check_status(
+        &self,
         manager_interface: StateChangeSender,
-        podman: Podman,
         agent_name: String,
         workload_name: String,
         container_id: String,
@@ -66,7 +74,7 @@ impl PodmanUtils {
         let mut interval = time::interval(Duration::from_millis(STATUS_CHECK_INTERVAL_MS));
         loop {
             interval.tick().await;
-            let current_state = PodmanUtils::get_status(&podman, &container_id).await;
+            let current_state = self.get_status(&container_id).await;
 
             if current_state != last_state {
                 log::info!(
@@ -94,10 +102,11 @@ impl PodmanUtils {
 
     // [impl->swdd~podman-workload-state~1]
     // [impl->swdd~podman-workload-maps-state~1]
-    async fn get_status(podman: &Podman, container_id: &str) -> ExecutionState {
+    async fn get_status(&self, container_id: &str) -> ExecutionState {
         let mut ret_state = ExecutionState::ExecUnknown;
 
-        match podman
+        match self
+            .podman
             .containers()
             .list(
                 &ContainerListOpts::builder()
@@ -163,25 +172,21 @@ impl PodmanUtils {
         }
     }
 
-    pub async fn list_images(
-        podman: &Podman,
-        image_name: &str,
-    ) -> podman_api::Result<Vec<models::LibpodImageSummary>> {
-        podman
+    pub async fn has_image(&self, image_name: &str) -> podman_api::Result<bool> {
+        let list = self
+            .podman
             .images()
             .list(
                 &ImageListOpts::builder()
                     .filter(vec![ImageListFilter::Reference(image_name.into(), None)])
                     .build(),
             )
-            .await
+            .await?;
+        Ok(!list.is_empty())
     }
 
-    pub async fn list_containers(
-        podman: &Podman,
-        name_filter: &str,
-    ) -> podman_api::Result<Vec<ListContainer>> {
-        podman
+    async fn list_containers(&self, name_filter: &str) -> podman_api::Result<Vec<ListContainer>> {
+        self.podman
             .containers()
             .list(
                 &ContainerListOpts::builder()
@@ -192,32 +197,30 @@ impl PodmanUtils {
             .await
     }
 
-    pub async fn pull_image(
-        podman: &Podman,
-        image: &String,
-    ) -> Result<Vec<podman_api::models::LibpodImagesPullReport>, Error> {
+    pub async fn pull_image(&self, image: &String) -> Result<(), Error> {
         use futures_util::{StreamExt, TryStreamExt};
 
-        podman
+        self.podman
             .images()
             .pull(&PullOpts::builder().reference(image).build())
             .map(|report| {
                 report.and_then(|report| match report.error {
                     Some(error) => Err(Error::InvalidResponse(error)),
-                    None => Ok(report),
+                    None => Ok(()),
                 })
             })
-            .try_collect::<Vec<_>>()
+            .try_collect()
             .await
     }
 
     pub async fn create_container(
-        podman: &Podman,
+        &self,
         workload_cfg: PodmanRuntimeConfig,
         container_name: String,
         api_pipes_location: String,
-    ) -> podman_api::Result<models::ContainerCreateCreatedBody> {
-        podman
+    ) -> podman_api::Result<String> {
+        let result = self
+            .podman
             .containers()
             .create(
                 &ContainerCreateOpts::builder()
@@ -237,19 +240,24 @@ impl PodmanUtils {
                     .remove(workload_cfg.remove)
                     .build(),
             )
-            .await
+            .await?;
+        Ok(result.id)
     }
 
-    pub async fn stop_container(podman: &Podman, container_id: &str) -> podman_api::Result<()> {
-        podman
+    pub async fn start_container(&self, container_id: &str) -> podman_api::Result<()> {
+        self.podman.containers().get(container_id).start(None).await
+    }
+
+    pub async fn stop_container(&self, container_id: &str) -> podman_api::Result<()> {
+        self.podman
             .containers()
             .get(container_id)
             .stop(&ContainerStopOpts::default())
             .await
     }
 
-    pub async fn delete_container(podman: &Podman, container_id: &str) -> podman_api::Result<()> {
-        podman
+    pub async fn delete_container(&self, container_id: &str) -> podman_api::Result<()> {
+        self.podman
             .containers()
             .get(container_id)
             .delete(&ContainerDeleteOpts::builder().volumes(true).build())
@@ -257,15 +265,15 @@ impl PodmanUtils {
     }
 
     pub fn remove_containers(
-        podman: &Podman,
+        socket_path: &str,
         instance_map: HashMap<String, (WorkloadExecutionInstanceName, String)>,
     ) {
         for (_, (_, container_id)) in instance_map {
-            let podman = podman.clone();
+            let podman_utils = PodmanUtils::new(socket_path.to_string());
             tokio::spawn(async move {
                 if let Err(err) = (|| async {
-                    PodmanUtils::stop_container(&podman, &container_id).await?;
-                    PodmanUtils::delete_container(&podman, &container_id).await?;
+                    podman_utils.stop_container(&container_id).await?;
+                    podman_utils.delete_container(&container_id).await?;
                     podman_api::Result::Ok(())
                 })()
                 .await
@@ -280,14 +288,16 @@ impl PodmanUtils {
 
     // [impl->swdd~agent-adapter-start-finds-existing-workloads~1]
     pub async fn list_running_workloads(
-        podman: &Podman,
+        socket_path: &str,
         agent_name: &str,
     ) -> HashMap<String, (WorkloadExecutionInstanceName, String)> {
         let mut running_workloads = HashMap::new();
 
         let name_filter = WorkloadExecutionInstanceName::get_agent_filter_regex(agent_name);
 
-        match PodmanUtils::list_containers(podman, &name_filter).await {
+        let podman_utils = PodmanUtils::new(socket_path.to_string());
+
+        match podman_utils.list_containers(&name_filter).await {
             Ok(container_list) => {
                 for container in container_list {
                     if let Some(instance_name) =
@@ -375,7 +385,6 @@ mod tests {
 
     use common::objects::ExecutionState;
     use hyper::StatusCode;
-    use podman_api::Podman;
 
     use crate::podman::{
         podman_utils::{
@@ -386,8 +395,8 @@ mod tests {
         },
         test_utils::{
             request_handlers::{
-                handler_helpers::*, ErrorResponseRequestHandler, ListContainerRequestHandler,
-                RequestHandler, WithRequestHandlerParameter,
+                handler_helpers::*, BasicRequestHandler, ErrorResponseRequestHandler,
+                ListContainerRequestHandler, RequestHandler, WithRequestHandlerParameter,
             },
             server_models::ServerListContainer,
             test_daemon::PodmanTestDaemon,
@@ -417,11 +426,9 @@ mod tests {
         let request_handlers = vec![Box::new(handler) as Box<dyn RequestHandler + Sync + Send>];
 
         let test_daemon = PodmanTestDaemon::create(request_handlers).await;
-        let podman = Podman::unix(test_daemon.socket_path.as_str());
+        let podman_utils = PodmanUtils::new(test_daemon.socket_path.clone());
 
-        let result = PodmanUtils::list_containers(&podman, ".agent_1")
-            .await
-            .unwrap();
+        let result = podman_utils.list_containers(".agent_1").await.unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].names, Some(container_names));
 
@@ -443,8 +450,10 @@ mod tests {
 
         let test_daemon = PodmanTestDaemon::create(request_handlers).await;
 
-        let podman = Podman::unix(test_daemon.socket_path.as_str());
-        let status = PodmanUtils::get_status(&podman, &String::from("test_workload")).await;
+        let podman_utils = PodmanUtils::new(test_daemon.socket_path.clone());
+        let status = podman_utils
+            .get_status(&String::from("test_workload"))
+            .await;
         assert_eq!(status, ExecutionState::ExecUnknown);
 
         test_daemon.check_calls_and_stop();
@@ -463,9 +472,11 @@ mod tests {
 
         let test_daemon = PodmanTestDaemon::create(request_handlers).await;
 
-        let podman = Podman::unix(test_daemon.socket_path.as_str());
+        let podman_utils = PodmanUtils::new(test_daemon.socket_path.clone());
         assert_eq!(
-            PodmanUtils::get_status(&podman, &String::from("test_workload")).await,
+            podman_utils
+                .get_status(&String::from("test_workload"))
+                .await,
             ExecutionState::ExecUnknown
         );
 
@@ -482,9 +493,11 @@ mod tests {
 
         let test_daemon = PodmanTestDaemon::create(request_handlers).await;
 
-        let podman = Podman::unix(test_daemon.socket_path.as_str());
+        let podman_utils = PodmanUtils::new(test_daemon.socket_path.clone());
         assert_eq!(
-            PodmanUtils::get_status(&podman, &String::from("test_workload")).await,
+            podman_utils
+                .get_status(&String::from("test_workload"))
+                .await,
             ExecutionState::ExecRemoved
         );
 
@@ -504,9 +517,11 @@ mod tests {
 
         let test_daemon = PodmanTestDaemon::create(request_handlers).await;
 
-        let podman = Podman::unix(test_daemon.socket_path.as_str());
+        let podman_utils = PodmanUtils::new(test_daemon.socket_path.clone());
         assert_eq!(
-            PodmanUtils::get_status(&podman, &String::from("test_workload")).await,
+            podman_utils
+                .get_status(&String::from("test_workload"))
+                .await,
             ExecutionState::ExecUnknown
         );
 
@@ -528,9 +543,11 @@ mod tests {
 
         let test_daemon = PodmanTestDaemon::create(request_handlers).await;
 
-        let podman = Podman::unix(test_daemon.socket_path.as_str());
+        let podman_utils = PodmanUtils::new(test_daemon.socket_path.clone());
         assert_eq!(
-            PodmanUtils::get_status(&podman, &String::from("test_workload")).await,
+            podman_utils
+                .get_status(&String::from("test_workload"))
+                .await,
             ExecutionState::ExecUnknown
         );
 
@@ -541,9 +558,11 @@ mod tests {
     async fn utest_status_get_no_connetion_to_socket() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let podman = Podman::unix(String::from("/not/running/socket"));
+        let podman_utils = PodmanUtils::new(String::from("/not/running/socket"));
         assert_eq!(
-            PodmanUtils::get_status(&podman, &String::from("test_workload")).await,
+            podman_utils
+                .get_status(&String::from("test_workload"))
+                .await,
             ExecutionState::ExecUnknown
         );
     }
@@ -554,10 +573,8 @@ mod tests {
 
         let test_daemon = PodmanTestDaemon::create(vec![stop_success_handler(CONTAINER_ID)]).await;
 
-        let podman = Podman::unix(test_daemon.socket_path.as_str());
-        assert!(PodmanUtils::stop_container(&podman, CONTAINER_ID)
-            .await
-            .is_ok());
+        let podman_utils = PodmanUtils::new(test_daemon.socket_path.clone());
+        assert!(podman_utils.stop_container(CONTAINER_ID).await.is_ok());
 
         test_daemon.check_calls_and_stop();
     }
@@ -568,10 +585,8 @@ mod tests {
 
         let test_daemon = PodmanTestDaemon::create(vec![stop_error_handler(CONTAINER_ID)]).await;
 
-        let podman = Podman::unix(test_daemon.socket_path.as_str());
-        assert!(PodmanUtils::stop_container(&podman, CONTAINER_ID)
-            .await
-            .is_err());
+        let podman_utils = PodmanUtils::new(test_daemon.socket_path.clone());
+        assert!(podman_utils.stop_container(CONTAINER_ID).await.is_err());
 
         test_daemon.check_calls_and_stop();
     }
@@ -583,10 +598,8 @@ mod tests {
         let mut test_daemon =
             PodmanTestDaemon::create(vec![delete_success_handler(CONTAINER_ID)]).await;
 
-        let podman = Podman::unix(test_daemon.socket_path.as_str());
-        assert!(PodmanUtils::delete_container(&podman, CONTAINER_ID)
-            .await
-            .is_ok());
+        let podman_utils = PodmanUtils::new(test_daemon.socket_path.clone());
+        assert!(podman_utils.delete_container(CONTAINER_ID).await.is_ok());
 
         test_daemon.wait_expected_requests_done().await;
 
@@ -600,10 +613,8 @@ mod tests {
         let mut test_daemon =
             PodmanTestDaemon::create(vec![delete_error_handler(CONTAINER_ID)]).await;
 
-        let podman = Podman::unix(test_daemon.socket_path.as_str());
-        assert!(PodmanUtils::delete_container(&podman, CONTAINER_ID)
-            .await
-            .is_err());
+        let podman_utils = PodmanUtils::new(test_daemon.socket_path.clone());
+        assert!(podman_utils.delete_container(CONTAINER_ID).await.is_err());
 
         test_daemon.wait_expected_requests_done().await;
 
@@ -636,8 +647,7 @@ mod tests {
         ])
         .await;
 
-        let podman = Podman::unix(test_daemon.socket_path.as_str());
-        PodmanUtils::remove_containers(&podman, unneeded_workloads);
+        PodmanUtils::remove_containers(test_daemon.socket_path.as_str(), unneeded_workloads);
 
         test_daemon.wait_expected_requests_done().await;
 
@@ -670,8 +680,7 @@ mod tests {
         ])
         .await;
 
-        let podman = Podman::unix(test_daemon.socket_path.as_str());
-        PodmanUtils::remove_containers(&podman, unneeded_workloads);
+        PodmanUtils::remove_containers(test_daemon.socket_path.as_str(), unneeded_workloads);
 
         test_daemon.wait_expected_requests_done().await;
 
@@ -838,10 +847,12 @@ mod tests {
         let request_handlers = vec![Box::new(handler) as Box<dyn RequestHandler + Sync + Send>];
 
         let test_daemon = PodmanTestDaemon::create(request_handlers).await;
-        let podman = Podman::unix(test_daemon.socket_path.as_str());
 
-        let running_workloads =
-            PodmanUtils::list_running_workloads(&podman, expected_agent.as_str()).await;
+        let running_workloads = PodmanUtils::list_running_workloads(
+            test_daemon.socket_path.as_str(),
+            expected_agent.as_str(),
+        )
+        .await;
 
         assert_eq!(running_workloads.len(), 1);
         let (workload_instance_name, container_id) =
@@ -869,10 +880,12 @@ mod tests {
         let request_handlers = vec![Box::new(handler) as Box<dyn RequestHandler + Sync + Send>];
 
         let test_daemon = PodmanTestDaemon::create(request_handlers).await;
-        let podman = Podman::unix(test_daemon.socket_path.as_str());
 
-        let running_workloads =
-            PodmanUtils::list_running_workloads(&podman, expected_agent.as_str()).await;
+        let running_workloads = PodmanUtils::list_running_workloads(
+            test_daemon.socket_path.as_str(),
+            expected_agent.as_str(),
+        )
+        .await;
         assert!(running_workloads.is_empty());
         test_daemon.check_calls_and_stop();
     }
@@ -894,11 +907,13 @@ mod tests {
         let request_handlers = vec![Box::new(handler) as Box<dyn RequestHandler + Sync + Send>];
 
         let test_daemon = PodmanTestDaemon::create(request_handlers).await;
-        let podman = Podman::unix(test_daemon.socket_path.as_str());
 
         let expected_agent = "agent_1".to_string();
-        let running_workloads =
-            PodmanUtils::list_running_workloads(&podman, expected_agent.as_str()).await;
+        let running_workloads = PodmanUtils::list_running_workloads(
+            test_daemon.socket_path.as_str(),
+            expected_agent.as_str(),
+        )
+        .await;
         assert!(running_workloads.is_empty());
         test_daemon.check_calls_and_stop();
     }
