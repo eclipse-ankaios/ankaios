@@ -44,12 +44,25 @@ def table_to_dict(input_list, key):
         del item[key]
     return out_dict
 
-def wait_for_initial_execution_state(command, agent_name, next_try_in_sec=1,timeout=10):
+def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_in_sec=1):
         start_time = time.time()
         res = run_command(command)
         table = table_to_list(res.stdout if res else "")
         while (time.time() - start_time) < timeout:
             if table and all([len(row["EXECUTION STATE"].strip()) > 0 for row in filter(lambda r: r["AGENT"] == agent_name, table)]):
+                return True
+
+            time.sleep(next_try_in_sec)
+            res = run_command(command)
+            table = table_to_list(res.stdout if res else "")
+        return False
+
+def wait_for_execution_state(command, workload_name, expected_state, timeout=10, next_try_in_sec=1):
+        start_time = time.time()
+        res = run_command(command)
+        table = table_to_list(res.stdout if res else "")
+        while (time.time() - start_time) < timeout:
+            if table and any([row["EXECUTION STATE"].strip() == expected_state for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name, table)]):
                 return True
 
             time.sleep(next_try_in_sec)
@@ -89,3 +102,9 @@ def replace_config(data, filter_path, new_value):
 #         data[filter_path[0]] = new_value
 #         return data
 #     return replace_config(data[filter_path[0]], filter_path[1:], new_value)
+
+
+def write_yaml(new_yaml: dict, path):
+    with open(path,"w+") as file:
+        replace_key(new_yaml, "runtimeConfig", yaml.dump)
+        yaml.dump(new_yaml, file)
