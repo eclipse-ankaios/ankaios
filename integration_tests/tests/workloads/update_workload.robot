@@ -10,10 +10,10 @@ ${new_state_yaml_file}
 *** Test Cases ***
 # my integration test test
 Test Ankaios CLI update workload
-    [Setup]    Run Keywords    Setup Ankaios
-    ...        AND             Set Global Variable    ${default_state_yaml_file}    ${CONFIGS_DIR}/default.yaml
-    ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_update_workload_new_state.yaml
-    # Preconditions
+    [Setup]        Run Keywords    Setup Ankaios
+    ...            AND             Set Global Variable    ${default_state_yaml_file}    ${CONFIGS_DIR}/default.yaml
+    ...            AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_update_workload_new_state.yaml
+    # Precondition
     Given Ankaios server is started with "ank-server --startup-config ${default_state_yaml_file}"
     And Ankaios agent is started with "ank-agent --name agent_A"
     And all workloads of agent "agent_A" have an initial execution state

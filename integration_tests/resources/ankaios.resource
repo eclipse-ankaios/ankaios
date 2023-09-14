@@ -7,6 +7,9 @@ Library           OperatingSystem
 Library           String
 Library           resources/ankaios_library.py
 
+*** Variables ***
+${CURRENT_RESULT}
+
 *** Keywords ***
 Setup Ankaios
     ${run_result}=    Run Process  command=mktemp -d    shell=True
@@ -15,11 +18,24 @@ Setup Ankaios
 Clean up Ankaios
     Terminate All Processes    kill=True
     Clean up Podman
-    RUN COMMAND    rm -rf %{ANKAIOS_TEMP}    timeout=20
+    Run Command    rm -rf %{ANKAIOS_TEMP}    timeout=20
 Clean up Podman
-    LOG    Clean up Podman
-    RUN COMMAND    podman stop -a    timeout=20
-    RUN COMMAND    podman rm -a    timeout=20
+    Log    Clean up Podman
+    @{list_result}=    Table To List   ${CURRENT_RESULT.stdout}
+    @{workload_names}=    Get Column Values    ${list_result}    WORKLOAD NAME
+    @{workload_container_ids}=    Get Container Ids By Workload Names    ${workload_names}
+    Log    ${workload_container_ids}
+    @{stop_cmd_list}=    Create List    podman stop
+    @{rm_cmd_list}=    Create List    podman rm
+    FOR  ${wln_id_tuple}  IN  @{workload_container_ids}
+        @{wln_id_list}=    Convert To List    ${wln_id_tuple}
+        Append To List    ${stop_cmd_list}    ${wln_id_list}[1]
+        Append To List    ${rm_cmd_list}    ${wln_id_list}[1]
+    END
+    ${stop_cmd}=    Catenate    @{stop_cmd_list}
+    ${rm_cmd}=    Catenate    @{rm_cmd_list}
+    Run Command    ${stop_cmd}    timeout=20
+    Run Command    ${rm_cmd}    timeout=20
 
 Run in background
     [Arguments]    ${location}    ${cli_command}
@@ -32,7 +48,7 @@ Run in forground
     [Arguments]    ${cli_command}
     Log    Run in background: ${cli_command}
     ${cmd}=    Split Command Line    ${cli_command}
-    ${run_result}=    Run Process    @{cmd}
+    ${run_result}=    Run Process    @{cmd}    shell=True
     RETURN    ${run_result}
 
 the command "${cli_command}" finished with exit code "${exit_code}"
@@ -44,35 +60,35 @@ the command "${cli_command}" finished with exit code "${exit_code}"
 
 
 Ankaios server is started with "${ank_server_cli_command}"
-    LOG    Ankaios server is started with ${ank_server_cli_command}
+    Log    Ankaios server is started with ${ank_server_cli_command}
     Run in background    %{ANK_BIN_DIR}    ${ank_server_cli_command}
     
 Ankaios server is started
-    LOG    Ankaios server is started
+    Log    Ankaios server is started
 
 Ankaios agent is started with "${ank_agent_cli_command}"
-    LOG    Ankaios agent is started with ${ank_agent_cli_command}
+    Log    Ankaios agent is started with ${ank_agent_cli_command}
     Run in background    %{ANK_BIN_DIR}    ${ank_agent_cli_command}
 
 all workloads of agent "${agent_name}" have an initial execution state
-    LOG    Waiting for initial execution states of agent '${agent_name}'
+    Log    Waiting for initial execution states of agent '${agent_name}'
     ${result}=    wait for initial execution state    %{ANK_BIN_DIR}${/}ank get workloads    ${agent_name}    20
     Should Be True    ${result}
 
 user triggers "${cli_command}"
-    LOG    Triggers ${cli_command}
+    Log    Triggers ${cli_command}
     ${cmd}=    Split Command Line    ${cli_command}
-    LOG    ${cmd}
+    Log    ${cmd}
     Set List Value    ${cmd}    0    %{ANK_BIN_DIR}${/}${cmd}[0]  
     ${CURRENT_RESULT} =    Run Process    @{cmd}    timeout=20    shell=True
-    LOG    ${CURRENT_RESULT.stdout}
-    SET GLOBAL VARIABLE    ${CURRENT_RESULT}
+    Log    ${CURRENT_RESULT.stdout}
+    Set Global Variable    ${CURRENT_RESULT}
 
 the workload "${workload_name}" shall have the execution state "${expected_execution_state}" from agent "${expected_agent_name}"
     the workload "${workload_name}" shall have the execution state "${expected_execution_state}" on agent "${expected_agent_name}"
 
 the workload "${workload_name}" shall have the execution state "${expected_execution_state}" on agent "${expected_agent_name}" 
-    LOG    Assert: ${workload_name} shall have execution state ${expected_execution_state}
+    Log    Assert: ${workload_name} shall have execution state ${expected_execution_state}
     @{list_result}=    table to list   ${CURRENT_RESULT.stdout}
     &{dict_result}=    table to dict    ${list_result}    WORKLOAD NAME
     &{item}=    Get From Dictionary    ${dict_result}    ${workload_name}

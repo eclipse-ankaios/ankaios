@@ -44,6 +44,17 @@ def table_to_dict(input_list, key):
         del item[key]
     return out_dict
 
+def get_column_values(list, column_name):
+    return map(lambda r: r[column_name], list)
+
+def get_container_ids_by_workload_names(workload_names):
+    res = run_command('podman ps -a --format "{{.Names}} {{.ID}}"')
+    raw = res.stdout.strip()
+    raw_wln_id = raw.split('\n')
+    # ["workload_name.hash.agent_name id", ...] -> [(workload_name,id), ...]
+    wln_ids = map(lambda t: (t[0].split('.')[0], t[1]), map(lambda s: tuple(s.split(' ')), raw_wln_id))
+    return wln_ids if not workload_names else filter(lambda wln_id_tuple: wln_id_tuple[0] in workload_names, wln_ids)
+
 def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_in_sec=1):
         start_time = time.time()
         res = run_command(command)
@@ -96,13 +107,6 @@ def replace_config(data, filter_path, new_value):
         next_level = next_level[level] if isinstance(next_level, dict) else next_level[int(level)]
     next_level[filter_path[-1]] = new_value
     return data
-
-# def replace_config(data, filter_path, new_value):
-#     if len(filter_path) == 1:
-#         data[filter_path[0]] = new_value
-#         return data
-#     return replace_config(data[filter_path[0]], filter_path[1:], new_value)
-
 
 def write_yaml(new_yaml: dict, path):
     with open(path,"w+") as file:
