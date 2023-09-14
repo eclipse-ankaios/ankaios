@@ -58,7 +58,12 @@ markdown_extensions:
 plugins:
   - social
   - search
-  
+  - mike
+
+extra:
+  version:
+    provider: mike
+
 nav:
   - index.md
   - architecture.md
