@@ -395,8 +395,8 @@ mod tests {
         },
         test_utils::{
             request_handlers::{
-                handler_helpers::*, BasicRequestHandler, ErrorResponseRequestHandler,
-                ListContainerRequestHandler, RequestHandler, WithRequestHandlerParameter,
+                handler_helpers::*, ErrorResponseRequestHandler, ListContainerRequestHandler,
+                RequestHandler, WithRequestHandlerParameter,
             },
             server_models::ServerListContainer,
             test_daemon::PodmanTestDaemon,
