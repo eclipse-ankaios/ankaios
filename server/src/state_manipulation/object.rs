@@ -12,10 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::{commands::CompleteState, objects::State};
-use serde_yaml::{from_value, to_value, Mapping, Value};
-
 use super::Path;
+use common::{commands::CompleteState, objects::State};
+use serde_yaml::{
+    from_value, mapping::Entry::Occupied, mapping::Entry::Vacant, to_value, Mapping, Value,
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Object {
@@ -87,31 +88,18 @@ impl TryInto<CompleteState> for Object {
 impl Object {
     pub fn set(&mut self, path: &Path, value: Value) -> Result<(), String> {
         let (path_head, path_last) = path.split_last()?;
-        let mut current = if let Value::Mapping(mapping) = &mut self.data {
-            mapping
-        } else {
-            return Err(String::from("The root of the object is not a mapping"));
-        };
+        let mut current = self
+            .data
+            .as_mapping_mut()
+            .ok_or("The root of the object is not a mapping")?;
 
         for path_part in path_head.parts() {
-            if current.contains_key(path_part) {
-                let next = current
-                    .get_mut(path_part)
-                    .ok_or("unreachable".to_string())?;
-                if let Value::Mapping(next) = next {
-                    current = next;
-                } else {
-                    return Err(format!("The path {} is not mapping", path_part));
-                }
-            } else {
-                let new_map = Mapping::new();
-                current.insert(path_part.to_owned().into(), new_map.into());
-                current = if let Some(Value::Mapping(next)) = current.get_mut(path_part) {
-                    next
-                } else {
-                    unreachable!()
-                }
-            }
+            let next = match current.entry(path_part.to_owned().into()) {
+                Occupied(value) => &mut *value.into_mut(),
+                Vacant(value) => &mut *value.insert(Value::Mapping(Mapping::default())),
+            };
+
+            current = next.as_mapping_mut().ok_or("object is not a mapping")?;
         }
 
         current.insert(path_last.into(), value);

@@ -67,7 +67,7 @@ impl AnkaiosServer {
     fn get_complete_state_by_field_mask(
         &self,
         request_complete_state: &RequestCompleteState,
-    ) -> Option<CompleteState> {
+    ) -> Result<CompleteState, String> {
         let current_complete_state = CompleteState {
             request_id: request_complete_state.request_id.to_owned(),
             current_state: self.current_complete_state.current_state.clone(),
@@ -111,16 +111,14 @@ impl AnkaiosServer {
                 };
             }
 
-            match return_state.try_into() {
-                Ok(return_state) => Some(return_state),
-                Err(error) => {
-                    log::error!(
-                        "The result for CompleteState is invalid and could not be returned: '{error}'");
-                    None
-                }
-            }
+            return_state.try_into().map_err(|err: serde_yaml::Error| {
+                format!(
+                    "The result for CompleteState is invalid: '{}'",
+                    err.to_string()
+                )
+            })
         } else {
-            Some(current_complete_state)
+            Ok(current_complete_state)
         }
     }
 
@@ -236,16 +234,17 @@ impl AnkaiosServer {
                         "Received RequestCompleteState from communications server: {method_obj:?}"
                     );
 
-                    if let Some(complete_state) = self.get_complete_state_by_field_mask(&method_obj)
-                    {
-                        self.to_agents
+                    match self.get_complete_state_by_field_mask(&method_obj) {
+                        Ok(complete_state) => self
+                            .to_agents
                             .complete_state(complete_state)
                             .await
                             .unwrap_or_exit(
                             "Failed to send complete state to agents after request complete state",
-                        );
-                    } else {
-                        self.to_agents
+                        ),
+                        Err(error) => {
+                            log::error!("Failed to get complete state: '{}'", error);
+                            self.to_agents
                             .complete_state(common::commands::CompleteState {
                                 request_id: method_obj.request_id,
                                 startup_state: State::default(),
@@ -254,6 +253,7 @@ impl AnkaiosServer {
                             })
                             .await
                             .unwrap_or_exit("Failed to send default complete state to agents after request complete state");
+                        }
                     }
                 }
                 StateChangeCommand::Stop(_method_obj) => {
