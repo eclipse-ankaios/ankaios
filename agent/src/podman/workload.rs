@@ -17,32 +17,26 @@ use common::objects::{ExecutionState, WorkloadSpec};
 use common::state_change_interface::StateChangeInterface;
 use common::state_change_interface::StateChangeSender;
 
-use hyper::http;
-use podman_api::models::ContainerMount;
-use podman_api::opts::{ImageListFilter, ImageListOpts, PullOpts};
-use podman_api::Error;
 use std::path::{Path, PathBuf};
 use tokio::task::JoinHandle;
 
-use podman_api::Podman;
+use crate::podman::podman_runtime_config::PodmanRuntimeConfig;
 
-use crate::podman::podman_utils::PodmanUtils;
-use crate::podman::runtime_config::{convert_to_port_mapping, Mount, PodmanRuntimeConfig};
 use crate::workload_trait::{Workload, WorkloadError};
 use common::objects::{WorkloadExecutionInstanceName, WorkloadInstanceName};
+
+use crate::podman::podman_utils::PodmanUtils;
 
 #[cfg(test)]
 use mockall::automock;
 
-const API_PIPES_MOUNT_POINT: &str = "/run/ankaios/control_interface";
-const BIND_MOUNT: &str = "bind";
-
 #[derive(Debug)]
 pub struct PodmanWorkload {
     manager_interface: StateChangeSender,
-    podman: Podman,
     workload_spec: WorkloadSpec,
     api_pipes_location: PathBuf,
+    podman_utils: PodmanUtils,
+    socket_path: String,
 }
 
 #[derive(Debug)]
@@ -66,10 +60,10 @@ impl PodmanWorkload {
     ) -> Self {
         Self {
             manager_interface,
-            podman: Podman::unix(socket_path.as_str()),
-
             api_pipes_location: workload_spec.instance_name().pipes_folder_name(run_folder),
             workload_spec,
+            podman_utils: PodmanUtils::new(socket_path.clone()),
+            socket_path,
         }
     }
 
@@ -108,36 +102,33 @@ impl PodmanWorkload {
         })?;
 
         if !has_image {
-            self.pull_image(&workload_cfg.image).await.map_err(|e| {
-                WorkloadError::StartError(format!(
-                    "Could not pull the podman image '{}': {}",
-                    workload_cfg.image, e
-                ))
-            })?;
+            // [impl->swdd~podman-workload-pulls-container~2]]
+            self.podman_utils
+                .pull_image(&workload_cfg.image)
+                .await
+                .map_err(|e| {
+                    WorkloadError::StartError(format!(
+                        "Could not pull the podman image '{}': {}",
+                        workload_cfg.image, e
+                    ))
+                })?;
         }
-        use podman_api::opts::ContainerCreateOpts;
 
         // [impl->swdd~podman-workload-creates-container~1]
         // [impl->swdd~podman-adapt-mount-interface-pipes-into-workload~2]
         match self
-            .podman
-            .containers()
-            .create(
-                &ContainerCreateOpts::builder()
-                    .image(&workload_cfg.image)
-                    .command(&workload_cfg.get_command_with_args())
-                    .name(self.workload_spec.instance_name().to_string())
-                    .env(&workload_cfg.env)
-                    .portmappings(convert_to_port_mapping(&workload_cfg.ports))
-                    .mounts(self.create_mounts(workload_cfg.mounts))
-                    .remove(workload_cfg.remove)
-                    .build(),
+
+            .podman_utils
+            .create_container(
+                workload_cfg,
+                self.workload_spec.instance_name().to_string(),
+                self.api_pipes_location.to_string_lossy().to_string(),
             )
             .await
         {
-            Ok(result) => {
+            Ok(id) => {
                 // [impl->swdd~podman-workload-stores-container-id~1]
-                Ok(result.id)
+                Ok(id)
             }
             Err(e) => Err(WorkloadError::StartError(format!(
                 "Could not create the podman container. Error: '{}'",
@@ -146,62 +137,14 @@ impl PodmanWorkload {
         }
     }
 
-    async fn has_image(&self, image: &str) -> Result<bool, Error> {
-        let list = self
-            .podman
-            .images()
-            .list(
-                &ImageListOpts::builder()
-                    .filter(vec![ImageListFilter::Reference(image.into(), None)])
-                    .build(),
-            )
-            .await?;
-
-        Ok(!list.is_empty())
-    }
-
-    // [impl->swdd~podman-workload-pulls-container~2]]
-    async fn pull_image(
-        &self,
-        image: &String,
-    ) -> Result<Vec<podman_api::models::LibpodImagesPullReport>, Error> {
-        use futures_util::{StreamExt, TryStreamExt};
-
-        self.podman
-            .images()
-            .pull(&PullOpts::builder().reference(image).build())
-            .map(|report| {
-                report.and_then(|report| match report.error {
-                    Some(error) => Err(Error::InvalidResponse(error)),
-                    None => Ok(report),
-                })
-            })
-            .try_collect::<Vec<_>>()
-            .await
-    }
-
-    fn create_mounts(&self, mounts: Vec<Mount>) -> Vec<ContainerMount> {
-        let mut res = Vec::with_capacity(mounts.len() + 1);
-        res.push(ContainerMount {
-            destination: Some(String::from(API_PIPES_MOUNT_POINT)),
-            options: None,
-            source: Some(self.api_pipes_location.to_string_lossy().to_string()),
-            _type: Some(String::from(BIND_MOUNT)),
-            uid_mappings: None,
-            gid_mappings: None,
-        });
-
-        for m in mounts {
-            res.push(m.into());
-        }
-
-        res
+    async fn has_image(&self, image: &str) -> Result<bool, String> {
+        self.podman_utils.has_image(image).await
     }
 
     // [impl->swdd~podman-workload-monitors-workload-state~1]
     // [impl->swdd~podman-workload-starts-container~1]
     async fn start_container(&self, container_id: &str) -> Result<JoinHandle<()>, WorkloadError> {
-        if let Err(e) = self.podman.containers().get(container_id).start(None).await {
+        if let Err(e) = self.podman_utils.start_container(container_id).await {
             Err(WorkloadError::StartError(format!(
                 "Error starting the container '{}': '{}'",
                 self.workload_spec.instance_name(),
@@ -214,7 +157,6 @@ impl PodmanWorkload {
 
     fn watch_container(&self, container_id: String) -> JoinHandle<()> {
         let manager_interface_clone = self.manager_interface.clone();
-        let podman_clone = self.podman.clone();
         let agent_name_clone = self.workload_spec.instance_name().agent_name().to_string();
         let workload_name_clone = self
             .workload_spec
@@ -222,49 +164,28 @@ impl PodmanWorkload {
             .workload_name()
             .to_string();
 
+        let podman_utils = PodmanUtils::new(self.socket_path.to_string());
         tokio::spawn(async move {
-            PodmanUtils::check_status(
-                manager_interface_clone,
-                podman_clone,
-                agent_name_clone,
-                workload_name_clone,
-                container_id,
-            )
-            .await
+            podman_utils
+                .check_status(
+                    manager_interface_clone,
+                    agent_name_clone,
+                    workload_name_clone,
+                    container_id,
+                )
+                .await
         })
     }
 
     // [impl->swdd~podman-workload-stops-container~1]
     async fn stop_container(
-        podman: &Podman,
+        &self,
         instance_name: &WorkloadExecutionInstanceName,
         container_id: &str,
     ) -> Result<(), WorkloadError> {
-        match PodmanUtils::stop_container(podman, container_id).await {
+        match self.podman_utils.stop_container(container_id).await {
             Ok(()) => {
                 log::debug!("Successfully stopped container '{}'.", instance_name);
-                Ok(())
-            }
-            Err(podman_api::Error::Fault {
-                code: http::StatusCode::NOT_MODIFIED,
-                message,
-            }) => {
-                log::debug!(
-                    "Cannot stop container '{}'. Already stopped. Message: '{}'",
-                    instance_name,
-                    message
-                );
-                Ok(())
-            }
-            Err(podman_api::Error::Fault {
-                code: http::StatusCode::NOT_FOUND,
-                message,
-            }) => {
-                log::debug!(
-                    "Cannot stop container '{}'. Not found. Message: '{}'",
-                    instance_name,
-                    message
-                );
                 Ok(())
             }
             Err(error) => Err(WorkloadError::DeleteError(format!(
@@ -276,12 +197,12 @@ impl PodmanWorkload {
 
     // [impl->swdd~podman-workload-deletes-container~1]
     async fn delete_container(
-        podman: &Podman,
+        &self,
         instance_name: &WorkloadExecutionInstanceName,
         container_id: &str,
         manager_interface: &StateChangeSender,
     ) -> Result<(), WorkloadError> {
-        match PodmanUtils::delete_container(podman, container_id).await {
+        match self.podman_utils.delete_container(container_id).await {
             Ok(()) => {
                 log::debug!("Successfully deleted container '{}'.", instance_name);
                 manager_interface
@@ -291,17 +212,6 @@ impl PodmanWorkload {
                         execution_state: ExecutionState::ExecRemoved,
                     }])
                     .await;
-                Ok(())
-            }
-            Err(podman_api::Error::Fault {
-                code: http::StatusCode::NOT_FOUND,
-                message,
-            }) => {
-                log::debug!(
-                    "Cannot delete container '{}'. Not found. Message: '{}'",
-                    instance_name,
-                    message
-                );
                 Ok(())
             }
             Err(e) => Err(WorkloadError::DeleteError(format!(
@@ -334,9 +244,9 @@ impl Workload for PodmanWorkload {
         existing_instance_name: WorkloadExecutionInstanceName,
         existing_id: Self::Id,
     ) -> Result<Self::State, WorkloadError> {
-        Self::stop_container(&self.podman, &existing_instance_name, &existing_id).await?;
-        Self::delete_container(
-            &self.podman,
+        self.stop_container(&existing_instance_name, &existing_id)
+            .await?;
+        self.delete_container(
             &existing_instance_name,
             &existing_id,
             &self.manager_interface,
@@ -347,14 +257,12 @@ impl Workload for PodmanWorkload {
     }
 
     async fn delete(&mut self, running_state: PodmanWorkloadState) -> Result<(), WorkloadError> {
-        Self::stop_container(
-            &self.podman,
+        self.stop_container(
             &self.workload_spec.instance_name(),
             &running_state.container_id,
         )
         .await?;
-        Self::delete_container(
-            &self.podman,
+        self.delete_container(
             &self.workload_spec.instance_name(),
             &running_state.container_id,
             &self.manager_interface,
@@ -452,6 +360,8 @@ mod tests {
     const API_PIPES_LOCATION: &str = "/api/pipes/location/workload_name.29b6a7ccff50ffc4dac58ad64c837888584fb121d7ef72c059205e5d29b9c901";
     const CONTAINER_ID: &str = "testid";
     const TEST_TIMEOUT: u64 = 100;
+    const API_PIPES_MOUNT_POINT: &str = "/run/ankaios/control_interface";
+    const BIND_MOUNT: &str = "bind";
 
     #[tokio::test()]
     async fn utest_workload_name() {
@@ -1007,11 +917,9 @@ mod tests {
                         let mount_type = mount.get("type")?.as_str()?;
 
                         assert_eq!(
-                            destination,
-                            super::API_PIPES_MOUNT_POINT,
+                            destination, API_PIPES_MOUNT_POINT,
                             "Expected destination to be \"{}\", got \"{}\"",
-                            super::API_PIPES_MOUNT_POINT,
-                            destination
+                            API_PIPES_MOUNT_POINT, destination
                         );
                         assert_eq!(
                             source, API_PIPES_LOCATION,
@@ -1019,11 +927,9 @@ mod tests {
                             API_PIPES_LOCATION, source
                         );
                         assert_eq!(
-                            mount_type,
-                            super::BIND_MOUNT,
+                            mount_type, BIND_MOUNT,
                             "Expected type to be \"{}\", got \"{}\"",
-                            super::BIND_MOUNT,
-                            mount_type
+                            BIND_MOUNT, mount_type
                         );
 
                         Some(())
