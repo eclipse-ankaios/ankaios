@@ -26,9 +26,6 @@ use crate::podman::podman_runtime_config::PodmanRuntimeConfig;
 use crate::workload_trait::{Workload, WorkloadError};
 use common::objects::{WorkloadExecutionInstanceName, WorkloadInstanceName};
 
-#[cfg(test)]
-use crate::podman::podman_utils::MockPodmanUtils as PodmanUtils;
-#[cfg(not(test))]
 use crate::podman::podman_utils::PodmanUtils;
 
 #[cfg(test)]
