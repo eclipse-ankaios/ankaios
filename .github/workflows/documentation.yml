@@ -11,6 +11,8 @@ on:
       - 'doc/**'
       - '.github/workflows/documentation.yml'
   workflow_dispatch:
+  workflow_call:
+
 permissions:
   contents: write
 jobs:
@@ -26,6 +28,14 @@ jobs:
         run: |
             git config --global --add safe.directory $PWD
             tools/generate_docs.sh deploy
+
+      - name: Generate documentation and deploy (for release)
+        if: ${{ (github.event_name == 'workflow_call' }}
+        run: |
+            git config --global --add safe.directory $PWD
+            # Convert tag to documentation version like v0.1.0 to 0.1
+            DOCVER=$(expr match ${{ github.ref_name }} 'v\([0-9]\+\.[0-9]\+\)\.')
+            tools/generate_docs.sh deploy-release "$DOCVER"
 
       - name: Generate documentation (for pull requests)
         if: ${{ github.event_name == 'pull_request' }}

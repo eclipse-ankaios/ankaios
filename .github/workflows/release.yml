@@ -11,6 +11,8 @@ env:
 jobs:
   build:
     uses: ./.github/workflows/build.yml
+  documentation:
+    uses: ./.github/workflows/documentation.yml
   release:
     name: Create Release
     permissions: write-all

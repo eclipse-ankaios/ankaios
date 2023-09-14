@@ -9,6 +9,7 @@ theme:
   name: material
   logo: assets/Ankaios__logo_for_dark_bgrd_clipped.png
   favicon: assets/favicon128x128.png
+  custom_dir: overrides
   palette:
     - scheme: default
       toggle:
