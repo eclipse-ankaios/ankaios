@@ -30,7 +30,7 @@ jobs:
             tools/generate_docs.sh deploy
 
       - name: Generate documentation and deploy (for release)
-        if: ${{ (github.event_name == 'workflow_call' }}
+        if: ${{ github.event_name == 'workflow_call' }}
         run: |
             git config --global --add safe.directory $PWD
             # Convert tag to documentation version like v0.1.0 to 0.1
