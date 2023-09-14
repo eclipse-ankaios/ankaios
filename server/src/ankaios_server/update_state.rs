@@ -32,10 +32,10 @@ pub fn update_state(
 
     // [impl->swdd~update-current-state-with-update-mask~1]
     let mut new_state: Object = current_state.try_into().map_err(|err| {
-        UpdateStateError::ResultInvalid(format!("failed to parse current state, '{}'", err))
+        UpdateStateError::ResultInvalid(format!("Failed to parse current state, '{}'", err))
     })?;
     let state_from_update: Object = update.state.try_into().map_err(|err| {
-        UpdateStateError::ResultInvalid(format!("failed to parse new state, '{}'", err))
+        UpdateStateError::ResultInvalid(format!("Failed to parse new state, '{}'", err))
     })?;
 
     for field in update.update_mask {
@@ -53,7 +53,7 @@ pub fn update_state(
         Ok(new_state)
     } else {
         Err(UpdateStateError::ResultInvalid(
-            "could not parse into CompleteState.".to_string(),
+            "Could not parse into CompleteState.".to_string(),
         ))
     }
 }

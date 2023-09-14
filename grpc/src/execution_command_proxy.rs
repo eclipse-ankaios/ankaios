@@ -331,7 +331,7 @@ mod tests {
             create_test_setup(agent);
 
         // As the channel capacity is big enough the await is satisfied right away
-        to_manager
+        let update_workload_result = to_manager
             .update_workload(
                 vec![generate_test_workload_spec_with_param(
                     agent.into(),
@@ -343,8 +343,8 @@ mod tests {
                     "workload X".to_string(),
                 )],
             )
-            .await
-            .unwrap();
+            .await;
+        assert!(update_workload_result.is_ok());
 
         let handle = forward_from_ankaios_to_proto(&agent_senders_map, &mut manager_receiver);
 
@@ -367,14 +367,14 @@ mod tests {
         let (to_manager, mut manager_receiver, _, mut agent_rx, agent_senders_map) =
             create_test_setup("agent_X");
 
-        to_manager
+        let update_workload_state_result = to_manager
             .update_workload_state(vec![common::objects::WorkloadState {
                 agent_name: "other_agent".into(),
                 workload_name: "workload_1".into(),
                 execution_state: common::objects::ExecutionState::ExecRunning,
             }])
-            .await
-            .unwrap();
+            .await;
+        assert!(update_workload_state_result.is_ok());
 
         let handle = forward_from_ankaios_to_proto(&agent_senders_map, &mut manager_receiver);
 
@@ -705,10 +705,8 @@ mod tests {
             workload_states: vec![],
         };
 
-        to_manager
-            .complete_state(test_complete_state.clone())
-            .await
-            .unwrap();
+        let complete_state_result = to_manager.complete_state(test_complete_state.clone()).await;
+        assert!(complete_state_result.is_ok());
 
         let handle = forward_from_ankaios_to_proto(&agent_senders_map, &mut manager_receiver);
         let proto_complete_state = proto::CompleteState {

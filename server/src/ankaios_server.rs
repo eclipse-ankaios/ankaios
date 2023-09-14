@@ -82,22 +82,14 @@ impl AnkaiosServer {
                 .unwrap_or_exit("Internal complete state is broken.");
             let mut return_state = Object::default();
 
-            return_state
-                .set(
-                    &"requestId".into(),
-                    request_complete_state.request_id.to_owned().into(),
-                )
-                .unwrap_or_exit("unreachable");
+            return_state.set(
+                &"requestId".into(),
+                request_complete_state.request_id.to_owned().into(),
+            )?;
 
             for field in &request_complete_state.field_mask {
                 if let Some(value) = current_complete_state.get(&field.into()) {
-                    if return_state.set(&field.into(), value.to_owned()).is_err() {
-                        log::debug!(concat!(
-                            "Result for CompleteState incomplete, as requested field could not be set:\n",
-                            "   request_id: {:?}\n",
-                            "   field: {}"),
-                            request_complete_state.request_id, field);
-                    };
+                    return_state.set(&field.into(), value.to_owned())?;
                 } else {
                     log::debug!(
                         concat!(
@@ -112,10 +104,7 @@ impl AnkaiosServer {
             }
 
             return_state.try_into().map_err(|err: serde_yaml::Error| {
-                format!(
-                    "The result for CompleteState is invalid: '{}'",
-                    err.to_string()
-                )
+                format!("The result for CompleteState is invalid: '{}'", err)
             })
         } else {
             Ok(current_complete_state)
@@ -208,7 +197,7 @@ impl AnkaiosServer {
                             self.current_complete_state = new_state;
                         }
                         Err(error) => {
-                            log::warn!("Could not execute UpdateRequest: '{}'", error)
+                            log::error!("Could not execute UpdateRequest: '{}'", error);
                         }
                     }
                 }

@@ -443,13 +443,13 @@ mod tests {
             )
             .build();
 
-        to_manager
+        let update_workload_result = to_manager
             .update_workload(
                 vec![workload_spec_1.clone(), workload_spec_2.clone()],
                 vec![],
             )
-            .await
-            .unwrap();
+            .await;
+        assert!(update_workload_result.is_ok());
 
         let handle = agent_manager.start();
 
@@ -498,10 +498,10 @@ mod tests {
 
         let (to_manager, mut agent_manager) = AgentManagerBuilder::new().build();
 
-        to_manager
+        let update_workload_result = to_manager
             .update_workload(vec![workload_spec.clone()], vec![])
-            .await
-            .unwrap();
+            .await;
+        assert!(update_workload_result.is_ok());
 
         let handle = agent_manager.start();
 
@@ -550,10 +550,10 @@ mod tests {
             .initial_workload_list_received()
             .build();
 
-        to_manager
+        let update_workload_result = to_manager
             .update_workload(vec![workload_spec.clone()], vec![])
-            .await
-            .unwrap();
+            .await;
+        assert!(update_workload_result.is_ok());
 
         let handle = agent_manager.start();
 
@@ -598,10 +598,10 @@ mod tests {
             .parameter_storage
             .set_workload_runtime(&workload_spec);
 
-        to_manager
+        let update_workload_result = to_manager
             .update_workload(vec![workload_spec.clone()], vec![])
-            .await
-            .unwrap();
+            .await;
+        assert!(update_workload_result.is_ok());
 
         let handle = agent_manager.start();
 
@@ -653,10 +653,10 @@ mod tests {
             .initial_workload_list_received()
             .build();
 
-        to_manager
+        let update_workload_result = to_manager
             .update_workload(vec![workload_spec.clone()], vec![deleted_workload.clone()])
-            .await
-            .unwrap();
+            .await;
+        assert!(update_workload_result.is_ok());
 
         let handle = agent_manager.start();
 
@@ -697,12 +697,12 @@ mod tests {
             .initial_workload_list_received()
             .build();
 
-        to_manager
+        let update_added_workloads_result = to_manager
             .update_workload(vec![workload_spec.clone()], vec![])
-            .await
-            .unwrap();
+            .await;
+        assert!(update_added_workloads_result.is_ok());
 
-        to_manager
+        let update_deleted_workloads_result = to_manager
             .update_workload(
                 vec![],
                 vec![generate_test_deleted_workload(
@@ -710,8 +710,9 @@ mod tests {
                     WORKLOAD_TO_DELETE_NAME.into(),
                 )],
             )
-            .await
-            .unwrap();
+            .await;
+        assert!(update_deleted_workloads_result.is_ok());
+
         let handle = agent_manager.start();
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
@@ -755,12 +756,12 @@ mod tests {
             .initial_workload_list_received()
             .build();
 
-        to_manager
+        let update_added_workloads_result = to_manager
             .update_workload(vec![workload_spec_for_del.clone()], vec![])
-            .await
-            .unwrap();
+            .await;
+        assert!(update_added_workloads_result.is_ok());
 
-        to_manager
+        let update_added_deleted_workloads_result = to_manager
             .update_workload(
                 vec![workload_spec],
                 vec![generate_test_deleted_workload(
@@ -768,8 +769,9 @@ mod tests {
                     WORKLOAD_TO_DELETE_NAME.into(),
                 )],
             )
-            .await
-            .unwrap();
+            .await;
+        assert!(update_added_deleted_workloads_result.is_ok());
+
         let handle = agent_manager.start();
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
@@ -821,13 +823,13 @@ mod tests {
             dependencies: HashMap::new(),
         };
 
-        to_manager
+        let update_workload_result = to_manager
             .update_workload(
                 vec![workload_spec.clone(), updated_workload_spec],
                 vec![delete_workload, updated_workload_spec_delete],
             )
-            .await
-            .unwrap();
+            .await;
+        assert!(update_workload_result.is_ok());
 
         let handle = agent_manager.start();
 
@@ -859,10 +861,8 @@ mod tests {
             agent_name: AGENT_NAME.into(),
             execution_state: common::objects::ExecutionState::ExecFailed,
         }];
-        to_manager
-            .update_workload_state(workload_states)
-            .await
-            .unwrap();
+        let update_workload_state_result = to_manager.update_workload_state(workload_states).await;
+        assert!(update_workload_state_result.is_ok());
 
         let handle = agent_manager.start();
 
@@ -917,18 +917,18 @@ mod tests {
                                  // current_state: todo!(),
                                  // workload_states: todo!(),
         };
-        to_manager
+        let update_workload_spec1_result = to_manager
             .update_workload(vec![workload_spec1], vec![])
-            .await
-            .unwrap();
-        to_manager
+            .await;
+        assert!(update_workload_spec1_result.is_ok());
+
+        let update_workload_spec2_result = to_manager
             .update_workload(vec![workload_spec2], vec![])
-            .await
-            .unwrap();
-        to_manager
-            .complete_state(complete_state.clone())
-            .await
-            .unwrap();
+            .await;
+        assert!(update_workload_spec2_result.is_ok());
+
+        let complete_state_result = to_manager.complete_state(complete_state.clone()).await;
+        assert!(complete_state_result.is_ok());
 
         let handle = agent_manager.start();
 
