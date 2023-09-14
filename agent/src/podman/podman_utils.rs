@@ -12,6 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use common::graceful_exit::ExitGracefully;
 use common::state_change_interface::StateChangeInterface;
 use common::state_change_interface::StateChangeSender;
 use podman_api::models::ListContainer;
@@ -71,7 +72,10 @@ impl PodmanUtils {
                         workload_name: workload_name.to_string(),
                         execution_state: current_state,
                     }])
-                    .await;
+                    .await
+                    .unwrap_or_exit(
+                        "Could not update workload state when checking workload status",
+                    );
 
                 if last_state == ExecutionState::ExecRemoved {
                     break;

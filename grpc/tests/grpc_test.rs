@@ -113,12 +113,13 @@ mod grpc_tests {
                 .await;
 
         // send request to grpc client
-        to_grpc_client
+        let request_complete_state_result = to_grpc_client
             .request_complete_state(RequestCompleteState {
                 request_id: test_request_id.to_owned(),
                 field_mask: vec![],
             })
             .await;
+        assert!(request_complete_state_result.is_ok());
 
         // read request forwarded by grpc communication server
         let result = timeout(Duration::from_millis(3000), server_receiver.recv()).await;
@@ -144,7 +145,7 @@ mod grpc_tests {
                 .await;
 
         // send request to grpc client
-        to_grpc_client
+        let update_state_result = to_grpc_client
             .update_state(
                 CompleteState {
                     request_id: test_request_id.to_owned(),
@@ -153,6 +154,7 @@ mod grpc_tests {
                 vec![],
             )
             .await;
+        assert!(update_state_result.is_ok());
 
         // read request forwarded by grpc communication server
         let result = timeout(Duration::from_millis(3000), server_receiver.recv()).await;

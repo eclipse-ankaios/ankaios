@@ -64,7 +64,7 @@ async fn main() -> Result<(), BoxedStdError> {
 
     // This simulates the state handling.
     // Once the StartupStateLoader is there, it will be started by the main here and it will send the startup state
-    let test_task = tokio::spawn(async move {
+    let initial_state_task = tokio::spawn(async move {
         to_server
             .update_state(
                 common::commands::CompleteState {
@@ -76,9 +76,11 @@ async fn main() -> Result<(), BoxedStdError> {
                 vec![],
             )
             .await
+            .unwrap_or_exit("Could not set initial startup state");
     });
 
-    try_join!(communications_task, server_task, test_task).unwrap();
+    try_join!(communications_task, server_task, initial_state_task)
+        .unwrap_or_exit("Failed to join server tasks");
 
     Ok(())
 }

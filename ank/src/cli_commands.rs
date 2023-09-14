@@ -48,6 +48,8 @@ const BUFFER_SIZE: usize = 20;
 pub enum CliError {
     YamlSerialization(String),
     JsonSerialization(String),
+    ExecutionError(String),
+    ConnectionTimeout(String),
 }
 
 impl fmt::Display for CliError {
@@ -58,6 +60,12 @@ impl fmt::Display for CliError {
             }
             CliError::JsonSerialization(message) => {
                 write!(f, "Could not serialize JSON object: '{message}'")
+            }
+            CliError::ExecutionError(message) => {
+                write!(f, "Command failed: '{}'", message)
+            }
+            CliError::ConnectionTimeout(message) => {
+                write!(f, "ConnectionTimeout: '{}'", message)
             }
         }
     }
@@ -234,7 +242,8 @@ impl CliCommands {
                 request_id: self.cli_name.to_owned(),
                 field_mask: object_field_mask.clone(),
             })
-            .await;
+            .await
+            .ok()?;
 
         if let Some(ExecutionCommand::CompleteState(res)) = self.from_server.recv().await {
             out_command_text =
@@ -282,7 +291,10 @@ impl CliCommands {
         // send update request
         self.to_server
             .update_state(complete_state_input, object_field_mask)
-            .await;
+            .await
+            .unwrap_or_else(|err| {
+                log::error!("Update state failed: '{}'", err);
+            });
         if (timeout(
             Duration::from_millis(response_timeout_ms),
             self.from_server.recv(),
@@ -302,16 +314,15 @@ impl CliCommands {
         agent_name: Option<String>,
         state: Option<String>,
         workload_name: Vec<String>,
-    ) -> Option<String> {
-        let mut out_command_text: Option<String> = None;
-
+    ) -> Result<String, CliError> {
         // send request
         self.to_server
             .request_complete_state(RequestCompleteState {
                 request_id: self.cli_name.to_owned(),
                 field_mask: Vec::new(),
             })
-            .await;
+            .await
+            .map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
         if let Some(ExecutionCommand::CompleteState(res)) = self.from_server.recv().await {
             let mut workload_infos: Vec<WorkloadInfo> = res
@@ -363,62 +374,71 @@ impl CliCommands {
             log::debug!("The table after filtering:\n{:?}", workload_infos);
 
             // [impl->swdd~cli-shall-present-list-workloads-as-table~1]
-            out_command_text = Some(Table::new(workload_infos).with(Style::blank()).to_string());
+            return Ok(Table::new(workload_infos).with(Style::blank()).to_string());
         }
         // [impl->swdd~cli-returns-list-of-workloads-from-server~1]
-        out_command_text
+        Err(CliError::ExecutionError(
+            "Failed to get complete state of server.".to_string(),
+        ))
     }
 
     // [impl->swdd~cli-provides-delete-workload~1]
     // [impl->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~1]
-    pub async fn delete_workloads(&mut self, workload_names: Vec<String>) {
+    pub async fn delete_workloads(&mut self, workload_names: Vec<String>) -> Result<(), CliError> {
         // get current state
         self.to_server
             .request_complete_state(RequestCompleteState {
                 request_id: self.cli_name.to_owned(),
                 field_mask: Vec::new(),
             })
-            .await;
+            .await
+            .map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
-        if let Some(ExecutionCommand::CompleteState(res)) = self.from_server.recv().await {
-            log::debug!("Got current state: {:?}", res);
-            let mut new_state = *res.clone();
-            // Filter out workloads to be deleted.
-            new_state
-                .current_state
-                .workloads
-                .retain(|k, _v| !workload_names.clone().into_iter().any(|wn| &wn == k));
+        let res = self.from_server.recv().await
+            .ok_or(CliError::ExecutionError("Failed to get execution command from server".to_string()))?;
 
-            // Filter out workload statuses of the workloads to be deleted.
-            // Only a nice-to-have, but it could be better to avoid sending misleading information
-            new_state.workload_states.retain(|ws| {
-                !workload_names
-                    .clone()
-                    .into_iter()
-                    .any(|wn| wn == ws.workload_name)
-            });
+        let complete_state = if let ExecutionCommand::CompleteState(res) = res {
+            res
+        } else {
+            return Err(CliError::ExecutionError("Expected complete state".to_string()));
+        };
 
-            let update_mask = vec!["currentState".to_string()];
-            if new_state.current_state != res.current_state {
-                log::debug!("Sending the new state {:?}", new_state);
-                self.to_server.update_state(new_state, update_mask).await;
+        log::debug!("Got current state: {:?}", complete_state);
+        let mut new_state = *complete_state.clone();
+        // Filter out workloads to be deleted.
+        new_state
+            .current_state
+            .workloads
+            .retain(|k, _v| !workload_names.clone().into_iter().any(|wn| &wn == k));
 
-                if (timeout(
-                    Duration::from_millis(self.response_timeout_ms),
-                    self.from_server.recv(),
-                )
-                .await)
-                    .is_err()
-                {
-                    log::warn!("No response from the server");
-                } else {
-                    log::info!("OK");
-                }
-            } else {
-                // [impl->swdd~no-delete-workloads-when-not-found~1]
-                log::debug!("Current and new states are identical -> nothing to do");
-            }
+        // Filter out workload statuses of the workloads to be deleted.
+        // Only a nice-to-have, but it could be better to avoid sending misleading information
+        new_state.workload_states.retain(|ws| {
+            !workload_names
+                .clone()
+                .into_iter()
+                .any(|wn| wn == ws.workload_name)
+        });
+
+        let update_mask = vec!["currentState".to_string()];
+        if new_state.current_state != complete_state.current_state {
+            log::debug!("Sending the new state {:?}", new_state);
+            self.to_server
+                .update_state(new_state, update_mask)
+                .await
+                .map_err(|err| CliError::ExecutionError(err.to_string()))?;
+
+            timeout(
+                Duration::from_millis(self.response_timeout_ms),
+                self.from_server.recv(),
+            )
+            .await.map_err(|_| CliError::ConnectionTimeout("No response from the server".to_string()))?;
+        } else {
+            // [impl->swdd~no-delete-workloads-when-not-found~1]
+            log::debug!("Current and new states are identical -> nothing to do");
         }
+
+        Ok(())
     }
 
     // [impl->swdd~cli-provides-run-workload~1]
@@ -430,7 +450,7 @@ impl CliCommands {
         runtime_config: String,
         agent_name: String,
         tags_strings: Vec<(String, String)>,
-    ) {
+    ) -> Result<(), CliError> {
         let tags: Vec<Tag> = tags_strings
             .into_iter()
             .map(|(k, v)| Tag { key: k, value: v })
@@ -454,7 +474,7 @@ impl CliCommands {
                 request_id: self.cli_name.to_owned(),
                 field_mask: Vec::new(),
             })
-            .await;
+            .await.map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
         if let Some(ExecutionCommand::CompleteState(res)) = self.from_server.recv().await {
             log::debug!("Got current state: {:?}", res);
@@ -466,20 +486,20 @@ impl CliCommands {
 
             let update_mask = vec!["currentState".to_string()];
             log::debug!("Sending the new state {:?}", new_state);
-            self.to_server.update_state(new_state, update_mask).await;
+            self.to_server.update_state(new_state, update_mask)
+                .await
+                .map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
-            if (timeout(
+            timeout(
                 Duration::from_millis(self.response_timeout_ms),
                 self.from_server.recv(),
             )
-            .await)
-                .is_err()
-            {
-                log::warn!("No response from the server");
-            } else {
-                log::info!("OK");
-            }
+            .await.map_err(|_| CliError::ConnectionTimeout("No response from the server".to_string()))?;
+
+            return Ok(());
         }
+
+        Err(CliError::ExecutionError("Failed to get complete state from server".to_string()))
     }
 }
 
@@ -507,8 +527,7 @@ mod tests {
     use crate::{
         cli::OutputFormat,
         cli_commands::{
-            generate_compact_state_output, get_filtered_value, 
-            update_compact_state, WorkloadInfo,
+            generate_compact_state_output, get_filtered_value, update_compact_state, WorkloadInfo,
         },
     };
 
@@ -598,15 +617,15 @@ mod tests {
         )
         .await;
         let cmd_text = cmd.get_workloads(None, None, Vec::new()).await;
-        assert!(cmd_text.is_some());
+        assert!(cmd_text.is_ok());
 
         let expected_empty_table: Vec<WorkloadInfo> = Vec::new();
-        let expected_table_text = Some(
+        let expected_table_text =
             Table::new(expected_empty_table)
                 .with(Style::blank())
-                .to_string(),
-        );
-        assert_eq!(cmd_text, expected_table_text);
+                .to_string();
+
+        assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
 
     // [utest->swdd~cli-provides-list-of-workloads~1]
@@ -661,7 +680,7 @@ mod tests {
         )
         .await;
         let cmd_text = cmd.get_workloads(None, None, Vec::new()).await;
-        assert!(cmd_text.is_some());
+        assert!(cmd_text.is_ok());
 
         let expected_table: Vec<WorkloadInfo> = vec![
             WorkloadInfo {
@@ -683,8 +702,8 @@ mod tests {
                 execution_state: String::from("Running"),
             },
         ];
-        let expected_table_text = Some(Table::new(expected_table).with(Style::blank()).to_string());
-        assert_eq!(cmd_text, expected_table_text);
+        let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
+        assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
 
     // [utest->swdd~cli-shall-filter-list-of-workloads~1]
@@ -737,7 +756,7 @@ mod tests {
         let cmd_text = cmd
             .get_workloads(None, None, vec!["name1".to_string()])
             .await;
-        assert!(cmd_text.is_some());
+        assert!(cmd_text.is_ok());
 
         let expected_table: Vec<WorkloadInfo> = vec![WorkloadInfo {
             name: String::from("name1"),
@@ -745,8 +764,8 @@ mod tests {
             runtime: String::from("runtime"),
             execution_state: String::from("Running"),
         }];
-        let expected_table_text = Some(Table::new(expected_table).with(Style::blank()).to_string());
-        assert_eq!(cmd_text, expected_table_text);
+        let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
+        assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
 
     // [utest->swdd~cli-shall-filter-list-of-workloads~1]
@@ -799,7 +818,7 @@ mod tests {
         let cmd_text = cmd
             .get_workloads(Some("agent_B".to_string()), None, Vec::new())
             .await;
-        assert!(cmd_text.is_some());
+        assert!(cmd_text.is_ok());
 
         let expected_table: Vec<WorkloadInfo> = vec![
             WorkloadInfo {
@@ -815,8 +834,8 @@ mod tests {
                 execution_state: String::from("Running"),
             },
         ];
-        let expected_table_text = Some(Table::new(expected_table).with(Style::blank()).to_string());
-        assert_eq!(cmd_text, expected_table_text);
+        let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
+        assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
 
     // [utest->swdd~cli-shall-filter-list-of-workloads~1]
@@ -869,11 +888,11 @@ mod tests {
         let cmd_text = cmd
             .get_workloads(None, Some("Failed".to_string()), Vec::new())
             .await;
-        assert!(cmd_text.is_some());
+        assert!(cmd_text.is_ok());
 
         let expected_table: Vec<WorkloadInfo> = Vec::new();
-        let expected_table_text = Some(Table::new(expected_table).with(Style::blank()).to_string());
-        assert_eq!(cmd_text, expected_table_text);
+        let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
+        assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
 
     // [utest->swdd~cli-provides-delete-workload~1]
@@ -940,8 +959,8 @@ mod tests {
             tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
         cmd.to_server = test_to_server;
 
-        cmd.delete_workloads(vec!["name1".to_string(), "name2".to_string()])
-            .await;
+        let delete_result = cmd.delete_workloads(vec!["name1".to_string(), "name2".to_string()]).await;
+        assert!(delete_result.is_ok());
 
         // The request to get workloads
         let message_to_server = test_server_receiver.try_recv();
@@ -1018,8 +1037,8 @@ mod tests {
             tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
         cmd.to_server = test_to_server;
 
-        cmd.delete_workloads(vec!["unknown_workload".to_string()])
-            .await;
+        let delete_result = cmd.delete_workloads(vec!["unknown_workload".to_string()]).await;
+        assert!(delete_result.is_ok());
 
         // The request to get workloads
         let message_to_server = test_server_receiver.try_recv();
@@ -1431,14 +1450,14 @@ mod tests {
             tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
         cmd.to_server = test_to_server;
 
-        cmd.run_workload(
+        let run_workload_result = cmd.run_workload(
             test_workload_name,
             test_workload_runtime_name,
             test_workload_runtime_cfg,
             test_workload_agent,
             vec![("key".to_string(), "value".to_string())],
-        )
-        .await;
+        ).await;
+        assert!(run_workload_result.is_ok());
 
         // request to get workloads
         let message_to_server = test_server_receiver.try_recv();
@@ -1626,7 +1645,8 @@ mod tests {
 
     #[test]
     fn utest_get_filtered_value_filter_key_with_mapping() {
-        let deserialized_map: serde_yaml::Value = serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
+        let deserialized_map: serde_yaml::Value =
+            serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
         let result =
             get_filtered_value(&deserialized_map, &["currentState", "workloads", "nginx"]).unwrap();
         assert_eq!(
@@ -1637,7 +1657,8 @@ mod tests {
 
     #[test]
     fn utest_get_filtered_value_filter_key_without_mapping() {
-        let deserialized_map: serde_yaml::Value = serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
+        let deserialized_map: serde_yaml::Value =
+            serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
         let result = get_filtered_value(
             &deserialized_map,
             &["currentState", "workloads", "nginx", "agent"],
@@ -1649,14 +1670,16 @@ mod tests {
 
     #[test]
     fn utest_get_filtered_value_empty_mask() {
-        let deserialized_map: serde_yaml::Value = serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
+        let deserialized_map: serde_yaml::Value =
+            serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
         let result = get_filtered_value(&deserialized_map, &[]).unwrap();
         assert!(result.get("currentState").is_some());
     }
 
     #[test]
     fn utest_get_filtered_value_not_existing_keys() {
-        let deserialized_map: serde_yaml::Value = serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
+        let deserialized_map: serde_yaml::Value =
+            serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
 
         let result = get_filtered_value(
             &deserialized_map,
@@ -1690,7 +1713,8 @@ mod tests {
 
     #[test]
     fn utest_update_compact_state_create_two_keys() {
-        let mut deserialized_map: serde_yaml::Value = serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
+        let mut deserialized_map: serde_yaml::Value =
+            serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
 
         // update by inserting two new nested keys and a new empty mapping as value
         update_compact_state(
@@ -1714,7 +1738,8 @@ mod tests {
 
     #[test]
     fn utest_update_compact_state_keep_value_of_existing_key() {
-        let mut deserialized_map: serde_yaml::Value = serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
+        let mut deserialized_map: serde_yaml::Value =
+            serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
         // do not update value of existing key
         update_compact_state(
             &mut deserialized_map,

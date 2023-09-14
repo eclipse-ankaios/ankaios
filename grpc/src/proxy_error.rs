@@ -13,10 +13,15 @@
 // SPDX-License-Identifier: Apache-2.0
 use std::fmt;
 
-use common::execution_interface::ExecutionCommandError;
+use api::proto::StateChangeRequest;
+use common::{
+    execution_interface::ExecutionCommandError, state_change_interface::StateChangeCommandError,
+};
+use tokio::sync::mpsc::error::SendError;
 pub enum GrpcProxyError {
     StreamingError(tonic::Status),
     Abort(String),
+    Send(String),
 }
 
 impl From<tonic::Status> for GrpcProxyError {
@@ -26,8 +31,20 @@ impl From<tonic::Status> for GrpcProxyError {
 }
 
 impl From<ExecutionCommandError> for GrpcProxyError {
-    fn from(value: ExecutionCommandError) -> Self {
-        GrpcProxyError::Abort(value.to_string())
+    fn from(error: ExecutionCommandError) -> Self {
+        GrpcProxyError::Abort(error.to_string())
+    }
+}
+
+impl From<StateChangeCommandError> for GrpcProxyError {
+    fn from(error: StateChangeCommandError) -> Self {
+        GrpcProxyError::Send(error.to_string())
+    }
+}
+
+impl From<SendError<StateChangeRequest>> for GrpcProxyError {
+    fn from(error: SendError<StateChangeRequest>) -> Self {
+        GrpcProxyError::Send(error.to_string())
     }
 }
 
@@ -38,6 +55,7 @@ impl fmt::Display for GrpcProxyError {
                 write!(f, "StreamingError: '{}'", status)
             }
             GrpcProxyError::Abort(message) => write!(f, "Abort: '{}'", message),
+            GrpcProxyError::Send(message) => write!(f, "SendError: '{}'", message),
         }
     }
 }

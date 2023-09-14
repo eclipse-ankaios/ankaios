@@ -66,8 +66,9 @@ async fn main() {
                     args.server_url,
                 )
                 .await;
-                if let Some(out_text) = cmd.get_workloads(agent_name, state, workload_name).await {
-                    println!("{}", out_text);
+                match cmd.get_workloads(agent_name, state, workload_name).await {
+                    Ok(out_text) => println!("{}", out_text),
+                    Err(error) => log::error!("Failed to get workloads: '{}'", error),
                 }
             }
             None => unreachable!("Unreachable code."),
@@ -112,7 +113,9 @@ async fn main() {
                     args.server_url,
                 )
                 .await;
-                cmd.delete_workloads(workload_name).await;
+                if let Err(error) = cmd.delete_workloads(workload_name).await {
+                    log::error!("Failed to delete workloads: '{}'", error);
+                }
             }
             None => unreachable!("Unreachable code."),
         },
@@ -138,14 +141,18 @@ async fn main() {
                     args.server_url,
                 )
                 .await;
-                cmd.run_workload(
-                    workload_name,
-                    runtime_name,
-                    runtime_config,
-                    agent_name,
-                    tags,
-                )
-                .await;
+                if let Err(error) = cmd
+                    .run_workload(
+                        workload_name,
+                        runtime_name,
+                        runtime_config,
+                        agent_name,
+                        tags,
+                    )
+                    .await
+                {
+                    log::error!("Failed to run workloads: '{}'", error);
+                }
             }
             None => unreachable!("Unreachable code."),
         },

@@ -13,6 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
+use common::graceful_exit::ExitGracefully;
 use common::objects::{ExecutionState, WorkloadSpec};
 use common::state_change_interface::StateChangeInterface;
 use common::state_change_interface::StateChangeSender;
@@ -156,7 +157,8 @@ impl PodmanWorkload {
                     workload_name: self.workload_spec.workload.name.to_string(),
                     execution_state: ExecutionState::ExecFailed,
                 }])
-                .await;
+                .await
+                .unwrap_or_exit("Could not update workload state after failed container start.");
         }
 
         result
@@ -342,7 +344,8 @@ impl PodmanWorkload {
                         workload_name: instance_name.workload_name().to_string(),
                         execution_state: ExecutionState::ExecRemoved,
                     }])
-                    .await;
+                    .await
+                    .unwrap_or_exit("Could not update workload state after deleting container.");
                 Ok(())
             }
             Err(podman_api::Error::Fault {

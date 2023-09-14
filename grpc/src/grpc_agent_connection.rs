@@ -82,7 +82,9 @@ impl AgentConnection for GRPCAgentConnection {
                 self.agent_senders
                     .insert(&agent_name, new_agent_sender.to_owned());
                 // [impl->swdd~grpc-agent-connection-forwards-hello-to-ankaios-server~1]
-                self.to_ankaios_server.agent_hello(agent_name.clone()).await;
+                if let Err(error) = self.to_ankaios_server.agent_hello(agent_name.clone()).await {
+                    log::error!("Could not send agent hello: '{error}'");
+                }
 
                 // [impl->swdd~grpc-agent-connection-forwards-commands-to-server~1]
                 let _x = tokio::spawn(async move {
@@ -104,7 +106,9 @@ impl AgentConnection for GRPCAgentConnection {
                         agent_senders.remove(&agent_name);
                         // inform also the server that the agent is gone
                         // [impl->swdd~grpc-agent-connection-sends-agent-gone~1]
-                        ankaios_tx.agent_gone(agent_name).await;
+                        if let Err(error) = ankaios_tx.agent_gone(agent_name).await {
+                            log::error!("Could not inform server about gone agent: '{}'", error);
+                        }
                     }
                 });
             }

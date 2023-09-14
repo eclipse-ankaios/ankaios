@@ -66,7 +66,7 @@ pub async fn forward_from_proto_to_ankaios(
                 log::debug!("Received UpdateStateRequest from {}", agent_name);
                 match new_state.unwrap_or_default().try_into() {
                     Ok(new_state) => {
-                        sink.update_state(new_state, update_mask).await;
+                        sink.update_state(new_state, update_mask).await?;
                     }
                     Err(error) => {
                         log::debug!(
@@ -86,7 +86,7 @@ pub async fn forward_from_proto_to_ankaios(
                         .map(|x| x.into())
                         .collect(),
                 )
-                .await;
+                .await?;
             }
             StateChangeRequestEnum::RequestCompleteState(request_complete_state) => {
                 log::debug!("Received RequestCompleteState from {}", agent_name);
@@ -102,7 +102,7 @@ pub async fn forward_from_proto_to_ankaios(
                     }
                     .into(),
                 )
-                .await;
+                .await?;
             }
             unknown_message => {
                 log::warn!("Wrong StateChangeRequest: {:?}", unknown_message);
@@ -133,8 +133,7 @@ pub async fn forward_from_ankaios_to_proto(
                             ),
                         ),
                     })
-                    .await
-                    .unwrap();
+                    .await?;
             }
             StateChangeCommand::UpdateWorkloadState(method_obj) => {
                 log::debug!("Received UpdateWorkloadState from agent");
@@ -147,8 +146,7 @@ pub async fn forward_from_ankaios_to_proto(
                             }.into()),
                         ),
                     })
-                    .await
-                    .unwrap();
+                    .await?;
             }
             StateChangeCommand::RequestCompleteState(method_obj) => {
                 log::debug!("Received RequestCompleteState from agent");
@@ -162,8 +160,7 @@ pub async fn forward_from_ankaios_to_proto(
                             }.into()),
                         ),
                     })
-                    .await
-                    .unwrap();
+                    .await?;
             }
             StateChangeCommand::Stop(_method_obj) => {
                 log::debug!("Received Stop from agent");
@@ -244,9 +241,10 @@ mod tests {
         let update_mask = vec!["bla".into()];
 
         // As the channel capacity is big enough the await is satisfied right away
-        server_tx
+        let update_state_result = server_tx
             .update_state(input_state.clone(), update_mask.clone())
             .await;
+        assert!(update_state_result.is_ok());
 
         let handle = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx);
 
@@ -277,9 +275,10 @@ mod tests {
             execution_state: common::objects::ExecutionState::ExecRunning,
         };
 
-        server_tx
+        let update_workload_state_result = server_tx
             .update_workload_state(vec![wl_state.clone()])
             .await;
+        assert!(update_workload_state_result.is_ok());
 
         let handle = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx);
 
@@ -566,9 +565,10 @@ mod tests {
             field_mask: vec![],
         };
 
-        server_tx
+        let request_complete_state_result = server_tx
             .request_complete_state(request_complete_state.clone())
             .await;
+        assert!(request_complete_state_result.is_ok());
 
         let handle = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx);
 
