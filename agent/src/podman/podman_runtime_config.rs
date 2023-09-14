@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use common::objects::WorkloadSpec;
-use podman_api::models::PortMapping;
 
 use crate::workload_trait::WorkloadError;
 
@@ -23,20 +22,8 @@ pub struct PodmanRuntimeConfig {
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Mapping {
-    container_port: String,
-    host_port: String,
-}
-
-pub fn convert_to_port_mapping(item: &[Mapping]) -> Vec<PortMapping> {
-    item.iter()
-        .map(|value| PortMapping {
-            container_port: value.container_port.parse::<u16>().ok(),
-            host_port: value.host_port.parse::<u16>().ok(),
-            host_ip: None,
-            protocol: None,
-            range: None,
-        })
-        .collect()
+    pub container_port: String,
+    pub host_port: String,
 }
 
 impl PodmanRuntimeConfig {

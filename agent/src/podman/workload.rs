@@ -17,8 +17,6 @@ use common::objects::{ExecutionState, WorkloadSpec};
 use common::state_change_interface::StateChangeInterface;
 use common::state_change_interface::StateChangeSender;
 
-use hyper::http;
-use podman_api::Error;
 use std::path::{Path, PathBuf};
 use tokio::task::JoinHandle;
 
@@ -137,7 +135,7 @@ impl PodmanWorkload {
         }
     }
 
-    async fn has_image(&self, image: &str) -> Result<bool, Error> {
+    async fn has_image(&self, image: &str) -> Result<bool, String> {
         self.podman_utils.has_image(image).await
     }
 
@@ -188,28 +186,6 @@ impl PodmanWorkload {
                 log::debug!("Successfully stopped container '{}'.", instance_name);
                 Ok(())
             }
-            Err(podman_api::Error::Fault {
-                code: http::StatusCode::NOT_MODIFIED,
-                message,
-            }) => {
-                log::debug!(
-                    "Cannot stop container '{}'. Already stopped. Message: '{}'",
-                    instance_name,
-                    message
-                );
-                Ok(())
-            }
-            Err(podman_api::Error::Fault {
-                code: http::StatusCode::NOT_FOUND,
-                message,
-            }) => {
-                log::debug!(
-                    "Cannot stop container '{}'. Not found. Message: '{}'",
-                    instance_name,
-                    message
-                );
-                Ok(())
-            }
             Err(error) => Err(WorkloadError::DeleteError(format!(
                 "Error stopping container '{}': '{}'.",
                 instance_name, error
@@ -234,17 +210,6 @@ impl PodmanWorkload {
                         execution_state: ExecutionState::ExecRemoved,
                     }])
                     .await;
-                Ok(())
-            }
-            Err(podman_api::Error::Fault {
-                code: http::StatusCode::NOT_FOUND,
-                message,
-            }) => {
-                log::debug!(
-                    "Cannot delete container '{}'. Not found. Message: '{}'",
-                    instance_name,
-                    message
-                );
                 Ok(())
             }
             Err(e) => Err(WorkloadError::DeleteError(format!(

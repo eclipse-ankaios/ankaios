@@ -14,6 +14,7 @@
 
 use common::state_change_interface::StateChangeInterface;
 use common::state_change_interface::StateChangeSender;
+use hyper::http;
 use podman_api::models::ContainerMount;
 use podman_api::models::ListContainer;
 use podman_api::opts::ContainerCreateOpts;
@@ -22,18 +23,19 @@ use podman_api::opts::ContainerStopOpts;
 use podman_api::opts::ImageListFilter;
 use podman_api::opts::ImageListOpts;
 use podman_api::opts::PullOpts;
-use podman_api::Error;
+
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time;
 
 use common::objects::ExecutionState;
 use podman_api::{
+    models::PortMapping,
     opts::{ContainerListFilter, ContainerListOpts},
     Podman,
 };
 
-use crate::podman::podman_runtime_config::{convert_to_port_mapping, PodmanRuntimeConfig};
+use crate::podman::podman_runtime_config::PodmanRuntimeConfig;
 
 use common::objects::WorkloadExecutionInstanceName;
 #[cfg(test)]
@@ -43,11 +45,25 @@ lazy_static::lazy_static! {
 #[cfg(test)]
 use mockall::automock;
 
+use super::podman_runtime_config::Mapping;
+
 // [impl->swdd~podman-workload-monitor-interval~1]
 const STATUS_CHECK_INTERVAL_MS: u64 = 1000;
 
 const API_PIPES_MOUNT_POINT: &str = "/run/ankaios/control_interface";
 const BIND_MOUNT: &str = "bind";
+
+pub fn convert_to_port_mapping(item: &[Mapping]) -> Vec<PortMapping> {
+    item.iter()
+        .map(|value| PortMapping {
+            container_port: value.container_port.parse::<u16>().ok(),
+            host_port: value.host_port.parse::<u16>().ok(),
+            host_ip: None,
+            protocol: None,
+            range: None,
+        })
+        .collect()
+}
 
 #[derive(Debug)]
 pub struct PodmanUtils {
@@ -172,8 +188,8 @@ impl PodmanUtils {
         }
     }
 
-    pub async fn has_image(&self, image_name: &str) -> podman_api::Result<bool> {
-        let list = self
+    pub async fn has_image(&self, image_name: &str) -> Result<bool, String> {
+        match self
             .podman
             .images()
             .list(
@@ -181,11 +197,14 @@ impl PodmanUtils {
                     .filter(vec![ImageListFilter::Reference(image_name.into(), None)])
                     .build(),
             )
-            .await?;
-        Ok(!list.is_empty())
+            .await
+        {
+            Ok(list) => Ok(!list.is_empty()),
+            Err(err) => Err(err.to_string()),
+        }
     }
 
-    async fn list_containers(&self, name_filter: &str) -> podman_api::Result<Vec<ListContainer>> {
+    async fn list_containers(&self, name_filter: &str) -> Result<Vec<ListContainer>, String> {
         self.podman
             .containers()
             .list(
@@ -195,9 +214,10 @@ impl PodmanUtils {
                     .build(),
             )
             .await
+            .map_err(|err| err.to_string())
     }
 
-    pub async fn pull_image(&self, image: &String) -> Result<(), Error> {
+    pub async fn pull_image(&self, image: &String) -> Result<(), String> {
         use futures_util::{StreamExt, TryStreamExt};
 
         self.podman
@@ -205,12 +225,13 @@ impl PodmanUtils {
             .pull(&PullOpts::builder().reference(image).build())
             .map(|report| {
                 report.and_then(|report| match report.error {
-                    Some(error) => Err(Error::InvalidResponse(error)),
+                    Some(error) => Err(podman_api::Error::InvalidResponse(error)),
                     None => Ok(()),
                 })
             })
             .try_collect()
             .await
+            .map_err(|err| err.to_string())
     }
 
     pub async fn create_container(
@@ -218,8 +239,8 @@ impl PodmanUtils {
         workload_cfg: PodmanRuntimeConfig,
         container_name: String,
         api_pipes_location: String,
-    ) -> podman_api::Result<String> {
-        let result = self
+    ) -> Result<String, String> {
+        match self
             .podman
             .containers()
             .create(
@@ -240,28 +261,79 @@ impl PodmanUtils {
                     .remove(workload_cfg.remove)
                     .build(),
             )
-            .await?;
-        Ok(result.id)
+            .await
+        {
+            Ok(response) => Ok(response.id),
+            Err(err) => Err(err.to_string()),
+        }
     }
 
-    pub async fn start_container(&self, container_id: &str) -> podman_api::Result<()> {
-        self.podman.containers().get(container_id).start(None).await
-    }
-
-    pub async fn stop_container(&self, container_id: &str) -> podman_api::Result<()> {
+    pub async fn start_container(&self, container_id: &str) -> Result<(), String> {
         self.podman
+            .containers()
+            .get(container_id)
+            .start(None)
+            .await
+            .map_err(|err| err.to_string())
+    }
+
+    pub async fn stop_container(&self, container_id: &str) -> Result<(), String> {
+        match self
+            .podman
             .containers()
             .get(container_id)
             .stop(&ContainerStopOpts::default())
             .await
+        {
+            Ok(()) => Ok(()),
+            Err(podman_api::Error::Fault {
+                code: http::StatusCode::NOT_MODIFIED,
+                message,
+            }) => {
+                log::debug!(
+                    "Cannot stop container '{}'. Already stopped. Message: '{}'",
+                    container_id,
+                    message
+                );
+                Ok(())
+            }
+            Err(podman_api::Error::Fault {
+                code: http::StatusCode::NOT_FOUND,
+                message,
+            }) => {
+                log::debug!(
+                    "Cannot stop container '{}'. Not found. Message: '{}'",
+                    container_id,
+                    message
+                );
+                Ok(())
+            }
+            Err(err) => Err(err.to_string()),
+        }
     }
 
-    pub async fn delete_container(&self, container_id: &str) -> podman_api::Result<()> {
-        self.podman
+    pub async fn delete_container(&self, container_id: &str) -> Result<(), String> {
+        match self
+            .podman
             .containers()
             .get(container_id)
             .delete(&ContainerDeleteOpts::builder().volumes(true).build())
             .await
+        {
+            Ok(()) => Ok(()),
+            Err(podman_api::Error::Fault {
+                code: http::StatusCode::NOT_FOUND,
+                message,
+            }) => {
+                log::debug!(
+                    "Cannot delete container '{}'. Not found. Message: '{}'",
+                    container_id,
+                    message
+                );
+                Ok(())
+            }
+            Err(err) => Err(err.to_string()),
+        }
     }
 
     pub fn remove_containers(
@@ -274,7 +346,7 @@ impl PodmanUtils {
                 if let Err(err) = (|| async {
                     podman_utils.stop_container(&container_id).await?;
                     podman_utils.delete_container(&container_id).await?;
-                    podman_api::Result::Ok(())
+                    Result::<(), String>::Ok(())
                 })()
                 .await
                 {
