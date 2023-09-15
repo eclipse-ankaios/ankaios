@@ -31,7 +31,7 @@ if [[ "$1" = serve ]]; then
 elif [[ "$1" = build ]]; then
     mkdocs build -f "$target_dir/mkdocs.yml" -d html
 elif [[ "$1" = deploy ]]; then
-    mike deploy --push --force --config-file "$target_dir/mkdocs.yml" dev
+    mike deploy --push --force --config-file "$target_dir/mkdocs.yml" main
 elif [[ "$1" = deploy-release && ! (-z "$2") ]]; then
     echo "Deploying documentation version $2"
     mike deploy --update-aliases --push --force --config-file "$target_dir/mkdocs.yml" "$2" latest
