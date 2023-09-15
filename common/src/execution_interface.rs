@@ -33,12 +33,6 @@ impl From<SendError<ExecutionCommand>> for ExecutionCommandError {
     }
 }
 
-impl From<String> for ExecutionCommandError {
-    fn from(value: String) -> Self {
-        ExecutionCommandError(value)
-    }
-}
-
 // [impl->swdd~execution-command-channel~1]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExecutionCommand {
