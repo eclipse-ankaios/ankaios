@@ -72,12 +72,15 @@ pub fn convert_to_port_mapping(item: &[Mapping]) -> Vec<PortMapping> {
 #[derive(Debug, serde::Deserialize)]
 pub struct Mount {
     #[serde(default)]
+    #[serde(alias = "dst")]
     pub destination: Option<String>,
     #[serde(default)]
     pub options: Option<Vec<String>>,
     #[serde(default)]
+    #[serde(alias = "src")]
     pub source: Option<String>,
     #[serde(default)]
+    #[serde(rename = "type")]
     pub _type: Option<String>,
     #[serde(default)]
     pub uid_mappings: Option<Vec<IdMap>>,
