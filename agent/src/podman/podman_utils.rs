@@ -240,29 +240,33 @@ impl PodmanUtils {
         container_name: String,
         api_pipes_location: String,
     ) -> Result<String, String> {
-        match self
-            .podman
-            .containers()
-            .create(
-                &ContainerCreateOpts::builder()
-                    .image(&workload_cfg.image)
-                    .command(&workload_cfg.get_command_with_args())
-                    .name(container_name)
-                    .env(&workload_cfg.env)
-                    .portmappings(convert_to_port_mapping(&workload_cfg.ports))
-                    .mounts(vec![ContainerMount {
-                        destination: Some(String::from(API_PIPES_MOUNT_POINT)),
-                        options: None,
-                        source: Some(api_pipes_location),
-                        _type: Some(String::from(BIND_MOUNT)),
-                        uid_mappings: None,
-                        gid_mappings: None,
-                    }])
-                    .remove(workload_cfg.remove)
-                    .build(),
-            )
-            .await
-        {
+        let mut create_options_builder = ContainerCreateOpts::builder()
+            .image(&workload_cfg.image)
+            .name(container_name)
+            .env(&workload_cfg.env)
+            .portmappings(convert_to_port_mapping(&workload_cfg.ports))
+            .mounts(vec![ContainerMount {
+                destination: Some(String::from(API_PIPES_MOUNT_POINT)),
+                options: None,
+                source: Some(api_pipes_location),
+                _type: Some(String::from(BIND_MOUNT)),
+                uid_mappings: None,
+                gid_mappings: None,
+            }])
+            .remove(workload_cfg.remove);
+
+        let entry_point = workload_cfg.get_entrypoint();
+        if !entry_point.is_empty() {
+            create_options_builder = create_options_builder.entrypoint(entry_point);
+        }
+
+        let command = workload_cfg.get_command();
+        if !command.is_empty() {
+            create_options_builder = create_options_builder.command(workload_cfg.get_command());
+        }
+
+        let container_options = create_options_builder.build();
+        match self.podman.containers().create(&container_options).await {
             Ok(response) => Ok(response.id),
             Err(err) => Err(err.to_string()),
         }
