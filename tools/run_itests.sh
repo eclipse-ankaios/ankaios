@@ -44,5 +44,5 @@ check_executable $ANK
 check_executable $ANK_SERVER
 check_executable $ANK_AGENT
 
-ANK_BIN_DIR=$ANK_BIN_DIR robot --pythonpath integration_tests -d ${target_dir} "$@"
+ANK_BIN_DIR=$ANK_BIN_DIR robot --pythonpath tests -d ${target_dir} "$@"
 

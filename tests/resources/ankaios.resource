@@ -58,6 +58,8 @@ the command "${cli_command}" finished with exit code "${exit_code}"
     ${exit_code_int}=    Convert To Integer     ${exit_code}
     Should Be Equal    ${run_result.rc}    ${exit_code_int}
 
+the command "${cli_command}" shall finish with exit code "${exit_code}"
+    the command "${cli_command}" finished with exit code "${exit_code}"
 
 Ankaios server is started with "${ank_server_cli_command}"
     Log    Ankaios server is started with ${ank_server_cli_command}

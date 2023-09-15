@@ -24,5 +24,5 @@ Test Ankaios CLI update workload
     And user triggers "ank set state -f ${new_state_yaml_file} currentState.workloads.nginx"
     # Asserts
     Then the workload "nginx" shall have the execution state "Running"
-    And the command "curl localhost:8082" finished with exit code "0"
+    And the command "curl localhost:8082" shall finish with exit code "0"
     [Teardown]    Clean up Ankaios
