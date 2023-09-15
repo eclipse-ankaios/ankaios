@@ -12,18 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub const CHANNEL_CAPACITY: usize = 20;
-pub const DEFAULT_SOCKET_ADDRESS: &str = "127.0.0.1:50051";
-pub const DEFAULT_SERVER_ADDRESS: &str = "http://127.0.0.1:50051";
+pub mod extended_option;
+pub use extended_option::*;
 
-pub mod commands;
-pub mod communications_client;
-pub mod communications_server;
-pub mod execution_interface;
-pub mod helpers;
-pub mod objects;
-pub mod request_id_prepending;
-pub mod state_change_interface;
-pub mod std_extensions;
-#[cfg(feature = "test_utils")]
-pub mod test_utils;
+pub mod extended_result;
+pub use extended_result::*;

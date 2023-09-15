@@ -29,7 +29,7 @@ mod workload_facade;
 mod workload_trait;
 
 use common::execution_interface::ExecutionCommand;
-use common::graceful_exit::ExitGracefully;
+use common::std_extensions::GracefulExitResult;
 use grpc::client::GRPCCommunicationsClient;
 
 use agent_manager::AgentManager;

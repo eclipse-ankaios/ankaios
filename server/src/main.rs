@@ -22,9 +22,9 @@ use std::fs;
 use tokio::try_join;
 
 use common::communications_server::CommunicationsServer;
-use common::graceful_exit::ExitGracefully;
 use common::objects::State;
 use common::state_change_interface::StateChangeInterface;
+use common::std_extensions::GracefulExitResult;
 
 use ankaios_server::{create_execution_channels, create_state_change_channels, AnkaiosServer};
 

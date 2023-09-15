@@ -12,9 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::graceful_exit::ExitGracefully;
 use common::state_change_interface::StateChangeInterface;
 use common::state_change_interface::StateChangeSender;
+use common::std_extensions::GracefulExitResult;
 use podman_api::models::ListContainer;
 use podman_api::opts::ContainerDeleteOpts;
 use podman_api::opts::ContainerStopOpts;

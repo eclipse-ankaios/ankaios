@@ -29,8 +29,8 @@ use crate::execution_command_proxy;
 use crate::grpc_agent_connection::GRPCAgentConnection;
 
 use common::execution_interface::ExecutionCommand;
-use common::graceful_exit::ExitGracefully;
 use common::state_change_interface::StateChangeCommand;
+use common::std_extensions::GracefulExitResult;
 
 use async_trait::async_trait;
 

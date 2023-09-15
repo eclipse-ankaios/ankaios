@@ -23,8 +23,8 @@ use common::commands::{CompleteState, RequestCompleteState};
 use common::execution_interface::ExecutionCommand;
 use common::objects::State;
 use common::{
-    execution_interface::ExecutionInterface, graceful_exit::ExitGracefully,
-    state_change_interface::StateChangeCommand,
+    execution_interface::ExecutionInterface, state_change_interface::StateChangeCommand,
+    std_extensions::GracefulExitResult,
 };
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 

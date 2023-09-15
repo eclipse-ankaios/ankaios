@@ -11,6 +11,7 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+use crate::std_extensions::UnreachableOption;
 
 const SEPARATOR: &str = "@";
 
@@ -29,7 +30,7 @@ pub fn detach_prefix_from_request_id(request_id: &str) -> (String, String) {
         return (String::from(""), String::from(""));
     }
     let mut splitted = request_id.splitn(2, SEPARATOR);
-    let prefix = splitted.next().unwrap_or_default();
+    let prefix = splitted.next().unwrap_or_unreachable();
     if let Some(raw_request_id) = splitted.next() {
         (prefix.to_owned(), raw_request_id.to_owned())
     } else {
