@@ -59,12 +59,15 @@ impl From<TryFromWorkloadSpecError> for WorkloadError {
 #[derive(Debug, serde::Deserialize)]
 pub struct Mount {
     #[serde(default)]
-    pub destination: Option<String>,
+    #[serde(alias = "dst")]
+    pub destination: String,
     #[serde(default)]
     pub options: Option<Vec<String>>,
     #[serde(default)]
+    #[serde(alias = "src")]
     pub source: Option<String>,
     #[serde(default)]
+    #[serde(rename = "type")]
     pub _type: Option<String>,
     #[serde(default)]
     pub uid_mappings: Option<Vec<IdMap>>,
@@ -75,7 +78,7 @@ pub struct Mount {
 impl From<Mount> for podman_api::models::ContainerMount {
     fn from(value: Mount) -> podman_api::models::ContainerMount {
         Self {
-            destination: value.destination,
+            destination: Some(value.destination),
             options: value.options,
             source: value.source,
             _type: value._type,
