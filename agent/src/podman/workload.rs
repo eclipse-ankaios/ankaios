@@ -16,7 +16,7 @@ use async_trait::async_trait;
 use common::objects::{ExecutionState, WorkloadSpec};
 use common::state_change_interface::StateChangeInterface;
 use common::state_change_interface::StateChangeSender;
-use common::std_extensions::UnreachableResult;
+use common::std_extensions::IllegalStateResult;
 
 use hyper::http;
 use podman_api::models::{ContainerMount, PortMapping};
@@ -158,7 +158,7 @@ impl PodmanWorkload {
                     execution_state: ExecutionState::ExecFailed,
                 }])
                 .await
-                .unwrap_or_unreachable();
+                .unwrap_or_illegal_state();
         }
 
         result
@@ -345,7 +345,7 @@ impl PodmanWorkload {
                         execution_state: ExecutionState::ExecRemoved,
                     }])
                     .await
-                    .unwrap_or_unreachable();
+                    .unwrap_or_illegal_state();
                 Ok(())
             }
             Err(podman_api::Error::Fault {

@@ -97,3 +97,30 @@ impl<T, E: std::fmt::Display> UnreachableResult<T, E> for Result<T, E> {
         }
     }
 }
+
+pub trait IllegalStateResult<T, E> {
+    fn unwrap_or_illegal_state(self) -> T;
+}
+
+impl<T, E: std::fmt::Display> IllegalStateResult<T, E> for Result<T, E> {
+    /// Returns the contained [`Ok`] value or panics
+    /// by executing the unreachable! macro with logging the error E of the Result<T,E>.
+    ///
+    /// # Examples
+    ///
+    /// ```should_panic
+    /// use common::std_extensions::extended_result::IllegalStateResult;
+    /// assert_eq!(Ok::<&str, &str>("bar").unwrap_or_illegal_state(), "bar");
+    ///
+    /// // shall panic because unreachable is hit
+    /// Err::<&str, &str>("some error").unwrap_or_illegal_state();
+    /// ```
+    fn unwrap_or_illegal_state(self) -> T {
+        match self {
+            Ok(value) => value,
+            Err(error) => {
+                std::panic!("{error}")
+            }
+        }
+    }
+}

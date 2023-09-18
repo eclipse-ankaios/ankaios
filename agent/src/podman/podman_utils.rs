@@ -14,7 +14,7 @@
 
 use common::state_change_interface::StateChangeInterface;
 use common::state_change_interface::StateChangeSender;
-use common::std_extensions::GracefulExitResult;
+use common::std_extensions::IllegalStateResult;
 use podman_api::models::ListContainer;
 use podman_api::opts::ContainerDeleteOpts;
 use podman_api::opts::ContainerStopOpts;
@@ -73,9 +73,7 @@ impl PodmanUtils {
                         execution_state: current_state,
                     }])
                     .await
-                    .unwrap_or_exit(
-                        "Could not update workload state when checking workload status",
-                    );
+                    .unwrap_or_illegal_state();
 
                 if last_state == ExecutionState::ExecRemoved {
                     break;
