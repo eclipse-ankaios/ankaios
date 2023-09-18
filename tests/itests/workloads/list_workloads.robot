@@ -4,7 +4,8 @@ Resource     resources/ankaios.resource
 Resource    resources/variables.resource
 
 *** Test Cases ***
-# my integration test test
+# [itest->swdd~cli-standalone-application~1]
+# [itest->swdd~server-handle-cli-communication~1]
 Test Ankaios CLI get workloads
     [Setup]        Setup Ankaios
     # Precondition
