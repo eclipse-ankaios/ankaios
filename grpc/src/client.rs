@@ -91,9 +91,10 @@ impl CommunicationsClient for GRPCCommunicationsClient {
                         match x {
                             // [impl->swdd~grpc-client-outputs-error-server-unavailability-for-cli-connection~1]
                             GrpcConnectionError::ServerNotAvailable(_err) => {
-                                log::error!(
+                                log::error!(target: Default::default(), 
                                     "No connection to the server! Make sure that Ankaios Server is running."
                                 );
+                                std::process::exit(1);
                             }
                             // [impl->swdd~grpc-client-outputs-error-server-connection-loss-for-cli-connection~1]
                             GrpcConnectionError::ConnectionInterrupted(err) => {
