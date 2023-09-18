@@ -5,10 +5,12 @@ on:
       - main
     paths:
       - 'doc/**'
+      - 'api/proto/**'
       - '.github/workflows/documentation.yml'
   pull_request:
     paths:
       - 'doc/**'
+      - 'api/proto/**'
       - '.github/workflows/documentation.yml'
   workflow_dispatch:
   workflow_call:
