@@ -14,6 +14,7 @@
 
 mod update_state;
 
+use common::std_extensions::IllegalStateResult;
 #[cfg(test)]
 use tests::update_state_mock as update_state;
 #[cfg(not(test))]
@@ -141,7 +142,7 @@ impl AnkaiosServer {
                             vec![],
                         )
                         .await
-                        .unwrap_or_exit("Failed to send workloads to newly connected agent");
+                        .unwrap_or_illegal_state();
 
                     // [impl->swdd~server-informs-a-newly-connected-agent-workload-states~1]
                     // [impl->swdd~server-sends-all-workload-states-on-agent-connect~1]
@@ -152,9 +153,7 @@ impl AnkaiosServer {
                         self.to_agents
                             .update_workload_state(workload_states)
                             .await
-                            .unwrap_or_exit(
-                                "Failed to send workload states to newly connected agent",
-                            );
+                            .unwrap_or_illegal_state();
                     } else {
                         log::debug!("No workload states to send. Nothing to do.");
                     }
@@ -165,7 +164,7 @@ impl AnkaiosServer {
                     self.workload_state_db
                         .mark_all_workload_state_for_agent_unknown(&method_obj.agent_name);
 
-                    // communicate the workload changes to other agents
+                    // communicate the workload state changes to other agents
                     // [impl->swdd~server-distribute-workload-state-unknown-on-disconnect~1]
                     self.to_agents
                         .update_workload_state(
@@ -173,7 +172,7 @@ impl AnkaiosServer {
                                 .get_workload_state_for_agent(&method_obj.agent_name),
                         )
                         .await
-                        .unwrap_or_exit("Failed to send workload states to remaining agents after agent was gone");
+                        .unwrap_or_illegal_state();
                 }
                 // [impl->swdd~server-provides-update-current-state-interface~1]
                 StateChangeCommand::UpdateState(update_request) => {
@@ -190,7 +189,7 @@ impl AnkaiosServer {
                                 self.to_agents
                                     .send(cmd.unwrap())
                                     .await
-                                    .unwrap_or_exit("Failed to send updated workloads to agents");
+                                    .unwrap_or_illegal_state();
                             } else {
                                 log::debug!("The current state and new state are identical -> nothing to do");
                             }
@@ -214,7 +213,7 @@ impl AnkaiosServer {
                     self.to_agents
                         .update_workload_state(method_obj.workload_states)
                         .await
-                        .unwrap_or_exit("Failed to send workload states to agents");
+                        .unwrap_or_illegal_state();
                 }
                 // [impl->swdd~server-provides-interface-get-complete-state~1]
                 // [impl->swdd~server-includes-id-in-control-interface-response~1]
@@ -228,20 +227,18 @@ impl AnkaiosServer {
                             .to_agents
                             .complete_state(complete_state)
                             .await
-                            .unwrap_or_exit(
-                            "Failed to send complete state to agents after request complete state",
-                        ),
+                            .unwrap_or_illegal_state(),
                         Err(error) => {
                             log::error!("Failed to get complete state: '{}'", error);
                             self.to_agents
-                            .complete_state(common::commands::CompleteState {
-                                request_id: method_obj.request_id,
-                                startup_state: State::default(),
-                                current_state: State::default(),
-                                workload_states: vec![],
-                            })
-                            .await
-                            .unwrap_or_exit("Failed to send default complete state to agents after request complete state");
+                                .complete_state(common::commands::CompleteState {
+                                    request_id: method_obj.request_id,
+                                    startup_state: State::default(),
+                                    current_state: State::default(),
+                                    workload_states: vec![],
+                                })
+                                .await
+                                .unwrap_or_illegal_state();
                         }
                     }
                 }
