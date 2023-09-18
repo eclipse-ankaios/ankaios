@@ -35,7 +35,7 @@ mod grpc_tests {
         let (to_grpc_client, grpc_client_receiver) =
             tokio::sync::mpsc::channel::<StateChangeCommand>(20);
         let url = Url::parse(&format!("http://{}", server_addr)).expect("error");
-        let mut grps_communications_client = match comm_type {
+        let mut grpc_communications_client = match comm_type {
             CommunicationType::Cli => {
                 GRPCCommunicationsClient::new_cli_communication(test_request_id.to_owned(), url)
             }
@@ -45,7 +45,7 @@ mod grpc_tests {
         };
 
         let grpc_client_task = tokio::spawn(async move {
-            grps_communications_client
+            grpc_communications_client
                 .run(grpc_client_receiver, to_grpc_server)
                 .await
         });

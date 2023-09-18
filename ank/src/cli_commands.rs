@@ -171,7 +171,7 @@ async fn setup_cli_communication(
     tokio::sync::mpsc::Receiver<ExecutionCommand>,
 ) // (task,sender,receiver)
 {
-    let mut grps_communications_client =
+    let mut grpc_communications_client =
         GRPCCommunicationsClient::new_cli_communication(cli_name.to_owned(), server_url);
 
     let (to_cli, cli_receiver) = tokio::sync::mpsc::channel::<ExecutionCommand>(BUFFER_SIZE);
@@ -179,7 +179,7 @@ async fn setup_cli_communication(
         tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
 
     let communications_task = tokio::spawn(async move {
-        if let Err(err) = grps_communications_client
+        if let Err(err) = grpc_communications_client
             .run(server_receiver, to_cli.clone())
             .await 
         {

@@ -76,7 +76,7 @@ async fn main() {
         to_server.clone(),
         args.podman_socket_path,
     );
-    let mut grps_communications_client =
+    let mut grpc_communications_client =
         GRPCCommunicationsClient::new_agent_communication(args.agent_name.clone(), args.server_url);
 
     adapter_interface_map.insert(podman_adapter.get_name(), Box::new(podman_adapter));
@@ -93,7 +93,7 @@ async fn main() {
     // [impl->swdd~agent-sends-hello~1]
     // [impl->swdd~agent-default-communication-grpc~1]
     let communications_task = tokio::spawn(async move {
-        grps_communications_client
+        grpc_communications_client
             .run(server_receiver, to_manager.clone())
             .await
     });
