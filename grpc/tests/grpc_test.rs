@@ -28,7 +28,10 @@ mod grpc_tests {
         comm_type: CommunicationType,
         test_request_id: &str,
         to_grpc_server: Sender<ExecutionCommand>,
-    ) -> (Sender<StateChangeCommand>, tokio::task::JoinHandle<()>) {
+    ) -> (
+        Sender<StateChangeCommand>,
+        tokio::task::JoinHandle<Result<(), String>>,
+    ) {
         let (to_grpc_client, grpc_client_receiver) =
             tokio::sync::mpsc::channel::<StateChangeCommand>(20);
         let url = Url::parse(&format!("http://{}", server_addr)).expect("error");
@@ -55,10 +58,10 @@ mod grpc_tests {
         comm_type: CommunicationType,
         test_request_id: &str,
     ) -> (
-        Sender<StateChangeCommand>,   // to_grpc_client
-        Receiver<StateChangeCommand>, // server_receiver
-        tokio::task::JoinHandle<()>,  // grpc_server_task
-        tokio::task::JoinHandle<()>,  // grpc_client_task
+        Sender<StateChangeCommand>,                  // to_grpc_client
+        Receiver<StateChangeCommand>,                // server_receiver
+        tokio::task::JoinHandle<()>,                 // grpc_server_task
+        tokio::task::JoinHandle<Result<(), String>>, // grpc_client_task
     ) {
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         //                                         _____________                                _________________

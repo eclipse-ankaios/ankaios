@@ -24,5 +24,5 @@ pub trait CommunicationsClient {
         &mut self,
         &mut receiver: StateChangeReceiver,
         manager_interface: Sender<ExecutionCommand>,
-    );
+    ) -> Result<(), String>;
 }

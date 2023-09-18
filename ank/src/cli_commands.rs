@@ -179,9 +179,13 @@ async fn setup_cli_communication(
         tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
 
     let communications_task = tokio::spawn(async move {
-        grps_communications_client
+        if let Err(err) = grps_communications_client
             .run(server_receiver, to_cli.clone())
-            .await
+            .await 
+        {
+            println!("{err}");
+            std::process::exit(1);
+        }
     });
     (communications_task, to_server, cli_receiver)
 }
@@ -572,20 +576,21 @@ mod tests {
                 &mut self,
                 mut server_rx: StateChangeReceiver,
                 agent_tx: Sender<ExecutionCommand>,
-            );
+            ) -> Result<(), String>;
         }
     }
 
     fn prepare_server_response(
         complete_states: Vec<ExecutionCommand>,
         to_cli: Sender<ExecutionCommand>,
-    ) {
+    ) -> Result<(), String> {
         let sync_code = thread::spawn(move || {
             complete_states.into_iter().for_each(|cs| {
                 to_cli.blocking_send(cs).unwrap();
             });
         });
-        sync_code.join().unwrap()
+        sync_code.join().unwrap();
+        Ok(())
     }
 
     // [utest->swdd~cli-shall-print-empty-table~1]

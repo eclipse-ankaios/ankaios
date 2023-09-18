@@ -29,7 +29,7 @@ mod workload_facade;
 mod workload_trait;
 
 use common::execution_interface::ExecutionCommand;
-use common::std_extensions::GracefulExitResult;
+use common::std_extensions::{GracefulExitResult, UnreachableResult};
 use grpc::client::GRPCCommunicationsClient;
 
 use agent_manager::AgentManager;
@@ -98,5 +98,8 @@ async fn main() {
             .await
     });
 
-    try_join!(manager_task, communications_task).unwrap();
+    let (_, communication_task_result) =
+        try_join!(manager_task, communications_task).unwrap_or_exit("Failure starting the agent.");
+
+    communication_task_result.unwrap_or_unreachable();
 }
