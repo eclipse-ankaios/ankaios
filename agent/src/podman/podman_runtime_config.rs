@@ -27,11 +27,12 @@ pub struct Mapping {
 }
 
 impl PodmanRuntimeConfig {
-    pub fn get_command_with_args(&self) -> Vec<String> {
-        let mut command = vec![];
-        command.extend(self.command.iter().cloned());
-        command.extend(self.args.iter().cloned());
-        command
+    pub fn get_entrypoint(&self) -> Vec<String> {
+        self.command.clone()
+    }
+
+    pub fn get_command(&self) -> Vec<String> {
+        self.args.clone()
     }
 }
 
