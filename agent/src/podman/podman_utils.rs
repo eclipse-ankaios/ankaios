@@ -35,8 +35,7 @@ use podman_api::{
     Podman,
 };
 
-use crate::podman::podman_runtime_config::{PodmanRuntimeConfig, Mount};
-
+use crate::podman::podman_runtime_config::{Mount, PodmanRuntimeConfig};
 
 use common::objects::WorkloadExecutionInstanceName;
 #[cfg(test)]
@@ -241,22 +240,26 @@ impl PodmanUtils {
         container_name: String,
         api_pipes_location: String,
     ) -> Result<String, String> {
-        match self
-            .podman
-            .containers()
-            .create(
-                &ContainerCreateOpts::builder()
-                    .image(&workload_cfg.image)
-                    .command(&workload_cfg.get_command_with_args())
-                    .name(container_name)
-                    .env(&workload_cfg.env)
-                    .portmappings(convert_to_port_mapping(&workload_cfg.ports))
-                    .mounts(Self::create_mounts(api_pipes_location, workload_cfg.mounts))
-                    .remove(workload_cfg.remove)
-                    .build(),
-            )
-            .await
-        {
+        let mut create_options_builder = ContainerCreateOpts::builder()
+            .image(&workload_cfg.image)
+            .name(container_name)
+            .env(&workload_cfg.env)
+            .portmappings(convert_to_port_mapping(&workload_cfg.ports))
+            .mounts(Self::create_mounts(api_pipes_location, workload_cfg.mounts))
+            .remove(workload_cfg.remove);
+
+        let entry_point = workload_cfg.get_entrypoint();
+        if !entry_point.is_empty() {
+            create_options_builder = create_options_builder.entrypoint(entry_point);
+        }
+
+        let command = workload_cfg.get_command();
+        if !command.is_empty() {
+            create_options_builder = create_options_builder.command(workload_cfg.get_command());
+        }
+
+        let container_options = create_options_builder.build();
+        match self.podman.containers().create(&container_options).await {
             Ok(response) => Ok(response.id),
             Err(err) => Err(err.to_string()),
         }
