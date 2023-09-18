@@ -21,10 +21,10 @@ mod workload_state_db;
 use std::fs;
 use tokio::try_join;
 
-use common::communications_server::CommunicationsServer;
 use common::objects::State;
 use common::state_change_interface::StateChangeInterface;
 use common::std_extensions::GracefulExitResult;
+use common::{communications_server::CommunicationsServer, std_extensions::IllegalStateResult};
 
 use ankaios_server::{create_execution_channels, create_state_change_channels, AnkaiosServer};
 
@@ -76,11 +76,11 @@ async fn main() -> Result<(), BoxedStdError> {
                 vec![],
             )
             .await
-            .unwrap_or_exit("Could not set initial startup state");
+            .unwrap_or_illegal_state();
     });
 
     try_join!(communications_task, server_task, initial_state_task)
-        .unwrap_or_exit("Failed to join server tasks");
+        .unwrap_or_exit("Failure starting the server.");
 
     Ok(())
 }
