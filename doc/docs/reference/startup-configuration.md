@@ -55,7 +55,7 @@ workloads:
 The runtime configuration for the `podman` runtime is specified as followed:
 ```text
 image: <string>                   # Image repository or image id
-command: <vector of strings>      # Entrypoint array. Not executed in a shell.
+command: <vector of strings>      # Entrypoint array. Not executed in a shell. The container image's ENTRYPOINT is used if this is not provided.
 args: <vector of strings>         # Arguments to the entrypoint. The container image's CMD is used if this is not provided.
 env:  <vector of name/value pair>  # Key/value pairs provided as environment variables in the container
 ports: <vector of port mappings>  # List of ports to be exposed

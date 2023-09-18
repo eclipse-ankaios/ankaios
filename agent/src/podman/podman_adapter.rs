@@ -22,7 +22,6 @@ use async_trait::async_trait;
 
 #[cfg(test)]
 use mockall_double::double;
-use podman_api::Podman;
 
 use crate::runtime_adapter::RuntimeAdapter;
 use common::objects::WorkloadInstanceName;
@@ -42,7 +41,6 @@ type Workload = WorkloadFacade<PodmanWorkload>;
 pub struct PodmanAdapter {
     run_folder: PathBuf,
     manager_interface: StateChangeSender,
-    podman: Podman,
     socket_path: String,
     running_workloads: HashMap<String, Workload>,
 }
@@ -56,7 +54,6 @@ impl PodmanAdapter {
         Self {
             run_folder,
             manager_interface,
-            podman: Podman::unix(&socket_path),
             socket_path,
             running_workloads: HashMap::new(),
         }
@@ -70,7 +67,7 @@ impl RuntimeAdapter for PodmanAdapter {
     async fn start(&mut self, agent_name: &str, initial_workload_list: Vec<WorkloadSpec>) {
         // [impl->swdd~agent-adapter-start-finds-existing-workloads~1]
         let mut found_running_workloads =
-            PodmanUtils::list_running_workloads(&self.podman, agent_name).await;
+            PodmanUtils::list_running_workloads(&self.socket_path, agent_name).await;
 
         log::debug!(
             "Starting podman adapter. Found the following still running workloads: {:?}",
@@ -113,7 +110,7 @@ impl RuntimeAdapter for PodmanAdapter {
         // Now stop the remaining things that should not run anymore
         // [impl->swdd~agent-adapter-start-unneeded-stopped~1]
         if !found_running_workloads.is_empty() {
-            PodmanUtils::remove_containers(&self.podman, found_running_workloads);
+            PodmanUtils::remove_containers(&self.socket_path, found_running_workloads);
         }
     }
 
