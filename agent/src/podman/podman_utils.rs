@@ -248,14 +248,12 @@ impl PodmanUtils {
             .mounts(Self::create_mounts(api_pipes_location, workload_cfg.mounts))
             .remove(workload_cfg.remove);
 
-        let entry_point = workload_cfg.get_entrypoint();
-        if !entry_point.is_empty() {
-            create_options_builder = create_options_builder.entrypoint(entry_point);
+        if let Some(command) = workload_cfg.command {
+            create_options_builder = create_options_builder.entrypoint(command);
         }
 
-        let command = workload_cfg.get_command();
-        if !command.is_empty() {
-            create_options_builder = create_options_builder.command(workload_cfg.get_command());
+        if let Some(args) = workload_cfg.args {
+            create_options_builder = create_options_builder.command(args);
         }
 
         let container_options = create_options_builder.build();

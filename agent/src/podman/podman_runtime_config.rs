@@ -8,9 +8,9 @@ use crate::workload_trait::WorkloadError;
 pub struct PodmanRuntimeConfig {
     pub image: String,
     #[serde(default)]
-    command: Vec<String>,
+    pub command: Option<Vec<String>>,
     #[serde(default)]
-    args: Vec<String>,
+    pub args: Option<Vec<String>>,
     #[serde(default)]
     pub env: HashMap<String, String>,
     #[serde(default)]
@@ -26,16 +26,6 @@ pub struct PodmanRuntimeConfig {
 pub struct Mapping {
     pub container_port: String,
     pub host_port: String,
-}
-
-impl PodmanRuntimeConfig {
-    pub fn get_entrypoint(&self) -> Vec<String> {
-        self.command.clone()
-    }
-
-    pub fn get_command(&self) -> Vec<String> {
-        self.args.clone()
-    }
 }
 
 #[derive(Debug)]
