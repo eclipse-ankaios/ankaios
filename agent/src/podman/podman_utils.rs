@@ -35,7 +35,7 @@ use podman_api::{
     Podman,
 };
 
-use crate::podman::podman_runtime_config::PodmanRuntimeConfig;
+use crate::podman::podman_runtime_config::{Mount, PodmanRuntimeConfig};
 
 use common::objects::WorkloadExecutionInstanceName;
 #[cfg(test)]
@@ -56,8 +56,8 @@ const BIND_MOUNT: &str = "bind";
 pub fn convert_to_port_mapping(item: &[Mapping]) -> Vec<PortMapping> {
     item.iter()
         .map(|value| PortMapping {
-            container_port: value.container_port.parse::<u16>().ok(),
-            host_port: value.host_port.parse::<u16>().ok(),
+            container_port: Some(value.container_port),
+            host_port: Some(value.host_port),
             host_ip: None,
             protocol: None,
             range: None,
@@ -245,24 +245,15 @@ impl PodmanUtils {
             .name(container_name)
             .env(&workload_cfg.env)
             .portmappings(convert_to_port_mapping(&workload_cfg.ports))
-            .mounts(vec![ContainerMount {
-                destination: Some(String::from(API_PIPES_MOUNT_POINT)),
-                options: None,
-                source: Some(api_pipes_location),
-                _type: Some(String::from(BIND_MOUNT)),
-                uid_mappings: None,
-                gid_mappings: None,
-            }])
+            .mounts(Self::create_mounts(api_pipes_location, workload_cfg.mounts))
             .remove(workload_cfg.remove);
 
-        let entry_point = workload_cfg.get_entrypoint();
-        if !entry_point.is_empty() {
-            create_options_builder = create_options_builder.entrypoint(entry_point);
+        if let Some(command) = workload_cfg.command {
+            create_options_builder = create_options_builder.entrypoint(command);
         }
 
-        let command = workload_cfg.get_command();
-        if !command.is_empty() {
-            create_options_builder = create_options_builder.command(workload_cfg.get_command());
+        if let Some(args) = workload_cfg.args {
+            create_options_builder = create_options_builder.command(args);
         }
 
         let container_options = create_options_builder.build();
@@ -270,6 +261,24 @@ impl PodmanUtils {
             Ok(response) => Ok(response.id),
             Err(err) => Err(err.to_string()),
         }
+    }
+
+    fn create_mounts(api_pipes_location: String, mounts: Vec<Mount>) -> Vec<ContainerMount> {
+        let mut res = Vec::with_capacity(mounts.len() + 1);
+        res.push(ContainerMount {
+            destination: Some(String::from(API_PIPES_MOUNT_POINT)),
+            options: None,
+            source: Some(api_pipes_location),
+            _type: Some(String::from(BIND_MOUNT)),
+            uid_mappings: None,
+            gid_mappings: None,
+        });
+
+        for m in mounts {
+            res.push(m.into());
+        }
+
+        res
     }
 
     pub async fn start_container(&self, container_id: &str) -> Result<(), String> {

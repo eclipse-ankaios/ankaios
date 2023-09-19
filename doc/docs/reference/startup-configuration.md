@@ -53,12 +53,39 @@ workloads:
 
 ### PodmanRuntimeConfig
 The runtime configuration for the `podman` runtime is specified as followed:
-```text
-image: <string>                   # Image repository or image id
-command: <vector of strings>      # Entrypoint array. Not executed in a shell. The container image's ENTRYPOINT is used if this is not provided.
-args: <vector of strings>         # Arguments to the entrypoint. The container image's CMD is used if this is not provided.
-env:  <vector of name/value pair>  # Key/value pairs provided as environment variables in the container
-ports: <vector of port mappings>  # List of ports to be exposed
-remove: <true|false>              # Specify whether the container shall be removed after exited
-```
 
+| Field | Type | Required | Description |
+| - | - | - | - |
+| image | string | yes | Image repository or image id
+| command | array of strings | no | Entrypoint array. Not executed in a shell. The container image's ENTRYPOINT is used if this is not provided.
+| args | array of strings | no | Arguments to the entrypoint. The container image's CMD is used if this is not provided.
+| env |  object with string values | no | Key/value pairs provided as environment variables in the container
+| mounts | array of [Mount](#mount)| no | List of mounts
+| ports | array of [Mapping](#mapping) | no | List of ports to be exposed
+| remove | boolean | no | Specify whether the container shall be removed after exited
+
+#### Mount
+
+| Field | Type | Required | Description |
+| - | - | - | - |
+| destination | string | yes | Mount destination |
+| options | array of strings | no | Additional options |
+| source | string | depends on type | Mount source |
+| type | string | yes | Type of the mount |
+| uid_mappings | array of [IdMap](#idmap) | no | Mapping from host to container user IDs |
+| gid_mappings | array of [IdMap](#idmap) | no | Mapping from host to container group IDs |
+
+#### IdMap
+
+| Field | Type | Required | Description |
+| - | - | - | - |
+| container_id | i64 | yes | The start of the ID range inside of the container |
+| host_id | i64 | yes | The start of the ID range on the host |
+| size | i64 | yes | The number of IDs to map |
+
+#### Mapping
+
+| Field | Type | Required | Description |
+| - | - | - | - |
+| container_port |  u16| yes | Port inside of the container |
+| host_port |  u16| yes | Port on the host |
