@@ -183,7 +183,7 @@ async fn setup_cli_communication(
             .run(server_receiver, to_cli.clone())
             .await 
         {
-            println!("{err}");
+            eprintln!("{err}");
             std::process::exit(1);
         }
     });
