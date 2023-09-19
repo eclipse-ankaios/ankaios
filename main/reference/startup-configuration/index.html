@@ -1092,7 +1092,7 @@ A workload specification must contain the following information:</p>
 <h3 id="podmanruntimeconfig">PodmanRuntimeConfig<a class="headerlink" href="#podmanruntimeconfig" title="Permanent link">&para;</a></h3>
 <p>The runtime configuration for the <code>podman</code> runtime is specified as followed:
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>image: &lt;string&gt;                   # Image repository or image id
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>command: &lt;vector of strings&gt;      # Entrypoint array. Not executed in a shell.
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>command: &lt;vector of strings&gt;      # Entrypoint array. Not executed in a shell. The container image&#39;s ENTRYPOINT is used if this is not provided.
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>args: &lt;vector of strings&gt;         # Arguments to the entrypoint. The container image&#39;s CMD is used if this is not provided.
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>env:  &lt;vector of name/value pair&gt;  # Key/value pairs provided as environment variables in the container
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>ports: &lt;vector of port mappings&gt;  # List of ports to be exposed
