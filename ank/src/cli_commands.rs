@@ -162,7 +162,7 @@ fn update_compact_state(
 
 // [impl->swdd~server-handle-cli-communication~1]
 // [impl->swdd~cli-communication-over-middleware~1]
-async fn setup_cli_communication(
+fn setup_cli_communication(
     cli_name: &str,
     server_url: Url,
 ) -> (
@@ -216,9 +216,9 @@ impl Drop for CliCommands {
 }
 
 impl CliCommands {
-    pub async fn init(response_timeout_ms: u64, cli_name: String, server_url: Url) -> Self {
+    pub fn init(response_timeout_ms: u64, cli_name: String, server_url: Url) -> Self {
         let (task, to_server, from_server) =
-            setup_cli_communication(cli_name.as_str(), server_url.clone()).await;
+            setup_cli_communication(cli_name.as_str(), server_url.clone());
         Self {
             response_timeout_ms,
             cli_name,
@@ -619,8 +619,7 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
         let cmd_text = cmd.get_workloads(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
@@ -682,8 +681,7 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
         let cmd_text = cmd.get_workloads(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
@@ -756,8 +754,7 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
         let cmd_text = cmd
             .get_workloads(None, None, vec!["name1".to_string()])
             .await;
@@ -818,8 +815,7 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
         let cmd_text = cmd
             .get_workloads(Some("agent_B".to_string()), None, Vec::new())
             .await;
@@ -888,8 +884,7 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
         let cmd_text = cmd
             .get_workloads(None, Some("Failed".to_string()), Vec::new())
             .await;
@@ -956,8 +951,7 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
 
         // replace the connection to the server with our own
         let (test_to_server, mut test_server_receiver) =
@@ -1034,8 +1028,7 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
 
         // replace the connection to the server with our own
         let (test_to_server, mut test_server_receiver) =
@@ -1101,8 +1094,7 @@ mod tests {
             3000,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
         let cmd_text = cmd.get_state(vec![], crate::cli::OutputFormat::Yaml).await;
         assert!(cmd_text.is_some());
 
@@ -1155,8 +1147,7 @@ mod tests {
             3000,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
         let cmd_text = cmd.get_state(vec![], crate::cli::OutputFormat::Json).await;
         assert!(cmd_text.is_some());
 
@@ -1209,8 +1200,7 @@ mod tests {
             3000,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
         let cmd_text = cmd
             .get_state(
                 vec!["currentState.workloads.name3.runtime".to_owned()],
@@ -1275,8 +1265,7 @@ mod tests {
             3000,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
 
         let cmd_text = cmd
             .get_state(
@@ -1330,8 +1319,7 @@ mod tests {
             3000,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
 
         // replace the connection to the server with our own
         let (test_to_server, mut test_server_receiver) =
@@ -1447,8 +1435,7 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
 
         // replace the connection to the server with our own
         let (test_to_server, mut test_server_receiver) =

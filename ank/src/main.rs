@@ -39,8 +39,7 @@ async fn main() {
                     args.response_timeout_ms,
                     cli_name.to_string(),
                     args.server_url,
-                )
-                .await;
+                );
                 // [impl -> swdd~cli-provides-get-current-state~1]
                 // [impl -> swdd~cli-blocks-until-ankaios-server-responds-get-current-state~1]
                 if let Some(out_text) = cmd.get_state(object_field_mask, output_format).await {
@@ -64,8 +63,7 @@ async fn main() {
                     args.response_timeout_ms,
                     cli_name.to_string(),
                     args.server_url,
-                )
-                .await;
+                );
                 match cmd.get_workloads(agent_name, state, workload_name).await {
                     Ok(out_text) => println!("{}", out_text),
                     Err(error) => log::error!("Failed to get workloads: '{}'", error),
@@ -88,8 +86,7 @@ async fn main() {
                     args.response_timeout_ms,
                     cli_name.to_string(),
                     args.server_url,
-                )
-                .await;
+                );
                 // [impl -> swdd~cli-provides-set-current-state~1]
                 // [impl -> swdd~cli-blocks-until-ankaios-server-responds-set-current-state~1]
                 cmd.set_state(
@@ -111,8 +108,7 @@ async fn main() {
                     args.response_timeout_ms,
                     cli_name.to_string(),
                     args.server_url,
-                )
-                .await;
+                );
                 if let Err(error) = cmd.delete_workloads(workload_name).await {
                     log::error!("Failed to delete workloads: '{}'", error);
                 }
@@ -139,8 +135,7 @@ async fn main() {
                     args.response_timeout_ms,
                     cli_name.to_string(),
                     args.server_url,
-                )
-                .await;
+                );
                 if let Err(error) = cmd
                     .run_workload(
                         workload_name,
