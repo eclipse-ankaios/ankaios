@@ -56,8 +56,8 @@ const BIND_MOUNT: &str = "bind";
 pub fn convert_to_port_mapping(item: &[Mapping]) -> Vec<PortMapping> {
     item.iter()
         .map(|value| PortMapping {
-            container_port: value.container_port.parse::<u16>().ok(),
-            host_port: value.host_port.parse::<u16>().ok(),
+            container_port: Some(value.container_port),
+            host_port: Some(value.host_port),
             host_ip: None,
             protocol: None,
             range: None,

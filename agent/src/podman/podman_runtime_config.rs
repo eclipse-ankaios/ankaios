@@ -24,8 +24,8 @@ pub struct PodmanRuntimeConfig {
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Mapping {
-    pub container_port: String,
-    pub host_port: String,
+    pub container_port: u16,
+    pub host_port: u16,
 }
 
 #[derive(Debug)]
@@ -57,9 +57,8 @@ pub struct Mount {
     #[serde(default)]
     #[serde(alias = "src")]
     pub source: Option<String>,
-    #[serde(default)]
     #[serde(rename = "type")]
-    pub _type: Option<String>,
+    pub _type: String,
     #[serde(default)]
     pub uid_mappings: Option<Vec<IdMap>>,
     #[serde(default)]
@@ -72,7 +71,7 @@ impl From<Mount> for podman_api::models::ContainerMount {
             destination: Some(value.destination),
             options: value.options,
             source: value.source,
-            _type: value._type,
+            _type: Some(value._type),
             uid_mappings: value
                 .uid_mappings
                 .map(|v| v.into_iter().map(|x| x.into()).collect()),
@@ -86,19 +85,19 @@ impl From<Mount> for podman_api::models::ContainerMount {
 #[derive(Debug, serde::Deserialize)]
 pub struct IdMap {
     #[serde(default)]
-    pub container_id: Option<i64>,
+    pub container_id: i64,
     #[serde(default)]
-    pub host_id: Option<i64>,
+    pub host_id: i64,
     #[serde(default)]
-    pub size: Option<i64>,
+    pub size: i64,
 }
 
 impl From<IdMap> for podman_api::models::IdMap {
     fn from(value: IdMap) -> Self {
         Self {
-            container_id: value.container_id,
-            host_id: value.host_id,
-            size: value.size,
+            container_id: Some(value.container_id),
+            host_id: Some(value.host_id),
+            size: Some(value.size),
         }
     }
 }
