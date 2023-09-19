@@ -664,6 +664,33 @@
     PodmanRuntimeConfig
   </a>
   
+    <nav class="md-nav" aria-label="PodmanRuntimeConfig">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mount" class="md-nav__link">
+    Mount
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#idmap" class="md-nav__link">
+    IdMap
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mapping" class="md-nav__link">
+    Mapping
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
       </ul>
@@ -1007,6 +1034,33 @@
     PodmanRuntimeConfig
   </a>
   
+    <nav class="md-nav" aria-label="PodmanRuntimeConfig">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mount" class="md-nav__link">
+    Mount
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#idmap" class="md-nav__link">
+    IdMap
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mapping" class="md-nav__link">
+    Mapping
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
       </ul>
@@ -1090,14 +1144,166 @@ A workload specification must contain the following information:</p>
 <a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="w">      </span><span class="no">image: ankaios_workload_api_example</span>
 </code></pre></div></p>
 <h3 id="podmanruntimeconfig">PodmanRuntimeConfig<a class="headerlink" href="#podmanruntimeconfig" title="Permanent link">&para;</a></h3>
-<p>The runtime configuration for the <code>podman</code> runtime is specified as followed:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>image: &lt;string&gt;                   # Image repository or image id
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>command: &lt;vector of strings&gt;      # Entrypoint array. Not executed in a shell. The container image&#39;s ENTRYPOINT is used if this is not provided.
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>args: &lt;vector of strings&gt;         # Arguments to the entrypoint. The container image&#39;s CMD is used if this is not provided.
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>env:  &lt;vector of name/value pair&gt;  # Key/value pairs provided as environment variables in the container
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>ports: &lt;vector of port mappings&gt;  # List of ports to be exposed
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>remove: &lt;true|false&gt;              # Specify whether the container shall be removed after exited
-</code></pre></div></p>
+<p>The runtime configuration for the <code>podman</code> runtime is specified as followed:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>image</td>
+<td>string</td>
+<td>yes</td>
+<td>Image repository or image id</td>
+</tr>
+<tr>
+<td>command</td>
+<td>array of strings</td>
+<td>no</td>
+<td>Entrypoint array. Not executed in a shell. The container image's ENTRYPOINT is used if this is not provided.</td>
+</tr>
+<tr>
+<td>args</td>
+<td>array of strings</td>
+<td>no</td>
+<td>Arguments to the entrypoint. The container image's CMD is used if this is not provided.</td>
+</tr>
+<tr>
+<td>env</td>
+<td>object with string values</td>
+<td>no</td>
+<td>Key/value pairs provided as environment variables in the container</td>
+</tr>
+<tr>
+<td>mounts</td>
+<td>array of <a href="#mount">Mount</a></td>
+<td>no</td>
+<td>List of mounts</td>
+</tr>
+<tr>
+<td>ports</td>
+<td>array of <a href="#mapping">Mapping</a></td>
+<td>no</td>
+<td>List of ports to be exposed</td>
+</tr>
+<tr>
+<td>remove</td>
+<td>boolean</td>
+<td>no</td>
+<td>Specify whether the container shall be removed after exited</td>
+</tr>
+</tbody>
+</table>
+<h4 id="mount">Mount<a class="headerlink" href="#mount" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>destination</td>
+<td>string</td>
+<td>yes</td>
+<td>Mount destination</td>
+</tr>
+<tr>
+<td>options</td>
+<td>array of strings</td>
+<td>no</td>
+<td>Additional options</td>
+</tr>
+<tr>
+<td>source</td>
+<td>string</td>
+<td>depends on type</td>
+<td>Mount source</td>
+</tr>
+<tr>
+<td>type</td>
+<td>string</td>
+<td>yes</td>
+<td>Type of the mount</td>
+</tr>
+<tr>
+<td>uid_mappings</td>
+<td>array of <a href="#idmap">IdMap</a></td>
+<td>no</td>
+<td>Mapping from host to container user IDs</td>
+</tr>
+<tr>
+<td>gid_mappings</td>
+<td>array of <a href="#idmap">IdMap</a></td>
+<td>no</td>
+<td>Mapping from host to container group IDs</td>
+</tr>
+</tbody>
+</table>
+<h4 id="idmap">IdMap<a class="headerlink" href="#idmap" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>container_id</td>
+<td>i64</td>
+<td>yes</td>
+<td>The start of the ID range inside of the container</td>
+</tr>
+<tr>
+<td>host_id</td>
+<td>i64</td>
+<td>yes</td>
+<td>The start of the ID range on the host</td>
+</tr>
+<tr>
+<td>size</td>
+<td>i64</td>
+<td>yes</td>
+<td>The number of IDs to map</td>
+</tr>
+</tbody>
+</table>
+<h4 id="mapping">Mapping<a class="headerlink" href="#mapping" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>container_port</td>
+<td>u16</td>
+<td>yes</td>
+<td>Port inside of the container</td>
+</tr>
+<tr>
+<td>host_port</td>
+<td>u16</td>
+<td>yes</td>
+<td>Port on the host</td>
+</tr>
+</tbody>
+</table>
 
 
 
