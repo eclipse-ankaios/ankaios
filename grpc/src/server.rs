@@ -13,6 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::proto::cli_connection_server::CliConnectionServer;
+use common::communications_error::CommunicationMiddlewareError;
 use common::communications_server::CommunicationsServer;
 
 use tonic::transport::Server;
@@ -30,7 +31,6 @@ use crate::grpc_agent_connection::GRPCAgentConnection;
 
 use common::execution_interface::ExecutionCommand;
 use common::state_change_interface::StateChangeCommand;
-use common::std_extensions::GracefulExitResult;
 
 use async_trait::async_trait;
 
@@ -42,7 +42,11 @@ pub struct GRPCCommunicationsServer {
 
 #[async_trait]
 impl CommunicationsServer for GRPCCommunicationsServer {
-    async fn start(&mut self, receiver: &mut Receiver<ExecutionCommand>, addr: SocketAddr) {
+    async fn start(
+        &mut self,
+        receiver: &mut Receiver<ExecutionCommand>,
+        addr: SocketAddr,
+    ) -> Result<(), CommunicationMiddlewareError> {
         // [impl->swdd~grpc-server-creates-agent-connection~1]
         let my_connection =
             GRPCAgentConnection::new(self.agent_senders.clone(), self.sender.clone());
@@ -60,16 +64,22 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                 .add_service(CliConnectionServer::new(my_cli_connection))
                 .serve(addr)
                 .await
-                .unwrap_or_exit("Could not start the gRPC service.");
+                .map_err(|err| {
+                    CommunicationMiddlewareError(format!(
+                        "Could not start the gRPC service: '{}'",
+                        err
+                    ))
+                })?;
+            Ok::<(), CommunicationMiddlewareError>(())
         });
 
         // TODO these two awaits one after the other do not seem correct ...
         // [impl->swdd~grpc-server-forwards-commands-to-grpc-client~1]
-        execution_command_proxy::forward_from_ankaios_to_proto(&self.agent_senders, receiver).await;
+        execution_command_proxy::forward_from_ankaios_to_proto(&self.agent_senders, receiver)
+            .await?;
 
-        grpc_task.await.unwrap_or_else(|error| {
-            log::error!("gRPC server failed with: {error}");
-        });
+        grpc_task.await??;
+        Ok(())
     }
 }
 

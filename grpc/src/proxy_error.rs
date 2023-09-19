@@ -13,15 +13,25 @@
 // SPDX-License-Identifier: Apache-2.0
 use std::fmt;
 
-use api::proto::StateChangeRequest;
+use api::proto::{ExecutionRequest, StateChangeRequest};
 use common::{
-    execution_interface::ExecutionCommandError, state_change_interface::StateChangeCommandError,
+    communications_error::CommunicationMiddlewareError, execution_interface::ExecutionCommandError,
+    state_change_interface::StateChangeCommandError,
 };
 use tokio::sync::mpsc::error::SendError;
+
+#[derive(Debug)]
 pub enum GrpcProxyError {
     StreamingError(tonic::Status),
-    Abort(String),
+    Receive(String),
     Send(String),
+    Conversion(String),
+}
+
+impl From<GrpcProxyError> for CommunicationMiddlewareError {
+    fn from(error: GrpcProxyError) -> Self {
+        CommunicationMiddlewareError(error.to_string())
+    }
 }
 
 impl From<tonic::Status> for GrpcProxyError {
@@ -32,7 +42,7 @@ impl From<tonic::Status> for GrpcProxyError {
 
 impl From<ExecutionCommandError> for GrpcProxyError {
     fn from(error: ExecutionCommandError) -> Self {
-        GrpcProxyError::Abort(error.to_string())
+        GrpcProxyError::Send(error.to_string())
     }
 }
 
@@ -48,14 +58,21 @@ impl From<SendError<StateChangeRequest>> for GrpcProxyError {
     }
 }
 
+impl From<SendError<Result<ExecutionRequest, tonic::Status>>> for GrpcProxyError {
+    fn from(error: SendError<Result<ExecutionRequest, tonic::Status>>) -> Self {
+        GrpcProxyError::Send(error.to_string())
+    }
+}
+
 impl fmt::Display for GrpcProxyError {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         match self {
             GrpcProxyError::StreamingError(status) => {
                 write!(f, "StreamingError: '{}'", status)
             }
-            GrpcProxyError::Abort(message) => write!(f, "Abort: '{}'", message),
+            GrpcProxyError::Receive(message) => write!(f, "ReceiveError: '{}'", message),
             GrpcProxyError::Send(message) => write!(f, "SendError: '{}'", message),
+            GrpcProxyError::Conversion(message) => write!(f, "ConversionError: '{}'", message),
         }
     }
 }

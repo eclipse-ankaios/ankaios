@@ -8,7 +8,7 @@ mod grpc_tests {
         communications_client::CommunicationsClient,
         communications_server::CommunicationsServer,
         execution_interface::ExecutionCommand,
-        state_change_interface::{StateChangeCommand, StateChangeInterface},
+        state_change_interface::{StateChangeCommand, StateChangeInterface}, communications_error::CommunicationMiddlewareError,
     };
     use grpc::{client::GRPCCommunicationsClient, server::GRPCCommunicationsServer};
 
@@ -30,7 +30,7 @@ mod grpc_tests {
         to_grpc_server: Sender<ExecutionCommand>,
     ) -> (
         Sender<StateChangeCommand>,
-        tokio::task::JoinHandle<Result<(), String>>,
+        tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>,
     ) {
         let (to_grpc_client, grpc_client_receiver) =
             tokio::sync::mpsc::channel::<StateChangeCommand>(20);
@@ -58,10 +58,10 @@ mod grpc_tests {
         comm_type: CommunicationType,
         test_request_id: &str,
     ) -> (
-        Sender<StateChangeCommand>,                  // to_grpc_client
-        Receiver<StateChangeCommand>,                // server_receiver
-        tokio::task::JoinHandle<()>,                 // grpc_server_task
-        tokio::task::JoinHandle<Result<(), String>>, // grpc_client_task
+        Sender<StateChangeCommand>,   // to_grpc_client
+        Receiver<StateChangeCommand>, // server_receiver
+        tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>, // grpc_server_task
+        tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>, // grpc_client_task
     ) {
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         //                                         _____________                                _________________

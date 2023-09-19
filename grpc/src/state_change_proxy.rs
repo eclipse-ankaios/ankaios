@@ -56,7 +56,7 @@ pub async fn forward_from_proto_to_ankaios(
 
         match message
             .state_change_request_enum
-            .ok_or(GrpcProxyError::Abort(
+            .ok_or(GrpcProxyError::Receive(
                 "Missing state_change_request".to_string(),
             ))? {
             StateChangeRequestEnum::UpdateState(UpdateStateRequest {
@@ -69,10 +69,10 @@ pub async fn forward_from_proto_to_ankaios(
                         sink.update_state(new_state, update_mask).await?;
                     }
                     Err(error) => {
-                        log::debug!(
+                        return Err(GrpcProxyError::Conversion(format!(
                             "Could not convert UpdateStateRequest for forwarding: {}",
                             error
-                        );
+                        )));
                     }
                 }
             }
@@ -350,7 +350,7 @@ mod tests {
         assert!(forward_result.is_err());
         assert_eq!(
             forward_result.unwrap_err().to_string(),
-            String::from("Abort: 'Missing state_change_request'")
+            String::from("ReceiveError: 'Missing state_change_request'")
         );
 
         // pick received execution command
@@ -361,9 +361,9 @@ mod tests {
 
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
     #[tokio::test]
-    async fn utest_state_change_command_forward_from_proto_to_ankaios_handles_missing_new_state() {
+    async fn utest_state_change_command_forward_from_proto_to_ankaios_fail_on_invalid_state() {
         let agent_name = "fake_agent";
-        let (server_tx, mut server_rx) =
+        let (server_tx, mut _server_rx) =
             mpsc::channel::<StateChangeCommand>(common::CHANNEL_CAPACITY);
 
         let mut ankaios_state: proto::CompleteState = generate_test_complete_state(
@@ -407,12 +407,7 @@ mod tests {
             server_tx,
         )
         .await;
-        assert!(forward_result.is_ok());
-
-        // pick received execution command
-        let result = server_rx.recv().await;
-
-        assert_eq!(result, None);
+        assert!(forward_result.is_err());
     }
 
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]

@@ -15,7 +15,7 @@
 use async_trait::async_trait;
 use tokio::sync::mpsc::Sender;
 
-use crate::{execution_interface::ExecutionCommand, state_change_interface::StateChangeReceiver};
+use crate::{execution_interface::ExecutionCommand, state_change_interface::StateChangeReceiver, communications_error::CommunicationMiddlewareError};
 
 // [impl->swdd~common-interface-definitions~1]
 #[async_trait]
@@ -24,5 +24,5 @@ pub trait CommunicationsClient {
         &mut self,
         &mut receiver: StateChangeReceiver,
         manager_interface: Sender<ExecutionCommand>,
-    ) -> Result<(), String>;
+    ) -> Result<(), CommunicationMiddlewareError>;
 }

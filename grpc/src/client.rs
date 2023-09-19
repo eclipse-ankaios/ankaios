@@ -25,6 +25,7 @@ use api::proto::state_change_request::StateChangeRequestEnum;
 use api::proto::AgentHello;
 
 use common::communications_client::CommunicationsClient;
+use common::communications_error::CommunicationMiddlewareError;
 use common::execution_interface::ExecutionCommand;
 
 use common::state_change_interface::StateChangeReceiver;
@@ -74,7 +75,7 @@ impl CommunicationsClient for GRPCCommunicationsClient {
         &mut self,
         mut server_rx: StateChangeReceiver,
         agent_tx: Sender<ExecutionCommand>,
-    ) -> Result<(), String> {
+    ) -> Result<(), CommunicationMiddlewareError> {
         log::info!("gRPC Communication Client starts.");
 
         // [impl->swdd~grpc-client-retries-connection~2]
@@ -92,7 +93,7 @@ impl CommunicationsClient for GRPCCommunicationsClient {
                             // [impl->swdd~grpc-client-outputs-error-server-unavailability-for-cli-connection~1]
                             GrpcConnectionError::ServerNotAvailable(err) => {
                                 log::debug!("No connection to the server: '{err}'");
-                                return Err("No connection to the server! Make sure that Ankaios Server is running.".to_string());
+                                return Err(CommunicationMiddlewareError("No connection to the server! Make sure that Ankaios Server is running.".to_string()));
                             }
                             // [impl->swdd~grpc-client-outputs-error-server-connection-loss-for-cli-connection~1]
                             GrpcConnectionError::ConnectionInterrupted(err) => {
