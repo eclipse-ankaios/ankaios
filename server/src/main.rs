@@ -38,7 +38,7 @@ async fn main() -> Result<(), BoxedStdError> {
 
     let args = cli::parse();
 
-    let data = fs::read_to_string(args.path).unwrap_or_exit("Could not read the startup state");
+    let data = fs::read_to_string(args.path).unwrap_or_exit("Could not read the startup config");
     // [impl->swdd~server-state-in-memory~1]
     // [impl->swdd~server-loads-startup-state-file~1]
     let state: State =
@@ -60,7 +60,7 @@ async fn main() -> Result<(), BoxedStdError> {
         communications_server
             .start(&mut agents_receiver, args.addr)
             .await
-            .unwrap_or_exit("Failure starting the server.");
+            .unwrap_or_illegal_state();
     });
 
     // This simulates the state handling.
@@ -81,7 +81,7 @@ async fn main() -> Result<(), BoxedStdError> {
     });
 
     try_join!(communications_task, server_task, initial_state_task)
-        .unwrap_or_exit("Failure joining the server tasks.");
+        .unwrap_or_illegal_state();
 
     Ok(())
 }

@@ -23,10 +23,7 @@ use update_state::update_state;
 use common::commands::{CompleteState, RequestCompleteState};
 use common::execution_interface::ExecutionCommand;
 use common::objects::State;
-use common::{
-    execution_interface::ExecutionInterface, state_change_interface::StateChangeCommand,
-    std_extensions::GracefulExitResult,
-};
+use common::{execution_interface::ExecutionInterface, state_change_interface::StateChangeCommand};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 use crate::ankaios_server::update_state::prepare_update_workload;
@@ -78,9 +75,8 @@ impl AnkaiosServer {
 
         // [impl->swdd~server-filters-get-complete-state-result~1]
         if !request_complete_state.field_mask.is_empty() {
-            let current_complete_state: Object = current_complete_state
-                .try_into()
-                .unwrap_or_exit("Internal complete state is broken.");
+            let current_complete_state: Object =
+                current_complete_state.try_into().unwrap_or_illegal_state();
             let mut return_state = Object::default();
 
             return_state.set(
