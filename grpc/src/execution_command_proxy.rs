@@ -14,6 +14,7 @@
 
 use crate::agent_senders_map::AgentSendersMap;
 use crate::ankaios_streaming::GRPCStreaming;
+use crate::proxy_error::GrpcProxyError;
 use api::proto;
 use api::proto::execution_request::ExecutionRequestEnum;
 
@@ -50,42 +51,53 @@ pub async fn forward_from_proto_to_ankaios(
     agent_name: &str,
     grpc_streaming: &mut impl GRPCStreaming<proto::ExecutionRequest>,
     agent_tx: &Sender<ExecutionCommand>,
-) -> Result<(), tonic::Status> {
+) -> Result<(), GrpcProxyError> {
     while let Some(value) = grpc_streaming.message().await? {
         log::debug!("RESPONSE={:?}", value);
 
         let try_block = async {
-            match value.execution_request_enum.ok_or("Missing AgentReply.")? {
+            match value
+                .execution_request_enum
+                .ok_or(GrpcProxyError::Receive("Missing AgentReply.".to_string()))?
+            {
                 ExecutionRequestEnum::UpdateWorkload(obj) => {
                     agent_tx
                         .update_workload(
                             obj.added_workloads
                                 .into_iter()
                                 .map(|x| (agent_name.to_string(), x).try_into())
-                                .collect::<Result<Vec<WorkloadSpec>, String>>()?,
+                                .collect::<Result<Vec<WorkloadSpec>, _>>()
+                                .map_err(GrpcProxyError::Conversion)?,
                             obj.deleted_workloads
                                 .into_iter()
                                 .map(|x| (agent_name.to_string(), x).try_into())
-                                .collect::<Result<Vec<DeletedWorkload>, String>>()?,
+                                .collect::<Result<Vec<DeletedWorkload>, _>>()
+                                .map_err(GrpcProxyError::Conversion)?,
                         )
-                        .await;
+                        .await?;
                 }
                 ExecutionRequestEnum::UpdateWorkloadState(obj) => {
                     agent_tx
                         .update_workload_state(
                             obj.workload_states.into_iter().map(|x| x.into()).collect(),
                         )
-                        .await;
+                        .await?;
                 }
                 ExecutionRequestEnum::CompleteState(complete_state) => {
-                    agent_tx.complete_state(complete_state.try_into()?).await;
+                    agent_tx
+                        .complete_state(
+                            complete_state
+                                .try_into()
+                                .map_err(GrpcProxyError::Conversion)?,
+                        )
+                        .await?;
                 }
             }
-            Ok(())
+            Ok(()) as Result<(), GrpcProxyError>
         }
-        .await as Result<(), String>;
+        .await;
 
-        if let Err(error) = try_block {
+        if let Err::<(), GrpcProxyError>(error) = try_block {
             log::debug!("Could not forward execution request: {}", error);
         }
     }
@@ -97,7 +109,7 @@ pub async fn forward_from_proto_to_ankaios(
 pub async fn forward_from_ankaios_to_proto(
     agent_senders: &AgentSendersMap,
     receiver: &mut Receiver<ExecutionCommand>,
-) {
+) -> Result<(), GrpcProxyError> {
     while let Some(execution_command) = receiver.recv().await {
         match execution_command {
             ExecutionCommand::UpdateWorkload(method_obj) => {
@@ -108,13 +120,13 @@ pub async fn forward_from_ankaios_to_proto(
                     method_obj.added_workloads,
                     method_obj.deleted_workloads,
                 )
-                .await;
+                .await?;
             }
             ExecutionCommand::UpdateWorkloadState(method_obj) => {
                 log::debug!("Received UpdateWorkloadState from server: {:?}", method_obj);
 
                 distribute_workload_states_to_agents(agent_senders, method_obj.workload_states)
-                    .await;
+                    .await?;
             }
             ExecutionCommand::CompleteState(method_obj) => {
                 log::debug!("Received CompleteState from server: {:?}", method_obj);
@@ -122,22 +134,23 @@ pub async fn forward_from_ankaios_to_proto(
                     detach_prefix_from_request_id(method_obj.request_id.as_ref());
                 if let Some(sender) = agent_senders.get(&agent_name) {
                     sender
-                            .send(Ok(proto::ExecutionRequest {
-                                execution_request_enum: Some(ExecutionRequestEnum::CompleteState(
-                                    proto::CompleteState {
-                                        request_id,
-                                        current_state: Some(method_obj.current_state.into()),
-                                        startup_state: Some(method_obj.startup_state.into()),
-                                        workload_states: method_obj.workload_states.into_iter().map(|x| x.into()).collect()
-                                    },
-                                )),
-                            }))
-                            .await
-                            .unwrap_or_else(|error| {
-                                log::warn!(
-                                    "Could not send a CompleteState to agent {agent_name}. Error: {error}"
-                                )
-                            })
+                        .send(Ok(proto::ExecutionRequest {
+                            execution_request_enum: Some(ExecutionRequestEnum::CompleteState(
+                                proto::CompleteState {
+                                    request_id,
+                                    current_state: Some(method_obj.current_state.into()),
+                                    startup_state: Some(method_obj.startup_state.into()),
+                                    workload_states: method_obj
+                                        .workload_states
+                                        .into_iter()
+                                        .map(|x| x.into())
+                                        .collect(),
+                                },
+                            )),
+                        }))
+                        .await?;
+                } else {
+                    log::warn!("Unknown agent with name: '{}'", agent_name);
                 }
             }
             ExecutionCommand::Stop(_method_obj) => {
@@ -147,13 +160,14 @@ pub async fn forward_from_ankaios_to_proto(
             }
         }
     }
+    Ok(())
 }
 
 // [impl->swdd~grpc-server-forwards-commands-to-grpc-client~1]
 async fn distribute_workload_states_to_agents(
     agent_senders: &AgentSendersMap,
     workload_state_collection: Vec<WorkloadState>,
-) {
+) -> Result<(), GrpcProxyError> {
     // Workload states are agent related. Sending a flattened set here is not very good for the performance ...
 
     for agent_name in agent_senders.get_all_agent_names() {
@@ -180,16 +194,13 @@ async fn distribute_workload_states_to_agents(
                         },
                     )),
                 }))
-                .await
-                .unwrap_or_else(|error| {
-                    log::warn!(
-                        "Could not send a workload state update to agent {agent_name}. Error: {error}"
-                    )
-                })
+                .await?;
         } else {
             log::info!("Skipping sending workload states to agent '{agent_name}'. Agent disappeared in the meantime.");
         }
     }
+
+    Ok(())
 }
 
 // [impl->swdd~grpc-server-forwards-commands-to-grpc-client~1]
@@ -197,7 +208,7 @@ async fn distribute_workloads_to_agents(
     agent_senders: &AgentSendersMap,
     added_workloads: WorkloadCollection,
     deleted_workloads: DeletedWorkloadCollection,
-) {
+) -> Result<(), GrpcProxyError> {
     // [impl->swdd~grpc-server-sorts-commands-according-agents~1]
     for (agent_name, (added_workload_vector, deleted_workload_vector)) in
         get_workloads_per_agent(added_workloads, deleted_workloads)
@@ -220,12 +231,7 @@ async fn distribute_workloads_to_agents(
                         },
                     )),
                 }))
-                .await
-                .unwrap_or_else(|error| {
-                    log::warn!(
-                        "Could not send the ExecutionRequest to agent {agent_name}. Error: {error}"
-                    )
-                })
+                .await?;
         } else {
             log::warn!(
                 "Agent {} not found, workloads not sent. Waiting for agent to connect.",
@@ -233,6 +239,8 @@ async fn distribute_workloads_to_agents(
             )
         }
     }
+
+    Ok(())
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -321,7 +329,7 @@ mod tests {
             create_test_setup(agent);
 
         // As the channel capacity is big enough the await is satisfied right away
-        to_manager
+        let update_workload_result = to_manager
             .update_workload(
                 vec![generate_test_workload_spec_with_param(
                     agent.into(),
@@ -334,12 +342,13 @@ mod tests {
                 )],
             )
             .await;
+        assert!(update_workload_result.is_ok());
 
         let handle = forward_from_ankaios_to_proto(&agent_senders_map, &mut manager_receiver);
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(to_manager);
-        join!(handle);
+        join!(handle).0.unwrap();
 
         //if this returns the test is successful
         let result = agent_rx.recv().await.unwrap().unwrap();
@@ -356,19 +365,20 @@ mod tests {
         let (to_manager, mut manager_receiver, _, mut agent_rx, agent_senders_map) =
             create_test_setup("agent_X");
 
-        to_manager
+        let update_workload_state_result = to_manager
             .update_workload_state(vec![common::objects::WorkloadState {
                 agent_name: "other_agent".into(),
                 workload_name: "workload_1".into(),
                 execution_state: common::objects::ExecutionState::ExecRunning,
             }])
             .await;
+        assert!(update_workload_state_result.is_ok());
 
         let handle = forward_from_ankaios_to_proto(&agent_senders_map, &mut manager_receiver);
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(to_manager);
-        join!(handle);
+        join!(handle).0.unwrap();
 
         //if this returns the test is successful
         let result = agent_rx.recv().await.unwrap().unwrap();
@@ -601,7 +611,7 @@ mod tests {
                 "workload1".to_string()
             ),],
             vec![]
-        ));
+        )).0.unwrap();
 
         let result = agent_rx.recv().await.unwrap().unwrap();
 
@@ -626,7 +636,7 @@ mod tests {
                 "workload1".to_string()
             ),],
             vec![]
-        ));
+        )).0.unwrap();
 
         // shall not receive any execution request
         assert!(matches!(agent_rx.try_recv(), Err(TryRecvError::Empty)))
@@ -645,7 +655,7 @@ mod tests {
                 workload_name: "workload1".to_string(),
                 execution_state: common::objects::ExecutionState::ExecRunning
             }],
-        ));
+        )).0.unwrap();
 
         let result = agent_rx.recv().await.unwrap().unwrap();
 
@@ -693,7 +703,8 @@ mod tests {
             workload_states: vec![],
         };
 
-        to_manager.complete_state(test_complete_state.clone()).await;
+        let complete_state_result = to_manager.complete_state(test_complete_state.clone()).await;
+        assert!(complete_state_result.is_ok());
 
         let handle = forward_from_ankaios_to_proto(&agent_senders_map, &mut manager_receiver);
         let proto_complete_state = proto::CompleteState {
@@ -705,7 +716,7 @@ mod tests {
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(to_manager);
-        join!(handle);
+        join!(handle).0.unwrap();
 
         //if this returns the test is successful
         let result = agent_rx.recv().await.unwrap().unwrap();

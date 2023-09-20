@@ -15,6 +15,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use common::std_extensions::IllegalStateResult;
 use tokio::sync::mpsc::Sender;
 use tonic::Status;
 
@@ -41,13 +42,13 @@ impl AgentSendersMap {
     }
 
     pub fn get(&self, name: &str) -> Option<Sender<Result<ExecutionRequest, Status>>> {
-        self.agent_senders.lock().unwrap().get(name).cloned()
+        self.agent_senders.lock().unwrap_or_illegal_state().get(name).cloned()
     }
 
     pub fn insert(&self, name: &str, sender: Sender<Result<ExecutionRequest, Status>>) {
         self.agent_senders
             .lock()
-            .unwrap()
+            .unwrap_or_illegal_state()
             .insert(name.to_owned(), sender)
             .map_or_else(
                 || {
@@ -62,11 +63,11 @@ impl AgentSendersMap {
     }
 
     pub fn get_all_agent_names(&self) -> Vec<String> {
-        self.agent_senders.lock().unwrap().keys().cloned().collect()
+        self.agent_senders.lock().unwrap_or_illegal_state().keys().cloned().collect()
     }
 
     pub fn remove(&self, name: &str) {
-        self.agent_senders.lock().unwrap().remove(name);
+        self.agent_senders.lock().unwrap_or_illegal_state().remove(name);
     }
 }
 

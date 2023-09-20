@@ -24,31 +24,37 @@ use common::{
 pub fn update_state(
     current_state: &CompleteState,
     update: UpdateStateRequest,
-) -> Result<CompleteState, Error> {
+) -> Result<CompleteState, UpdateStateError> {
     // [impl->swdd~update-current-state-empty-update-mask~1]
     if update.update_mask.is_empty() {
         return Ok(update.state);
     }
 
     // [impl->swdd~update-current-state-with-update-mask~1]
-    let mut new_state: Object = current_state.try_into().unwrap();
-    let state_from_update: Object = update.state.try_into().unwrap();
+    let mut new_state: Object = current_state.try_into().map_err(|err| {
+        UpdateStateError::ResultInvalid(format!("Failed to parse current state, '{}'", err))
+    })?;
+    let state_from_update: Object = update.state.try_into().map_err(|err| {
+        UpdateStateError::ResultInvalid(format!("Failed to parse new state, '{}'", err))
+    })?;
 
     for field in update.update_mask {
         let field: Path = field.into();
         if let Some(field_from_update) = state_from_update.get(&field) {
             if new_state.set(&field, field_from_update.to_owned()).is_err() {
-                return Err(Error::CouldNotChangeField(field.into()));
+                return Err(UpdateStateError::FieldNotFound(field.into()));
             }
         } else if new_state.remove(&field).is_err() {
-            return Err(Error::CouldNotRemoveField(field.into()));
+            return Err(UpdateStateError::FieldNotFound(field.into()));
         }
     }
 
     if let Ok(new_state) = new_state.try_into() {
         Ok(new_state)
     } else {
-        Err(Error::ResultInvalid)
+        Err(UpdateStateError::ResultInvalid(
+            "Could not parse into CompleteState.".to_string(),
+        ))
     }
 }
 
@@ -110,18 +116,20 @@ pub fn prepare_update_workload(
 }
 
 #[derive(Debug)]
-pub enum Error {
-    CouldNotChangeField(String),
-    CouldNotRemoveField(String),
-    ResultInvalid,
+pub enum UpdateStateError {
+    FieldNotFound(String),
+    ResultInvalid(String),
 }
 
-impl Display for Error {
+impl Display for UpdateStateError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::CouldNotChangeField(field) => write!(f, "Could not change field {}", field),
-            Error::CouldNotRemoveField(field) => write!(f, "Could not remove field {}", field),
-            Error::ResultInvalid => write!(f, "Resulting State is invalid"),
+            UpdateStateError::FieldNotFound(field) => {
+                write!(f, "Could not find field {}", field)
+            }
+            UpdateStateError::ResultInvalid(reason) => {
+                write!(f, "Resulting State is invalid, reason: '{}'", reason)
+            }
         }
     }
 }

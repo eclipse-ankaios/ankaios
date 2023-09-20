@@ -14,7 +14,7 @@
 
 use common::state_change_interface::StateChangeInterface;
 use common::state_change_interface::StateChangeSender;
-use hyper::http;
+use common::std_extensions::IllegalStateResult;
 use podman_api::models::ContainerMount;
 use podman_api::models::ListContainer;
 use podman_api::opts::ContainerCreateOpts;
@@ -24,6 +24,7 @@ use podman_api::opts::ImageListFilter;
 use podman_api::opts::ImageListOpts;
 use podman_api::opts::PullOpts;
 
+use hyper::http;
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time;
@@ -107,7 +108,8 @@ impl PodmanUtils {
                         workload_name: workload_name.to_string(),
                         execution_state: current_state,
                     }])
-                    .await;
+                    .await
+                    .unwrap_or_illegal_state();
 
                 if last_state == ExecutionState::ExecRemoved {
                     break;
@@ -170,8 +172,7 @@ impl PodmanUtils {
     ) -> ExecutionState {
         if let Some(status) = &value.state {
             let is_status_exited = status.to_lowercase() == "exited"
-                && value.exited.is_some()
-                && value.exited.unwrap()
+                && value.exited.unwrap_or(false)
                 && value.exit_code.is_some();
             match status.parse::<ExecutionState>() {
                 Ok(_) if is_status_exited && value.exit_code.unwrap() == 0 => {

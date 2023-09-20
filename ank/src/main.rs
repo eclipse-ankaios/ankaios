@@ -39,13 +39,14 @@ async fn main() {
                     args.response_timeout_ms,
                     cli_name.to_string(),
                     args.server_url,
-                )
-                .await;
+                );
                 // [impl -> swdd~cli-provides-get-current-state~1]
                 // [impl -> swdd~cli-blocks-until-ankaios-server-responds-get-current-state~1]
                 if let Some(out_text) = cmd.get_state(object_field_mask, output_format).await {
                     // [impl -> swdd~cli-returns-current-state-from-server~1]
                     println!("{}", out_text);
+                } else {
+                    eprintln!("Could not retrieve state.");
                 }
             }
 
@@ -54,8 +55,8 @@ async fn main() {
                 agent_name,
                 state,
             }) => {
-                log::info!(
-                    "Got get workload with: workload name {:?}, agent_name={:?}, state={:?}",
+                log::debug!(
+                    "Received get workload with workload_name='{:?}', agent_name='{:?}', state='{:?}'",
                     workload_name,
                     agent_name,
                     state,
@@ -64,10 +65,10 @@ async fn main() {
                     args.response_timeout_ms,
                     cli_name.to_string(),
                     args.server_url,
-                )
-                .await;
-                if let Some(out_text) = cmd.get_workloads(agent_name, state, workload_name).await {
-                    println!("{}", out_text);
+                );
+                match cmd.get_workloads(agent_name, state, workload_name).await {
+                    Ok(out_text) => println!("{}", out_text),
+                    Err(error) => eprintln!("Failed to get workloads: '{}'", error),
                 }
             }
             None => unreachable!("Unreachable code."),
@@ -78,8 +79,8 @@ async fn main() {
                 object_field_mask,
                 state_object_file,
             }) => {
-                log::info!(
-                    "Got: object_field_mask={:?} state_object_file={:?}",
+                log::debug!(
+                    "Received set with object_field_mask='{:?}' and state_object_file='{:?}'",
                     object_field_mask,
                     state_object_file
                 );
@@ -87,8 +88,7 @@ async fn main() {
                     args.response_timeout_ms,
                     cli_name.to_string(),
                     args.server_url,
-                )
-                .await;
+                );
                 // [impl -> swdd~cli-provides-set-current-state~1]
                 // [impl -> swdd~cli-blocks-until-ankaios-server-responds-set-current-state~1]
                 cmd.set_state(
@@ -102,17 +102,18 @@ async fn main() {
         },
         cli::Commands::Delete(delete_args) => match delete_args.command {
             Some(cli::DeleteCommands::Workload { workload_name }) => {
-                log::info!(
-                    "Got delete workload with: workload_name = {:?}",
+                log::debug!(
+                    "Received delete workload with workload_name = '{:?}'",
                     workload_name
                 );
                 let mut cmd = CliCommands::init(
                     args.response_timeout_ms,
                     cli_name.to_string(),
                     args.server_url,
-                )
-                .await;
-                cmd.delete_workloads(workload_name).await;
+                );
+                if let Err(error) = cmd.delete_workloads(workload_name).await {
+                    eprintln!("Failed to delete workloads: '{}'", error);
+                }
             }
             None => unreachable!("Unreachable code."),
         },
@@ -124,8 +125,8 @@ async fn main() {
                 agent_name,
                 tags,
             }) => {
-                log::info!(
-                    "Got run workload with: workload_name={:?}, runtime={:?}, runtime_config={:?}, agent_name={:?}, tags={:?}",
+                log::debug!(
+                    "Received run workload with workload_name='{:?}', runtime='{:?}', runtime_config='{:?}', agent_name='{:?}', tags='{:?}'",
                     workload_name,
                     runtime_name,
                     runtime_config,
@@ -136,16 +137,19 @@ async fn main() {
                     args.response_timeout_ms,
                     cli_name.to_string(),
                     args.server_url,
-                )
-                .await;
-                cmd.run_workload(
-                    workload_name,
-                    runtime_name,
-                    runtime_config,
-                    agent_name,
-                    tags,
-                )
-                .await;
+                );
+                if let Err(error) = cmd
+                    .run_workload(
+                        workload_name,
+                        runtime_name,
+                        runtime_config,
+                        agent_name,
+                        tags,
+                    )
+                    .await
+                {
+                    println!("Failed to run workloads: '{}'", error);
+                }
             }
             None => unreachable!("Unreachable code."),
         },

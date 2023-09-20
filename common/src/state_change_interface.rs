@@ -15,6 +15,8 @@
 use crate::commands;
 use api::proto;
 use async_trait::async_trait;
+use std::fmt;
+use tokio::sync::mpsc::error::SendError;
 
 // [impl->swdd~state-change-command-channel~1]
 #[allow(clippy::large_enum_variant)]
@@ -33,8 +35,11 @@ impl TryFrom<proto::StateChangeRequest> for StateChangeCommand {
 
     fn try_from(item: proto::StateChangeRequest) -> Result<Self, Self::Error> {
         use proto::state_change_request::StateChangeRequestEnum;
+        let state_change_request = item
+            .state_change_request_enum
+            .ok_or("StateChangeRequest is None.".to_string())?;
 
-        Ok(match item.state_change_request_enum.unwrap() {
+        Ok(match state_change_request {
             StateChangeRequestEnum::AgentHello(protobuf) => {
                 StateChangeCommand::AgentHello(protobuf.into())
             }
@@ -51,14 +56,38 @@ impl TryFrom<proto::StateChangeRequest> for StateChangeCommand {
     }
 }
 
+pub struct StateChangeCommandError(String);
+
+impl From<SendError<StateChangeCommand>> for StateChangeCommandError {
+    fn from(error: SendError<StateChangeCommand>) -> Self {
+        StateChangeCommandError(error.to_string())
+    }
+}
+
+impl fmt::Display for StateChangeCommandError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "StateChangeCommandError: '{}'", self.0)
+    }
+}
+
 #[async_trait]
 pub trait StateChangeInterface {
-    async fn agent_hello(&self, agent_name: String);
-    async fn agent_gone(&self, agent_name: String);
-    async fn update_state(&self, state: commands::CompleteState, update_mask: Vec<String>);
-    async fn update_workload_state(&self, workload_running: Vec<crate::objects::WorkloadState>);
-    async fn request_complete_state(&self, request_complete_state: commands::RequestCompleteState);
-    async fn stop(&self);
+    async fn agent_hello(&self, agent_name: String) -> Result<(), StateChangeCommandError>;
+    async fn agent_gone(&self, agent_name: String) -> Result<(), StateChangeCommandError>;
+    async fn update_state(
+        &self,
+        state: commands::CompleteState,
+        update_mask: Vec<String>,
+    ) -> Result<(), StateChangeCommandError>;
+    async fn update_workload_state(
+        &self,
+        workload_running: Vec<crate::objects::WorkloadState>,
+    ) -> Result<(), StateChangeCommandError>;
+    async fn request_complete_state(
+        &self,
+        request_complete_state: commands::RequestCompleteState,
+    ) -> Result<(), StateChangeCommandError>;
+    async fn stop(&self) -> Result<(), StateChangeCommandError>;
 }
 
 pub type StateChangeSender = tokio::sync::mpsc::Sender<StateChangeCommand>;
@@ -66,55 +95,65 @@ pub type StateChangeReceiver = tokio::sync::mpsc::Receiver<StateChangeCommand>;
 
 #[async_trait]
 impl StateChangeInterface for StateChangeSender {
-    async fn agent_hello(&self, agent_name: String) {
-        self.send(StateChangeCommand::AgentHello(commands::AgentHello {
-            agent_name,
-        }))
-        .await
-        .unwrap();
+    async fn agent_hello(&self, agent_name: String) -> Result<(), StateChangeCommandError> {
+        Ok(self
+            .send(StateChangeCommand::AgentHello(commands::AgentHello {
+                agent_name,
+            }))
+            .await?)
     }
 
-    async fn agent_gone(&self, agent_name: String) {
-        self.send(StateChangeCommand::AgentGone(commands::AgentGone {
-            agent_name,
-        }))
-        .await
-        .unwrap();
+    async fn agent_gone(&self, agent_name: String) -> Result<(), StateChangeCommandError> {
+        Ok(self
+            .send(StateChangeCommand::AgentGone(commands::AgentGone {
+                agent_name,
+            }))
+            .await?)
     }
 
-    async fn update_state(&self, state: commands::CompleteState, update_mask: Vec<String>) {
-        self.send(StateChangeCommand::UpdateState(
-            commands::UpdateStateRequest { state, update_mask },
-        ))
-        .await
-        .unwrap();
+    async fn update_state(
+        &self,
+        state: commands::CompleteState,
+        update_mask: Vec<String>,
+    ) -> Result<(), StateChangeCommandError> {
+        Ok(self
+            .send(StateChangeCommand::UpdateState(
+                commands::UpdateStateRequest { state, update_mask },
+            ))
+            .await?)
     }
 
-    async fn update_workload_state(&self, workload_running: Vec<crate::objects::WorkloadState>) {
-        self.send(StateChangeCommand::UpdateWorkloadState(
-            commands::UpdateWorkloadState {
-                workload_states: workload_running,
-            },
-        ))
-        .await
-        .unwrap();
+    async fn update_workload_state(
+        &self,
+        workload_running: Vec<crate::objects::WorkloadState>,
+    ) -> Result<(), StateChangeCommandError> {
+        Ok(self
+            .send(StateChangeCommand::UpdateWorkloadState(
+                commands::UpdateWorkloadState {
+                    workload_states: workload_running,
+                },
+            ))
+            .await?)
     }
 
-    async fn request_complete_state(&self, request_complete_state: commands::RequestCompleteState) {
-        self.send(StateChangeCommand::RequestCompleteState(
-            commands::RequestCompleteState {
-                request_id: request_complete_state.request_id,
-                field_mask: request_complete_state.field_mask,
-            },
-        ))
-        .await
-        .unwrap();
+    async fn request_complete_state(
+        &self,
+        request_complete_state: commands::RequestCompleteState,
+    ) -> Result<(), StateChangeCommandError> {
+        Ok(self
+            .send(StateChangeCommand::RequestCompleteState(
+                commands::RequestCompleteState {
+                    request_id: request_complete_state.request_id,
+                    field_mask: request_complete_state.field_mask,
+                },
+            ))
+            .await?)
     }
 
-    async fn stop(&self) {
-        self.send(StateChangeCommand::Stop(commands::Stop {}))
-            .await
-            .unwrap();
+    async fn stop(&self) -> Result<(), StateChangeCommandError> {
+        Ok(self
+            .send(StateChangeCommand::Stop(commands::Stop {}))
+            .await?)
     }
 }
 

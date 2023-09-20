@@ -16,6 +16,7 @@ use async_trait::async_trait;
 use common::objects::{ExecutionState, WorkloadSpec};
 use common::state_change_interface::StateChangeInterface;
 use common::state_change_interface::StateChangeSender;
+use common::std_extensions::IllegalStateResult;
 
 use std::path::{Path, PathBuf};
 use tokio::task::JoinHandle;
@@ -87,7 +88,8 @@ impl PodmanWorkload {
                     workload_name: self.workload_spec.workload.name.to_string(),
                     execution_state: ExecutionState::ExecFailed,
                 }])
-                .await;
+                .await
+                .unwrap_or_illegal_state();
         }
 
         result
@@ -211,7 +213,8 @@ impl PodmanWorkload {
                         workload_name: instance_name.workload_name().to_string(),
                         execution_state: ExecutionState::ExecRemoved,
                     }])
-                    .await;
+                    .await
+                    .unwrap_or_illegal_state();
                 Ok(())
             }
             Err(e) => Err(WorkloadError::DeleteError(format!(

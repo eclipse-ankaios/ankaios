@@ -21,9 +21,10 @@ mod workload_state_db;
 use std::fs;
 use tokio::try_join;
 
-use common::communications_server::CommunicationsServer;
 use common::objects::State;
 use common::state_change_interface::StateChangeInterface;
+use common::std_extensions::GracefulExitResult;
+use common::{communications_server::CommunicationsServer, std_extensions::IllegalStateResult};
 
 use ankaios_server::{create_execution_channels, create_state_change_channels, AnkaiosServer};
 
@@ -37,12 +38,11 @@ async fn main() -> Result<(), BoxedStdError> {
 
     let args = cli::parse();
 
-    let data = fs::read_to_string(args.path)
-        .unwrap_or_else(|error| panic!("Could not read the startup state.\nError: {error}"));
+    let data = fs::read_to_string(args.path).unwrap_or_exit("Could not read the startup config");
     // [impl->swdd~server-state-in-memory~1]
     // [impl->swdd~server-loads-startup-state-file~1]
-    let state: State = state_parser::parse(data)
-        .unwrap_or_else(|error| panic!("Parsing start config failed with error {}", error));
+    let state: State =
+        state_parser::parse(data).unwrap_or_exit("Parsing start config failed with error");
     log::debug!(
         "The state is initialized with the following workloads: {:?}",
         state.workloads
@@ -60,11 +60,12 @@ async fn main() -> Result<(), BoxedStdError> {
         communications_server
             .start(&mut agents_receiver, args.addr)
             .await
+            .unwrap_or_illegal_state();
     });
 
     // This simulates the state handling.
     // Once the StartupStateLoader is there, it will be started by the main here and it will send the startup state
-    let test_task = tokio::spawn(async move {
+    let initial_state_task = tokio::spawn(async move {
         to_server
             .update_state(
                 common::commands::CompleteState {
@@ -76,9 +77,11 @@ async fn main() -> Result<(), BoxedStdError> {
                 vec![],
             )
             .await
+            .unwrap_or_illegal_state();
     });
 
-    try_join!(communications_task, server_task, test_task).unwrap();
+    try_join!(communications_task, server_task, initial_state_task)
+        .unwrap_or_illegal_state();
 
     Ok(())
 }

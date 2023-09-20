@@ -29,6 +29,7 @@ mod workload_facade;
 mod workload_trait;
 
 use common::execution_interface::ExecutionCommand;
+use common::std_extensions::{GracefulExitResult, UnreachableResult, IllegalStateResult};
 use grpc::client::GRPCCommunicationsClient;
 
 use agent_manager::AgentManager;
@@ -62,7 +63,9 @@ async fn main() {
     let mut adapter_interface_map: HashMap<&str, Box<dyn RuntimeAdapter + Send + Sync>> =
         HashMap::new();
 
-    let run_directory = args.get_run_directory().unwrap();
+    let run_directory = args
+        .get_run_directory()
+        .unwrap_or_exit("Run folder creation failed. Cannot continue without run folder.");
 
     // Podman currently directly gets the server StateChangeInterface, but it shall get the agent manager interface
     // This is needed to be able to filter/authorize the commands towards the Ankaios server
@@ -73,7 +76,7 @@ async fn main() {
         to_server.clone(),
         args.podman_socket_path,
     );
-    let mut grps_communications_client =
+    let mut grpc_communications_client =
         GRPCCommunicationsClient::new_agent_communication(args.agent_name.clone(), args.server_url);
 
     adapter_interface_map.insert(podman_adapter.get_name(), Box::new(podman_adapter));
@@ -90,10 +93,13 @@ async fn main() {
     // [impl->swdd~agent-sends-hello~1]
     // [impl->swdd~agent-default-communication-grpc~1]
     let communications_task = tokio::spawn(async move {
-        grps_communications_client
+        grpc_communications_client
             .run(server_receiver, to_manager.clone())
             .await
     });
 
-    try_join!(manager_task, communications_task).unwrap();
+    let (_, communication_task_result) =
+        try_join!(manager_task, communications_task).unwrap_or_illegal_state();
+
+    communication_task_result.unwrap_or_unreachable();
 }
