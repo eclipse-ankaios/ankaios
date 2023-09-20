@@ -42,10 +42,10 @@ pub fn update_state(
         let field: Path = field.into();
         if let Some(field_from_update) = state_from_update.get(&field) {
             if new_state.set(&field, field_from_update.to_owned()).is_err() {
-                return Err(UpdateStateError::CouldNotChangeField(field.into()));
+                return Err(UpdateStateError::FieldNotFound(field.into()));
             }
         } else if new_state.remove(&field).is_err() {
-            return Err(UpdateStateError::CouldNotRemoveField(field.into()));
+            return Err(UpdateStateError::FieldNotFound(field.into()));
         }
     }
 
@@ -117,19 +117,15 @@ pub fn prepare_update_workload(
 
 #[derive(Debug)]
 pub enum UpdateStateError {
-    CouldNotChangeField(String),
-    CouldNotRemoveField(String),
+    FieldNotFound(String),
     ResultInvalid(String),
 }
 
 impl Display for UpdateStateError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            UpdateStateError::CouldNotChangeField(field) => {
-                write!(f, "Could not change field {}", field)
-            }
-            UpdateStateError::CouldNotRemoveField(field) => {
-                write!(f, "Could not remove field {}", field)
+            UpdateStateError::FieldNotFound(field) => {
+                write!(f, "Could not find field {}", field)
             }
             UpdateStateError::ResultInvalid(reason) => {
                 write!(f, "Resulting State is invalid, reason: '{}'", reason)
