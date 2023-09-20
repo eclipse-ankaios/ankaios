@@ -45,6 +45,8 @@ async fn main() {
                 if let Some(out_text) = cmd.get_state(object_field_mask, output_format).await {
                     // [impl -> swdd~cli-returns-current-state-from-server~1]
                     println!("{}", out_text);
+                } else {
+                    eprintln!("Could not retrieve state.");
                 }
             }
 
@@ -53,8 +55,8 @@ async fn main() {
                 agent_name,
                 state,
             }) => {
-                log::info!(
-                    "Got get workload with: workload name {:?}, agent_name={:?}, state={:?}",
+                log::debug!(
+                    "Received get workload with workload_name='{:?}', agent_name='{:?}', state='{:?}'",
                     workload_name,
                     agent_name,
                     state,
@@ -66,7 +68,7 @@ async fn main() {
                 );
                 match cmd.get_workloads(agent_name, state, workload_name).await {
                     Ok(out_text) => println!("{}", out_text),
-                    Err(error) => log::error!("Failed to get workloads: '{}'", error),
+                    Err(error) => eprintln!("Failed to get workloads: '{}'", error),
                 }
             }
             None => unreachable!("Unreachable code."),
@@ -77,8 +79,8 @@ async fn main() {
                 object_field_mask,
                 state_object_file,
             }) => {
-                log::info!(
-                    "Got: object_field_mask={:?} state_object_file={:?}",
+                log::debug!(
+                    "Received set with object_field_mask='{:?}' and state_object_file='{:?}'",
                     object_field_mask,
                     state_object_file
                 );
@@ -100,8 +102,8 @@ async fn main() {
         },
         cli::Commands::Delete(delete_args) => match delete_args.command {
             Some(cli::DeleteCommands::Workload { workload_name }) => {
-                log::info!(
-                    "Got delete workload with: workload_name = {:?}",
+                log::debug!(
+                    "Received delete workload with workload_name = '{:?}'",
                     workload_name
                 );
                 let mut cmd = CliCommands::init(
@@ -110,7 +112,7 @@ async fn main() {
                     args.server_url,
                 );
                 if let Err(error) = cmd.delete_workloads(workload_name).await {
-                    log::error!("Failed to delete workloads: '{}'", error);
+                    eprintln!("Failed to delete workloads: '{}'", error);
                 }
             }
             None => unreachable!("Unreachable code."),
@@ -123,8 +125,8 @@ async fn main() {
                 agent_name,
                 tags,
             }) => {
-                log::info!(
-                    "Got run workload with: workload_name={:?}, runtime={:?}, runtime_config={:?}, agent_name={:?}, tags={:?}",
+                log::debug!(
+                    "Received run workload with workload_name='{:?}', runtime='{:?}', runtime_config='{:?}', agent_name='{:?}', tags='{:?}'",
                     workload_name,
                     runtime_name,
                     runtime_config,
@@ -146,7 +148,7 @@ async fn main() {
                     )
                     .await
                 {
-                    log::error!("Failed to run workloads: '{}'", error);
+                    println!("Failed to run workloads: '{}'", error);
                 }
             }
             None => unreachable!("Unreachable code."),
