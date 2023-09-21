@@ -26,5 +26,6 @@ pub mod client;
 mod execution_command_proxy;
 mod grpc_agent_connection;
 mod grpc_cli_connection;
+pub mod proxy_error;
 pub mod server;
 mod state_change_proxy;

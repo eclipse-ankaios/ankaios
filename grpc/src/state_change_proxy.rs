@@ -13,6 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ankaios_streaming::GRPCStreaming;
+use crate::proxy_error::GrpcProxyError;
 use api::proto;
 use api::proto::state_change_request::StateChangeRequestEnum;
 use api::proto::UpdateStateRequest;
@@ -49,14 +50,15 @@ pub async fn forward_from_proto_to_ankaios(
     agent_name: String,
     grpc_streaming: &mut impl GRPCStreaming<proto::StateChangeRequest>,
     sink: Sender<StateChangeCommand>,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<(), GrpcProxyError> {
     while let Some(message) = grpc_streaming.message().await? {
         log::debug!("REQUEST={:?}", message);
 
         match message
             .state_change_request_enum
-            .ok_or("Missing state_change_request")?
-        {
+            .ok_or(GrpcProxyError::Receive(
+                "Missing state_change_request".to_string(),
+            ))? {
             StateChangeRequestEnum::UpdateState(UpdateStateRequest {
                 new_state,
                 update_mask,
@@ -64,13 +66,13 @@ pub async fn forward_from_proto_to_ankaios(
                 log::debug!("Received UpdateStateRequest from {}", agent_name);
                 match new_state.unwrap_or_default().try_into() {
                     Ok(new_state) => {
-                        sink.update_state(new_state, update_mask).await;
+                        sink.update_state(new_state, update_mask).await?;
                     }
                     Err(error) => {
-                        log::debug!(
+                        return Err(GrpcProxyError::Conversion(format!(
                             "Could not convert UpdateStateRequest for forwarding: {}",
                             error
-                        );
+                        )));
                     }
                 }
             }
@@ -84,7 +86,7 @@ pub async fn forward_from_proto_to_ankaios(
                         .map(|x| x.into())
                         .collect(),
                 )
-                .await;
+                .await?;
             }
             StateChangeRequestEnum::RequestCompleteState(request_complete_state) => {
                 log::debug!("Received RequestCompleteState from {}", agent_name);
@@ -100,7 +102,7 @@ pub async fn forward_from_proto_to_ankaios(
                     }
                     .into(),
                 )
-                .await;
+                .await?;
             }
             unknown_message => {
                 log::warn!("Wrong StateChangeRequest: {:?}", unknown_message);
@@ -114,7 +116,7 @@ pub async fn forward_from_proto_to_ankaios(
 pub async fn forward_from_ankaios_to_proto(
     grpc_tx: Sender<proto::StateChangeRequest>,
     server_rx: &mut StateChangeReceiver,
-) -> Result<(), tonic::Status> {
+) -> Result<(), GrpcProxyError> {
     while let Some(x) = server_rx.recv().await {
         match x {
             StateChangeCommand::UpdateState(method_obj) => {
@@ -131,8 +133,7 @@ pub async fn forward_from_ankaios_to_proto(
                             ),
                         ),
                     })
-                    .await
-                    .unwrap();
+                    .await?;
             }
             StateChangeCommand::UpdateWorkloadState(method_obj) => {
                 log::debug!("Received UpdateWorkloadState from agent");
@@ -145,8 +146,7 @@ pub async fn forward_from_ankaios_to_proto(
                             }.into()),
                         ),
                     })
-                    .await
-                    .unwrap();
+                    .await?;
             }
             StateChangeCommand::RequestCompleteState(method_obj) => {
                 log::debug!("Received RequestCompleteState from agent");
@@ -160,8 +160,7 @@ pub async fn forward_from_ankaios_to_proto(
                             }.into()),
                         ),
                     })
-                    .await
-                    .unwrap();
+                    .await?;
             }
             StateChangeCommand::Stop(_method_obj) => {
                 log::debug!("Received Stop from agent");
@@ -242,9 +241,10 @@ mod tests {
         let update_mask = vec!["bla".into()];
 
         // As the channel capacity is big enough the await is satisfied right away
-        server_tx
+        let update_state_result = server_tx
             .update_state(input_state.clone(), update_mask.clone())
             .await;
+        assert!(update_state_result.is_ok());
 
         let handle = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx);
 
@@ -275,9 +275,10 @@ mod tests {
             execution_state: common::objects::ExecutionState::ExecRunning,
         };
 
-        server_tx
+        let update_workload_state_result = server_tx
             .update_workload_state(vec![wl_state.clone()])
             .await;
+        assert!(update_workload_state_result.is_ok());
 
         let handle = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx);
 
@@ -314,7 +315,7 @@ mod tests {
         )
         .await;
         assert!(forward_result.is_err());
-        assert_eq!(forward_result.unwrap_err().to_string(), String::from("status: Unknown, message: \"test\", details: [], metadata: MetadataMap { headers: {} }"));
+        assert_eq!(forward_result.unwrap_err().to_string(), String::from("StreamingError: 'status: Unknown, message: \"test\", details: [], metadata: MetadataMap { headers: {} }'"));
 
         // pick received execution command
         let result = server_rx.recv().await;
@@ -349,7 +350,7 @@ mod tests {
         assert!(forward_result.is_err());
         assert_eq!(
             forward_result.unwrap_err().to_string(),
-            String::from("Missing state_change_request")
+            String::from("ReceiveError: 'Missing state_change_request'")
         );
 
         // pick received execution command
@@ -360,9 +361,9 @@ mod tests {
 
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
     #[tokio::test]
-    async fn utest_state_change_command_forward_from_proto_to_ankaios_handles_missing_new_state() {
+    async fn utest_state_change_command_forward_from_proto_to_ankaios_fail_on_invalid_state() {
         let agent_name = "fake_agent";
-        let (server_tx, mut server_rx) =
+        let (server_tx, mut _server_rx) =
             mpsc::channel::<StateChangeCommand>(common::CHANNEL_CAPACITY);
 
         let mut ankaios_state: proto::CompleteState = generate_test_complete_state(
@@ -406,12 +407,7 @@ mod tests {
             server_tx,
         )
         .await;
-        assert!(forward_result.is_ok());
-
-        // pick received execution command
-        let result = server_rx.recv().await;
-
-        assert_eq!(result, None);
+        assert!(forward_result.is_err());
     }
 
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
@@ -564,9 +560,10 @@ mod tests {
             field_mask: vec![],
         };
 
-        server_tx
+        let request_complete_state_result = server_tx
             .request_complete_state(request_complete_state.clone())
             .await;
+        assert!(request_complete_state_result.is_ok());
 
         let handle = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx);
 

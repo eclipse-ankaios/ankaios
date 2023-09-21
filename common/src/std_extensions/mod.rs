@@ -12,21 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::net::SocketAddr;
+pub mod extended_option;
+pub use extended_option::*;
 
-use async_trait::async_trait;
-use tokio::sync::mpsc::Receiver;
-
-use crate::{
-    communications_error::CommunicationMiddlewareError, execution_interface::ExecutionCommand,
-};
-
-// [impl->swdd~common-interface-definitions~1]
-#[async_trait]
-pub trait CommunicationsServer {
-    async fn start(
-        &mut self,
-        receiver: &mut Receiver<ExecutionCommand>,
-        addr: SocketAddr,
-    ) -> Result<(), CommunicationMiddlewareError>;
-}
+pub mod extended_result;
+pub use extended_result::*;

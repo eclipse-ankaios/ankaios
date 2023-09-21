@@ -46,15 +46,15 @@ impl std::str::FromStr for ExecutionState {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
-            "created" => Ok(ExecutionState::ExecPending),
-            "pending" => Ok(ExecutionState::ExecPending),
-            "running" => Ok(ExecutionState::ExecRunning),
-            "succeeded" => Ok(ExecutionState::ExecSucceeded),
-            "failed" => Ok(ExecutionState::ExecFailed),
-            "removed" => Ok(ExecutionState::ExecRemoved),
-            _ => Ok(ExecutionState::ExecUnknown),
-        }
+        Ok(match s.to_lowercase().as_str() {
+            "created" => ExecutionState::ExecPending,
+            "pending" => ExecutionState::ExecPending,
+            "running" => ExecutionState::ExecRunning,
+            "succeeded" => ExecutionState::ExecSucceeded,
+            "failed" => ExecutionState::ExecFailed,
+            "removed" => ExecutionState::ExecRemoved,
+            _ => ExecutionState::ExecUnknown,
+        })
     }
 }
 

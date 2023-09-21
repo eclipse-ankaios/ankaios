@@ -14,6 +14,7 @@
 
 mod update_state;
 
+use common::std_extensions::IllegalStateResult;
 #[cfg(test)]
 use tests::update_state_mock as update_state;
 #[cfg(not(test))]
@@ -64,7 +65,7 @@ impl AnkaiosServer {
     fn get_complete_state_by_field_mask(
         &self,
         request_complete_state: &RequestCompleteState,
-    ) -> Option<CompleteState> {
+    ) -> Result<CompleteState, String> {
         let current_complete_state = CompleteState {
             request_id: request_complete_state.request_id.to_owned(),
             current_state: self.current_complete_state.current_state.clone(),
@@ -74,25 +75,18 @@ impl AnkaiosServer {
 
         // [impl->swdd~server-filters-get-complete-state-result~1]
         if !request_complete_state.field_mask.is_empty() {
-            let current_complete_state: Object = current_complete_state.try_into().unwrap();
+            let current_complete_state: Object =
+                current_complete_state.try_into().unwrap_or_illegal_state();
             let mut return_state = Object::default();
 
-            return_state
-                .set(
-                    &"requestId".into(),
-                    request_complete_state.request_id.to_owned().into(),
-                )
-                .expect("unreachable");
+            return_state.set(
+                &"requestId".into(),
+                request_complete_state.request_id.to_owned().into(),
+            )?;
 
             for field in &request_complete_state.field_mask {
                 if let Some(value) = current_complete_state.get(&field.into()) {
-                    if return_state.set(&field.into(), value.to_owned()).is_err() {
-                        log::debug!(concat!(
-                            "Result for CompleteState incomplete, as requested field could not be set:\n",
-                            "   request_id: {:?}\n",
-                            "   field: {}"),
-                            request_complete_state.request_id, field);
-                    };
+                    return_state.set(&field.into(), value.to_owned())?;
                 } else {
                     log::debug!(
                         concat!(
@@ -106,16 +100,11 @@ impl AnkaiosServer {
                 };
             }
 
-            match return_state.try_into() {
-                Ok(return_state) => Some(return_state),
-                Err(error) => {
-                    log::error!(
-                        "The result for CompleteState is invalid and could not be returned: '{error}'");
-                    None
-                }
-            }
+            return_state.try_into().map_err(|err: serde_yaml::Error| {
+                format!("The result for CompleteState is invalid: '{}'", err)
+            })
         } else {
-            Some(current_complete_state)
+            Ok(current_complete_state)
         }
     }
 
@@ -148,7 +137,8 @@ impl AnkaiosServer {
                             // It's a newly connected agent, no need to delete anything.
                             vec![],
                         )
-                        .await;
+                        .await
+                        .unwrap_or_illegal_state();
 
                     // [impl->swdd~server-informs-a-newly-connected-agent-workload-states~1]
                     // [impl->swdd~server-sends-all-workload-states-on-agent-connect~1]
@@ -156,7 +146,10 @@ impl AnkaiosServer {
                         .workload_state_db
                         .get_workload_state_excluding_agent(&method_obj.agent_name);
                     if !workload_states.is_empty() {
-                        self.to_agents.update_workload_state(workload_states).await;
+                        self.to_agents
+                            .update_workload_state(workload_states)
+                            .await
+                            .unwrap_or_illegal_state();
                     } else {
                         log::debug!("No workload states to send. Nothing to do.");
                     }
@@ -167,14 +160,15 @@ impl AnkaiosServer {
                     self.workload_state_db
                         .mark_all_workload_state_for_agent_unknown(&method_obj.agent_name);
 
-                    // now tell everybody the exciting news ;)
+                    // communicate the workload state changes to other agents
                     // [impl->swdd~server-distribute-workload-state-unknown-on-disconnect~1]
                     self.to_agents
                         .update_workload_state(
                             self.workload_state_db
                                 .get_workload_state_for_agent(&method_obj.agent_name),
                         )
-                        .await;
+                        .await
+                        .unwrap_or_illegal_state();
                 }
                 // [impl->swdd~server-provides-update-current-state-interface~1]
                 StateChangeCommand::UpdateState(update_request) => {
@@ -186,15 +180,19 @@ impl AnkaiosServer {
                                 &self.current_complete_state.current_state,
                                 &new_state.current_state,
                             );
+
                             if cmd.is_some() {
-                                self.to_agents.send(cmd.unwrap()).await.unwrap();
+                                self.to_agents
+                                    .send(cmd.unwrap())
+                                    .await
+                                    .unwrap_or_illegal_state();
                             } else {
                                 log::debug!("The current state and new state are identical -> nothing to do");
                             }
                             self.current_complete_state = new_state;
                         }
                         Err(error) => {
-                            log::debug!("Could no execute UpdateRequest: {:?}", error)
+                            log::error!("Could not execute UpdateRequest: '{}'", error);
                         }
                     }
                 }
@@ -210,7 +208,8 @@ impl AnkaiosServer {
                     // [impl->swdd~server-forwards-workload-state~1]
                     self.to_agents
                         .update_workload_state(method_obj.workload_states)
-                        .await;
+                        .await
+                        .unwrap_or_illegal_state();
                 }
                 // [impl->swdd~server-provides-interface-get-complete-state~1]
                 // [impl->swdd~server-includes-id-in-control-interface-response~1]
@@ -219,18 +218,24 @@ impl AnkaiosServer {
                         "Received RequestCompleteState from communications server: {method_obj:?}"
                     );
 
-                    if let Some(complete_state) = self.get_complete_state_by_field_mask(&method_obj)
-                    {
-                        self.to_agents.complete_state(complete_state).await;
-                    } else {
-                        self.to_agents
-                            .complete_state(common::commands::CompleteState {
-                                request_id: method_obj.request_id,
-                                startup_state: State::default(),
-                                current_state: State::default(),
-                                workload_states: vec![],
-                            })
+                    match self.get_complete_state_by_field_mask(&method_obj) {
+                        Ok(complete_state) => self
+                            .to_agents
+                            .complete_state(complete_state)
                             .await
+                            .unwrap_or_illegal_state(),
+                        Err(error) => {
+                            log::error!("Failed to get complete state: '{}'", error);
+                            self.to_agents
+                                .complete_state(common::commands::CompleteState {
+                                    request_id: method_obj.request_id,
+                                    startup_state: State::default(),
+                                    current_state: State::default(),
+                                    workload_states: vec![],
+                                })
+                                .await
+                                .unwrap_or_illegal_state();
+                        }
                     }
                 }
                 StateChangeCommand::Stop(_method_obj) => {
@@ -275,7 +280,7 @@ mod tests {
     use tokio::join;
     use tokio::sync::mpsc::{self, channel, Receiver, Sender};
 
-    use super::update_state::Error;
+    use super::update_state::UpdateStateError;
     use super::{create_execution_channels, create_state_change_channels, AnkaiosServer};
 
     type TestSetup = (
@@ -580,7 +585,7 @@ mod tests {
     pub fn update_state_mock(
         current_state: &CompleteState,
         update: UpdateStateRequest,
-    ) -> Result<CompleteState, Error> {
+    ) -> Result<CompleteState, UpdateStateError> {
         UPDATE_STATE_MOCK_CALLS.with(move |calls| {
             let mut calls = calls.borrow_mut();
             calls.push_back((current_state.to_owned(), update));
@@ -594,7 +599,7 @@ mod tests {
 
     thread_local! {
         static UPDATE_STATE_MOCK_CALLS: RefCell<VecDeque<(CompleteState,UpdateStateRequest)>>  = RefCell::new(VecDeque::new());
-        static UPDATE_STATE_MOCK_RESULTS: RefCell<VecDeque<Result<CompleteState, Error>>> = RefCell::new(VecDeque::new());
+        static UPDATE_STATE_MOCK_RESULTS: RefCell<VecDeque<Result<CompleteState, UpdateStateError>>> = RefCell::new(VecDeque::new());
     }
 
     // [utest->swdd~server-sends-all-workloads-on-start~1]
@@ -637,7 +642,8 @@ mod tests {
         let server_task = tokio::spawn(async move { ankaios_server.start().await });
 
         // fake_agent_1 connects to the ankaios server
-        to_server.agent_hello(fake_agent_names[0].to_owned()).await;
+        let agent_hello_result = to_server.agent_hello(fake_agent_names[0].to_owned()).await;
+        assert!(agent_hello_result.is_ok());
 
         check_update_workload(
             get_workloads(&tc_receiver.recv().await.unwrap()),
@@ -648,7 +654,7 @@ mod tests {
         // [utest->swdd~server-informs-a-newly-connected-agent-workload-states~1]
         // [utest->swdd~server-sends-all-workload-states-on-agent-connect~1]
         // send update_workload_state for fake_agent_1 which is then stored in the workload_state_db in ankaios server
-        to_server
+        let update_workload_state_result = to_server
             .update_workload_state(vec![
                 common::objects::WorkloadState {
                     agent_name: fake_agent_names[0].to_string(),
@@ -662,6 +668,7 @@ mod tests {
                 },
             ])
             .await;
+        assert!(update_workload_state_result.is_ok());
 
         check_update_workload_state(
             get_workload_states(&tc_receiver.recv().await.unwrap()),
@@ -681,7 +688,8 @@ mod tests {
         );
 
         // fake_agent_2 connects to the ankaios server
-        to_server.agent_hello(fake_agent_names[1].to_owned()).await;
+        let agent_hello_result = to_server.agent_hello(fake_agent_names[1].to_owned()).await;
+        assert!(agent_hello_result.is_ok());
 
         check_update_workload(
             get_workloads(&tc_receiver.recv().await.unwrap()),
@@ -708,13 +716,14 @@ mod tests {
 
         // [utest->swdd~server-forwards-workload-state~1]
         // send update_workload_state for fake_agent_2 which is then stored in the workload_state_db in ankaios server
-        to_server
+        let update_workload_state_result = to_server
             .update_workload_state(vec![common::objects::WorkloadState {
                 agent_name: fake_agent_names[1].to_string(),
                 workload_name: "fake_workload_3".to_string(),
                 execution_state: common::objects::ExecutionState::ExecSucceeded,
             }])
             .await;
+        assert!(update_workload_state_result.is_ok());
 
         check_update_workload_state(
             get_workload_states(&tc_receiver.recv().await.unwrap()),
@@ -727,7 +736,7 @@ mod tests {
         );
 
         // send update_workload_state for fake_agent_1 which is then stored in the workload_state_db in ankaios server
-        to_server
+        let update_workload_state_result = to_server
             .update_workload_state(vec![
                 common::objects::WorkloadState {
                     agent_name: fake_agent_names[0].to_string(),
@@ -741,6 +750,7 @@ mod tests {
                 },
             ])
             .await;
+        assert!(update_workload_state_result.is_ok());
 
         // for fake_agent_2 check reception of update_workload_state of fake_agent_1
         check_update_workload_state(
@@ -842,20 +852,23 @@ mod tests {
         ankaios_server.current_complete_state = original_state.clone();
         let server_task = tokio::spawn(async move { ankaios_server.start().await });
 
-        to_server.agent_hello(agent_names[0].to_owned()).await;
+        let agent_hello_result = to_server.agent_hello(agent_names[0].to_owned()).await;
+        assert!(agent_hello_result.is_ok());
 
         // send new state to server
-        to_server
+        let update_state_result = to_server
             .update_state(update_state.clone(), vec![update_mask.clone()])
             .await;
+        assert!(update_state_result.is_ok());
 
         // request complete state
-        to_server
+        let request_complete_state_result = to_server
             .request_complete_state(RequestCompleteState {
                 request_id: format!("{}@{}", agent_names[0], request_id),
                 field_mask: vec![],
             })
             .await;
+        assert!(request_complete_state_result.is_ok());
 
         let _ignore_added_workloads = tc_receiver.recv().await;
         let complete_state = tc_receiver.recv().await;
@@ -978,20 +991,22 @@ mod tests {
                 }
             };
 
-        to_server
+        let agent_hello_result = to_server
             .agent_hello(agent_name_fake_agent_1.to_owned())
             .await;
+        assert!(agent_hello_result.is_ok());
 
         let _skip_hello_result_as_not_on_test_focus = tc_receiver.recv().await.unwrap();
 
         // send command 'RequestCompleteState' with empty field mask meaning without active filter
         // so CompleteState shall contain the complete state
-        to_server
+        let request_complete_state_result = to_server
             .request_complete_state(super::RequestCompleteState {
                 request_id: format!("{agent_name_fake_agent_1}@my_request_id"),
                 field_mask: vec![],
             })
             .await;
+        assert!(request_complete_state_result.is_ok());
 
         check_workload_state(
             tc_receiver.recv().await.unwrap(),
@@ -1004,7 +1019,7 @@ mod tests {
         );
 
         // send command 'RequestCompleteState' with field mask = ["workloadStates"]
-        to_server
+        let request_complete_state_result = to_server
             .request_complete_state(super::RequestCompleteState {
                 request_id: format!("{agent_name_fake_agent_1}@my_request_id"),
                 field_mask: vec![
@@ -1015,6 +1030,7 @@ mod tests {
                 ],
             })
             .await;
+        assert!(request_complete_state_result.is_ok());
 
         check_workload_state(
             tc_receiver.recv().await.unwrap(),
@@ -1102,11 +1118,13 @@ mod tests {
             ..Default::default()
         };
 
-        to_server.agent_hello(fake_agent_names[0].to_owned()).await;
-        to_server.agent_hello(fake_agent_names[1].to_owned()).await;
+        let agent_hello1_result = to_server.agent_hello(fake_agent_names[0].to_owned()).await;
+        assert!(agent_hello1_result.is_ok());
+        let agent_hello2_result = to_server.agent_hello(fake_agent_names[1].to_owned()).await;
+        assert!(agent_hello2_result.is_ok());
 
         // send update_workload_state for fake_agent_1 which is then stored in the workload_state_db in ankaios server
-        to_server
+        let update_workload_state_result = to_server
             .update_workload_state(vec![
                 common::objects::WorkloadState {
                     agent_name: fake_agent_names[0].to_string(),
@@ -1120,9 +1138,11 @@ mod tests {
                 },
             ])
             .await;
+        assert!(update_workload_state_result.is_ok());
 
         // fake_agent_1 disconnects from the ankaios server
-        to_server.agent_gone(fake_agent_names[0].to_owned()).await;
+        let agent_gone_result = to_server.agent_gone(fake_agent_names[0].to_owned()).await;
+        assert!(agent_gone_result.is_ok());
 
         let handle = server.start();
 
@@ -1292,8 +1312,11 @@ mod tests {
 
         let new_state_clone = new_state.clone();
 
-        to_server.agent_hello(fake_agent_names[0].to_owned()).await;
-        to_server.agent_hello(fake_agent_names[1].to_owned()).await;
+        let agent_hello1_result = to_server.agent_hello(fake_agent_names[0].to_owned()).await;
+        assert!(agent_hello1_result.is_ok());
+
+        let agent_hello2_result = to_server.agent_hello(fake_agent_names[1].to_owned()).await;
+        assert!(agent_hello2_result.is_ok());
 
         // prepare update state mock
         UPDATE_STATE_MOCK_RESULTS.with(move |results| {
@@ -1308,9 +1331,10 @@ mod tests {
 
         let update_mask = format!("workloads.{}", "fake_workload_spec_1");
 
-        to_server
+        let update_state_result = to_server
             .update_state(new_state, vec![update_mask.clone()])
             .await;
+        assert!(update_state_result.is_ok());
 
         let handle = server.start();
 

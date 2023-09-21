@@ -8,5 +8,5 @@ The PR shall be merged **only if all of following items were checked.** In case 
 
 - [ ] documentation of all modules `/*/doc/swdesign` is up-to-date
 - [ ] requirements are up-to-date and requirements for new features have been added and mapped to source and test
-- [ ] conform to [unit verification strategy](https://eclipse-ankaios.github.io/ankaios/development/unit-verification/)
+- [ ] conform to [unit verification strategy](https://eclipse-ankaios.github.io/ankaios/main/development/unit-verification/)
 

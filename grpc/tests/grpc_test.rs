@@ -8,7 +8,7 @@ mod grpc_tests {
         communications_client::CommunicationsClient,
         communications_server::CommunicationsServer,
         execution_interface::ExecutionCommand,
-        state_change_interface::{StateChangeCommand, StateChangeInterface},
+        state_change_interface::{StateChangeCommand, StateChangeInterface}, communications_error::CommunicationMiddlewareError,
     };
     use grpc::{client::GRPCCommunicationsClient, server::GRPCCommunicationsServer};
 
@@ -28,11 +28,14 @@ mod grpc_tests {
         comm_type: CommunicationType,
         test_request_id: &str,
         to_grpc_server: Sender<ExecutionCommand>,
-    ) -> (Sender<StateChangeCommand>, tokio::task::JoinHandle<()>) {
+    ) -> (
+        Sender<StateChangeCommand>,
+        tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>,
+    ) {
         let (to_grpc_client, grpc_client_receiver) =
             tokio::sync::mpsc::channel::<StateChangeCommand>(20);
         let url = Url::parse(&format!("http://{}", server_addr)).expect("error");
-        let mut grps_communications_client = match comm_type {
+        let mut grpc_communications_client = match comm_type {
             CommunicationType::Cli => {
                 GRPCCommunicationsClient::new_cli_communication(test_request_id.to_owned(), url)
             }
@@ -42,7 +45,7 @@ mod grpc_tests {
         };
 
         let grpc_client_task = tokio::spawn(async move {
-            grps_communications_client
+            grpc_communications_client
                 .run(grpc_client_receiver, to_grpc_server)
                 .await
         });
@@ -57,8 +60,8 @@ mod grpc_tests {
     ) -> (
         Sender<StateChangeCommand>,   // to_grpc_client
         Receiver<StateChangeCommand>, // server_receiver
-        tokio::task::JoinHandle<()>,  // grpc_server_task
-        tokio::task::JoinHandle<()>,  // grpc_client_task
+        tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>, // grpc_server_task
+        tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>, // grpc_client_task
     ) {
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         //                                         _____________                                _________________
@@ -113,12 +116,13 @@ mod grpc_tests {
                 .await;
 
         // send request to grpc client
-        to_grpc_client
+        let request_complete_state_result = to_grpc_client
             .request_complete_state(RequestCompleteState {
                 request_id: test_request_id.to_owned(),
                 field_mask: vec![],
             })
             .await;
+        assert!(request_complete_state_result.is_ok());
 
         // read request forwarded by grpc communication server
         let result = timeout(Duration::from_millis(3000), server_receiver.recv()).await;
@@ -144,7 +148,7 @@ mod grpc_tests {
                 .await;
 
         // send request to grpc client
-        to_grpc_client
+        let update_state_result = to_grpc_client
             .update_state(
                 CompleteState {
                     request_id: test_request_id.to_owned(),
@@ -153,6 +157,7 @@ mod grpc_tests {
                 vec![],
             )
             .await;
+        assert!(update_state_result.is_ok());
 
         // read request forwarded by grpc communication server
         let result = timeout(Duration::from_millis(3000), server_receiver.recv()).await;

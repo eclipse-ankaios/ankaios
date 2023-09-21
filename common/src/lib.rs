@@ -19,10 +19,12 @@ pub const DEFAULT_SERVER_ADDRESS: &str = "http://127.0.0.1:50051";
 pub mod commands;
 pub mod communications_client;
 pub mod communications_server;
+pub mod communications_error;
 pub mod execution_interface;
 pub mod helpers;
 pub mod objects;
 pub mod request_id_prepending;
 pub mod state_change_interface;
+pub mod std_extensions;
 #[cfg(feature = "test_utils")]
 pub mod test_utils;

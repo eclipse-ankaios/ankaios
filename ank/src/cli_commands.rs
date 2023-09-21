@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashMap, fmt, time::Duration};
+use std::{fmt, time::Duration};
 
 #[cfg(not(test))]
 async fn read_file_to_string(file: String) -> std::io::Result<String> {
@@ -46,18 +46,26 @@ const BUFFER_SIZE: usize = 20;
 
 #[derive(Debug, Clone)]
 pub enum CliError {
-    InvalidObjectFieldMask(String),
     YamlSerialization(String),
+    JsonSerialization(String),
+    ExecutionError(String),
+    ConnectionTimeout(String),
 }
 
 impl fmt::Display for CliError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            CliError::InvalidObjectFieldMask(message) => {
-                write!(f, "Invalid object field mask: '{message}'")
-            }
             CliError::YamlSerialization(message) => {
                 write!(f, "Could not serialize YAML object: '{message}'")
+            }
+            CliError::JsonSerialization(message) => {
+                write!(f, "Could not serialize JSON object: '{message}'")
+            }
+            CliError::ExecutionError(message) => {
+                write!(f, "Command failed: '{}'", message)
+            }
+            CliError::ConnectionTimeout(message) => {
+                write!(f, "ConnectionTimeout: '{}'", message)
             }
         }
     }
@@ -69,83 +77,92 @@ impl From<serde_yaml::Error> for CliError {
     }
 }
 
+impl From<serde_json::Error> for CliError {
+    fn from(value: serde_json::Error) -> Self {
+        CliError::JsonSerialization(format!("{value}"))
+    }
+}
+
 fn generate_compact_state_output(
     state: &CompleteState,
     object_field_mask: Vec<String>,
     output_format: OutputFormat,
 ) -> Result<String, CliError> {
-    let mut top_level_map: serde_yaml::Value = serde_yaml::to_value(state)?;
-    if !object_field_mask.is_empty() {
-        let state_value = serde_yaml::to_value(state)?;
-        let mut obj_map: HashMap<String, serde_yaml::Value> = HashMap::new();
+    let convert_to_output = |map: serde_yaml::Value| -> Result<String, CliError> {
+        match output_format {
+            // [impl -> swdd~cli-shall-support-current-state-yaml~1]
+            OutputFormat::Yaml => Ok(serde_yaml::to_string(&map)?),
+            // [impl -> swdd~cli-shall-support-current-state-json~1]
+            OutputFormat::Json => Ok(serde_json::to_string_pretty(&map)?),
+        }
+    };
 
-        // build compact output for each object field mask
-        for mask in object_field_mask.iter() {
-            obj_map.insert(
-                mask.to_string(),
-                serde_yaml::Value::Mapping(serde_yaml::Mapping::new()),
+    let deserialized_state: serde_yaml::Value = serde_yaml::to_value(state)?;
+
+    if object_field_mask.is_empty() {
+        return convert_to_output(deserialized_state);
+    }
+
+    let mut compact_state = serde_yaml::Value::Mapping(Default::default());
+    for mask in object_field_mask {
+        let splitted_masks: Vec<&str> = mask.split('.').collect();
+        if let Some(filtered_mapping) = get_filtered_value(&deserialized_state, &splitted_masks) {
+            update_compact_state(
+                &mut compact_state,
+                &splitted_masks,
+                filtered_mapping.to_owned(),
             );
-            let mut cur_level_map = obj_map.get_mut(mask).unwrap();
-            let mask_vec: Vec<&str> = mask.split('.').collect();
-            let mask_vec_len = mask_vec.len();
-            let mut cur_state_value: &serde_yaml::Value = &state_value;
-            for (field_index, cur_field) in mask_vec.iter().enumerate() {
-                if let Some(obj) = cur_state_value.get(cur_field) {
-                    if field_index == mask_vec_len - 1 {
-                        cur_level_map.as_mapping_mut().unwrap().insert(
-                            serde_yaml::Value::String(cur_field.to_string()),
-                            obj.clone(),
-                        );
-                    } else {
-                        if cur_level_map.get(cur_field).is_none() {
-                            cur_level_map.as_mapping_mut().unwrap().insert(
-                                serde_yaml::Value::String(cur_field.to_string()),
-                                serde_yaml::Value::Mapping(serde_yaml::Mapping::new()),
-                            );
-                        }
-
-                        cur_level_map = cur_level_map.get_mut(cur_field).unwrap();
-                        cur_state_value = cur_state_value.get(cur_field).unwrap()
-                    }
-                } else {
-                    return Err(CliError::InvalidObjectFieldMask(mask.to_string()));
-                }
-            }
-        }
-
-        // merge the compact output for each object field mask to form single compact output
-        top_level_map = serde_yaml::Value::Mapping(serde_yaml::Mapping::new());
-        for (mask, obj) in obj_map {
-            let mask_vec: Vec<&str> = mask.split('.').collect();
-            let mut cur_obj = &obj;
-            let mut cur_level_map = &mut top_level_map;
-            for cur_field in mask_vec.iter() {
-                let cur_level = cur_level_map.as_mapping_mut().unwrap();
-                if cur_level.get(cur_field).is_none() {
-                    cur_level.insert(
-                        serde_yaml::Value::String(cur_field.to_string()),
-                        cur_obj.get(cur_field).unwrap().to_owned(),
-                    );
-                    break;
-                } else {
-                    cur_level_map = cur_level_map.get_mut(cur_field).unwrap();
-                    cur_obj = cur_obj.get(cur_field).unwrap();
-                }
-            }
         }
     }
 
-    match output_format {
-        // [impl -> swdd~cli-shall-support-current-state-yaml~1]
-        OutputFormat::Yaml => Ok(serde_yaml::to_string(&top_level_map).unwrap()),
-        // [impl -> swdd~cli-shall-support-current-state-json~1]
-        OutputFormat::Json => Ok(serde_json::to_string_pretty(&top_level_map).unwrap()),
+    convert_to_output(compact_state)
+}
+
+fn get_filtered_value<'a>(
+    map: &'a serde_yaml::Value,
+    mask: &[&str],
+) -> Option<&'a serde_yaml::Value> {
+    mask.iter().fold(Some(map), |current_level, mask_part| {
+        current_level?.get(mask_part)
+    })
+}
+
+fn update_compact_state(
+    new_compact_state: &mut serde_yaml::Value,
+    mask: &[&str],
+    new_mapping: serde_yaml::Value,
+) -> Option<()> {
+    if mask.is_empty() {
+        return Some(());
     }
+
+    let mut current_level = new_compact_state;
+
+    for mask_part in mask {
+        if current_level.get(mask_part).is_some() {
+            current_level = current_level.get_mut(mask_part)?;
+            continue;
+        }
+
+        if let serde_yaml::Value::Mapping(current_mapping) = current_level {
+            current_mapping.insert(
+                (*mask_part).into(),
+                serde_yaml::Value::Mapping(Default::default()),
+            );
+
+            current_level = current_mapping.get_mut(mask_part)?;
+        } else {
+            return None;
+        }
+    }
+
+    *current_level = new_mapping;
+    Some(())
 }
 
 // [impl->swdd~server-handle-cli-communication~1]
 // [impl->swdd~cli-communication-over-middleware~1]
-async fn setup_cli_communication(
+fn setup_cli_communication(
     cli_name: &str,
     server_url: Url,
 ) -> (
@@ -154,7 +171,7 @@ async fn setup_cli_communication(
     tokio::sync::mpsc::Receiver<ExecutionCommand>,
 ) // (task,sender,receiver)
 {
-    let mut grps_communications_client =
+    let mut grpc_communications_client =
         GRPCCommunicationsClient::new_cli_communication(cli_name.to_owned(), server_url);
 
     let (to_cli, cli_receiver) = tokio::sync::mpsc::channel::<ExecutionCommand>(BUFFER_SIZE);
@@ -162,9 +179,13 @@ async fn setup_cli_communication(
         tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
 
     let communications_task = tokio::spawn(async move {
-        grps_communications_client
+        if let Err(err) = grpc_communications_client
             .run(server_receiver, to_cli.clone())
-            .await
+            .await 
+        {
+            eprintln!("{err}");
+            std::process::exit(1);
+        }
     });
     (communications_task, to_server, cli_receiver)
 }
@@ -195,9 +216,9 @@ impl Drop for CliCommands {
 }
 
 impl CliCommands {
-    pub async fn init(response_timeout_ms: u64, cli_name: String, server_url: Url) -> Self {
+    pub fn init(response_timeout_ms: u64, cli_name: String, server_url: Url) -> Self {
         let (task, to_server, from_server) =
-            setup_cli_communication(cli_name.as_str(), server_url.clone()).await;
+            setup_cli_communication(cli_name.as_str(), server_url.clone());
         Self {
             response_timeout_ms,
             cli_name,
@@ -225,7 +246,8 @@ impl CliCommands {
                 request_id: self.cli_name.to_owned(),
                 field_mask: object_field_mask.clone(),
             })
-            .await;
+            .await
+            .ok()?;
 
         if let Some(ExecutionCommand::CompleteState(res)) = self.from_server.recv().await {
             out_command_text =
@@ -273,7 +295,10 @@ impl CliCommands {
         // send update request
         self.to_server
             .update_state(complete_state_input, object_field_mask)
-            .await;
+            .await
+            .unwrap_or_else(|err| {
+                log::error!("Update state failed: '{}'", err);
+            });
         if (timeout(
             Duration::from_millis(response_timeout_ms),
             self.from_server.recv(),
@@ -293,16 +318,15 @@ impl CliCommands {
         agent_name: Option<String>,
         state: Option<String>,
         workload_name: Vec<String>,
-    ) -> Option<String> {
-        let mut out_command_text: Option<String> = None;
-
+    ) -> Result<String, CliError> {
         // send request
         self.to_server
             .request_complete_state(RequestCompleteState {
                 request_id: self.cli_name.to_owned(),
                 field_mask: Vec::new(),
             })
-            .await;
+            .await
+            .map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
         if let Some(ExecutionCommand::CompleteState(res)) = self.from_server.recv().await {
             let mut workload_infos: Vec<WorkloadInfo> = res
@@ -354,62 +378,71 @@ impl CliCommands {
             log::debug!("The table after filtering:\n{:?}", workload_infos);
 
             // [impl->swdd~cli-shall-present-list-workloads-as-table~1]
-            out_command_text = Some(Table::new(workload_infos).with(Style::blank()).to_string());
+            return Ok(Table::new(workload_infos).with(Style::blank()).to_string());
         }
         // [impl->swdd~cli-returns-list-of-workloads-from-server~1]
-        out_command_text
+        Err(CliError::ExecutionError(
+            "Failed to get complete state of server.".to_string(),
+        ))
     }
 
     // [impl->swdd~cli-provides-delete-workload~1]
     // [impl->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~1]
-    pub async fn delete_workloads(&mut self, workload_names: Vec<String>) {
+    pub async fn delete_workloads(&mut self, workload_names: Vec<String>) -> Result<(), CliError> {
         // get current state
         self.to_server
             .request_complete_state(RequestCompleteState {
                 request_id: self.cli_name.to_owned(),
                 field_mask: Vec::new(),
             })
-            .await;
+            .await
+            .map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
-        if let Some(ExecutionCommand::CompleteState(res)) = self.from_server.recv().await {
-            log::debug!("Got current state: {:?}", res);
-            let mut new_state = *res.clone();
-            // Filter out workloads to be deleted.
-            new_state
-                .current_state
-                .workloads
-                .retain(|k, _v| !workload_names.clone().into_iter().any(|wn| &wn == k));
+        let res = self.from_server.recv().await
+            .ok_or(CliError::ExecutionError("Failed to get execution command from server".to_string()))?;
 
-            // Filter out workload statuses of the workloads to be deleted.
-            // Only a nice-to-have, but it could be better to avoid sending misleading information
-            new_state.workload_states.retain(|ws| {
-                !workload_names
-                    .clone()
-                    .into_iter()
-                    .any(|wn| wn == ws.workload_name)
-            });
+        let complete_state = if let ExecutionCommand::CompleteState(res) = res {
+            res
+        } else {
+            return Err(CliError::ExecutionError("Expected complete state".to_string()));
+        };
 
-            let update_mask = vec!["currentState".to_string()];
-            if new_state.current_state != res.current_state {
-                log::debug!("Sending the new state {:?}", new_state);
-                self.to_server.update_state(new_state, update_mask).await;
+        log::debug!("Got current state: {:?}", complete_state);
+        let mut new_state = *complete_state.clone();
+        // Filter out workloads to be deleted.
+        new_state
+            .current_state
+            .workloads
+            .retain(|k, _v| !workload_names.clone().into_iter().any(|wn| &wn == k));
 
-                if (timeout(
-                    Duration::from_millis(self.response_timeout_ms),
-                    self.from_server.recv(),
-                )
-                .await)
-                    .is_err()
-                {
-                    log::warn!("No response from the server");
-                } else {
-                    log::info!("OK");
-                }
-            } else {
-                // [impl->swdd~no-delete-workloads-when-not-found~1]
-                log::debug!("Current and new states are identical -> nothing to do");
-            }
+        // Filter out workload statuses of the workloads to be deleted.
+        // Only a nice-to-have, but it could be better to avoid sending misleading information
+        new_state.workload_states.retain(|ws| {
+            !workload_names
+                .clone()
+                .into_iter()
+                .any(|wn| wn == ws.workload_name)
+        });
+
+        let update_mask = vec!["currentState".to_string()];
+        if new_state.current_state != complete_state.current_state {
+            log::debug!("Sending the new state {:?}", new_state);
+            self.to_server
+                .update_state(new_state, update_mask)
+                .await
+                .map_err(|err| CliError::ExecutionError(err.to_string()))?;
+
+            timeout(
+                Duration::from_millis(self.response_timeout_ms),
+                self.from_server.recv(),
+            )
+            .await.map_err(|_| CliError::ConnectionTimeout("No response from the server".to_string()))?;
+        } else {
+            // [impl->swdd~no-delete-workloads-when-not-found~1]
+            log::debug!("Current and new states are identical -> nothing to do");
         }
+
+        Ok(())
     }
 
     // [impl->swdd~cli-provides-run-workload~1]
@@ -421,7 +454,7 @@ impl CliCommands {
         runtime_config: String,
         agent_name: String,
         tags_strings: Vec<(String, String)>,
-    ) {
+    ) -> Result<(), CliError> {
         let tags: Vec<Tag> = tags_strings
             .into_iter()
             .map(|(k, v)| Tag { key: k, value: v })
@@ -445,7 +478,7 @@ impl CliCommands {
                 request_id: self.cli_name.to_owned(),
                 field_mask: Vec::new(),
             })
-            .await;
+            .await.map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
         if let Some(ExecutionCommand::CompleteState(res)) = self.from_server.recv().await {
             log::debug!("Got current state: {:?}", res);
@@ -457,20 +490,20 @@ impl CliCommands {
 
             let update_mask = vec!["currentState".to_string()];
             log::debug!("Sending the new state {:?}", new_state);
-            self.to_server.update_state(new_state, update_mask).await;
+            self.to_server.update_state(new_state, update_mask)
+                .await
+                .map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
-            if (timeout(
+            timeout(
                 Duration::from_millis(self.response_timeout_ms),
                 self.from_server.recv(),
             )
-            .await)
-                .is_err()
-            {
-                log::warn!("No response from the server");
-            } else {
-                log::info!("OK");
-            }
+            .await.map_err(|_| CliError::ConnectionTimeout("No response from the server".to_string()))?;
+
+            return Ok(());
         }
+
+        Err(CliError::ExecutionError("Failed to get complete state from server".to_string()))
     }
 }
 
@@ -490,12 +523,17 @@ mod tests {
         execution_interface::ExecutionCommand,
         objects::{RuntimeWorkload, Tag, WorkloadSpec},
         state_change_interface::{StateChangeCommand, StateChangeReceiver},
-        test_utils,
+        test_utils::{self, generate_test_complete_state},
     };
     use tabled::{settings::Style, Table};
     use tokio::sync::mpsc::Sender;
 
-    use crate::cli_commands::WorkloadInfo;
+    use crate::{
+        cli::OutputFormat,
+        cli_commands::{
+            generate_compact_state_output, get_filtered_value, update_compact_state, WorkloadInfo,
+        },
+    };
 
     use super::CliCommands;
 
@@ -503,6 +541,20 @@ mod tests {
 
     const BUFFER_SIZE: usize = 20;
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
+
+    const EXAMPLE_STATE_INPUT: &str = r#"{
+        "currentState": {
+            "workloads": {
+                "nginx": {
+                    "restart": true,
+                    "agent": "agent_A"
+                },
+                "hello1": {
+                    "agent": "agent_B"
+                }
+            }
+        }
+    }"#;
 
     mockall::lazy_static! {
         pub static ref FAKE_READ_TO_STRING_MOCK_RESULT_LIST: tokio::sync::Mutex<std::collections::VecDeque<io::Result<String>>>  =
@@ -524,20 +576,21 @@ mod tests {
                 &mut self,
                 mut server_rx: StateChangeReceiver,
                 agent_tx: Sender<ExecutionCommand>,
-            );
+            ) -> Result<(), String>;
         }
     }
 
     fn prepare_server_response(
         complete_states: Vec<ExecutionCommand>,
         to_cli: Sender<ExecutionCommand>,
-    ) {
+    ) -> Result<(), String> {
         let sync_code = thread::spawn(move || {
             complete_states.into_iter().for_each(|cs| {
                 to_cli.blocking_send(cs).unwrap();
             });
         });
-        sync_code.join().unwrap()
+        sync_code.join().unwrap();
+        Ok(())
     }
 
     // [utest->swdd~cli-shall-print-empty-table~1]
@@ -566,18 +619,17 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
         let cmd_text = cmd.get_workloads(None, None, Vec::new()).await;
-        assert!(cmd_text.is_some());
+        assert!(cmd_text.is_ok());
 
         let expected_empty_table: Vec<WorkloadInfo> = Vec::new();
-        let expected_table_text = Some(
+        let expected_table_text =
             Table::new(expected_empty_table)
                 .with(Style::blank())
-                .to_string(),
-        );
-        assert_eq!(cmd_text, expected_table_text);
+                .to_string();
+
+        assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
 
     // [utest->swdd~cli-provides-list-of-workloads~1]
@@ -629,10 +681,9 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
         let cmd_text = cmd.get_workloads(None, None, Vec::new()).await;
-        assert!(cmd_text.is_some());
+        assert!(cmd_text.is_ok());
 
         let expected_table: Vec<WorkloadInfo> = vec![
             WorkloadInfo {
@@ -654,8 +705,8 @@ mod tests {
                 execution_state: String::from("Running"),
             },
         ];
-        let expected_table_text = Some(Table::new(expected_table).with(Style::blank()).to_string());
-        assert_eq!(cmd_text, expected_table_text);
+        let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
+        assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
 
     // [utest->swdd~cli-shall-filter-list-of-workloads~1]
@@ -703,12 +754,11 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
         let cmd_text = cmd
             .get_workloads(None, None, vec!["name1".to_string()])
             .await;
-        assert!(cmd_text.is_some());
+        assert!(cmd_text.is_ok());
 
         let expected_table: Vec<WorkloadInfo> = vec![WorkloadInfo {
             name: String::from("name1"),
@@ -716,8 +766,8 @@ mod tests {
             runtime: String::from("runtime"),
             execution_state: String::from("Running"),
         }];
-        let expected_table_text = Some(Table::new(expected_table).with(Style::blank()).to_string());
-        assert_eq!(cmd_text, expected_table_text);
+        let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
+        assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
 
     // [utest->swdd~cli-shall-filter-list-of-workloads~1]
@@ -765,12 +815,11 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
         let cmd_text = cmd
             .get_workloads(Some("agent_B".to_string()), None, Vec::new())
             .await;
-        assert!(cmd_text.is_some());
+        assert!(cmd_text.is_ok());
 
         let expected_table: Vec<WorkloadInfo> = vec![
             WorkloadInfo {
@@ -786,8 +835,8 @@ mod tests {
                 execution_state: String::from("Running"),
             },
         ];
-        let expected_table_text = Some(Table::new(expected_table).with(Style::blank()).to_string());
-        assert_eq!(cmd_text, expected_table_text);
+        let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
+        assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
 
     // [utest->swdd~cli-shall-filter-list-of-workloads~1]
@@ -835,16 +884,15 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
         let cmd_text = cmd
             .get_workloads(None, Some("Failed".to_string()), Vec::new())
             .await;
-        assert!(cmd_text.is_some());
+        assert!(cmd_text.is_ok());
 
         let expected_table: Vec<WorkloadInfo> = Vec::new();
-        let expected_table_text = Some(Table::new(expected_table).with(Style::blank()).to_string());
-        assert_eq!(cmd_text, expected_table_text);
+        let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
+        assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
 
     // [utest->swdd~cli-provides-delete-workload~1]
@@ -903,16 +951,15 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
 
         // replace the connection to the server with our own
         let (test_to_server, mut test_server_receiver) =
             tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
         cmd.to_server = test_to_server;
 
-        cmd.delete_workloads(vec!["name1".to_string(), "name2".to_string()])
-            .await;
+        let delete_result = cmd.delete_workloads(vec!["name1".to_string(), "name2".to_string()]).await;
+        assert!(delete_result.is_ok());
 
         // The request to get workloads
         let message_to_server = test_server_receiver.try_recv();
@@ -981,16 +1028,15 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
 
         // replace the connection to the server with our own
         let (test_to_server, mut test_server_receiver) =
             tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
         cmd.to_server = test_to_server;
 
-        cmd.delete_workloads(vec!["unknown_workload".to_string()])
-            .await;
+        let delete_result = cmd.delete_workloads(vec!["unknown_workload".to_string()]).await;
+        assert!(delete_result.is_ok());
 
         // The request to get workloads
         let message_to_server = test_server_receiver.try_recv();
@@ -1048,8 +1094,7 @@ mod tests {
             3000,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
         let cmd_text = cmd.get_state(vec![], crate::cli::OutputFormat::Yaml).await;
         assert!(cmd_text.is_some());
 
@@ -1102,8 +1147,7 @@ mod tests {
             3000,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
         let cmd_text = cmd.get_state(vec![], crate::cli::OutputFormat::Json).await;
         assert!(cmd_text.is_some());
 
@@ -1140,9 +1184,7 @@ mod tests {
             ],
         );
 
-        let complete_state = vec![
-            ExecutionCommand::CompleteState(Box::new(test_data.clone())),
-        ];
+        let complete_state = vec![ExecutionCommand::CompleteState(Box::new(test_data.clone()))];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
         mock_client
@@ -1158,8 +1200,7 @@ mod tests {
             3000,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
         let cmd_text = cmd
             .get_state(
                 vec!["currentState.workloads.name3.runtime".to_owned()],
@@ -1224,8 +1265,7 @@ mod tests {
             3000,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
 
         let cmd_text = cmd
             .get_state(
@@ -1279,8 +1319,7 @@ mod tests {
             3000,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
 
         // replace the connection to the server with our own
         let (test_to_server, mut test_server_receiver) =
@@ -1396,22 +1435,21 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
-        )
-        .await;
+        );
 
         // replace the connection to the server with our own
         let (test_to_server, mut test_server_receiver) =
             tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
         cmd.to_server = test_to_server;
 
-        cmd.run_workload(
+        let run_workload_result = cmd.run_workload(
             test_workload_name,
             test_workload_runtime_name,
             test_workload_runtime_cfg,
             test_workload_agent,
             vec![("key".to_string(), "value".to_string())],
-        )
-        .await;
+        ).await;
+        assert!(run_workload_result.is_ok());
 
         // request to get workloads
         let message_to_server = test_server_receiver.try_recv();
@@ -1431,5 +1469,324 @@ mod tests {
 
         // Make sure that we have read all commands from the channel.
         assert!(test_server_receiver.try_recv().is_err());
+    }
+
+    #[test]
+    fn utest_generate_compact_state_output_empty_filter_masks() {
+        let input_state = generate_test_complete_state(
+            "request_id".to_owned(),
+            vec![
+                test_utils::generate_test_workload_spec_with_param(
+                    "agent_A".to_string(),
+                    "name1".to_string(),
+                    "podman".to_string(),
+                ),
+                test_utils::generate_test_workload_spec_with_param(
+                    "agent_B".to_string(),
+                    "name2".to_string(),
+                    "podman".to_string(),
+                ),
+                test_utils::generate_test_workload_spec_with_param(
+                    "agent_B".to_string(),
+                    "name3".to_string(),
+                    "podman".to_string(),
+                ),
+            ],
+        );
+
+        let cli_output =
+            generate_compact_state_output(&input_state, vec![], OutputFormat::Yaml).unwrap();
+
+        // state shall remain unchanged
+        assert_eq!(cli_output, serde_yaml::to_string(&input_state).unwrap());
+    }
+
+    #[test]
+    fn utest_generate_compact_state_output_single_filter_mask() {
+        let input_state = generate_test_complete_state(
+            "request_id".to_owned(),
+            vec![
+                test_utils::generate_test_workload_spec_with_param(
+                    "agent_A".to_string(),
+                    "name1".to_string(),
+                    "podman".to_string(),
+                ),
+                test_utils::generate_test_workload_spec_with_param(
+                    "agent_B".to_string(),
+                    "name2".to_string(),
+                    "podman".to_string(),
+                ),
+                test_utils::generate_test_workload_spec_with_param(
+                    "agent_B".to_string(),
+                    "name3".to_string(),
+                    "podman".to_string(),
+                ),
+            ],
+        );
+
+        let expected_state = r#"{
+            "currentState": {
+                "workloads": {
+                    "name1": {
+                    "agent": "agent_A",
+                    "dependencies": {
+                        "workload A": "RUNNING",
+                        "workload C": "STOPPED"
+                    },
+                    "updateStrategy": "UNSPECIFIED",
+                    "accessRights": {
+                        "allow": [],
+                        "deny": []
+                    },
+                    "runtime": "podman",
+                    "name": "name1",
+                    "restart": true,
+                    "tags": [
+                        {
+                        "key": "key",
+                        "value": "value"
+                        }
+                    ],
+                    "runtimeConfig": "image: alpine:latest\ncommand: [\"echo\"]\nargs: [\"Hello Ankaios\"]"
+                    }
+                }
+            }
+        }"#;
+
+        let cli_output = generate_compact_state_output(
+            &input_state,
+            vec!["currentState.workloads.name1".to_string()],
+            OutputFormat::Yaml,
+        )
+        .unwrap();
+
+        let expected_value: serde_yaml::Value = serde_yaml::from_str(expected_state).unwrap();
+
+        assert_eq!(cli_output, serde_yaml::to_string(&expected_value).unwrap());
+    }
+
+    #[test]
+    fn utest_generate_compact_state_output_multiple_filter_masks() {
+        let input_state = generate_test_complete_state(
+            "request_id".to_owned(),
+            vec![
+                test_utils::generate_test_workload_spec_with_param(
+                    "agent_A".to_string(),
+                    "name1".to_string(),
+                    "podman".to_string(),
+                ),
+                test_utils::generate_test_workload_spec_with_param(
+                    "agent_B".to_string(),
+                    "name2".to_string(),
+                    "podman".to_string(),
+                ),
+                test_utils::generate_test_workload_spec_with_param(
+                    "agent_B".to_string(),
+                    "name3".to_string(),
+                    "podman".to_string(),
+                ),
+            ],
+        );
+
+        let expected_state = r#"{
+            "currentState": {
+                "workloads": {
+                    "name1": {
+                        "agent": "agent_A",
+                        "dependencies": {
+                            "workload A": "RUNNING",
+                            "workload C": "STOPPED"
+                        },
+                        "updateStrategy": "UNSPECIFIED",
+                        "accessRights": {
+                            "allow": [],
+                            "deny": []
+                        },
+                        "runtime": "podman",
+                        "name": "name1",
+                        "restart": true,
+                        "tags": [
+                            {
+                            "key": "key",
+                            "value": "value"
+                            }
+                        ],
+                        "runtimeConfig": "image: alpine:latest\ncommand: [\"echo\"]\nargs: [\"Hello Ankaios\"]"
+                    },
+                    "name2": {
+                        "agent": "agent_B"
+                    }
+                }
+            }
+        }"#;
+
+        let cli_output = generate_compact_state_output(
+            &input_state,
+            vec![
+                "currentState.workloads.name1".to_string(),
+                "currentState.workloads.name2.agent".to_string(),
+            ],
+            OutputFormat::Yaml,
+        )
+        .unwrap();
+
+        let expected_value: serde_yaml::Value = serde_yaml::from_str(expected_state).unwrap();
+
+        assert_eq!(cli_output, serde_yaml::to_string(&expected_value).unwrap());
+    }
+
+    #[test]
+    fn utest_get_filtered_value_filter_key_with_mapping() {
+        let deserialized_map: serde_yaml::Value =
+            serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
+        let result =
+            get_filtered_value(&deserialized_map, &["currentState", "workloads", "nginx"]).unwrap();
+        assert_eq!(
+            result.get("restart").unwrap(),
+            &serde_yaml::Value::Bool(true)
+        );
+    }
+
+    #[test]
+    fn utest_get_filtered_value_filter_key_without_mapping() {
+        let deserialized_map: serde_yaml::Value =
+            serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
+        let result = get_filtered_value(
+            &deserialized_map,
+            &["currentState", "workloads", "nginx", "agent"],
+        )
+        .unwrap();
+        let expected = serde_yaml::Value::String("agent_A".to_string());
+        assert_eq!(result, &expected);
+    }
+
+    #[test]
+    fn utest_get_filtered_value_empty_mask() {
+        let deserialized_map: serde_yaml::Value =
+            serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
+        let result = get_filtered_value(&deserialized_map, &[]).unwrap();
+        assert!(result.get("currentState").is_some());
+    }
+
+    #[test]
+    fn utest_get_filtered_value_not_existing_keys() {
+        let deserialized_map: serde_yaml::Value =
+            serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
+
+        let result = get_filtered_value(
+            &deserialized_map,
+            &["currentState", "workloads", "notExistingWorkload", "nginx"],
+        );
+        assert!(result.is_none());
+
+        let result = get_filtered_value(
+            &deserialized_map,
+            &[
+                "currentState",
+                "workloads",
+                "notExistingWorkload",
+                "notExistingField",
+            ],
+        );
+        assert!(result.is_none());
+
+        let result = get_filtered_value(
+            &deserialized_map,
+            &[
+                "currentState",
+                "workloads",
+                "nginx",
+                "agent",
+                "notExistingField",
+            ],
+        );
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn utest_update_compact_state_create_two_keys() {
+        let mut deserialized_map: serde_yaml::Value =
+            serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
+
+        // update by inserting two new nested keys and a new empty mapping as value
+        update_compact_state(
+            &mut deserialized_map,
+            &[
+                "currentState",
+                "workloads",
+                "createThisKey",
+                "createThisKey",
+            ],
+            serde_yaml::Value::Mapping(Default::default()),
+        );
+
+        assert!(deserialized_map
+            .get("currentState")
+            .and_then(|next| next.get("workloads").and_then(|next| next
+                .get("createThisKey")
+                .and_then(|next| next.get("createThisKey"))))
+            .is_some());
+    }
+
+    #[test]
+    fn utest_update_compact_state_keep_value_of_existing_key() {
+        let mut deserialized_map: serde_yaml::Value =
+            serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
+        // do not update value of existing key
+        update_compact_state(
+            &mut deserialized_map,
+            &[
+                "currentState",
+                "workloads",
+                "nginx",
+                "restart",
+                "createThisKey",
+            ],
+            serde_yaml::Value::Mapping(Default::default()),
+        );
+
+        assert_eq!(
+            deserialized_map
+                .get("currentState")
+                .and_then(|next| next
+                    .get("workloads")
+                    .and_then(|next| next.get("nginx").and_then(|next| next.get("restart"))))
+                .unwrap(),
+            &serde_yaml::Value::Bool(true)
+        );
+    }
+
+    #[test]
+    fn utest_update_compact_state_insert_into_empty_map() {
+        // insert keys nested into empty map and add empty mapping as value
+        let mut empty_map = serde_yaml::Value::Mapping(Default::default());
+        update_compact_state(
+            &mut empty_map,
+            &["currentState", "workloads", "nginx"],
+            serde_yaml::Value::Mapping(Default::default()),
+        );
+
+        assert!(empty_map
+            .get("currentState")
+            .and_then(|next| next.get("workloads").and_then(|next| next.get("nginx")))
+            .is_some());
+    }
+
+    #[test]
+    fn utest_update_compact_state_do_not_update_on_empty_mask() {
+        let mut empty_map = serde_yaml::Value::Mapping(Default::default());
+        empty_map.as_mapping_mut().unwrap().insert(
+            "currentState".into(),
+            serde_yaml::Value::Mapping(Default::default()),
+        );
+        let expected_map = empty_map.clone();
+
+        // do not update map if no masks are provided
+        update_compact_state(
+            &mut empty_map,
+            &[],
+            serde_yaml::Value::Mapping(Default::default()),
+        );
+        assert_eq!(empty_map, expected_map);
     }
 }

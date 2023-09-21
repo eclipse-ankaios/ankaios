@@ -57,7 +57,7 @@ RUN curl -sL https://github.com/itsallcode/openfasttrace/releases/download/3.6.0
 COPY oft /usr/local/bin
 
 # MkDocs Material
-RUN pip install mkdocs-material pillow cairosvg
+RUN pip install mkdocs-material pillow cairosvg mike
 
 # protoc-gen-doc
 RUN curl -sL https://github.com/pseudomuto/protoc-gen-doc/releases/download/v1.5.1/protoc-gen-doc_1.5.1_linux_${TARGETARCH}.tar.gz | tar xz --directory=/usr/local/bin protoc-gen-doc

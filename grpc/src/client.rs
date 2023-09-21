@@ -16,6 +16,7 @@ use std::fmt;
 
 use crate::execution_command_proxy;
 use crate::execution_command_proxy::GRPCExecutionRequestStreaming;
+use crate::proxy_error::GrpcProxyError;
 use crate::state_change_proxy;
 use api::proto;
 use api::proto::agent_connection_client::AgentConnectionClient;
@@ -24,6 +25,7 @@ use api::proto::state_change_request::StateChangeRequestEnum;
 use api::proto::AgentHello;
 
 use common::communications_client::CommunicationsClient;
+use common::communications_error::CommunicationMiddlewareError;
 use common::execution_interface::ExecutionCommand;
 
 use common::state_change_interface::StateChangeReceiver;
@@ -73,7 +75,7 @@ impl CommunicationsClient for GRPCCommunicationsClient {
         &mut self,
         mut server_rx: StateChangeReceiver,
         agent_tx: Sender<ExecutionCommand>,
-    ) {
+    ) -> Result<(), CommunicationMiddlewareError> {
         log::info!("gRPC Communication Client starts.");
 
         // [impl->swdd~grpc-client-retries-connection~2]
@@ -89,10 +91,9 @@ impl CommunicationsClient for GRPCCommunicationsClient {
                     ConnectionType::Cli => {
                         match x {
                             // [impl->swdd~grpc-client-outputs-error-server-unavailability-for-cli-connection~1]
-                            GrpcConnectionError::ServerNotAvailable(_err) => {
-                                log::error!(
-                                    "No connection to the server! Make sure that Ankaios Server is running."
-                                );
+                            GrpcConnectionError::ServerNotAvailable(err) => {
+                                log::debug!("No connection to the server: '{err}'");
+                                return Err(CommunicationMiddlewareError("No connection to the server! Make sure that Ankaios Server is running.".to_string()));
                             }
                             // [impl->swdd~grpc-client-outputs-error-server-connection-loss-for-cli-connection~1]
                             GrpcConnectionError::ConnectionInterrupted(err) => {
@@ -107,6 +108,8 @@ impl CommunicationsClient for GRPCCommunicationsClient {
                 }
             }
         }
+
+        Ok(())
     }
 }
 
@@ -139,6 +142,12 @@ impl From<SendError<proto::StateChangeRequest>> for GrpcConnectionError {
 
 impl From<tonic::Status> for GrpcConnectionError {
     fn from(err: tonic::Status) -> Self {
+        GrpcConnectionError::ConnectionInterrupted(err.to_string())
+    }
+}
+
+impl From<GrpcProxyError> for GrpcConnectionError {
+    fn from(err: GrpcProxyError) -> Self {
         GrpcConnectionError::ConnectionInterrupted(err.to_string())
     }
 }
