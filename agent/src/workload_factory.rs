@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     podman::PodmanKubeWorkloadId,
@@ -8,7 +8,7 @@ use crate::{
     workload_id::WorkloadId,
 };
 
-type BoxedRuntime = Box<
+type BoxedRuntime = Arc<
     dyn Runtime<
         Id = dyn WorkloadId,
         Rc = dyn RuntimeConfig,
@@ -22,7 +22,7 @@ struct WorkloadFactory {
 
 impl WorkloadFactory {
     fn create_workload(&self, runtime_id: String) -> NewWorkload {
-        let runtime = self.runtime_map.get(&runtime_id).unwrap();
+        let runtime = self.runtime_map.get(&runtime_id).unwrap().clone();
 
         let wl_id = PodmanKubeWorkloadId {
             manifest: "bla bla".to_string(),
@@ -30,7 +30,7 @@ impl WorkloadFactory {
 
         NewWorkload {
             workload_id: Box::new(wl_id),
-            runtime
+            runtime,
         }
     }
 }
