@@ -20,3 +20,9 @@ pub struct NewWorkload {
         >,
     >,
 }
+
+impl NewWorkload {
+    pub fn delete(self) {
+        // TODO delete workload
+    }
+}

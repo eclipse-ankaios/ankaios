@@ -16,12 +16,12 @@ type BoxedRuntime = Arc<
     >,
 >;
 
-struct WorkloadFactory {
+pub struct WorkloadFactory {
     runtime_map: HashMap<String, BoxedRuntime>,
 }
 
 impl WorkloadFactory {
-    fn create_workload(&self, runtime_id: String) -> NewWorkload {
+    pub fn create_workload(&self, runtime_id: String) -> NewWorkload {
         let runtime = self.runtime_map.get(&runtime_id).unwrap().clone();
 
         let wl_id = PodmanKubeWorkloadId {
