@@ -17,6 +17,7 @@ use common::state_change_interface::StateChangeSender;
 use common::std_extensions::IllegalStateResult;
 use podman_api::models::ContainerMount;
 use podman_api::models::ListContainer;
+use podman_api::models::Namespace;
 use podman_api::opts::ContainerCreateOpts;
 use podman_api::opts::ContainerDeleteOpts;
 use podman_api::opts::ContainerStopOpts;
@@ -255,6 +256,13 @@ impl PodmanUtils {
 
         if let Some(args) = workload_cfg.args {
             create_options_builder = create_options_builder.command(args);
+        }
+
+        if let Some(network_mode) = workload_cfg.network_mode {
+            create_options_builder = create_options_builder.net_namespace(Namespace {
+                nsmode: Some(network_mode),
+                value: None,
+            });
         }
 
         let container_options = create_options_builder.build();
