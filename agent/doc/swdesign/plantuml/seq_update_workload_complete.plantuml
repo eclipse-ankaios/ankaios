@@ -1,0 +1,67 @@
+@startuml seq_update_workload_initial
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "Ankaios Server"
+    participant "Ankaios Server" as server
+end box
+
+box "Ankaios Agent"
+    participant "AgentManager" as manager
+    participant "RuntimeManager" as runtime_mgr
+
+    participant "WorkloadFactory" as wl_factory
+    participant "Workload<Podman>" as wl_facade
+
+end box
+
+
+
+activate manager
+activate server
+
+note over manager, server
+The communication between
+the Agent Manager and the
+Ankaios Server is simpliefied
+here. The actuall calls go over
+the Communication Middleware.
+end note
+
+server ->> manager ++: UpdateWorkload //first for that agent
+
+... general steps of handling the UpdateWorkload command ...
+
+manager -> runtime_mgr ++: start (initial list of \nrequired Workloads)
+
+runtime_mgr -> wl_factory ++: start
+
+wl_factory -> wl_factory ++--: finds existing Workloads and take actions
+
+...
+
+wl_factory -->> runtime_mgr: Vec<workloads>
+... 
+
+server ->> manager ++: UpdateWorkload //subsequent update
+
+manager -> runtime_mgr ++: UpdateWorkloads 
+
+loop per workload
+
+opt new
+runtime_mgr -> wl_factory ++: new Workload
+wl_factory -> wl_facade **: 
+wl_factory -->> runtime_mgr --: workloads
+else update / delete
+runtime_mgr -> runtime_mgr: find workload and update/delete
+end
+
+end
+
+...
+
+manager ->> server --++: forward UpdateWorkloadState
+
+... 
+
+@enduml
