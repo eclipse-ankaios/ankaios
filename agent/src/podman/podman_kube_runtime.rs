@@ -34,22 +34,16 @@ pub struct PlayKubeError {}
 #[async_trait]
 impl Runtime for PodmanKubeRuntime {
     type Id = PodmanKubeWorkloadId;
-    type Rc = PodmanKubeConfig;
     type StateChecker = GenericPollingStateChecker;
 
     async fn create_workload(
         &self,
         workload_spec: &WorkloadSpec,
-        runtime_cfg: &Self::Rc,
     ) -> Result<(Self::Id, Self::StateChecker), RuntimeError> {
         todo!()
     }
 
-    async fn delete_workload(
-        &self,
-        workload_id: Self::Id,
-        runtime_cfg: &Self::Rc,
-    ) -> Result<(Self::Id, Self::StateChecker), RuntimeError> {
+    async fn delete_workload(&self, workload_id: Self::Id) -> Result<(), RuntimeError> {
         todo!()
     }
 }

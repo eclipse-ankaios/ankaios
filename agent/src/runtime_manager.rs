@@ -5,7 +5,7 @@ use common::objects::{DeletedWorkload, WorkloadSpec};
 use crate::{workload::NewWorkload, workload_factory::WorkloadFactory};
 
 struct RuntimeManager {
-    workloads: HashMap<String, NewWorkload>,
+    workloads: HashMap<String, Box<dyn NewWorkload>>,
     wl_factory: WorkloadFactory,
 }
 
@@ -17,7 +17,7 @@ impl RuntimeManager {
     ) {
         for workload in deleted_workloads {
             if let Some(x) = self.workloads.remove(&workload.name) {
-                x.delete()
+                x.delete().await
             }
         }
 

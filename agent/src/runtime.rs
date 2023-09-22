@@ -31,20 +31,14 @@ pub trait RuntimeConfig {}
 
 #[async_trait]
 // #[cfg_attr(test, automock(type State=String; type Id=String;))]
-pub trait Runtime{
-    type Id: WorkloadId;
-    type Rc: RuntimeConfig;
+pub trait Runtime: Sync + Send {
+    type Id;
     type StateChecker: Send + StoppableStateChecker; // This is definitely not Clone
 
     async fn create_workload(
         &self,
         workload_spec: &WorkloadSpec,
-        runtime_cfg: &Self::Rc,
     ) -> Result<(Self::Id, Self::StateChecker), RuntimeError>;
 
-    async fn delete_workload(
-        &self,
-        workload_id: Self::Id,
-        runtime_cfg: &Self::Rc,
-    ) -> Result<(Self::Id, Self::StateChecker), RuntimeError>;
+    async fn delete_workload(&self, workload_id: Self::Id) -> Result<(), RuntimeError>;
 }

@@ -5,24 +5,33 @@ use crate::{
     stoppable_state_checker::StoppableStateChecker,
     workload_id::WorkloadId,
 };
-use common::objects::WorkloadSpec;
+use async_trait::async_trait;
+use common::objects::RuntimeWorkload;
 
 // #[derive(Debug)]
-pub struct NewWorkload {
-    // channel: CommandChannel,
-    // workload_spec: WorkloadSpec,
-    pub workload_id: Box<dyn WorkloadId>,
-    pub runtime: Arc<
-        dyn Runtime<
-            Id = dyn WorkloadId,
-            Rc = dyn RuntimeConfig,
-            StateChecker = dyn StoppableStateChecker,
-        >,
-    >,
+#[async_trait]
+pub trait NewWorkload {
+    fn update(&self, spec: RuntimeWorkload);
+    async fn delete(self: Box<Self>);
 }
 
-impl NewWorkload {
-    pub fn delete(self) {
-        // TODO delete workload
+// #[derive(Debug)]
+pub struct GenericWorkload<Id, StateChecker: StoppableStateChecker> {
+    // channel: CommandChannel,
+    // workload_spec: WorkloadSpec,
+    pub workload_id: Id,
+    pub runtime: Arc<dyn Runtime<Id = Id, StateChecker = StateChecker>>,
+}
+
+#[async_trait]
+impl<Id: Send, StateChecker: StoppableStateChecker + Send> NewWorkload
+    for GenericWorkload<Id, StateChecker>
+{
+    fn update(&self, spec: RuntimeWorkload) {
+        todo!()
+    }
+
+    async fn delete(self: Box<Self>) {
+        self.runtime.delete_workload(self.workload_id).await;
     }
 }
