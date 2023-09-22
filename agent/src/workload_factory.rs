@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::format};
 
 use async_trait::async_trait;
 use common::{
@@ -8,7 +8,7 @@ use common::{
 use tokio::sync::mpsc;
 
 use crate::{
-    runtime::{OwnableRuntime, Runtime},
+    runtime::{OwnableRuntime, Runtime, RuntimeError},
     stoppable_state_checker::StoppableStateChecker,
     workload::{GenericWorkload, NewWorkload},
 };
@@ -17,7 +17,10 @@ static COMMAND_BUFFER_SIZE: usize = 5;
 
 #[async_trait]
 trait WorkloadCreator {
-    async fn create_workload(&self, runtime_workload: RuntimeWorkload) -> Box<dyn NewWorkload>;
+    async fn create_workload(
+        &self,
+        runtime_workload: RuntimeWorkload,
+    ) -> Result<Box<dyn NewWorkload>, RuntimeError>;
 }
 
 struct GenericWorkloadCreator<
@@ -33,7 +36,10 @@ impl<
         StateChecker: StoppableStateChecker + Send + Sync + 'static,
     > WorkloadCreator for GenericWorkloadCreator<WorkloadId, StateChecker>
 {
-    async fn create_workload(&self, runtime_workload: RuntimeWorkload) -> Box<dyn NewWorkload> {
+    async fn create_workload(
+        &self,
+        runtime_workload: RuntimeWorkload,
+    ) -> Result<Box<dyn NewWorkload>, RuntimeError> {
         let (workload_id, state_checker) = self
             .runtime
             .create_workload(&runtime_workload)
@@ -42,23 +48,36 @@ impl<
 
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
 
-        Box::new(GenericWorkload {
+        // TODO: create the task that decouples the creation here
+
+        Ok(Box::new(GenericWorkload {
             channel: command_sender,
             workload_id,
             state_checker,
             runtime: self.runtime.to_owned(),
-        })
+        }))
     }
 }
 
-pub struct WorkloadFactory {}
+pub struct WorkloadFactory {
+    workload_creator_map: HashMap<String, Box<dyn WorkloadCreator>>,
+}
 
 impl WorkloadFactory {
-    pub fn create_workload(
+    pub async fn create_workload(
         &self,
         runtime_id: String,
         workload_spec: WorkloadSpec,
-    ) -> Box<dyn NewWorkload> {
-        todo!()
+    ) -> Result<Box<dyn NewWorkload>, RuntimeError> {
+        if let Some(workload_creator) = self.workload_creator_map.get(&runtime_id) {
+            workload_creator
+                .create_workload(workload_spec.workload)
+                .await
+        } else {
+            Err(RuntimeError::Create(format!(
+                "Runtime '{}' not found.",
+                runtime_id,
+            )))
+        }
     }
 }

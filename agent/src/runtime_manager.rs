@@ -26,11 +26,13 @@ impl RuntimeManager {
         }
 
         for workload_spec in added_workloads {
-            self.workloads.insert(
-                workload_spec.workload.name.clone(),
-                self.wl_factory
-                    .create_workload(workload_spec.runtime.clone(), workload_spec),
-            );
+            let workload_name = workload_spec.workload.name.clone();
+            let workload = self
+                .wl_factory
+                .create_workload(workload_spec.runtime.clone(), workload_spec)
+                .await
+                .unwrap();
+            self.workloads.insert(workload_name, workload);
         }
     }
 }
