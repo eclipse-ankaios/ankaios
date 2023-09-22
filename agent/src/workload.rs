@@ -7,7 +7,6 @@ use crate::{
 use async_trait::async_trait;
 use common::objects::RuntimeWorkload;
 use tokio::sync::mpsc;
-
 // #[derive(Debug)]
 #[async_trait]
 pub trait NewWorkload {
@@ -16,21 +15,21 @@ pub trait NewWorkload {
 }
 
 #[derive(Debug)]
-enum WorkloadCommand {
+pub enum WorkloadCommand {
     Stop,
     Update(RuntimeWorkload),
 }
 
 // #[derive(Debug)]
 pub struct GenericWorkload<Id, StateChecker: StoppableStateChecker> {
-    channel: mpsc::Sender<WorkloadCommand>,
-    // workload_spec: WorkloadSpec,
+    pub channel: mpsc::Sender<WorkloadCommand>,
     pub workload_id: Id,
-    pub runtime: Arc<dyn Runtime<Id = Id, StateChecker = StateChecker>>,
+    pub state_checker: StateChecker,
+    pub runtime: Box<dyn Runtime<Id, StateChecker>>,
 }
 
 #[async_trait]
-impl<Id: Send + Sync, StateChecker: StoppableStateChecker + Send> NewWorkload
+impl<Id: Send + Sync, StateChecker: StoppableStateChecker + Send + Sync> NewWorkload
     for GenericWorkload<Id, StateChecker>
 {
     async fn update(&self, spec: RuntimeWorkload) -> Result<(), RuntimeError> {
@@ -41,6 +40,9 @@ impl<Id: Send + Sync, StateChecker: StoppableStateChecker + Send> NewWorkload
     }
 
     async fn delete(self: Box<Self>) -> Result<(), RuntimeError> {
-        self.runtime.delete_workload(self.workload_id).await
+        self.channel
+            .send(WorkloadCommand::Stop)
+            .await
+            .map_err(|err| RuntimeError::Delete(err.to_string()))
     }
 }

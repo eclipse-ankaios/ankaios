@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use async_trait::async_trait;
 
-use common::objects::WorkloadSpec;
+use common::objects::{RuntimeWorkload, WorkloadSpec};
 
 use crate::stoppable_state_checker::StoppableStateChecker;
 
@@ -30,15 +30,27 @@ impl Display for RuntimeError {
 }
 
 #[async_trait]
-// #[cfg_attr(test, automock(type State=String; type Id=String;))]
-pub trait Runtime: Sync + Send {
-    type Id;
-    type StateChecker: Send + StoppableStateChecker; // This is definitely not Clone
+pub trait Runtime<WorkloadId, StateChecker>: Sync + Send {
+    // type Id;
+    // type StateChecker: Send + StoppableStateChecker; // This is definitely not Clone
 
     async fn create_workload(
         &self,
-        workload_spec: &WorkloadSpec,
-    ) -> Result<(Self::Id, Self::StateChecker), RuntimeError>;
+        runtime_workload_spec: &RuntimeWorkload,
+    ) -> Result<(WorkloadId, StateChecker), RuntimeError>;
 
-    async fn delete_workload(&self, workload_id: Self::Id) -> Result<(), RuntimeError>;
+    async fn delete_workload(&self, workload_id: WorkloadId) -> Result<(), RuntimeError>;
+}
+
+pub trait OwnableRuntime<WorkloadId, StateChecker>: Runtime<WorkloadId, StateChecker> {
+    fn to_owned(&self) -> Box<dyn Runtime<WorkloadId, StateChecker>>;
+}
+
+impl<R, WorkloadId, StateChecker> OwnableRuntime<WorkloadId, StateChecker> for R
+where
+    R: Runtime<WorkloadId, StateChecker> + Clone + 'static,
+{
+    fn to_owned(&self) -> Box<dyn Runtime<WorkloadId, StateChecker>> {
+        Box::new(self.clone())
+    }
 }

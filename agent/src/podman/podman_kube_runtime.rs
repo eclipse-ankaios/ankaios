@@ -1,5 +1,6 @@
 use async_trait::async_trait;
-use common::objects::WorkloadSpec;
+
+use common::objects::RuntimeWorkload;
 
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
@@ -26,18 +27,15 @@ pub struct PlayKubeOutput {}
 pub struct PlayKubeError {}
 
 #[async_trait]
-impl Runtime for PodmanKubeRuntime {
-    type Id = PodmanKubeWorkloadId;
-    type StateChecker = GenericPollingStateChecker;
-
+impl Runtime<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRuntime {
     async fn create_workload(
         &self,
-        workload_spec: &WorkloadSpec,
-    ) -> Result<(Self::Id, Self::StateChecker), RuntimeError> {
+        runtime_workload: &RuntimeWorkload,
+    ) -> Result<(PodmanKubeWorkloadId, GenericPollingStateChecker), RuntimeError> {
         todo!()
     }
 
-    async fn delete_workload(&self, workload_id: Self::Id) -> Result<(), RuntimeError> {
+    async fn delete_workload(&self, workload_id: PodmanKubeWorkloadId) -> Result<(), RuntimeError> {
         todo!()
     }
 }
