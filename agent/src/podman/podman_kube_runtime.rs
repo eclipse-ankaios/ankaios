@@ -1,12 +1,9 @@
-use std::process::Command;
-
 use async_trait::async_trait;
 use common::objects::WorkloadSpec;
 
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
-    runtime::{Runtime, RuntimeConfig, RuntimeError},
-    workload_id::WorkloadId,
+    runtime::{Runtime, RuntimeError},
 };
 
 #[derive(Debug, Copy, Clone)]
@@ -21,9 +18,6 @@ pub struct PodmanKubeWorkloadId {
     // and one needs the compete manifest to tear down the deployed resources.
     pub manifest: String,
 }
-
-impl WorkloadId for PodmanKubeWorkloadId {}
-impl RuntimeConfig for PodmanKubeConfig {}
 
 #[derive(Debug)]
 pub struct PlayKubeOutput {}

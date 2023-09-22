@@ -28,15 +28,12 @@ pub mod test_helper;
 mod workload_facade;
 mod workload_trait;
 
-//////////////////////
 mod generic_polling_state_checker;
 mod runtime;
 mod runtime_manager;
 mod stoppable_state_checker;
 mod workload;
 mod workload_factory;
-mod workload_id;
-//////////////////////
 
 use common::execution_interface::ExecutionCommand;
 use common::std_extensions::{GracefulExitResult, IllegalStateResult, UnreachableResult};

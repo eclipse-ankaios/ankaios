@@ -17,14 +17,19 @@ impl RuntimeManager {
     ) {
         for workload in deleted_workloads {
             if let Some(x) = self.workloads.remove(&workload.name) {
-                x.delete().await
+                if let Err(err) = x.delete().await {
+                    log::error!("Failed to delete workload '{}': '{}'", workload.name, err);
+                }
+            } else {
+                log::warn!("Workload '{}' already gone.", workload.name);
             }
         }
 
-        for workload in added_workloads {
+        for workload_spec in added_workloads {
             self.workloads.insert(
-                workload.workload.name.clone(),
-                self.wl_factory.create_workload(workload.runtime.clone()),
+                workload_spec.workload.name.clone(),
+                self.wl_factory
+                    .create_workload(workload_spec.runtime.clone(), workload_spec),
             );
         }
     }

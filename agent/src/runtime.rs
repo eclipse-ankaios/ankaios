@@ -1,33 +1,33 @@
 use std::fmt::Display;
 
 use async_trait::async_trait;
-#[cfg(test)]
-use mockall::automock;
 
 use common::objects::WorkloadSpec;
 
-use crate::{stoppable_state_checker::StoppableStateChecker, workload_id::WorkloadId};
+use crate::stoppable_state_checker::StoppableStateChecker;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeError {
-    CreateError(String),
-    DeleteError(String),
+    Create(String),
+    Update(String),
+    Delete(String),
 }
 
 impl Display for RuntimeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RuntimeError::CreateError(msg) => {
+            RuntimeError::Create(msg) => {
                 write!(f, "Could not create workload: '{}'", msg)
             }
-            RuntimeError::DeleteError(msg) => {
+            RuntimeError::Update(msg) => {
+                write!(f, "Could not update workload: '{}'", msg)
+            }
+            RuntimeError::Delete(msg) => {
                 write!(f, "Could not delete workload '{}'", msg)
             }
         }
     }
 }
-
-pub trait RuntimeConfig {}
 
 #[async_trait]
 // #[cfg_attr(test, automock(type State=String; type Id=String;))]
