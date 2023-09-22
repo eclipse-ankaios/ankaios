@@ -260,7 +260,7 @@ impl PodmanUtils {
 
         if let Some(network_mode) = workload_cfg.network_mode {
             create_options_builder = create_options_builder.net_namespace(Namespace {
-                nsmode: Some(network_mode),
+                nsmode: Some(network_mode.to_lowercase()),
                 value: None,
             });
         }
