@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use common::objects::{DeletedWorkload, WorkloadSpec};
 
-use crate::{workload::NewWorkload, workload_factory::WorkloadFactory};
+use crate::{workload::Workload, workload_factory::WorkloadFactory};
 
 struct RuntimeManager {
-    workloads: HashMap<String, Box<dyn NewWorkload>>,
-    wl_factory: WorkloadFactory,
+    workloads: HashMap<String, Workload>,
+    workload_factory_map: HashMap<String, Box<dyn WorkloadFactory>>,
 }
 
 impl RuntimeManager {
@@ -28,8 +28,10 @@ impl RuntimeManager {
         for workload_spec in added_workloads {
             let workload_name = workload_spec.workload.name.clone();
             let workload = self
-                .wl_factory
-                .create_workload(workload_spec.runtime.clone(), workload_spec)
+                .workload_factory_map
+                .get(&workload_spec.runtime)
+                .unwrap() // TODO
+                .create_workload(workload_spec.workload)
                 .await
                 .unwrap();
             self.workloads.insert(workload_name, workload);

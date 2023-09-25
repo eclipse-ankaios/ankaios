@@ -1,18 +1,6 @@
-use std::sync::Arc;
-
-use crate::{
-    runtime::{Runtime, RuntimeError},
-    stoppable_state_checker::StoppableStateChecker,
-};
-use async_trait::async_trait;
+use crate::runtime::RuntimeError;
 use common::objects::RuntimeWorkload;
-use tokio::sync::mpsc;
-// #[derive(Debug)]
-#[async_trait]
-pub trait NewWorkload {
-    async fn update(&self, spec: RuntimeWorkload) -> Result<(), RuntimeError>;
-    async fn delete(self: Box<Self>) -> Result<(), RuntimeError>;
-}
+use tokio::{sync::mpsc, task::JoinHandle};
 
 #[derive(Debug)]
 pub enum WorkloadCommand {
@@ -21,25 +9,20 @@ pub enum WorkloadCommand {
 }
 
 // #[derive(Debug)]
-pub struct GenericWorkload<Id, StateChecker: StoppableStateChecker> {
+pub struct Workload {
     pub channel: mpsc::Sender<WorkloadCommand>,
-    pub workload_id: Id,
-    pub state_checker: StateChecker,
-    pub runtime: Box<dyn Runtime<Id, StateChecker>>,
+    pub task_handle: JoinHandle<()>,
 }
 
-#[async_trait]
-impl<Id: Send + Sync, StateChecker: StoppableStateChecker + Send + Sync> NewWorkload
-    for GenericWorkload<Id, StateChecker>
-{
-    async fn update(&self, spec: RuntimeWorkload) -> Result<(), RuntimeError> {
+impl Workload {
+    pub async fn update(&self, spec: RuntimeWorkload) -> Result<(), RuntimeError> {
         self.channel
             .send(WorkloadCommand::Update(spec))
             .await
             .map_err(|err| RuntimeError::Update(err.to_string()))
     }
 
-    async fn delete(self: Box<Self>) -> Result<(), RuntimeError> {
+    pub async fn delete(self) -> Result<(), RuntimeError> {
         self.channel
             .send(WorkloadCommand::Stop)
             .await
