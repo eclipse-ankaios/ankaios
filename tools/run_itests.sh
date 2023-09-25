@@ -49,7 +49,7 @@ if [ $(ps aux | grep 'podman system service'| wc -l) -eq "1" ]; then
   echo "podman service not running -> start podman service"
   sudo podman system service --time=0 unix:///tmp/podman.sock &
   t=0
-  until [ -e /tmp/podman.sock ] || (( t++ >= 5 )); do
+  until [ -e /tmp/podman.sock ] || (( t++ >= 10 )); do
     sleep 1
   done
   [ -e /tmp/podman.sock ] && echo /tmp/podman.sock created. || echo /tmp/podman.sock not found.
