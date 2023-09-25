@@ -24,7 +24,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:$DEV_CONTAINER_VERSION
+      image: "ghcr.io/eclipse-ankaios/devcontainer-base:$DEV_CONTAINER_VERSION"
     steps:
       - uses: actions/checkout@v3.5.3
 
