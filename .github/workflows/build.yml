@@ -14,7 +14,7 @@ jobs:
   test_and_build_linux_amd64:
     runs-on: ubuntu-latest
     container:
-      image: "$DEV_CONTAINER_IMAGE"
+      image: ${{ env.DEV_CONTAINER_IMAGE }}
     steps:
       - uses: actions/checkout@v3.5.3
       - uses: Swatinem/rust-cache@v2.6.2
@@ -65,7 +65,7 @@ jobs:
     # and in addition, tests for arm64 can be enabled in this job, too
     runs-on: ubuntu-latest
     container:
-      image: "$DEV_CONTAINER_IMAGE"
+      image: ${{ env.DEV_CONTAINER_IMAGE }}
     steps:
       - uses: actions/checkout@v3.5.3
       
@@ -90,7 +90,7 @@ jobs:
   requirements:
     runs-on: ubuntu-latest
     container:
-      image: "$DEV_CONTAINER_IMAGE"
+      image: ${{ env.DEV_CONTAINER_IMAGE }}
     steps:
       - uses: actions/checkout@v3.5.3
       - run: |
