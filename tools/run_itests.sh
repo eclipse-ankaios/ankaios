@@ -48,6 +48,11 @@ check_executable $ANK_AGENT
 if [ $(ps aux | grep 'podman system service'| wc -l) -eq "1" ]; then
   echo "podman service not running -> start podman service"
   sudo podman system service --time=0 unix:///tmp/podman.sock &
+  t=0
+  until [ -e /tmp/podman.sock ] || (( t++ >= 5 )); do
+    sleep 1
+  done
+  [ -e /tmp/podman.sock ] && echo /tmp/podman.sock created. || echo /tmp/podman.sock not found.
 else
   echo "podman service is already running"
 fi
