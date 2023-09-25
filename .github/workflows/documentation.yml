@@ -16,7 +16,7 @@ on:
   workflow_call:
 
 env:
-  DEV_CONTAINER_VERSION: 0.6.0
+  DEV_CONTAINER_IMAGE: "ghcr.io/eclipse-ankaios/devcontainer-base:0.6.0"
 
 permissions:
   contents: write
@@ -24,7 +24,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     container:
-      image: "ghcr.io/eclipse-ankaios/devcontainer-base:$DEV_CONTAINER_VERSION"
+      image: "$DEV_CONTAINER_IMAGE"
     steps:
       - uses: actions/checkout@v3.5.3
 
