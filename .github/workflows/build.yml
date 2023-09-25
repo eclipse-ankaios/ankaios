@@ -7,14 +7,11 @@ on:
   workflow_dispatch:
   workflow_call:
 
-env:
-  DEV_CONTAINER_IMAGE: "ghcr.io/eclipse-ankaios/devcontainer-base:0.6.0"
-  
 jobs:      
   test_and_build_linux_amd64:
     runs-on: ubuntu-latest
     container:
-      image: ${{ env.DEV_CONTAINER_IMAGE }}
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.0
     steps:
       - uses: actions/checkout@v3.5.3
       - uses: Swatinem/rust-cache@v2.6.2
@@ -65,7 +62,7 @@ jobs:
     # and in addition, tests for arm64 can be enabled in this job, too
     runs-on: ubuntu-latest
     container:
-      image: ${{ env.DEV_CONTAINER_IMAGE }}
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.0
     steps:
       - uses: actions/checkout@v3.5.3
       
@@ -90,7 +87,7 @@ jobs:
   requirements:
     runs-on: ubuntu-latest
     container:
-      image: ${{ env.DEV_CONTAINER_IMAGE }}
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.0
     steps:
       - uses: actions/checkout@v3.5.3
       - run: |
