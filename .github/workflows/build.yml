@@ -22,7 +22,7 @@ jobs:
 
       - name: Run itests
         run: |
-          RUST_LOG=debug cargo build -- --show-output --nocapture
+          RUST_LOG=debug cargo build
           tools/run_itests.sh tests 
       - uses: actions/upload-artifact@v3.1.2
         with:
