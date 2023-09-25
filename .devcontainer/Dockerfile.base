@@ -12,7 +12,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-FROM mcr.microsoft.com/devcontainers/rust:1-1-bullseye
+FROM mcr.microsoft.com/devcontainers/rust:1-1-bookworm
 
 ARG USERNAME=vscode
 ARG TARGETARCH
@@ -38,8 +38,25 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     protobuf-compiler-grpc \
     gcc-aarch64-linux-gnu \
     tmux \
+    uidmap \
+    fuse3 \
+    fuse-overlayfs \
+    slirp4netns \
+    podman \
     && \
     rm -rf /var/lib/apt/lists/*
+
+          
+VOLUME /var/lib/containers
+VOLUME /home/$USERNAME/.local/share/containers
+
+ADD https://raw.githubusercontent.com/containers/libpod/master/contrib/podmanimage/stable/containers.conf /etc/containers/containers.conf
+ADD https://raw.githubusercontent.com/containers/libpod/master/contrib/podmanimage/stable/podman-containers.conf /home/$USERNAME/.config/containers/containers.conf
+
+RUN mkdir -p /home/$USERNAME/.local/share/containers && \
+    chown $USERNAME:$USERNAME -R /home/$USERNAME && \
+    chmod 644 /etc/containers/containers.conf
+
 
 # install grpcurl
 RUN if [ "$TARGETARCH" = "amd64" ]; then \
@@ -57,7 +74,7 @@ RUN curl -sL https://github.com/itsallcode/openfasttrace/releases/download/3.6.0
 COPY oft /usr/local/bin
 
 # MkDocs Material
-RUN pip install mkdocs-material pillow cairosvg mike
+RUN PIP_BREAK_SYSTEM_PACKAGES=1 pip install mkdocs-material pillow cairosvg mike robotframework
 
 # protoc-gen-doc
 RUN curl -sL https://github.com/pseudomuto/protoc-gen-doc/releases/download/v1.5.1/protoc-gen-doc_1.5.1_linux_${TARGETARCH}.tar.gz | tar xz --directory=/usr/local/bin protoc-gen-doc
@@ -76,4 +93,4 @@ RUN cargo install cargo-llvm-cov --locked; \
 RUN rustup target add aarch64-unknown-linux-gnu \
     && rustup toolchain install stable-aarch64-unknown-linux-gnu
 
-USER root
+USER ${USERNAME}

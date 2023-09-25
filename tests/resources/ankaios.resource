@@ -5,7 +5,7 @@ Library           Process
 Library           Collections
 Library           OperatingSystem
 Library           String
-Library           resources/ankaios_library.py
+Library           ankaios_library.py
 
 *** Variables ***
 ${CURRENT_RESULT}
@@ -14,6 +14,9 @@ ${CURRENT_RESULT}
 Setup Ankaios
     ${run_result}=    Run Process  command=mktemp -d    shell=True
     Set Environment Variable    name=ANKAIOS_TEMP    value=${run_result.stdout}
+    # This can be removed when podman cli is used in Ankaios agents!
+    Run Process    command=sudo chmod 777 /tmp/podman.sock    shell=True
+    
 
 Clean up Ankaios
     Terminate All Processes    kill=True
@@ -25,8 +28,8 @@ Clean up Podman
     @{workload_names}=    Get Column Values    ${list_result}    WORKLOAD NAME
     @{workload_container_ids}=    Get Container Ids By Workload Names    ${workload_names}
     Log    ${workload_container_ids}
-    @{stop_cmd_list}=    Create List    podman stop
-    @{rm_cmd_list}=    Create List    podman rm
+    @{stop_cmd_list}=    Create List    sudo podman stop
+    @{rm_cmd_list}=    Create List    sudo podman rm
     FOR  ${wln_id_tuple}  IN  @{workload_container_ids}
         @{wln_id_list}=    Convert To List    ${wln_id_tuple}
         Append To List    ${stop_cmd_list}    ${wln_id_list}[1]

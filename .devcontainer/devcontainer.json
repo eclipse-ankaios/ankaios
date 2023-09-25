@@ -37,7 +37,9 @@
 			"bierner.markdown-preview-github-styles",
 			"hediet.vscode-drawio",
 			"redhat.vscode-yaml",
-			"bierner.markdown-mermaid"
+			"bierner.markdown-mermaid",
+            "d-biehl.robotcode",
+            "bianxianyang.htmlplay"
 		]
        }
    },

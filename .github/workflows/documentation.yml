@@ -15,13 +15,16 @@ on:
   workflow_dispatch:
   workflow_call:
 
+env:
+  DEV_CONTAINER_VERSION: 0.6.0
+
 permissions:
   contents: write
 jobs:
   deploy:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.5.0
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:$DEV_CONTAINER_VERSION
     steps:
       - uses: actions/checkout@v3.5.3
 
