@@ -14,6 +14,7 @@
 
 use common::communications_client::CommunicationsClient;
 use common::state_change_interface::StateChangeCommand;
+use generic_polling_state_checker::GenericPollingStateChecker;
 use std::collections::HashMap;
 use tokio::try_join;
 
@@ -22,7 +23,6 @@ mod cli;
 mod control_interface;
 mod parameter_storage;
 mod podman;
-mod runtime_adapter;
 #[cfg(test)]
 pub mod test_helper;
 mod workload_facade;
@@ -35,15 +35,19 @@ mod stoppable_state_checker;
 mod workload;
 mod workload_factory;
 
+use workload_factory::GenericWorkloadFactory;
+
 use common::execution_interface::ExecutionCommand;
 use common::std_extensions::{GracefulExitResult, IllegalStateResult, UnreachableResult};
 use grpc::client::GRPCCommunicationsClient;
 
 use agent_manager::AgentManager;
 
-use podman::PodmanAdapter;
+use podman::{PodmanKubeRuntime, PodmanKubeWorkloadId};
 
-use crate::runtime_adapter::RuntimeAdapter;
+use crate::runtime::Runtime;
+use crate::runtime_manager::RuntimeManager;
+use crate::workload_factory::WorkloadFactory;
 
 const BUFFER_SIZE: usize = 20;
 
@@ -67,33 +71,37 @@ async fn main() {
     let (to_server, server_receiver) =
         tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
 
-    let mut adapter_interface_map: HashMap<&str, Box<dyn RuntimeAdapter + Send + Sync>> =
-        HashMap::new();
-
     let run_directory = args
         .get_run_directory()
         .unwrap_or_exit("Run folder creation failed. Cannot continue without run folder.");
 
-    // Podman currently directly gets the server StateChangeInterface, but it shall get the agent manager interface
+    // [impl->swdd~agent-supports-podman~1]
+    let podman_kube_runtime = Box::new(PodmanKubeRuntime {});
+    let podman_kube_runtime_name = podman_kube_runtime.name();
+    let podman_factory = Box::new(GenericWorkloadFactory::<
+        PodmanKubeWorkloadId,
+        GenericPollingStateChecker,
+    >::new(podman_kube_runtime));
+    let mut workload_factory_map: HashMap<String, Box<dyn WorkloadFactory>> = HashMap::new();
+    workload_factory_map.insert(podman_kube_runtime_name, podman_factory);
+
+    // The RuntimeManager currently directly gets the server StateChangeInterface, but it shall get the agent manager interface
     // This is needed to be able to filter/authorize the commands towards the Ankaios server
     // The pipe connecting the workload to Ankaios must be in the runtime adapter
-    // [impl->swdd~agent-supports-podman~1]
-    let podman_adapter = PodmanAdapter::new(
+    let runtime_manager = RuntimeManager::new(
+        args.agent_name.clone().into(),
         run_directory.get_path(),
-        to_server.clone(),
-        args.podman_socket_path,
+        workload_factory_map,
     );
+
     let mut grpc_communications_client =
         GRPCCommunicationsClient::new_agent_communication(args.agent_name.clone(), args.server_url);
-
-    adapter_interface_map.insert(podman_adapter.get_name(), Box::new(podman_adapter));
 
     let mut agent_manager = AgentManager::new(
         args.agent_name,
         manager_receiver,
-        adapter_interface_map,
+        runtime_manager,
         to_server,
-        run_directory.get_path(),
     );
 
     let manager_task = tokio::spawn(async move { agent_manager.start().await });

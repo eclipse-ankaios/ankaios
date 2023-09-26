@@ -2,8 +2,7 @@ use std::fmt::Display;
 
 use async_trait::async_trait;
 
-use common::objects::{RuntimeWorkload, WorkloadExecutionInstanceName, AgentName};
-
+use common::objects::{AgentName, RuntimeWorkload, WorkloadExecutionInstanceName};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeError {
@@ -30,6 +29,8 @@ impl Display for RuntimeError {
 
 #[async_trait]
 pub trait Runtime<WorkloadId, StateChecker>: Sync + Send {
+    fn name(&self) -> String;
+
     async fn get_reusable_running_workloads(
         &self,
         agent_name: AgentName,

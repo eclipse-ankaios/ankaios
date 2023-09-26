@@ -28,6 +28,10 @@ pub struct PlayKubeError {}
 
 #[async_trait]
 impl Runtime<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRuntime {
+    fn name(&self) -> String {
+        "podman-kube".to_string()
+    }
+
     async fn get_reusable_running_workloads(
         &self,
         agent_name: AgentName,

@@ -11,7 +11,7 @@ use crate::{
 static COMMAND_BUFFER_SIZE: usize = 5;
 
 #[async_trait]
-pub trait WorkloadFactory {
+pub trait WorkloadFactory: Send + Sync {
     fn create_workload(
         &self,
         workload_instance_name: WorkloadExecutionInstanceName,
@@ -36,7 +36,7 @@ pub struct GenericWorkloadFactory<
     WorkloadId: Send + Sync,
     StateChecker: StoppableStateChecker + Send + Sync,
 > {
-    runtime: dyn OwnableRuntime<WorkloadId, StateChecker>,
+    runtime: Box<dyn OwnableRuntime<WorkloadId, StateChecker>>,
 }
 
 impl<WorkloadId, StateChecker> GenericWorkloadFactory<WorkloadId, StateChecker>
@@ -44,6 +44,10 @@ where
     WorkloadId: Send + Sync + 'static,
     StateChecker: StoppableStateChecker + Send + Sync + 'static,
 {
+    pub fn new(runtime: Box<dyn OwnableRuntime<WorkloadId, StateChecker>>) -> Self {
+        GenericWorkloadFactory { runtime }
+    }
+
     async fn await_new_command(
         workload_name: String,
         initial_workload_id: WorkloadId,
