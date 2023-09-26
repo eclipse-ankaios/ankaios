@@ -22,6 +22,8 @@ jobs:
 
       - name: Run itests
         run: |
+          podman pull docker.io/nginx:latest
+          podman run -dt --network=host -p 8081:80 nginx
           RUST_LOG=debug cargo build
           tools/run_itests.sh tests 
       - uses: actions/upload-artifact@v3.1.2
