@@ -12,18 +12,23 @@ static COMMAND_BUFFER_SIZE: usize = 5;
 
 #[async_trait]
 pub trait WorkloadFactory {
-    fn create_workload(&self, runtime_workload: RuntimeWorkload) -> Workload;
+    fn create_workload(
+        &self,
+        workload_instance_name: WorkloadExecutionInstanceName,
+        runtime_workload: RuntimeWorkload,
+    ) -> Workload;
 
     fn replace_workload(
         &self,
+        existing_workload_name: WorkloadExecutionInstanceName,
+        new_instance_name: WorkloadExecutionInstanceName,
         new_workload_config: RuntimeWorkload,
-        existing_Workload_name: WorkloadExecutionInstanceName,
     ) -> Workload;
 
     fn resume_workload(
         &self,
+        existing_workload_name: WorkloadExecutionInstanceName,
         runtime_workload: RuntimeWorkload,
-        existing_id: WorkloadExecutionInstanceName,
     ) -> Workload;
 }
 
@@ -63,7 +68,7 @@ where
                     }
                     return;
                 }
-                Some(WorkloadCommand::Update(runtime_workload_config)) => {
+                Some(WorkloadCommand::Update(instance_name, runtime_workload_config)) => {
                     if let Some(old_id) = workload_id {
                         if let Err(err) = runtime.delete_workload(&old_id).await {
                             log::warn!("Could not update workload '{}': '{}'", workload_name, err);
@@ -79,7 +84,10 @@ where
                         log::debug!("Workload '{}' already gone.", workload_name);
                     }
 
-                    match runtime.create_workload(runtime_workload_config).await {
+                    match runtime
+                        .create_workload(&instance_name, runtime_workload_config)
+                        .await
+                    {
                         Ok((new_workload_id, new_state_checker)) => {
                             workload_id = Some(new_workload_id);
                             state_checker = Some(new_state_checker);
@@ -114,15 +122,21 @@ impl<
     > WorkloadFactory for GenericWorkloadFactory<WorkloadId, StateChecker>
 {
     // [impl->swdd~agent-facade-start-workload~1]
-    fn create_workload(&self, new_workload_config: RuntimeWorkload) -> Workload {
+    fn create_workload(
+        &self,
+        workload_instance_name: WorkloadExecutionInstanceName,
+        new_workload_config: RuntimeWorkload,
+    ) -> Workload {
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
 
         let workload_name = new_workload_config.name.clone();
         let runtime = self.runtime.to_owned();
 
         let task_handle = tokio::spawn(async move {
-            let (workload_id, state_checker) =
-                runtime.create_workload(new_workload_config).await.unwrap();
+            let (workload_id, state_checker) = runtime
+                .create_workload(&workload_instance_name, new_workload_config)
+                .await
+                .unwrap();
 
             Self::await_new_command(
                 workload_name,
@@ -143,8 +157,9 @@ impl<
     // [impl->swdd~agent-facade-replace-existing-workload~1]
     fn replace_workload(
         &self,
+        existing_instance_name: WorkloadExecutionInstanceName,
+        new_instance_name: WorkloadExecutionInstanceName,
         new_workload_config: RuntimeWorkload,
-        existing_id: WorkloadExecutionInstanceName,
     ) -> Workload {
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
 
@@ -152,12 +167,17 @@ impl<
         let runtime = self.runtime.to_owned();
 
         let task_handle = tokio::spawn(async move {
-            let old_id = runtime.get_workload_id(existing_id).await.unwrap();
+            let old_id = runtime
+                .get_workload_id(&existing_instance_name)
+                .await
+                .unwrap();
 
             runtime.delete_workload(&old_id).await.unwrap();
 
-            let (workload_id, state_checker) =
-                runtime.create_workload(new_workload_config).await.unwrap();
+            let (workload_id, state_checker) = runtime
+                .create_workload(&new_instance_name, new_workload_config)
+                .await
+                .unwrap();
 
             Self::await_new_command(
                 workload_name,
@@ -178,8 +198,8 @@ impl<
     // [impl->swdd~agent-facade-resumes-existing-workload~1]
     fn resume_workload(
         &self,
-        new_workload_config: RuntimeWorkload,
         existing_id: WorkloadExecutionInstanceName,
+        new_workload_config: RuntimeWorkload,
     ) -> Workload {
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
 
@@ -187,7 +207,7 @@ impl<
         let runtime = self.runtime.to_owned();
 
         let task_handle = tokio::spawn(async move {
-            let workload_id = runtime.get_workload_id(existing_id).await.unwrap();
+            let workload_id = runtime.get_workload_id(&existing_id).await.unwrap();
 
             let state_checker = runtime
                 .start_checker(&workload_id, new_workload_config)

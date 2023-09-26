@@ -2,9 +2,8 @@ use std::fmt::Display;
 
 use async_trait::async_trait;
 
-use common::objects::{RuntimeWorkload, WorkloadExecutionInstanceName, WorkloadSpec};
+use common::objects::{RuntimeWorkload, WorkloadExecutionInstanceName, AgentName};
 
-use crate::stoppable_state_checker::StoppableStateChecker;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeError {
@@ -31,18 +30,22 @@ impl Display for RuntimeError {
 
 #[async_trait]
 pub trait Runtime<WorkloadId, StateChecker>: Sync + Send {
-    // type Id;
-    // type StateChecker: Send + StoppableStateChecker; // This is definitely not Clone
+    async fn get_reusable_running_workloads(
+        &self,
+        agent_name: AgentName,
+    ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError>;
 
     async fn create_workload(
         &self,
+        instance_name: &WorkloadExecutionInstanceName,
         runtime_workload_config: RuntimeWorkload,
     ) -> Result<(WorkloadId, StateChecker), RuntimeError>;
 
     async fn get_workload_id(
         &self,
-        instance_name: WorkloadExecutionInstanceName,
+        instance_name: &WorkloadExecutionInstanceName,
     ) -> Result<WorkloadId, RuntimeError>;
+
     async fn start_checker(
         &self,
         workload_id: &WorkloadId,

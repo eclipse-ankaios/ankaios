@@ -41,3 +41,6 @@ mod workload_execution_instance_name;
 pub use workload_execution_instance_name::{
     WorkloadExecutionInstanceName, WorkloadExecutionInstanceNameBuilder, WorkloadInstanceName,
 };
+
+mod agent_name;
+pub use agent_name::AgentName;

@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
-use common::objects::{DeletedWorkload, WorkloadSpec};
+use common::objects::{AgentName, DeletedWorkload, WorkloadExecutionInstanceName, WorkloadSpec};
 
 use crate::{workload::Workload, workload_factory::WorkloadFactory};
 
 struct RuntimeManager {
+    agent_name: AgentName,
     workloads: HashMap<String, Workload>,
     workload_factory_map: HashMap<String, Box<dyn WorkloadFactory>>,
 }
@@ -27,11 +28,16 @@ impl RuntimeManager {
 
         for workload_spec in added_workloads {
             let workload_name = workload_spec.workload.name.clone();
+            let workload_instance_name = WorkloadExecutionInstanceName::builder()
+                .workload_name(workload_name.clone())
+                .agent_name(self.agent_name.get())
+                .config(&workload_spec.workload.runtime_config)
+                .build();
             let workload = self
                 .workload_factory_map
                 .get(&workload_spec.runtime)
                 .unwrap() // TODO
-                .create_workload(workload_spec.workload);
+                .create_workload(workload_instance_name, workload_spec.workload);
             self.workloads.insert(workload_name, workload);
         }
     }
