@@ -65,6 +65,8 @@ The runtime configuration for the `podman` runtime is specified as followed:
 | remove | boolean | no | Specify whether the container shall be removed after exited
 | networkMode | string | no | Set the network mode for the container (like `bridge`, `host`, `none`)
 
+**Note:** Some fields are optional in the runtime configuration. The Podman uses its default value if such field is not set. 
+
 #### Mount
 
 | Field | Type | Required | Description |
