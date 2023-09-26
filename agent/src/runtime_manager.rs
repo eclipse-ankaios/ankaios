@@ -31,9 +31,7 @@ impl RuntimeManager {
                 .workload_factory_map
                 .get(&workload_spec.runtime)
                 .unwrap() // TODO
-                .create_workload(workload_spec.workload)
-                .await
-                .unwrap();
+                .create_workload(workload_spec.workload);
             self.workloads.insert(workload_name, workload);
         }
     }

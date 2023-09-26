@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use async_trait::async_trait;
 
-use common::objects::{RuntimeWorkload, WorkloadSpec};
+use common::objects::{RuntimeWorkload, WorkloadExecutionInstanceName, WorkloadSpec};
 
 use crate::stoppable_state_checker::StoppableStateChecker;
 
@@ -36,10 +36,20 @@ pub trait Runtime<WorkloadId, StateChecker>: Sync + Send {
 
     async fn create_workload(
         &self,
-        runtime_workload_spec: &RuntimeWorkload,
+        runtime_workload_config: RuntimeWorkload,
     ) -> Result<(WorkloadId, StateChecker), RuntimeError>;
 
-    async fn delete_workload(&self, workload_id: WorkloadId) -> Result<(), RuntimeError>;
+    async fn get_workload_id(
+        &self,
+        instance_name: WorkloadExecutionInstanceName,
+    ) -> Result<WorkloadId, RuntimeError>;
+    async fn start_checker(
+        &self,
+        workload_id: &WorkloadId,
+        runtime_workload_config: RuntimeWorkload,
+    ) -> Result<StateChecker, RuntimeError>;
+
+    async fn delete_workload(&self, workload_id: &WorkloadId) -> Result<(), RuntimeError>;
 }
 
 pub trait OwnableRuntime<WorkloadId, StateChecker>: Runtime<WorkloadId, StateChecker> {
