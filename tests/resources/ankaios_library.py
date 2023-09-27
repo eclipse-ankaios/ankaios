@@ -52,7 +52,7 @@ def get_column_values(list, column_name):
     return map(lambda r: r[column_name], list)
 
 def get_container_ids_by_workload_names(workload_names):
-    res = run_command('sudo podman ps -a --format "{{.Names}} {{.ID}}"')
+    res = run_command('podman ps -a --format "{{.Names}} {{.ID}}"')
     raw = res.stdout.strip()
     raw_wln_id = raw.split('\n')
     # ["workload_name.hash.agent_name id", ...] -> [(workload_name,id), ...]
