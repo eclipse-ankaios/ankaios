@@ -12,54 +12,62 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.0
-      options: --user root
+      # options: --user root
     steps:
       - uses: actions/checkout@v3.5.3
       - uses: Swatinem/rust-cache@v2.6.2
-
-      - name: Run tests
-        run: RUST_LOG=debug cargo test -- --show-output --nocapture
-
-      - name: Run itests
+      - name: debug
         run: |
           whoami
           id
+          sudo ls
           sudo podman --log-level=debug images
           sudo podman --log-level=debug pull docker.io/nginx:latest
           sudo podman --log-level=debug run -dt --network=host -p 8081:80 nginx
-          RUST_LOG=debug cargo build
-          tools/run_itests.sh tests 
-      - uses: actions/upload-artifact@v3.1.2
-        with:
-          name: itests-result
-          path: target/itests_result
 
-      - name: Create code coverage report
-        run: |
-          rustup component add llvm-tools-preview
-          tools/generate_test_coverage_report.sh test --html
-      - uses: actions/upload-artifact@v3.1.2
-        with:
-          name: code-coverage
-          path: target/llvm-cov/html
+      # - name: Run tests
+      #   run: RUST_LOG=debug cargo test -- --show-output --nocapture
 
-      - name: Build linux-amd64 release-mode
-        run: |
-          cargo build --release
-          mkdir -p dist/
-          cp target/release/ank target/release/ank-server target/release/ank-agent dist/
-      - uses: actions/upload-artifact@v3.1.2
-        with:
-          name: ankaios-linux-amd64-bin
-          path: dist/
+      # - name: Run itests
+      #   run: |
+      #     whoami
+      #     id
+      #     sudo podman --log-level=debug images
+      #     sudo podman --log-level=debug pull docker.io/nginx:latest
+      #     sudo podman --log-level=debug run -dt --network=host -p 8081:80 nginx
+      #     RUST_LOG=debug cargo build
+      #     tools/run_itests.sh tests 
+      # - uses: actions/upload-artifact@v3.1.2
+      #   with:
+      #     name: itests-result
+      #     path: target/itests_result
+
+      # - name: Create code coverage report
+      #   run: |
+      #     rustup component add llvm-tools-preview
+      #     tools/generate_test_coverage_report.sh test --html
+      # - uses: actions/upload-artifact@v3.1.2
+      #   with:
+      #     name: code-coverage
+      #     path: target/llvm-cov/html
+
+      # - name: Build linux-amd64 release-mode
+      #   run: |
+      #     cargo build --release
+      #     mkdir -p dist/
+      #     cp target/release/ank target/release/ank-server target/release/ank-agent dist/
+      # - uses: actions/upload-artifact@v3.1.2
+      #   with:
+      #     name: ankaios-linux-amd64-bin
+      #     path: dist/
           
-      - name: Build linux-amd64 debian package
-        run: |
-          cargo deb -p ank
-      - uses: actions/upload-artifact@v3.1.2
-        with:
-          name: ankaios-linux-amd64-deb
-          path: target/debian/ankaios*.deb
+      # - name: Build linux-amd64 debian package
+      #   run: |
+      #     cargo deb -p ank
+      # - uses: actions/upload-artifact@v3.1.2
+      #   with:
+      #     name: ankaios-linux-amd64-deb
+      #     path: target/debian/ankaios*.deb
 
   build_linux_arm64:
     # currently there is no arm64 github built-in runner available
