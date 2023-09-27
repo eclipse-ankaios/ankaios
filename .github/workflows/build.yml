@@ -25,6 +25,7 @@ jobs:
           RUST_LOG=debug cargo build
           tools/run_itests.sh tests 
       - uses: actions/upload-artifact@v3.1.2
+        if: always()
         with:
           name: itests-result
           path: target/itests_result
