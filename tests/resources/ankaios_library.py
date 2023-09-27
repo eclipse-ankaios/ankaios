@@ -52,7 +52,7 @@ def get_column_values(list, column_name):
     return map(lambda r: r[column_name], list)
 
 def get_container_ids_by_workload_names(workload_names):
-    res = run_command('podman ps -a --format "{{.Names}} {{.ID}}"')
+    res = run_command('sudo podman ps -a --format "{{.Names}} {{.ID}}"')
     raw = res.stdout.strip()
     raw_wln_id = raw.split('\n')
     # ["workload_name.hash.agent_name id", ...] -> [(workload_name,id), ...]
@@ -63,8 +63,8 @@ def get_container_ids_by_workload_names(workload_names):
 
 def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_in_sec=1):
         start_time = time.time()
-        logger.trace(run_command("ps aux | grep ank").stdout)
-        logger.trace(run_command("podman ps -a").stdout)
+        logger.trace(run_command("sudo ps aux | grep ank").stdout)
+        logger.trace(run_command("sudo podman ps -a").stdout)
         res = run_command(command)
         table = table_to_list(res.stdout if res else "")
         logger.trace(table)
