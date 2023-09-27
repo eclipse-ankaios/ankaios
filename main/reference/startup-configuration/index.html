@@ -1197,8 +1197,15 @@ A workload specification must contain the following information:</p>
 <td>no</td>
 <td>Specify whether the container shall be removed after exited</td>
 </tr>
+<tr>
+<td>networkMode</td>
+<td>string</td>
+<td>no</td>
+<td>Set the network mode for the container (like <code>bridge</code>, <code>host</code>, <code>none</code>)</td>
+</tr>
 </tbody>
 </table>
+<p><strong>Note:</strong> Some fields are optional in the runtime configuration. The Podman uses its default value if such field is not set. </p>
 <h4 id="mount">Mount<a class="headerlink" href="#mount" title="Permanent link">&para;</a></h4>
 <table>
 <thead>
