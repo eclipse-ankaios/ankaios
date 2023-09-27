@@ -63,8 +63,8 @@ def get_container_ids_by_workload_names(workload_names):
 
 def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_in_sec=1):
         start_time = time.time()
-        logger.trace(run_command("ps aux | grep ank"))
-        logger.trace(run_command("podman ps -a"))
+        logger.trace(run_command("ps aux | grep ank").stdout)
+        logger.trace(run_command("podman ps -a").stdout)
         res = run_command(command)
         table = table_to_list(res.stdout if res else "")
         logger.trace(table)
