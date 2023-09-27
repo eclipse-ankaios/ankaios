@@ -73,6 +73,8 @@ def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_i
                 return True
 
             time.sleep(next_try_in_sec)
+            logger.trace(run_command("sudo ps aux | grep ank").stdout)
+            logger.trace(run_command("sudo podman ps -a").stdout)
             res = run_command(command)
             table = table_to_list(res.stdout if res else "")
             logger.trace(table)
