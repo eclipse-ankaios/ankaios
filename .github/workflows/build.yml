@@ -11,8 +11,8 @@ jobs:
   test_and_build_linux_amd64:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.5.0
-      # options: --user root
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.0
+      options: --user root --privileged
     steps:
       - uses: actions/checkout@v3.5.3
       - uses: Swatinem/rust-cache@v2.6.2
@@ -20,10 +20,11 @@ jobs:
         run: |
           whoami
           id
-          sudo ls
-          sudo podman --log-level=debug images
-          sudo podman --log-level=debug pull docker.io/nginx:latest
-          sudo podman --log-level=debug run -dt --network=host -p 8081:80 nginx
+          ls
+          podman version
+          podman --log-level=debug images
+          podman --log-level=debug pull docker.io/nginx:latest
+          podman --log-level=debug run -dt --network=host -p 8081:80 nginx
 
       # - name: Run tests
       #   run: RUST_LOG=debug cargo test -- --show-output --nocapture
