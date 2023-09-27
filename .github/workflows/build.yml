@@ -22,7 +22,6 @@ jobs:
 
       - name: Run itests
         run: |
-          sudo ls -ld /run/libpod
           sudo podman --log-level=debug images
           sudo podman --log-level=debug pull docker.io/nginx:latest
           sudo podman --log-level=debug run -dt --network=host -p 8081:80 nginx
