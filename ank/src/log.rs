@@ -27,7 +27,7 @@ macro_rules! output_debug {
 }
 
 pub(crate) fn output_and_error_fn(args: fmt::Arguments<'_>) {
-    eprintln!("\x1b[91m\x1b[1mERROR: {}\x1b[0m", args);
+    eprintln!("\x1b[91m\x1b[1m{}\x1b[0m", args);
     exit(1);
 }
 
@@ -38,7 +38,7 @@ pub(crate) fn output_and_exit_fn(args: fmt::Arguments<'_>) {
 
 pub(crate) fn output_debug_fn(args: fmt::Arguments<'_>) {
     if is_verbose() {
-        println!("\x1b[94mDEBUG: {}\x1b[0m", args);
+        println!("\x1b[94m{}\x1b[0m", args);
     }
 }
 
