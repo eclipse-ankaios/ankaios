@@ -1,4 +1,10 @@
-use std::{fmt, process::exit};
+use std::{
+    env::{self, VarError},
+    fmt,
+    process::exit,
+};
+
+pub const VERBOSITY_KEY: &str = "VERBOSE";
 
 #[macro_export]
 macro_rules! output_and_error {
@@ -17,7 +23,7 @@ macro_rules! output_debug {
 
 pub(crate) fn output_and_error_fn(args: fmt::Arguments<'_>) {
     eprintln!("\x1b[91m\x1b[1mERROR: {}\x1b[0m", args);
-    exit(1)
+    exit(1);
 }
 
 pub(crate) fn output_and_exit_fn(args: fmt::Arguments<'_>) {
@@ -26,5 +32,13 @@ pub(crate) fn output_and_exit_fn(args: fmt::Arguments<'_>) {
 }
 
 pub(crate) fn output_debug_fn(args: fmt::Arguments<'_>) {
-    println!("\x1b[94m{}\x1b[0m", args);
+    if let Ok(verbose) = is_verbose() {
+        if verbose {
+            println!("\x1b[94mDEBUG: {}\x1b[0m", args);
+        }
+    }
+}
+
+fn is_verbose() -> Result<bool, VarError> {
+    Ok(env::var(VERBOSITY_KEY)?.to_lowercase() == "true")
 }

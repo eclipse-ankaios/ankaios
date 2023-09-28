@@ -12,14 +12,15 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::env;
+
 mod cli;
 mod cli_commands;
+use cli_commands::CliCommands;
+mod log;
+
 #[cfg(test)]
 pub mod test_helper;
-
-use cli_commands::CliCommands;
-
-mod log;
 
 // [impl->swdd~cli-standalone-application~1]
 #[tokio::main]
@@ -27,6 +28,8 @@ async fn main() {
     let args = cli::parse();
 
     let cli_name = "ank-cli";
+
+    env::set_var(log::VERBOSITY_KEY, args.verbose.to_string());
 
     match args.command {
         cli::Commands::Get(get_args) => match get_args.command {
