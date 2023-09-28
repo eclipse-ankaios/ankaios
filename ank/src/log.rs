@@ -18,7 +18,9 @@ macro_rules! output_and_exit {
     ( $ ( $ arg : tt ) * ) => { $crate::log::output_and_exit_fn ( format_args ! ( $ ( $ arg ) * ) ) }
 }
 
-/// Prints the message as a debug trace. It does not terminate the application (the application continues).
+/// This macro prints the message as a debug trace, if the CLI command is called with `--verbose` flag.
+/// If the CLI command is called without the `-verbose` flag, the macro does nothing.
+/// Calling this macro does not terminate the application.
 #[macro_export]
 macro_rules! output_debug {
     ( $ ( $ arg : tt ) * ) => { $crate::log::output_debug_fn ( format_args ! ( $ ( $ arg ) * ) ) }
