@@ -1,5 +1,5 @@
 use std::{
-    env::{self, VarError},
+    env::{self},
     fmt,
     process::exit,
 };
@@ -35,13 +35,11 @@ pub(crate) fn output_and_exit_fn(args: fmt::Arguments<'_>) {
 }
 
 pub(crate) fn output_debug_fn(args: fmt::Arguments<'_>) {
-    if let Ok(verbose) = is_verbose() {
-        if verbose {
-            println!("\x1b[94mDEBUG: {}\x1b[0m", args);
-        }
+    if is_verbose() {
+        println!("\x1b[94mDEBUG: {}\x1b[0m", args);
     }
 }
 
-fn is_verbose() -> Result<bool, VarError> {
-    Ok(env::var(VERBOSITY_KEY)?.to_lowercase() == "true")
+fn is_verbose() -> bool {
+    matches!(env::var(VERBOSITY_KEY), Ok(verbose) if verbose.to_lowercase() == "true")
 }
