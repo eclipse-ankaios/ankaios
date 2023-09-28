@@ -82,12 +82,6 @@ impl WorkloadExecutionInstanceName {
             self.workload_name, INSTANCE_NAME_SEPARATOR, self.hash
         ))
     }
-
-    // TODO delete
-    // [impl->swdd~agent-adapter-start-finds-existing-workloads~1]
-    pub fn get_agent_filter_regex(agent_name: &str) -> String {
-        format!("[{}]{}$", INSTANCE_NAME_SEPARATOR, agent_name)
-    }
 }
 
 // [impl->swdd~common-workload-execution-instance-naming~1]
@@ -158,15 +152,6 @@ mod tests {
     const WORKLOAD_NAME: &str = "workload";
     const CONFIG: &str = "config";
     const EXPECTED_HASH: &str = "b79606fb3afea5bd1609ed40b622142f1c98125abcfe89a76a661b0e8e343910";
-
-    // [utest->swdd~agent-adapter-start-finds-existing-workloads~1]
-    #[test]
-    fn utest_workload_execution_instance_name_agent_filter_string() {
-        assert_eq!(
-            format!("[.]{AGENT_NAME}$"),
-            WorkloadExecutionInstanceName::get_agent_filter_regex("agent")
-        );
-    }
 
     // [utest->swdd~common-workload-execution-instance-naming~1]
     #[test]

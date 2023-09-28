@@ -25,8 +25,46 @@ impl From<String> for AgentName {
     }
 }
 
+impl From<&str> for AgentName {
+    fn from(value: &str) -> Self {
+        AgentName::from(value.to_string())
+    }
+}
+
 impl Display for AgentName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Could not create workload: '{}'", self.0)
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+#[cfg(test)]
+mod tests {
+    use super::AgentName;
+
+    const AGENT_NAME: &str = "agent";
+
+    // [utest->swdd~agent-adapter-start-finds-existing-workloads~1]
+    #[test]
+    fn utest_agent_name_get_filter_regex() {
+        assert_eq!(
+            format!("[.]{AGENT_NAME}$"),
+            AgentName::from(AGENT_NAME).get_filter_regex()
+        );
+    }
+
+    // [utest->swdd~agent-adapter-start-finds-existing-workloads~1]
+    #[test]
+    fn utest_agent_name_get_filter_suffix() {
+        assert_eq!(
+            format!(".{AGENT_NAME}"),
+            AgentName::from(AGENT_NAME).get_filter_suffix()
+        );
     }
 }

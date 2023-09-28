@@ -12,6 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use common::objects::AgentName;
 use common::state_change_interface::StateChangeInterface;
 use common::state_change_interface::StateChangeSender;
 use common::std_extensions::IllegalStateResult;
@@ -379,7 +380,7 @@ impl PodmanUtils {
     ) -> HashMap<String, (WorkloadExecutionInstanceName, String)> {
         let mut running_workloads = HashMap::new();
 
-        let name_filter = WorkloadExecutionInstanceName::get_agent_filter_regex(agent_name);
+        let name_filter = AgentName::from(agent_name).get_filter_regex();
 
         let podman_utils = PodmanUtils::new(socket_path.to_string());
 
