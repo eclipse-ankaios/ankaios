@@ -12,44 +12,21 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::{ExecutionState, WorkloadSpec, WorkloadState};
+use common::objects::{ExecutionState, WorkloadState};
 use std::collections::HashMap;
 
 type WorkloadStates = HashMap<String, common::objects::ExecutionState>;
 type AgentWorkloadStates = HashMap<String, WorkloadStates>;
-type WorkloadName = String;
-type RuntimeName = String;
-type WorkloadRuntimeMapping = HashMap<WorkloadName, RuntimeName>;
 
 pub struct ParameterStorage {
     states_storage: AgentWorkloadStates,
-    workload_storage: WorkloadRuntimeMapping,
 }
 
 impl ParameterStorage {
     pub fn new() -> Self {
         Self {
             states_storage: HashMap::new(),
-            workload_storage: HashMap::new(),
         }
-    }
-
-    // [impl->swdd~agent-manager-deletes-workload-runtime-mapping~1]
-    pub fn get_workload_runtime(&self, workload_name: &WorkloadName) -> Option<&RuntimeName> {
-        self.workload_storage.get(workload_name)
-    }
-
-    // [impl->swdd~agent-manager-stores-workload-runtime-mapping~1]
-    pub fn set_workload_runtime(&mut self, workload_spec: &WorkloadSpec) {
-        self.workload_storage.insert(
-            workload_spec.workload.name.clone(),
-            workload_spec.runtime.clone(),
-        );
-    }
-
-    // [impl->swdd~agent-manager-deletes-workload-runtime-mapping~1]
-    pub fn delete_workload_runtime(&mut self, workload_name: &WorkloadName) {
-        self.workload_storage.remove(workload_name);
     }
 
     // Currently used only in tests. Update tests if you have another "public getter".
@@ -80,67 +57,10 @@ impl ParameterStorage {
 
 #[cfg(test)]
 mod tests {
-    use common::{
-        objects::{ExecutionState, WorkloadState},
-        test_utils::generate_test_workload_spec_with_param,
-    };
-
+    use common::objects::{ExecutionState, WorkloadState};
     use crate::parameter_storage::ParameterStorage;
 
-    const AGENT_NAME: &str = "agent_x";
 
-    const WORKLOAD_1_NAME: &str = "workload A";
-    const RUNTIME_1_NAME: &str = "runtime B";
-    const WORKLOAD_2_NAME: &str = "workload C";
-    const RUNTIME_2_NAME: &str = "runtime D";
-
-    // [utest->swdd~agent-manager-stores-workload-runtime-mapping~1]
-    // [utest->swdd~agent-manager-deletes-workload-runtime-mapping~1]
-    #[test]
-    fn utest_parameter_storage_runtime_set_get_del() {
-        let mut storage = ParameterStorage::new();
-        assert!(storage.workload_storage.is_empty());
-
-        let workload_spec_1 = generate_test_workload_spec_with_param(
-            AGENT_NAME.into(),
-            WORKLOAD_1_NAME.into(),
-            RUNTIME_1_NAME.into(),
-        );
-
-        let workload_spec_2 = generate_test_workload_spec_with_param(
-            AGENT_NAME.into(),
-            WORKLOAD_2_NAME.into(),
-            RUNTIME_2_NAME.into(),
-        );
-
-        // Nothing in the storage yet
-        assert!(storage.workload_storage.is_empty());
-
-        storage.set_workload_runtime(&workload_spec_1);
-        storage.set_workload_runtime(&workload_spec_2);
-
-        assert_eq!(
-            storage
-                .get_workload_runtime(&workload_spec_1.workload.name)
-                .expect("runtime for workload is there"),
-            &workload_spec_1.runtime
-        );
-
-        storage.delete_workload_runtime(&workload_spec_1.workload.name);
-        assert!(storage
-            .get_workload_runtime(&workload_spec_1.workload.name)
-            .is_none());
-
-        assert_eq!(
-            storage
-                .get_workload_runtime(&workload_spec_2.workload.name)
-                .expect("runtime for workload is there"),
-            &workload_spec_2.runtime
-        );
-
-        storage.delete_workload_runtime(&workload_spec_2.workload.name);
-        assert!(storage.workload_storage.is_empty());
-    }
 
     #[test]
     fn utest_update_storage_empty_storage() {

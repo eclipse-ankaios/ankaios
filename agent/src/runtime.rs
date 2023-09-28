@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use async_trait::async_trait;
 
-use common::objects::{AgentName, RuntimeWorkload, WorkloadExecutionInstanceName};
+use common::objects::{AgentName, WorkloadSpec, WorkloadExecutionInstanceName};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeError {
@@ -39,7 +39,7 @@ pub trait Runtime<WorkloadId, StateChecker>: Sync + Send {
     async fn create_workload(
         &self,
         instance_name: &WorkloadExecutionInstanceName,
-        runtime_workload_config: RuntimeWorkload,
+        runtime_workload_config: WorkloadSpec,
     ) -> Result<(WorkloadId, StateChecker), RuntimeError>;
 
     async fn get_workload_id(
@@ -50,7 +50,7 @@ pub trait Runtime<WorkloadId, StateChecker>: Sync + Send {
     async fn start_checker(
         &self,
         workload_id: &WorkloadId,
-        runtime_workload_config: RuntimeWorkload,
+        runtime_workload_config: WorkloadSpec,
     ) -> Result<StateChecker, RuntimeError>;
 
     async fn delete_workload(&self, workload_id: &WorkloadId) -> Result<(), RuntimeError>;

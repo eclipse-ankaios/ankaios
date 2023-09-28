@@ -18,7 +18,7 @@ use api::proto;
 
 use crate::commands::CompleteState;
 use crate::objects::{
-    AccessRights, Cronjob, DeletedWorkload, ExpectedState, Interval, RuntimeWorkload, State, Tag,
+    AccessRights, Cronjob, DeletedWorkload, ExpectedState, Interval, State, Tag,
     UpdateStrategy, WorkloadSpec, WorkloadState,
 };
 
@@ -27,7 +27,7 @@ pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State
     State {
         workloads: workloads
             .into_iter()
-            .map(|v| (v.workload.name.clone(), v))
+            .map(|v| (v.name.clone(), v))
             .collect(),
         configs: HashMap::new(),
         cron_jobs: HashMap::new(),
@@ -44,7 +44,7 @@ pub fn generate_test_complete_state(
             workloads: workloads
                 .clone()
                 .into_iter()
-                .map(|v| (v.workload.name.clone(), v))
+                .map(|v| (v.name.clone(), v))
                 .collect(),
             configs: HashMap::new(),
             cron_jobs: HashMap::new(),
@@ -53,7 +53,7 @@ pub fn generate_test_complete_state(
         workload_states: workloads
             .into_iter()
             .map(|v| WorkloadState {
-                workload_name: v.workload.name.clone(),
+                workload_name: v.name.clone(),
                 agent_name: v.agent,
                 execution_state: crate::objects::ExecutionState::ExecRunning,
             })
@@ -77,8 +77,8 @@ pub fn generate_test_state() -> State {
     let mut workload_1 = generate_test_workload_spec();
     let mut workload_2 = generate_test_workload_spec();
 
-    workload_1.workload.name = "workload_name_1".to_string();
-    workload_2.workload.name = "workload_name_2".to_string();
+    workload_1.name = "workload_name_1".to_string();
+    workload_2.name = "workload_name_2".to_string();
 
     ankaios_workloads.insert(workload_name_1, workload_1);
     ankaios_workloads.insert(workload_name_2, workload_2);
@@ -149,21 +149,19 @@ pub fn generate_test_workload_spec_with_param(
     runtime_name: String,
 ) -> crate::objects::WorkloadSpec {
     WorkloadSpec {
-        agent: agent_name,
         dependencies: generate_test_dependencies(),
         update_strategy: UpdateStrategy::Unspecified,
+        restart: true,
         access_rights: AccessRights::default(),
         runtime: runtime_name,
-        workload: RuntimeWorkload {
-            name: workload_name,
-            restart: true,
-            tags: vec![Tag {
-                key: "key".into(),
-                value: "value".into(),
-            }],
-            runtime_config: "image: alpine:latest\ncommand: [\"echo\"]\nargs: [\"Hello Ankaios\"]"
-                .to_string(),
-        },
+        name: workload_name,
+        agent: agent_name,
+        tags: vec![Tag {
+            key: "key".into(),
+            value: "value".into(),
+        }],
+        runtime_config: "image: alpine:latest\ncommand: [\"echo\"]\nargs: [\"Hello Ankaios\"]"
+            .to_string(),
     }
 }
 

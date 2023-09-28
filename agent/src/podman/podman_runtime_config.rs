@@ -34,7 +34,7 @@ pub struct TryFromWorkloadSpecError(String);
 impl TryFrom<&WorkloadSpec> for PodmanRuntimeConfig {
     type Error = TryFromWorkloadSpecError;
     fn try_from(workload_spec: &WorkloadSpec) -> Result<Self, Self::Error> {
-        match serde_yaml::from_str(workload_spec.workload.runtime_config.as_str()) {
+        match serde_yaml::from_str(workload_spec.runtime_config.as_str()) {
             Ok(workload_cfg) => Ok(workload_cfg),
             Err(e) => Err(TryFromWorkloadSpecError(e.to_string())),
         }

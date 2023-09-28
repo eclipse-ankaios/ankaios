@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use common::objects::{AgentName, RuntimeWorkload, WorkloadExecutionInstanceName};
+use common::objects::{AgentName, WorkloadSpec, WorkloadExecutionInstanceName};
 use tokio::sync::mpsc;
 
 use crate::{
@@ -20,20 +20,20 @@ pub trait RuntimeFacade: Send + Sync {
     fn create_workload(
         &self,
         workload_instance_name: WorkloadExecutionInstanceName,
-        runtime_workload: RuntimeWorkload,
+        runtime_workload: WorkloadSpec,
     ) -> Workload;
 
     fn replace_workload(
         &self,
         existing_workload_name: WorkloadExecutionInstanceName,
         new_instance_name: WorkloadExecutionInstanceName,
-        new_workload_config: RuntimeWorkload,
+        workload_spec: WorkloadSpec,
     ) -> Workload;
 
     fn resume_workload(
         &self,
         existing_workload_name: WorkloadExecutionInstanceName,
-        runtime_workload: RuntimeWorkload,
+        runtime_workload: WorkloadSpec,
     ) -> Workload;
 
     fn delete_workload(&self, instance_name: WorkloadExecutionInstanceName);
@@ -145,16 +145,16 @@ impl<
     fn create_workload(
         &self,
         workload_instance_name: WorkloadExecutionInstanceName,
-        new_workload_config: RuntimeWorkload,
+        workload_spec: WorkloadSpec,
     ) -> Workload {
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
 
-        let workload_name = new_workload_config.name.clone();
+        let workload_name = workload_spec.name.clone();
         let runtime = self.runtime.to_owned();
 
         let task_handle = tokio::spawn(async move {
             let (workload_id, state_checker) = runtime
-                .create_workload(&workload_instance_name, new_workload_config)
+                .create_workload(&workload_instance_name, workload_spec)
                 .await
                 .unwrap();
 
@@ -179,11 +179,11 @@ impl<
         &self,
         existing_instance_name: WorkloadExecutionInstanceName,
         new_instance_name: WorkloadExecutionInstanceName,
-        new_workload_config: RuntimeWorkload,
+        workload_spec: WorkloadSpec,
     ) -> Workload {
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
 
-        let workload_name = new_workload_config.name.clone();
+        let workload_name = workload_spec.name.clone();
         let runtime = self.runtime.to_owned();
 
         let task_handle = tokio::spawn(async move {
@@ -195,7 +195,7 @@ impl<
             runtime.delete_workload(&old_id).await.unwrap();
 
             let (workload_id, state_checker) = runtime
-                .create_workload(&new_instance_name, new_workload_config)
+                .create_workload(&new_instance_name, workload_spec)
                 .await
                 .unwrap();
 
@@ -219,18 +219,18 @@ impl<
     fn resume_workload(
         &self,
         existing_id: WorkloadExecutionInstanceName,
-        new_workload_config: RuntimeWorkload,
+        workload_spec: WorkloadSpec,
     ) -> Workload {
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
 
-        let workload_name = new_workload_config.name.clone();
+        let workload_name = workload_spec.name.clone();
         let runtime = self.runtime.to_owned();
 
         let task_handle = tokio::spawn(async move {
             let workload_id = runtime.get_workload_id(&existing_id).await.unwrap();
 
             let state_checker = runtime
-                .start_checker(&workload_id, new_workload_config)
+                .start_checker(&workload_id, workload_spec)
                 .await
                 .unwrap();
 

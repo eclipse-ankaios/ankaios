@@ -266,7 +266,7 @@ mod tests {
     use async_trait::async_trait;
     use common::commands::CompleteState;
     use common::execution_interface::{ExecutionCommand, ExecutionInterface};
-    use common::objects::{AccessRights, RuntimeWorkload, State, UpdateStrategy, WorkloadSpec};
+    use common::objects::{State, WorkloadSpec};
     use common::test_utils::*;
     use tokio::sync::mpsc::error::TryRecvError;
     use tokio::{
@@ -281,6 +281,8 @@ mod tests {
         Receiver<Result<ExecutionRequest, tonic::Status>>,
         AgentSendersMap,
     );
+
+    const WORKLOAD_NAME: &str = "workload_1";
 
     fn create_test_setup(agent_name: &str) -> TestSetup {
         let (to_manager, manager_receiver) =
@@ -368,7 +370,7 @@ mod tests {
         let update_workload_state_result = to_manager
             .update_workload_state(vec![common::objects::WorkloadState {
                 agent_name: "other_agent".into(),
-                workload_name: "workload_1".into(),
+                workload_name: WORKLOAD_NAME.into(),
                 execution_state: common::objects::ExecutionState::ExecRunning,
             }])
             .await;
@@ -611,7 +613,9 @@ mod tests {
                 "workload1".to_string()
             ),],
             vec![]
-        )).0.unwrap();
+        ))
+        .0
+        .unwrap();
 
         let result = agent_rx.recv().await.unwrap().unwrap();
 
@@ -636,7 +640,9 @@ mod tests {
                 "workload1".to_string()
             ),],
             vec![]
-        )).0.unwrap();
+        ))
+        .0
+        .unwrap();
 
         // shall not receive any execution request
         assert!(matches!(agent_rx.try_recv(), Err(TryRecvError::Empty)))
@@ -655,7 +661,9 @@ mod tests {
                 workload_name: "workload1".to_string(),
                 execution_state: common::objects::ExecutionState::ExecRunning
             }],
-        )).0.unwrap();
+        ))
+        .0
+        .unwrap();
 
         let result = agent_rx.recv().await.unwrap().unwrap();
 
@@ -674,15 +682,12 @@ mod tests {
 
         let mut startup_workloads = HashMap::<String, WorkloadSpec>::new();
         startup_workloads.insert(
-            String::from("workload_1"),
-            WorkloadSpec {
-                agent: String::from("agent_X"),
-                dependencies: HashMap::default(),
-                access_rights: AccessRights::default(),
-                runtime: String::from("my_runtime"),
-                workload: RuntimeWorkload::default(),
-                update_strategy: UpdateStrategy::Unspecified,
-            },
+            String::from(WORKLOAD_NAME),
+            generate_test_workload_spec_with_param(
+                agent_name.to_string(),
+                WORKLOAD_NAME.to_string(),
+                "my_runtime".to_string(),
+            ),
         );
 
         let my_request_id = "my_request_id".to_owned();
@@ -798,15 +803,12 @@ mod tests {
 
         let mut startup_workloads = HashMap::<String, WorkloadSpec>::new();
         startup_workloads.insert(
-            String::from("workload_1"),
-            WorkloadSpec {
-                agent: agent_name.to_string(),
-                dependencies: HashMap::default(),
-                access_rights: AccessRights::default(),
-                runtime: String::from("my_runtime"),
-                workload: RuntimeWorkload::default(),
-                update_strategy: UpdateStrategy::Unspecified,
-            },
+            String::from(WORKLOAD_NAME),
+            generate_test_workload_spec_with_param(
+                agent_name.to_string(),
+                WORKLOAD_NAME.to_string(),
+                "my_runtime".to_string(),
+            ),
         );
 
         let my_request_id = "my_request_id".to_owned();

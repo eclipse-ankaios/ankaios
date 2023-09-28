@@ -17,7 +17,7 @@ impl ConfigHash for String {
 
 impl ConfigHash for WorkloadSpec {
     fn hash_config(&self) -> String {
-        self.workload.runtime_config.hash_config()
+        self.runtime_config.hash_config()
     }
 }
 
@@ -29,8 +29,8 @@ impl WorkloadInstanceName for WorkloadSpec {
     fn instance_name(&self) -> WorkloadExecutionInstanceName {
         WorkloadExecutionInstanceName::builder()
             .agent_name(self.agent.clone())
-            .workload_name(self.workload.name.clone())
-            .config(&self.workload.runtime_config)
+            .workload_name(self.name.clone())
+            .config(&self.runtime_config)
             .build()
     }
 }
@@ -87,16 +87,6 @@ impl WorkloadExecutionInstanceName {
     // [impl->swdd~agent-adapter-start-finds-existing-workloads~1]
     pub fn get_agent_filter_regex(agent_name: &str) -> String {
         format!("[{}]{}$", INSTANCE_NAME_SEPARATOR, agent_name)
-    }
-}
-
-impl From<&WorkloadSpec> for WorkloadExecutionInstanceName {
-    fn from(workload_spec: &WorkloadSpec) -> Self {
-        WorkloadExecutionInstanceName::builder()
-            .agent_name(workload_spec.agent.clone())
-            .workload_name(workload_spec.workload.name.clone())
-            .config(&workload_spec.workload.runtime_config)
-            .build()
     }
 }
 

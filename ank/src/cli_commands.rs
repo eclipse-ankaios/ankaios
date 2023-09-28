@@ -24,7 +24,7 @@ use tests::read_to_string_mock as read_file_to_string;
 use common::{
     commands::{CompleteState, RequestCompleteState},
     execution_interface::ExecutionCommand,
-    objects::{RuntimeWorkload, Tag, WorkloadSpec},
+    objects::{Tag, WorkloadSpec},
     state_change_interface::{StateChangeCommand, StateChangeInterface},
 };
 
@@ -335,7 +335,7 @@ impl CliCommands {
                 .values()
                 .cloned()
                 .map(|w| WorkloadInfo {
-                    name: w.workload.name,
+                    name: w.name,
                     agent: w.agent,
                     runtime: w.runtime,
                     execution_state: String::new(),
@@ -460,14 +460,11 @@ impl CliCommands {
             .map(|(k, v)| Tag { key: k, value: v })
             .collect();
         let new_workload = WorkloadSpec {
-            agent: agent_name,
             runtime: runtime_name,
-            workload: RuntimeWorkload {
-                name: workload_name.clone(),
-                tags,
-                runtime_config,
-                ..Default::default()
-            },
+            name: workload_name.clone(),
+            agent: agent_name,
+            tags,
+            runtime_config,
             ..Default::default()
         };
         log::debug!("Request to run new workload: {:?}", new_workload);
@@ -521,7 +518,7 @@ mod tests {
     use common::{
         commands,
         execution_interface::ExecutionCommand,
-        objects::{RuntimeWorkload, Tag, WorkloadSpec},
+        objects::{Tag, WorkloadSpec},
         state_change_interface::{StateChangeCommand, StateChangeReceiver},
         test_utils::{self, generate_test_complete_state},
     };
@@ -1398,17 +1395,14 @@ mod tests {
 
         // The "run workload" command shall add one new workload to the startup state.
         let new_workload = WorkloadSpec {
-            agent: test_workload_agent.clone(),
             runtime: test_workload_runtime_name.clone(),
-            workload: RuntimeWorkload {
-                name: test_workload_name.clone(),
-                tags: vec![Tag {
-                    key: "key".to_string(),
-                    value: "value".to_string(),
-                }],
-                runtime_config: test_workload_runtime_cfg.clone(),
-                ..Default::default()
-            },
+            name: test_workload_name.clone(),
+            agent: test_workload_agent.clone(),
+            tags: vec![Tag {
+                key: "key".to_string(),
+                value: "value".to_string(),
+            }],
+            runtime_config: test_workload_runtime_cfg.clone(),
             ..Default::default()
         };
         let mut updated_state = startup_state.clone();
@@ -1529,24 +1523,24 @@ mod tests {
                 "workloads": {
                     "name1": {
                     "agent": "agent_A",
-                    "dependencies": {
-                        "workload A": "RUNNING",
-                        "workload C": "STOPPED"
-                    },
-                    "updateStrategy": "UNSPECIFIED",
-                    "accessRights": {
-                        "allow": [],
-                        "deny": []
-                    },
-                    "runtime": "podman",
                     "name": "name1",
-                    "restart": true,
                     "tags": [
                         {
                         "key": "key",
                         "value": "value"
                         }
                     ],
+                    "dependencies": {
+                        "workload A": "RUNNING",
+                        "workload C": "STOPPED"
+                    },
+                    "updateStrategy": "UNSPECIFIED",
+                    "restart": true,
+                    "accessRights": {
+                        "allow": [],
+                        "deny": []
+                    },
+                    "runtime": "podman",
                     "runtimeConfig": "image: alpine:latest\ncommand: [\"echo\"]\nargs: [\"Hello Ankaios\"]"
                     }
                 }
@@ -1593,24 +1587,24 @@ mod tests {
                 "workloads": {
                     "name1": {
                         "agent": "agent_A",
-                        "dependencies": {
-                            "workload A": "RUNNING",
-                            "workload C": "STOPPED"
-                        },
-                        "updateStrategy": "UNSPECIFIED",
-                        "accessRights": {
-                            "allow": [],
-                            "deny": []
-                        },
-                        "runtime": "podman",
                         "name": "name1",
-                        "restart": true,
                         "tags": [
                             {
                             "key": "key",
                             "value": "value"
                             }
                         ],
+                        "dependencies": {
+                            "workload A": "RUNNING",
+                            "workload C": "STOPPED"
+                        },
+                        "updateStrategy": "UNSPECIFIED",
+                        "restart": true,
+                        "accessRights": {
+                            "allow": [],
+                            "deny": []
+                        },
+                        "runtime": "podman",
                         "runtimeConfig": "image: alpine:latest\ncommand: [\"echo\"]\nargs: [\"Hello Ankaios\"]"
                     },
                     "name2": {

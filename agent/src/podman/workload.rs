@@ -85,7 +85,7 @@ impl PodmanWorkload {
             self.manager_interface
                 .update_workload_state(vec![common::objects::WorkloadState {
                     agent_name: self.workload_spec.agent.clone(),
-                    workload_name: self.workload_spec.workload.name.to_string(),
+                    workload_name: self.workload_spec.name.to_string(),
                     execution_state: ExecutionState::ExecFailed,
                 }])
                 .await
@@ -119,7 +119,6 @@ impl PodmanWorkload {
         // [impl->swdd~podman-workload-creates-container~1]
         // [impl->swdd~podman-adapt-mount-interface-pipes-into-workload~2]
         match self
-
             .podman_utils
             .create_container(
                 workload_cfg,

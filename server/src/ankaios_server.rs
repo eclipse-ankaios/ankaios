@@ -270,8 +270,9 @@ mod tests {
 
     use common::commands::{RequestCompleteState, UpdateStateRequest};
     use common::objects::{
-        AccessRights, DeletedWorkload, RuntimeWorkload, State, Tag, WorkloadSpec, WorkloadState,
+        DeletedWorkload, ExpectedState, State, Tag, WorkloadSpec, WorkloadState,
     };
+    use common::test_utils::generate_test_workload_spec_with_param;
     use common::{
         commands::CompleteState,
         execution_interface::ExecutionCommand,
@@ -293,6 +294,8 @@ mod tests {
         (Sender<StateChangeCommand>, Sender<ExecutionCommand>), // (state change sender channel to ankaios server, execution sender channel to communication mapper)
         Receiver<TestResult>,                                   // test result receiver channel
     );
+
+    const RUNTIME_NAME: &str = "fake_runtime";
 
     #[derive(PartialEq, Debug, Clone)]
     enum TestResult {
@@ -487,31 +490,6 @@ mod tests {
         )
     }
 
-    fn create_fake_workload_spec(agent_name: String, workload_name: String) -> WorkloadSpec {
-        WorkloadSpec {
-            agent: agent_name,
-            runtime: "fake_runtime".to_owned(),
-            dependencies: HashMap::default(),
-            access_rights: AccessRights::default(),
-            update_strategy: common::objects::UpdateStrategy::Unspecified,
-            workload: common::objects::RuntimeWorkload {
-                name: workload_name,
-                restart: false,
-                tags: vec![
-                    Tag {
-                        key: "tag_key_1".into(),
-                        value: "tag_value_1".into(),
-                    },
-                    Tag {
-                        key: "tag_key_2".into(),
-                        value: "tag_value_2".into(),
-                    },
-                ],
-                runtime_config: "fake_runtime_config".to_owned(),
-            },
-        }
-    }
-
     fn get_workloads(
         result_from_fake_agent: &TestResult,
     ) -> Option<common::commands::UpdateWorkload> {
@@ -555,7 +533,7 @@ mod tests {
             let workload_names: Vec<(String, String)> = wl
                 .added_workloads
                 .into_iter()
-                .map(|wls| (wls.agent, wls.workload.name))
+                .map(|wls| (wls.agent, wls.name))
                 .collect();
 
             let agent_name: &str = workload_names[0].0.as_ref();
@@ -618,15 +596,27 @@ mod tests {
         let mut wl = HashMap::new();
         wl.insert(
             "fake_workload_spec_1".to_owned(),
-            create_fake_workload_spec(fake_agent_names[0].to_owned(), "fake_workload_1".to_owned()),
+            generate_test_workload_spec_with_param(
+                fake_agent_names[0].to_owned(),
+                "fake_workload_1".to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
         );
         wl.insert(
             "fake_workload_spec_2".to_owned(),
-            create_fake_workload_spec(fake_agent_names[0].to_owned(), "fake_workload_2".to_owned()),
+            generate_test_workload_spec_with_param(
+                fake_agent_names[0].to_owned(),
+                "fake_workload_2".to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
         );
         wl.insert(
             "fake_workload_spec_3".to_owned(),
-            create_fake_workload_spec(fake_agent_names[1].to_owned(), "fake_workload_3".to_owned()),
+            generate_test_workload_spec_with_param(
+                fake_agent_names[1].to_owned(),
+                "fake_workload_3".to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
         );
 
         // prepare current state
@@ -788,8 +778,16 @@ mod tests {
 
         // prepare structures
         let workloads = vec![
-            create_fake_workload_spec(agent_names[0].to_owned(), workload_names[0].to_owned()),
-            create_fake_workload_spec(agent_names[1].to_owned(), workload_names[1].to_owned()),
+            generate_test_workload_spec_with_param(
+                agent_names[0].to_owned(),
+                workload_names[0].to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
+            generate_test_workload_spec_with_param(
+                agent_names[1].to_owned(),
+                workload_names[1].to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
         ];
 
         let original_state = CompleteState {
@@ -930,23 +928,26 @@ mod tests {
         let mut workloads = HashMap::new();
         workloads.insert(
             "fake_workload_spec_1".to_owned(),
-            create_fake_workload_spec(
+            generate_test_workload_spec_with_param(
                 agent_name_fake_agent_1.to_owned(),
                 "fake_workload_1".to_owned(),
+                RUNTIME_NAME.to_string(),
             ),
         );
         workloads.insert(
             "fake_workload_spec_2".to_owned(),
-            create_fake_workload_spec(
+            generate_test_workload_spec_with_param(
                 agent_name_fake_agent_1.to_owned(),
                 "fake_workload_2".to_owned(),
+                RUNTIME_NAME.to_string(),
             ),
         );
         workloads.insert(
             "fake_workload_spec_3".to_owned(),
-            create_fake_workload_spec(
+            generate_test_workload_spec_with_param(
                 agent_name_fake_agent_1.to_owned(),
                 "fake_workload_3".to_owned(),
+                RUNTIME_NAME.to_string(),
             ),
         );
 
@@ -1050,19 +1051,10 @@ mod tests {
                         (
                             "fake_workload_spec_3".into(),
                             WorkloadSpec {
-                                workload: RuntimeWorkload {
-                                    tags: vec![
-                                        Tag {
-                                            key: "tag_key_1".into(),
-                                            value: "tag_value_1".into(),
-                                        },
-                                        Tag {
-                                            key: "tag_key_2".into(),
-                                            value: "tag_value_2".into(),
-                                        },
-                                    ],
-                                    ..Default::default()
-                                },
+                                tags: vec![Tag {
+                                    key: "key".into(),
+                                    value: "value".into(),
+                                }],
                                 ..Default::default()
                             },
                         ),
@@ -1097,15 +1089,27 @@ mod tests {
         let mut wl = HashMap::new();
         wl.insert(
             "fake_workload_spec_1".to_owned(),
-            create_fake_workload_spec(fake_agent_names[0].to_owned(), "fake_workload_1".to_owned()),
+            generate_test_workload_spec_with_param(
+                fake_agent_names[0].to_owned(),
+                "fake_workload_1".to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
         );
         wl.insert(
             "fake_workload_spec_2".to_owned(),
-            create_fake_workload_spec(fake_agent_names[0].to_owned(), "fake_workload_2".to_owned()),
+            generate_test_workload_spec_with_param(
+                fake_agent_names[0].to_owned(),
+                "fake_workload_2".to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
         );
         wl.insert(
             "fake_workload_spec_3".to_owned(),
-            create_fake_workload_spec(fake_agent_names[1].to_owned(), "fake_workload_3".to_owned()),
+            generate_test_workload_spec_with_param(
+                fake_agent_names[1].to_owned(),
+                "fake_workload_3".to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
         );
 
         // prepare current state
@@ -1275,15 +1279,27 @@ mod tests {
         let mut wl = HashMap::new();
         wl.insert(
             "fake_workload_spec_1".to_owned(),
-            create_fake_workload_spec(fake_agent_names[0].to_owned(), "fake_workload_1".to_owned()),
+            generate_test_workload_spec_with_param(
+                fake_agent_names[0].to_owned(),
+                "fake_workload_1".to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
         );
         wl.insert(
             "fake_workload_spec_2".to_owned(),
-            create_fake_workload_spec(fake_agent_names[0].to_owned(), "fake_workload_2".to_owned()),
+            generate_test_workload_spec_with_param(
+                fake_agent_names[0].to_owned(),
+                "fake_workload_2".to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
         );
         wl.insert(
             "fake_workload_spec_3".to_owned(),
-            create_fake_workload_spec(fake_agent_names[1].to_owned(), "fake_workload_3".to_owned()),
+            generate_test_workload_spec_with_param(
+                fake_agent_names[1].to_owned(),
+                "fake_workload_3".to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
         );
 
         // prepare current state
@@ -1303,8 +1319,7 @@ mod tests {
             .workloads
             .get_mut("fake_workload_spec_1")
             .unwrap()
-            .workload
-            .restart = true;
+            .restart = false;
         new_state
             .current_state
             .workloads
@@ -1393,12 +1408,18 @@ mod tests {
                         DeletedWorkload {
                             agent: "fake_agent_1".to_string(),
                             name: "fake_workload_spec_1".to_string(),
-                            dependencies: HashMap::new(),
+                            dependencies: HashMap::from([
+                                ("workload C".to_string(), ExpectedState::Stopped),
+                                ("workload A".to_string(), ExpectedState::Running)
+                            ]),
                         },
                         DeletedWorkload {
                             agent: "fake_agent_1".to_string(),
                             name: "fake_workload_spec_2".to_string(),
-                            dependencies: HashMap::new(),
+                            dependencies: HashMap::from([
+                                ("workload C".to_string(), ExpectedState::Stopped),
+                                ("workload A".to_string(), ExpectedState::Running)
+                            ]),
                         }
                     ]
                 );

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use common::objects::{AgentName, RuntimeWorkload, WorkloadExecutionInstanceName};
+use common::objects::{AgentName, WorkloadSpec, WorkloadExecutionInstanceName};
 
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
@@ -42,7 +42,7 @@ impl Runtime<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRun
     async fn create_workload(
         &self,
         instance_name: &WorkloadExecutionInstanceName,
-        runtime_workload: RuntimeWorkload,
+        workload_spec: WorkloadSpec,
     ) -> Result<(PodmanKubeWorkloadId, GenericPollingStateChecker), RuntimeError> {
         todo!()
     }
@@ -57,7 +57,7 @@ impl Runtime<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRun
     async fn start_checker(
         &self,
         workload_id: &PodmanKubeWorkloadId,
-        runtime_workload_config: RuntimeWorkload,
+        workload_spec: WorkloadSpec,
     ) -> Result<GenericPollingStateChecker, RuntimeError> {
         todo!()
     }
