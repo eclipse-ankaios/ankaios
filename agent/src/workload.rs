@@ -1,11 +1,11 @@
 use crate::runtime::RuntimeError;
-use common::objects::{WorkloadSpec, WorkloadExecutionInstanceName};
+use common::objects::WorkloadSpec;
 use tokio::{sync::mpsc, task::JoinHandle};
 
 #[derive(Debug)]
 pub enum WorkloadCommand {
     Stop,
-    Update(WorkloadExecutionInstanceName, WorkloadSpec),
+    Update(WorkloadSpec),
 }
 
 // #[derive(Debug)]
@@ -15,13 +15,9 @@ pub struct Workload {
 }
 
 impl Workload {
-    pub async fn update(
-        &self,
-        instance_name: WorkloadExecutionInstanceName,
-        spec: WorkloadSpec,
-    ) -> Result<(), RuntimeError> {
+    pub async fn update(&self, spec: WorkloadSpec) -> Result<(), RuntimeError> {
         self.channel
-            .send(WorkloadCommand::Update(instance_name, spec))
+            .send(WorkloadCommand::Update(spec))
             .await
             .map_err(|err| RuntimeError::Update(err.to_string()))
     }

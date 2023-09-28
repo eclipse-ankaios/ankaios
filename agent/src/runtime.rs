@@ -38,7 +38,6 @@ pub trait Runtime<WorkloadId, StateChecker>: Sync + Send {
 
     async fn create_workload(
         &self,
-        instance_name: &WorkloadExecutionInstanceName,
         runtime_workload_config: WorkloadSpec,
     ) -> Result<(WorkloadId, StateChecker), RuntimeError>;
 

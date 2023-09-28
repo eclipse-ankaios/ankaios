@@ -41,7 +41,6 @@ impl Runtime<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRun
 
     async fn create_workload(
         &self,
-        instance_name: &WorkloadExecutionInstanceName,
         workload_spec: WorkloadSpec,
     ) -> Result<(PodmanKubeWorkloadId, GenericPollingStateChecker), RuntimeError> {
         todo!()

@@ -95,16 +95,12 @@ impl RuntimeManager {
                                 new_workload_spec.instance_name();
                             // We have a running workload that matches a new added workload; check if the config is updated
                             self.workloads.insert(
-                                new_instance_name.workload_name().to_string(),
+                                new_workload_spec.name.to_string(),
                                 if new_instance_name == running_instance_name {
-                                    runtime
-                                        .resume_workload(running_instance_name, new_workload_spec)
+                                    runtime.resume_workload(new_workload_spec)
                                 } else {
-                                    runtime.replace_workload(
-                                        running_instance_name,
-                                        new_instance_name,
-                                        new_workload_spec,
-                                    )
+                                    runtime
+                                        .replace_workload(running_instance_name, new_workload_spec)
                                 },
                             );
                         } else {
@@ -164,14 +160,13 @@ impl RuntimeManager {
 
     async fn add_workload(&mut self, added_workload: WorkloadSpec) {
         let workload_name = added_workload.name.clone();
-        let workload_instance_name = added_workload.instance_name();
 
         if let Some(runtime) = self.runtime_map.get(&added_workload.runtime) {
             // TODO create control interface; pipes shall be created by a different module for each workload that gets created.
             // Create a pipes channel context for each one of them
             // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
             // self.create_control_interface(&method_obj.added_workloads);
-            let workload = runtime.create_workload(workload_instance_name, added_workload);
+            let workload = runtime.create_workload(added_workload);
             self.workloads.insert(workload_name, workload);
         } else {
             log::warn!(
@@ -204,14 +199,9 @@ impl RuntimeManager {
     async fn update_workload(&mut self, updated_workload: WorkloadSpec) {
         let workload_name = updated_workload.name.clone();
         if let Some(workload) = self.workloads.get(&workload_name) {
-            let workload_instance_name = updated_workload.instance_name();
-
             // TODO: control interface
 
-            if let Err(err) = workload
-                .update(workload_instance_name, updated_workload)
-                .await
-            {
+            if let Err(err) = workload.update(updated_workload).await {
                 log::error!("Failed to update workload '{}': '{}'", workload_name, err);
             }
         } else {
@@ -225,48 +215,31 @@ impl RuntimeManager {
     }
 
     // // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-    // fn create_control_interface(&mut self, workload_spec_vec: &Vec<WorkloadSpec>) {
-    //     log::debug!(
-    //         "Creating control interface pipes for '{:?}'",
-    //         workload_spec_vec
-    //     );
-    //     for workload_spec in workload_spec_vec {
-    //         if self
-    //             .adapter_map
-    //             .get(workload_spec.runtime.as_str())
-    //             .is_none()
-    //         {
-    //             log::warn!(
-    //                 "Skipping Control Interface creation for workload '{}': runtime '{}' unknown.",
-    //                 workload_spec.workload.name,
-    //                 workload_spec.runtime
-    //             );
-    //             continue;
-    //         }
+    // fn create_control_interface(&mut self, workload_spec: &WorkloadSpec) {
+    //     log::debug!("Creating control interface pipes for '{:?}'", workload_spec);
 
-    //         if let Some(pipes_context) = self
-    //             .workload_pipes_context_map
-    //             .remove(&workload_spec.workload.name)
-    //         {
-    //             log::debug!(
-    //                 "Replacing PipesChannelContext for workload '{}', old path: '{:?}'",
-    //                 workload_spec.workload.name,
-    //                 pipes_context.get_api_location()
-    //             );
-    //         }
-    //         if let Ok(pipes_channel_context) = PipesChannelContext::new(
-    //             &self.run_folder,
-    //             &workload_spec.instance_name(),
-    //             self._to_server.clone(),
-    //         ) {
-    //             self.workload_pipes_context_map
-    //                 .insert(workload_spec.workload.name.clone(), pipes_channel_context);
-    //         } else {
-    //             log::warn!(
-    //                 "Could not create pipes channel context for workload '{}'.",
-    //                 workload_spec.workload.name
-    //             );
-    //         }
+    //     if let Some(pipes_context) = self
+    //         .workload_pipes_context_map
+    //         .remove(&workload_spec.workload.name)
+    //     {
+    //         log::debug!(
+    //             "Replacing PipesChannelContext for workload '{}', old path: '{:?}'",
+    //             workload_spec.workload.name,
+    //             pipes_context.get_api_location()
+    //         );
+    //     }
+    //     if let Ok(pipes_channel_context) = PipesChannelContext::new(
+    //         &self.run_folder,
+    //         &workload_spec.instance_name(),
+    //         self._to_server.clone(),
+    //     ) {
+    //         self.workload_pipes_context_map
+    //             .insert(workload_spec.workload.name.clone(), pipes_channel_context);
+    //     } else {
+    //         log::warn!(
+    //             "Could not create pipes channel context for workload '{}'.",
+    //             workload_spec.workload.name
+    //         );
     //     }
     // }
 
