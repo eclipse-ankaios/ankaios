@@ -1,28 +1,51 @@
-use crate::runtime::RuntimeError;
+use crate::{control_interface::PipesChannelContext, runtime::RuntimeError};
 use common::objects::WorkloadSpec;
-use tokio::{sync::mpsc, task::JoinHandle};
+use tokio::sync::mpsc;
 
 #[derive(Debug)]
 pub enum WorkloadCommand {
     Stop,
-    Update(WorkloadSpec),
+    Update(Box<WorkloadSpec>),
 }
 
 // #[derive(Debug)]
 pub struct Workload {
-    pub channel: mpsc::Sender<WorkloadCommand>,
-    pub task_handle: JoinHandle<()>,
+    channel: mpsc::Sender<WorkloadCommand>,
+    control_interface: Option<PipesChannelContext>,
 }
 
 impl Workload {
-    pub async fn update(&self, spec: WorkloadSpec) -> Result<(), RuntimeError> {
+    pub fn new(
+        channel: mpsc::Sender<WorkloadCommand>,
+        control_interface: Option<PipesChannelContext>,
+    ) -> Self {
+        Workload {
+            channel,
+            control_interface,
+        }
+    }
+
+    pub async fn update(
+        &mut self,
+        spec: WorkloadSpec,
+        control_interface: Option<PipesChannelContext>,
+    ) -> Result<(), RuntimeError> {
+        if let Some(control_interface) = self.control_interface.take() {
+            control_interface.abort_pipes_channel_task()
+        }
+        self.control_interface = control_interface;
+
         self.channel
-            .send(WorkloadCommand::Update(spec))
+            .send(WorkloadCommand::Update(Box::new(spec)))
             .await
             .map_err(|err| RuntimeError::Update(err.to_string()))
     }
 
     pub async fn delete(self) -> Result<(), RuntimeError> {
+        if let Some(control_interface) = self.control_interface {
+            control_interface.abort_pipes_channel_task()
+        }
+
         self.channel
             .send(WorkloadCommand::Stop)
             .await

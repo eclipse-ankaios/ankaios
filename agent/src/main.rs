@@ -13,6 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use common::communications_client::CommunicationsClient;
+use common::objects::AgentName;
 use common::state_change_interface::StateChangeCommand;
 use generic_polling_state_checker::GenericPollingStateChecker;
 use std::collections::HashMap;
@@ -30,10 +31,10 @@ mod workload_trait;
 
 mod generic_polling_state_checker;
 mod runtime;
+mod runtime_facade;
 mod runtime_manager;
 mod stoppable_state_checker;
 mod workload;
-mod runtime_facade;
 
 use runtime_facade::GenericRuntimeFacade;
 
@@ -46,8 +47,8 @@ use agent_manager::AgentManager;
 use podman::{PodmanKubeRuntime, PodmanKubeWorkloadId};
 
 use crate::runtime::Runtime;
-use crate::runtime_manager::RuntimeManager;
 use crate::runtime_facade::RuntimeFacade;
+use crate::runtime_manager::RuntimeManager;
 
 const BUFFER_SIZE: usize = 20;
 
@@ -89,8 +90,9 @@ async fn main() {
     // This is needed to be able to filter/authorize the commands towards the Ankaios server
     // The pipe connecting the workload to Ankaios must be in the runtime adapter
     let runtime_manager = RuntimeManager::new(
-        args.agent_name.clone().into(),
+        AgentName::from(args.agent_name.as_str()),
         run_directory.get_path(),
+        to_server.clone(),
         runtime_facade_map,
     );
 

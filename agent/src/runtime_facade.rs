@@ -1,10 +1,14 @@
+use std::path::PathBuf;
+
 use async_trait::async_trait;
-use common::objects::{
-    AgentName, WorkloadExecutionInstanceName, WorkloadInstanceName, WorkloadSpec,
+use common::{
+    objects::{AgentName, WorkloadExecutionInstanceName, WorkloadInstanceName, WorkloadSpec},
+    state_change_interface::StateChangeSender,
 };
 use tokio::sync::mpsc;
 
 use crate::{
+    control_interface::PipesChannelContext,
     runtime::{OwnableRuntime, Runtime, RuntimeError},
     stoppable_state_checker::StoppableStateChecker,
     workload::{Workload, WorkloadCommand},
@@ -19,15 +23,24 @@ pub trait RuntimeFacade: Send + Sync {
         agent_name: &AgentName,
     ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError>;
 
-    fn create_workload(&self, runtime_workload: WorkloadSpec) -> Workload;
+    fn create_workload(
+        &self,
+        runtime_workload: WorkloadSpec,
+        control_interface: Option<PipesChannelContext>,
+    ) -> Workload;
 
     fn replace_workload(
         &self,
         existing_workload_name: WorkloadExecutionInstanceName,
         new_workload_spec: WorkloadSpec,
+        control_interface: Option<PipesChannelContext>,
     ) -> Workload;
 
-    fn resume_workload(&self, runtime_workload: WorkloadSpec) -> Workload;
+    fn resume_workload(
+        &self,
+        runtime_workload: WorkloadSpec,
+        control_interface: Option<PipesChannelContext>,
+    ) -> Workload;
 
     fn delete_workload(&self, instance_name: WorkloadExecutionInstanceName);
 }
@@ -88,7 +101,7 @@ where
                         log::debug!("Workload '{}' already gone.", workload_name);
                     }
 
-                    match runtime.create_workload(runtime_workload_config).await {
+                    match runtime.create_workload(*runtime_workload_config).await {
                         Ok((new_workload_id, new_state_checker)) => {
                             workload_id = Some(new_workload_id);
                             state_checker = Some(new_state_checker);
@@ -132,13 +145,17 @@ impl<
     }
 
     // [impl->swdd~agent-facade-start-workload~1]
-    fn create_workload(&self, workload_spec: WorkloadSpec) -> Workload {
+    fn create_workload(
+        &self,
+        workload_spec: WorkloadSpec,
+        control_interface: Option<PipesChannelContext>,
+    ) -> Workload {
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
 
         let workload_name = workload_spec.name.clone();
         let runtime = self.runtime.to_owned();
 
-        let task_handle = tokio::spawn(async move {
+        tokio::spawn(async move {
             let (workload_id, state_checker) =
                 runtime.create_workload(workload_spec).await.unwrap();
 
@@ -152,10 +169,7 @@ impl<
             .await;
         });
 
-        Workload {
-            channel: command_sender,
-            task_handle,
-        }
+        Workload::new(command_sender, control_interface)
     }
 
     // [impl->swdd~agent-facade-replace-existing-workload~1]
@@ -163,13 +177,14 @@ impl<
         &self,
         old_instance_name: WorkloadExecutionInstanceName,
         new_workload_spec: WorkloadSpec,
+        control_interface: Option<PipesChannelContext>,
     ) -> Workload {
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
 
         let workload_name = new_workload_spec.name.clone();
         let runtime = self.runtime.to_owned();
 
-        let task_handle = tokio::spawn(async move {
+        tokio::spawn(async move {
             let old_id = runtime.get_workload_id(&old_instance_name).await.unwrap();
 
             runtime.delete_workload(&old_id).await.unwrap();
@@ -187,20 +202,21 @@ impl<
             .await;
         });
 
-        Workload {
-            channel: command_sender,
-            task_handle,
-        }
+        Workload::new(command_sender, control_interface)
     }
 
     // [impl->swdd~agent-facade-resumes-existing-workload~1]
-    fn resume_workload(&self, workload_spec: WorkloadSpec) -> Workload {
+    fn resume_workload(
+        &self,
+        workload_spec: WorkloadSpec,
+        control_interface: Option<PipesChannelContext>,
+    ) -> Workload {
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
 
         let workload_name = workload_spec.name.clone();
         let runtime = self.runtime.to_owned();
 
-        let task_handle = tokio::spawn(async move {
+        tokio::spawn(async move {
             let workload_id = runtime
                 .get_workload_id(&workload_spec.instance_name())
                 .await
@@ -221,10 +237,7 @@ impl<
             .await;
         });
 
-        Workload {
-            channel: command_sender,
-            task_handle,
-        }
+        Workload::new(command_sender, control_interface)
     }
 
     fn delete_workload(&self, instance_name: WorkloadExecutionInstanceName) {
