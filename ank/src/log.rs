@@ -6,16 +6,19 @@ use std::{
 
 pub const VERBOSITY_KEY: &str = "VERBOSE";
 
+/// Prints the error message and immediately terminates the application with the exit code 1.
 #[macro_export]
 macro_rules! output_and_error {
     ( $ ( $ arg : tt ) * ) => { $crate::log::output_and_error_fn ( format_args ! ( $ ( $ arg ) * ) ) }
 }
 
+/// Prints the message and immediately terminates the application with the exit code 0.
 #[macro_export]
 macro_rules! output_and_exit {
     ( $ ( $ arg : tt ) * ) => { $crate::log::output_and_exit_fn ( format_args ! ( $ ( $ arg ) * ) ) }
 }
 
+/// Prints the message as a debug trace. It does not terminate the application (the application continues).
 #[macro_export]
 macro_rules! output_debug {
     ( $ ( $ arg : tt ) * ) => { $crate::log::output_debug_fn ( format_args ! ( $ ( $ arg ) * ) ) }
