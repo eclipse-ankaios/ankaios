@@ -1,9 +1,9 @@
 use async_trait::async_trait;
-use common::objects::{RuntimeWorkload, WorkloadExecutionInstanceName};
+use common::objects::{AgentName, RuntimeWorkload, WorkloadExecutionInstanceName};
 use tokio::sync::mpsc;
 
 use crate::{
-    runtime::{OwnableRuntime, Runtime},
+    runtime::{OwnableRuntime, Runtime, RuntimeError},
     stoppable_state_checker::StoppableStateChecker,
     workload::{Workload, WorkloadCommand},
 };
@@ -11,7 +11,12 @@ use crate::{
 static COMMAND_BUFFER_SIZE: usize = 5;
 
 #[async_trait]
-pub trait WorkloadFactory: Send + Sync {
+pub trait RuntimeFacade: Send + Sync {
+    async fn get_reusable_running_workloads(
+        &self,
+        agent_name: &AgentName,
+    ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError>;
+
     fn create_workload(
         &self,
         workload_instance_name: WorkloadExecutionInstanceName,
@@ -30,22 +35,24 @@ pub trait WorkloadFactory: Send + Sync {
         existing_workload_name: WorkloadExecutionInstanceName,
         runtime_workload: RuntimeWorkload,
     ) -> Workload;
+
+    fn delete_workload(&self, instance_name: WorkloadExecutionInstanceName);
 }
 
-pub struct GenericWorkloadFactory<
+pub struct GenericRuntimeFacade<
     WorkloadId: Send + Sync,
     StateChecker: StoppableStateChecker + Send + Sync,
 > {
     runtime: Box<dyn OwnableRuntime<WorkloadId, StateChecker>>,
 }
 
-impl<WorkloadId, StateChecker> GenericWorkloadFactory<WorkloadId, StateChecker>
+impl<WorkloadId, StateChecker> GenericRuntimeFacade<WorkloadId, StateChecker>
 where
     WorkloadId: Send + Sync + 'static,
     StateChecker: StoppableStateChecker + Send + Sync + 'static,
 {
     pub fn new(runtime: Box<dyn OwnableRuntime<WorkloadId, StateChecker>>) -> Self {
-        GenericWorkloadFactory { runtime }
+        GenericRuntimeFacade { runtime }
     }
 
     async fn await_new_command(
@@ -123,8 +130,17 @@ where
 impl<
         WorkloadId: Send + Sync + 'static,
         StateChecker: StoppableStateChecker + Send + Sync + 'static,
-    > WorkloadFactory for GenericWorkloadFactory<WorkloadId, StateChecker>
+    > RuntimeFacade for GenericRuntimeFacade<WorkloadId, StateChecker>
 {
+    async fn get_reusable_running_workloads(
+        &self,
+        agent_name: &AgentName,
+    ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
+        self.runtime
+            .get_reusable_running_workloads(agent_name)
+            .await
+    }
+
     // [impl->swdd~agent-facade-start-workload~1]
     fn create_workload(
         &self,
@@ -232,5 +248,14 @@ impl<
             channel: command_sender,
             task_handle,
         }
+    }
+
+    fn delete_workload(&self, instance_name: WorkloadExecutionInstanceName) {
+        let runtime = self.runtime.to_owned();
+        tokio::spawn(async move {
+            runtime
+                .delete_workload(&runtime.get_workload_id(&instance_name).await?)
+                .await
+        });
     }
 }

@@ -33,7 +33,7 @@ pub trait Runtime<WorkloadId, StateChecker>: Sync + Send {
 
     async fn get_reusable_running_workloads(
         &self,
-        agent_name: AgentName,
+        agent_name: &AgentName,
     ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError>;
 
     async fn create_workload(

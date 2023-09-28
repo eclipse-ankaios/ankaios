@@ -33,9 +33,9 @@ mod runtime;
 mod runtime_manager;
 mod stoppable_state_checker;
 mod workload;
-mod workload_factory;
+mod runtime_facade;
 
-use workload_factory::GenericWorkloadFactory;
+use runtime_facade::GenericRuntimeFacade;
 
 use common::execution_interface::ExecutionCommand;
 use common::std_extensions::{GracefulExitResult, IllegalStateResult, UnreachableResult};
@@ -47,7 +47,7 @@ use podman::{PodmanKubeRuntime, PodmanKubeWorkloadId};
 
 use crate::runtime::Runtime;
 use crate::runtime_manager::RuntimeManager;
-use crate::workload_factory::WorkloadFactory;
+use crate::runtime_facade::RuntimeFacade;
 
 const BUFFER_SIZE: usize = 20;
 
@@ -78,12 +78,12 @@ async fn main() {
     // [impl->swdd~agent-supports-podman~1]
     let podman_kube_runtime = Box::new(PodmanKubeRuntime {});
     let podman_kube_runtime_name = podman_kube_runtime.name();
-    let podman_factory = Box::new(GenericWorkloadFactory::<
+    let podman_kube_facade = Box::new(GenericRuntimeFacade::<
         PodmanKubeWorkloadId,
         GenericPollingStateChecker,
     >::new(podman_kube_runtime));
-    let mut workload_factory_map: HashMap<String, Box<dyn WorkloadFactory>> = HashMap::new();
-    workload_factory_map.insert(podman_kube_runtime_name, podman_factory);
+    let mut runtime_facade_map: HashMap<String, Box<dyn RuntimeFacade>> = HashMap::new();
+    runtime_facade_map.insert(podman_kube_runtime_name, podman_kube_facade);
 
     // The RuntimeManager currently directly gets the server StateChangeInterface, but it shall get the agent manager interface
     // This is needed to be able to filter/authorize the commands towards the Ankaios server
@@ -91,7 +91,7 @@ async fn main() {
     let runtime_manager = RuntimeManager::new(
         args.agent_name.clone().into(),
         run_directory.get_path(),
-        workload_factory_map,
+        runtime_facade_map,
     );
 
     let mut grpc_communications_client =

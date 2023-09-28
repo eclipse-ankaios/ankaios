@@ -34,7 +34,7 @@ impl Runtime<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRun
 
     async fn get_reusable_running_workloads(
         &self,
-        agent_name: AgentName,
+        agent_name: &AgentName,
     ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
         todo!()
     }

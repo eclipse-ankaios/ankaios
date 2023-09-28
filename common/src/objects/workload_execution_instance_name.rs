@@ -90,6 +90,16 @@ impl WorkloadExecutionInstanceName {
     }
 }
 
+impl From<&WorkloadSpec> for WorkloadExecutionInstanceName {
+    fn from(workload_spec: &WorkloadSpec) -> Self {
+        WorkloadExecutionInstanceName::builder()
+            .agent_name(workload_spec.agent.clone())
+            .workload_name(workload_spec.workload.name.clone())
+            .config(&workload_spec.workload.runtime_config)
+            .build()
+    }
+}
+
 // [impl->swdd~common-workload-execution-instance-naming~1]
 impl Display for WorkloadExecutionInstanceName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::objects::workload_execution_instance_name::INSTANCE_NAME_SEPARATOR;
 
 pub struct AgentName(String);
@@ -20,5 +22,11 @@ impl AgentName {
 impl From<String> for AgentName {
     fn from(value: String) -> Self {
         AgentName(value)
+    }
+}
+
+impl Display for AgentName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Could not create workload: '{}'", self.0)
     }
 }
