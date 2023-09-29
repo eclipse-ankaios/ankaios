@@ -6,7 +6,18 @@ set -e
 # GITHUB RELEASE URL SCHEMA for latest release artifact: https://github.com/<organisation>/<repo>/releases/latest/download/<concrete_artifact> (takes the release marked as latest)
 RELEASE_URL_BASE="https://github.com/eclipse-ankaios/ankaios/releases"
 DEFAULT_BIN_DESTINATION="/usr/local/bin/"
-BIN_DESTINATION="${DEFAULT_BIN_DESTINATION}"
+BIN_DESTINATION="$DEFAULT_BIN_DESTINATION"
+DEFAULT_AGENT_OPT="--name agent_A"
+AGENT_OPT="$DEFAULT_AGENT_OPT"
+DEFAULT_SERVER_OPT="--startup-config /etc/ank/state.yaml"
+SERVER_OPT="$DEFAULT_SERVER_OPT"
+INSTALL_TYPE="both"
+SERVICE_DEST=/etc/systemd/system
+ANK_SERVER_SERVICE="ank-server"
+FILE_ANK_SERVER_SERVICE="$SERVICE_DEST/$ANK_SERVER_SERVICE.service"
+ANK_AGENT_SERVICE="ank-agent"
+FILE_ANK_AGENT_SERVICE="$SERVICE_DEST/$ANK_AGENT_SERVICE.service"
+
 
 setup_verify_arch() {
     if [ -z "$ARCH" ]; then
@@ -27,7 +38,7 @@ setup_verify_arch() {
     case $OS_NAME in
         linux) ;;
         *)
-            fail "Unsupported OS kernel type '${OS_NAME}'"
+           fail "Unsupported OS kernel type '${OS_NAME}'"
     esac
 }
 
@@ -35,7 +46,10 @@ display_usage() {
     echo -e "Usage: $0 [-v] [-i]"
     echo -e "Install Ankaios on a system."
     echo -e "  -v: Ankaios specific version to install. Default: latest version."
-    echo -e "  -i: Installation path. Default: ${DEFAULT_BIN_DESTINATION}\n"
+    echo -e "  -i: Installation path. Default: $DEFAULT_BIN_DESTINATION"
+    echo -e "  -t: Installation type. 'server', 'agent' or 'both' (default)"
+    echo -e "  -s: Options which will be passed to the server. Default '$DEFAULT_SERVER_OPT'"
+    echo -e "  -a: Options which will be passed to the agent. Default '$DEFAULT_AGENT_OPT'"
 }
 
 fail() {
@@ -65,6 +79,9 @@ while getopts v:i: opt; do
     case $opt in
         v) ANKAIOS_VERSION="$OPTARG";;
         i) BIN_DESTINATION="$OPTARG";;
+        t) INSTALL_TYPE="$OPTARG";;
+        s) SERVER_OPT="$OPTARG";;
+        a) AGENT_OPT="$OPTARG";;
         *)
             fail "Error: Invalid parameter, aborting"
         ;;
@@ -126,5 +143,48 @@ fi
 
 echo "Extracting the binaries into install folder: '${BIN_DESTINATION}'"
 ${PREFIX} tar -xvzf "${RELEASE_FILE_NAME}" -C "${BIN_DESTINATION}"
+
+# Install system unit files
+if [ -d "$SERVICE_DEST" ]; then
+    SUDO="sudo"
+    if [ -w "$SERVICE_DEST" ]; then
+        SUDO=""
+    fi
+
+    if [[ "$INSTALL_TYPE" == server || "$INSTALL_TYPE" == both ]]; then
+        $SUDO tee "$FILE_ANK_SERVER_SERVICE" >/dev/null << EOF
+[Unit]
+Description=Ankaios server
+
+[Service]
+ExecStart=/usr/local/bin/ank-server $SERVER_OPT
+
+[Install]
+WantedBy=default.target
+EOF
+    echo "Start server with 'systemctl start $ANK_SERVER_SERVICE'"
+    fi
+
+    if [[ "$INSTALL_TYPE" == agent || "$INSTALL_TYPE" == both ]]; then
+        $SUDO tee "$FILE_ANK_AGENT_SERVICE" >/dev/null << EOF
+[Unit]
+Description=Ankaios agent
+
+[Service]
+ExecStart=/usr/local/bin/ank-agent $AGENT_OPT
+
+[Install]
+WantedBy=default.target
+EOF
+    echo "Start agent with 'systemctl start $ANK_AGENT_SERVICE'"
+    fi
+
+else
+    echo "$$SERVICE_DEST not found. Skipping installation of systemd unit files for Ankaios"
+fi
+
+# Uninstall script
+
+# TODO: Create uninstall script
 
 echo "Installation has finished."
