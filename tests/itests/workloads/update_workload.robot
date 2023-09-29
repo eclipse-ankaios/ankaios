@@ -18,7 +18,7 @@ Test Ankaios CLI update workload
     And Ankaios agent is started with "ank-agent --name agent_A -p /tmp/podman.sock"
     And all workloads of agent "agent_A" have an initial execution state
     # to be checked why port mapping is not not working in podman in container
-    And the command "curl localhost:80" finished with exit code "0"
+    And the command "curl localhost:8081" finished with exit code "0"
     # Actions
     When user triggers "ank get state > ${new_state_yaml_file}" 
     And user updates the state "${new_state_yaml_file}" with "currentState.workloads.nginx.runtimeConfig.ports.0.hostPort=8082"
@@ -27,5 +27,5 @@ Test Ankaios CLI update workload
     # Asserts
     Then the workload "nginx" shall have the execution state "Running"
     # to be checked why port mapping is not not working in podman in container
-    And the command "curl localhost:80" shall finish with exit code "0"
+    And the command "curl localhost:8082" shall finish with exit code "0"
     [Teardown]    Clean up Ankaios

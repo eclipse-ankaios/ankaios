@@ -38,6 +38,7 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     protobuf-compiler-grpc \
     gcc-aarch64-linux-gnu \
     tmux \
+    vim \
     uidmap \
     fuse3 \
     fuse-overlayfs \
@@ -49,8 +50,7 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
           
 VOLUME /var/lib/containers
 
-ADD https://raw.githubusercontent.com/containers/libpod/master/contrib/podmanimage/stable/containers.conf /etc/containers/containers.conf
-
+COPY containers.conf /etc/containers/containers.conf
 RUN chmod 644 /etc/containers/containers.conf
 
 

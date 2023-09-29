@@ -77,7 +77,7 @@ Ankaios agent is started with "${ank_agent_cli_command}"
 
 all workloads of agent "${agent_name}" have an initial execution state
     Log    Waiting for initial execution states of agent '${agent_name}'
-    ${result}=    wait for initial execution state    %{ANK_BIN_DIR}${/}ank get workloads    ${agent_name}    20    2
+    ${result}=    wait for initial execution state    %{ANK_BIN_DIR}${/}ank get workloads    ${agent_name}    20    5
     Should Be True    ${result}
 
 user triggers "${cli_command}"
@@ -112,7 +112,7 @@ user updates the state "${new_state_yaml_file}" with "${field_value}"
     Write Yaml    new_yaml=${new_config}  path=${new_state_yaml_file}
 
 the workload "${workload_name}" has the execution state "${execution_state}"
-    ${result}=    Wait For Execution State   %{ANK_BIN_DIR}${/}ank get workloads    ${workload_name}    ${execution_state}    20
+    ${result}=    Wait For Execution State   %{ANK_BIN_DIR}${/}ank get workloads    ${workload_name}    ${execution_state}    20    5
     Should Be True    ${result}
 
 the workload "${workload_name}" shall have the execution state "${execution_state}"
