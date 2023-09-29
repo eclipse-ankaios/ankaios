@@ -20,6 +20,39 @@ No Constraints or risks are known at the time of writing this document.
 
 ### Design decisions
 
+The following section holds the design decisions taken during the development of the CLI.
+
+#### CLI uses proprietary tracing
+
+`swdd~cli-use-proprietary-tracing~1`
+
+Status: approved
+
+The CLI shall use its own proprietary tracing functions with following features:
+
+| message type     | output       | features                                                                                      |
+| ---------------- | ------------ | --------------------------------------------------------------------------------------------- |
+| error            | `io::stderr` | writes a message to the output and terminates the application with the exit code `1`          |
+| command response | `io::stdout` | writes a message to the output and terminates the application with the exit code `0`          |
+| debug            | `io::stdout` | writes a message to the output if the verbose mode is on (does not terminate the application) |
+
+Rationale:
+
+The CLI is an application different than Ankaios server or Ankaios agent.
+The CLI interacts directly with the user and the user expects a response to the command (if available).
+Therefore the information shall not be written to the log, but it shall be provided to the user.
+
+Existing crates either do not behave at it is required or they are too complex for such task.
+
+Needs:
+
+* impl
+
+Considered alternatives:
+
+* keep on using the environment logger
+* use another crate which provides tracing functions
+
 ## Structural view
 
 Following diagram shows the structural view of the Ankaios Ank.
