@@ -28,6 +28,7 @@ pub struct RuntimeManager {
     initial_workload_list_received: bool,
     workloads: HashMap<String, Workload>,
     runtime_map: HashMap<String, Box<dyn RuntimeFacade>>,
+    update_state_tx: StateChangeSender,
 }
 
 impl RuntimeManager {
@@ -36,6 +37,7 @@ impl RuntimeManager {
         run_folder: PathBuf,
         control_interface_tx: StateChangeSender,
         runtime_map: HashMap<String, Box<dyn RuntimeFacade>>,
+        update_state_tx: StateChangeSender,
     ) -> Self {
         RuntimeManager {
             agent_name,
@@ -44,6 +46,7 @@ impl RuntimeManager {
             initial_workload_list_received: false,
             workloads: HashMap::new(),
             runtime_map,
+            update_state_tx,
         }
     }
 
@@ -108,12 +111,17 @@ impl RuntimeManager {
                             self.workloads.insert(
                                 new_workload_spec.name.to_string(),
                                 if new_instance_name == running_instance_name {
-                                    runtime.resume_workload(new_workload_spec, control_interface)
+                                    runtime.resume_workload(
+                                        new_workload_spec,
+                                        control_interface,
+                                        &self.update_state_tx,
+                                    )
                                 } else {
                                     runtime.replace_workload(
                                         running_instance_name,
                                         new_workload_spec,
                                         control_interface,
+                                        &self.update_state_tx,
                                     )
                                 },
                             );
@@ -187,7 +195,7 @@ impl RuntimeManager {
         let workload_name = workload_spec.name.clone();
 
         if let Some(runtime) = self.runtime_map.get(&workload_spec.runtime) {
-            let workload = runtime.create_workload(workload_spec, control_interface);
+            let workload = runtime.create_workload(workload_spec, control_interface, &self.update_state_tx);
             self.workloads.insert(workload_name, workload);
         } else {
             log::warn!(

@@ -2,7 +2,10 @@ use std::path::PathBuf;
 
 use async_trait::async_trait;
 
-use common::objects::{AgentName, WorkloadExecutionInstanceName, WorkloadSpec};
+use common::{
+    objects::{AgentName, WorkloadExecutionInstanceName, WorkloadSpec},
+    state_change_interface::StateChangeSender,
+};
 
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
@@ -45,8 +48,14 @@ impl Runtime<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRun
         &self,
         workload_spec: WorkloadSpec,
         control_interface_path: Option<PathBuf>,
+        update_state_tx: StateChangeSender,
     ) -> Result<(PodmanKubeWorkloadId, GenericPollingStateChecker), RuntimeError> {
-        todo!()
+        Ok((
+            PodmanKubeWorkloadId {
+                manifest: "sdcdsc".to_string(),
+            },
+            GenericPollingStateChecker { task_handle: None },
+        ))
     }
 
     async fn get_workload_id(
@@ -60,6 +69,7 @@ impl Runtime<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRun
         &self,
         workload_id: &PodmanKubeWorkloadId,
         workload_spec: WorkloadSpec,
+        update_state_tx: StateChangeSender,
     ) -> Result<GenericPollingStateChecker, RuntimeError> {
         todo!()
     }

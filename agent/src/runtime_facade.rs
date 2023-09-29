@@ -1,6 +1,7 @@
 use async_trait::async_trait;
-use common::objects::{
-    AgentName, WorkloadExecutionInstanceName, WorkloadInstanceName, WorkloadSpec,
+use common::{
+    objects::{AgentName, WorkloadExecutionInstanceName, WorkloadInstanceName, WorkloadSpec},
+    state_change_interface::StateChangeSender,
 };
 use tokio::sync::mpsc;
 
@@ -24,6 +25,7 @@ pub trait RuntimeFacade: Send + Sync {
         &self,
         runtime_workload: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
+        update_state_tx: &StateChangeSender,
     ) -> Workload;
 
     fn replace_workload(
@@ -31,12 +33,14 @@ pub trait RuntimeFacade: Send + Sync {
         existing_workload_name: WorkloadExecutionInstanceName,
         new_workload_spec: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
+        update_state_tx: &StateChangeSender,
     ) -> Workload;
 
     fn resume_workload(
         &self,
         runtime_workload: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
+        update_state_tx: &StateChangeSender,
     ) -> Workload;
 
     fn delete_workload(&self, instance_name: WorkloadExecutionInstanceName);
@@ -62,6 +66,7 @@ where
         workload_name: String,
         initial_workload_id: WorkloadId,
         initial_state_checker: StateChecker,
+        update_state_tx: StateChangeSender,
         runtime: Box<dyn Runtime<WorkloadId, StateChecker>>,
         mut command_receiver: mpsc::Receiver<WorkloadCommand>,
     ) {
@@ -99,7 +104,11 @@ where
                     }
 
                     match runtime
-                        .create_workload(*runtime_workload_config, control_interface_path)
+                        .create_workload(
+                            *runtime_workload_config,
+                            control_interface_path,
+                            update_state_tx.clone(),
+                        )
                         .await
                     {
                         Ok((new_workload_id, new_state_checker)) => {
@@ -149,18 +158,24 @@ impl<
         &self,
         workload_spec: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
+        update_state_tx: &StateChangeSender,
     ) -> Workload {
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
 
         let workload_name = workload_spec.name.clone();
         let runtime = self.runtime.to_owned();
+        let update_state_tx = update_state_tx.clone();
         let control_interface_path = control_interface
             .as_ref()
             .map(|control_interface| control_interface.get_api_location());
 
         tokio::spawn(async move {
             let (workload_id, state_checker) = runtime
-                .create_workload(workload_spec, control_interface_path)
+                .create_workload(
+                    workload_spec,
+                    control_interface_path,
+                    update_state_tx.clone(),
+                )
                 .await
                 .unwrap();
 
@@ -168,6 +183,7 @@ impl<
                 workload_name,
                 workload_id,
                 state_checker,
+                update_state_tx,
                 runtime,
                 command_receiver,
             )
@@ -183,12 +199,13 @@ impl<
         old_instance_name: WorkloadExecutionInstanceName,
         new_workload_spec: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
+        update_state_tx: &StateChangeSender,
     ) -> Workload {
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
 
         let workload_name = new_workload_spec.name.clone();
         let runtime = self.runtime.to_owned();
-
+        let update_state_tx = update_state_tx.clone();
         let control_interface_path = control_interface
             .as_ref()
             .map(|control_interface| control_interface.get_api_location());
@@ -199,7 +216,11 @@ impl<
             runtime.delete_workload(&old_id).await.unwrap();
 
             let (workload_id, state_checker) = runtime
-                .create_workload(new_workload_spec, control_interface_path)
+                .create_workload(
+                    new_workload_spec,
+                    control_interface_path,
+                    update_state_tx.clone(),
+                )
                 .await
                 .unwrap();
 
@@ -207,6 +228,7 @@ impl<
                 workload_name,
                 workload_id,
                 state_checker,
+                update_state_tx,
                 runtime,
                 command_receiver,
             )
@@ -221,11 +243,13 @@ impl<
         &self,
         workload_spec: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
+        update_state_tx: &StateChangeSender,
     ) -> Workload {
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
 
         let workload_name = workload_spec.name.clone();
         let runtime = self.runtime.to_owned();
+        let update_state_tx = update_state_tx.clone();
 
         tokio::spawn(async move {
             let workload_id = runtime
@@ -234,7 +258,7 @@ impl<
                 .unwrap();
 
             let state_checker = runtime
-                .start_checker(&workload_id, workload_spec)
+                .start_checker(&workload_id, workload_spec, update_state_tx.clone())
                 .await
                 .unwrap();
 
@@ -242,6 +266,7 @@ impl<
                 workload_name,
                 workload_id,
                 state_checker,
+                update_state_tx,
                 runtime,
                 command_receiver,
             )

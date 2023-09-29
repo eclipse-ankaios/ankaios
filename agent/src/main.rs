@@ -94,6 +94,7 @@ async fn main() {
         run_directory.get_path(),
         to_server.clone(),
         runtime_facade_map,
+        to_server.clone(),
     );
 
     let mut grpc_communications_client =

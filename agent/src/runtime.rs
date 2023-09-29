@@ -2,7 +2,10 @@ use std::{fmt::Display, path::PathBuf};
 
 use async_trait::async_trait;
 
-use common::objects::{AgentName, WorkloadExecutionInstanceName, WorkloadSpec};
+use common::{
+    objects::{AgentName, WorkloadExecutionInstanceName, WorkloadSpec},
+    state_change_interface::StateChangeSender,
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeError {
@@ -40,6 +43,7 @@ pub trait Runtime<WorkloadId, StateChecker>: Sync + Send {
         &self,
         runtime_workload_config: WorkloadSpec,
         control_interface_path: Option<PathBuf>,
+        update_state_tx: StateChangeSender,
     ) -> Result<(WorkloadId, StateChecker), RuntimeError>;
 
     async fn get_workload_id(
@@ -51,6 +55,7 @@ pub trait Runtime<WorkloadId, StateChecker>: Sync + Send {
         &self,
         workload_id: &WorkloadId,
         runtime_workload_config: WorkloadSpec,
+        update_state_tx: StateChangeSender,
     ) -> Result<StateChecker, RuntimeError>;
 
     async fn delete_workload(&self, workload_id: &WorkloadId) -> Result<(), RuntimeError>;
