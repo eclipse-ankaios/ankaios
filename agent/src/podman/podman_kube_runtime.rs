@@ -1,6 +1,8 @@
+use std::path::PathBuf;
+
 use async_trait::async_trait;
 
-use common::objects::{AgentName, WorkloadSpec, WorkloadExecutionInstanceName};
+use common::objects::{AgentName, WorkloadExecutionInstanceName, WorkloadSpec};
 
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
@@ -42,6 +44,7 @@ impl Runtime<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRun
     async fn create_workload(
         &self,
         workload_spec: WorkloadSpec,
+        control_interface_path: Option<PathBuf>,
     ) -> Result<(PodmanKubeWorkloadId, GenericPollingStateChecker), RuntimeError> {
         todo!()
     }

@@ -1,9 +1,6 @@
-use std::path::PathBuf;
-
 use async_trait::async_trait;
-use common::{
-    objects::{AgentName, WorkloadExecutionInstanceName, WorkloadInstanceName, WorkloadSpec},
-    state_change_interface::StateChangeSender,
+use common::objects::{
+    AgentName, WorkloadExecutionInstanceName, WorkloadInstanceName, WorkloadSpec,
 };
 use tokio::sync::mpsc;
 
@@ -85,7 +82,7 @@ where
                     }
                     return;
                 }
-                Some(WorkloadCommand::Update(runtime_workload_config)) => {
+                Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
                     if let Some(old_id) = workload_id {
                         if let Err(err) = runtime.delete_workload(&old_id).await {
                             log::warn!("Could not update workload '{}': '{}'", workload_name, err);
@@ -101,7 +98,10 @@ where
                         log::debug!("Workload '{}' already gone.", workload_name);
                     }
 
-                    match runtime.create_workload(*runtime_workload_config).await {
+                    match runtime
+                        .create_workload(*runtime_workload_config, control_interface_path)
+                        .await
+                    {
                         Ok((new_workload_id, new_state_checker)) => {
                             workload_id = Some(new_workload_id);
                             state_checker = Some(new_state_checker);
@@ -154,10 +154,15 @@ impl<
 
         let workload_name = workload_spec.name.clone();
         let runtime = self.runtime.to_owned();
+        let control_interface_path = control_interface
+            .as_ref()
+            .map(|control_interface| control_interface.get_api_location());
 
         tokio::spawn(async move {
-            let (workload_id, state_checker) =
-                runtime.create_workload(workload_spec).await.unwrap();
+            let (workload_id, state_checker) = runtime
+                .create_workload(workload_spec, control_interface_path)
+                .await
+                .unwrap();
 
             Self::await_new_command(
                 workload_name,
@@ -184,13 +189,19 @@ impl<
         let workload_name = new_workload_spec.name.clone();
         let runtime = self.runtime.to_owned();
 
+        let control_interface_path = control_interface
+            .as_ref()
+            .map(|control_interface| control_interface.get_api_location());
+
         tokio::spawn(async move {
             let old_id = runtime.get_workload_id(&old_instance_name).await.unwrap();
 
             runtime.delete_workload(&old_id).await.unwrap();
 
-            let (workload_id, state_checker) =
-                runtime.create_workload(new_workload_spec).await.unwrap();
+            let (workload_id, state_checker) = runtime
+                .create_workload(new_workload_spec, control_interface_path)
+                .await
+                .unwrap();
 
             Self::await_new_command(
                 workload_name,

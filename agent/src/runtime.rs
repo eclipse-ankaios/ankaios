@@ -1,8 +1,8 @@
-use std::fmt::Display;
+use std::{fmt::Display, path::PathBuf};
 
 use async_trait::async_trait;
 
-use common::objects::{AgentName, WorkloadSpec, WorkloadExecutionInstanceName};
+use common::objects::{AgentName, WorkloadExecutionInstanceName, WorkloadSpec};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeError {
@@ -39,6 +39,7 @@ pub trait Runtime<WorkloadId, StateChecker>: Sync + Send {
     async fn create_workload(
         &self,
         runtime_workload_config: WorkloadSpec,
+        control_interface_path: Option<PathBuf>,
     ) -> Result<(WorkloadId, StateChecker), RuntimeError>;
 
     async fn get_workload_id(

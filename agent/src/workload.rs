@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::{control_interface::PipesChannelContext, runtime::RuntimeError};
 use common::objects::WorkloadSpec;
 use tokio::sync::mpsc;
@@ -5,7 +7,7 @@ use tokio::sync::mpsc;
 #[derive(Debug)]
 pub enum WorkloadCommand {
     Stop,
-    Update(Box<WorkloadSpec>),
+    Update(Box<WorkloadSpec>, Option<PathBuf>),
 }
 
 // #[derive(Debug)]
@@ -35,8 +37,16 @@ impl Workload {
         }
         self.control_interface = control_interface;
 
+        let control_interface_path = self
+            .control_interface
+            .as_ref()
+            .map(|control_interface| control_interface.get_api_location());
+
         self.channel
-            .send(WorkloadCommand::Update(Box::new(spec)))
+            .send(WorkloadCommand::Update(
+                Box::new(spec),
+                control_interface_path,
+            ))
             .await
             .map_err(|err| RuntimeError::Update(err.to_string()))
     }
