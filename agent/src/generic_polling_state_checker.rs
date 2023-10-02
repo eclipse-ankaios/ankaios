@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use std::time::Duration;
 use tokio::{task::JoinHandle, time};
 
-use crate::stoppable_state_checker::{RuntimeStateChecker, StoppableStateChecker};
+use crate::state_checker::{RuntimeStateChecker, StateChecker};
 use common::{
     objects::{ExecutionState, WorkloadInstanceName, WorkloadSpec},
     state_change_interface::{StateChangeInterface, StateChangeSender},
@@ -18,7 +18,7 @@ pub struct GenericPollingStateChecker {
 }
 
 #[async_trait]
-impl StoppableStateChecker for GenericPollingStateChecker {
+impl StateChecker for GenericPollingStateChecker {
     fn start_checker(
         workload_spec: &WorkloadSpec,
         manager_interface: StateChangeSender,

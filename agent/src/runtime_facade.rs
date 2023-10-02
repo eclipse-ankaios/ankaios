@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 use crate::{
     control_interface::PipesChannelContext,
     runtime::{OwnableRuntime, Runtime, RuntimeError},
-    stoppable_state_checker::StoppableStateChecker,
+    state_checker::StateChecker,
     workload::{Workload, WorkloadCommand},
 };
 
@@ -46,28 +46,25 @@ pub trait RuntimeFacade: Send + Sync {
     fn delete_workload(&self, instance_name: WorkloadExecutionInstanceName);
 }
 
-pub struct GenericRuntimeFacade<
-    WorkloadId: Send + Sync,
-    StateChecker: StoppableStateChecker + Send + Sync,
-> {
-    runtime: Box<dyn OwnableRuntime<WorkloadId, StateChecker>>,
+pub struct GenericRuntimeFacade<WorkloadId: Send + Sync, StChecker: StateChecker + Send + Sync> {
+    runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>,
 }
 
-impl<WorkloadId, StateChecker> GenericRuntimeFacade<WorkloadId, StateChecker>
+impl<WorkloadId, StChecker> GenericRuntimeFacade<WorkloadId, StChecker>
 where
     WorkloadId: Send + Sync + 'static,
-    StateChecker: StoppableStateChecker + Send + Sync + 'static,
+    StChecker: StateChecker + Send + Sync + 'static,
 {
-    pub fn new(runtime: Box<dyn OwnableRuntime<WorkloadId, StateChecker>>) -> Self {
+    pub fn new(runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>) -> Self {
         GenericRuntimeFacade { runtime }
     }
 
     async fn await_new_command(
         workload_name: String,
         initial_workload_id: WorkloadId,
-        initial_state_checker: StateChecker,
+        initial_state_checker: StChecker,
         update_state_tx: StateChangeSender,
-        runtime: Box<dyn Runtime<WorkloadId, StateChecker>>,
+        runtime: Box<dyn Runtime<WorkloadId, StChecker>>,
         mut command_receiver: mpsc::Receiver<WorkloadCommand>,
     ) {
         let mut state_checker = Some(initial_state_checker);
@@ -139,10 +136,8 @@ where
 }
 
 #[async_trait]
-impl<
-        WorkloadId: Send + Sync + 'static,
-        StateChecker: StoppableStateChecker + Send + Sync + 'static,
-    > RuntimeFacade for GenericRuntimeFacade<WorkloadId, StateChecker>
+impl<WorkloadId: Send + Sync + 'static, StChecker: StateChecker + Send + Sync + 'static>
+    RuntimeFacade for GenericRuntimeFacade<WorkloadId, StChecker>
 {
     async fn get_reusable_running_workloads(
         &self,

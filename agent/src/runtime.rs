@@ -7,6 +7,8 @@ use common::{
     state_change_interface::StateChangeSender,
 };
 
+use crate::state_checker::StateChecker;
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeError {
     Create(String),
@@ -31,7 +33,10 @@ impl Display for RuntimeError {
 }
 
 #[async_trait]
-pub trait Runtime<WorkloadId, StateChecker>: Sync + Send {
+pub trait Runtime<WorkloadId, StChecker>: Sync + Send
+where
+    StChecker: StateChecker,
+{
     fn name(&self) -> String;
 
     async fn get_reusable_running_workloads(
@@ -44,7 +49,7 @@ pub trait Runtime<WorkloadId, StateChecker>: Sync + Send {
         runtime_workload_config: WorkloadSpec,
         control_interface_path: Option<PathBuf>,
         update_state_tx: StateChangeSender,
-    ) -> Result<(WorkloadId, StateChecker), RuntimeError>;
+    ) -> Result<(WorkloadId, StChecker), RuntimeError>;
 
     async fn get_workload_id(
         &self,
@@ -56,20 +61,24 @@ pub trait Runtime<WorkloadId, StateChecker>: Sync + Send {
         workload_id: &WorkloadId,
         runtime_workload_config: WorkloadSpec,
         update_state_tx: StateChangeSender,
-    ) -> Result<StateChecker, RuntimeError>;
+    ) -> Result<StChecker, RuntimeError>;
 
     async fn delete_workload(&self, workload_id: &WorkloadId) -> Result<(), RuntimeError>;
 }
 
-pub trait OwnableRuntime<WorkloadId, StateChecker>: Runtime<WorkloadId, StateChecker> {
-    fn to_owned(&self) -> Box<dyn Runtime<WorkloadId, StateChecker>>;
+pub trait OwnableRuntime<WorkloadId, StChecker>: Runtime<WorkloadId, StChecker>
+where
+    StChecker: StateChecker,
+{
+    fn to_owned(&self) -> Box<dyn Runtime<WorkloadId, StChecker>>;
 }
 
-impl<R, WorkloadId, StateChecker> OwnableRuntime<WorkloadId, StateChecker> for R
+impl<R, WorkloadId, StChecker> OwnableRuntime<WorkloadId, StChecker> for R
 where
-    R: Runtime<WorkloadId, StateChecker> + Clone + 'static,
+    R: Runtime<WorkloadId, StChecker> + Clone + 'static,
+    StChecker: StateChecker,
 {
-    fn to_owned(&self) -> Box<dyn Runtime<WorkloadId, StateChecker>> {
+    fn to_owned(&self) -> Box<dyn Runtime<WorkloadId, StChecker>> {
         Box::new(self.clone())
     }
 }

@@ -6,12 +6,12 @@ use common::{
 };
 
 #[async_trait]
-pub trait RuntimeStateChecker: Send + Sync + 'static{
+pub trait RuntimeStateChecker: Send + Sync + 'static {
     async fn check_state(&self, instance_name: &WorkloadExecutionInstanceName) -> ExecutionState;
 }
 
 #[async_trait]
-pub trait StoppableStateChecker {
+pub trait StateChecker {
     fn start_checker(
         workload_spec: &WorkloadSpec,
         manager_interface: StateChangeSender,

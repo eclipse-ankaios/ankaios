@@ -33,7 +33,7 @@ mod generic_polling_state_checker;
 mod runtime;
 mod runtime_facade;
 mod runtime_manager;
-mod stoppable_state_checker;
+mod state_checker;
 mod workload;
 
 use runtime_facade::GenericRuntimeFacade;
