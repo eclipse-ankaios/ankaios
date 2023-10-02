@@ -14,7 +14,7 @@ const STATUS_CHECK_INTERVAL_MS: u64 = 1000;
 
 #[derive(Debug)]
 pub struct GenericPollingStateChecker {
-    pub task_handle: Option<JoinHandle<()>>,
+    pub task_handle: JoinHandle<()>,
 }
 
 #[async_trait]
@@ -34,7 +34,7 @@ impl StateChecker for GenericPollingStateChecker {
                 let current_state = state_checker.check_state(&instance_name).await;
 
                 if current_state != last_state {
-                    log::info!(
+                    log::debug!(
                         "The workload {} has changed its state to {:?}",
                         workload_spec.name,
                         current_state
@@ -58,12 +58,10 @@ impl StateChecker for GenericPollingStateChecker {
             }
         });
 
-        GenericPollingStateChecker {
-            task_handle: Some(task_handle),
-        }
+        GenericPollingStateChecker { task_handle }
     }
 
     async fn stop_checker(self) {
-        self.task_handle.map(|x| x.abort());
+        self.task_handle.abort();
     }
 }

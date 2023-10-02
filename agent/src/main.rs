@@ -46,6 +46,7 @@ use agent_manager::AgentManager;
 
 use podman::{PodmanKubeRuntime, PodmanKubeWorkloadId};
 
+use crate::podman::{PodmanRuntime, PodmanWorkloadId};
 use crate::runtime::Runtime;
 use crate::runtime_facade::RuntimeFacade;
 use crate::runtime_manager::RuntimeManager;
@@ -77,13 +78,22 @@ async fn main() {
         .unwrap_or_exit("Run folder creation failed. Cannot continue without run folder.");
 
     // [impl->swdd~agent-supports-podman~1]
+    let podman_runtime = Box::new(PodmanRuntime {});
+    let podman_runtime_name = podman_runtime.name();
+    let podman_facade = Box::new(GenericRuntimeFacade::<
+        PodmanWorkloadId,
+        GenericPollingStateChecker,
+    >::new(podman_runtime));
+    let mut runtime_facade_map: HashMap<String, Box<dyn RuntimeFacade>> = HashMap::new();
+    runtime_facade_map.insert(podman_runtime_name, podman_facade);
+
+    // [impl->swdd~agent-supports-podman~1]
     let podman_kube_runtime = Box::new(PodmanKubeRuntime {});
     let podman_kube_runtime_name = podman_kube_runtime.name();
     let podman_kube_facade = Box::new(GenericRuntimeFacade::<
         PodmanKubeWorkloadId,
         GenericPollingStateChecker,
     >::new(podman_kube_runtime));
-    let mut runtime_facade_map: HashMap<String, Box<dyn RuntimeFacade>> = HashMap::new();
     runtime_facade_map.insert(podman_kube_runtime_name, podman_kube_facade);
 
     // The RuntimeManager currently directly gets the server StateChangeInterface, but it shall get the agent manager interface
