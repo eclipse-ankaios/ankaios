@@ -31,6 +31,22 @@ pub async fn list_workloads(regex: &str) -> Result<Vec<String>, String> {
         .collect())
 }
 
+pub async fn has_image(image_name: &str) -> Result<bool, String> {
+    let output = PodmanCliCommand::new()
+        .args(vec![
+            "images".into(),
+            "--filter".into(),
+            format!("reference={}", image_name),
+            "--format={{.Repository}}:{{.Tag}}".into(),
+        ])
+        .exec()
+        .await?;
+    Ok(output
+        .split('\n')
+        .map(|x| x.trim().into())
+        .any(|x: String| x == *image_name))
+}
+
 struct PodmanCliCommand<'a> {
     command: Command,
     stdin: Option<&'a [u8]>,

@@ -17,10 +17,12 @@ use crate::{
 };
 
 #[cfg(not(test))]
-use crate::podman::podman_cli::list_workloads;
+use crate::podman::podman_cli::{has_image, list_workloads};
 
 #[cfg(test)]
-use self::tests::list_workloads;
+use self::tests::{has_image, list_workloads};
+
+use super::podman_runtime_config::PodmanRuntimeConfig;
 
 #[derive(Debug, Clone)]
 pub struct PodmanRuntime {}
@@ -55,21 +57,15 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         agent_name: &AgentName,
     ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
         let agent_name_str = agent_name.get();
-        log::debug!(
-            "Calling get_reusable_running_workloads in '{}' for '{}'",
-            self.name(),
-            agent_name_str
-        );
         let filter_expression = format!(r#"name=^\w+\.\w+\.{agent_name_str}"#);
         let res = list_workloads(filter_expression.as_str())
             .await
             .map_err(|err| RuntimeError::Update(err.to_string()))?;
 
-        let ret = res
+        Ok(res
             .iter()
             .filter_map(|x| WorkloadExecutionInstanceName::new(x))
-            .collect();
-        Ok(ret)
+            .collect())
     }
 
     async fn create_workload(
@@ -78,7 +74,15 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         control_interface_path: Option<PathBuf>,
         update_state_tx: StateChangeSender,
     ) -> Result<(PodmanWorkloadId, GenericPollingStateChecker), RuntimeError> {
-        log::debug!("Calling create_workload in '{}'", self.name());
+        let workload_cfg = PodmanRuntimeConfig::try_from(&workload_spec)
+            .map_err(|err| RuntimeError::Update(err.into()))?;
+
+        let has_image = has_image(&workload_cfg.image)
+            .await
+            .map_err(|err| RuntimeError::Update(err.to_string()))?;
+
+        log::info!("has_image = {}", has_image);
+
         Ok((
             PodmanWorkloadId {
                 id: "my id".to_string(),
@@ -120,13 +124,18 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Mutex;
+    use std::{path::PathBuf, sync::Mutex};
 
-    use common::objects::{AgentName, WorkloadExecutionInstanceName, WorkloadInstanceName};
+    use common::{
+        objects::{AgentName, WorkloadExecutionInstanceName},
+        state_change_interface::StateChangeCommand,
+    };
 
     use crate::runtime::Runtime;
 
     use super::PodmanRuntime;
+
+    const BUFFER_SIZE: usize = 20;
 
     mockall::lazy_static! {
         pub static ref FAKE_READ_TO_STRING_MOCK_RESULT_LIST: Mutex<std::collections::VecDeque<Result<Vec<String>, String>>> =
@@ -135,6 +144,19 @@ mod tests {
 
     pub async fn list_workloads(_regex: &str) -> Result<Vec<String>, String> {
         FAKE_READ_TO_STRING_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .pop_front()
+            .unwrap()
+    }
+
+    mockall::lazy_static! {
+        pub static ref FAKE_READ_TO_BOOL_MOCK_RESULT: Mutex<std::collections::VecDeque<Result<bool, String>>> =
+        Mutex::new(std::collections::VecDeque::new());
+    }
+
+    pub async fn has_image(_image_name: &str) -> Result<bool, String> {
+        FAKE_READ_TO_BOOL_MOCK_RESULT
             .lock()
             .unwrap()
             .pop_front()
@@ -200,5 +222,24 @@ mod tests {
             .get_reusable_running_workloads(&agent_name)
             .await
             .is_err());
+    }
+
+    #[tokio::test]
+    async fn create_container_with_pull_success() {
+        env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+
+        FAKE_READ_TO_BOOL_MOCK_RESULT
+            .lock()
+            .unwrap()
+            .push_back(Ok(true));
+
+        let workload_spec = common::test_utils::generate_test_workload_spec();
+        let (to_server, _from_agent) =
+            tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
+
+        let podman_runtime = PodmanRuntime {};
+        let _res = podman_runtime
+            .create_workload(workload_spec, Some(PathBuf::from("run_folder")), to_server)
+            .await;
     }
 }

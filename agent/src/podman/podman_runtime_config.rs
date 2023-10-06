@@ -47,6 +47,12 @@ impl From<TryFromWorkloadSpecError> for WorkloadError {
     }
 }
 
+impl From<TryFromWorkloadSpecError> for String {
+    fn from(value: TryFromWorkloadSpecError) -> Self {
+        value.0
+    }
+}
+
 #[derive(Debug, serde::Deserialize)]
 pub struct Mount {
     #[serde(default)]
