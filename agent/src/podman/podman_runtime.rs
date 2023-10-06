@@ -17,10 +17,10 @@ use crate::{
 };
 
 #[cfg(not(test))]
-use crate::podman::podman_cli::list_containers;
+use crate::podman::podman_cli::list_workloads;
 
 #[cfg(test)]
-use self::tests::list_containers;
+use self::tests::list_workloads;
 
 #[derive(Debug, Clone)]
 pub struct PodmanRuntime {}
@@ -61,7 +61,8 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
             agent_name_str
         );
         let filter_expression = format!(r#"name=^\w+\.\w+\.{agent_name_str}"#);
-        let res = list_containers(filter_expression)
+        let res = list_workloads(filter_expression.as_str())
+            .await
             .map_err(|err| RuntimeError::Update(err.to_string()))?;
 
         let ret = res
@@ -132,7 +133,7 @@ mod tests {
         Mutex::new(std::collections::VecDeque::new());
     }
 
-    pub fn list_containers(_regex: String) -> Result<Vec<String>, String> {
+    pub async fn list_workloads(_regex: &str) -> Result<Vec<String>, String> {
         FAKE_READ_TO_STRING_MOCK_RESULT_LIST
             .lock()
             .unwrap()
