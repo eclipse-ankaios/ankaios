@@ -16,6 +16,12 @@ use crate::{
     state_checker::{RuntimeStateChecker, StateChecker},
 };
 
+#[cfg(not(test))]
+use crate::podman::podman_cli::list_containers;
+
+#[cfg(test)]
+use self::tests::list_containers;
+
 #[derive(Debug, Clone)]
 pub struct PodmanRuntime {}
 
@@ -48,7 +54,21 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         &self,
         agent_name: &AgentName,
     ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
-        Ok(vec![])
+        let agent_name_str = agent_name.get();
+        log::debug!(
+            "Calling get_reusable_running_workloads in '{}' for '{}'",
+            self.name(),
+            agent_name_str
+        );
+        let filter_expression = format!(r#"name=^\w+\.\w+\.{agent_name_str}"#);
+        let res = list_containers(filter_expression)
+            .map_err(|err| RuntimeError::Update(err.to_string()))?;
+
+        let ret = res
+            .iter()
+            .filter_map(|x| WorkloadExecutionInstanceName::new(x))
+            .collect();
+        Ok(ret)
     }
 
     async fn create_workload(
@@ -57,7 +77,15 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         control_interface_path: Option<PathBuf>,
         update_state_tx: StateChangeSender,
     ) -> Result<(PodmanWorkloadId, GenericPollingStateChecker), RuntimeError> {
-        todo!()
+        log::debug!("Calling create_workload in '{}'", self.name());
+        Ok((
+            PodmanWorkloadId {
+                id: "my id".to_string(),
+            },
+            GenericPollingStateChecker {
+                task_handle: tokio::spawn(async {}),
+            },
+        ))
     }
 
     async fn get_workload_id(
@@ -79,4 +107,68 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
     async fn delete_workload(&self, workload_id: &PodmanWorkloadId) -> Result<(), RuntimeError> {
         todo!()
     }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Mutex;
+
+    use common::objects::{AgentName, WorkloadExecutionInstanceName, WorkloadInstanceName};
+
+    use crate::runtime::Runtime;
+
+    use super::PodmanRuntime;
+
+    mockall::lazy_static! {
+        pub static ref FAKE_READ_TO_STRING_MOCK_RESULT_LIST: Mutex<std::collections::VecDeque<Result<Vec<String>, String>>> =
+        Mutex::new(std::collections::VecDeque::new());
+    }
+
+    pub fn list_containers(_regex: String) -> Result<Vec<String>, String> {
+        FAKE_READ_TO_STRING_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .pop_front()
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn get_reusable_running_workloads_success() {
+        env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+
+        FAKE_READ_TO_STRING_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .push_back(Ok(vec![
+                "test.container1.name".to_string(),
+                "wrongcontainername".to_string(),
+                "test.container2.name".to_string(),
+            ]));
+
+        let podman_runtime = PodmanRuntime {};
+        let agent_name = AgentName::from("agent_A");
+        let res = podman_runtime
+            .get_reusable_running_workloads(&agent_name)
+            .await
+            .unwrap();
+
+        assert_eq!(res.len(), 2);
+        assert_eq!(
+            res,
+            vec![
+                WorkloadExecutionInstanceName::new("test.container1.name").unwrap(),
+                WorkloadExecutionInstanceName::new("test.container2.name").unwrap()
+            ]
+        );
+    }
+
+    // TODO a test the podman returns an error.
 }
