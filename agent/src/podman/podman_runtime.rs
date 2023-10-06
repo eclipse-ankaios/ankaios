@@ -143,19 +143,17 @@ mod tests {
 
     #[tokio::test]
     async fn get_reusable_running_workloads_success() {
-        env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
-
         FAKE_READ_TO_STRING_MOCK_RESULT_LIST
             .lock()
             .unwrap()
             .push_back(Ok(vec![
-                "test.container1.name".to_string(),
+                "container1.hash.dummy_agent".to_string(),
                 "wrongcontainername".to_string(),
-                "test.container2.name".to_string(),
+                "container2.hash.dummy_agent".to_string(),
             ]));
 
         let podman_runtime = PodmanRuntime {};
-        let agent_name = AgentName::from("agent_A");
+        let agent_name = AgentName::from("dummy_agent");
         let res = podman_runtime
             .get_reusable_running_workloads(&agent_name)
             .await
@@ -165,11 +163,42 @@ mod tests {
         assert_eq!(
             res,
             vec![
-                WorkloadExecutionInstanceName::new("test.container1.name").unwrap(),
-                WorkloadExecutionInstanceName::new("test.container2.name").unwrap()
+                WorkloadExecutionInstanceName::new("container1.hash.dummy_agent").unwrap(),
+                WorkloadExecutionInstanceName::new("container2.hash.dummy_agent").unwrap()
             ]
         );
     }
 
-    // TODO a test the podman returns an error.
+    #[tokio::test]
+    async fn get_reusable_running_workloads_empty_list() {
+        FAKE_READ_TO_STRING_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .push_back(Ok(Vec::new()));
+
+        let podman_runtime = PodmanRuntime {};
+        let agent_name = AgentName::from("different_agent");
+        let res = podman_runtime
+            .get_reusable_running_workloads(&agent_name)
+            .await
+            .unwrap();
+
+        assert_eq!(res.len(), 0);
+    }
+
+    #[tokio::test]
+    async fn get_reusable_running_workloads_failed() {
+        FAKE_READ_TO_STRING_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .push_back(Err("Simulated error".to_string()));
+
+        let podman_runtime = PodmanRuntime {};
+        let agent_name = AgentName::from("dummy_agent");
+
+        assert!(podman_runtime
+            .get_reusable_running_workloads(&agent_name)
+            .await
+            .is_err());
+    }
 }
