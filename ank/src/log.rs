@@ -12,7 +12,7 @@ macro_rules! output_and_error {
 /// Prints the message and immediately terminates the application with the exit code `0`.
 #[macro_export]
 macro_rules! output_and_exit {
-    ( $ ( $ arg : tt ) * ) => { $crate::log::output_and_exit_fn ( format_args ! ( $ ( $ arg ) * ) ) }
+    ( $ ( $ arg : tt ) + ) => { $crate::log::output_and_exit_fn ( format_args ! ( $ ( $ arg ) + ) ) }
 }
 
 /// This macro prints the message as a debug trace, if the CLI command is called with `--verbose` flag.
@@ -20,7 +20,7 @@ macro_rules! output_and_exit {
 /// Calling this macro does not terminate the application.
 #[macro_export]
 macro_rules! output_debug {
-    ( $ ( $ arg : tt ) * ) => { $crate::log::output_debug_fn ( format_args ! ( $ ( $ arg ) * ) ) }
+    ( $ ( $ arg : tt ) + ) => { $crate::log::output_debug_fn ( format_args ! ( $ ( $ arg ) + ) ) }
 }
 
 pub(crate) fn output_and_error_fn(args: fmt::Arguments<'_>) {
