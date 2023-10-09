@@ -17,6 +17,7 @@ mod podman_cli;
 mod podman_kube_runtime;
 mod podman_runtime;
 pub use podman_runtime::{PodmanConfig, PodmanRuntime, PodmanWorkloadId};
+mod cli_command;
 mod podman_runtime_config;
 mod podman_utils;
 mod workload;
