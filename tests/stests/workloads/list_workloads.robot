@@ -1,5 +1,5 @@
 *** Settings ***
-Documentation    List workloads test cases.
+Documentation    Tests to verify that ank cli lists workloads correctly.
 Resource     ../../resources/ankaios.resource
 Resource    ../../resources/variables.resource
 
@@ -8,7 +8,7 @@ Resource    ../../resources/variables.resource
 # [itest->swdd~server-handle-cli-communication~1]
 Test Ankaios CLI get workloads
     [Setup]        Setup Ankaios
-    # Precondition
+    # Preconditions
     Given Ankaios server is started with "ank-server --startup-config ${CONFIGS_DIR}/default.yaml"
     And Ankaios agent is started with "ank-agent --name agent_B -p /tmp/podman.sock"
     And all workloads of agent "agent_B" have an initial execution state

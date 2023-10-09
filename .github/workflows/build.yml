@@ -23,12 +23,12 @@ jobs:
       - name: Run itests
         run: |
           RUST_LOG=debug cargo build
-          tools/run_itests.sh tests 
+          tools/run_robot_tests.sh tests 
       - uses: actions/upload-artifact@v3.1.2
         if: success() || failure()
         with:
           name: itests-result
-          path: target/itests_result
+          path: target/robot_tests_result
 
       - name: Create code coverage report
         run: |

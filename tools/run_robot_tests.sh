@@ -18,7 +18,7 @@ set -e
 
 script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 base_dir="$script_dir/.."
-target_dir="$base_dir/target/itests_result"
+target_dir="$base_dir/target/robot_tests_result"
 default_executable_dir="$base_dir/target/debug"
 
 check_executable() {
