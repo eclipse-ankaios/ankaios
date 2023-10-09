@@ -32,9 +32,9 @@ The CLI shall use its own proprietary tracing functions with following features:
 
 | message type     | output       | features                                                                                      |
 | ---------------- | ------------ | --------------------------------------------------------------------------------------------- |
-| error            | `io::stderr` | writes a message to the output and terminates the application with the exit code `1`          |
-| command response | `io::stdout` | writes a message to the output and terminates the application with the exit code `0`          |
-| debug            | `io::stdout` | writes a message to the output if the verbose mode is on (does not terminate the application) |
+| error            | `io::stderr` | writes a message to the output and terminates the application with exit code `1`          |
+| command response | `io::stdout` | writes a message to the output and terminates the application with exit code `0`          |
+| debug            | `io::stdout` | writes a message to the output if the verbose mode is enabled (does not terminate the application) |
 
 Rationale:
 
@@ -42,7 +42,7 @@ The CLI is an application different than Ankaios server or Ankaios agent.
 The CLI interacts directly with the user and the user expects a response to the command (if available).
 Therefore the information shall not be written to the log, but it shall be provided to the user.
 
-Existing crates either do not behave at it is required or they are too complex for such task.
+Existing crates either do not behave as it is required or they are too complex for such task.
 
 Needs:
 

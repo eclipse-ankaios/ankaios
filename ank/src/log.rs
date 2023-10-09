@@ -1,8 +1,4 @@
-use std::{
-    env::{self},
-    fmt,
-    process::exit,
-};
+use std::{env, fmt, process::exit};
 
 pub const VERBOSITY_KEY: &str = "VERBOSE";
 
@@ -10,7 +6,7 @@ pub const VERBOSITY_KEY: &str = "VERBOSE";
 /// Prints the error message and immediately terminates the application with the exit code `1`.
 #[macro_export]
 macro_rules! output_and_error {
-    ( $ ( $ arg : tt ) * ) => { $crate::log::output_and_error_fn ( format_args ! ( $ ( $ arg ) * ) ) }
+    ( $ ( $ arg : tt ) + ) => { $crate::log::output_and_error_fn ( format_args ! ( $ ( $ arg ) + ) ) }
 }
 
 /// Prints the message and immediately terminates the application with the exit code `0`.
@@ -20,7 +16,7 @@ macro_rules! output_and_exit {
 }
 
 /// This macro prints the message as a debug trace, if the CLI command is called with `--verbose` flag.
-/// If the CLI command is called without the `-verbose` flag, the macro does nothing.
+/// If the CLI command is called without the `--verbose` flag, the macro does nothing.
 /// Calling this macro does not terminate the application.
 #[macro_export]
 macro_rules! output_debug {
