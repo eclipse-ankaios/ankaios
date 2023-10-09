@@ -33,7 +33,7 @@ impl From<&str> for AgentName {
 
 impl Display for AgentName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Could not create workload: '{}'", self.0)
+        write!(f, "{}", self.0)
     }
 }
 

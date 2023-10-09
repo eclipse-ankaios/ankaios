@@ -56,8 +56,7 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         &self,
         agent_name: &AgentName,
     ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
-        let agent_name_str = agent_name.get();
-        let filter_expression = format!(r#"name=^\w+\.\w+\.{agent_name_str}"#);
+        let filter_expression = format!(r#"name=^\w+\.\w+\.{agent_name}"#);
         let res = list_workloads(filter_expression.as_str())
             .await
             .map_err(|err| RuntimeError::Update(err.to_string()))?;
