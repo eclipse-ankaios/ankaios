@@ -1,7 +1,11 @@
 use std::path::PathBuf;
 
-use crate::{control_interface::PipesChannelContext, runtime::RuntimeError};
-use common::objects::WorkloadSpec;
+use crate::{
+    control_interface::PipesChannelContext,
+    runtime::{Runtime, RuntimeError},
+    state_checker::StateChecker,
+};
+use common::{objects::WorkloadSpec, state_change_interface::StateChangeSender};
 use tokio::sync::mpsc;
 
 #[derive(Debug)]
@@ -60,5 +64,83 @@ impl Workload {
             .send(WorkloadCommand::Stop)
             .await
             .map_err(|err| RuntimeError::Delete(err.to_string()))
+    }
+
+    pub async fn await_new_command<WorkloadId, StChecker>(
+        workload_name: String,
+        initial_workload_id: WorkloadId,
+        initial_state_checker: StChecker,
+        update_state_tx: StateChangeSender,
+        runtime: Box<dyn Runtime<WorkloadId, StChecker>>,
+        mut command_receiver: mpsc::Receiver<WorkloadCommand>,
+    ) where
+        WorkloadId: Send + Sync + 'static,
+        StChecker: StateChecker + Send + Sync + 'static,
+    {
+        let mut state_checker = Some(initial_state_checker);
+        let mut workload_id = Some(initial_workload_id);
+        loop {
+            match command_receiver.recv().await {
+                // [impl->swdd~agent-facade-stops-workload~1]
+                Some(WorkloadCommand::Stop) => {
+                    if let Some(old_id) = workload_id.take() {
+                        if let Err(err) = runtime.delete_workload(&old_id).await {
+                            log::warn!("Could not stop workload '{}': '{}'", workload_name, err);
+                        } else {
+                            log::debug!("Stop workload complete");
+                        }
+                    } else {
+                        log::debug!("Workload '{}' already gone.", workload_name);
+                    }
+                    return;
+                }
+                Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
+                    if let Some(old_id) = workload_id {
+                        if let Err(err) = runtime.delete_workload(&old_id).await {
+                            log::warn!("Could not update workload '{}': '{}'", workload_name, err);
+                            workload_id = Some(old_id);
+                            continue;
+                        } else {
+                            workload_id = None;
+                            if let Some(old_checker) = state_checker.take() {
+                                old_checker.stop_checker().await;
+                            }
+                        }
+                    } else {
+                        log::debug!("Workload '{}' already gone.", workload_name);
+                    }
+
+                    match runtime
+                        .create_workload(
+                            *runtime_workload_config,
+                            control_interface_path,
+                            update_state_tx.clone(),
+                        )
+                        .await
+                    {
+                        Ok((new_workload_id, new_state_checker)) => {
+                            workload_id = Some(new_workload_id);
+                            state_checker = Some(new_state_checker);
+                        }
+                        Err(err) => {
+                            log::warn!(
+                                "Could not start updated workload '{}': '{}'",
+                                workload_name,
+                                err
+                            )
+                        }
+                    }
+
+                    log::debug!("Update workload complete");
+                }
+                _ => {
+                    log::warn!(
+                        "Could not wait for internal stop command for workload '{}'.",
+                        workload_name,
+                    );
+                    return;
+                }
+            }
+        }
     }
 }
