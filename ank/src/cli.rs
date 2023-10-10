@@ -33,6 +33,9 @@ pub struct AnkCli {
     #[clap(long = "response-timeout", default_value_t = 3000)]
     /// The timeout in milliseconds to wait for a response.
     pub response_timeout_ms: u64,
+    #[clap(short = 'v', long = "verbose")]
+    /// Enable debug traces
+    pub verbose: bool,
 }
 
 /// Supported actions

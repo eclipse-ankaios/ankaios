@@ -40,7 +40,7 @@ use tabled::{settings::Style, Table, Tabled};
 use tokio::time::timeout;
 use url::Url;
 
-use crate::cli::OutputFormat;
+use crate::{cli::OutputFormat, output_and_error, output_debug};
 
 const BUFFER_SIZE: usize = 20;
 
@@ -183,8 +183,7 @@ fn setup_cli_communication(
             .run(server_receiver, to_cli.clone())
             .await 
         {
-            eprintln!("{err}");
-            std::process::exit(1);
+            output_and_error!("{err}");
         }
     });
     (communications_task, to_server, cli_receiver)
@@ -234,7 +233,7 @@ impl CliCommands {
         output_format: OutputFormat,
     ) -> Option<String> {
         let mut out_command_text: Option<String> = None;
-        log::info!(
+        output_debug!(
             "Got: object_field_mask={:?} output_format={:?}",
             object_field_mask,
             output_format
@@ -255,7 +254,7 @@ impl CliCommands {
                 match generate_compact_state_output(&res, object_field_mask, output_format) {
                     Ok(res) => Some(res),
                     Err(err) => {
-                        log::error!(
+                        output_and_error!(
                             "Error occurred during processing response from server.\nError: {err}"
                         );
                         None
@@ -272,7 +271,7 @@ impl CliCommands {
         state_object_file: Option<String>,
         response_timeout_ms: u64,
     ) {
-        log::info!(
+        output_debug!(
             "Got: object_field_mask={:?} state_object_file={:?}",
             object_field_mask,
             state_object_file
@@ -291,13 +290,13 @@ impl CliCommands {
                 });
         }
 
-        log::info!("Send UpdateState request ...");
+        output_debug!("Send UpdateState request ...");
         // send update request
         self.to_server
             .update_state(complete_state_input, object_field_mask)
             .await
             .unwrap_or_else(|err| {
-                log::error!("Update state failed: '{}'", err);
+                output_and_error!("Update state failed: '{}'", err);
             });
         if (timeout(
             Duration::from_millis(response_timeout_ms),
@@ -306,7 +305,7 @@ impl CliCommands {
         .await)
             .is_err()
         {
-            log::info!("Ok");
+            output_debug!("Ok");
         }
     }
 
@@ -352,7 +351,7 @@ impl CliCommands {
                     wi.execution_state = ws.execution_state.to_string();
                 }
             }
-            log::debug!("The table before filtering:\n{:?}", workload_infos);
+            output_debug!("The table before filtering:\n{:?}", workload_infos);
 
             // [impl->swdd~cli-shall-filter-list-of-workloads~1]
             if agent_name.is_some() {
@@ -375,7 +374,7 @@ impl CliCommands {
             // [impl->swdd~cli-shall-sort-list-of-workloads~1]
             workload_infos.sort_by_key(|wi| wi.name.clone());
 
-            log::debug!("The table after filtering:\n{:?}", workload_infos);
+            output_debug!("The table after filtering:\n{:?}", workload_infos);
 
             // [impl->swdd~cli-shall-present-list-workloads-as-table~1]
             return Ok(Table::new(workload_infos).with(Style::blank()).to_string());
@@ -407,7 +406,7 @@ impl CliCommands {
             return Err(CliError::ExecutionError("Expected complete state".to_string()));
         };
 
-        log::debug!("Got current state: {:?}", complete_state);
+        output_debug!("Got current state: {:?}", complete_state);
         let mut new_state = *complete_state.clone();
         // Filter out workloads to be deleted.
         new_state
@@ -426,7 +425,7 @@ impl CliCommands {
 
         let update_mask = vec!["currentState".to_string()];
         if new_state.current_state != complete_state.current_state {
-            log::debug!("Sending the new state {:?}", new_state);
+            output_debug!("Sending the new state {:?}", new_state);
             self.to_server
                 .update_state(new_state, update_mask)
                 .await
@@ -439,7 +438,7 @@ impl CliCommands {
             .await.map_err(|_| CliError::ConnectionTimeout("No response from the server".to_string()))?;
         } else {
             // [impl->swdd~no-delete-workloads-when-not-found~1]
-            log::debug!("Current and new states are identical -> nothing to do");
+            output_debug!("Current and new states are identical -> nothing to do");
         }
 
         Ok(())
@@ -470,7 +469,7 @@ impl CliCommands {
             },
             ..Default::default()
         };
-        log::debug!("Request to run new workload: {:?}", new_workload);
+        output_debug!("Request to run new workload: {:?}", new_workload);
 
         // get current state
         self.to_server
@@ -481,7 +480,7 @@ impl CliCommands {
             .await.map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
         if let Some(ExecutionCommand::CompleteState(res)) = self.from_server.recv().await {
-            log::debug!("Got current state: {:?}", res);
+            output_debug!("Got current state: {:?}", res);
             let mut new_state = *res.clone();
             new_state
                 .current_state
@@ -489,7 +488,7 @@ impl CliCommands {
                 .insert(workload_name, new_workload);
 
             let update_mask = vec!["currentState".to_string()];
-            log::debug!("Sending the new state {:?}", new_state);
+            output_debug!("Sending the new state {:?}", new_state);
             self.to_server.update_state(new_state, update_mask)
                 .await
                 .map_err(|err| CliError::ExecutionError(err.to_string()))?;
@@ -599,7 +598,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-        let _ = env_logger::builder().is_test(true).try_init();
 
         let empty_complete_state = vec![ExecutionCommand::CompleteState(Box::new(
             test_utils::generate_test_complete_state("request_id".to_owned(), Vec::new()),
@@ -642,7 +640,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-        let _ = env_logger::builder().is_test(true).try_init();
 
         let complete_state = vec![ExecutionCommand::CompleteState(Box::new(
             test_utils::generate_test_complete_state(
@@ -715,7 +712,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-        let _ = env_logger::builder().is_test(true).try_init();
 
         let complete_state = vec![ExecutionCommand::CompleteState(Box::new(
             test_utils::generate_test_complete_state(
@@ -776,7 +772,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-        let _ = env_logger::builder().is_test(true).try_init();
 
         let complete_state = vec![ExecutionCommand::CompleteState(Box::new(
             test_utils::generate_test_complete_state(
@@ -845,7 +840,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-        let _ = env_logger::builder().is_test(true).try_init();
 
         let complete_state = vec![ExecutionCommand::CompleteState(Box::new(
             test_utils::generate_test_complete_state(
@@ -902,7 +896,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-        let _ = env_logger::builder().is_test(true).try_init();
 
         let startup_state = test_utils::generate_test_complete_state(
             "request_id".to_owned(),
@@ -986,7 +979,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-        let _ = env_logger::builder().is_test(true).try_init();
 
         let startup_state = test_utils::generate_test_complete_state(
             "request_id".to_owned(),
@@ -1055,7 +1047,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-        let _ = env_logger::builder().is_test(true).try_init();
 
         let test_data = test_utils::generate_test_complete_state(
             "request_id".to_owned(),
@@ -1108,7 +1099,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-        let _ = env_logger::builder().is_test(true).try_init();
 
         let test_data = test_utils::generate_test_complete_state(
             "request_id".to_owned(),
@@ -1161,7 +1151,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-        let _ = env_logger::builder().is_test(true).try_init();
 
         let test_data = test_utils::generate_test_complete_state(
             "requestId".to_owned(),
@@ -1226,7 +1215,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-        let _ = env_logger::builder().is_test(true).try_init();
 
         let test_data = test_utils::generate_test_complete_state(
             "requestId".to_owned(),
@@ -1290,7 +1278,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-        let _ = env_logger::builder().is_test(true).try_init();
 
         let mut updated_state = commands::CompleteState::default();
         updated_state.current_state.workloads.insert(
@@ -1373,7 +1360,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-        let _ = env_logger::builder().is_test(true).try_init();
 
         let startup_state = test_utils::generate_test_complete_state(
             "request_id".to_owned(),
