@@ -3,7 +3,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 
 #[cfg(test)]
-use tests::MockCliCommand;
+pub use tests::MockCliCommand;
 
 pub struct CliCommand<'a> {
     command: Command,
@@ -172,11 +172,11 @@ mod tests {
             *mock_cli_commands.lock().unwrap() = HashMap::new();
         }
 
-        pub fn new_expect(program: String, mock_cli_command: MockCliCommand) {
+        pub fn new_expect(program: &str, mock_cli_command: MockCliCommand) {
             mock_cli_commands
                 .lock()
                 .unwrap()
-                .insert(program, mock_cli_command);
+                .insert(program.into(), mock_cli_command);
         }
 
         pub fn expect_args(mut self, args: &[&str]) -> Self {
