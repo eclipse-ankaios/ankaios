@@ -27,7 +27,7 @@ jobs:
       - uses: actions/upload-artifact@v3.1.2
         if: success() || failure()
         with:
-          name: itests-result
+          name: robot-tests-result
           path: target/robot_tests_result
 
       - name: Create code coverage report
