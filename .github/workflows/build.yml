@@ -20,9 +20,9 @@ jobs:
       - name: Run tests
         run: RUST_LOG=debug cargo test -- --show-output --nocapture
 
-      - name: Run itests
+      - name: Run robot tests
         run: |
-          RUST_LOG=debug cargo build
+          cargo build
           tools/run_robot_tests.sh tests 
       - uses: actions/upload-artifact@v3.1.2
         if: success() || failure()
