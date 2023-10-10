@@ -5,7 +5,10 @@ use crate::{
     runtime::{Runtime, RuntimeError},
     state_checker::StateChecker,
 };
-use common::{objects::WorkloadSpec, state_change_interface::StateChangeSender};
+use common::{
+    commands::CompleteState, execution_interface::ExecutionCommand, objects::WorkloadSpec,
+    state_change_interface::StateChangeSender,
+};
 use tokio::sync::mpsc;
 
 #[derive(Debug)]
@@ -142,5 +145,22 @@ impl Workload {
                 }
             }
         }
+    }
+
+    pub async fn send_complete_state(
+        &mut self,
+        complete_state: CompleteState,
+    ) -> Result<(), RuntimeError> {
+        let control_interface =
+            self.control_interface
+                .as_ref()
+                .ok_or(RuntimeError::CompleteState(
+                    "control interface not available".to_string(),
+                ))?;
+        control_interface
+            .get_input_pipe_sender()
+            .send(ExecutionCommand::CompleteState(Box::new(complete_state)))
+            .await
+            .map_err(|err| RuntimeError::CompleteState(err.to_string()))
     }
 }

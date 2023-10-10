@@ -14,6 +14,7 @@ pub enum RuntimeError {
     Create(String),
     Update(String),
     Delete(String),
+    CompleteState(String),
 }
 
 impl Display for RuntimeError {
@@ -27,6 +28,9 @@ impl Display for RuntimeError {
             }
             RuntimeError::Delete(msg) => {
                 write!(f, "Could not delete workload '{}'", msg)
+            }
+            RuntimeError::CompleteState(msg) => {
+                write!(f, "Could not forward complete state '{}'", msg)
             }
         }
     }

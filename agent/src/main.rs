@@ -49,6 +49,7 @@ use podman::{PodmanKubeRuntime, PodmanKubeWorkloadId};
 use crate::podman::{PodmanRuntime, PodmanWorkloadId};
 use crate::runtime::Runtime;
 use crate::runtime_facade::RuntimeFacade;
+#[cfg_attr(test, mockall_double::double)]
 use crate::runtime_manager::RuntimeManager;
 
 const BUFFER_SIZE: usize = 20;

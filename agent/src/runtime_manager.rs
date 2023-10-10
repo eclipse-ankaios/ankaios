@@ -1,16 +1,21 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use common::{
+    commands::CompleteState,
     objects::{
         AgentName, DeletedWorkload, WorkloadExecutionInstanceName, WorkloadInstanceName,
         WorkloadSpec,
     },
+    request_id_prepending::detach_prefix_from_request_id,
     state_change_interface::StateChangeSender,
 };
 
 use crate::{
     control_interface::PipesChannelContext, runtime_facade::RuntimeFacade, workload::Workload,
 };
+
+#[cfg(test)]
+use mockall::automock;
 
 fn flatten(
     mut runtime_workload_map: HashMap<String, HashMap<String, WorkloadSpec>>,
@@ -31,6 +36,7 @@ pub struct RuntimeManager {
     update_state_tx: StateChangeSender,
 }
 
+#[cfg_attr(test, automock)]
 impl RuntimeManager {
     pub fn new(
         agent_name: AgentName,
@@ -70,6 +76,32 @@ impl RuntimeManager {
         } else {
             self.handle_subsequent_update_workload(added_workloads, deleted_workloads)
                 .await;
+        }
+    }
+
+    pub async fn forward_complete_state(&mut self, method_obj: CompleteState) {
+        // [impl->swdd~agent-uses-id-prefix-forward-control-interface-response-correct-workload~1]
+        // [impl->swdd~agent-remove-id-prefix-forwarding-control-interface-response~1]
+        let (workload_name, request_id) = detach_prefix_from_request_id(&method_obj.request_id);
+
+        if let Some(workload) = self.workloads.get_mut(&workload_name) {
+            let payload = CompleteState {
+                request_id,
+                ..method_obj
+            };
+
+            if let Err(err) = workload.send_complete_state(payload).await {
+                log::warn!(
+                    "Could not forward complete state to workload '{}': '{}'",
+                    workload_name,
+                    err
+                );
+            }
+        } else {
+            log::warn!(
+                "Could not forward complete state for unknown workload: '{}'",
+                workload_name
+            );
         }
     }
 
@@ -195,7 +227,8 @@ impl RuntimeManager {
         let workload_name = workload_spec.name.clone();
 
         if let Some(runtime) = self.runtime_map.get(&workload_spec.runtime) {
-            let workload = runtime.create_workload(workload_spec, control_interface, &self.update_state_tx);
+            let workload =
+                runtime.create_workload(workload_spec, control_interface, &self.update_state_tx);
             self.workloads.insert(workload_name, workload);
         } else {
             log::warn!(
