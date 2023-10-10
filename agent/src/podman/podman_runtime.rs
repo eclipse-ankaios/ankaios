@@ -40,8 +40,8 @@ struct PodmanStateChecker {
 }
 
 #[async_trait]
-impl RuntimeStateChecker for PodmanStateChecker {
-    async fn check_state(&self, instance_name: &WorkloadExecutionInstanceName) -> ExecutionState {
+impl RuntimeStateChecker<PodmanWorkloadId> for PodmanStateChecker {
+    async fn check_state(&self, instance_name: &PodmanWorkloadId) -> ExecutionState {
         todo!()
     }
 }

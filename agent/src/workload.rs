@@ -75,7 +75,7 @@ impl Workload {
         mut command_receiver: mpsc::Receiver<WorkloadCommand>,
     ) where
         WorkloadId: Send + Sync + 'static,
-        StChecker: StateChecker + Send + Sync + 'static,
+        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         let mut state_checker = Some(initial_state_checker);
         let mut workload_id = Some(initial_workload_id);

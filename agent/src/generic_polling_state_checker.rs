@@ -18,20 +18,23 @@ pub struct GenericPollingStateChecker {
 }
 
 #[async_trait]
-impl StateChecker for GenericPollingStateChecker {
+impl<WorkloadId> StateChecker<WorkloadId> for GenericPollingStateChecker
+where
+    WorkloadId: Send + Sync + 'static,
+{
     fn start_checker(
         workload_spec: &WorkloadSpec,
+        workload_id: WorkloadId,
         manager_interface: StateChangeSender,
-        state_checker: impl RuntimeStateChecker,
+        state_checker: impl RuntimeStateChecker<WorkloadId>,
     ) -> Self {
         let workload_spec = workload_spec.clone();
         let task_handle = tokio::spawn(async move {
             let mut last_state = ExecutionState::ExecUnknown;
             let mut interval = time::interval(Duration::from_millis(STATUS_CHECK_INTERVAL_MS));
-            let instance_name = workload_spec.instance_name();
             loop {
                 interval.tick().await;
-                let current_state = state_checker.check_state(&instance_name).await;
+                let current_state = state_checker.check_state(&workload_id).await;
 
                 if current_state != last_state {
                     log::debug!(

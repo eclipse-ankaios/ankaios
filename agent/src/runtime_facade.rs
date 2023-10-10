@@ -46,14 +46,14 @@ pub trait RuntimeFacade: Send + Sync {
     fn delete_workload(&self, instance_name: WorkloadExecutionInstanceName);
 }
 
-pub struct GenericRuntimeFacade<WorkloadId: Send + Sync, StChecker: StateChecker + Send + Sync> {
+pub struct GenericRuntimeFacade<WorkloadId: Send + Sync, StChecker: StateChecker<WorkloadId> + Send + Sync> {
     runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>,
 }
 
 impl<WorkloadId, StChecker> GenericRuntimeFacade<WorkloadId, StChecker>
 where
     WorkloadId: Send + Sync + 'static,
-    StChecker: StateChecker + Send + Sync + 'static,
+    StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
     pub fn new(runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>) -> Self {
         GenericRuntimeFacade { runtime }
@@ -61,7 +61,7 @@ where
 }
 
 #[async_trait]
-impl<WorkloadId: Send + Sync + 'static, StChecker: StateChecker + Send + Sync + 'static>
+impl<WorkloadId: Send + Sync + 'static, StChecker: StateChecker<WorkloadId> + Send + Sync + 'static>
     RuntimeFacade for GenericRuntimeFacade<WorkloadId, StChecker>
 {
     async fn get_reusable_running_workloads(
