@@ -48,3 +48,12 @@ pub async fn has_image(image_name: &str) -> Result<bool, String> {
         .map(|x| x.trim().into())
         .any(|x: String| x == *image_name))
 }
+
+pub async fn pull_image(image: &String) -> Result<(), String> {
+    log::debug!("Pulling the image: {}", image);
+    let result = CliCommand::new(PODMAN_CMD)
+        .args(&["pull", image])
+        .exec()
+        .await?;
+    Ok(())
+}
