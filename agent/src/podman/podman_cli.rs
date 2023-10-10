@@ -48,6 +48,3 @@ pub async fn has_image(image_name: &str) -> Result<bool, String> {
         .map(|x| x.trim().into())
         .any(|x: String| x == *image_name))
 }
-
-    }
-}
