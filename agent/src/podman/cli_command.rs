@@ -2,6 +2,9 @@ use std::process::Stdio;
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 
+#[cfg(test)]
+use tests::MockCliCommand;
+
 pub struct CliCommand<'a> {
     command: Command,
     stdin: Option<&'a [u8]>,
@@ -67,6 +70,11 @@ impl<'a> CliCommand<'a> {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
+    use std::{
+        collections::{HashMap, VecDeque},
+        sync::Mutex,
+    };
+
     use super::CliCommand;
 
     #[tokio::test]
@@ -145,5 +153,76 @@ mod tests {
         assert!(
             matches!(result, Err(x) if x.starts_with("Execution of command failed: Could not decode command's stderr as UTF8"))
         );
+    }
+
+    lazy_static::lazy_static! {
+        static ref mock_cli_commands: Mutex<HashMap<String, MockCliCommand>> =
+            Default::default();
+    }
+
+    #[derive(Default, Clone)]
+    pub struct MockCliCommand {
+        args: VecDeque<String>,
+        stdin: Option<String>,
+        result: Option<Result<String, String>>,
+    }
+
+    impl MockCliCommand {
+        pub fn reset() {
+            *mock_cli_commands.lock().unwrap() = HashMap::new();
+        }
+
+        pub fn new_expect(program: String, mock_cli_command: MockCliCommand) {
+            mock_cli_commands
+                .lock()
+                .unwrap()
+                .insert(program, mock_cli_command);
+        }
+
+        pub fn expect_args(mut self, args: &[&str]) -> Self {
+            self.args = args.iter().map(|s| s.to_string()).collect();
+            self
+        }
+
+        pub fn expect_stdin(mut self, stdin: &str) -> Self {
+            self.stdin = Some(stdin.into());
+            self
+        }
+
+        pub fn exec_returns(mut self, result: Result<String, String>) -> Self {
+            self.result = Some(result);
+            self
+        }
+
+        pub fn new(program: &str) -> Self {
+            mock_cli_commands
+                .lock()
+                .unwrap()
+                .get(program)
+                .unwrap()
+                .to_owned()
+        }
+
+        pub fn args(&mut self, args: &[&str]) -> &mut Self {
+            for actual in args {
+                let expected = self.args.pop_front().unwrap();
+                assert_eq!(actual, &expected)
+            }
+
+            self
+        }
+
+        pub fn stdin(&mut self, stdin: &[u8]) -> &mut Self {
+            let expected = self.stdin.take().unwrap();
+            assert_eq!(stdin, expected.as_bytes());
+            self
+        }
+
+        pub async fn exec(&mut self) -> Result<String, String> {
+            assert!(self.args.is_empty());
+            assert_eq!(self.stdin, None);
+
+            self.result.take().unwrap()
+        }
     }
 }
