@@ -1,7 +1,9 @@
 # System tests
 
 ## General overview
-System tests are a critical phase of software testing, aimed at evaluating the entire software system as a whole to ensure that it meets its specified requirements and functions correctly in its intended environment. These tests are conducted after unit and integration testing and serve as a comprehensive validation of the software's readiness for deployment. Here are key aspects of system tests:
+System tests are a critical phase of software testing, aimed at evaluating the entire software system as a whole to ensure that it meets its specified requirements and functions correctly in its intended environment. These tests are conducted after unit and integration testing and serve as a comprehensive validation of the software's readiness for deployment. 
+
+Here are key aspects of system tests:
 
 1. **End-to-End Evaluation:** System tests assess the software's performance, functionality, and reliability in a real-world scenario, simulating the complete user journey. They cover all aspects of the system, from the user interface to the backend processes.
 
