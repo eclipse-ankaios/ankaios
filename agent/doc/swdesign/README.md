@@ -1024,6 +1024,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 #### Agent uses request_id prefix to forward Control Interface response to the correct Workload
 `swdd~agent-uses-id-prefix-forward-control-interface-response-correct-workload~1`

@@ -226,6 +226,7 @@ impl RuntimeManager {
     ) {
         let workload_name = workload_spec.name.clone();
 
+        // [impl->swdd~agent-skips-unknown-runtime~1]
         if let Some(runtime) = self.runtime_map.get(&workload_spec.runtime) {
             let workload =
                 runtime.create_workload(workload_spec, control_interface, &self.update_state_tx);
