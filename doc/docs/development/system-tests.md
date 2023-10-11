@@ -49,8 +49,8 @@ ankaios                              # Ankaios root
 ## System test creation
 
 ### A generic Ankaios system test structure
-The most common approach to create a robot test is using the space separated format where pieces of the data, such as keywords and their arguments, are separated from each others with two or more spaces. An alternative is using the pipe separated format where the separator is the pipe character surrounded with spaces (|).
-A basic Ankaios system test in consists of the following sections:
+The most common approach to create a robot test is using the space separated format where pieces of the data, such as keywords and their arguments, are separated from each others with two or more spaces.
+A basic Ankaios system test consists of the following sections:
 ```robot
 # ./tests/stests/workloads/my_workload_stest.robot
 
