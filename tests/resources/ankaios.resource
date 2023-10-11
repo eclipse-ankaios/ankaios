@@ -60,7 +60,7 @@ Run in background
     Set List Value    ${cmd}    0    ${location}${/}${cmd}[0]  
     Start Process    @{cmd}
 
-Run in forground
+Run in foreground
     [Arguments]    ${cli_command}
     Log    Run in background: ${cli_command}
     ${cmd}=    Split Command Line    ${cli_command}
