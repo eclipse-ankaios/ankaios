@@ -6,18 +6,29 @@ on:
       - main
   workflow_dispatch:
   workflow_call:
-  
+
 jobs:      
   test_and_build_linux_amd64:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.5.0
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.2
+      options: --privileged
     steps:
       - uses: actions/checkout@v3.5.3
       - uses: Swatinem/rust-cache@v2.6.2
-
+      
       - name: Run tests
         run: RUST_LOG=debug cargo test -- --show-output --nocapture
+
+      - name: Run robot tests
+        run: |
+          cargo build
+          tools/run_robot_tests.sh tests 
+      - uses: actions/upload-artifact@v3.1.2
+        if: success() || failure()
+        with:
+          name: robot-tests-result
+          path: target/robot_tests_result
 
       - name: Create code coverage report
         run: |
@@ -54,7 +65,8 @@ jobs:
     # and in addition, tests for arm64 can be enabled in this job, too
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.5.0
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.2
+      options: --user root
     steps:
       - uses: actions/checkout@v3.5.3
       
@@ -79,7 +91,8 @@ jobs:
   requirements:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.5.0
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.2
+      options: --user root
     steps:
       - uses: actions/checkout@v3.5.3
       - run: |
