@@ -17,7 +17,7 @@ Here are key aspects of system tests:
 
 6. **Performance Testing:** Assessing the system's response times, resource utilization, and scalability under various load conditions to ensure it can handle expected levels of usage.
 
-7. **Regression Testing:** System tests often include regression testing to ensure that new features or changes do not introduce new defects or disrupt existing functionality
+7. **Regression Testing:** System tests often include regression testing to ensure that new features or changes do not introduce new defects or disrupt existing functionality.
 
 
 ## Robot test framework for system tests
