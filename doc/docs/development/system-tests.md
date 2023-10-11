@@ -68,7 +68,7 @@ For more best practices about writing tests with Robot framework see [here](http
 
 ### Behavior-driven system test
 Behavior-driven tests (BDT) use natural language specifications to describe expected system behavior, fostering collaboration between teams and facilitating both manual and automated testing. It's particularly valuable for user-centric and acceptance testing, ensuring that software aligns with user expectations. The Robot test framework supports BDT, and this approach shall be preferred for writing system tests in Ankaios the project.
-Generic structure og BDT:
+Generic structure of BDT:
 ```robot
 *** Test Cases ***
 [Setup]        Setup Ankaios
