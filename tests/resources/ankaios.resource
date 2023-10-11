@@ -69,7 +69,7 @@ Run in foreground
 
 the command "${cli_command}" finished with exit code "${exit_code}"
     Log     run ${cli_command}
-    ${run_result}=    Run in forground    ${cli_command}
+    ${run_result}=    Run in foreground    ${cli_command}
     Log    ${run_result.stdout}
     ${exit_code_int}=    Convert To Integer     ${exit_code}
     Should Be Equal    ${run_result.rc}    ${exit_code_int}
