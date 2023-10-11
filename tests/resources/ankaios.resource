@@ -81,9 +81,6 @@ Ankaios server is started with "${ank_server_cli_command}"
     Log    Ankaios server is started with ${ank_server_cli_command}
     Run in background    %{ANK_BIN_DIR}    ${ank_server_cli_command}
     
-Ankaios server is started
-    Log    Ankaios server is started
-
 Ankaios agent is started with "${ank_agent_cli_command}"
     Log    Ankaios agent is started with ${ank_agent_cli_command}
     Run in background    %{ANK_BIN_DIR}    ${ank_agent_cli_command}
