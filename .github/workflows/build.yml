@@ -21,7 +21,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2.6.2
       
       - name: Run tests
-        run: RUST_LOG=debug cargo nextest -- --show-output --nocapture
+        run: RUST_LOG=debug cargo nextest run
 
       - name: Run robot tests
         run: |
