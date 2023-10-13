@@ -6,10 +6,12 @@ set -e
 # GITHUB RELEASE URL SCHEMA for latest release artifact: https://github.com/<organisation>/<repo>/releases/latest/download/<concrete_artifact> (takes the release marked as latest)
 RELEASE_URL_BASE="https://github.com/eclipse-ankaios/ankaios/releases"
 DEFAULT_BIN_DESTINATION="/usr/local/bin"
-BIN_DESTINATION="$DEFAULT_BIN_DESTINATION"
+BIN_DESTINATION="${DEFAULT_BIN_DESTINATION}"
 DEFAULT_AGENT_OPT="--name agent_A"
 AGENT_OPT="$DEFAULT_AGENT_OPT"
-DEFAULT_SERVER_OPT="--startup-config /etc/ank/state.yaml"
+CONFIG_DEST="/etc/ank"
+FILE_STARTUP_STATE="${CONFIG_DEST}/state.yaml"
+DEFAULT_SERVER_OPT="--startup-config ${FILE_STARTUP_STATE}"
 SERVER_OPT="$DEFAULT_SERVER_OPT"
 INSTALL_TYPE="both"
 SERVICE_DEST=/etc/systemd/system
@@ -94,7 +96,7 @@ case $BIN_DESTINATION in
     *) BIN_DESTINATION="$(pwd)/${BIN_DESTINATION}";;
 esac
 
-# fail if default or custom installation dir does not exist
+# Fail if default or custom installation dir does not exist
 if [ ! -d "${BIN_DESTINATION}" ]; then
     fail "Error: installation path '${BIN_DESTINATION}' does not exist."
 fi
@@ -108,7 +110,7 @@ RELEASE_FILE_NAME_WITH_SHA="${RELEASE_FILE_NAME}.sha512sum.txt"
 
 echo "Ankaios version: ${ANKAIOS_VERSION}"
 
-# in case of missing version, download latest
+# In case of missing version, download latest
 if [ -z "$ANKAIOS_VERSION" ] ; then
     echo "No version provided, use default: latest"
     ANKAIOS_RELEASE_URL="${RELEASE_URL_BASE}/latest/download/${RELEASE_FILE_NAME}"
@@ -127,7 +129,7 @@ echo "Downloading the release: '${ANKAIOS_RELEASE_URL}'"
 download_release "${ANKAIOS_RELEASE_URL_SHA}"
 download_release "${ANKAIOS_RELEASE_URL}"
 
-# skip checksum validation if sha512sum is not available
+# Skip checksum validation if sha512sum is not available
 if command -v sha512sum >/dev/null; then
     echo "Checking file checksum"
     sha512sum -c "${RELEASE_FILE_NAME_WITH_SHA}"
@@ -135,7 +137,7 @@ else
     echo "Warning: 'sha512sum' not installed. Skipping checksum validation."
 fi
 
-# prefix with sudo if install dir is not writeable with current permissions
+# Prefix with sudo if install dir is not writeable with current permissions
 BIN_SUDO="sudo"
 if [ -w "${BIN_DESTINATION}" ]; then
     BIN_SUDO=""
@@ -183,7 +185,32 @@ else
     echo "$$SERVICE_DEST not found. Skipping installation of systemd unit files for Ankaios"
 fi
 
-# Uninstall script
+# Write sample state startup config
+if ! [ -s "$FILE_STARTUP_STATE" ] && [[ "$INSTALL_TYPE" == server || "$INSTALL_TYPE" == both ]]; then
+    $SVC_SUDO mkdir -p "${CONFIG_DEST}"
+    $SVC_SUDO tee "$FILE_STARTUP_STATE" >/dev/null << EOF
+workloads:
+#   nginx:
+#     runtime: podman
+#     agent: agent_A
+#     restart: true
+#     updateStrategy: AT_MOST_ONCE
+#     accessRights:
+#       allow: []
+#       deny: []
+#     tags:
+#       - key: owner
+#         value: Ankaios team
+#     runtimeConfig: |
+#       image: docker.io/nginx:latest
+#       ports:
+#       - containerPort: 80
+#         hostPort: 8081
+EOF
+    echo "Created sample startup config in $FILE_STARTUP_STATE."
+fi
+
+# Write uninstall script
 ${BIN_SUDO} tee "${BIN_DESTINATION}/${BASEFILE_ANK_UNINSTALL}" >/dev/null << EOF
 #!/bin/bash
 set -x
@@ -207,5 +234,6 @@ rm -f "${BIN_DESTINATION}"/ank{,-server,-agent}
 rm -f "${BIN_DESTINATION}/${BASEFILE_ANK_UNINSTALL}"
 EOF
 ${BIN_SUDO} chmod +x "${BIN_DESTINATION}/${BASEFILE_ANK_UNINSTALL}"
+echo "Created uninstall script ${BIN_DESTINATION}/${BASEFILE_ANK_UNINSTALL}."
 
 echo "Installation has finished."
