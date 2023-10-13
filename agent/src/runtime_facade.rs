@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use common::{
     objects::{AgentName, WorkloadExecutionInstanceName, WorkloadInstanceName, WorkloadSpec},
     state_change_interface::StateChangeSender,
+    std_extensions::IllegalStateResult,
 };
 use tokio::sync::mpsc;
 
@@ -46,7 +47,10 @@ pub trait RuntimeFacade: Send + Sync {
     fn delete_workload(&self, instance_name: WorkloadExecutionInstanceName);
 }
 
-pub struct GenericRuntimeFacade<WorkloadId: Send + Sync, StChecker: StateChecker<WorkloadId> + Send + Sync> {
+pub struct GenericRuntimeFacade<
+    WorkloadId: Send + Sync,
+    StChecker: StateChecker<WorkloadId> + Send + Sync,
+> {
     runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>,
 }
 
@@ -61,8 +65,10 @@ where
 }
 
 #[async_trait]
-impl<WorkloadId: Send + Sync + 'static, StChecker: StateChecker<WorkloadId> + Send + Sync + 'static>
-    RuntimeFacade for GenericRuntimeFacade<WorkloadId, StChecker>
+impl<
+        WorkloadId: Send + Sync + 'static,
+        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
+    > RuntimeFacade for GenericRuntimeFacade<WorkloadId, StChecker>
 {
     async fn get_reusable_running_workloads(
         &self,
@@ -97,7 +103,13 @@ impl<WorkloadId: Send + Sync + 'static, StChecker: StateChecker<WorkloadId> + Se
                     update_state_tx.clone(),
                 )
                 .await
-                .unwrap();
+                .map_or_else(
+                    |err| {
+                        log::warn!("Failed to create workload: '{}': '{}'", workload_name, err);
+                        (None, None)
+                    },
+                    |(workload_id, state_checker)| (Some(workload_id), Some(state_checker)),
+                );
 
             Workload::await_new_command(
                 workload_name,
@@ -131,9 +143,24 @@ impl<WorkloadId: Send + Sync + 'static, StChecker: StateChecker<WorkloadId> + Se
             .map(|control_interface| control_interface.get_api_location());
 
         tokio::spawn(async move {
-            let old_id = runtime.get_workload_id(&old_instance_name).await.unwrap();
-
-            runtime.delete_workload(&old_id).await.unwrap();
+            let old_workload_name = old_instance_name.workload_name();
+            match runtime.get_workload_id(&old_instance_name).await {
+                Ok(old_id) => runtime
+                    .delete_workload(&old_id)
+                    .await
+                    .unwrap_or_else(|err| {
+                        log::warn!(
+                            "Failed to delete workload when replacing workload '{}': '{}'",
+                            old_workload_name,
+                            err
+                        )
+                    }),
+                Err(err) => log::warn!(
+                    "Failed to get workload id when replacing workload '{}': '{}'",
+                    old_workload_name,
+                    err
+                ),
+            }
 
             let (workload_id, state_checker) = runtime
                 .create_workload(
@@ -142,8 +169,19 @@ impl<WorkloadId: Send + Sync + 'static, StChecker: StateChecker<WorkloadId> + Se
                     update_state_tx.clone(),
                 )
                 .await
-                .unwrap();
+                .map_or_else(
+                    |err| {
+                        log::warn!(
+                            "Failed to create workload when replacing workload '{}': '{}'",
+                            old_workload_name,
+                            err
+                        );
+                        (None, None)
+                    },
+                    |(workload_id, state_checker)| (Some(workload_id), Some(state_checker)),
+                );
 
+            // replace workload_id and state_checker through Option directly and pass in None if create_workload fails
             Workload::await_new_command(
                 workload_name,
                 workload_id,
@@ -174,17 +212,34 @@ impl<WorkloadId: Send + Sync + 'static, StChecker: StateChecker<WorkloadId> + Se
         tokio::spawn(async move {
             let workload_id = runtime
                 .get_workload_id(&workload_spec.instance_name())
-                .await
-                .unwrap();
+                .await;
 
-            let state_checker = runtime
-                .start_checker(&workload_id, workload_spec, update_state_tx.clone())
-                .await
-                .unwrap();
+            let state_checker: Option<StChecker> = match workload_id.as_ref() {
+                Ok(wl_id) => runtime
+                    .start_checker(wl_id, workload_spec, update_state_tx.clone())
+                    .await
+                    .map_err(|err| {
+                        log::warn!(
+                            "Failed to start state checker when resuming workload '{}': '{}'",
+                            workload_name,
+                            err
+                        );
+                        err
+                    })
+                    .ok(),
+                Err(err) => {
+                    log::warn!(
+                        "Failed to get workload id when resuming workload '{}': '{}'",
+                        workload_name,
+                        err
+                    );
+                    None
+                }
+            };
 
             Workload::await_new_command(
                 workload_name,
-                workload_id,
+                workload_id.ok(),
                 state_checker,
                 update_state_tx,
                 runtime,

@@ -71,8 +71,8 @@ impl Workload {
 
     pub async fn await_new_command<WorkloadId, StChecker>(
         workload_name: String,
-        initial_workload_id: WorkloadId,
-        initial_state_checker: StChecker,
+        initial_workload_id: Option<WorkloadId>,
+        initial_state_checker: Option<StChecker>,
         update_state_tx: StateChangeSender,
         runtime: Box<dyn Runtime<WorkloadId, StChecker>>,
         mut command_receiver: mpsc::Receiver<WorkloadCommand>,
@@ -80,8 +80,8 @@ impl Workload {
         WorkloadId: Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
-        let mut state_checker = Some(initial_state_checker);
-        let mut workload_id = Some(initial_workload_id);
+        let mut state_checker = initial_state_checker;
+        let mut workload_id = initial_workload_id;
         loop {
             match command_receiver.recv().await {
                 // [impl->swdd~agent-facade-stops-workload~1]

@@ -106,13 +106,13 @@ impl RuntimeManager {
     }
 
     // // [impl->swdd~agent-starts-runtimes-adapters-with-initial-workloads~1]
-    async fn handle_initial_update_workload(&mut self, added_workload_vec: Vec<WorkloadSpec>) {
+    async fn handle_initial_update_workload(&mut self, added_workloads: Vec<WorkloadSpec>) {
         log::debug!("Handling initial workload list.");
 
         // create a list per runtime
         let mut runtime_workload_map: HashMap<String, HashMap<String, WorkloadSpec>> =
             HashMap::new();
-        for workload_spec in added_workload_vec {
+        for workload_spec in added_workloads {
             if let Some(workload_map) = runtime_workload_map.get_mut(&workload_spec.runtime) {
                 workload_map.insert(workload_spec.name.clone(), workload_spec);
             } else {
@@ -128,11 +128,11 @@ impl RuntimeManager {
                 .get_reusable_running_workloads(&self.agent_name)
                 .await
             {
-                Ok(running_instance_name_vec) => {
-                    for running_instance_name in running_instance_name_vec {
+                Ok(running_instance_names) => {
+                    for instance_name in running_instance_names {
                         if let Some(new_workload_spec) = runtime_workload_map
                             .get_mut(runtime_name)
-                            .and_then(|map| map.remove(running_instance_name.workload_name()))
+                            .and_then(|map| map.remove(instance_name.workload_name()))
                         {
                             let new_instance_name: WorkloadExecutionInstanceName =
                                 new_workload_spec.instance_name();
@@ -142,7 +142,7 @@ impl RuntimeManager {
                             // We have a running workload that matches a new added workload; check if the config is updated
                             self.workloads.insert(
                                 new_workload_spec.name.to_string(),
-                                if new_instance_name == running_instance_name {
+                                if new_instance_name == instance_name {
                                     runtime.resume_workload(
                                         new_workload_spec,
                                         control_interface,
@@ -150,7 +150,7 @@ impl RuntimeManager {
                                     )
                                 } else {
                                     runtime.replace_workload(
-                                        running_instance_name,
+                                        instance_name,
                                         new_workload_spec,
                                         control_interface,
                                         &self.update_state_tx,
@@ -159,7 +159,7 @@ impl RuntimeManager {
                             );
                         } else {
                             // Do added workload matches the found running one => delete it
-                            runtime.delete_workload(running_instance_name);
+                            runtime.delete_workload(instance_name);
                         }
                     }
                 }
