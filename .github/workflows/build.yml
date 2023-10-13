@@ -7,18 +7,21 @@ on:
   workflow_dispatch:
   workflow_call:
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:      
   test_and_build_linux_amd64:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.2
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.3
       options: --privileged
     steps:
       - uses: actions/checkout@v3.5.3
       - uses: Swatinem/rust-cache@v2.6.2
       
       - name: Run tests
-        run: RUST_LOG=debug cargo test -- --show-output --nocapture
+        run: RUST_LOG=debug cargo nextest run
 
       - name: Run robot tests
         run: |
@@ -65,7 +68,7 @@ jobs:
     # and in addition, tests for arm64 can be enabled in this job, too
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.2
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.3
       options: --user root
     steps:
       - uses: actions/checkout@v3.5.3
@@ -91,7 +94,7 @@ jobs:
   requirements:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.2
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.3
       options: --user root
     steps:
       - uses: actions/checkout@v3.5.3

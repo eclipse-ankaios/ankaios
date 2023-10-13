@@ -83,7 +83,8 @@ USER ${USERNAME}
 
 # Install cargo cli tools
 RUN cargo install cargo-llvm-cov --locked; \
-    cargo install cargo-deb --locked
+    cargo install cargo-deb --locked; \
+    cargo install cargo-nextest --locked
 
 # Install cargo tools for cross compilation
 RUN rustup target add aarch64-unknown-linux-gnu \
