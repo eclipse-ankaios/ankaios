@@ -18,18 +18,18 @@
       
       
       <link rel="icon" href="../../assets/favicon128x128.png">
-      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.4.2">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.4.5">
     
     
       
-        <title>Run unit tests - Eclipse Ankaios</title>
+        <title>cargo-nextest - Eclipse Ankaios</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.d451bc0e.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.6a10b989.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.a5377069.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.356b1318.min.css">
       
       
 
@@ -57,7 +57,7 @@
       
         <meta  property="og:type"  content="website" >
       
-        <meta  property="og:title"  content="Run unit tests - Eclipse Ankaios" >
+        <meta  property="og:title"  content="cargo-nextest - Eclipse Ankaios" >
       
         <meta  property="og:description"  content="None" >
       
@@ -73,7 +73,7 @@
       
         <meta  name="twitter:card"  content="summary_large_image" >
       
-        <meta  name="twitter:title"  content="Run unit tests - Eclipse Ankaios" >
+        <meta  name="twitter:title"  content="cargo-nextest - Eclipse Ankaios" >
       
         <meta  name="twitter:description"  content="None" >
       
@@ -103,7 +103,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#run-unit-tests" class="md-skip">
+        <a href="#cargo-nextest" class="md-skip">
           Skip to content
         </a>
       
@@ -152,7 +152,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Run unit tests
+              cargo-nextest
             
           </span>
         </div>
@@ -795,7 +795,7 @@
         
   
   <span class="md-ellipsis">
-    Run unit tests
+    cargo-nextest
   </span>
   
 
@@ -994,33 +994,34 @@
   
 
 
+<h1 id="cargo-nextest">cargo-nextest<a class="headerlink" href="#cargo-nextest" title="Permanent link">&para;</a></h1>
+<p>We use test runner <a href="https://nexte.st/index.html">cargo-nextest</a> because of the following reasons:
+1. It runs tests faster than <code>cargo test</code>.
+2. It presents the test results concisely so you can see which tests passed and failed at a glance.
+3. If debug logs are activated, it prints the debug logs only when a test has failed, so that it is clear the debug logs belong that failed test.</p>
 <h1 id="run-unit-tests">Run unit tests<a class="headerlink" href="#run-unit-tests" title="Permanent link">&para;</a></h1>
 <p>If you want to run all unit tests <strong>without</strong> traces, call in the root of the project:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cargo<span class="w"> </span><span class="nb">test</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cargo<span class="w"> </span>nextest<span class="w"> </span>run
 </code></pre></div>
 <p>Some unit tests can print trace logs.
-If you want to see them, you have to set the <code>RUST_LOG</code> environment variable <strong>before</strong> running unit tests.
-The tests in the agent are multithreaded.
-Tests are not stated one-by-one, but tests are started in parallel in its own threads.
-This makes difficult to read trace logs, because it is hard to find which trace belongs to which test.
-If you want to have traces sorted by unit tests, call this (recommended):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span>--<span class="w"> </span>--show-output
+If you want to see them, you have to set the <code>RUST_LOG</code> environment variable <strong>before</strong> running unit tests.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nv">RUST_LOG</span><span class="o">=</span>debug<span class="w"> </span>cargo<span class="w"> </span>nextest<span class="w"> </span>run
 </code></pre></div>
-<p>Rust also allows to run only a subset of unit tests.
-You have to se the "filter string" in the command:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span>&lt;filter<span class="w"> </span>string&gt;<span class="w"> </span><span class="o">[</span>--<span class="w"> </span>--show-output<span class="o">]</span>
+<p><a href="https://nexte.st/index.html">Cargo-nextest</a> also allows to run only a subset of unit tests.
+You have to set the "filter string" in the command:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>cargo<span class="w"> </span>nextest<span class="w"> </span>run<span class="w"> </span>&lt;filter<span class="w"> </span>string&gt;
 </code></pre></div>
 <p>Where the <code>filter string</code> is part of unit test name. For example we have a unit test with the name:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">test</span><span class="w"> </span>podman::workload::container_create_success
 </code></pre></div>
 <p>If you want to call only this test, you can call:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span>workload::container_create_success<span class="w"> </span><span class="o">[</span>--<span class="w"> </span>--show-output<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>cargo<span class="w"> </span>nextest<span class="w"> </span>run<span class="w"> </span>workload::container_create_success
 </code></pre></div>
 <p>If you want to call all tests in <code>workload.rs</code>, you have to call:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span>podman::workload<span class="w"> </span><span class="o">[</span>--<span class="w"> </span>--show-output<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>cargo<span class="w"> </span>nextest<span class="w"> </span>run<span class="w"> </span>podman::workload
 </code></pre></div>
 <p>You can also call only tests in <code>workload.rs</code>, which have a name starting with <code>container</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span>podman::workload::container<span class="w"> </span><span class="o">[</span>--<span class="w"> </span>--show-output<span class="o">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>cargo<span class="w"> </span>nextest<span class="w"> </span>run<span class="w"> </span>podman::workload::container
 </code></pre></div>
 
 
@@ -1103,10 +1104,11 @@ You have to se the "filter string" in the command:</p>
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.tabs", "content.code.copy", "content.code.annotate", "content.action.edit", "navigation.footer"], "search": "../../assets/javascripts/workers/search.a264c092.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.tabs", "content.code.copy", "content.code.annotate", "content.action.edit", "navigation.footer"], "search": "../../assets/javascripts/workers/search.f886a092.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.726fbb30.min.js"></script>
+      <script src="../../assets/javascripts/bundle.aecac24b.min.js"></script>
       
     
   </body>
