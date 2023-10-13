@@ -29,13 +29,13 @@ Names of unit tests within a file shall be hierarchical. Tests which belong toge
 So if you want to call tests which work with container, you can write
 
 ```shell
-cargo nextest container
+cargo nextest run container
 ```
 
 If you want to call tests of the "container create" function, you can call:
 
 ```shell
-cargo nextest container_create
+cargo nextest run container_create
 ```
 
 More information about calling unit tests is in
