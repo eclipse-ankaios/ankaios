@@ -5,7 +5,7 @@ set -e
 # GITHUB RELEASE URL SCHEMA for concrete release artifact: https://github.com/<organisation>/<repo>/releases/download/<tag>/<concrete_artifact>
 # GITHUB RELEASE URL SCHEMA for latest release artifact: https://github.com/<organisation>/<repo>/releases/latest/download/<concrete_artifact> (takes the release marked as latest)
 RELEASE_URL_BASE="https://github.com/eclipse-ankaios/ankaios/releases"
-DEFAULT_BIN_DESTINATION="/usr/local/bin/"
+DEFAULT_BIN_DESTINATION="/usr/local/bin"
 BIN_DESTINATION="$DEFAULT_BIN_DESTINATION"
 DEFAULT_AGENT_OPT="--name agent_A"
 AGENT_OPT="$DEFAULT_AGENT_OPT"
@@ -14,10 +14,10 @@ SERVER_OPT="$DEFAULT_SERVER_OPT"
 INSTALL_TYPE="both"
 SERVICE_DEST=/etc/systemd/system
 ANK_SERVER_SERVICE="ank-server"
-FILE_ANK_SERVER_SERVICE="$SERVICE_DEST/$ANK_SERVER_SERVICE.service"
+FILE_ANK_SERVER_SERVICE="${SERVICE_DEST}/${ANK_SERVER_SERVICE}.service"
 ANK_AGENT_SERVICE="ank-agent"
-FILE_ANK_AGENT_SERVICE="$SERVICE_DEST/$ANK_AGENT_SERVICE.service"
-
+FILE_ANK_AGENT_SERVICE="${SERVICE_DEST}/${ANK_AGENT_SERVICE}.service"
+BASEFILE_ANK_UNINSTALL="ank-uninstall.sh"
 
 setup_verify_arch() {
     if [ -z "$ARCH" ]; then
@@ -43,11 +43,11 @@ setup_verify_arch() {
 }
 
 display_usage() {  
-    echo -e "Usage: $0 [-v] [-i]"
+    echo -e "Usage: $0 [-v] [-i] [-t] [-s] [-a]"
     echo -e "Install Ankaios on a system."
     echo -e "  -v: Ankaios specific version to install. Default: latest version."
     echo -e "  -i: Installation path. Default: $DEFAULT_BIN_DESTINATION"
-    echo -e "  -t: Installation type. 'server', 'agent' or 'both' (default)"
+    echo -e "  -t: Install systemd unit files. 'server', 'agent', 'none' or 'both' (default)"
     echo -e "  -s: Options which will be passed to the server. Default '$DEFAULT_SERVER_OPT'"
     echo -e "  -a: Options which will be passed to the agent. Default '$DEFAULT_AGENT_OPT'"
 }
@@ -75,7 +75,7 @@ cleanup_routine() {
 trap cleanup_routine EXIT
 
 # parse script args
-while getopts v:i: opt; do
+while getopts v:i:t:s:a: opt; do
     case $opt in
         v) ANKAIOS_VERSION="$OPTARG";;
         i) BIN_DESTINATION="$OPTARG";;
@@ -136,23 +136,23 @@ else
 fi
 
 # prefix with sudo if install dir is not writeable with current permissions
-PREFIX="sudo"
+BIN_SUDO="sudo"
 if [ -w "${BIN_DESTINATION}" ]; then
-    PREFIX=""
+    BIN_SUDO=""
 fi
 
 echo "Extracting the binaries into install folder: '${BIN_DESTINATION}'"
-${PREFIX} tar -xvzf "${RELEASE_FILE_NAME}" -C "${BIN_DESTINATION}"
+${BIN_SUDO} tar -xvzf "${RELEASE_FILE_NAME}" -C "${BIN_DESTINATION}/"
 
-# Install system unit files
+# Install systemd unit files
 if [ -d "$SERVICE_DEST" ]; then
-    SUDO="sudo"
+    SVC_SUDO="sudo"
     if [ -w "$SERVICE_DEST" ]; then
-        SUDO=""
+        SVC_SUDO=""
     fi
 
     if [[ "$INSTALL_TYPE" == server || "$INSTALL_TYPE" == both ]]; then
-        $SUDO tee "$FILE_ANK_SERVER_SERVICE" >/dev/null << EOF
+        $SVC_SUDO tee "$FILE_ANK_SERVER_SERVICE" >/dev/null << EOF
 [Unit]
 Description=Ankaios server
 
@@ -166,7 +166,7 @@ EOF
     fi
 
     if [[ "$INSTALL_TYPE" == agent || "$INSTALL_TYPE" == both ]]; then
-        $SUDO tee "$FILE_ANK_AGENT_SERVICE" >/dev/null << EOF
+        $SVC_SUDO tee "$FILE_ANK_AGENT_SERVICE" >/dev/null << EOF
 [Unit]
 Description=Ankaios agent
 
@@ -184,7 +184,28 @@ else
 fi
 
 # Uninstall script
+${BIN_SUDO} tee "${BIN_DESTINATION}/${BASEFILE_ANK_UNINSTALL}" >/dev/null << EOF
+#!/bin/bash
+set -x
+[ \$(id -u) -eq 0 ] || exec sudo \$0 \$@ 
 
-# TODO: Create uninstall script
+if command -v systemctl; then
+    if [ -s "${FILE_ANK_SERVER_SERVICE}" ]; then
+        systemctl stop "${ANK_SERVER_SERVICE}"
+        systemctl disable "${ANK_SERVER_SERVICE}"
+        systemctl daemon-reload
+    fi
+    if [ -s "${FILE_ANK_AGENT_SERVICE}" ]; then
+        systemctl stop "${ANK_AGENT_SERVICE}"
+        systemctl disable "${ANK_AGENT_SERVICE}"
+        systemctl daemon-reload
+    fi
+fi
+rm -f "${FILE_ANK_SERVER_SERVICE}" "${FILE_ANK_AGENT_SERVICE}"
+
+rm -f "${BIN_DESTINATION}"/ank{,-server,-agent}
+rm -f "${BIN_DESTINATION}/${BASEFILE_ANK_UNINSTALL}"
+EOF
+${BIN_SUDO} chmod +x "${BIN_DESTINATION}/${BASEFILE_ANK_UNINSTALL}"
 
 echo "Installation has finished."
