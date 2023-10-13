@@ -18,7 +18,7 @@ cargo nextest -- --show-output
 ```
 
 Rust also allows to run only a subset of unit tests.
-You have to se the "filter string" in the command:
+You have to set the "filter string" in the command:
 
 ```shell
 cargo nextest <filter string> [-- --show-output]
