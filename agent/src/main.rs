@@ -78,7 +78,7 @@ async fn main() {
         .get_run_directory()
         .unwrap_or_exit("Run folder creation failed. Cannot continue without run folder.");
 
-    // [impl->swdd~agent-supports-podman~1]
+    // [impl->swdd~agent-supports-podman~2]
     let podman_runtime = Box::new(PodmanRuntime {});
     let podman_runtime_name = podman_runtime.name();
     let podman_facade = Box::new(GenericRuntimeFacade::<
@@ -88,7 +88,7 @@ async fn main() {
     let mut runtime_facade_map: HashMap<String, Box<dyn RuntimeFacade>> = HashMap::new();
     runtime_facade_map.insert(podman_runtime_name, podman_facade);
 
-    // [impl->swdd~agent-supports-podman~1]
+    // [impl->swdd~agent-supports-podman-kube-runtime~2]
     let podman_kube_runtime = Box::new(PodmanKubeRuntime {});
     let podman_kube_runtime_name = podman_kube_runtime.name();
     let podman_kube_facade = Box::new(GenericRuntimeFacade::<

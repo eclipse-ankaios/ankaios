@@ -139,7 +139,6 @@ mod tests {
 
     // [utest->swdd~agent-manager-listens-requests-from-server~1]
     // [utest->swdd~agent-uses-async-channels~1]
-    // [utest->swdd~agent-adapter-start-new-workloads-if-non-found~1]
     #[tokio::test]
     async fn utest_agent_manager_update_workload() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

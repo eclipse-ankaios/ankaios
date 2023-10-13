@@ -34,6 +34,7 @@ impl Workload {
         }
     }
 
+    // [impl->swdd~agent-workload-obj-update-command~1]
     pub async fn update(
         &mut self,
         spec: WorkloadSpec,
@@ -58,6 +59,7 @@ impl Workload {
             .map_err(|err| RuntimeError::Update(err.to_string()))
     }
 
+    // [impl->swdd~agent-workload-obj-delete-command~1]
     pub async fn delete(self) -> Result<(), RuntimeError> {
         if let Some(control_interface) = self.control_interface {
             control_interface.abort_pipes_channel_task()

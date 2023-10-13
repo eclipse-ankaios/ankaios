@@ -1,4 +1,7 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use common::{
     commands::CompleteState,
@@ -32,6 +35,7 @@ pub struct RuntimeManager {
     control_interface_tx: StateChangeSender,
     initial_workload_list_received: bool,
     workloads: HashMap<String, Workload>,
+    // [impl->swdd~agent-supports-multiple-runtime-connectors~1]
     runtime_map: HashMap<String, Box<dyn RuntimeFacade>>,
     update_state_tx: StateChangeSender,
 }
@@ -62,9 +66,7 @@ impl RuntimeManager {
         deleted_workloads: Vec<DeletedWorkload>,
     ) {
         if !self.initial_workload_list_received {
-            // [impl->swdd~agent-starts-runtimes-adapters-with-initial-workloads~1]
             self.initial_workload_list_received = true;
-
             if !deleted_workloads.is_empty() {
                 log::error!(
                     "Received an initial workload list with delete workload commands: '{:?}'",
@@ -72,6 +74,7 @@ impl RuntimeManager {
                 );
             }
 
+            // [impl->swdd~agent-initial-list-existing-workloads~1]
             self.handle_initial_update_workload(added_workloads_vec)
                 .await;
         } else {
@@ -106,24 +109,27 @@ impl RuntimeManager {
         }
     }
 
-    // // [impl->swdd~agent-starts-runtimes-adapters-with-initial-workloads~1]
+    // [impl->swdd~agent-initial-list-existing-workloads~1]
     async fn handle_initial_update_workload(&mut self, added_workload_vec: Vec<WorkloadSpec>) {
         log::debug!("Handling initial workload list.");
 
         // create a list per runtime
-        let mut runtime_workload_map: HashMap<String, HashMap<String, WorkloadSpec>> =
+        let mut added_workloads_per_runtime: HashMap<String, HashMap<String, WorkloadSpec>> =
             HashMap::new();
         for workload_spec in added_workload_vec {
-            if let Some(workload_map) = runtime_workload_map.get_mut(&workload_spec.runtime) {
+            if let Some(workload_map) = added_workloads_per_runtime.get_mut(&workload_spec.runtime)
+            {
                 workload_map.insert(workload_spec.name.clone(), workload_spec);
             } else {
-                runtime_workload_map.insert(
+                added_workloads_per_runtime.insert(
                     workload_spec.runtime.clone(),
                     HashMap::from([(workload_spec.name.clone(), workload_spec)]),
                 );
             }
         }
 
+        // Go through each runtime and find the still running workloads
+        // [impl->swdd~agent-existing-workloads-finds-list~1]
         for (runtime_name, runtime) in &self.runtime_map {
             match runtime
                 .get_reusable_running_workloads(&self.agent_name)
@@ -131,25 +137,31 @@ impl RuntimeManager {
             {
                 Ok(running_instance_name_vec) => {
                     for instance_name in running_instance_name_vec {
-                        if let Some(new_workload_spec) = runtime_workload_map
+                        if let Some(new_workload_spec) = added_workloads_per_runtime
                             .get_mut(runtime_name)
                             .and_then(|map| map.remove(instance_name.workload_name()))
                         {
                             let new_instance_name: WorkloadExecutionInstanceName =
                                 new_workload_spec.instance_name();
                             // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-                            let control_interface =
-                                self.create_control_interface(&new_workload_spec);
+                            let control_interface = Self::create_control_interface(
+                                &self.run_folder,
+                                self.control_interface_tx.clone(),
+                                &new_workload_spec,
+                            );
                             // We have a running workload that matches a new added workload; check if the config is updated
+                            // [impl->swdd~agent-stores-running-workload~1]
                             self.workloads.insert(
                                 new_workload_spec.name.to_string(),
                                 if new_instance_name == instance_name {
+                                    // [impl->swdd~agent-existing-workloads-resume-existing~1]
                                     runtime.resume_workload(
                                         new_workload_spec,
                                         control_interface,
                                         &self.update_state_tx,
                                     )
                                 } else {
+                                    // [impl->swdd~agent-existing-workloads-replace-updated~1]
                                     runtime.replace_workload(
                                         instance_name,
                                         new_workload_spec,
@@ -159,7 +171,8 @@ impl RuntimeManager {
                                 },
                             );
                         } else {
-                            // Do added workload matches the found running one => delete it
+                            // No added workload matches the found running one => delete it
+                            // [impl->swdd~agent-existing-workloads-delete-unneeded~1]
                             runtime.delete_workload(instance_name);
                         }
                     }
@@ -169,10 +182,9 @@ impl RuntimeManager {
         }
 
         // now start all workloads that did not exist
-        for workload_spec in flatten(runtime_workload_map) {
-            // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-            let control_interface = self.create_control_interface(&workload_spec);
-            self.add_workload(workload_spec, control_interface).await;
+        for workload_spec in flatten(added_workloads_per_runtime) {
+            // [impl->swdd~agent-existing-workloads-starts-new-if-not-found~1]
+            self.add_workload(workload_spec).await;
         }
     }
 
@@ -191,20 +203,16 @@ impl RuntimeManager {
         // [impl->swdd~agent-handle-deleted-before-added-workloads~1]
         for deleted_workload in deleted_workloads {
             if let Some(updated_workload) = added_workloads.remove(&deleted_workload.name) {
-                // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-                let control_interface = self.create_control_interface(&updated_workload);
                 // [impl->swdd~agent-updates-deleted-and-added-workloads~1]
-                self.update_workload(updated_workload, control_interface)
-                    .await;
+                self.update_workload(updated_workload).await;
             } else {
+                // [impl->swdd~agent-deletes-workload~1]
                 self.delete_workload(deleted_workload).await;
             }
         }
 
         for (_, workload_spec) in added_workloads {
             let workload_name = &workload_spec.name;
-            // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-            let control_interface = self.create_control_interface(&workload_spec);
             if self.workloads.get(workload_name).is_some() {
                 log::warn!(
                     "Added workload '{}' already exists. Updating.",
@@ -212,25 +220,30 @@ impl RuntimeManager {
                 );
                 // We know this workload, seems the server is sending it again, try an update
                 // [impl->swdd~agent-update-on-add-known-workload~1]
-                self.update_workload(workload_spec, control_interface).await;
+                self.update_workload(workload_spec).await;
             } else {
-                // [impl->swdd~agent-forwards-start-workload~1]
-                self.add_workload(workload_spec, control_interface).await;
+                // [impl->swdd~agent-added-creates-workload~1]
+                self.add_workload(workload_spec).await;
             }
         }
     }
 
-    async fn add_workload(
-        &mut self,
-        workload_spec: WorkloadSpec,
-        control_interface: Option<PipesChannelContext>,
-    ) {
+    async fn add_workload(&mut self, workload_spec: WorkloadSpec) {
         let workload_name = workload_spec.name.clone();
 
+        // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
+        let control_interface = Self::create_control_interface(
+            &self.run_folder,
+            self.control_interface_tx.clone(),
+            &workload_spec,
+        );
+
+        // [impl->swdd~agent-uses-specified-runtime~1]
         // [impl->swdd~agent-skips-unknown-runtime~1]
         if let Some(runtime) = self.runtime_map.get(&workload_spec.runtime) {
             let workload =
                 runtime.create_workload(workload_spec, control_interface, &self.update_state_tx);
+            // [impl->swdd~agent-stores-running-workload~1]
             self.workloads.insert(workload_name, workload);
         } else {
             log::warn!(
@@ -256,14 +269,15 @@ impl RuntimeManager {
     }
 
     // [impl->swdd~agent-updates-deleted-and-added-workloads~1]
-    async fn update_workload(
-        &mut self,
-        workload_spec: WorkloadSpec,
-        control_interface: Option<PipesChannelContext>,
-    ) {
+    async fn update_workload(&mut self, workload_spec: WorkloadSpec) {
         let workload_name = workload_spec.name.clone();
         if let Some(workload) = self.workloads.get_mut(&workload_name) {
             // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
+            let control_interface = Self::create_control_interface(
+                &self.run_folder,
+                self.control_interface_tx.clone(),
+                &workload_spec,
+            );
             if let Err(err) = workload.update(workload_spec, control_interface).await {
                 log::error!("Failed to update workload '{}': '{}'", workload_name, err);
             }
@@ -272,22 +286,23 @@ impl RuntimeManager {
                 "Workload for update '{}' not found. Recreating.",
                 workload_name
             );
-            // TODO: we need a requirement here
-            self.add_workload(workload_spec, control_interface).await;
+            // [impl->swdd~agent-add-on-update-missing-workload~1]
+            self.add_workload(workload_spec).await;
         }
     }
 
     // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
     fn create_control_interface(
-        &self,
+        run_folder: &Path,
+        control_interface_tx: StateChangeSender,
         workload_spec: &WorkloadSpec,
     ) -> Option<PipesChannelContext> {
         log::debug!("Creating control interface pipes for '{:?}'", workload_spec);
 
         match PipesChannelContext::new(
-            &self.run_folder,
+            run_folder,
             &workload_spec.instance_name(),
-            self.control_interface_tx.clone(),
+            control_interface_tx,
         ) {
             Ok(pipes_channel_context) => Some(pipes_channel_context),
             Err(err) => {

@@ -9,11 +9,12 @@ impl AgentName {
         &self.0
     }
 
-    // [impl->swdd~agent-adapter-start-finds-existing-workloads~1]
+    // [impl->swdd~agent-existing-workloads-finds-list~1]
     pub fn get_filter_regex(&self) -> String {
         format!("[{}]{}$", INSTANCE_NAME_SEPARATOR, self.0)
     }
 
+    // [impl->swdd~agent-existing-workloads-finds-list~1]
     pub fn get_filter_suffix(&self) -> String {
         format!("{}{}", INSTANCE_NAME_SEPARATOR, self.0)
     }
@@ -50,7 +51,7 @@ mod tests {
 
     const AGENT_NAME: &str = "agent";
 
-    // [utest->swdd~agent-adapter-start-finds-existing-workloads~1]
+    // [utest->swdd~agent-existing-workloads-finds-list~1]
     #[test]
     fn utest_agent_name_get_filter_regex() {
         assert_eq!(
@@ -59,7 +60,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-adapter-start-finds-existing-workloads~1]
+    // [utest->swdd~agent-existing-workloads-finds-list~1]
     #[test]
     fn utest_agent_name_get_filter_suffix() {
         assert_eq!(

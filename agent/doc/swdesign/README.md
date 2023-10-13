@@ -166,29 +166,63 @@ Needs:
 - impl
 - utest
 
-#### Agent uses RuntimeAdapter
-`swdd~agent-uses-runtime-adapter~1`
+
+
+#### Agent supports multiple runtime connectors
+`swdd~agent-supports-multiple-runtime-connectors~1`
 
 Status: approved
 
-The Ankaios Agent shall manage Workloads using the RuntimeAdapter specified in the Workload Specification.
+The Ankaios agent shall support multiple runtime connectors.
+
+Tags: 
+- RuntimeManager
+
+Needs:
+- impl
+- utest
+
+
+#### Agent uses specified runtime connector
+`swdd~agent-uses-specified-runtime~1`
+
+Status: approved
+
+The Ankaios agent shall manage workloads using the runtime connector specified in the workload specification.
 
 Tags:
-- AgentManager
+- RuntimeManager
 
 Needs:
 - impl
 - utest
 
 #### Agent supports Podman
-`swdd~agent-supports-podman~1`
+`swdd~agent-supports-podman~2`
 
 Status: approved
 
-The Agent shall implement the RuntimeAdapter for the Podman.
+The Agent shall support Podman for creating containers as a build-in runtime connector named "podman".
 
 Tags:
-- PodmanAdapter
+- PodmanRuntime
+
+Needs:
+- impl
+- itest
+
+#### Agent supports K8s resources via podman-kube runtime
+`swdd~swdd~agent-supports-podman-kube-runtime~1`
+
+Status: approved
+
+The Agent shall support Podman for creating Kubernetes resources as a build-in runtime connector named "podman-kube".
+
+Rationale:
+Supporting Kubernetes resources as a separate runtime allows differentiating between plain containers and pods started via Kubernetes manifests.
+
+Tags: 
+- PodmanKubeRuntime
 
 Needs:
 - impl
@@ -256,28 +290,10 @@ Needs:
 
 Status: approved
 
-When the Ankaios Agent gets an add Workload command with the `UpdateWorklaod` message and the runtime of the Workload is unknown, the Agent Manager shall skip this Workload.
+When the Ankaios Agent gets an add Workload command with the `UpdateWorklaod` message and the runtime of the Workload is unknown, the RuntimeManager shall skip this Workload.
 
 Tags:
-- AgentManager
-
-Needs:
-- impl
-- utest
-
-#### Agent Manager stores Workload to Runtime mapping
-`swdd~agent-manager-stores-workload-runtime-mapping~1`
-
-Status: approved
-
-When the Ankaios Agent gets an `UpdateWorkload` message with added Workloads and the runtime is known, the Agent shall store the mapping from workload name to runtime name.
-
-Comment:
-The mapping is needed to be able to stop a workload as the runtime name is not part of the DeleteWorkload message.
-
-Tags:
-- AgentManager
-- ParameterStorage
+- RuntimeManager
 
 Needs:
 - impl
@@ -287,172 +303,207 @@ Needs:
 
 The following diagram and the subsequent requirements show the steps the Ankaios Agent takes when receiving the first UpdateWorkload command sent by Server. The first UpdateWorkload contains the complete initial list of workloads the Agent shall manage.
 
+//TODO: update diagram
 ![Handling initial UpdateWorkload](plantuml/seq_update_workload_initial.svg)
 
-##### Agent Manager starts Runtime Adapters with initial list of workloads
-`swdd~agent-starts-runtimes-adapters-with-initial-workloads~1`
+##### RuntimeManager initial list of workloads handles existing workloads
+`swdd~agent-initial-list-existing-workloads~1`
 
 Status: approved
 
-After receiving the complete list of added workloads from the Ankaios Sever at the initial connection establishment, the Ankaios Agent shall start each RuntimeAdapter with the list of Workloads associated with this adapter.
+After receiving the complete list of added workloads from the Ankaios Sever at the initial connection establishment, the RuntimeManager shall handle existing workloads.
 
 Comment:
-In case the Agent was already running, the Runtime Adapter can take care of Workloads that were started in an earlier execution.
+In case the Agent was already running, the Runtime Adapter can take care of Workloads that were started in an earlier execution. Some of these workloads can be reused, some have to be updated and some stopped.
 
 Tags: 
-- AgentManager
+- RuntimeManager
 
 Needs:
 - impl
 - utest
 
-##### Runtime Adapter at startup finds existing Workloads
-`swdd~agent-adapter-start-finds-existing-workloads~1`
+##### RuntimeManager handles existing workloads by building list
+`swdd~agent-existing-workloads-finds-list~1`
 
 Status: approved
 
-The RuntimeAdapter shall build a list of existing Workloads started during the same machine runtime window by a previous execution of an Ankaios Agent with the same name as the currently running Agent.
+When handling existing workloads, the RuntimeManager shall build a list of existing Workloads started during the same machine runtime window by a previous execution of an Ankaios Agent with the same name as the currently running Agent.
 
 Comment:
-A 'machine runtime window' is the time between the start and shutdown of the machine.
+A 'machine runtime window' is the time between the start and shutdown of the machine. Finding existing workloads needs to be done fore stating new workloads in order to avoid conflicts.
 
 Tags: 
-- PodmanAdapter
+- RuntimeManager
 
 Needs:
 - impl
 - utest
 
-##### Runtime Adapter at startup starts a new Workload only if this Workload is not found
-`swdd~agent-adapter-start-new-workloads-if-non-found~1`
+###### RuntimeManager stores Workload in the list of running workloads
+`swdd~agent-stores-running-workload~1`
 
 Status: approved
 
-After finding all existing Workloads, the Runtime Adapter shall only start workloads that are not already running.
+When the RuntimeManager creates new workload objects via the RuntimeFacade, the RuntimeManager shall store the Workload in a list of running workloads.
 
 Comment:
-The Runtime Adapter can check if the specified workload is already running by comparing the new workload execution instance name with that of the running instance. Details about starting a workload can be found further on.
+Please note that the object creation is targeted here and thus also resume or replace of running workloads is in scope.
 
 Tags:
-- PodmanAdapter
+- RuntimeManager
 
 Needs:
 - impl
 - utest
 
-##### Runtime Adapter at startup resumes to existing Workloads
-`swdd~agent-adapter-start-resume-existing~1`
+##### RuntimeManager handles existing workloads starts new only if not found
+`swdd~agent-existing-workloads-starts-new-if-not-found~1`
 
 Status: approved
 
-For each found existing Workload that is request to be started and has unchanged configuration, the Runtime Adapter shall resume the Workload by creating a new specific Workload and and creating the Workload Facade using the resume method.
+When handling existing workloads, the RuntimeManager shall only request the corresponding RuntimeFacade to start workloads that are not already running.
 
 Comment:
-Reconnecting to the Control Interface is done for each added Workload in there was no Control Interface instance for it.
+The RuntimeManager can check if the specified workload is already running by comparing the new workload execution instance name with that of the running instance. Details about starting a workload can be found further on.
 
 Tags:
-- PodmanAdapter
+- RuntimeManager
 
 Needs:
 - impl
 - utest
 
-##### Workload Facade resumes existing Workload
-`swdd~agent-facade-resumes-existing-workload~1`
+##### RuntimeFacade creates workload
+`swdd~agent-create-workload~1`
 
 Status: approved
 
-When created with the resume method, the Workload Facade shall resume the specific Workload.
-
+When the RuntimeFacade gets a requests to create a workload, the RuntimeFacade shall:
+* request the wrapped runtime to create the workload (incl. starting the state checker monitoring it)
+* start the workload task waiting for stop or update commands for that workload
+* return a new workload object allowing the communication with the task handling the stop or update commands
+ 
 Comment:
-Reconnecting to the Control Interface is done for each added Workload in there was no Control Interface instance for it.
+The state checker doesn't need to be started as an additional step here as the runtime starts it when creating the workload.
 
-Tags:
-- WorkloadFacade
-
-Needs:
-- impl
-- utest
-
-##### Podman Workload resumes existing Workload
-`swdd~agent-podman-workload-resumes-existing-workload~1`
-
-Status: approved
-
-When resumed, a Podman Workload shall only start the container monitoring activities.
-
-Comment:
-Reconnecting to the Control Interface is done for each added Workload in there was no Control Interface instance for it.
-
-Tags:
-- WorkloadFacade
-
-Needs:
-- impl
-- utest
-
-##### Runtime Adapter at startup replace updated Workloads
-`swdd~agent-adapter-start-replace-updated~1`
-
-Status: approved
-
-For each found existing Workload that is request to be started and for which a change in the configuration was detected, the Runtime Adapter shall replace the Workload by creating a new specific Workload and creating the Workload Facade using the replace method.
-
-If the the Runtime Adapter finds an existing Workload that shall now run with a different config according, the Runtime Adapter shall replace the existing Workload with a new one.
-
-Comment:
-The Runtime Adapter can check if the specified workload is already running, but was updated by comparing the new workload execution instance name with that of the running instance.
+Rationale:
+The task handling stop and update commands is needed to ensure maintaining the order of the commands for a workload while not blocking Ankaios to wait until one command is complete.
 
 Tags: 
-- PodmanAdapter
+- RuntimeFacade
+
+Needs:
+- impl
+- utest
+
+##### RuntimeManager handles existing workloads resumes existing workloads
+`swdd~agent-existing-workloads-resume-existing~1`
+
+Status: approved
+
+When handling existing workloads, for each found existing workload that is request to be started and has unchanged configuration, the RuntimeManager shall request the corresponding RuntimeFacade to resume the workload using a new control interface instance.
+
+Tags:
+- RuntimeManager
+
+Needs:
+- impl
+- utest
+
+##### RuntimeFacade resumes workload
+`swdd~agent-resume-workload~1`
+
+Status: approved
+
+When requested, the RuntimeFacade resumes a workload by:
+* request the wrapped runtime to start the state checker for that workload
+* start the workload task waiting for stop or update commands for that workload
+* return a new workload object allowing the communication with the task handling the stop or update commands
+ 
+Comment:
+If a workload is running, there is not need to created it again via the specific runtime. The state checker must be started as an additional step here as the runtime does not create a new workload.
+
+Rationale:
+The task handling stop and update commands is needed to ensure maintaining the order of the commands for a workload while not blocking Ankaios to wait until one command is complete.
+
+Tags: 
+- RuntimeFacade
+
+Needs:
+- impl
+- utest
+
+##### RuntimeManager handles existing workloads replace updated Workloads
+`swdd~agent-existing-workloads-replace-updated~1`
+
+Status: approved
+
+When handling existing workloads, for each found existing workload that is request to be started and for which a change in the configuration was detected, the RuntimeManager shall request the RuntimeFacade to replace the workload.
+
+Comment:
+The RuntimeManager can check if the specified workload is already running, but was updated by comparing the new workload execution instance name with that of the running instance.
+
+Tags: 
+- RuntimeManager
 - 
 Needs:
 - impl
 - utest
 
-##### Workload Facade replace existing Workload
-`swdd~agent-facade-replace-existing-workload~1`
+##### RuntimeFacade replace Workload
+`swdd~agent-replace-workload~1`
 
 Status: approved
 
-When created with the replace method, the Workload Facade shall request the specific Workload to replace the existing Workload with the new one and start waiting for stop or update commands.
+When requested, the RuntimeFacade replaces a workload by:
+* request the wrapped runtime to delete the old workload
+* request the wrapped runtime to create a workload with the new config(incl. starting the state checker monitoring it)
+* start the workload task waiting for stop or update commands for that workload
+* return a new workload object allowing the communication with the task handling the stop or update commands
 
 Comment:
-Reconnecting to the Control Interface is done for each added Workload in there was no Control Interface instance for it.
+No need to specifically ask for starting the state checker at that point as runtimes are expected to always create a state checker when creating a workload.
+
+Rationale:
+The task handling stop and update commands is needed to ensure maintaining the order of the commands for a workload while not blocking Ankaios to wait until one command is complete.
 
 Tags:
-- WorkloadFacade
+- RuntimeFacade
 
 Needs:
 - impl
 - utest
 
-##### Podman Workload replaces existing Workload
-`swdd~agent-podman-workload-replace-existing-workload~1`
+##### RuntimeManager handles existing workloads deletes unneeded workloads
+`swdd~agent-existing-workloads-delete-unneeded~1`
 
 Status: approved
 
-When asked to replace a Workload, the Podman Workload shall stop and delete the container with the specified Id and create and start a new container on its place including starting monitoring it.
-
-Comment:
-This action is needed to ensure a proper order of removing and creating a new Workload in case a specific update strategy is required.
-
-Tags:
-- WorkloadFacade
-
-Needs:
-- impl
-- utest
-
-##### Runtime Adapter at startup stops unneeded Workloads
-`swdd~agent-adapter-start-unneeded-stopped~1`
-
-Status: approved
+When handling existing workloads, for each found existing workload that is not in the provided list of initial workloads, the RuntimeManager shall request the RuntimeFacade to delete the workload.
 
 If the the Runtime Adapter finds an existing Workload that is not in the provided list of initial workloads, the Ankaios Agent shall stop the existing Workload.
 
 Tags:
-- PodmanAdapter
+- RuntimeManager
+
+Needs:
+- impl
+- utest
+
+##### RuntimeFacade delete old workload
+`swdd~agent-delete-old-workload~1`
+
+Status: approved
+
+When requested, the RuntimeFacade deletes a workload by:
+* deleting the workload via the runtime
+
+Comment:
+This delete is done by the specific runtime for a workload Id. No internal workload object is involved in this action.
+
+Tags:
+- RuntimeFacade
 
 Needs:
 - impl
@@ -464,18 +515,20 @@ The UpdateWorkload message contains two lists of workloads - deleted Workloads s
 
 The following two diagrams show how deleted and added Workloads are handled by the Agent Manager. The first diagram shows how the deleted Workloads are handled:
 
+//TODO: update diagram
 ![Handling subsequent UpdateWorkload - deleted Workloads](plantuml/seq_update_workload_subsequent_deleted.svg)
 
 After the deleted Workloads are handled, the Ankaios Agent goes through the list of added Workloads
 
+//TODO: update diagram
 ![Handling subsequent UpdateWorkload - added Workloads](plantuml/seq_update_workload_subsequent_added.svg)
 
-###### Agent Manager handles deleted workloads before added Workloads
+###### Agent handles deleted workloads before added Workloads
 `swdd~agent-handle-deleted-before-added-workloads~1`
 
 Status: approved
 
-The Agent Manager shall first handle the list of deleted Workloads before handling the list of added Workloads.
+The RuntimeManager shall first handle the list of deleted Workloads before handling the list of added Workloads.
 
 Comment:
 Updated Workloads can be handled before everything is deleted as in the normal case the resource usage will remain the same.
@@ -484,71 +537,71 @@ Rationale:
 Deleting Workloads first ensures that the machine which executes the workloads has enough resources to start the new ones.
 
 Tags: 
-- AgentManager
+- RuntimeManager
 
 Needs:
 - impl
 - utest
 
-###### Agent Manager updates deleted and added workloads
+###### Agent updates deleted and added workloads
 `swdd~agent-updates-deleted-and-added-workloads~1`
 
 Status: approved
 
-The Agent Manager shall request an update of a Workload from the Runtime Adapter if the Workload is in both the list of deleted and added Workloads.
+The RuntimeManager shall request an update of a workload if the workload is in both the list of deleted and added workloads.
 
 Rationale:
 This is needed to ensure the order of the commands.
 
 Tags: 
-- AgentManager
+- RuntimeManager
 
 Needs:
 - impl
 - utest
 
-###### Agent Manager deletes mappings from Workload to Runtime
-`swdd~agent-manager-deletes-workload-runtime-mapping~1`
+###### Agent workload handles update command
+`swdd~agent-workload-obj-update-command~1`
 
 Status: approved
 
-When the Ankaios Agent Manager gets an `UpdateWorkload` message with deleted Workloads and the runtime is known, the Agent Manager shall delete the mapping from workload name to runtime name.
+When the WorkloadObject receives a trigger to update the workload, it:
+* stops the old control interface
+* stores the new control interface
+* send a command to the workload task to update the workload
 
 Tags:
-- AgentManager
-- ParameterStorage
+- WorkloadObject
 
 Needs:
 - impl
 - utest
 
-###### Agent Manager deletes Control Interface instance
-`swdd~agent-manager-deletes-control-interface~1`
+###### Agent deletes workload on command from server
+`swdd~agent-deletes-workload~1`
 
 Status: approved
 
-When the Ankaios Agent Manager gets an `UpdateWorkload` message with deleted Workloads and the runtime is known, the Agent Manager shall delete the Control Interface instance for that Workload.
-
-Comment:
-This action also stops listening and forwarding of commands to and from the Server.
+When the Ankaios agent receives an `UpdateWorkload` message with a workload for deletion that is not also listed as added workload, the agent shall trigger a deletion of the workload.
 
 Tags:
-- AgentManager
-- ParameterStorage
+- RuntimeManager
 
 Needs:
 - impl
 - utest
 
-###### Agent Manager forwards deletes Workload calls to Runtime
-`swdd~agent-manager-forwards-delete-workload~2`
+###### Agent workload handles delete command
+`swdd~agent-workload-obj-delete-command~1`
 
 Status: approved
 
-When the Ankaios Agent Manager gets an `UpdateWorkload` message with deleted Workloads and the runtime is known, the Agent Manager shall request a deletion of the Workload from the corresponding Runtime Adapter.
+When the WorkloadObject receives a trigger to deletion the workload, it:
+* stops the control interface
+* send a command to the workload task to delete the workload
 
 Tags:
-- AgentManager
+- WorkloadObject
 
 Needs:
 - impl
@@ -559,79 +612,55 @@ Needs:
 
 Status: approved
 
-When the Ankaios Agent gets an `UpdateWorkload` message with added Workloads that were already started by the Agent Manager, the Agent Manager shall request the update of the Workloads from the corresponding Runtime Adapter.
+When the Ankaios Agent gets an `UpdateWorkload` message with an added workloads that was already started by the RuntimeManager, the RuntimeManager shall trigger the update of the workload.
 
 Comment:
 This situation can happen if the Ankaios Server gets restarted. It is not yet confirmed if this handling is correct and it is subject to change.
 
 Tags:
-- AgentManager
+- RuntimeManager
 
 Needs:
 - impl
 - utest
 
-###### Agent forwards start Workload message
-`swdd~agent-forwards-start-workload~1`
+###### Agent adds on update missing workload
+`swdd~agent-add-on-update-missing-workload~1`
 
 Status: approved
 
-When the Ankaios Agent gets an `UpdateWorkload` message with added Workloads that was not started already and the runtime is known, the Agent Manager shall request the start of the Workloads from the corresponding Runtime Adapter.
+When the Ankaios Agent gets an `UpdateWorkload` message that indicates an update of a workload and the workload cannot be found, the RuntimeManager shall trigger adding of the workload.
+
+Comment:
+This situation cannot actually occur, but if a workload is requested to be added it shall also be added instead of just tracing an error/warning. 
 
 Tags:
-- AgentManager
+- RuntimeManager
 
 Needs:
 - impl
 - utest
 
-##### Adding (starting) a new Workload
+###### Agent creates workload
+`swdd~agent-added-creates-workload~1`
 
-The following diagram shows the steps taken by the Workload Facade to start Workload action:
+Status: approved
 
+When the Ankaios agent gets an `UpdateWorkload` message with an added workload that was not started already and the runtime is known, the Agent Manager shall request the corresponding RuntimeFacade to create the workload.
+
+Tags:
+- RuntimeManager
+
+Needs:
+- impl
+- utest
+
+##### Adding (creating) a new workload via the podman runtime
+
+The following diagram shows the steps taken by the podman runtime to create a workload:
+
+// TODO update diagram 
 ![Starting a Workload](plantuml/seq_workload_start.svg)
-
-###### PodmanAdapter creates and starts PodmanWorkload
-`swdd~podman-adapter-creates-starts-podman-workload~2`
-
-Status: approved
-
-When the PodmanAdapter gets an add Workload call, the PodmanAdapter shall start a Workload Facade with a newly created PodmanWorkload.
-
-Tags:
-- PodmanAdapter
-
-Needs:
-- impl
-- utest
-
-###### Workload Facade starts workload
-`swdd~agent-facade-start-workload~1`
-
-Status: approved
-
-When the Workload Facade gets a requests to start a workload, the Workload Facade shall start the specific provided to it Workload, starting monitoring it and waiting for stop or update commands.
-
-Tags:
-- WorkloadFacade
-
-Needs:
-- impl
-- utest
-
-###### PodmanAdapter stores PodmanWorkload in the list of running workloads
-`swdd~podman-adapter-stores-podman-workload~2`
-
-Status: approved
-
-When the PodmanAdapter creates and starts a Workload Facade with a PodmanWorkload, the PodmanAdapter shall store the Workload Facade in a list of running workloads.
-
-Tags:
-- PodmanAdapter
-
-Needs:
-- impl
-- utest
 
 ###### PodmanAdapter mounts FIFO files into workload
 `swdd~podman-adapt-mount-interface-pipes-into-workload~2`

@@ -79,7 +79,7 @@ impl<
             .await
     }
 
-    // [impl->swdd~agent-facade-start-workload~1]
+    // [impl->swdd~agent-create-workload~1]
     fn create_workload(
         &self,
         workload_spec: WorkloadSpec,
@@ -125,7 +125,7 @@ impl<
         Workload::new(command_sender, control_interface)
     }
 
-    // [impl->swdd~agent-facade-replace-existing-workload~1]
+    // [impl->swdd~agent-replace-workload~1]
     fn replace_workload(
         &self,
         old_instance_name: WorkloadExecutionInstanceName,
@@ -196,7 +196,8 @@ impl<
         Workload::new(command_sender, control_interface)
     }
 
-    // [impl->swdd~agent-facade-resumes-existing-workload~1]
+
+    // [impl->swdd~agent-resume-workload~1]
     fn resume_workload(
         &self,
         workload_spec: WorkloadSpec,
@@ -251,6 +252,7 @@ impl<
         Workload::new(command_sender, control_interface)
     }
 
+    // [impl->swdd~agent-delete-old-workload~1]
     fn delete_workload(&self, instance_name: WorkloadExecutionInstanceName) {
         let runtime = self.runtime.to_owned();
         tokio::spawn(async move {
