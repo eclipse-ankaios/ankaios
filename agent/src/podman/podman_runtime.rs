@@ -17,12 +17,12 @@ use crate::{
 };
 
 #[cfg(not(test))]
-use crate::podman::podman_cli::{has_image, list_workloads, pull_image};
+use crate::podman::podman_cli::{list_workloads, run_workload};
 
 #[cfg(test)]
-use self::tests::{has_image, list_workloads, pull_image};
+use self::tests::{list_workloads, run_workload};
 
-use super::podman_runtime_config::PodmanRuntimeConfig;
+use super::podman_runtime_config::PodmanRuntimeConfigCli;
 
 #[derive(Debug, Clone)]
 pub struct PodmanRuntime {}
@@ -56,10 +56,16 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         &self,
         agent_name: &AgentName,
     ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
-        let filter_expression = format!(r#"name=^\w+\.\w+\.{agent_name}"#);
+        let filter_expression = format!(r"name=^\w+\.\w+\.{agent_name}");
         let res = list_workloads(filter_expression.as_str())
             .await
             .map_err(|err| RuntimeError::Update(err.to_string()))?;
+
+        log::debug!(
+            "get_reusable_running_workloads found {} workloads: {:?}",
+            res.len(),
+            &res
+        );
 
         Ok(res
             .iter()
@@ -73,25 +79,21 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         control_interface_path: Option<PathBuf>,
         update_state_tx: StateChangeSender,
     ) -> Result<(PodmanWorkloadId, GenericPollingStateChecker), RuntimeError> {
-        let workload_cfg = PodmanRuntimeConfig::try_from(&workload_spec)
-            .map_err(|err| RuntimeError::Update(err.into()))?;
+        let workload_cfg = PodmanRuntimeConfigCli::try_from(&workload_spec)
+            .map_err(|err| RuntimeError::Create(err.into()))?;
 
-        let has_image = has_image(&workload_cfg.image)
-            .await
-            .map_err(|err| RuntimeError::Update(err.to_string()))?;
+        let id = run_workload(
+            workload_cfg,
+            workload_spec.instance_name().to_string(),
+            control_interface_path,
+        )
+        .await
+        .map_err(RuntimeError::Create)?;
 
-        log::info!("has_image = {}", has_image);
-
-        if !has_image {
-            pull_image(&workload_cfg.image)
-                .await
-                .map_err(RuntimeError::Update)?;
-        }
+        // TODO: store the container id, create a checker (PodmanStateChecker ) and call start_checker
 
         Ok((
-            PodmanWorkloadId {
-                id: "my id".to_string(),
-            },
+            PodmanWorkloadId { id },
             GenericPollingStateChecker {
                 task_handle: tokio::spawn(async {}),
             },
@@ -135,9 +137,13 @@ mod tests {
     use common::{
         objects::{AgentName, WorkloadExecutionInstanceName},
         state_change_interface::StateChangeCommand,
+        test_utils::generate_test_workload_spec_cli,
     };
 
-    use crate::runtime::Runtime;
+    use crate::{
+        podman::podman_runtime_config::PodmanRuntimeConfigCli, runtime::Runtime,
+        test_helper::MOCKALL_CONTEXT_SYNC,
+    };
 
     use super::PodmanRuntime;
 
@@ -156,34 +162,18 @@ mod tests {
             .unwrap()
     }
 
-    mockall::lazy_static! {
-        pub static ref FAKE_HAS_IMAGE_MOCK_RESULT: Mutex<std::collections::VecDeque<Result<bool, String>>> =
-        Mutex::new(std::collections::VecDeque::new());
-    }
-
-    pub async fn has_image(_image_name: &str) -> Result<bool, String> {
-        FAKE_HAS_IMAGE_MOCK_RESULT
-            .lock()
-            .unwrap()
-            .pop_front()
-            .unwrap()
-    }
-
-    mockall::lazy_static! {
-        pub static ref FAKE_PULL_IMAGE_MOCK_RESULT: Mutex<std::collections::VecDeque<Result<(), String>>> =
-        Mutex::new(std::collections::VecDeque::new());
-    }
-
-    pub async fn pull_image(_image: &String) -> Result<(), String> {
-        FAKE_PULL_IMAGE_MOCK_RESULT
-            .lock()
-            .unwrap()
-            .pop_front()
-            .unwrap()
+    pub async fn run_workload(
+        _workload_cfg: PodmanRuntimeConfigCli,
+        _workload_name: String,
+        _control_interface_location: Option<PathBuf>,
+    ) -> Result<String, String> {
+        Ok("my_id".to_string())
     }
 
     #[tokio::test]
     async fn get_reusable_running_workloads_success() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
         FAKE_LIST_CONTAINER_MOCK_RESULT_LIST
             .lock()
             .unwrap()
@@ -212,6 +202,8 @@ mod tests {
 
     #[tokio::test]
     async fn get_reusable_running_workloads_empty_list() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
         FAKE_LIST_CONTAINER_MOCK_RESULT_LIST
             .lock()
             .unwrap()
@@ -229,6 +221,8 @@ mod tests {
 
     #[tokio::test]
     async fn get_reusable_running_workloads_failed() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
         FAKE_LIST_CONTAINER_MOCK_RESULT_LIST
             .lock()
             .unwrap()
@@ -244,19 +238,10 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn create_container_with_pull_success() {
-        env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+    async fn create_container_success() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        FAKE_HAS_IMAGE_MOCK_RESULT
-            .lock()
-            .unwrap()
-            .push_back(Ok(false));
-        FAKE_PULL_IMAGE_MOCK_RESULT
-            .lock()
-            .unwrap()
-            .push_back(Ok(()));
-
-        let workload_spec = common::test_utils::generate_test_workload_spec();
+        let workload_spec = generate_test_workload_spec_cli();
         let (to_server, _from_agent) =
             tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
 
@@ -264,7 +249,7 @@ mod tests {
         let _res = podman_runtime
             .create_workload(workload_spec, Some(PathBuf::from("run_folder")), to_server)
             .await;
-    }
 
-    // TODO: create container with pull failed, has image failed.
+        // TODO: cover whole function
+    }
 }

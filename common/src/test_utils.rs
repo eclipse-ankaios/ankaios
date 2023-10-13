@@ -18,17 +18,14 @@ use api::proto;
 
 use crate::commands::CompleteState;
 use crate::objects::{
-    AccessRights, Cronjob, DeletedWorkload, ExpectedState, Interval, State, Tag,
-    UpdateStrategy, WorkloadSpec, WorkloadState,
+    AccessRights, Cronjob, DeletedWorkload, ExpectedState, Interval, State, Tag, UpdateStrategy,
+    WorkloadSpec, WorkloadState,
 };
 
 #[cfg(feature = "test_utils")]
 pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State {
     State {
-        workloads: workloads
-            .into_iter()
-            .map(|v| (v.name.clone(), v))
-            .collect(),
+        workloads: workloads.into_iter().map(|v| (v.name.clone(), v)).collect(),
         configs: HashMap::new(),
         cron_jobs: HashMap::new(),
     }
@@ -167,6 +164,36 @@ pub fn generate_test_workload_spec_with_param(
 
 pub fn generate_test_workload_spec() -> WorkloadSpec {
     generate_test_workload_spec_with_param(
+        "agent".to_string(),
+        "name".to_string(),
+        "runtime".to_string(),
+    )
+}
+
+pub fn generate_test_workload_spec_with_param_cli(
+    agent_name: String,
+    workload_name: String,
+    runtime_name: String,
+) -> crate::objects::WorkloadSpec {
+    WorkloadSpec {
+        dependencies: generate_test_dependencies(),
+        update_strategy: UpdateStrategy::Unspecified,
+        restart: true,
+        access_rights: AccessRights::default(),
+        runtime: runtime_name,
+        name: workload_name,
+        agent: agent_name,
+        tags: vec![Tag {
+            key: "key".into(),
+            value: "value".into(),
+        }],
+        runtime_config: "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
+            .to_string(),
+    }
+}
+
+pub fn generate_test_workload_spec_cli() -> WorkloadSpec {
+    generate_test_workload_spec_with_param_cli(
         "agent".to_string(),
         "name".to_string(),
         "runtime".to_string(),
