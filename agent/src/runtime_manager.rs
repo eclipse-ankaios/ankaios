@@ -328,8 +328,8 @@ impl RuntimeManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::control_interface::MockPipesChannelContext;
     use crate::runtime_facade::MockRuntimeFacade;
+    use crate::{control_interface::MockPipesChannelContext, runtime::RuntimeError};
     use common::{
         state_change_interface::StateChangeCommand,
         test_utils::generate_test_workload_spec_with_param,
@@ -459,6 +459,55 @@ mod tests {
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
-        assert!(runtime_manager.workloads.get(WORKLOAD_1_NAME).is_none());
+        assert!(runtime_manager.workloads.is_empty());
+    }
+
+    #[tokio::test]
+    async fn utest_handle_update_workload_failed_get_reusable_workloads() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mock = MockPipesChannelContext::new_context();
+        mock.expect()
+            .once()
+            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+
+        let mut runtime_facade_mock = MockRuntimeFacade::new();
+        runtime_facade_mock
+            .expect_get_reusable_running_workloads()
+            .once()
+            .returning(|_| {
+                Box::pin(async {
+                    Err(RuntimeError::Update(
+                        "failed to get reusable workloads".to_string(),
+                    ))
+                })
+            });
+
+        let (sender_workload_command, _) = channel(BUFFER_SIZE);
+        runtime_facade_mock
+            .expect_create_workload()
+            .times(1)
+            .return_once(|_, _, _| Workload::new(sender_workload_command, None));
+
+        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
+            .with_runtime(
+                RUNTIME_NAME,
+                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+            )
+            .build();
+
+        let added_workloads_vec = vec![generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        )];
+        runtime_manager
+            .handle_update_workload(added_workloads_vec, vec![])
+            .await;
+
+        assert!(runtime_manager.initial_workload_list_received);
+        assert!(runtime_manager.workloads.get(WORKLOAD_1_NAME).is_some());
     }
 }
