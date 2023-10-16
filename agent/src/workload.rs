@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
+#[cfg_attr(test, mockall_double::double)]
+use crate::control_interface::PipesChannelContext;
 use crate::{
-    control_interface::PipesChannelContext,
     runtime::{Runtime, RuntimeError},
     state_checker::StateChecker,
 };

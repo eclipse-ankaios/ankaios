@@ -13,9 +13,10 @@ use common::{
     state_change_interface::StateChangeSender,
 };
 
-use crate::{
-    control_interface::PipesChannelContext, runtime_facade::RuntimeFacade, workload::Workload,
-};
+#[cfg_attr(test, mockall_double::double)]
+use crate::control_interface::PipesChannelContext;
+
+use crate::{runtime_facade::RuntimeFacade, workload::Workload};
 
 #[cfg(test)]
 use mockall::automock;
@@ -327,6 +328,7 @@ impl RuntimeManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::control_interface::MockPipesChannelContext;
     use crate::runtime_facade::MockRuntimeFacade;
     use common::{
         state_change_interface::StateChangeCommand,
@@ -374,6 +376,11 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+
+        let mock = MockPipesChannelContext::new_context();
+        mock.expect()
+            .once()
+            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock

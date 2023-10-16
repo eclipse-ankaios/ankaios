@@ -8,8 +8,10 @@ use common::{
 use mockall::automock;
 use tokio::sync::mpsc;
 
+#[cfg_attr(test, mockall_double::double)]
+use crate::control_interface::PipesChannelContext;
+
 use crate::{
-    control_interface::PipesChannelContext,
     runtime::{OwnableRuntime, Runtime, RuntimeError},
     state_checker::StateChecker,
     workload::{Workload, WorkloadCommand},
