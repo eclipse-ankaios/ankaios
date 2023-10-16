@@ -16,10 +16,21 @@ pub async fn play_kube(kube_yml: &str) -> Result<String, String> {
     Ok(result)
 }
 
-pub async fn list_workloads(filter_flag: &str) -> Result<Vec<String>, String> {
-    log::debug!("Listing workloads for: {}", filter_flag);
-    let args: Vec<&str> = vec!["ps", "--filter", filter_flag, "--format={{.Names}}"];
-    let output = CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
+pub async fn list_workloads(filter_flag: &str, result_format: &str) -> Result<Vec<String>, String> {
+    log::debug!(
+        "Listing workloads for: '{}' with format '{}'",
+        filter_flag,
+        result_format
+    );
+    let output = CliCommand::new(PODMAN_CMD)
+        .args(&[
+            "ps",
+            "--filter",
+            filter_flag,
+            &format!("--format={}", result_format),
+        ])
+        .exec()
+        .await?;
     Ok(output
         .split('\n')
         .map(|x| x.trim().into())
@@ -32,7 +43,7 @@ pub async fn run_workload(
     workload_name: String,
     control_interface_path: Option<PathBuf>,
 ) -> Result<String, String> {
-    log::debug!("Creating the workload: {}", workload_cfg.image);
+    log::debug!("Creating the workload: '{}'", workload_cfg.image);
 
     let mut args = if let Some(opts) = workload_cfg.general_options {
         opts
@@ -137,7 +148,7 @@ mod tests {
                 .exec_returns(Ok("result1\nresult2\n".into())),
         );
 
-        let res = super::list_workloads(sample_filter_flag).await;
+        let res = super::list_workloads(sample_filter_flag, "{{.Names}}").await;
         assert!(matches!(res, Ok(res) if res == vec!["result1", "result2"]));
     }
 
@@ -152,7 +163,7 @@ mod tests {
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
-        let res = super::list_workloads("name=regex").await;
+        let res = super::list_workloads("name=regex", "{{.Names}}").await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 

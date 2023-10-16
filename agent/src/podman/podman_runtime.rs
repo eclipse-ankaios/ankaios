@@ -57,12 +57,12 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         agent_name: &AgentName,
     ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
         let filter_expression = format!(r"name=^\w+\.\w+\.{agent_name}");
-        let res = list_workloads(filter_expression.as_str())
+        let res = list_workloads(filter_expression.as_str(), r"{{.Names}}")
             .await
             .map_err(|err| RuntimeError::Update(err.to_string()))?;
 
         log::debug!(
-            "get_reusable_running_workloads found {} workloads: {:?}",
+            "get_reusable_running_workloads found {} workload(s): '{:?}'",
             res.len(),
             &res
         );
@@ -90,7 +90,7 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         .await
         .map_err(RuntimeError::Create)?;
 
-        // TODO: store the container id, create a checker (PodmanStateChecker ) and call start_checker
+        // TODO: create a checker (PodmanStateChecker ) and call start_checker
 
         Ok((
             PodmanWorkloadId { id },
@@ -104,8 +104,23 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         &self,
         instance_name: &WorkloadExecutionInstanceName,
     ) -> Result<PodmanWorkloadId, RuntimeError> {
-        // TODO: Save the arc mutex with mapping between workload id and the workload execution name.
-        todo!()
+        let filter_expression = format!(r"name={instance_name}");
+        let res = list_workloads(filter_expression.as_str(), r"{{.ID}}")
+            .await
+            .map_err(|err| RuntimeError::Update(err.to_string()))?;
+
+        if let Some(id) = res.get(0) {
+            log::debug!("Found a workload: '{}'", id);
+            Ok(PodmanWorkloadId { id: id.to_string() })
+        } else {
+            log::warn!(
+                "get_workload_id returned unexpected number of workloads {:?}",
+                res
+            );
+            Err(RuntimeError::Update(
+                "Unexpected number of workloads".to_string(),
+            ))
+        }
     }
 
     async fn start_checker(
@@ -154,7 +169,7 @@ mod tests {
         Mutex::new(std::collections::VecDeque::new());
     }
 
-    pub async fn list_workloads(_regex: &str) -> Result<Vec<String>, String> {
+    pub async fn list_workloads(_regex: &str, _result_format: &str) -> Result<Vec<String>, String> {
         FAKE_LIST_CONTAINER_MOCK_RESULT_LIST
             .lock()
             .unwrap()
@@ -252,4 +267,6 @@ mod tests {
 
         // TODO: cover whole function
     }
+
+    // TODO: tests of get_workload_id (success, error)
 }
