@@ -315,3 +315,95 @@ impl RuntimeManager {
         }
     }
 }
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::runtime_facade::MockRuntimeFacade;
+    use common::{
+        state_change_interface::StateChangeCommand,
+        test_utils::generate_test_workload_spec_with_param,
+    };
+    use tokio::sync::mpsc::{channel, Receiver};
+
+    const BUFFER_SIZE: usize = 20;
+    const RUNTIME_NAME: &str = "runtime1";
+    const AGENT_NAME: &str = "agent_x";
+    const WORKLOAD_NAME: &str = "test_workload1";
+    const RUN_FOLDER: &str = "run/folder";
+
+    #[derive(Default)]
+    pub struct RuntimeManagerBuilder {
+        runtime_facade_map: HashMap<String, Box<dyn RuntimeFacade>>,
+    }
+
+    impl RuntimeManagerBuilder {
+        pub fn with_runtime(
+            mut self,
+            runtime_name: &str,
+            runtime_facade: Box<dyn RuntimeFacade>,
+        ) -> Self {
+            self.runtime_facade_map
+                .insert(runtime_name.to_string(), runtime_facade);
+            self
+        }
+
+        pub fn build(self) -> (Receiver<StateChangeCommand>, RuntimeManager) {
+            let (to_server, server_receiver) = channel(BUFFER_SIZE);
+            let runtime_manager = RuntimeManager::new(
+                AGENT_NAME.into(),
+                Path::new(RUN_FOLDER).into(),
+                to_server.clone(),
+                self.runtime_facade_map,
+                to_server.clone(),
+            );
+            (server_receiver, runtime_manager)
+        }
+    }
+
+    #[tokio::test]
+    async fn utest_handle_update_workload() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mut runtime_facade_mock = MockRuntimeFacade::new();
+        runtime_facade_mock
+            .expect_get_reusable_running_workloads()
+            .once()
+            .return_once(|_| Box::pin(async { Ok(vec![]) }));
+
+        let (sender_workload_command, _) = channel(BUFFER_SIZE);
+        runtime_facade_mock
+            .expect_create_workload()
+            .once()
+            .return_once(|_, _, _| Workload::new(sender_workload_command, None));
+
+        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
+            .with_runtime(
+                RUNTIME_NAME,
+                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+            )
+            .build();
+
+        let added_workloads_vec = vec![generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        )];
+        runtime_manager
+            .handle_update_workload(added_workloads_vec, vec![])
+            .await;
+
+        assert!(runtime_manager.initial_workload_list_received);
+        assert!(runtime_manager.workloads.get(WORKLOAD_NAME).is_some());
+    }
+}

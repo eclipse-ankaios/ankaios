@@ -4,6 +4,8 @@ use common::{
     state_change_interface::StateChangeSender,
     std_extensions::IllegalStateResult,
 };
+#[cfg(test)]
+use mockall::automock;
 use tokio::sync::mpsc;
 
 use crate::{
@@ -16,7 +18,8 @@ use crate::{
 static COMMAND_BUFFER_SIZE: usize = 5;
 
 #[async_trait]
-pub trait RuntimeFacade: Send + Sync {
+#[cfg_attr(test, automock)]
+pub trait RuntimeFacade: Send + Sync + 'static {
     async fn get_reusable_running_workloads(
         &self,
         agent_name: &AgentName,
@@ -195,7 +198,6 @@ impl<
 
         Workload::new(command_sender, control_interface)
     }
-
 
     // [impl->swdd~agent-resume-workload~1]
     fn resume_workload(
