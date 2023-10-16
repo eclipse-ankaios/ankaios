@@ -339,7 +339,8 @@ mod tests {
     const BUFFER_SIZE: usize = 20;
     const RUNTIME_NAME: &str = "runtime1";
     const AGENT_NAME: &str = "agent_x";
-    const WORKLOAD_NAME: &str = "test_workload1";
+    const WORKLOAD_1_NAME: &str = "workload1";
+    const WORKLOAD_2_NAME: &str = "workload2";
     const RUN_FOLDER: &str = "run/folder";
 
     #[derive(Default)]
@@ -372,7 +373,58 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_handle_update_workload() {
+    async fn utest_handle_update_workload_with_initial_workload() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mock = MockPipesChannelContext::new_context();
+        mock.expect()
+            .times(2)
+            .returning(move |_, _, _| Ok(MockPipesChannelContext::default()));
+
+        let mut runtime_facade_mock = MockRuntimeFacade::new();
+        runtime_facade_mock
+            .expect_get_reusable_running_workloads()
+            .once()
+            .return_once(|_| Box::pin(async { Ok(vec![]) }));
+
+        let (sender_workload_command1, _) = channel(BUFFER_SIZE);
+        runtime_facade_mock
+            .expect_create_workload()
+            .times(2)
+            .returning(move |_, _, _| Workload::new(sender_workload_command1.clone(), None));
+
+        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
+            .with_runtime(
+                RUNTIME_NAME,
+                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+            )
+            .build();
+
+        let added_workloads_vec = vec![
+            generate_test_workload_spec_with_param(
+                AGENT_NAME.to_string(),
+                WORKLOAD_1_NAME.to_string(),
+                RUNTIME_NAME.to_string(),
+            ),
+            generate_test_workload_spec_with_param(
+                AGENT_NAME.to_string(),
+                WORKLOAD_2_NAME.to_string(),
+                RUNTIME_NAME.to_string(),
+            ),
+        ];
+        runtime_manager
+            .handle_update_workload(added_workloads_vec, vec![])
+            .await;
+
+        assert!(runtime_manager.initial_workload_list_received);
+        assert!(runtime_manager.workloads.get(WORKLOAD_1_NAME).is_some());
+        assert!(runtime_manager.workloads.get(WORKLOAD_2_NAME).is_some());
+    }
+
+    #[tokio::test]
+    async fn utest_handle_update_workload_no_workload_with_unknown_runtime() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -388,11 +440,7 @@ mod tests {
             .once()
             .return_once(|_| Box::pin(async { Ok(vec![]) }));
 
-        let (sender_workload_command, _) = channel(BUFFER_SIZE);
-        runtime_facade_mock
-            .expect_create_workload()
-            .once()
-            .return_once(|_, _, _| Workload::new(sender_workload_command, None));
+        runtime_facade_mock.expect_create_workload().never(); // workload shall not be created due to unknown runtime
 
         let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
             .with_runtime(
@@ -403,14 +451,14 @@ mod tests {
 
         let added_workloads_vec = vec![generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
-            WORKLOAD_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            "unknown_runtime1".to_string(),
         )];
         runtime_manager
             .handle_update_workload(added_workloads_vec, vec![])
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
-        assert!(runtime_manager.workloads.get(WORKLOAD_NAME).is_some());
+        assert!(runtime_manager.workloads.get(WORKLOAD_1_NAME).is_none());
     }
 }
