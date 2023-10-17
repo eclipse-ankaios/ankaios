@@ -378,8 +378,9 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let mock = MockPipesChannelContext::new_context();
-        mock.expect()
+        let pipes_channel_mock = MockPipesChannelContext::new_context();
+        pipes_channel_mock
+            .expect()
             .times(2)
             .returning(move |_, _, _| Ok(MockPipesChannelContext::default()));
 
@@ -429,8 +430,9 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let mock = MockPipesChannelContext::new_context();
-        mock.expect()
+        let pipes_channel_mock = MockPipesChannelContext::new_context();
+        pipes_channel_mock
+            .expect()
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
 
@@ -468,8 +470,9 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let mock = MockPipesChannelContext::new_context();
-        mock.expect()
+        let pipes_channel_mock = MockPipesChannelContext::new_context();
+        pipes_channel_mock
+            .expect()
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
 
