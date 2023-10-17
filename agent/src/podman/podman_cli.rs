@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use std::path::PathBuf;
 
 #[cfg_attr(test, mockall_double::double)]
@@ -7,10 +8,31 @@ use super::podman_runtime_config::PodmanRuntimeConfigCli;
 const PODMAN_CMD: &str = "podman";
 const API_PIPES_MOUNT_POINT: &str = "/run/ankaios/control_interface";
 
-pub async fn play_kube(kube_yml: &str) -> Result<String, String> {
+#[derive(Debug)]
+pub enum ContainerState {
+    Created,
+    Exited(u8),
+    Paused,
+    Running,
+    Unknown,
+}
+
+impl From<PodmanContainerInfo> for ContainerState {
+    fn from(value: PodmanContainerInfo) -> Self {
+        match value.state {
+            PodmanContainerState::Created => ContainerState::Created,
+            PodmanContainerState::Exited => ContainerState::Exited(value.exit_code),
+            PodmanContainerState::Paused => ContainerState::Paused,
+            PodmanContainerState::Running => ContainerState::Running,
+            PodmanContainerState::Unknown => ContainerState::Unknown,
+        }
+    }
+}
+
+pub async fn play_kube(kube_yml: &[u8]) -> Result<String, String> {
     let result = CliCommand::new(PODMAN_CMD)
         .args(&["kube", "play", "-"])
-        .stdin(kube_yml.as_bytes())
+        .stdin(kube_yml)
         .exec()
         .await?;
     Ok(result)
@@ -86,6 +108,94 @@ pub async fn run_workload(
     Ok(id)
 }
 
+pub async fn list_states_by_label(key: &str, value: &str) -> Result<Vec<ContainerState>, String> {
+    let output = CliCommand::new(PODMAN_CMD)
+        .args(&[
+            "ps",
+            "--all",
+            "--filter",
+            &format!("label={key}={value}"),
+            "--format=json",
+        ])
+        .exec()
+        .await?;
+
+    let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
+        .map_err(|err| format!("Could not parse podman output:{}", err))?;
+
+    Ok(res.into_iter().map(|x| x.into()).collect())
+}
+
+pub async fn list_pods_by_label(key: &str, value: &str) -> Result<Vec<String>, String> {
+    let output = CliCommand::new(PODMAN_CMD)
+        .args(&[
+            "pod",
+            "ps",
+            "--filter",
+            &format!("label={key}={value}"),
+            "--format={{.Id}}",
+        ])
+        .exec()
+        .await?;
+    Ok(output
+        .split('\n')
+        .map(|x| x.trim().to_string())
+        .filter(|x| !x.is_empty())
+        .collect())
+}
+
+pub async fn stop_pods(pods: &[String]) -> Result<(), String> {
+    let mut args = vec!["pod", "stop", "--"];
+    args.extend(pods.iter().map(|x| x.as_str()));
+
+    CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
+    Ok(())
+}
+
+pub async fn rm_pods(pods: &[String]) -> Result<(), String> {
+    let mut args = vec!["pod", "rm", "--"];
+    args.extend(pods.iter().map(|x| x.as_str()));
+
+    CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
+    Ok(())
+}
+
+pub async fn list_volumes_by_label(key: &str, value: &str) -> Result<Vec<String>, String> {
+    let output = CliCommand::new(PODMAN_CMD)
+        .args(&[
+            "volume",
+            "ls",
+            "--filter",
+            &format!("label={key}={value}"),
+            "--format={{.Name}}",
+        ])
+        .exec()
+        .await?;
+    Ok(output
+        .split('\n')
+        .map(|x| x.trim().to_string())
+        .filter(|x| !x.is_empty())
+        .collect())
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct PodmanContainerInfo {
+    state: PodmanContainerState,
+    exit_code: u8,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum PodmanContainerState {
+    Created,
+    Exited,
+    Paused,
+    Running,
+    #[serde(other)]
+    Unknown,
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -113,7 +223,7 @@ mod tests {
                 .exec_returns(Ok("".into())),
         );
 
-        let res = super::play_kube(sample_input).await;
+        let res = super::play_kube(sample_input.as_bytes()).await;
         assert!(matches!(res, Ok(..)));
     }
 
@@ -131,7 +241,7 @@ mod tests {
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
-        let res = super::play_kube(sample_input).await;
+        let res = super::play_kube(sample_input.as_bytes()).await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
