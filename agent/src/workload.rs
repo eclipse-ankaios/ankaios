@@ -10,6 +10,10 @@ use common::{
     commands::CompleteState, execution_interface::ExecutionCommand, objects::WorkloadSpec,
     state_change_interface::StateChangeSender,
 };
+
+#[cfg(test)]
+use mockall::automock;
+
 use tokio::sync::mpsc;
 
 #[derive(Debug)]
@@ -24,6 +28,7 @@ pub struct Workload {
     control_interface: Option<PipesChannelContext>,
 }
 
+#[cfg_attr(test, automock)]
 impl Workload {
     pub fn new(
         channel: mpsc::Sender<WorkloadCommand>,

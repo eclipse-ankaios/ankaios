@@ -14,8 +14,11 @@ use crate::control_interface::PipesChannelContext;
 use crate::{
     runtime::{OwnableRuntime, Runtime, RuntimeError},
     state_checker::StateChecker,
-    workload::{Workload, WorkloadCommand},
+    workload::WorkloadCommand,
 };
+
+#[cfg_attr(test, mockall_double::double)]
+use crate::workload::Workload;
 
 static COMMAND_BUFFER_SIZE: usize = 5;
 
