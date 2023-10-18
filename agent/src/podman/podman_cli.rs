@@ -105,6 +105,7 @@ pub async fn run_workload(
 
     args.push("run".into());
     args.push("-d".into());
+    args.append(&mut vec!["--name".into(), workload_name.clone()]);
 
     if let Some(mut x) = workload_cfg.command_options {
         args.append(&mut x);
@@ -122,7 +123,6 @@ pub async fn run_workload(
         );
     }
 
-    args.append(&mut vec!["--name".into(), workload_name.clone()]);
     args.push(format!("--label=name={workload_name}"));
     args.push(workload_cfg.image);
 
@@ -442,12 +442,12 @@ mod tests {
                     "--remote",
                     "run",
                     "-d",
+                    "--name",
+                    "test_workload_name",
                     "--network=host",
                     "--name",
                     "myCont",
                     "--mount=type=bind,source=/test/path,destination=/run/ankaios/control_interface",
-                    "--name",
-                    "test_workload_name",
                     "--label=name=test_workload_name",
                     "alpine:latest",
                     "sh",
