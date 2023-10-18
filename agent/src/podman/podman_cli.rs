@@ -51,10 +51,18 @@ pub async fn play_kube(kube_yml: &[u8]) -> Result<String, String> {
     Ok(result)
 }
 
-pub async fn list_running_workloads(filter_flag: &str) -> Result<Vec<String>, String> {
-    log::debug!("Listing running workloads for: '{}'", filter_flag);
+pub async fn list_running_workloads_by_label(
+    key: &str,
+    value: &str,
+) -> Result<Vec<String>, String> {
+    log::debug!("Listing running workloads for: {}='{}'", key, value);
     let output = CliCommand::new(PODMAN_CMD)
-        .args(&["ps", "--filter", filter_flag, "--format={{.Names}}"])
+        .args(&[
+            "ps",
+            "--filter",
+            &format!("label={key}={value}"),
+            "--format={{.Names}}",
+        ])
         .exec()
         .await?;
     Ok(output
@@ -64,13 +72,15 @@ pub async fn list_running_workloads(filter_flag: &str) -> Result<Vec<String>, St
         .collect())
 }
 
-pub async fn list_all_workloads(
-    filter_flag: &str,
+pub async fn list_all_workloads_by_label(
+    key: &str,
+    value: &str,
     result_format: &str,
 ) -> Result<Vec<String>, String> {
     log::debug!(
-        "Listing all workloads for: '{}' with format '{}'",
-        filter_flag,
+        "Listing all workloads for: {}='{}' with format '{}'",
+        key,
+        value,
         result_format
     );
     let output = CliCommand::new(PODMAN_CMD)
@@ -78,7 +88,7 @@ pub async fn list_all_workloads(
             "ps",
             "-a",
             "--filter",
-            filter_flag,
+            &format!("label={key}={value}"),
             &format!("--format={}", result_format),
         ])
         .exec()
@@ -92,7 +102,8 @@ pub async fn list_all_workloads(
 
 pub async fn run_workload(
     workload_cfg: PodmanRuntimeConfigCli,
-    workload_name: String,
+    workload_name: &str,
+    agent: &str,
     control_interface_path: Option<PathBuf>,
 ) -> Result<String, String> {
     log::debug!("Creating the workload: '{}'", workload_cfg.image);
@@ -105,7 +116,7 @@ pub async fn run_workload(
 
     args.push("run".into());
     args.push("-d".into());
-    args.append(&mut vec!["--name".into(), workload_name.clone()]);
+    args.append(&mut vec!["--name".into(), workload_name.to_string()]);
 
     if let Some(mut x) = workload_cfg.command_options {
         args.append(&mut x);
@@ -124,6 +135,7 @@ pub async fn run_workload(
     }
 
     args.push(format!("--label=name={workload_name}"));
+    args.push(format!("--label=agent={agent}"));
     args.push(workload_cfg.image);
 
     if let Some(mut x) = workload_cfg.command_args {
@@ -299,16 +311,19 @@ mod tests {
     async fn utest_list_running_workloads_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let sample_filter_flag = "name=regex";
-
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["ps", "--filter", sample_filter_flag, "--format={{.Names}}"])
+                .expect_args(&[
+                    "ps",
+                    "--filter",
+                    "label=agent=test_agent",
+                    "--format={{.Names}}",
+                ])
                 .exec_returns(Ok("result1\nresult2\n".into())),
         );
 
-        let res = super::list_running_workloads(sample_filter_flag).await;
+        let res = super::list_running_workloads_by_label("agent", "test_agent").await;
         assert!(matches!(res, Ok(res) if res == vec!["result1", "result2"]));
     }
 
@@ -316,16 +331,19 @@ mod tests {
     async fn utest_list_running_workloads_fail() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let sample_filter_flag = "name=regex";
-
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["ps", "--filter", sample_filter_flag, "--format={{.Names}}"])
+                .expect_args(&[
+                    "ps",
+                    "--filter",
+                    "label=agent=test_agent",
+                    "--format={{.Names}}",
+                ])
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
-        let res = super::list_running_workloads(sample_filter_flag).await;
+        let res = super::list_running_workloads_by_label("agent", "test_agent").await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
@@ -333,8 +351,6 @@ mod tests {
     async fn utest_list_all_workloads_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let sample_filter_flag = "id=workload_id";
-
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
@@ -342,13 +358,13 @@ mod tests {
                     "ps",
                     "-a",
                     "--filter",
-                    sample_filter_flag,
+                    "label=name=test_agent",
                     "--format={{.ID}}",
                 ])
                 .exec_returns(Ok("result1\nresult2\n".into())),
         );
 
-        let res = super::list_all_workloads(sample_filter_flag, r"{{.ID}}").await;
+        let res = super::list_all_workloads_by_label("name", "test_agent", r"{{.ID}}").await;
         assert!(matches!(res, Ok(res) if res == vec!["result1", "result2"]));
     }
 
@@ -356,8 +372,6 @@ mod tests {
     async fn utest_list_all_workloads_fail() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let sample_filter_flag = "id=workload_id";
-
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
@@ -365,13 +379,13 @@ mod tests {
                     "ps",
                     "-a",
                     "--filter",
-                    sample_filter_flag,
+                    "label=name=test_agent",
                     "--format={{.ID}}",
                 ])
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
-        let res = super::list_all_workloads(sample_filter_flag, r"{{.ID}}").await;
+        let res = super::list_all_workloads_by_label("name", "test_agent", r"{{.ID}}").await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
@@ -388,6 +402,7 @@ mod tests {
                     "--name",
                     "test_workload_name",
                     "--label=name=test_workload_name",
+                    "--label=agent=test_agent",
                     "alpine:latest",
                 ])
                 .exec_returns(Ok("test_id".to_string())),
@@ -399,7 +414,7 @@ mod tests {
             image: "alpine:latest".into(),
             command_args: None,
         };
-        let res = super::run_workload(workload_cfg, "test_workload_name".into(), None).await;
+        let res = super::run_workload(workload_cfg, "test_workload_name", "test_agent", None).await;
         assert_eq!(res, Ok("test_id".to_string()));
     }
 
@@ -416,6 +431,7 @@ mod tests {
                     "--name",
                     "test_workload_name",
                     "--label=name=test_workload_name",
+                    "--label=agent=test_agent",
                     "alpine:latest",
                 ])
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
@@ -427,7 +443,7 @@ mod tests {
             image: "alpine:latest".into(),
             command_args: None,
         };
-        let res = super::run_workload(workload_cfg, "test_workload_name".into(), None).await;
+        let res = super::run_workload(workload_cfg, "test_workload_name", "test_agent", None).await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
@@ -449,6 +465,7 @@ mod tests {
                     "myCont",
                     "--mount=type=bind,source=/test/path,destination=/run/ankaios/control_interface",
                     "--label=name=test_workload_name",
+                    "--label=agent=test_agent",
                     "alpine:latest",
                     "sh",
                 ])
@@ -467,7 +484,8 @@ mod tests {
         };
         let res = super::run_workload(
             workload_cfg,
-            "test_workload_name".into(),
+            "test_workload_name",
+            "test_agent",
             Some("/test/path".into()),
         )
         .await;

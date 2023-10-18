@@ -18,11 +18,13 @@ use crate::{
 
 #[cfg(not(test))]
 use crate::podman::podman_cli::{
-    list_all_workloads, list_running_workloads, list_states_by_id, run_workload,
+    list_all_workloads_by_label, list_running_workloads_by_label, list_states_by_id, run_workload,
 };
 
 #[cfg(test)]
-use self::tests::{list_all_workloads, list_running_workloads, list_states_by_id, run_workload};
+use self::tests::{
+    list_all_workloads_by_label, list_running_workloads_by_label, list_states_by_id, run_workload,
+};
 
 use super::podman_runtime_config::PodmanRuntimeConfigCli;
 
@@ -66,8 +68,7 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         &self,
         agent_name: &AgentName,
     ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
-        let filter_expression = format!(r"name=^\w+\.\w+\.{agent_name}");
-        let res = list_running_workloads(filter_expression.as_str())
+        let res = list_running_workloads_by_label("agent", agent_name.get())
             .await
             .map_err(|err| RuntimeError::Update(err.to_string()))?;
 
@@ -94,7 +95,8 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
 
         let workload_id = run_workload(
             workload_cfg,
-            workload_spec.instance_name().to_string(),
+            workload_spec.instance_name().to_string().as_str(),
+            workload_spec.agent.as_str(),
             control_interface_path,
         )
         .await
@@ -112,10 +114,10 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         &self,
         instance_name: &WorkloadExecutionInstanceName,
     ) -> Result<PodmanWorkloadId, RuntimeError> {
-        let filter_expression = format!(r"name={instance_name}");
-        let res = list_all_workloads(filter_expression.as_str(), r"{{.ID}}")
-            .await
-            .map_err(|err| RuntimeError::Update(err.to_string()))?;
+        let res =
+            list_all_workloads_by_label("name", instance_name.to_string().as_str(), r"{{.ID}}")
+                .await
+                .map_err(|err| RuntimeError::Update(err.to_string()))?;
 
         if let Some(id) = res.get(0) {
             log::debug!("Found a workload: '{}'", id);
@@ -189,7 +191,10 @@ mod tests {
         Mutex::new(std::collections::VecDeque::new());
     }
 
-    pub async fn list_running_workloads(_regex: &str) -> Result<Vec<String>, String> {
+    pub async fn list_running_workloads_by_label(
+        _key: &str,
+        _value: &str,
+    ) -> Result<Vec<String>, String> {
         FAKE_LIST_RUNNING_WORKLOADS_RESULTS
             .lock()
             .unwrap()
@@ -202,8 +207,9 @@ mod tests {
         Mutex::new(std::collections::VecDeque::new());
     }
 
-    pub async fn list_all_workloads(
-        _regex: &str,
+    pub async fn list_all_workloads_by_label(
+        _key: &str,
+        _val: &str,
         _result_format: &str,
     ) -> Result<Vec<String>, String> {
         FAKE_LIST_ALL_WORKLOADS_RESULTS
@@ -215,7 +221,8 @@ mod tests {
 
     pub async fn run_workload(
         _workload_cfg: PodmanRuntimeConfigCli,
-        _workload_name: String,
+        _workload_name: &str,
+        _agent: &str,
         _control_interface_location: Option<PathBuf>,
     ) -> Result<String, String> {
         Ok("my_id".to_string())
