@@ -43,9 +43,8 @@ struct PodmanStateChecker {}
 
 #[async_trait]
 impl RuntimeStateChecker<PodmanWorkloadId> for PodmanStateChecker {
-    // This seems to be rather get_state() and not check_state()
-    async fn check_state(&self, workload_id: &PodmanWorkloadId) -> ExecutionState {
-        log::trace!("Checking the state for the workload '{}'", workload_id.id);
+    async fn get_state(&self, workload_id: &PodmanWorkloadId) -> ExecutionState {
+        log::trace!("Getting the state for the workload '{}'", workload_id.id);
 
         let mut exec_state = ExecutionState::ExecUnknown;
         if let Ok(states) = list_states_by_id(workload_id.id.as_str()).await {

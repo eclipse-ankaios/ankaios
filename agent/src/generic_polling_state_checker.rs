@@ -4,7 +4,7 @@ use tokio::{task::JoinHandle, time};
 
 use crate::state_checker::{RuntimeStateChecker, StateChecker};
 use common::{
-    objects::{ExecutionState, WorkloadInstanceName, WorkloadSpec},
+    objects::{ExecutionState, WorkloadSpec},
     state_change_interface::{StateChangeInterface, StateChangeSender},
     std_extensions::IllegalStateResult,
 };
@@ -34,7 +34,7 @@ where
             let mut interval = time::interval(Duration::from_millis(STATUS_CHECK_INTERVAL_MS));
             loop {
                 interval.tick().await;
-                let current_state = state_checker.check_state(&workload_id).await;
+                let current_state = state_checker.get_state(&workload_id).await;
 
                 if current_state != last_state {
                     log::debug!(

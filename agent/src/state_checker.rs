@@ -7,7 +7,7 @@ use common::{
 
 #[async_trait]
 pub trait RuntimeStateChecker<WorkloadId>: Send + Sync + 'static {
-    async fn check_state(&self, instance_name: &WorkloadId) -> ExecutionState;
+    async fn get_state(&self, instance_name: &WorkloadId) -> ExecutionState;
 }
 
 #[async_trait]
