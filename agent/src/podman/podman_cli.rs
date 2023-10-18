@@ -146,8 +146,9 @@ pub async fn run_workload(
     let id = CliCommand::new(PODMAN_CMD)
         .args(&args.iter().map(|x| &**x).collect::<Vec<&str>>())
         .exec()
-        .await?;
-    log::debug!("The workload id is '{}'", id);
+        .await?
+        .trim()
+        .to_string();
     Ok(id)
 }
 

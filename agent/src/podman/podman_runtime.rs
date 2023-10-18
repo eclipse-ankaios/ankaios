@@ -102,6 +102,12 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         .await
         .map_err(RuntimeError::Create)?;
 
+        log::info!(
+            "The workload '{}' has been created with id '{}'",
+            workload_spec.name,
+            workload_id
+        );
+
         let podman_workload_id = PodmanWorkloadId { id: workload_id };
         let state_checker = self
             .start_checker(&podman_workload_id, workload_spec, update_state_tx)
