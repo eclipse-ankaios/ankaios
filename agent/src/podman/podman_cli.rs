@@ -1,3 +1,4 @@
+use common::objects::ExecutionState;
 use serde::Deserialize;
 use std::path::PathBuf;
 
@@ -29,6 +30,18 @@ impl From<PodmanContainerInfo> for ContainerState {
     }
 }
 
+impl From<PodmanContainerInfo> for ExecutionState {
+    fn from(value: PodmanContainerInfo) -> Self {
+        match value.state {
+            PodmanContainerState::Created => ExecutionState::ExecPending,
+            PodmanContainerState::Exited if value.exit_code == 0 => ExecutionState::ExecSucceeded,
+            PodmanContainerState::Exited if value.exit_code != 0 => ExecutionState::ExecFailed,
+            PodmanContainerState::Running => ExecutionState::ExecRunning,
+            _ => ExecutionState::ExecUnknown,
+        }
+    }
+}
+
 pub async fn play_kube(kube_yml: &[u8]) -> Result<String, String> {
     let result = CliCommand::new(PODMAN_CMD)
         .args(&["kube", "play", "-"])
@@ -38,15 +51,32 @@ pub async fn play_kube(kube_yml: &[u8]) -> Result<String, String> {
     Ok(result)
 }
 
-pub async fn list_workloads(filter_flag: &str, result_format: &str) -> Result<Vec<String>, String> {
+pub async fn list_running_workloads(filter_flag: &str) -> Result<Vec<String>, String> {
+    log::debug!("Listing running workloads for: '{}'", filter_flag);
+    let output = CliCommand::new(PODMAN_CMD)
+        .args(&["ps", "--filter", filter_flag, "--format={{.Names}}"])
+        .exec()
+        .await?;
+    Ok(output
+        .split('\n')
+        .map(|x| x.trim().into())
+        .filter(|x: &String| !x.is_empty())
+        .collect())
+}
+
+pub async fn list_all_workloads(
+    filter_flag: &str,
+    result_format: &str,
+) -> Result<Vec<String>, String> {
     log::debug!(
-        "Listing workloads for: '{}' with format '{}'",
+        "Listing all workloads for: '{}' with format '{}'",
         filter_flag,
         result_format
     );
     let output = CliCommand::new(PODMAN_CMD)
         .args(&[
             "ps",
+            "-a",
             "--filter",
             filter_flag,
             &format!("--format={}", result_format),
@@ -92,7 +122,8 @@ pub async fn run_workload(
         );
     }
 
-    args.append(&mut vec!["--name".into(), workload_name]);
+    args.append(&mut vec!["--name".into(), workload_name.clone()]);
+    args.push(format!("--label=name={workload_name}"));
     args.push(workload_cfg.image);
 
     if let Some(mut x) = workload_cfg.command_args {
@@ -106,6 +137,25 @@ pub async fn run_workload(
         .await?;
     log::debug!("The workload id is '{}'", id);
     Ok(id)
+}
+
+pub async fn list_states_by_id(workload_id: &str) -> Result<Vec<ExecutionState>, String> {
+    let output = CliCommand::new(PODMAN_CMD)
+        .args(&[
+            "ps",
+            "--all",
+            "--filter",
+            &format!("id={workload_id}"),
+            "--format=json",
+        ])
+        .exec()
+        .await?;
+
+    let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
+        .map_err(|err| format!("Could not parse podman output:{}", err))?;
+
+    // let states: Vec<ContainerState> = res.into_iter().map(|x| x.into()).collect();
+    Ok(res.into_iter().map(|x| x.into()).collect())
 }
 
 pub async fn list_states_by_label(key: &str, value: &str) -> Result<Vec<ContainerState>, String> {
@@ -246,7 +296,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_list_workloads_success() {
+    async fn utest_list_running_workloads_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         let sample_filter_flag = "name=regex";
@@ -258,22 +308,70 @@ mod tests {
                 .exec_returns(Ok("result1\nresult2\n".into())),
         );
 
-        let res = super::list_workloads(sample_filter_flag, "{{.Names}}").await;
+        let res = super::list_running_workloads(sample_filter_flag).await;
         assert!(matches!(res, Ok(res) if res == vec!["result1", "result2"]));
     }
 
     #[tokio::test]
-    async fn utest_list_workloads_fail() {
+    async fn utest_list_running_workloads_fail() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        let sample_filter_flag = "name=regex";
 
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["ps", "--filter", "name=regex", "--format={{.Names}}"])
+                .expect_args(&["ps", "--filter", sample_filter_flag, "--format={{.Names}}"])
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
-        let res = super::list_workloads("name=regex", "{{.Names}}").await;
+        let res = super::list_running_workloads(sample_filter_flag).await;
+        assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
+    }
+
+    #[tokio::test]
+    async fn utest_list_all_workloads_success() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        let sample_filter_flag = "id=workload_id";
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&[
+                    "ps",
+                    "-a",
+                    "--filter",
+                    sample_filter_flag,
+                    "--format={{.ID}}",
+                ])
+                .exec_returns(Ok("result1\nresult2\n".into())),
+        );
+
+        let res = super::list_all_workloads(sample_filter_flag, r"{{.ID}}").await;
+        assert!(matches!(res, Ok(res) if res == vec!["result1", "result2"]));
+    }
+
+    #[tokio::test]
+    async fn utest_list_all_workloads_fail() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        let sample_filter_flag = "id=workload_id";
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&[
+                    "ps",
+                    "-a",
+                    "--filter",
+                    sample_filter_flag,
+                    "--format={{.ID}}",
+                ])
+                .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
+        );
+
+        let res = super::list_all_workloads(sample_filter_flag, r"{{.ID}}").await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
@@ -284,7 +382,14 @@ mod tests {
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["run", "-d", "--name", "test_workload_name", "alpine:latest"])
+                .expect_args(&[
+                    "run",
+                    "-d",
+                    "--name",
+                    "test_workload_name",
+                    "--label=name=test_workload_name",
+                    "alpine:latest",
+                ])
                 .exec_returns(Ok("test_id".to_string())),
         );
 
@@ -305,7 +410,14 @@ mod tests {
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["run", "-d", "--name", "test_workload_name", "alpine:latest"])
+                .expect_args(&[
+                    "run",
+                    "-d",
+                    "--name",
+                    "test_workload_name",
+                    "--label=name=test_workload_name",
+                    "alpine:latest",
+                ])
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
@@ -336,6 +448,7 @@ mod tests {
                     "--mount=type=bind,source=/test/path,destination=/run/ankaios/control_interface",
                     "--name",
                     "test_workload_name",
+                    "--label=name=test_workload_name",
                     "alpine:latest",
                     "sh",
                 ])

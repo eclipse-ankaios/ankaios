@@ -17,10 +17,12 @@ use crate::{
 };
 
 #[cfg(not(test))]
-use crate::podman::podman_cli::{list_workloads, run_workload};
+use crate::podman::podman_cli::{
+    list_all_workloads, list_running_workloads, list_states_by_id, run_workload,
+};
 
 #[cfg(test)]
-use self::tests::{list_workloads, run_workload};
+use self::tests::{list_all_workloads, list_running_workloads, list_states_by_id, run_workload};
 
 use super::podman_runtime_config::PodmanRuntimeConfigCli;
 
@@ -35,14 +37,22 @@ pub struct PodmanWorkloadId {
     pub id: String,
 }
 
-struct PodmanStateChecker {
-    runtime: PodmanRuntime,
-}
+struct PodmanStateChecker {}
 
 #[async_trait]
 impl RuntimeStateChecker<PodmanWorkloadId> for PodmanStateChecker {
-    async fn check_state(&self, instance_name: &PodmanWorkloadId) -> ExecutionState {
-        todo!()
+    // This seems to be rather get_state() and not check_state()
+    async fn check_state(&self, workload_id: &PodmanWorkloadId) -> ExecutionState {
+        log::trace!("Checking the state for the workload '{}'", workload_id.id);
+
+        let mut exec_state = ExecutionState::ExecUnknown;
+        if let Ok(states) = list_states_by_id(workload_id.id.as_str()).await {
+            if let Some(state) = states.first() {
+                exec_state = state.clone();
+            }
+        }
+        log::trace!("Returning the state {}", exec_state);
+        exec_state
     }
 }
 
@@ -57,7 +67,7 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         agent_name: &AgentName,
     ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
         let filter_expression = format!(r"name=^\w+\.\w+\.{agent_name}");
-        let res = list_workloads(filter_expression.as_str(), r"{{.Names}}")
+        let res = list_running_workloads(filter_expression.as_str())
             .await
             .map_err(|err| RuntimeError::Update(err.to_string()))?;
 
@@ -82,7 +92,7 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         let workload_cfg = PodmanRuntimeConfigCli::try_from(&workload_spec)
             .map_err(|err| RuntimeError::Create(err.into()))?;
 
-        let id = run_workload(
+        let workload_id = run_workload(
             workload_cfg,
             workload_spec.instance_name().to_string(),
             control_interface_path,
@@ -90,14 +100,12 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         .await
         .map_err(RuntimeError::Create)?;
 
-        // TODO: create a checker (PodmanStateChecker ) and call start_checker
+        let podman_workload_id = PodmanWorkloadId { id: workload_id };
+        let state_checker = self
+            .start_checker(&podman_workload_id, workload_spec, update_state_tx)
+            .await?;
 
-        Ok((
-            PodmanWorkloadId { id },
-            GenericPollingStateChecker {
-                task_handle: tokio::spawn(async {}),
-            },
-        ))
+        Ok((podman_workload_id, state_checker))
     }
 
     async fn get_workload_id(
@@ -105,7 +113,7 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         instance_name: &WorkloadExecutionInstanceName,
     ) -> Result<PodmanWorkloadId, RuntimeError> {
         let filter_expression = format!(r"name={instance_name}");
-        let res = list_workloads(filter_expression.as_str(), r"{{.ID}}")
+        let res = list_all_workloads(filter_expression.as_str(), r"{{.ID}}")
             .await
             .map_err(|err| RuntimeError::Update(err.to_string()))?;
 
@@ -129,7 +137,19 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         workload_spec: WorkloadSpec,
         update_state_tx: StateChangeSender,
     ) -> Result<GenericPollingStateChecker, RuntimeError> {
-        todo!()
+        log::debug!(
+            "Starting the checker for the workload '{}' with id={}",
+            workload_spec.name,
+            workload_id.id
+        );
+        let podman_state_checker = PodmanStateChecker {};
+        let checker = GenericPollingStateChecker::start_checker(
+            &workload_spec,
+            workload_id.clone(),
+            update_state_tx,
+            podman_state_checker,
+        );
+        Ok(checker)
     }
 
     async fn delete_workload(&self, workload_id: &PodmanWorkloadId) -> Result<(), RuntimeError> {
@@ -150,7 +170,7 @@ mod tests {
     use std::{path::PathBuf, sync::Mutex};
 
     use common::{
-        objects::{AgentName, WorkloadExecutionInstanceName},
+        objects::{AgentName, ExecutionState, WorkloadExecutionInstanceName},
         state_change_interface::StateChangeCommand,
         test_utils::generate_test_workload_spec_cli,
     };
@@ -165,12 +185,28 @@ mod tests {
     const BUFFER_SIZE: usize = 20;
 
     mockall::lazy_static! {
-        pub static ref FAKE_LIST_CONTAINER_MOCK_RESULT_LIST: Mutex<std::collections::VecDeque<Result<Vec<String>, String>>> =
+        pub static ref FAKE_LIST_RUNNING_WORKLOADS_RESULTS: Mutex<std::collections::VecDeque<Result<Vec<String>, String>>> =
         Mutex::new(std::collections::VecDeque::new());
     }
 
-    pub async fn list_workloads(_regex: &str, _result_format: &str) -> Result<Vec<String>, String> {
-        FAKE_LIST_CONTAINER_MOCK_RESULT_LIST
+    pub async fn list_running_workloads(_regex: &str) -> Result<Vec<String>, String> {
+        FAKE_LIST_RUNNING_WORKLOADS_RESULTS
+            .lock()
+            .unwrap()
+            .pop_front()
+            .unwrap()
+    }
+
+    mockall::lazy_static! {
+        pub static ref FAKE_LIST_ALL_WORKLOADS_RESULTS: Mutex<std::collections::VecDeque<Result<Vec<String>, String>>> =
+        Mutex::new(std::collections::VecDeque::new());
+    }
+
+    pub async fn list_all_workloads(
+        _regex: &str,
+        _result_format: &str,
+    ) -> Result<Vec<String>, String> {
+        FAKE_LIST_ALL_WORKLOADS_RESULTS
             .lock()
             .unwrap()
             .pop_front()
@@ -185,11 +221,15 @@ mod tests {
         Ok("my_id".to_string())
     }
 
+    pub async fn list_states_by_id(_workload_id: &str) -> Result<Vec<ExecutionState>, String> {
+        Ok(Vec::new())
+    }
+
     #[tokio::test]
     async fn get_reusable_running_workloads_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        FAKE_LIST_CONTAINER_MOCK_RESULT_LIST
+        FAKE_LIST_RUNNING_WORKLOADS_RESULTS
             .lock()
             .unwrap()
             .push_back(Ok(vec![
@@ -219,7 +259,7 @@ mod tests {
     async fn get_reusable_running_workloads_empty_list() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        FAKE_LIST_CONTAINER_MOCK_RESULT_LIST
+        FAKE_LIST_RUNNING_WORKLOADS_RESULTS
             .lock()
             .unwrap()
             .push_back(Ok(Vec::new()));
@@ -238,7 +278,7 @@ mod tests {
     async fn get_reusable_running_workloads_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        FAKE_LIST_CONTAINER_MOCK_RESULT_LIST
+        FAKE_LIST_RUNNING_WORKLOADS_RESULTS
             .lock()
             .unwrap()
             .push_back(Err("Simulated error".to_string()));
