@@ -426,8 +426,8 @@ mod tests {
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
-        assert!(runtime_manager.workloads.get(WORKLOAD_1_NAME).is_some());
-        assert!(runtime_manager.workloads.get(WORKLOAD_2_NAME).is_some());
+        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert!(runtime_manager.workloads.contains_key(WORKLOAD_2_NAME));
     }
 
     #[tokio::test]
@@ -516,7 +516,7 @@ mod tests {
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
-        assert!(runtime_manager.workloads.get(WORKLOAD_1_NAME).is_some());
+        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
     #[tokio::test]
@@ -562,7 +562,7 @@ mod tests {
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
-        assert!(runtime_manager.workloads.get(WORKLOAD_1_NAME).is_some());
+        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
     #[tokio::test]
@@ -614,7 +614,7 @@ mod tests {
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
-        assert!(runtime_manager.workloads.get(WORKLOAD_1_NAME).is_some());
+        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
     #[tokio::test]
