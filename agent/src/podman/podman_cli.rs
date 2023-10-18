@@ -51,27 +51,6 @@ pub async fn play_kube(kube_yml: &[u8]) -> Result<String, String> {
     Ok(result)
 }
 
-pub async fn list_running_workloads_by_label(
-    key: &str,
-    value: &str,
-) -> Result<Vec<String>, String> {
-    log::debug!("Listing running workloads for: {}='{}'", key, value);
-    let output = CliCommand::new(PODMAN_CMD)
-        .args(&[
-            "ps",
-            "--filter",
-            &format!("label={key}={value}"),
-            "--format={{.Names}}",
-        ])
-        .exec()
-        .await?;
-    Ok(output
-        .split('\n')
-        .map(|x| x.trim().into())
-        .filter(|x: &String| !x.is_empty())
-        .collect())
-}
-
 pub async fn list_all_workloads_by_label(
     key: &str,
     value: &str,
@@ -305,46 +284,6 @@ mod tests {
         );
 
         let res = super::play_kube(sample_input.as_bytes()).await;
-        assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
-    }
-
-    #[tokio::test]
-    async fn utest_list_running_workloads_success() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
-
-        super::CliCommand::new_expect(
-            "podman",
-            super::CliCommand::default()
-                .expect_args(&[
-                    "ps",
-                    "--filter",
-                    "label=agent=test_agent",
-                    "--format={{.Names}}",
-                ])
-                .exec_returns(Ok("result1\nresult2\n".into())),
-        );
-
-        let res = super::list_running_workloads_by_label("agent", "test_agent").await;
-        assert!(matches!(res, Ok(res) if res == vec!["result1", "result2"]));
-    }
-
-    #[tokio::test]
-    async fn utest_list_running_workloads_fail() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
-
-        super::CliCommand::new_expect(
-            "podman",
-            super::CliCommand::default()
-                .expect_args(&[
-                    "ps",
-                    "--filter",
-                    "label=agent=test_agent",
-                    "--format={{.Names}}",
-                ])
-                .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
-        );
-
-        let res = super::list_running_workloads_by_label("agent", "test_agent").await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 

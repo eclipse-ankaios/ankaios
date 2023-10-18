@@ -17,14 +17,10 @@ use crate::{
 };
 
 #[cfg(not(test))]
-use crate::podman::podman_cli::{
-    list_all_workloads_by_label, list_running_workloads_by_label, list_states_by_id, run_workload,
-};
+use crate::podman::podman_cli::{list_all_workloads_by_label, list_states_by_id, run_workload};
 
 #[cfg(test)]
-use self::tests::{
-    list_all_workloads_by_label, list_running_workloads_by_label, list_states_by_id, run_workload,
-};
+use self::tests::{list_all_workloads_by_label, list_states_by_id, run_workload};
 
 use super::podman_runtime_config::PodmanRuntimeConfigCli;
 
@@ -67,7 +63,7 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         &self,
         agent_name: &AgentName,
     ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
-        let res = list_running_workloads_by_label("agent", agent_name.get())
+        let res = list_all_workloads_by_label("agent", agent_name.get(), r"{{.Names}}")
             .await
             .map_err(|err| RuntimeError::Update(err.to_string()))?;
 
@@ -192,22 +188,6 @@ mod tests {
     const BUFFER_SIZE: usize = 20;
 
     mockall::lazy_static! {
-        pub static ref FAKE_LIST_RUNNING_WORKLOADS_RESULTS: Mutex<std::collections::VecDeque<Result<Vec<String>, String>>> =
-        Mutex::new(std::collections::VecDeque::new());
-    }
-
-    pub async fn list_running_workloads_by_label(
-        _key: &str,
-        _value: &str,
-    ) -> Result<Vec<String>, String> {
-        FAKE_LIST_RUNNING_WORKLOADS_RESULTS
-            .lock()
-            .unwrap()
-            .pop_front()
-            .unwrap()
-    }
-
-    mockall::lazy_static! {
         pub static ref FAKE_LIST_ALL_WORKLOADS_RESULTS: Mutex<std::collections::VecDeque<Result<Vec<String>, String>>> =
         Mutex::new(std::collections::VecDeque::new());
     }
@@ -241,7 +221,7 @@ mod tests {
     async fn get_reusable_running_workloads_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        FAKE_LIST_RUNNING_WORKLOADS_RESULTS
+        FAKE_LIST_ALL_WORKLOADS_RESULTS
             .lock()
             .unwrap()
             .push_back(Ok(vec![
@@ -271,7 +251,7 @@ mod tests {
     async fn get_reusable_running_workloads_empty_list() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        FAKE_LIST_RUNNING_WORKLOADS_RESULTS
+        FAKE_LIST_ALL_WORKLOADS_RESULTS
             .lock()
             .unwrap()
             .push_back(Ok(Vec::new()));
@@ -290,7 +270,7 @@ mod tests {
     async fn get_reusable_running_workloads_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        FAKE_LIST_RUNNING_WORKLOADS_RESULTS
+        FAKE_LIST_ALL_WORKLOADS_RESULTS
             .lock()
             .unwrap()
             .push_back(Err("Simulated error".to_string()));
