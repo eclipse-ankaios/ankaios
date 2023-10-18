@@ -4,8 +4,8 @@
 box "Ankaios Agent"
     participant "AgentManager" as manager
 
-    participant "<<RuntimeAdapter>>\ne.g. PodmanAdapter" as runtime_adapter
-    participant "Workload Facade" as wl_facade
+    participant "RuntimeManager" as runtime_manager
+    participant "RuntimeFacade" as wl_facade
 
 end box
 
@@ -17,48 +17,55 @@ activate manager
 activate server
 
 note over manager, server
-The communication between the Agent Manager ans the Ankaios Server is simpliefied here. The actuall calls go over the Communication Middleware.
+The communication between the Agent Manager and the Ankaios Server is simpliefied here. The actuall calls go over the Communication Middleware.
 end note
 
 manager <<- server ++: UpdateWorkload
 
 ... general steps of handling the UpdateWorkload command ...
 
-manager -> runtime_adapter ++: start (initial list of required Workloads)
+manager -> runtime_manager ++: handle update workload
 
-runtime_adapter -> runtime_adapter ++--: finds existing Workloads via the specific runtime
+alt first update workload call for the current agent execution
 
-loop for each required Worload
-    runtime_adapter -> runtime_adapter ++--: create dedicated Workload \n object for the specific runtime \n (channel for UpdateWorkloadState)
-    note right 
-        the dedicated object implements 
-        a common interface and handles
-        runtime specific tasks. e.g.,
-        starting a container
-    end note
+loop for each runtime connector
+    runtime_manager -> runtime_manager ++--: finds existing workloads for that runtime
 
-    opt no existing workload found 
-        runtime_adapter -> wl_facade ++: start a new Workload (dedicated Workload)
-        wl_facade ->> wl_facade ++--: decopule the action
-        wl_facade -->> runtime_adapter --: Workload Facade object
-    else existing workload with same config found
-        runtime_adapter -> wl_facade ++: resume existing Workload (dedicated Workload)
-        wl_facade ->> wl_facade ++--: decopule the action
-        wl_facade -->> runtime_adapter --: Workload Facade object
-    else existing workload with old config found
-        runtime_adapter -> wl_facade ++: replace updated Workload (dedicated Workload)
-        wl_facade ->> wl_facade ++--: decopule the action
-        wl_facade -->> runtime_adapter --: Workload Facade object
+    loop for each found running workload
+        alt found running workload is required
+            runtime_manager -> runtime_manager++--: create control interface
+
+            alt found running workload has different config
+                runtime_manager -> wl_facade++: replace workload
+                ...
+                wl_facade -->> runtime_manager--
+            else found running workload is identical to required workload
+                runtime_manager -> wl_facade++: resume workload
+                ...
+                wl_facade -->> runtime_manager--
+            end
+
+            runtime_manager -> runtime_manager++--: store new workload
+
+        else found running workload is not required anymore
+            runtime_manager -> wl_facade: delete (found running workload)
+        end
     end
-
-    runtime_adapter -> runtime_adapter ++--: store the Workload Facade object
 end
 
-loop remaining existing workloads for which no workload \n in the list of required workloads was found
-        runtime_adapter -> runtime_adapter ++--: stops unneeded Workload
+loop remaining added workloads not found in the list of running workloads
+        runtime_manager -> runtime_manager ++--: add workload
+        note right
+            see add workload digram for details
+        endnote
 end
 
-runtime_adapter -->> manager --
+
+else subsequent update workload call
+... see dedicated digram for susequent calls ...
+end
+
+runtime_manager -->> manager --
 
 ...
 

@@ -4,50 +4,40 @@
 box "Ankaios Agent"
     participant "AgentManager" as manager
 
-    participant "<<RuntimeAdapter>>\ne.g. PodmanAdapter" as runtime_adapter
-    participant "Workload Facade" as wl_facade
+    participant "RuntimeManager" as runtime_manager
+    participant "RuntimeFacade" as rt_facade
 
-end box
+    participant "Workload" as workload
 
-box "Ankaios Server"
-    participant "Ankaios Server" as server
 end box
 
 activate manager
-activate server
 
-note over manager, server
-The communication between the Agent Manager ans the Ankaios Server is simpliefied here. The actuall calls go over the Communication Middleware.
-end note
+...
 
-manager <<- server ++: UpdateWorkload
+manager -> runtime_manager ++: handle update workload
 
-... general steps of handling the UpdateWorkload command ...
+alt first update workload call for the current agent execution
+    ... see dedicated digram for first call ...
+else subsequent update workload call
+    ... handle deleted Workloads ...
 
-
-... handle deleted Workloads ...
-
-loop for each added Worload
-    opt do we know this workload already? (can happen if the server got restarted)
-    manager -> runtime_adapter ++: update Workload
-... see update handling above for more details ...
-    runtime_adapter -->> manager --
-    else
-        manager -> runtime_adapter ++: add Workload
-        runtime_adapter -> runtime_adapter ++--: create specific Workload \n object for the specific runtime
-        runtime_adapter -> wl_facade ++: start a new Workload (specific Workload)
-        wl_facade ->> wl_facade ++--: decopule the action
-        wl_facade -->> runtime_adapter --: Workload Facade object
-        runtime_adapter -> runtime_adapter ++--: store the Workload Facade object
-        runtime_adapter -->> manager --
+    loop for each added Worload
+        runtime_manager -> runtime_manager ++--: find workload in running workloads
+        alt found a workload with the same name in the list of running workloads
+            runtime_manager -> runtime_manager ++--: update_workload
+            note right
+                see delete digram for details on update
+            endnote
+        else no such workload found in list of running workloads \n normal behaviour
+            runtime_manager -> runtime_manager++: add workload
+            runtime_manager -> runtime_manager++--: create control interface
+            runtime_manager -> rt_facade++: create workload
+            ...
+            rt_facade -->> runtime_manager--
+            runtime_manager -> runtime_manager++--: store new workload
+        end
     end
 end
-
-
-... Workloads get started ...
-
-manager ->> server --++: forward UpdateWorkloadState
-
-... 
 
 @enduml

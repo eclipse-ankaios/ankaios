@@ -47,7 +47,7 @@ The PodmanAdapter is a RuntimeAdapter for Podman. It is responsible for dealing 
 
 ### PodmanWorkload
 
-The PodmanWorkload uses Podman REST API to process events from the PodmanAdapter. 
+The PodmanWorkload uses Podman REST API to process events from the PodmanAdapter.
 The PodmanWorkload also checks periodically status of the podman workload and reports changes of the status. 
 
 ### ParameterStorage
@@ -254,7 +254,7 @@ Needs:
 
 Status: approved
 
-The Control Interface Instance shall create two FIFO files for each Workload:
+Each new ControlInterface instance shall create two FIFO files :
 
 - a FIFO file for the workload to send requests to the Control Interface (called output pipe in the following) 
 - a FIFO file for the workload to request responses to the Control Interface (called input pipe in the following) 
@@ -299,11 +299,31 @@ Needs:
 - impl
 - utest
 
+###### RuntimeManager stores Workload in the list of running workloads
+`swdd~agent-stores-running-workload~1`
+
+Status: approved
+
+When the RuntimeManager creates new workload objects via the RuntimeFacade, the RuntimeManager shall store the Workload in a list of running workloads.
+
+Comment:
+Please note that the object creation is targeted here and thus also resume or replace of running workloads is in scope.
+
+Rationale:
+The workload object is later used to update or delete the workload. The object also stores the ControlInterface for the workload and manages it during the lifetime of the workload.
+
+Tags:
+- RuntimeManager
+
+Needs:
+- impl
+- utest
+
 #### Handling the initial UpdateWorkload after Agent start (starting the RuntimeAdapters)
 
 The following diagram and the subsequent requirements show the steps the Ankaios Agent takes when receiving the first UpdateWorkload command sent by Server. The first UpdateWorkload contains the complete initial list of workloads the Agent shall manage.
 
-//TODO: update diagram
+
 ![Handling initial UpdateWorkload](plantuml/seq_update_workload_initial.svg)
 
 ##### RuntimeManager initial list of workloads handles existing workloads
@@ -328,29 +348,12 @@ Needs:
 
 Status: approved
 
-When handling existing workloads, the RuntimeManager shall build a list of existing Workloads started during the same machine runtime window by a previous execution of an Ankaios Agent with the same name as the currently running Agent.
+When handling existing workloads, the RuntimeManager shall call each RuntimeFacade to request a list of existing workloads started during the same machine runtime window by a previous execution of an Ankaios Agent with the same name as the currently running Agent.
 
 Comment:
 A 'machine runtime window' is the time between the start and shutdown of the machine. Finding existing workloads needs to be done fore stating new workloads in order to avoid conflicts.
 
 Tags: 
-- RuntimeManager
-
-Needs:
-- impl
-- utest
-
-###### RuntimeManager stores Workload in the list of running workloads
-`swdd~agent-stores-running-workload~1`
-
-Status: approved
-
-When the RuntimeManager creates new workload objects via the RuntimeFacade, the RuntimeManager shall store the Workload in a list of running workloads.
-
-Comment:
-Please note that the object creation is targeted here and thus also resume or replace of running workloads is in scope.
-
-Tags:
 - RuntimeManager
 
 Needs:
@@ -515,12 +518,10 @@ The UpdateWorkload message contains two lists of workloads - deleted Workloads s
 
 The following two diagrams show how deleted and added Workloads are handled by the Agent Manager. The first diagram shows how the deleted Workloads are handled:
 
-//TODO: update diagram
 ![Handling subsequent UpdateWorkload - deleted Workloads](plantuml/seq_update_workload_subsequent_deleted.svg)
 
 After the deleted Workloads are handled, the Ankaios Agent goes through the list of added Workloads
 
-//TODO: update diagram
 ![Handling subsequent UpdateWorkload - added Workloads](plantuml/seq_update_workload_subsequent_added.svg)
 
 ###### Agent handles deleted workloads before added Workloads
@@ -577,6 +578,23 @@ Needs:
 - impl
 - utest
 
+###### Agent adds on update missing workload
+`swdd~agent-add-on-update-missing-workload~1`
+
+Status: approved
+
+When the Ankaios Agent gets an `UpdateWorkload` message that indicates an update of a workload and the workload cannot be found, the RuntimeManager shall trigger adding of the workload.
+
+Comment:
+This situation cannot actually occur, but if a workload is requested to be added it shall also be added instead of just tracing an error/warning. 
+
+Tags:
+- RuntimeManager
+
+Needs:
+- impl
+- utest
+
 ###### Agent deletes workload on command from server
 `swdd~agent-deletes-workload~1`
 
@@ -616,23 +634,6 @@ When the Ankaios Agent gets an `UpdateWorkload` message with an added workloads 
 
 Comment:
 This situation can happen if the Ankaios Server gets restarted. It is not yet confirmed if this handling is correct and it is subject to change.
-
-Tags:
-- RuntimeManager
-
-Needs:
-- impl
-- utest
-
-###### Agent adds on update missing workload
-`swdd~agent-add-on-update-missing-workload~1`
-
-Status: approved
-
-When the Ankaios Agent gets an `UpdateWorkload` message that indicates an update of a workload and the workload cannot be found, the RuntimeManager shall trigger adding of the workload.
-
-Comment:
-This situation cannot actually occur, but if a workload is requested to be added it shall also be added instead of just tracing an error/warning. 
 
 Tags:
 - RuntimeManager

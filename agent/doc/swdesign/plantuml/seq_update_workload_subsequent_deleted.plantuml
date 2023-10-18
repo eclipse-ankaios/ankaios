@@ -3,56 +3,46 @@
 
 box "Ankaios Agent"
     participant "AgentManager" as manager
-
-    participant "<<RuntimeAdapter>>\ne.g. PodmanAdapter" as runtime_adapter
-    participant "Workload Facade" as wl_facade
-
-end box
-
-box "Ankaios Server"
-    participant "Ankaios Server" as server
+    participant "RuntimeManager" as runtime_manager
+    participant "Workload" as workload
 end box
 
 activate manager
-activate server
 
-note over manager, server
-The communication between the Agent Manager ans the Ankaios Server is simpliefied here. The actuall calls go over the Communication Middleware.
-end note
+...
 
-manager <<- server ++: UpdateWorkload
+manager -> runtime_manager ++: handle update workload
 
-... general steps of handling the UpdateWorkload command ...
-
-
-loop for each deleted Worload
-    opt if the workload is also in the added workloads list
-        manager -> manager ++--: remove workload from \n added workloads list
-        manager -> runtime_adapter ++: update Workload
-        runtime_adapter -> runtime_adapter ++: find facade for this workload
-        runtime_adapter -> wl_facade ++: update Workload
-        wl_facade ->> wl_facade ++--: decopule the action
-        wl_facade -->> runtime_adapter --:
-        deactivate runtime_adapter
-        runtime_adapter -->> manager --
-    else
-        manager -> manager ++--: remove Workload to runtime mapping
-        manager -> manager ++--: remove Control Interface instance
-        manager -> runtime_adapter ++: delete Workload
-        runtime_adapter -> runtime_adapter ++: find facade for this workload
-        runtime_adapter ->> wl_facade ++--: delete Workload
-        runtime_adapter -->> manager --
-        wl_facade ->> wl_facade ++--: decopule the action
-        destroy wl_facade
+alt first update workload call for the current agent execution
+... see dedicated digram for first call ...
+else subsequent update workload call
+    loop for each deleted Worload
+        opt if the workload is also in the added workloads list
+            runtime_manager -> runtime_manager ++--: remove workload from \n added workloads list
+            runtime_manager -> runtime_manager ++: update workload
+            runtime_manager -> runtime_manager ++--: find workload in running workloads
+            alt workload object found
+                runtime_manager -> workload ++: update (new config)
+                workload ->> workload ++--: decopule the specific actions
+                workload -->> runtime_manager --:
+                deactivate runtime_manager
+            else no workload object found -> nothing to update
+                runtime_manager -> runtime_manager++--:add workload
+                note right
+                see add workload digram for details
+                endnote
+            end
+        else
+            runtime_manager -> runtime_manager ++--: remove workload from runtime workloads list
+            runtime_manager -> workload ++: delete
+            workload ->> workload ++--: decopule the specific action
+            workload -->> runtime_manager --:
+            destroy workload
+        end
     end
+
+    ... handle added Workloads ...
+
 end
-
-... handle added Workloads ...
-
-... Workloads get started ...
-
-manager ->> server --++: forward UpdateWorkloadState
-
-... 
 
 @enduml
