@@ -212,7 +212,7 @@ Needs:
 - itest
 
 #### Agent supports K8s resources via podman-kube runtime
-`swdd~swdd~agent-supports-podman-kube-runtime~1`
+`swdd~agent-supports-podman-kube-runtime~1`
 
 Status: approved
 
