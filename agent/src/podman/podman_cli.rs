@@ -1,5 +1,5 @@
 use common::objects::ExecutionState;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[cfg_attr(test, mockall_double::double)]
@@ -231,14 +231,14 @@ pub async fn remove_workloads_by_id(workload_id: &str) -> Result<(), String> {
     Ok(())
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 struct PodmanContainerInfo {
     state: PodmanContainerState,
     exit_code: u8,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 enum PodmanContainerState {
     Created,
@@ -258,7 +258,11 @@ enum PodmanContainerState {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
+    use common::objects::ExecutionState;
+
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
+
+    use super::{PodmanContainerInfo, PodmanContainerState};
 
     const SAMPLE_ERROR_MESSAGE: &str = "error message";
 
@@ -441,5 +445,161 @@ mod tests {
         )
         .await;
         assert_eq!(res, Ok("test_id".to_string()));
+    }
+
+    #[tokio::test]
+    async fn utest_list_states_by_id_pending() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--filter", "id=test_id", "--format=json"])
+                .exec_returns(Ok(generate_container_info_json(
+                    PodmanContainerState::Created,
+                    0,
+                ))),
+        );
+
+        let res = super::list_states_by_id("test_id").await;
+        assert_eq!(res, Ok(vec![ExecutionState::ExecPending]));
+    }
+
+    #[tokio::test]
+    async fn utest_list_states_by_id_succeeded() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--filter", "id=test_id", "--format=json"])
+                .exec_returns(Ok(generate_container_info_json(
+                    PodmanContainerState::Exited,
+                    0,
+                ))),
+        );
+
+        let res = super::list_states_by_id("test_id").await;
+        assert_eq!(res, Ok(vec![ExecutionState::ExecSucceeded]));
+    }
+
+    #[tokio::test]
+    async fn utest_list_states_by_id_failed() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--filter", "id=test_id", "--format=json"])
+                .exec_returns(Ok(generate_container_info_json(
+                    PodmanContainerState::Exited,
+                    1,
+                ))),
+        );
+
+        let res = super::list_states_by_id("test_id").await;
+        assert_eq!(res, Ok(vec![ExecutionState::ExecFailed]));
+    }
+
+    #[tokio::test]
+    async fn utest_list_states_by_id_running() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--filter", "id=test_id", "--format=json"])
+                .exec_returns(Ok(generate_container_info_json(
+                    PodmanContainerState::Running,
+                    0,
+                ))),
+        );
+
+        let res = super::list_states_by_id("test_id").await;
+        assert_eq!(res, Ok(vec![ExecutionState::ExecRunning]));
+    }
+
+    #[tokio::test]
+    async fn utest_list_states_by_id_unknown() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--filter", "id=test_id", "--format=json"])
+                .exec_returns(Ok(generate_container_info_json(
+                    PodmanContainerState::Paused,
+                    0,
+                ))),
+        );
+
+        let res = super::list_states_by_id("test_id").await;
+        assert_eq!(res, Ok(vec![ExecutionState::ExecUnknown]));
+    }
+
+    #[tokio::test]
+    async fn utest_list_states_by_id_podman_error() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--filter", "id=test_id", "--format=json"])
+                .exec_returns(Err("simulated error".to_string())),
+        );
+
+        let res = super::list_states_by_id("test_id").await;
+        assert_eq!(res, Err("simulated error".to_string()));
+    }
+
+    #[tokio::test]
+    async fn utest_list_states_by_id_broken_response() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--filter", "id=test_id", "--format=json"])
+                .exec_returns(Ok("non-json response from podman".to_string())),
+        );
+
+        let res = super::list_states_by_id("test_id").await;
+        assert!(matches!(res, Err(msg) if msg.starts_with("Could not parse podman output") ));
+    }
+
+    #[tokio::test]
+    async fn utest_remove_workloads_by_id_failed() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["rm", "-f", "test_id"])
+                .exec_returns(Err("simulated error".to_string())),
+        );
+
+        assert_eq!(
+            super::remove_workloads_by_id("test_id").await,
+            Err("simulated error".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn utest_remove_workloads_by_id_success() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["rm", "-f", "test_id"])
+                .exec_returns(Ok("".to_string())),
+        );
+
+        let res = super::remove_workloads_by_id("test_id").await;
+        assert_eq!(res, Ok(()));
+    }
+
+    fn generate_container_info_json(state: PodmanContainerState, exit_code: u8) -> String {
+        serde_json::to_string(&vec![PodmanContainerInfo { state, exit_code }]).unwrap()
     }
 }
