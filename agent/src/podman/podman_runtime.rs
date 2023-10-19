@@ -17,10 +17,14 @@ use crate::{
 };
 
 #[cfg(not(test))]
-use crate::podman::podman_cli::{list_all_workloads_by_label, list_states_by_id, run_workload};
+use crate::podman::podman_cli::{
+    list_all_workloads_by_label, list_states_by_id, remove_workloads_by_id, run_workload,
+};
 
 #[cfg(test)]
-use self::tests::{list_all_workloads_by_label, list_states_by_id, run_workload};
+use self::tests::{
+    list_all_workloads_by_label, list_states_by_id, remove_workloads_by_id, run_workload,
+};
 
 use super::podman_runtime_config::PodmanRuntimeConfigCli;
 
@@ -140,8 +144,8 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         workload_spec: WorkloadSpec,
         update_state_tx: StateChangeSender,
     ) -> Result<GenericPollingStateChecker, RuntimeError> {
-        log::debug!(
-            "Starting the checker for the workload '{}' with id={}",
+        log::info!(
+            "Starting the checker for the workload '{}' with id '{}'",
             workload_spec.name,
             workload_id.id
         );
@@ -156,7 +160,10 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
     }
 
     async fn delete_workload(&self, workload_id: &PodmanWorkloadId) -> Result<(), RuntimeError> {
-        todo!()
+        log::info!("Deleting workload with id '{}'", workload_id.id);
+        remove_workloads_by_id(&workload_id.id)
+            .await
+            .map_err(|err| RuntimeError::Update(err.to_string()))
     }
 }
 
@@ -215,6 +222,10 @@ mod tests {
 
     pub async fn list_states_by_id(_workload_id: &str) -> Result<Vec<ExecutionState>, String> {
         Ok(Vec::new())
+    }
+
+    pub async fn remove_workloads_by_id(_workload_id: &str) -> Result<(), String> {
+        Ok(())
     }
 
     #[tokio::test]
@@ -301,4 +312,5 @@ mod tests {
     }
 
     // TODO: tests of get_workload_id (success, error)
+    // TODO: tests of delete workload
 }

@@ -95,6 +95,12 @@ pub async fn run_workload(
 
     args.push("run".into());
     args.push("-d".into());
+
+    // Setting "--name" flag is intentionally here before reading "command_options".
+    // We want to give the user chance to set own container name.
+    // In other words the user can overwrite our container name.
+    // We store workload name as a label (an use them from there).
+    // Therefore we do insist on container names in particular format.
     args.append(&mut vec!["--name".into(), workload_name.to_string()]);
 
     if let Some(mut x) = workload_cfg.command_options {
@@ -146,7 +152,6 @@ pub async fn list_states_by_id(workload_id: &str) -> Result<Vec<ExecutionState>,
     let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
         .map_err(|err| format!("Could not parse podman output:{}", err))?;
 
-    // let states: Vec<ContainerState> = res.into_iter().map(|x| x.into()).collect();
     Ok(res.into_iter().map(|x| x.into()).collect())
 }
 
@@ -218,6 +223,12 @@ pub async fn list_volumes_by_label(key: &str, value: &str) -> Result<Vec<String>
         .map(|x| x.trim().to_string())
         .filter(|x| !x.is_empty())
         .collect())
+}
+
+pub async fn remove_workloads_by_id(workload_id: &str) -> Result<(), String> {
+    let args = vec!["rm", "-f", workload_id];
+    CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
+    Ok(())
 }
 
 #[derive(Deserialize)]
