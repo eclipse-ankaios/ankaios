@@ -344,6 +344,7 @@ mod tests {
 
     const BUFFER_SIZE: usize = 20;
     const RUNTIME_NAME: &str = "runtime1";
+    const RUNTIME_NAME_2: &str = "runtime2";
     const AGENT_NAME: &str = "agent_x";
     const WORKLOAD_1_NAME: &str = "workload1";
     const WORKLOAD_2_NAME: &str = "workload2";
@@ -379,8 +380,9 @@ mod tests {
         }
     }
 
+    // [utest->swdd~agent-initial-list-existing-workloads~1]
     #[tokio::test]
-    async fn utest_handle_update_workload_with_initial_workload() {
+    async fn utest_handle_update_workload_initial_call_handle() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -430,6 +432,7 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_2_NAME));
     }
 
+    // [utest->swdd~agent-skips-unknown-runtime~1]
     #[tokio::test]
     async fn utest_handle_update_workload_no_workload_with_unknown_runtime() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -470,8 +473,9 @@ mod tests {
         assert!(runtime_manager.workloads.is_empty());
     }
 
+    // [utest->swdd~agent-existing-workloads-finds-list~1]
     #[tokio::test]
-    async fn utest_handle_update_workload_failed_to_get_reusable_workloads() {
+    async fn utest_handle_update_workload_initial_call_failed_to_get_reusable_workloads() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -525,8 +529,11 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
+    // [utest->swdd~agent-existing-workloads-resume-existing~1]
+    // [utest->swdd~agent-existing-workloads-starts-new-if-not-found~1]
+    // [utest->swdd~agent-stores-running-workload~1]
     #[tokio::test]
-    async fn utest_handle_update_workload_resume_initial_workload() {
+    async fn utest_handle_update_workload_initial_call_resume_workload() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -555,6 +562,10 @@ mod tests {
             .once()
             .return_once(|_, _, _| MockWorkload::default());
 
+        runtime_facade_mock
+            .expect_create_workload()
+            .never();
+
         let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
             .with_runtime(
                 RUNTIME_NAME,
@@ -571,8 +582,10 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
+    // [utest->swdd~agent-existing-workloads-replace-updated~1]
+    // [utest->swdd~agent-stores-running-workload~1]
     #[tokio::test]
-    async fn utest_handle_update_workload_replace_initial_workload() {
+    async fn utest_handle_update_workload_initial_call_replace_workload() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -623,8 +636,9 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
+    // [utest->swdd~agent-existing-workloads-delete-unneeded~1]
     #[tokio::test]
-    async fn utest_handle_update_workload_delete_initial_existing_workload() {
+    async fn utest_handle_update_workload_initial_call_delete_unneeded() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -659,8 +673,9 @@ mod tests {
         assert!(runtime_manager.workloads.is_empty());
     }
 
+    // [utest->swdd~agent-updates-deleted-and-added-workloads~1]
     #[tokio::test]
-    async fn utest_update_workload_when_workload_in_added_and_deleted_list() {
+    async fn utest_handle_update_workload_subsequent_update_on_add_and_delete() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -717,8 +732,9 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
+    // [utest->swdd~agent-handle-deleted-before-added-workloads~1]
     #[tokio::test]
-    async fn utest_delete_workloads_before_adding_workloads() {
+    async fn utest_handle_update_workload_subsequent_delete_before_adding() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -782,8 +798,9 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_2_NAME));
     }
 
+    // [utest->swdd~agent-update-on-add-known-workload~1]
     #[tokio::test]
-    async fn utest_update_workload() {
+    async fn utest_handle_update_workload_subsequent_update_known_added() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -831,8 +848,11 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
+    // [utest->swdd~agent-added-creates-workload~1]
+    // [utest->swdd~agent-uses-specified-runtime~1]
+    // [utest->swdd~agent-stores-running-workload~1]
     #[tokio::test]
-    async fn utest_update_workload_add_new_workloads() {
+    async fn utest_handle_update_workload_subsequent_add_new_workloads() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;

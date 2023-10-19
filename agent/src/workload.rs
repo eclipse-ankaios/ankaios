@@ -92,7 +92,7 @@ impl Workload {
         let mut workload_id = initial_workload_id;
         loop {
             match command_receiver.recv().await {
-                // [impl->swdd~agent-facade-stops-workload~1]
+                // [impl->swdd~agent-workload-tasks-executes-delete~1]
                 Some(WorkloadCommand::Stop) => {
                     if let Some(old_id) = workload_id.take() {
                         if let Err(err) = runtime.delete_workload(&old_id).await {
@@ -105,6 +105,7 @@ impl Workload {
                     }
                     return;
                 }
+                // [impl->swdd~agent-workload-tasks-executes-update~1]
                 Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
                     if let Some(old_id) = workload_id {
                         if let Err(err) = runtime.delete_workload(&old_id).await {

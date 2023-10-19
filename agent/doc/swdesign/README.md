@@ -351,7 +351,7 @@ Status: approved
 When handling existing workloads, the RuntimeManager shall call each RuntimeFacade to request a list of existing workloads started during the same machine runtime window by a previous execution of an Ankaios Agent with the same name as the currently running Agent.
 
 Comment:
-A 'machine runtime window' is the time between the start and shutdown of the machine. Finding existing workloads needs to be done fore stating new workloads in order to avoid conflicts.
+A 'machine runtime window' is the time between the start and shutdown of the machine. Finding existing workloads needs to be done fore stating new workloads in order to avoid conflicts. If this call fails, the agent currently ignores the failure assumes that no workloads are running. It must be confirmed that this behavior is correct.
 
 Tags: 
 - RuntimeManager
@@ -561,7 +561,7 @@ Needs:
 - impl
 - utest
 
-###### Agent workload handles update command
+###### Workload handles update command
 `swdd~agent-workload-obj-update-command~1`
 
 Status: approved
@@ -569,9 +569,30 @@ Status: approved
 When the WorkloadObject receives a trigger to update the workload, it:
 * stops the old control interface
 * stores the new control interface
-* send a command to the workload task to update the workload
+* send a command on the command channel to the workload task to update the workload
 
 Tags:
+- WorkloadObject
+
+Needs:
+- impl
+- utest
+
+###### Workload task executes update command
+`swdd~agent-workload-tasks-executes-update~1`
+
+Status: approved
+
+When the control task started during the creation of the workload object receives an update command, the workload task shall:
+* delete the old workload via the corresponding runtime
+* stop the state checker for the workload
+* create a new workload via the corresponding runtime (which creates and starts a state checker)
+* store the new Id and reference to the state checker inside the workload control task
+
+Rationale:
+The workload task allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
+
+Tags: 
 - WorkloadObject
 
 Needs:
@@ -609,14 +630,14 @@ Needs:
 - impl
 - utest
 
-###### Agent workload handles delete command
+###### Workload handles delete command
 `swdd~agent-workload-obj-delete-command~1`
 
 Status: approved
 
 When the WorkloadObject receives a trigger to deletion the workload, it:
 * stops the control interface
-* send a command to the workload task to delete the workload
+* send a command on the command channel to the workload task to delete the workload
 
 Tags:
 - WorkloadObject
@@ -625,7 +646,28 @@ Needs:
 - impl
 - utest
 
-###### Agent updates on add known Workload
+###### Workload task executes delete command
+`swdd~agent-workload-tasks-executes-delete~1`
+
+Status: approved
+
+When the control task started during the creation of the workload object receives a delete command, the workload task shall:
+* delete the old workload via the corresponding runtime
+* stop the state checker for the workload
+* stop the workload control task
+
+Rationale:
+The workload task allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
+
+Tags: 
+- WorkloadObject
+
+Needs:
+- impl
+- utest
+
+
+###### Agent updates on add known workload
 `swdd~agent-update-on-add-known-workload~1`
 
 Status: approved
@@ -753,33 +795,6 @@ Needs:
 - impl
 - utest
 
-##### Updating a Workload
-
-This is a special situation in which the Ankaios Agent receives a delete and an add command for a workload with the same name.
-
-The following diagram shows the steps taken by the Workload Facade to fulfill the update action:
-
-![Updating a Workload](plantuml/seq_workload_update.svg)
-
-###### Workload Facade update workload
-`swdd~agent-facade-update-workload~1`
-
-Status: approved
-
-When the Workload Facade gets a requests to update a workload, the Workload Facade shall stop the existing Workload and create a new Workload on its place including starting monitoring it and waiting for stop or update commands.
-
-Comment:
-The difference to replace a workload is that when calling an update we don't know if the Workload is started already. For replace we have found the workload, so we are sure that it is running. Handling the update over the command channel of the Workload Facade ensures that we don't start a Workload after it is stopped. 
-
-Tags:
-- WorkloadFacade
-
-Needs:
-- impl
-- utest
-
-For further details on stopping and starting workloads see the corresponding single actions of adding or deleting a workload.
-
 ##### Deleting (stopping) a Workload
 
 The following diagram shows the steps taken by the Workload Facade to fulfill the delete / stop action:
@@ -809,20 +824,6 @@ When the PodmanAdapter gets a requests to delete a workload, the PodmanAdapter s
 
 Tags:
 - PodmanAdapter
-
-Needs:
-- impl
-- utest
-
-###### Workload Facade stop workload
-`swdd~agent-facade-stops-workload~1`
-
-Status: approved
-
-When the Workload Facade gets a requests to stop a workload, the Workload Facade consumes itself making the object unusable, stops the specific Workload Facade for this workload and stops the Workload Facade task.
-
-Tags:
-- WorkloadFacade
 
 Needs:
 - impl
@@ -1064,8 +1065,7 @@ Status: approved
 When forwarding a Control Interface response to a Workload, the Ankaios Agent shall determine the correct Workload, to forward the Control Interface response to, using the request_id prefix.
 
 Tags:
-- AgentManager
-- ControlInterface
+- RuntimeManager
 
 Needs:
 - impl
@@ -1079,8 +1079,7 @@ Status: approved
 When forwarding a Control Interface response to a Workload, the Ankaios Server shall remove the request_id prefix before forwarding the Control Interface response.
 
 Tags:
-- AgentManager
-- ControlInterface
+- RuntimeManager
 
 Needs:
 - impl
