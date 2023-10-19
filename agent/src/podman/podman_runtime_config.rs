@@ -6,12 +6,12 @@ use crate::workload_trait::WorkloadError;
 
 #[derive(Debug, serde::Deserialize)]
 pub struct PodmanRuntimeConfigCli {
-    #[serde(alias = "generalOptions")]
+    #[serde(alias = "general")]
     pub general_options: Option<Vec<String>>,
-    #[serde(alias = "commandOptions")]
+    #[serde(alias = "options")]
     pub command_options: Option<Vec<String>>,
     pub image: String,
-    #[serde(alias = "commandArgs")]
+    #[serde(alias = "args")]
     pub command_args: Option<Vec<String>>,
 }
 
