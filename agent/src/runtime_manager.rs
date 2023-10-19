@@ -91,7 +91,6 @@ impl RuntimeManager {
         // [impl->swdd~agent-uses-id-prefix-forward-control-interface-response-correct-workload~1]
         // [impl->swdd~agent-remove-id-prefix-forwarding-control-interface-response~1]
         let (workload_name, request_id) = detach_prefix_from_request_id(&method_obj.request_id);
-
         if let Some(workload) = self.workloads.get_mut(&workload_name) {
             let payload = CompleteState {
                 request_id,
@@ -335,19 +334,20 @@ mod tests {
     use crate::workload::MockWorkload;
     use crate::{control_interface::MockPipesChannelContext, runtime::RuntimeError};
     use common::objects::WorkloadExecutionInstanceNameBuilder;
-    use common::test_utils::generate_test_deleted_workload;
+    use common::test_utils::{generate_test_complete_state, generate_test_deleted_workload};
     use common::{
         state_change_interface::StateChangeCommand,
         test_utils::generate_test_workload_spec_with_param,
     };
-    use mockall::Sequence;
-    use tokio::sync::mpsc::{channel, Receiver};
+    use mockall::{predicate, Sequence};
+    use tokio::sync::mpsc::{channel, Receiver, Sender};
 
     const BUFFER_SIZE: usize = 20;
     const RUNTIME_NAME: &str = "runtime1";
     const AGENT_NAME: &str = "agent_x";
     const WORKLOAD_1_NAME: &str = "workload1";
     const WORKLOAD_2_NAME: &str = "workload2";
+    const REQUEST_ID: &str = "request_id";
     const RUN_FOLDER: &str = "run/folder";
 
     #[derive(Default)]
@@ -496,10 +496,15 @@ mod tests {
 
         runtime_facade_mock
             .expect_create_workload()
-            .times(1)
+            .once()
+            .withf(|workload_spec, control_interface, to_server| {
+                workload_spec.name == *WORKLOAD_1_NAME
+                    && control_interface.is_some()
+                    && !to_server.is_closed()
+            })
             .return_once(|_, _, _| MockWorkload::default());
 
-        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
+        let (mut server_receiver, mut runtime_manager) = RuntimeManagerBuilder::default()
             .with_runtime(
                 RUNTIME_NAME,
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
@@ -514,6 +519,7 @@ mod tests {
         runtime_manager
             .handle_update_workload(added_workloads_vec, vec![])
             .await;
+        server_receiver.close();
 
         assert!(runtime_manager.initial_workload_list_received);
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
@@ -665,8 +671,7 @@ mod tests {
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
 
-        let mut runtime_facade_mock = MockRuntimeFacade::new();
-        runtime_facade_mock.checkpoint();
+        let runtime_facade_mock = MockRuntimeFacade::new();
         let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
             .with_runtime(
                 RUNTIME_NAME,
@@ -680,12 +685,21 @@ mod tests {
         workload_mock
             .expect_update()
             .once()
+            .with(
+                predicate::function(|workload_spec: &WorkloadSpec| {
+                    workload_spec.name == *WORKLOAD_1_NAME
+                }),
+                predicate::function(|control_interface: &Option<PipesChannelContext>| {
+                    control_interface.is_some()
+                }),
+            )
             .return_once(move |_, _| Ok(()));
 
         runtime_manager
             .workloads
             .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
 
+        // workload is in added and deleted workload vec
         runtime_manager
             .handle_update_workload(
                 vec![generate_test_workload_spec_with_param(
@@ -715,23 +729,28 @@ mod tests {
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
 
-        let mut seq = Sequence::new();
+        let mut delete_before_add_seq = Sequence::new();
 
         let mut workload_mock = MockWorkload::default();
         workload_mock
             .expect_delete()
             .once()
-            .in_sequence(&mut seq)
+            .in_sequence(&mut delete_before_add_seq)
             .return_once(move || Ok(()));
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
             .expect_create_workload()
             .once()
-            .in_sequence(&mut seq)
+            .withf(|workload_spec, control_interface, to_server| {
+                workload_spec.name == *WORKLOAD_2_NAME
+                    && control_interface.is_some()
+                    && !to_server.is_closed()
+            })
+            .in_sequence(&mut delete_before_add_seq)
             .return_once(|_, _, _| MockWorkload::default());
 
-        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
+        let (mut server_receiver, mut runtime_manager) = RuntimeManagerBuilder::default()
             .with_runtime(
                 RUNTIME_NAME,
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
@@ -757,6 +776,7 @@ mod tests {
                 )],
             )
             .await;
+        server_receiver.close();
 
         assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_2_NAME));
@@ -774,8 +794,7 @@ mod tests {
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
 
-        let mut runtime_facade_mock = MockRuntimeFacade::new();
-        runtime_facade_mock.checkpoint();
+        let runtime_facade_mock = MockRuntimeFacade::new();
         let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
             .with_runtime(
                 RUNTIME_NAME,
@@ -789,6 +808,9 @@ mod tests {
         workload_mock
             .expect_update()
             .once()
+            .withf(|workload_spec, control_interface| {
+                workload_spec.name == *WORKLOAD_1_NAME && control_interface.is_some()
+            })
             .return_once(move |_, _| Ok(()));
 
         runtime_manager
@@ -825,9 +847,14 @@ mod tests {
         runtime_facade_mock
             .expect_create_workload()
             .once()
+            .withf(|workload_spec, control_interface, to_server| {
+                workload_spec.name == *WORKLOAD_1_NAME
+                    && control_interface.is_some()
+                    && !to_server.is_closed()
+            })
             .return_once(|_, _, _| MockWorkload::default());
 
-        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
+        let (mut server_receiver, mut runtime_manager) = RuntimeManagerBuilder::default()
             .with_runtime(
                 RUNTIME_NAME,
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
@@ -846,7 +873,134 @@ mod tests {
                 vec![],
             )
             .await;
+        server_receiver.close();
 
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+    }
+
+    #[tokio::test]
+    async fn utest_forward_complete_state() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let runtime_facade_mock = MockRuntimeFacade::new();
+
+        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
+            .with_runtime(
+                RUNTIME_NAME,
+                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+            )
+            .build();
+
+        let mut mock_workload = MockWorkload::default();
+        mock_workload
+            .expect_send_complete_state()
+            .once()
+            .withf(|complete_state| {
+                complete_state.request_id == REQUEST_ID
+                    && complete_state
+                        .workload_states
+                        .first()
+                        .unwrap()
+                        .workload_name
+                        == WORKLOAD_1_NAME
+            })
+            .return_once(move |_| Ok(()));
+
+        runtime_manager
+            .workloads
+            .insert(WORKLOAD_1_NAME.to_string(), mock_workload);
+
+        runtime_manager
+            .forward_complete_state(generate_test_complete_state(
+                format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
+                vec![generate_test_workload_spec_with_param(
+                    AGENT_NAME.to_string(),
+                    WORKLOAD_1_NAME.to_string(),
+                    RUNTIME_NAME.to_string(),
+                )],
+            ))
+            .await;
+    }
+
+    #[tokio::test]
+    async fn utest_forward_complete_state_fails() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let runtime_facade_mock = MockRuntimeFacade::new();
+
+        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
+            .with_runtime(
+                RUNTIME_NAME,
+                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+            )
+            .build();
+
+        let mut mock_workload = MockWorkload::default();
+        mock_workload
+            .expect_send_complete_state()
+            .once()
+            .withf(|complete_state| {
+                complete_state.request_id == REQUEST_ID
+                    && complete_state
+                        .workload_states
+                        .first()
+                        .unwrap()
+                        .workload_name
+                        == WORKLOAD_1_NAME
+            })
+            .return_once(move |_| {
+                Err(RuntimeError::CompleteState(
+                    "failed to send complete state".to_string(),
+                ))
+            });
+
+        runtime_manager
+            .workloads
+            .insert(WORKLOAD_1_NAME.to_string(), mock_workload);
+
+        runtime_manager
+            .forward_complete_state(generate_test_complete_state(
+                format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
+                vec![generate_test_workload_spec_with_param(
+                    AGENT_NAME.to_string(),
+                    WORKLOAD_1_NAME.to_string(),
+                    RUNTIME_NAME.to_string(),
+                )],
+            ))
+            .await;
+    }
+
+    #[tokio::test]
+    async fn utest_forward_complete_state_not_called_because_workload_not_found() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let runtime_facade_mock = MockRuntimeFacade::new();
+
+        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
+            .with_runtime(
+                RUNTIME_NAME,
+                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+            )
+            .build();
+
+        let mut mock_workload = MockWorkload::default();
+        mock_workload.expect_send_complete_state().never();
+
+        runtime_manager
+            .forward_complete_state(generate_test_complete_state(
+                format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
+                vec![generate_test_workload_spec_with_param(
+                    AGENT_NAME.to_string(),
+                    WORKLOAD_1_NAME.to_string(),
+                    RUNTIME_NAME.to_string(),
+                )],
+            ))
+            .await;
     }
 }
