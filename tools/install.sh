@@ -195,7 +195,7 @@ workloads:
 #     agent: agent_A
 #     restart: true
 #     updateStrategy: AT_MOST_ONCE
-#     accessRights:
+#     accessRights: # 
 #       allow: []
 #       deny: []
 #     tags:
@@ -203,9 +203,7 @@ workloads:
 #         value: Ankaios team
 #     runtimeConfig: |
 #       image: docker.io/nginx:latest
-#       ports:
-#       - containerPort: 80
-#         hostPort: 8081
+#       commandOptions: ["-p", "8081:80"]
 EOF
     echo "Created sample startup config in $FILE_STARTUP_STATE."
 fi

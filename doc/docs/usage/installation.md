@@ -21,19 +21,24 @@ There a different ways to install Ankaios.
 ### Setup with script
 
 The recommend way to install Ankaios is using the installation script.
-To install the latest pre-built version of Ankaios into the default installation path `/usr/local/bin`, please run the following command:
+To install the latest release version of Ankaios, please run the following command:
 
 ```shell
 curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh | bash -
 ```
 
 The installation process automatically detects the platform and downloads the appropriate binaries.
+The default installation path for the binaries is `/usr/local/bin` but can be changed.
+The installation also creates systemd unit files and an uninstall script.
 
 Supported platforms: `linux/amd64`, `linux/arm64`
 
 !!! note
 
-    The script requires root privileges to install the pre-built binaries into the default installation path `/usr/local/bin`. You can set a custom installation path if only non-root privileges are available.
+    The script requires root privileges to install the pre-built binaries into
+    the default installation path `/usr/local/bin` and also for systemd
+    integration. You can set a custom installation path and disable systemd unit
+    file generation if only non-root privileges are available.
 
 The following table shows the optional arguments that can be passed to the script:
 
@@ -41,6 +46,9 @@ The following table shows the optional arguments that can be passed to the scrip
 | --- | --- |
 | -v <version\> | e.g. `v0.1.0`, default: latest version |
 | -i <install-path\> | File path where Ankaios will be installed, default: `/usr/local/bin` |
+| -t <install-type\> | Installation type for systemd integration: `server`, `agent`, `none` or `both` (default) |
+| -s <server-options\> | Options which will be passed to the Ankaios server. Default `--startup-config /etc/ank/state.yaml` |
+| -a <agent-options\> | Options which will be passed to the Ankaios agent. Default `--name agent_A` |
 
 To install a specific version run the following command and substitute `<version>` with a specific version tag e.g. `v0.1.0`:
 
@@ -49,6 +57,14 @@ curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/download/<version>
 ```
 
 For available versions see the [list of releases](https://github.com/eclipse-ankaios/ankaios/tags).
+
+### Uninstall Ankaios
+
+If Ankaios has been installed with the installation script, it can be uninstalled with:
+
+```shell
+ank-uninstall.sh
+```
 
 ### Manual download of binaries
 
