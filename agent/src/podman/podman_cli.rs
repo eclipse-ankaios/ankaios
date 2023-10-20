@@ -1,6 +1,6 @@
 use common::objects::ExecutionState;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 #[cfg_attr(test, mockall_double::double)]
 use super::cli_command::CliCommand;
@@ -51,24 +51,15 @@ pub async fn play_kube(kube_yml: &[u8]) -> Result<String, String> {
     Ok(result)
 }
 
-pub async fn list_all_workloads_by_label(
-    key: &str,
-    value: &str,
-    result_format: &str,
-) -> Result<Vec<String>, String> {
-    log::debug!(
-        "Listing all workloads for: {}='{}' with format '{}'",
-        key,
-        value,
-        result_format
-    );
+pub async fn list_workload_ids_by_label(key: &str, value: &str) -> Result<Vec<String>, String> {
+    log::debug!("Listing workload ids for: {}='{}'", key, value,);
     let output = CliCommand::new(PODMAN_CMD)
         .args(&[
             "ps",
             "-a",
             "--filter",
             &format!("label={key}={value}"),
-            &format!("--format={}", result_format),
+            "--format={{.ID}}",
         ])
         .exec()
         .await?;
@@ -77,6 +68,31 @@ pub async fn list_all_workloads_by_label(
         .map(|x| x.trim().into())
         .filter(|x: &String| !x.is_empty())
         .collect())
+}
+
+pub async fn list_workload_names_by_label(key: &str, value: &str) -> Result<Vec<String>, String> {
+    log::debug!("Listing workload names for: {}='{}'", key, value,);
+    let output = CliCommand::new(PODMAN_CMD)
+        .args(&[
+            "ps",
+            "-a",
+            "--filter",
+            &format!("label={key}={value}"),
+            "--format=json",
+        ])
+        .exec()
+        .await?;
+
+    let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
+        .map_err(|err| format!("Could not parse podman output:{}", err))?;
+
+    let mut names: Vec<String> = Vec::new();
+    for mut podman_info in res {
+        if let Some(name_val) = podman_info.labels.get_mut("name") {
+            names.push(name_val.to_string());
+        }
+    }
+    Ok(names)
 }
 
 pub async fn run_workload(
@@ -109,7 +125,7 @@ pub async fn run_workload(
 
     if let Some(path) = control_interface_path {
         args.push(
-            vec![
+            [
                 "--mount=type=bind,source=",
                 &path.to_string_lossy(),
                 ",destination=",
@@ -236,6 +252,7 @@ pub async fn remove_workloads_by_id(workload_id: &str) -> Result<(), String> {
 struct PodmanContainerInfo {
     state: PodmanContainerState,
     exit_code: u8,
+    labels: HashMap<String, String>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -258,6 +275,8 @@ enum PodmanContainerState {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use common::objects::ExecutionState;
 
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
@@ -303,7 +322,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_list_all_workloads_success() {
+    async fn utest_list_workload_ids_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         super::CliCommand::new_expect(
@@ -319,12 +338,12 @@ mod tests {
                 .exec_returns(Ok("result1\nresult2\n".into())),
         );
 
-        let res = super::list_all_workloads_by_label("name", "test_agent", r"{{.ID}}").await;
+        let res = super::list_workload_ids_by_label("name", "test_agent").await;
         assert!(matches!(res, Ok(res) if res == vec!["result1", "result2"]));
     }
 
     #[tokio::test]
-    async fn utest_list_all_workloads_fail() {
+    async fn utest_list_workload_ids_fail() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         super::CliCommand::new_expect(
@@ -340,8 +359,75 @@ mod tests {
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
-        let res = super::list_all_workloads_by_label("name", "test_agent", r"{{.ID}}").await;
+        let res = super::list_workload_ids_by_label("name", "test_agent").await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
+    }
+
+    #[tokio::test]
+    async fn utest_list_workload_names_success() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&[
+                    "ps",
+                    "-a",
+                    "--filter",
+                    "label=name=test_agent",
+                    "--format=json",
+                ])
+                .exec_returns(Ok(generate_container_info_json(
+                    PodmanContainerState::Running,
+                    0,
+                    "workload_name".into(),
+                ))),
+        );
+
+        let res = super::list_workload_names_by_label("name", "test_agent").await;
+        assert_eq!(res, Ok(vec!["workload_name".into()]));
+    }
+
+    #[tokio::test]
+    async fn utest_list_workload_names_podman_error() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&[
+                    "ps",
+                    "-a",
+                    "--filter",
+                    "label=name=test_agent",
+                    "--format=json",
+                ])
+                .exec_returns(Err("simulated error".to_string())),
+        );
+
+        let res = super::list_workload_names_by_label("name", "test_agent").await;
+        assert_eq!(res, Err("simulated error".to_string()));
+    }
+
+    #[tokio::test]
+    async fn utest_list_workload_names_broken_response() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&[
+                    "ps",
+                    "-a",
+                    "--filter",
+                    "label=name=test_agent",
+                    "--format=json",
+                ])
+                .exec_returns(Ok("non-json response from podman".to_string())),
+        );
+
+        let res = super::list_workload_names_by_label("name", "test_agent").await;
+        assert!(matches!(res, Err(msg) if msg.starts_with("Could not parse podman output") ));
     }
 
     #[tokio::test]
@@ -458,6 +544,7 @@ mod tests {
                 .exec_returns(Ok(generate_container_info_json(
                     PodmanContainerState::Created,
                     0,
+                    "workload_name".into(),
                 ))),
         );
 
@@ -476,6 +563,7 @@ mod tests {
                 .exec_returns(Ok(generate_container_info_json(
                     PodmanContainerState::Exited,
                     0,
+                    "workload_name".into(),
                 ))),
         );
 
@@ -494,6 +582,7 @@ mod tests {
                 .exec_returns(Ok(generate_container_info_json(
                     PodmanContainerState::Exited,
                     1,
+                    "workload_name".into(),
                 ))),
         );
 
@@ -512,6 +601,7 @@ mod tests {
                 .exec_returns(Ok(generate_container_info_json(
                     PodmanContainerState::Running,
                     0,
+                    "workload_name".into(),
                 ))),
         );
 
@@ -530,6 +620,7 @@ mod tests {
                 .exec_returns(Ok(generate_container_info_json(
                     PodmanContainerState::Paused,
                     0,
+                    "workload_name".into(),
                 ))),
         );
 
@@ -599,7 +690,16 @@ mod tests {
         assert_eq!(res, Ok(()));
     }
 
-    fn generate_container_info_json(state: PodmanContainerState, exit_code: u8) -> String {
-        serde_json::to_string(&vec![PodmanContainerInfo { state, exit_code }]).unwrap()
+    fn generate_container_info_json(
+        state: PodmanContainerState,
+        exit_code: u8,
+        workload_name: String,
+    ) -> String {
+        serde_json::to_string(&vec![PodmanContainerInfo {
+            state,
+            exit_code,
+            labels: HashMap::from([("name".to_string(), workload_name)]),
+        }])
+        .unwrap()
     }
 }
