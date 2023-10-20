@@ -7,8 +7,10 @@ use crate::{
     state_checker::StateChecker,
 };
 use common::{
-    commands::CompleteState, execution_interface::ExecutionCommand, objects::WorkloadSpec,
-    state_change_interface::StateChangeSender,
+    commands::CompleteState,
+    execution_interface::ExecutionCommand,
+    objects::{ExecutionState, WorkloadSpec},
+    state_change_interface::{StateChangeSender, StateChangeInterface}, std_extensions::IllegalStateResult,
 };
 
 #[cfg(test)]
@@ -79,6 +81,7 @@ impl Workload {
 
     pub async fn await_new_command<WorkloadId, StChecker>(
         workload_name: String,
+        agent_name: String,
         initial_workload_id: Option<WorkloadId>,
         initial_state_checker: Option<StChecker>,
         update_state_tx: StateChangeSender,
@@ -98,12 +101,27 @@ impl Workload {
                         if let Err(err) = runtime.delete_workload(&old_id).await {
                             log::warn!("Could not stop workload '{}': '{}'", workload_name, err);
                         } else {
+                            if let Some(old_checker) = state_checker.take() {
+                                old_checker.stop_checker().await;
+                            }
+
+                            // Successfully stopped the workload and the state checker. Send a removed on the channel
+                            update_state_tx
+                                .update_workload_state(vec![common::objects::WorkloadState {
+                                    agent_name,
+                                    workload_name,
+                                    execution_state: ExecutionState::ExecRemoved,
+                                }])
+                                .await
+                                .unwrap_or_illegal_state();
+
                             log::debug!("Stop workload complete");
+                            return;
                         }
                     } else {
                         log::debug!("Workload '{}' already gone.", workload_name);
+                        return;
                     }
-                    return;
                 }
                 // [impl->swdd~agent-workload-tasks-executes-update~1]
                 Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {

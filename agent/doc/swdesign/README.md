@@ -693,6 +693,7 @@ Status: approved
 When the control task started during the creation of the workload object receives a delete command, the workload task shall:
 * delete the old workload via the corresponding runtime connector
 * stop the state checker for the workload
+* send a removed workload state for that workload
 * stop the workload control task
 
 Comment:
@@ -700,6 +701,8 @@ For details on the runtime connector specific actions, e.g., delete, see the spe
 
 Rationale:
 The workload task allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
+As the state checker for the workload is stopped, we cannot be sure that the removed workload state is correctly sent to the server before the state checker is stopped. 
+For that reason the removed state is explicitly sent, even if it could be sent twice this way.
 
 Tags: 
 - WorkloadObject

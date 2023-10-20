@@ -9,12 +9,13 @@ use common::{
     std_extensions::IllegalStateResult,
 };
 
-// [impl->swdd~podman-workload-monitor-interval~1]
+// [impl->swdd~agent-provides-generic-state-checker-implementation~1]
 const STATUS_CHECK_INTERVAL_MS: u64 = 1000;
 
 #[derive(Debug)]
 pub struct GenericPollingStateChecker {
-    pub task_handle: JoinHandle<()>,
+    workload_name: String,
+    task_handle: JoinHandle<()>,
 }
 
 #[async_trait]
@@ -22,6 +23,7 @@ impl<WorkloadId> StateChecker<WorkloadId> for GenericPollingStateChecker
 where
     WorkloadId: Send + Sync + 'static,
 {
+    // [impl->swdd~agent-provides-generic-state-checker-implementation~1]
     fn start_checker(
         workload_spec: &WorkloadSpec,
         workload_id: WorkloadId,
@@ -29,6 +31,7 @@ where
         state_checker: impl RuntimeStateChecker<WorkloadId>,
     ) -> Self {
         let workload_spec = workload_spec.clone();
+        let workload_name = workload_spec.name.clone();
         let task_handle = tokio::spawn(async move {
             let mut last_state = ExecutionState::ExecUnknown;
             let mut interval = time::interval(Duration::from_millis(STATUS_CHECK_INTERVAL_MS));
@@ -53,18 +56,24 @@ where
                         }])
                         .await
                         .unwrap_or_illegal_state();
-
-                    if last_state == ExecutionState::ExecRemoved {
-                        break;
-                    }
                 }
             }
         });
 
-        GenericPollingStateChecker { task_handle }
+        GenericPollingStateChecker {
+            workload_name,
+            task_handle,
+        }
     }
 
     async fn stop_checker(self) {
+        drop(self);
+    }
+}
+
+impl Drop for GenericPollingStateChecker {
+    fn drop(&mut self) {
         self.task_handle.abort();
+        log::trace!("Over and out for workload '{}'", self.workload_name);
     }
 }

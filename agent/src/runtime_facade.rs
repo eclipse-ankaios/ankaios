@@ -98,6 +98,7 @@ impl<
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
 
         let workload_name = workload_spec.name.clone();
+        let agent_name = workload_spec.agent.clone();
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
         let control_interface_path = control_interface
@@ -122,6 +123,7 @@ impl<
 
             Workload::await_new_command(
                 workload_name,
+                agent_name,
                 workload_id,
                 state_checker,
                 update_state_tx,
@@ -145,6 +147,7 @@ impl<
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
 
         let workload_name = new_workload_spec.name.clone();
+        let agent_name = new_workload_spec.agent.clone();
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
         let control_interface_path = control_interface
@@ -193,6 +196,7 @@ impl<
             // replace workload_id and state_checker through Option directly and pass in None if create_workload fails
             Workload::await_new_command(
                 workload_name,
+                agent_name,
                 workload_id,
                 state_checker,
                 update_state_tx,
@@ -215,6 +219,7 @@ impl<
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
 
         let workload_name = workload_spec.name.clone();
+        let agent_name = workload_spec.agent.clone();
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
 
@@ -248,6 +253,7 @@ impl<
 
             Workload::await_new_command(
                 workload_name,
+                agent_name,
                 workload_id.ok(),
                 state_checker,
                 update_state_tx,
