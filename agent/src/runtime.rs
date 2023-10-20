@@ -15,6 +15,7 @@ pub enum RuntimeError {
     Update(String),
     Delete(String),
     CompleteState(String),
+    List(String),
 }
 
 impl Display for RuntimeError {
@@ -31,6 +32,9 @@ impl Display for RuntimeError {
             }
             RuntimeError::CompleteState(msg) => {
                 write!(f, "Could not forward complete state '{}'", msg)
+            }
+            RuntimeError::List(msg) => {
+                write!(f, "Could not get a list of workloads '{}'", msg)
             }
         }
     }
