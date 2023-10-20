@@ -33,26 +33,37 @@ The following diagram shows the structural view of the Ankaios Agent:
 
 ### AgentManager
 
-The AgentManager is the main component in the Ankaios Agent and is responsible, amongst others, for pushing Workloads to the runtime adapters and serving the Ankaios Control Interface by authorizing requests from the workloads to the Ankaios Server.
+The AgentManager is the entry component in the Ankaios agent and is responsible, amongst others, for receiving commands from the server and forwarding them to the RuntimeManager and for authorizing requests from the workloads to the Ankaios Server.
 
-For simplicity, the initial setup of the Ankaios Agent done in the main.rs is also counted as part of this unit.
+The initial setup of the Ankaios agent is done in the main.rs is also counted as part of this unit.
 
-### RuntimeAdapter
+### RuntimeManager
 
-The RuntimeAdapter provides common functionality used by all runtime adapters.
+The RuntimeManager holds a list of wrapped in a RuntimeFacade supported runtime connectors and a list of running workloads. It is also responsible for the handling the update workload calls including the workload reuse and the logic of translating the added and deleted workload lists into commands to a RuntimeFacade or a WorkloadObject.
 
-### PodmanAdapter
+### RuntimeFacade
 
-The PodmanAdapter is a RuntimeAdapter for Podman. It is responsible for dealing with the podman Workloads (start, stop).
+The RuntimeFacade wraps some common actions shared between all runtime connectors, s.t. they don't need to be implemented multiple times. The RuntimeFacade is responsible for creating, resuming and replacing a WorkloadObject including the start of the workload control task. The RuntimeFacade is also responsible for providing functionality for deleting a workloads that do not have an internal WorkloadObject (found unneeded workloads started in a previous execution of the Ankaios agent).
 
-### PodmanWorkload
+### WorkloadObject
 
-The PodmanWorkload uses Podman REST API to process events from the PodmanAdapter.
-The PodmanWorkload also checks periodically status of the podman workload and reports changes of the status. 
+A WorkloadObject represents a workload inside the Ankaios agent. It holds the control interface and the sender for the communication channel with the workload control task. The WorkloadObject is also responsible for managing the workload control task.
 
 ### ParameterStorage
 
 Stores information which the Agent gets from the Server. Currently the storage stores the workload status and mapping from workload name to runtime name.
+
+### ControlInterface
+
+The ControlInterface is responsible for setting up the communication interface between a workload and the Ankaios agent. It translates between the provided to the workload pipes and the internal Ankaios communication channels.
+
+### PodmanRuntime connector
+
+The PodmanRuntime connector implements the runtime connector trait for Podman. It serves as glue between Ankaios and the Podman container engine for running Podman containers.
+
+### PodmanKubeRuntime connector
+
+The PodmanKubeRuntime connector implements the runtime connector trait for 'podman play kube'. It serves as glue between Ankaios and the Podman container engine for running Kubernetes manifest files via the Podman container engine. It is implemented as a separate engine as the functionlaity is very specific.
 
 ### External Libraries
 
@@ -82,10 +93,11 @@ Status: approved
 
 The Ankaios Agent shall use the given interfaces and channels to communicate with the Server.
 
+Rationale:
+The Server is "only source of true" and ensures that Agents are in the consistent state.
+
 Tags:
 - AgentManager
-
-Rationale: The Server is "only source of true" and ensures that Agents are in the consistent state.
 
 Needs:
 - impl
@@ -157,7 +169,8 @@ Status: approved
 
 The Ankaios Agent shall use asynchronous communication channels from the Common library.
 
-Rationale: The communication channels are especially needed in order to abstract the Communication Middleware.
+Rationale:
+The communication channels are especially needed in order to abstract the Communication Middleware.
 
 Tags:
 - AgentManager
@@ -603,15 +616,18 @@ Needs:
 Status: approved
 
 When the control task started during the creation of the workload object receives an update command, the workload task shall:
-* delete the old workload via the corresponding runtime
+* delete the old workload via the corresponding runtime connector
 * stop the state checker for the workload
-* create a new workload via the corresponding runtime (which creates and starts a state checker)
+* create a new workload via the corresponding runtime connector (which creates and starts a state checker)
 * store the new Id and reference to the state checker inside the workload control task
+
+Comment:
+For details on the runtime connector specific actions, e.g., delete, see the specific runtime connector workflows.
 
 Rationale:
 The workload task allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
 
-Tags: 
+Tags:
 - WorkloadObject
 
 Needs:
@@ -671,9 +687,12 @@ Needs:
 Status: approved
 
 When the control task started during the creation of the workload object receives a delete command, the workload task shall:
-* delete the old workload via the corresponding runtime
+* delete the old workload via the corresponding runtime connector
 * stop the state checker for the workload
 * stop the workload control task
+
+Comment:
+For details on the runtime connector specific actions, e.g., delete, see the specific runtime connector workflows.
 
 Rationale:
 The workload task allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
@@ -717,6 +736,25 @@ Needs:
 - impl
 - utest
 
+#### Runtime connector workflows
+
+Ankaios supports multiple runtimes by providing a runtime connector trait that specifies the actions that need to be supported by the ....
+
+TODO: one requirement for which functions need to be supported:
+* get name
+* create
+* ...
+
+##### Podman runtime connector
+
+TODO describe the functions of the specific runtime connector
+
+
+##### Podman-kube runtime connector
+
+TODO describe the functions of the specific runtime connector
+
+
 ##### Adding (creating) a new workload via the podman runtime
 
 The following diagram shows the steps taken by the podman runtime to create a workload:
@@ -738,7 +776,7 @@ Needs:
 - impl
 - utest
 
-###### PodmanWorkload pulls a container
+##### PodmanWorkload pulls a container
 `swdd~podman-workload-pulls-container~2`
 
 Status: approved
@@ -878,7 +916,7 @@ Needs:
 - utest
 - stest
 
-#### Handling UpdateWorkloadState
+### Handling UpdateWorkloadState
 
 This section describes how Workload states are handled inside the Ankaios Agent and how they get forwarded to the Ankaios Server.
 
@@ -912,7 +950,8 @@ The PodmanWorkload shall map the container state returned by the Podman into Wor
 | Exited                 |        != 0        |     Failed     |
 | (anything else)        |         -          |    Unknown     |
 
-Comment: This table shows the container states only. The Podman also supports "pod states" which are currently out of the scope of this document, but could be handled later in the project.
+Comment:
+This table shows the container states only. The Podman also supports "pod states" which are currently out of the scope of this document, but could be handled later in the project.
 
 Tags:
 - PodmanWorkload
@@ -977,11 +1016,12 @@ Status: approved
 
 The Ankaios Agent shall accept an `UpdateWorkloadState` message from the server and store the contained information.
 
+Comment:
+The `UpdateWorkloadState` contains workload states of other workloads. The Workload State "removed" is the default and Node-Workload pairs of this type can be represented by not being stored.
+
 Tags:
 - AgentManager
 - ParameterStorage
-
-Comment: The `UpdateWorkloadState` contains workload states of other workloads. The Workload State "removed" is the default and Node-Workload pairs of this type can be represented by not being stored.
 
 Needs:
 - impl
@@ -1000,12 +1040,13 @@ Status: approved
 
 When sending or receiving message via the Control Interface pipes, Ankaios Agent uses length delimited protobuf encoding.
 
+Comment: 
+A length delimited protobuf message, is the protobuf encoded message preceded by the size of the message in bytes encoded as protobuf varint.
+This size excludes the size prefix.
+
 Tags:
 - AgentManager
 - ControlInterface
-
-Comment: A length delimited protobuf message, is the protobuf encoded message preceded by the size of the message in bytes encoded as protobuf varint.
-This size excludes the size prefix.
 
 Needs:
 - impl
@@ -1049,12 +1090,13 @@ Status: approved
 When forwarding Control Interface requests from a Workload to the Ankaios server,
 the Ankaios Agents shall add the name of the Workload as prefix to the request_id of the Control Interface request.
 
+Comment:
+The prefix is separated from the request_id by a "@" symbol.
+This symbol can be used to remove the Workload Name from the request_id.
+
 Tags:
 - AgentManager
 - ControlInterface
-
-Comment: The prefix is separated from the request_id by a "@" symbol.
-This symbol can be used to remove the Workload Name from the request_id.
 
 Needs:
 - impl
@@ -1111,11 +1153,12 @@ Status: approved
 
 The Ankaios Agent shall ensure, that Control Interface output pipes are opened and messages are read.
 
+Comment:
+If the Ankaios Agent does not open and read the Control Interface output pipes, a Workload could block, trying to write the output pipe.
+
 Tags:
 - AgentManager
 - ControlInterface
-
-Comment: If the Ankaios Agent does not open and read the Control Interface output pipes, a Workload could block, trying to write the output pipe.
 
 Needs:
 - impl
