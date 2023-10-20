@@ -63,7 +63,11 @@ The PodmanRuntime connector implements the runtime connector trait for Podman. I
 
 ### PodmanKubeRuntime connector
 
-The PodmanKubeRuntime connector implements the runtime connector trait for 'podman play kube'. It serves as glue between Ankaios and the Podman container engine for running Kubernetes manifest files via the Podman container engine. It is implemented as a separate engine as the functionlaity is very specific.
+The PodmanKubeRuntime connector implements the runtime connector trait for 'podman play kube'. It serves as glue between Ankaios and the Podman container engine for running Kubernetes manifest files via the Podman container engine. It is implemented as a separate engine as the functionality is very specific.
+
+### GenericPollingStateChecker
+
+The GenericPollingStateChecker is a general purpose StateChecker that can be used by a runtime connector to make polling requests for workload state as predefined intervals.
 
 ### External Libraries
 
@@ -916,16 +920,74 @@ Needs:
 - utest
 - stest
 
-### Handling UpdateWorkloadState
+### Getting workload states
 
-This section describes how Workload states are handled inside the Ankaios Agent and how they get forwarded to the Ankaios Server.
+This section describes how workload states are sampled inside the Ankaios agent and how they get forwarded to the Ankaios server.
 
-##### Workload State in Agent
+It is required that each runtime connector delivers a state checker when a workload is created. Additionally, the runtime connector provides an extra method for starting a checker for workloads that are resumed by the WorkloadFacade. 
+
+How the state checker is implemented is up to the specific runtime connector, given that the state checker trait is implemented. The state checker trait requires a state getter object to be provided. The object must implement the runtime state getter trait and is specific to the runtime connector. The provided state getter object is called inside the state checker.
+The extra complexity introduced by having two traits is needed in order to provide common state checker implementations that can be reused among runtime connectors. One of these checkers is the GenericPollingStateChecker.
+
+#### General state checker interface
+`swdd~agent-general-state-checker-interface~1`
+
+Status: approved
+
+The state checker interface returned by the runtime connectors shall: 
+* accept a specific runtime state getter object 
+* support a stop action
+
+Rationale:
+The specific runtime state getter allows the implementation of common state checkers.
+The stop action is needed in order to stop the state checker when a workload is deleted.
+
+Tags: 
+- RuntimeInterfaces
+
+Needs:
+- impl
+
+#### General runtime state getter interface
+`swdd~agent-general-runtime-state-getter-interface~1`
+
+Status: approved
+
+The state getter interface shall allow getting the current state of a workload for a given Id.
+
+Tags: 
+- RuntimeInterfaces
+
+Needs:
+- impl
+
+#### GenericPollingStateChecker implementation
+`swdd~agent-provides-generic-state-checker-implementation~1`
+
+Status: approved
+
+A GenericPollingStateChecker implementation is provided that polls the workload state every second via the provided runtime state getter.
+
+Rationale:
+The GenericPollingStateChecker helps avoiding code duplication.
+
+Tags: 
+- GenericPollingStateChecker
+
+Needs:
+- impl
+- utest
+
+#### Podman runtime connector specific state getter
+
+TODO
+
+##### Workload state in agent
 `swdd~podman-workload-state~1`
 
 Status: approved
 
-For each Agent-Workload pair, the PodmanWorkload can be in one of the following states: pending, running, succeeded, failed, unknown, removed.
+For each agent-workload pair, the PodmanWorkload can be in one of the following states: pending, running, succeeded, failed, unknown, removed.
 
 Tags:
 - PodmanWorkload
@@ -1003,9 +1065,13 @@ Needs:
 - impl
 
 
-### Storing a Workload State
+#### Podman-kube runtime connector specific state getter
 
-After the Ankaios Agent is started it receives an information about Workload States of other Workloads running in another Agents:
+TODO
+
+### Handling UpdateWorkloadState
+
+After the Ankaios agent is started it receives an information about Workload States of other Workloads running in other agents. This information is needed for dependency management inside the Ankaios cluster.
 
 ![Storing a Workload State](plantuml/seq_store_workload_state.svg)
 

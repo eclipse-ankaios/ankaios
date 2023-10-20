@@ -5,11 +5,13 @@ use common::{
     state_change_interface::StateChangeSender,
 };
 
+// [impl->swdd~agent-general-runtime-state-getter-interface~1]
 #[async_trait]
 pub trait RuntimeStateChecker<WorkloadId>: Send + Sync + 'static {
-    async fn get_state(&self, instance_name: &WorkloadId) -> ExecutionState;
+    async fn get_state(&self, workload_id: &WorkloadId) -> ExecutionState;
 }
 
+// [impl->swdd~agent-general-state-checker-interface~1]
 #[async_trait]
 pub trait StateChecker<WorkloadId> {
     fn start_checker(
