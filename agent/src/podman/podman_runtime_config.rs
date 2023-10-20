@@ -30,6 +30,8 @@ pub struct PodmanRuntimeConfig {
     pub remove: bool,
     #[serde(default)]
     pub mounts: Vec<Mount>,
+    #[serde(rename = "networkMode")]
+    pub network_mode: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize)]

@@ -12,3 +12,6 @@ dist
 *.profdata
 **/coverage
 .cache
+
+# ignore python data
+__pycache__
