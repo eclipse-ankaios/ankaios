@@ -78,6 +78,7 @@ impl<
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     > RuntimeFacade for GenericRuntimeFacade<WorkloadId, StChecker>
 {
+    // [impl->swdd~agent-facade-forwards-list-reusable-workloads-call~1]
     async fn get_reusable_running_workloads(
         &self,
         agent_name: &AgentName,

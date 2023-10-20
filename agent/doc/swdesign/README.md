@@ -299,7 +299,7 @@ Needs:
 - impl
 - utest
 
-###### RuntimeManager stores Workload in the list of running workloads
+#### RuntimeManager stores Workload in the list of running workloads
 `swdd~agent-stores-running-workload~1`
 
 Status: approved
@@ -359,6 +359,25 @@ Tags:
 Needs:
 - impl
 - utest
+
+##### RuntimeFacade forwards list reusable workloads call
+`swdd~agent-facade-forwards-list-reusable-workloads-call~1`
+
+Status: approved
+
+When receiving a call to list all reusable workloads by the wrapped runtime, the RuntimeFacade shall directly forward the call and return the list.
+
+Comment:
+No decoupling is done here and we wait for the list to be build in order to prevent race conditions with calls from the server.
+
+Tags: 
+- RuntimeFacade
+
+Needs:
+- impl
+- utest
+
+
 
 ##### RuntimeManager handles existing workloads starts new only if not found
 `swdd~agent-existing-workloads-starts-new-if-not-found~1`
@@ -524,7 +543,7 @@ After the deleted Workloads are handled, the Ankaios Agent goes through the list
 
 ![Handling subsequent UpdateWorkload - added Workloads](plantuml/seq_update_workload_subsequent_added.svg)
 
-###### Agent handles deleted workloads before added Workloads
+##### Agent handles deleted workloads before added Workloads
 `swdd~agent-handle-deleted-before-added-workloads~1`
 
 Status: approved
@@ -544,7 +563,7 @@ Needs:
 - impl
 - utest
 
-###### Agent updates deleted and added workloads
+##### Agent updates deleted and added workloads
 `swdd~agent-updates-deleted-and-added-workloads~1`
 
 Status: approved
@@ -561,7 +580,7 @@ Needs:
 - impl
 - utest
 
-###### Workload handles update command
+##### Workload handles update command
 `swdd~agent-workload-obj-update-command~1`
 
 Status: approved
@@ -578,7 +597,7 @@ Needs:
 - impl
 - utest
 
-###### Workload task executes update command
+##### Workload task executes update command
 `swdd~agent-workload-tasks-executes-update~1`
 
 Status: approved
@@ -599,7 +618,7 @@ Needs:
 - impl
 - utest
 
-###### Agent adds on update missing workload
+##### Agent adds on update missing workload
 `swdd~agent-add-on-update-missing-workload~1`
 
 Status: approved
@@ -616,7 +635,7 @@ Needs:
 - impl
 - utest
 
-###### Agent deletes workload on command from server
+##### Agent deletes workload on command from server
 `swdd~agent-deletes-workload~1`
 
 Status: approved
@@ -630,7 +649,7 @@ Needs:
 - impl
 - utest
 
-###### Workload handles delete command
+##### Workload handles delete command
 `swdd~agent-workload-obj-delete-command~1`
 
 Status: approved
@@ -646,7 +665,7 @@ Needs:
 - impl
 - utest
 
-###### Workload task executes delete command
+##### Workload task executes delete command
 `swdd~agent-workload-tasks-executes-delete~1`
 
 Status: approved
@@ -667,7 +686,7 @@ Needs:
 - utest
 
 
-###### Agent updates on add known workload
+##### Agent updates on add known workload
 `swdd~agent-update-on-add-known-workload~1`
 
 Status: approved
@@ -684,7 +703,7 @@ Needs:
 - impl
 - utest
 
-###### Agent creates workload
+##### Agent creates workload
 `swdd~agent-added-creates-workload~1`
 
 Status: approved
@@ -778,7 +797,7 @@ Needs:
 - utest
 - stest
 
-#### PodmanWorkload fails to start a container
+###### PodmanWorkload fails to start a container
 `swdd~podman-workload-update-workload-state-on-start-failure~1`
 
 Status: approved
@@ -859,11 +878,11 @@ Needs:
 - utest
 - stest
 
-##### Handling UpdateWorkloadState
+#### Handling UpdateWorkloadState
 
 This section describes how Workload states are handled inside the Ankaios Agent and how they get forwarded to the Ankaios Server.
 
-###### Workload State in Agent
+##### Workload State in Agent
 `swdd~podman-workload-state~1`
 
 Status: approved
@@ -877,7 +896,7 @@ Needs:
 - impl
 - utest
 
-###### PodmanWorkload maps Workload State
+##### PodmanWorkload maps Workload State
 `swdd~podman-workload-maps-state~1`
 
 Status: approved
@@ -902,7 +921,7 @@ Needs:
 - impl
 - utest
 
-###### PodmanWorkload sends Workload State
+##### PodmanWorkload sends Workload State
 `swdd~podman-workload-sends-workload-state~1`
 
 Status: approved
@@ -917,7 +936,7 @@ Needs:
 - utest
 - itest
 
-###### PodmanWorkload monitors the Workload State
+##### PodmanWorkload monitors the Workload State
 `swdd~podman-workload-monitors-workload-state~1`
 
 Status: approved
@@ -931,7 +950,7 @@ Needs:
 - impl
 - utest
 
-###### The interval when PodmanWorkload monitors the Workload State
+##### The interval when PodmanWorkload monitors the Workload State
 `swdd~podman-workload-monitor-interval~1`
 
 Status: approved
