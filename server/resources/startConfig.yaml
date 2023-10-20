@@ -12,9 +12,7 @@ workloads:
         value: Ankaios team
     runtimeConfig: |
       image: docker.io/nginx:latest
-      ports:
-      - containerPort: 80
-        hostPort: 8081
+      commandOptions: ["-p", "8081:80"]
   api_sample:
     runtime: podman
     agent: agent_A
@@ -41,9 +39,8 @@ workloads:
         value: Ankaios team
     runtimeConfig: |
       image: alpine:latest
-      command: ["echo"]
-      args: ["Hello Ankaios"]
-      remove: true
+      commandOptions: [ "--rm"]
+      commandArgs: [ "echo", "Hello Ankaios"]
   hello2:
     runtime: podman
     agent: agent_B
@@ -57,9 +54,7 @@ workloads:
         value: Ankaios team
     runtimeConfig: |
       image: alpine:latest
-      command: ["echo"]
-      args: ["Hello Ankaios"]
-      remove: false
+      commandArgs: [ "echo", "Hello Ankaios"]
   hello3:
     runtime: podman
     agent: agent_B
@@ -73,5 +68,4 @@ workloads:
         value: Ankaios team
     runtimeConfig: |
       image: alpine:latest
-      command: ["echo"]
-      args: ["Hello Ankaios"]
+      commandArgs: [ "echo", "Hello Ankaios"]
