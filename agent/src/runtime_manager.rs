@@ -66,7 +66,7 @@ impl RuntimeManager {
 
     pub async fn handle_update_workload(
         &mut self,
-        added_workloads_vec: Vec<WorkloadSpec>,
+        added_workloads: Vec<WorkloadSpec>,
         deleted_workloads: Vec<DeletedWorkload>,
     ) {
         if !self.initial_workload_list_received {
@@ -79,10 +79,10 @@ impl RuntimeManager {
             }
 
             // [impl->swdd~agent-initial-list-existing-workloads~1]
-            self.handle_initial_update_workload(added_workloads_vec)
+            self.handle_initial_update_workload(added_workloads)
                 .await;
         } else {
-            self.handle_subsequent_update_workload(added_workloads_vec, deleted_workloads)
+            self.handle_subsequent_update_workload(added_workloads, deleted_workloads)
                 .await;
         }
     }
@@ -113,13 +113,13 @@ impl RuntimeManager {
     }
 
     // [impl->swdd~agent-initial-list-existing-workloads~1]
-    async fn handle_initial_update_workload(&mut self, added_workload_vec: Vec<WorkloadSpec>) {
+    async fn handle_initial_update_workload(&mut self, added_workloads: Vec<WorkloadSpec>) {
         log::debug!("Handling initial workload list.");
 
         // create a list per runtime
         let mut added_workloads_per_runtime: HashMap<String, HashMap<String, WorkloadSpec>> =
             HashMap::new();
-        for workload_spec in added_workload_vec {
+        for workload_spec in added_workloads {
             if let Some(workload_map) = added_workloads_per_runtime.get_mut(&workload_spec.runtime)
             {
                 workload_map.insert(workload_spec.name.clone(), workload_spec);
@@ -138,8 +138,8 @@ impl RuntimeManager {
                 .get_reusable_running_workloads(&self.agent_name)
                 .await
             {
-                Ok(running_instance_name_vec) => {
-                    for instance_name in running_instance_name_vec {
+                Ok(running_instance_names) => {
+                    for instance_name in running_instance_names {
                         if let Some(new_workload_spec) = added_workloads_per_runtime
                             .get_mut(runtime_name)
                             .and_then(|map| map.remove(instance_name.workload_name()))
@@ -340,11 +340,11 @@ mod tests {
         test_utils::generate_test_workload_spec_with_param,
     };
     use mockall::{predicate, Sequence};
-    use tokio::sync::mpsc::{channel, Receiver, Sender};
+    use tokio::sync::mpsc::{channel, Receiver};
 
     const BUFFER_SIZE: usize = 20;
     const RUNTIME_NAME: &str = "runtime1";
-    const RUNTIME_NAME_2: &str = "runtime2";
+    // const RUNTIME_NAME_2: &str = "runtime2";
     const AGENT_NAME: &str = "agent_x";
     const WORKLOAD_1_NAME: &str = "workload1";
     const WORKLOAD_2_NAME: &str = "workload2";
@@ -411,7 +411,7 @@ mod tests {
             )
             .build();
 
-        let added_workloads_vec = vec![
+        let added_workloads = vec![
             generate_test_workload_spec_with_param(
                 AGENT_NAME.to_string(),
                 WORKLOAD_1_NAME.to_string(),
@@ -424,7 +424,7 @@ mod tests {
             ),
         ];
         runtime_manager
-            .handle_update_workload(added_workloads_vec, vec![])
+            .handle_update_workload(added_workloads, vec![])
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
@@ -460,13 +460,13 @@ mod tests {
             )
             .build();
 
-        let added_workloads_vec = vec![generate_test_workload_spec_with_param(
+        let added_workloads = vec![generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             "unknown_runtime1".to_string(),
         )];
         runtime_manager
-            .handle_update_workload(added_workloads_vec, vec![])
+            .handle_update_workload(added_workloads, vec![])
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
@@ -515,13 +515,13 @@ mod tests {
             )
             .build();
 
-        let added_workloads_vec = vec![generate_test_workload_spec_with_param(
+        let added_workloads = vec![generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         )];
         runtime_manager
-            .handle_update_workload(added_workloads_vec, vec![])
+            .handle_update_workload(added_workloads, vec![])
             .await;
         server_receiver.close();
 
@@ -562,9 +562,7 @@ mod tests {
             .once()
             .return_once(|_, _, _| MockWorkload::default());
 
-        runtime_facade_mock
-            .expect_create_workload()
-            .never();
+        runtime_facade_mock.expect_create_workload().never();
 
         let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
             .with_runtime(
@@ -573,9 +571,9 @@ mod tests {
             )
             .build();
 
-        let added_workloads_vec = vec![existing_workload1];
+        let added_workloads = vec![existing_workload1];
         runtime_manager
-            .handle_update_workload(added_workloads_vec, vec![])
+            .handle_update_workload(added_workloads, vec![])
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
@@ -627,9 +625,9 @@ mod tests {
             )
             .build();
 
-        let added_workloads_vec = vec![existing_workload];
+        let added_workloads = vec![existing_workload];
         runtime_manager
-            .handle_update_workload(added_workloads_vec, vec![])
+            .handle_update_workload(added_workloads, vec![])
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
