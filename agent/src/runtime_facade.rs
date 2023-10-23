@@ -2,7 +2,6 @@ use async_trait::async_trait;
 use common::{
     objects::{AgentName, WorkloadExecutionInstanceName, WorkloadInstanceName, WorkloadSpec},
     state_change_interface::StateChangeSender,
-    std_extensions::IllegalStateResult,
 };
 #[cfg(test)]
 use mockall::automock;
@@ -12,9 +11,8 @@ use tokio::sync::mpsc;
 use crate::control_interface::PipesChannelContext;
 
 use crate::{
-    runtime::{OwnableRuntime, Runtime, RuntimeError},
+    runtime::{OwnableRuntime, RuntimeError},
     state_checker::StateChecker,
-    workload::WorkloadCommand,
 };
 
 #[cfg_attr(test, mockall_double::double)]

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use common::objects::WorkloadSpec;
 
-use crate::workload_trait::WorkloadError;
+use crate::runtime::RuntimeError;
 
 #[derive(Debug, serde::Deserialize)]
 pub struct PodmanRuntimeConfigCli {
@@ -64,9 +64,9 @@ impl TryFrom<&WorkloadSpec> for PodmanRuntimeConfig {
     }
 }
 
-impl From<TryFromWorkloadSpecError> for WorkloadError {
+impl From<TryFromWorkloadSpecError> for RuntimeError {
     fn from(value: TryFromWorkloadSpecError) -> Self {
-        WorkloadError::StartError(value.0)
+        RuntimeError::Create(value.0)
     }
 }
 

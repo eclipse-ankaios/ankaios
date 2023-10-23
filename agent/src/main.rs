@@ -26,8 +26,6 @@ mod parameter_storage;
 mod podman;
 #[cfg(test)]
 pub mod test_helper;
-mod workload_facade;
-mod workload_trait;
 
 mod generic_polling_state_checker;
 mod runtime;
