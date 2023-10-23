@@ -27,7 +27,6 @@ tokio-stream = "0.1"
 nix = { version = "0.26", features = ["fs", "user"] }
 async-stream = "0.3"
 async-trait = "0.1"
-podman-api = { version = "0.10", default-features = false }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 clap = { version = "4.0", features = ["derive"] }
