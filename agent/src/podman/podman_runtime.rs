@@ -494,7 +494,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_get_state_returns_empty_list() {
+    async fn utest_get_state_returns_removed_on_empty_list() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         FAKE_LIST_STATES_RESULTS
@@ -507,7 +507,7 @@ mod tests {
         };
         let checker: &dyn RuntimeStateChecker<PodmanWorkloadId> = &PodmanStateChecker {};
         let res = checker.get_state(&workload_id).await;
-        assert_eq!(res, ExecutionState::ExecUnknown);
+        assert_eq!(res, ExecutionState::ExecRemoved);
     }
 
     #[tokio::test]
