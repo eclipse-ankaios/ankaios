@@ -79,14 +79,14 @@ impl RuntimeManager {
             }
 
             // [impl->swdd~agent-initial-list-existing-workloads~1]
-            self.handle_initial_update_workload(added_workloads)
-                .await;
+            self.handle_initial_update_workload(added_workloads).await;
         } else {
             self.handle_subsequent_update_workload(added_workloads, deleted_workloads)
                 .await;
         }
     }
 
+    // [impl->swdd~agent-forward-responses-to-control-interface-pipe~1]
     pub async fn forward_complete_state(&mut self, method_obj: CompleteState) {
         // [impl->swdd~agent-uses-id-prefix-forward-control-interface-response-correct-workload~1]
         // [impl->swdd~agent-remove-id-prefix-forwarding-control-interface-response~1]
@@ -344,7 +344,7 @@ mod tests {
 
     const BUFFER_SIZE: usize = 20;
     const RUNTIME_NAME: &str = "runtime1";
-    // const RUNTIME_NAME_2: &str = "runtime2";
+    const RUNTIME_NAME_2: &str = "runtime2";
     const AGENT_NAME: &str = "agent_x";
     const WORKLOAD_1_NAME: &str = "workload1";
     const WORKLOAD_2_NAME: &str = "workload2";
@@ -381,6 +381,7 @@ mod tests {
     }
 
     // [utest->swdd~agent-initial-list-existing-workloads~1]
+    // [utest->swdd~agent-supports-multiple-runtime-connectors~1]
     #[tokio::test]
     async fn utest_handle_update_workload_initial_call_handle() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -401,13 +402,28 @@ mod tests {
 
         runtime_facade_mock
             .expect_create_workload()
-            .times(2)
+            .once()
+            .returning(move |_, _, _| MockWorkload::default());
+
+        let mut runtime_facade_mock_2 = MockRuntimeFacade::new();
+        runtime_facade_mock_2
+            .expect_get_reusable_running_workloads()
+            .once()
+            .return_once(|_| Box::pin(async { Ok(vec![]) }));
+
+        runtime_facade_mock_2
+            .expect_create_workload()
+            .once()
             .returning(move |_, _, _| MockWorkload::default());
 
         let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
             .with_runtime(
                 RUNTIME_NAME,
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+            )
+            .with_runtime(
+                RUNTIME_NAME_2,
+                Box::new(runtime_facade_mock_2) as Box<dyn RuntimeFacade>,
             )
             .build();
 
@@ -420,7 +436,7 @@ mod tests {
             generate_test_workload_spec_with_param(
                 AGENT_NAME.to_string(),
                 WORKLOAD_2_NAME.to_string(),
-                RUNTIME_NAME.to_string(),
+                RUNTIME_NAME_2.to_string(),
             ),
         ];
         runtime_manager
@@ -730,6 +746,7 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
+    // [utest->swdd~agent-deletes-workload~1]
     // [utest->swdd~agent-handle-deleted-before-added-workloads~1]
     #[tokio::test]
     async fn utest_handle_update_workload_subsequent_delete_before_adding() {
@@ -794,6 +811,51 @@ mod tests {
 
         assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_2_NAME));
+    }
+
+    // TODO: swdd~agent-add-on-update-missing-workload~1
+    #[tokio::test]
+    async fn utest_handle_update_workload_subsequent_add_on_update_missing() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let pipes_channel_mock = MockPipesChannelContext::new_context();
+        pipes_channel_mock
+            .expect()
+            .once()
+            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+
+        let mut runtime_facade_mock = MockRuntimeFacade::new();
+        runtime_facade_mock
+            .expect_create_workload()
+            .once()
+            .returning(move |_, _, _| MockWorkload::default());
+
+        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
+            .with_runtime(
+                RUNTIME_NAME,
+                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+            )
+            .build();
+
+        runtime_manager.initial_workload_list_received = true;
+
+        runtime_manager
+            .handle_update_workload(
+                vec![generate_test_workload_spec_with_param(
+                    AGENT_NAME.to_string(),
+                    WORKLOAD_1_NAME.to_string(),
+                    RUNTIME_NAME.to_string(),
+                )],
+                vec![generate_test_deleted_workload(
+                    AGENT_NAME.to_string(),
+                    WORKLOAD_1_NAME.to_string(),
+                )],
+            )
+            .await;
+
+        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
     // [utest->swdd~agent-update-on-add-known-workload~1]
@@ -896,6 +958,9 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
+    // [utest->swdd~agent-forward-responses-to-control-interface-pipe~1]
+    // [utest->swdd~agent-uses-id-prefix-forward-control-interface-response-correct-workload~1]
+    // [utest->swdd~agent-remove-id-prefix-forwarding-control-interface-response~1]
     #[tokio::test]
     async fn utest_forward_complete_state() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -942,6 +1007,7 @@ mod tests {
             .await;
     }
 
+    // [utest->swdd~agent-forward-responses-to-control-interface-pipe~1]
     #[tokio::test]
     async fn utest_forward_complete_state_fails() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -992,6 +1058,7 @@ mod tests {
             .await;
     }
 
+    // [utest->swdd~agent-forward-responses-to-control-interface-pipe~1]
     #[tokio::test]
     async fn utest_forward_complete_state_not_called_because_workload_not_found() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
