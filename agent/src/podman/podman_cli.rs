@@ -384,7 +384,7 @@ mod tests {
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["kube", "play", "-"])
+                .expect_args(&["kube", "play", "--quiet", "-"])
                 .expect_stdin(sample_input)
                 .exec_returns(Ok("".into())),
         );
@@ -402,7 +402,7 @@ mod tests {
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["kube", "play", "-"])
+                .expect_args(&["kube", "play", "--quiet", "-"])
                 .expect_stdin(sample_input)
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
