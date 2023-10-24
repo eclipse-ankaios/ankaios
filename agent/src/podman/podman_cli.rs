@@ -214,24 +214,6 @@ pub async fn list_states_from_pods(pods: &[String]) -> Result<Vec<ContainerState
     Ok(res.into_iter().map(|x| x.into()).collect())
 }
 
-pub async fn list_pods_by_label(key: &str, value: &str) -> Result<Vec<String>, String> {
-    let output = CliCommand::new(PODMAN_CMD)
-        .args(&[
-            "pod",
-            "ps",
-            "--filter",
-            &format!("label={key}={value}"),
-            "--format={{.Id}}",
-        ])
-        .exec()
-        .await?;
-    Ok(output
-        .split('\n')
-        .map(|x| x.trim().to_string())
-        .filter(|x| !x.is_empty())
-        .collect())
-}
-
 pub async fn list_volumes_by_name(name: &str) -> Result<Vec<String>, String> {
     let output = CliCommand::new(PODMAN_CMD)
         .args(&[
@@ -248,14 +230,6 @@ pub async fn list_volumes_by_name(name: &str) -> Result<Vec<String>, String> {
         .map(|x| x.trim().to_string())
         .filter(|x| !x.is_empty())
         .collect())
-}
-
-pub async fn stop_pods(pods: &[String]) -> Result<(), String> {
-    let mut args = vec!["pod", "stop", "--"];
-    args.extend(pods.iter().map(|x| x.as_str()));
-
-    CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
-    Ok(())
 }
 
 pub async fn store_data_as_volume(volume_name: &str, data: &str) -> Result<(), String> {
@@ -303,32 +277,6 @@ struct Volume {
 #[derive(Deserialize, Debug)]
 struct DataLabel {
     data: String,
-}
-
-pub async fn rm_pods(pods: &[String]) -> Result<(), String> {
-    let mut args = vec!["pod", "rm", "--"];
-    args.extend(pods.iter().map(|x| x.as_str()));
-
-    CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
-    Ok(())
-}
-
-pub async fn list_volumes_by_label(key: &str, value: &str) -> Result<Vec<String>, String> {
-    let output = CliCommand::new(PODMAN_CMD)
-        .args(&[
-            "volume",
-            "ls",
-            "--filter",
-            &format!("label={key}={value}"),
-            "--format={{.Name}}",
-        ])
-        .exec()
-        .await?;
-    Ok(output
-        .split('\n')
-        .map(|x| x.trim().to_string())
-        .filter(|x| !x.is_empty())
-        .collect())
 }
 
 pub async fn remove_workloads_by_id(workload_id: &str) -> Result<(), String> {
