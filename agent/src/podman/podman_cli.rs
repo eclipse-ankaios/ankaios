@@ -10,7 +10,7 @@ use super::podman_runtime_config::PodmanRuntimeConfigCli;
 const PODMAN_CMD: &str = "podman";
 const API_PIPES_MOUNT_POINT: &str = "/run/ankaios/control_interface";
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ContainerState {
     Created,
     Exited(u8),
@@ -114,7 +114,7 @@ pub async fn list_workload_names_by_label(key: &str, value: &str) -> Result<Vec<
         .await?;
 
     let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
-        .map_err(|err| format!("Could not parse podman output:{}", err))?;
+        .map_err(|err| format!("Could not parse podman output: {}", err))?;
 
     let mut names: Vec<String> = Vec::new();
     for mut podman_info in res {
@@ -371,9 +371,69 @@ mod tests {
 
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
-    use super::{PodmanContainerInfo, PodmanContainerState};
+    use super::{ContainerState, PodmanContainerInfo, PodmanContainerState};
 
     const SAMPLE_ERROR_MESSAGE: &str = "error message";
+
+    #[test]
+    fn utest_container_state_from_podman_container_info_created() {
+        let container_state: ContainerState = PodmanContainerInfo {
+            state: PodmanContainerState::Created,
+            exit_code: 0,
+            labels: Default::default(),
+        }
+        .into();
+
+        assert!(matches!(container_state, ContainerState::Created));
+    }
+
+    #[test]
+    fn utest_container_state_from_podman_container_info_exited() {
+        let container_state: ContainerState = PodmanContainerInfo {
+            state: PodmanContainerState::Exited,
+            exit_code: 23,
+            labels: Default::default(),
+        }
+        .into();
+
+        assert!(matches!(container_state, ContainerState::Exited(23)));
+    }
+
+    #[test]
+    fn utest_container_state_from_podman_container_info_paused() {
+        let container_state: ContainerState = PodmanContainerInfo {
+            state: PodmanContainerState::Paused,
+            exit_code: 0,
+            labels: Default::default(),
+        }
+        .into();
+
+        assert!(matches!(container_state, ContainerState::Paused));
+    }
+
+    #[test]
+    fn utest_container_state_from_podman_container_info_running() {
+        let container_state: ContainerState = PodmanContainerInfo {
+            state: PodmanContainerState::Running,
+            exit_code: 0,
+            labels: Default::default(),
+        }
+        .into();
+
+        assert!(matches!(container_state, ContainerState::Running));
+    }
+
+    #[test]
+    fn utest_container_state_from_podman_container_info_unkown() {
+        let container_state: ContainerState = PodmanContainerInfo {
+            state: PodmanContainerState::Unknown,
+            exit_code: 0,
+            labels: Default::default(),
+        }
+        .into();
+
+        assert!(matches!(container_state, ContainerState::Unknown));
+    }
 
     #[tokio::test]
     async fn utest_play_kube_success() {
@@ -386,11 +446,28 @@ mod tests {
             super::CliCommand::default()
                 .expect_args(&["kube", "play", "--quiet", "-"])
                 .expect_stdin(sample_input)
-                .exec_returns(Ok("".into())),
+                .exec_returns(Ok(concat!(
+                    "Not-Pod:\n",
+                    "1\n",
+                    "2\n",
+                    "Pod:\n",
+                    "3\n",
+                    "\n",
+                    "Not-Pod:\n",
+                    "4\n",
+                    "Pod:\n",
+                    "5\n",
+                    "6\n",
+                    "Not-Pod:\n",
+                    "7\n",
+                )
+                .into())),
         );
 
         let res = super::play_kube(sample_input.as_bytes()).await;
-        assert!(matches!(res, Ok(..)));
+        assert!(
+            matches!(res, Ok(pods) if pods == ["3".to_string(), "5".to_string(), "6".to_string()])
+        );
     }
 
     #[tokio::test]
@@ -408,6 +485,42 @@ mod tests {
         );
 
         let res = super::play_kube(sample_input.as_bytes()).await;
+        assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
+    }
+
+    #[tokio::test]
+    async fn utest_down_kube_success() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        let sample_input = "sample input";
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["kube", "down", "--force", "-"])
+                .expect_stdin(sample_input)
+                .exec_returns(Ok("".into())),
+        );
+
+        let res = super::down_kube(sample_input.as_bytes()).await;
+        assert!(matches!(res, Ok(..)));
+    }
+
+    #[tokio::test]
+    async fn utest_down_kube_fail() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        let sample_input = "sample input";
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["kube", "down", "--force", "-"])
+                .expect_stdin(sample_input)
+                .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
+        );
+
+        let res = super::down_kube(sample_input.as_bytes()).await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
@@ -746,6 +859,84 @@ mod tests {
 
         let res = super::list_states_by_id("test_id").await;
         assert!(matches!(res, Err(msg) if msg.starts_with("Could not parse podman output") ));
+    }
+
+    #[tokio::test]
+    async fn utest_list_states_from_pods_success() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&[
+                    "ps",
+                    "--all",
+                    "--format=json",
+                    "--filter=pod=pod1",
+                    "--filter=pod=pod2",
+                    "--filter=pod=pod3",
+                ])
+                .exec_returns(Ok(concat!(
+                    r#"[{"State": "running", "ExitCode": 0, "Labels": {}},"#,
+                    r#" {"State": "exited", "ExitCode": 42, "Labels": {}},"#,
+                    r#" {"State": "", "ExitCode": 0, "Labels": {}}]"#,
+                )
+                .into())),
+        );
+
+        let res =
+            super::list_states_from_pods(&["pod1".into(), "pod2".into(), "pod3".into()]).await;
+        assert!(
+            matches!(res, Ok(states) if states == [ContainerState::Running, ContainerState::Exited(42), ContainerState::Unknown] )
+        );
+    }
+
+    #[tokio::test]
+    async fn utest_list_states_from_pods_command_fails() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&[
+                    "ps",
+                    "--all",
+                    "--format=json",
+                    "--filter=pod=pod1",
+                    "--filter=pod=pod2",
+                    "--filter=pod=pod3",
+                ])
+                .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
+        );
+
+        let res =
+            super::list_states_from_pods(&["pod1".into(), "pod2".into(), "pod3".into()]).await;
+
+        assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE ));
+    }
+
+    #[tokio::test]
+    async fn utest_list_states_from_pods_result_not_json() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&[
+                    "ps",
+                    "--all",
+                    "--format=json",
+                    "--filter=pod=pod1",
+                    "--filter=pod=pod2",
+                    "--filter=pod=pod3",
+                ])
+                .exec_returns(Ok("{".into())),
+        );
+
+        let res =
+            super::list_states_from_pods(&["pod1".into(), "pod2".into(), "pod3".into()]).await;
+
+        assert!(matches!(res, Err(msg) if msg.starts_with("Could not parse podman output:") ));
     }
 
     #[tokio::test]
