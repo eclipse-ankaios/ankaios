@@ -27,9 +27,6 @@ ${CURRENT_RESULT}
 Setup Ankaios
     ${run_result}=    Run Process  command=mktemp -d    shell=True
     Set Environment Variable    name=ANKAIOS_TEMP    value=${run_result.stdout}
-    # This can be removed when podman cli is used in Ankaios agents!
-    Run Process    command=chmod 777 /tmp/podman.sock    shell=True
-    
 
 Clean up Ankaios
     Terminate All Processes    kill=True

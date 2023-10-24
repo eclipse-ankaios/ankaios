@@ -49,9 +49,11 @@ impl RuntimeStateChecker<PodmanWorkloadId> for PodmanStateChecker {
         log::trace!("Getting the state for the workload '{}'", workload_id.id);
 
         let mut exec_state = ExecutionState::ExecUnknown;
-        if let Ok(states) = list_states_by_id(workload_id.id.as_str()).await {
-            if let Some(state) = states.first() {
-                exec_state = state.clone();
+        if let Ok(mut states) = list_states_by_id(workload_id.id.as_str()).await {
+            match states.len() {
+                1 => exec_state = states.swap_remove(0),
+                0 => exec_state = ExecutionState::ExecRemoved, // we know that container was removed
+                _ => log::error!("Too many matches for the container Id '{:?}'", workload_id),
             }
         }
         log::trace!("Returning the state {}", exec_state);

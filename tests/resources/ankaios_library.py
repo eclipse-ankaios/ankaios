@@ -17,6 +17,9 @@ import time
 import yaml
 from robot.api import logger
 
+import re
+list_pattern = re.compile("^[\"|\']*\[.*\][\"|\']*$")
+
 def run_command(command, timeout=3):
     try:
         return subprocess.run(command, timeout=timeout, shell=True, executable='/bin/bash', check=True, capture_output=True, text=True)
@@ -133,7 +136,8 @@ def replace_config(data, filter_path, new_value):
             break
 
         next_level = next_level[level] if isinstance(next_level, dict) else next_level[int(level)]
-    next_level[filter_path[-1]] = int(new_value) if new_value.isdigit() else new_value
+    next_level[filter_path[-1]] = int(new_value) if new_value.isdigit() else yaml.safe_load(new_value) if list_pattern.match(new_value) else new_value
+
     return data
 
 def write_yaml(new_yaml: dict, path):

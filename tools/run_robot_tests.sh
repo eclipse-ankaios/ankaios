@@ -44,19 +44,4 @@ check_executable $ANK
 check_executable $ANK_SERVER
 check_executable $ANK_AGENT
 
-# This can be removed when podman cli is used in Ankaios agents!
-if [ $(ps aux | grep 'podman system service'| wc -l) -eq "1" ]; then
-  echo "podman service not running -> start podman service"
-  podman system service --time=0 unix:///tmp/podman.sock &
-  t=0
-  until [ -e /tmp/podman.sock ] || (( t++ >= 10 )); do
-    sleep 1
-  done
-  [ -e /tmp/podman.sock ] && echo /tmp/podman.sock created. || echo /tmp/podman.sock not found.
-else
-  echo "podman service is already running"
-fi
-
-
 ANK_BIN_DIR=$ANK_BIN_DIR robot --pythonpath tests --loglevel=TRACE:INFO -d ${target_dir} "$@"
-

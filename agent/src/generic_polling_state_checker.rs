@@ -56,6 +56,10 @@ where
                         }])
                         .await
                         .unwrap_or_illegal_state();
+
+                    if last_state == ExecutionState::ExecRemoved {
+                        break;
+                    }
                 }
             }
         });
