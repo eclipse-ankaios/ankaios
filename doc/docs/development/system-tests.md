@@ -89,9 +89,9 @@ Test Ankaios CLI get workloads
     [Setup]        Setup Ankaios
     # Preconditions
     Given Ankaios server is started with "ank-server --startup-config ${CONFIGS_DIR}/default.yaml"
-    And Ankaios agent is started with "ank-agent --name agent_B -p /tmp/podman.sock"
+    And Ankaios agent is started with "ank-agent --name agent_B"
     And all workloads of agent "agent_B" have an initial execution state
-    And Ankaios agent is started with "ank-agent --name agent_A -p /tmp/podman.sock"
+    And Ankaios agent is started with "ank-agent --name agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
     When user triggers "ank get workloads"
@@ -131,8 +131,6 @@ Use default executable directory: /workspaces/ankaios/tools/../target/debug
 Found ank 0.1.0
 Found ank-server 0.1.0
 Found ank-agent 0.1.0
-podman service not running -> start podman service
-/tmp/podman.sock created.
 ==============================================================================
 Tests                                                                         
 ==============================================================================

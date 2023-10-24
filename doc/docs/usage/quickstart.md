@@ -29,14 +29,6 @@ workloads:
 
 1.  Note that access rights are currently not implemented.
 
-
-Before we start Ankaios we need to make sure that Podman is listening on a
-socket that can be used by Ankaios.
-
-```shell
-systemctl --user start podman.socket
-```
-
 Then we can start the Ankaios server:
 
 ```shell

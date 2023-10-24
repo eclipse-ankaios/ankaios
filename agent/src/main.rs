@@ -59,10 +59,9 @@ async fn main() {
     let args = cli::parse();
 
     log::info!(
-        "Starting the Ankaios agent with \n\tname: {}, \n\tserver url: {}, \n\tpodman socket path: {}, \n\trun directory: {}",
+        "Starting the Ankaios agent with \n\tname: {}, \n\tserver url: {}, \n\trun directory: {}",
         args.agent_name,
         args.server_url,
-        args.podman_socket_path,
         args.run_folder,
     );
 
