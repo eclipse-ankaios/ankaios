@@ -99,6 +99,23 @@ impl Display for WorkloadExecutionInstanceName {
     }
 }
 
+impl TryFrom<String> for WorkloadExecutionInstanceName {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let value_parts: Vec<&str> = value.split(INSTANCE_NAME_SEPARATOR).collect();
+        if value_parts.len() != 3 {
+            return Err(format!("Could not convert '{}' to a WorkloadExecutionInstanceName, as it consist of {} instead of 3.", value, value_parts.len()));
+        }
+
+        Ok(WorkloadExecutionInstanceName {
+            workload_name: value_parts[0].to_string(),
+            hash: value_parts[1].to_string(),
+            agent_name: value_parts[2].to_string(),
+        })
+    }
+}
+
 impl WorkloadExecutionInstanceName {
     pub fn builder() -> WorkloadExecutionInstanceNameBuilder {
         Default::default()

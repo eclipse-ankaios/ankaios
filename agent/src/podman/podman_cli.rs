@@ -1,3 +1,4 @@
+use base64::Engine;
 use common::objects::ExecutionState;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
@@ -42,13 +43,42 @@ impl From<PodmanContainerInfo> for ExecutionState {
     }
 }
 
-pub async fn play_kube(kube_yml: &[u8]) -> Result<String, String> {
+pub async fn play_kube(kube_yml: &[u8]) -> Result<Vec<String>, String> {
     let result = CliCommand::new(PODMAN_CMD)
-        .args(&["kube", "play", "-"])
+        .args(&["kube", "play", "--quiet", "-"])
         .stdin(kube_yml)
         .exec()
         .await?;
-    Ok(result)
+    Ok(parse_pods_from_output(result))
+}
+
+fn parse_pods_from_output(input: String) -> Vec<String> {
+    let mut result = Vec::new();
+    let mut is_pod = false;
+    for line in input.split('\n') {
+        let line = line.trim();
+        if line == "Pod:" {
+            is_pod = true;
+            continue;
+        }
+        if line.ends_with(':') {
+            is_pod = false;
+            continue;
+        }
+        if is_pod && !line.is_empty() {
+            result.push(line.into())
+        }
+    }
+    result
+}
+
+pub async fn down_kube(kube_yml: &[u8]) -> Result<(), String> {
+    CliCommand::new(PODMAN_CMD)
+        .args(&["kube", "down", "--force", "-"])
+        .stdin(kube_yml)
+        .exec()
+        .await?;
+    Ok(())
 }
 
 pub async fn list_workload_ids_by_label(key: &str, value: &str) -> Result<Vec<String>, String> {
@@ -171,17 +201,12 @@ pub async fn list_states_by_id(workload_id: &str) -> Result<Vec<ExecutionState>,
     Ok(res.into_iter().map(|x| x.into()).collect())
 }
 
-pub async fn list_states_by_label(key: &str, value: &str) -> Result<Vec<ContainerState>, String> {
-    let output = CliCommand::new(PODMAN_CMD)
-        .args(&[
-            "ps",
-            "--all",
-            "--filter",
-            &format!("label={key}={value}"),
-            "--format=json",
-        ])
-        .exec()
-        .await?;
+pub async fn list_states_from_pods(pods: &[String]) -> Result<Vec<ContainerState>, String> {
+    let mut args = vec!["ps", "--all", "--format=json"];
+    let filters: Vec<String> = pods.iter().map(|p| format!("--filter=pod={}", p)).collect();
+    args.extend(filters.iter().map(|x| x as &str));
+
+    let output = CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
 
     let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
         .map_err(|err| format!("Could not parse podman output:{}", err))?;
@@ -207,12 +232,77 @@ pub async fn list_pods_by_label(key: &str, value: &str) -> Result<Vec<String>, S
         .collect())
 }
 
+pub async fn list_volumes_by_name(name: &str) -> Result<Vec<String>, String> {
+    let output = CliCommand::new(PODMAN_CMD)
+        .args(&[
+            "volume",
+            "ls",
+            "--filter",
+            &format!("name={name}"),
+            "--format={{.Name}}",
+        ])
+        .exec()
+        .await?;
+    Ok(output
+        .split('\n')
+        .map(|x| x.trim().to_string())
+        .filter(|x| !x.is_empty())
+        .collect())
+}
+
 pub async fn stop_pods(pods: &[String]) -> Result<(), String> {
     let mut args = vec!["pod", "stop", "--"];
     args.extend(pods.iter().map(|x| x.as_str()));
 
     CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
     Ok(())
+}
+
+pub async fn store_data_as_volume(volume_name: &str, data: &str) -> Result<(), String> {
+    remove_volume(volume_name).await?;
+
+    let mut label = "--label=data=".into();
+    base64::engine::general_purpose::STANDARD_NO_PAD.encode_string(data.as_bytes(), &mut label);
+    CliCommand::new(PODMAN_CMD)
+        .args(&["volume", "create", &label, volume_name])
+        .exec()
+        .await?;
+    Ok(())
+}
+
+pub async fn read_data_from_volume(volume_name: &str) -> Result<String, String> {
+    let result = CliCommand::new(PODMAN_CMD)
+        .args(&["volume", "inspect", volume_name])
+        .exec()
+        .await?;
+
+    let res: Vec<Volume> = serde_json::from_str(&result).unwrap();
+    let res = base64::engine::general_purpose::STANDARD_NO_PAD
+        .decode(&res[0].labels.data)
+        .map_err(|err| format!("Could not base64 decoded volume's data label: {}", err))?;
+    let res = String::from_utf8(res)
+        .map_err(|err| format!("Could not decode data stored in volume: {:?}", err))?;
+
+    Ok(res)
+}
+
+pub async fn remove_volume(volume_name: &str) -> Result<(), String> {
+    let _ = CliCommand::new(PODMAN_CMD)
+        .args(&["volume", "rm", volume_name])
+        .exec()
+        .await;
+    Ok(())
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "PascalCase")]
+struct Volume {
+    labels: DataLabel,
+}
+
+#[derive(Deserialize, Debug)]
+struct DataLabel {
+    data: String,
 }
 
 pub async fn rm_pods(pods: &[String]) -> Result<(), String> {

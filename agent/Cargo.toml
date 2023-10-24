@@ -10,6 +10,7 @@ repository.workspace = true
 
 [dependencies]
 api = { package = "api", version = "0", path = "../api" }
+base64 = "0.21.4"
 common = { package = "common", version = "0.1", path = "../common" }
 grpc = { package = "grpc", version = "0.1", path = "../grpc" }
 prost = "0.11"
