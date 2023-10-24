@@ -29,7 +29,7 @@ Please note that the Ankaios Agent could also run on the same node as the Server
 
 The following diagram shows the structural view of the Ankaios Agent:
 
-![Overview](drawio/comp_overview.drawio.svg)
+![Overview](drawio/unit_overview_runtime_support.drawio.svg)
 
 ### AgentManager
 
@@ -290,7 +290,8 @@ Needs:
 Status: approved
 
 The Control Interface Instance shall create the Control Interface pipes at the following path:
-    <Agent run folder>/<Workload execution instance name>/
+
+    `<Agent run folder>/<Workload execution instance name>/`
 
 Rationale:
 The Ankaios Agent needs a unique, reproducible name to be able to make the mapping between a workload execution instance and a control interface pipes instance.
@@ -461,7 +462,7 @@ When requested, the RuntimeFacade resumes a workload by:
 * return a new workload object allowing the communication with the task handling the stop or update commands
  
 Comment:
-If a workload is running, there is not need to created it again via the specific runtime. The state checker must be started as an additional step here as the runtime does not create a new workload.
+If a workload is running, there is no need to create it again via the specific runtime. The state checker must be started as an additional step here as the runtime does not create a new workload.
 
 Rationale:
 The task handling stop and update commands is needed to ensure maintaining the order of the commands for a workload while not blocking Ankaios to wait until one command is complete.
@@ -605,7 +606,7 @@ Status: approved
 When the WorkloadObject receives a trigger to update the workload, it:
 * stops the old control interface
 * stores the new control interface
-* send a command on the command channel to the workload task to update the workload
+* sends a command on the command channel to the workload task to update the workload
 
 Tags:
 - WorkloadObject
@@ -676,7 +677,7 @@ Status: approved
 
 When the WorkloadObject receives a trigger to deletion the workload, it:
 * stops the control interface
-* send a command on the command channel to the workload task to delete the workload
+* sends a command on the command channel to the workload task to delete the workload
 
 Tags:
 - WorkloadObject
