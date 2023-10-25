@@ -47,7 +47,7 @@ where
                     );
                     last_state = current_state.clone();
 
-                    // [impl->swdd~podman-workload-sends-workload-state~1]
+                    // [impl->generic-state-checker-sends-workload-state~1]
                     manager_interface
                         .update_workload_state(vec![common::objects::WorkloadState {
                             agent_name: workload_spec.agent.clone(),
