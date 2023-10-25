@@ -15,12 +15,13 @@ pub trait RuntimeStateChecker<WorkloadId>: Send + Sync + 'static
 where
     WorkloadId: Send + Sync + 'static,
 {
+    // [impl->swdd~allowed-workload-states~1]
     async fn get_state(&self, workload_id: &WorkloadId) -> ExecutionState;
 }
 
 // [impl->swdd~agent-general-state-checker-interface~1]
 #[async_trait]
-pub trait StateChecker<WorkloadId> 
+pub trait StateChecker<WorkloadId>
 where
     WorkloadId: Send + Sync + 'static,
 {

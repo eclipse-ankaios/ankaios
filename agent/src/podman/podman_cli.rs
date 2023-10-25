@@ -31,6 +31,7 @@ impl From<PodmanContainerInfo> for ContainerState {
     }
 }
 
+// [impl->swdd~podman-state-checker-maps-state~1]
 impl From<PodmanContainerInfo> for ExecutionState {
     fn from(value: PodmanContainerInfo) -> Self {
         match value.state {
@@ -147,12 +148,15 @@ pub async fn run_workload(
     // In other words the user can overwrite our container name.
     // We store workload name as a label (an use them from there).
     // Therefore we do insist on container names in particular format.
+    //
+    // [impl->swdd~podman-create-workload-sets-optionally-container-name~1]
     args.append(&mut vec!["--name".into(), workload_name.to_string()]);
 
     if let Some(mut x) = workload_cfg.command_options {
         args.append(&mut x);
     }
 
+    // [impl->swdd~podman-create-workload-mounts-fifo-files~1]
     if let Some(path) = control_interface_path {
         args.push(
             [
@@ -165,6 +169,7 @@ pub async fn run_workload(
         );
     }
 
+    // [impl->swdd~podman-create-workload-creates-labels~1]
     args.push(format!("--label=name={workload_name}"));
     args.push(format!("--label=agent={agent}"));
     args.push(workload_cfg.image);
@@ -317,6 +322,8 @@ enum PodmanContainerState {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
+// [utest->swdd~podman-uses-podman-cli~1]
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -596,6 +603,9 @@ mod tests {
         assert!(matches!(res, Err(msg) if msg.starts_with("Could not parse podman output") ));
     }
 
+    // [utest->swdd~podman-create-workload-creates-labels~1]
+    // [utest->swdd~podman-create-workload-sets-optionally-container-name~1]
+    // [utest->swdd~podman-create-workload-mounts-fifo-files~1]
     #[tokio::test]
     async fn utest_run_container_success_no_options() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -656,6 +666,8 @@ mod tests {
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
+    // [utest->swdd~podman-create-workload-sets-optionally-container-name~1]
+    // [utest->swdd~podman-create-workload-mounts-fifo-files~1]
     #[tokio::test]
     async fn utest_run_container_success_with_options() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -702,6 +714,7 @@ mod tests {
         assert_eq!(res, Ok("test_id".to_string()));
     }
 
+    // [utest->swdd~podman-state-checker-maps-state~1]
     #[tokio::test]
     async fn utest_list_states_by_id_pending() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -722,6 +735,7 @@ mod tests {
         assert_eq!(res, Ok(vec![ExecutionState::ExecPending]));
     }
 
+    // [utest->swdd~podman-state-checker-maps-state~1]
     #[tokio::test]
     async fn utest_list_states_by_id_succeeded() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -742,6 +756,7 @@ mod tests {
         assert_eq!(res, Ok(vec![ExecutionState::ExecSucceeded]));
     }
 
+    // [utest->swdd~podman-state-checker-maps-state~1]
     #[tokio::test]
     async fn utest_list_states_by_id_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -762,6 +777,7 @@ mod tests {
         assert_eq!(res, Ok(vec![ExecutionState::ExecFailed]));
     }
 
+    // [utest->swdd~podman-state-checker-maps-state~1]
     #[tokio::test]
     async fn utest_list_states_by_id_running() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -782,6 +798,7 @@ mod tests {
         assert_eq!(res, Ok(vec![ExecutionState::ExecRunning]));
     }
 
+    // [utest->swdd~podman-state-checker-maps-state~1]
     #[tokio::test]
     async fn utest_list_states_by_id_unknown() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;

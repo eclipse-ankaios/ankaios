@@ -47,7 +47,7 @@ where
                     );
                     last_state = current_state.clone();
 
-                    // [impl->generic-state-checker-sends-workload-state~1]
+                    // [impl->swdd~generic-state-checker-sends-workload-state~1]
                     manager_interface
                         .update_workload_state(vec![common::objects::WorkloadState {
                             agent_name: workload_spec.agent.clone(),
@@ -152,6 +152,7 @@ mod tests {
             execution_state: ExecutionState::ExecRunning,
         }];
 
+        // [utest->swdd~generic-state-checker-sends-workload-state~1]
         let state_update_1 = state_receiver.recv().await.unwrap();
         assert!(matches!(
             state_update_1,

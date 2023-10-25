@@ -16,6 +16,7 @@ use crate::{
     state_checker::{RuntimeStateChecker, StateChecker},
 };
 
+// [impl->swdd~podman-uses-podman-cli~1]
 #[cfg(not(test))]
 use crate::podman::podman_cli::{
     list_states_by_id, list_workload_ids_by_label, list_workload_names_by_label,
@@ -48,10 +49,12 @@ impl RuntimeStateChecker<PodmanWorkloadId> for PodmanStateChecker {
     async fn get_state(&self, workload_id: &PodmanWorkloadId) -> ExecutionState {
         log::trace!("Getting the state for the workload '{}'", workload_id.id);
 
+        // [impl->swdd~podman-state-checker-returns-unknown-state~1]
         let mut exec_state = ExecutionState::ExecUnknown;
         if let Ok(mut states) = list_states_by_id(workload_id.id.as_str()).await {
             match states.len() {
                 1 => exec_state = states.swap_remove(0),
+                // [impl->swdd~podman-state-checker-returns-removed-state~1]
                 0 => exec_state = ExecutionState::ExecRemoved, // we know that container was removed
                 _ => log::error!("Too many matches for the container Id '{:?}'", workload_id),
             }
@@ -63,6 +66,7 @@ impl RuntimeStateChecker<PodmanWorkloadId> for PodmanStateChecker {
 
 #[async_trait]
 impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
+    // [impl->swdd~podman-name-returns-podman~1]
     fn name(&self) -> String {
         "podman".to_string()
     }
@@ -71,6 +75,7 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         &self,
         agent_name: &AgentName,
     ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
+        // [impl->swdd~podman-list-of-existing-workloads-uses-labels~1]
         let res = list_workload_names_by_label("agent", agent_name.get())
             .await
             .map_err(|err| RuntimeError::List(err.to_string()))?;
@@ -87,6 +92,7 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
             .collect())
     }
 
+    // [impl->swdd~podman-create-workload-runs-workload~1]
     async fn create_workload(
         &self,
         workload_spec: WorkloadSpec,
@@ -116,6 +122,7 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
             .start_checker(&podman_workload_id, workload_spec, update_state_tx)
             .await?;
 
+        // [impl->swdd~podman-create-workload-returns-workload-id~1]
         Ok((podman_workload_id, state_checker))
     }
 
@@ -123,6 +130,7 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         &self,
         instance_name: &WorkloadExecutionInstanceName,
     ) -> Result<PodmanWorkloadId, RuntimeError> {
+        // [impl->swdd~podman-get-workload-id-uses-label~1]
         let res = list_workload_ids_by_label("name", instance_name.to_string().as_str())
             .await
             .map_err(|err| RuntimeError::List(err.to_string()))?;
@@ -152,6 +160,7 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
             workload_spec.name,
             workload_id.id
         );
+        // [impl->swdd~podman-start-checker-creates-podman-state-checker~1]
         let podman_state_checker = PodmanStateChecker {};
         let checker = GenericPollingStateChecker::start_checker(
             &workload_spec,
@@ -162,6 +171,7 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         Ok(checker)
     }
 
+    // [impl->swdd~podman-delete-workload-stops-and-removes-workload~1]
     async fn delete_workload(&self, workload_id: &PodmanWorkloadId) -> Result<(), RuntimeError> {
         log::info!("Deleting workload with id '{}'", workload_id.id);
         remove_workloads_by_id(&workload_id.id)
@@ -178,6 +188,7 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
+// [utest->swdd~functions-required-by-runtime-connector~1]
 #[cfg(test)]
 mod tests {
     use std::{path::PathBuf, sync::Mutex};
@@ -275,12 +286,14 @@ mod tests {
             .unwrap()
     }
 
+    // [utest->swdd~podman-name-returns-podman~1]
     #[test]
     fn utest_name_podman() {
         let podman_runtime = PodmanRuntime {};
         assert_eq!(podman_runtime.name(), "podman".to_string());
     }
 
+    // [utest->swdd~podman-list-of-existing-workloads-uses-labels~1]
     #[tokio::test]
     async fn utest_get_reusable_running_workloads_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -350,6 +363,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~podman-create-workload-runs-workload~1]
     #[tokio::test]
     async fn utest_create_workload_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -370,6 +384,7 @@ mod tests {
 
         let (workload_id, _checker) = res.unwrap();
 
+        // [utest->swdd~podman-create-workload-returns-workload-id~1]
         assert_eq!(workload_id.id, "test_id".to_string());
     }
 
@@ -412,6 +427,7 @@ mod tests {
         assert!(res.is_err());
     }
 
+    // [utest->swdd~podman-get-workload-id-uses-label~1]
     #[tokio::test]
     async fn utest_get_workload_id_workload_found() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -493,6 +509,7 @@ mod tests {
         assert_eq!(res, ExecutionState::ExecRunning);
     }
 
+    // [utest->swdd~podman-state-checker-returns-removed-state~1]
     #[tokio::test]
     async fn utest_get_state_returns_removed_on_empty_list() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -510,6 +527,7 @@ mod tests {
         assert_eq!(res, ExecutionState::ExecRemoved);
     }
 
+    // [utest->swdd~podman-state-checker-returns-unknown-state~1]
     #[tokio::test]
     async fn utest_get_state_returns_error() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -527,6 +545,7 @@ mod tests {
         assert_eq!(res, ExecutionState::ExecUnknown);
     }
 
+    // [utest->swdd~podman-delete-workload-stops-and-removes-workload~1]
     #[tokio::test]
     async fn utest_delete_workload_succeeds() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;

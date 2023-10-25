@@ -40,6 +40,7 @@ impl Display for RuntimeError {
     }
 }
 
+// [impl->swdd~functions-required-by-runtime-connector~1]
 #[async_trait]
 pub trait Runtime<WorkloadId, StChecker>: Sync + Send
 where

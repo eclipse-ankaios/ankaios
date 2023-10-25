@@ -948,7 +948,6 @@ Tags:
 
 Needs:
 - impl
-- utest
 - itest
 
 ###### Podman delete workload stops and removes workload
@@ -1092,13 +1091,32 @@ Needs:
 - impl
 - utest
 
+##### PodmanStateChecker returns removed state
+`swdd~podman-state-checker-returns-removed-state~1`
+
+Status: approved
+
+When the `PodmanStateChecker` is called to get the current state over the state getter interface and
+the `PodmanStateChecker` gets empty list of current states, the `PodmanStateChecker` shall return the state removed.
+
+Rationale:
+This happens when the container has been removed and the Agent meanwhile triggers status check of the workload.
+
+Tags:
+- PodmanStateChecker
+- PodmanRuntimeConnector
+
+Needs:
+- impl
+- utest
+
 ##### PodmanStateChecker returns unknown state
 `swdd~podman-state-checker-returns-unknown-state~1`
 
 Status: approved
 
 When the `PodmanStateChecker` is called to get the current state over the state getter interface and
-the `PodmanStateChecker` is unable to read the container state, the unknown state shall be returned.
+the `PodmanStateChecker` is unable to read the container state (error or too many current states read), the unknown state shall be returned.
 
 Comment:
 In other words the unknown state shall be the default state.
