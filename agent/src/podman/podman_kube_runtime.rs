@@ -191,6 +191,10 @@ impl Runtime<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRun
         podman_cli::down_kube(workload_id.manifest.as_bytes())
             .map_err(RuntimeError::Delete)
             .await?;
+        let _ =
+            podman_cli::remove_volume(&(workload_id.name.to_string() + PODS_VOLUME_SUFFIX)).await;
+        let _ =
+            podman_cli::remove_volume(&(workload_id.name.to_string() + CONFIG_VOLUME_SUFFIX)).await;
         Ok(())
     }
 }
