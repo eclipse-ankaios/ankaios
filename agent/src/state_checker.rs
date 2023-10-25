@@ -5,15 +5,25 @@ use common::{
     state_change_interface::StateChangeSender,
 };
 
+#[cfg(test)]
+use mockall::automock;
+
 // [impl->swdd~agent-general-runtime-state-getter-interface~1]
 #[async_trait]
-pub trait RuntimeStateChecker<WorkloadId>: Send + Sync + 'static {
+#[cfg_attr(test, automock)]
+pub trait RuntimeStateChecker<WorkloadId>: Send + Sync + 'static
+where
+    WorkloadId: Send + Sync + 'static,
+{
     async fn get_state(&self, workload_id: &WorkloadId) -> ExecutionState;
 }
 
 // [impl->swdd~agent-general-state-checker-interface~1]
 #[async_trait]
-pub trait StateChecker<WorkloadId> {
+pub trait StateChecker<WorkloadId> 
+where
+    WorkloadId: Send + Sync + 'static,
+{
     fn start_checker(
         workload_spec: &WorkloadSpec,
         workload_id: WorkloadId,

@@ -54,7 +54,7 @@ pub trait RuntimeFacade: Send + Sync + 'static {
 }
 
 pub struct GenericRuntimeFacade<
-    WorkloadId: Send + Sync,
+    WorkloadId: Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync,
 > {
     runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>,

@@ -29,7 +29,7 @@ Please note that the Ankaios Agent could also run on the same node as the Server
 
 The following diagram shows the structural view of the Ankaios Agent:
 
-![Overview](drawio/unit_overview_runtime_support.drawio.svg)
+![Overview](drawio/unit_overview.drawio.svg)
 
 ### AgentManager
 

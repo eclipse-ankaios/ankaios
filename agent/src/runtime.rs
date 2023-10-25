@@ -44,6 +44,7 @@ impl Display for RuntimeError {
 pub trait Runtime<WorkloadId, StChecker>: Sync + Send
 where
     StChecker: StateChecker<WorkloadId>,
+    WorkloadId: Send + Sync + 'static,
 {
     fn name(&self) -> String;
 
@@ -77,6 +78,7 @@ where
 pub trait OwnableRuntime<WorkloadId, StChecker>: Runtime<WorkloadId, StChecker>
 where
     StChecker: StateChecker<WorkloadId>,
+    WorkloadId: Send + Sync + 'static,
 {
     fn to_owned(&self) -> Box<dyn Runtime<WorkloadId, StChecker>>;
 }
@@ -85,6 +87,7 @@ impl<R, WorkloadId, StChecker> OwnableRuntime<WorkloadId, StChecker> for R
 where
     R: Runtime<WorkloadId, StChecker> + Clone + 'static,
     StChecker: StateChecker<WorkloadId>,
+    WorkloadId: Send + Sync + 'static,
 {
     fn to_owned(&self) -> Box<dyn Runtime<WorkloadId, StChecker>> {
         Box::new(self.clone())

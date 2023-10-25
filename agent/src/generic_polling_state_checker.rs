@@ -81,3 +81,81 @@ impl Drop for GenericPollingStateChecker {
         log::trace!("Over and out for workload '{}'", self.workload_name);
     }
 }
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use common::{
+        commands,
+        objects::{ExecutionState, WorkloadState},
+        state_change_interface::StateChangeCommand,
+        test_utils::generate_test_workload_spec_with_param,
+    };
+
+    use crate::{
+        generic_polling_state_checker::GenericPollingStateChecker,
+        state_checker::{MockRuntimeStateChecker, StateChecker},
+    };
+
+    const RUNTIME_NAME: &str = "runtime1";
+    const AGENT_NAME: &str = "agent_x";
+    const WORKLOAD_1_NAME: &str = "workload1";
+    const WORKLOAD_ID: &str = "workload_id_1";
+
+    // [utest->swdd~agent-provides-generic-state-checker-implementation~1]
+    #[tokio::test]
+    async fn utest_generic_polling_state_checker_success() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mut mock_runtime_getter = MockRuntimeStateChecker::default();
+
+        mock_runtime_getter
+            .expect_get_state()
+            .times(2)
+            .returning(|_: &String| Box::pin(async { ExecutionState::ExecRunning }));
+
+        let (state_sender, mut state_receiver) =
+            tokio::sync::mpsc::channel::<StateChangeCommand>(20);
+
+        let generic_state_state_checker = GenericPollingStateChecker::start_checker(
+            &generate_test_workload_spec_with_param(
+                AGENT_NAME.to_string(),
+                WORKLOAD_1_NAME.to_string(),
+                RUNTIME_NAME.to_string(),
+            ),
+            WORKLOAD_ID.to_string(),
+            state_sender.clone(),
+            mock_runtime_getter,
+        );
+
+        tokio::time::sleep(Duration::from_millis(1200)).await;
+
+        <GenericPollingStateChecker as StateChecker<String>>::stop_checker::<'_>(
+            generic_state_state_checker,
+        )
+        .await;
+
+        let expected_state = vec![WorkloadState {
+            workload_name: WORKLOAD_1_NAME.to_string(),
+            agent_name: AGENT_NAME.to_string(),
+            execution_state: ExecutionState::ExecRunning,
+        }];
+
+        let state_update_1 = state_receiver.recv().await.unwrap();
+        assert!(matches!(
+            state_update_1,
+            StateChangeCommand::UpdateWorkloadState(commands::UpdateWorkloadState{workload_states})
+            if workload_states == expected_state));
+    }
+}
