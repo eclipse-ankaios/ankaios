@@ -7,6 +7,8 @@ box "Ankaios Agent"
     participant "RuntimeManager" as runtime_manager
     participant "RuntimeFacade" as wl_facade
 
+    participant "Specific Runtime Connector\n e.g., PodmanRuntime" as runtime
+
 end box
 
 box "Ankaios Server"
@@ -37,11 +39,17 @@ loop for each runtime connector
 
             alt found running workload has different config
                 runtime_manager -> wl_facade++: replace workload
-                ...
+                wl_facade ->> wl_facade ++: decopule the specific actions
+                wl_facade -> runtime++: perform replace actions
+                runtime -->> wl_facade--
+                deactivate wl_facade
                 wl_facade -->> runtime_manager--
             else found running workload is identical to required workload
                 runtime_manager -> wl_facade++: resume workload
-                ...
+                wl_facade ->> wl_facade ++: decopule the specific actions
+                wl_facade -> runtime++: perform resume actions
+                runtime -->> wl_facade--
+                deactivate wl_facade
                 wl_facade -->> runtime_manager--
             end
 

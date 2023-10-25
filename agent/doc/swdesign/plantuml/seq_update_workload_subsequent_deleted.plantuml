@@ -5,6 +5,8 @@ box "Ankaios Agent"
     participant "AgentManager" as manager
     participant "RuntimeManager" as runtime_manager
     participant "Workload" as workload
+
+    participant "Specific Runtime Connector\n e.g., PodmanRuntime" as runtime
 end box
 
 activate manager
@@ -23,7 +25,10 @@ else subsequent update workload call
             runtime_manager -> runtime_manager ++--: find workload in running workloads
             alt workload object found
                 runtime_manager -> workload ++: update (new config)
-                workload ->> workload ++--: decopule the specific actions
+                workload ->> workload ++: decopule the specific actions
+                workload -> runtime++: perform update actions
+                runtime -->> workload--
+                deactivate workload
                 workload -->> runtime_manager --:
                 deactivate runtime_manager
             else no workload object found -> nothing to update
@@ -32,12 +37,17 @@ else subsequent update workload call
                 see add workload digram for details
                 endnote
             end
-        else
-            runtime_manager -> runtime_manager ++--: remove workload from runtime workloads list
+        else this is only a delete
+            runtime_manager -> runtime_manager++: delete workload
+            runtime_manager -> runtime_manager ++--: remove workload from running workloads list
             runtime_manager -> workload ++: delete
-            workload ->> workload ++--: decopule the specific action
+            workload ->> workload ++: decopule the specific actions
+            workload -> runtime++: perform delete actions
+            runtime -->> workload--
+            deactivate workload
             workload -->> runtime_manager --:
             destroy workload
+            deactivate runtime_manager
         end
     end
 

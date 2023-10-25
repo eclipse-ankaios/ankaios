@@ -9,6 +9,8 @@ box "Ankaios Agent"
 
     participant "Workload" as workload
 
+    participant "Specific Runtime Connector\n e.g., PodmanRuntime" as runtime
+
 end box
 
 activate manager
@@ -33,7 +35,11 @@ else subsequent update workload call
             runtime_manager -> runtime_manager++: add workload
             runtime_manager -> runtime_manager++--: create control interface
             runtime_manager -> rt_facade++: create workload
-            ...
+        
+            rt_facade -->> runtime++: create runtime workload
+            deactivate runtime
+        
+            rt_facade -> workload **: create WorkloadObject
             rt_facade -->> runtime_manager--
             runtime_manager -> runtime_manager++--: store new workload
         end
