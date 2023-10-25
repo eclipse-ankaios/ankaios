@@ -156,7 +156,7 @@ mod tests {
     }
 
     lazy_static::lazy_static! {
-        static ref mock_cli_commands: Mutex<HashMap<String, MockCliCommand>> =
+        static ref mock_cli_commands: Mutex<HashMap<String, VecDeque<MockCliCommand>>> =
             Default::default();
     }
 
@@ -176,7 +176,9 @@ mod tests {
             mock_cli_commands
                 .lock()
                 .unwrap()
-                .insert(program.into(), mock_cli_command);
+                .entry(program.into())
+                .or_default()
+                .push_back(mock_cli_command);
         }
 
         pub fn expect_args(mut self, args: &[&str]) -> Self {
@@ -198,9 +200,10 @@ mod tests {
             mock_cli_commands
                 .lock()
                 .unwrap()
-                .get(program)
+                .get_mut(program)
                 .unwrap()
-                .to_owned()
+                .pop_front()
+                .unwrap()
         }
 
         pub fn args(&mut self, args: &[&str]) -> &mut Self {

@@ -233,7 +233,7 @@ pub async fn list_volumes_by_name(name: &str) -> Result<Vec<String>, String> {
 }
 
 pub async fn store_data_as_volume(volume_name: &str, data: &str) -> Result<(), String> {
-    remove_volume(volume_name).await?;
+    let _ = remove_volume(volume_name).await;
 
     let mut label = "--label=data=".into();
     base64::engine::general_purpose::STANDARD_NO_PAD.encode_string(data.as_bytes(), &mut label);
@@ -250,21 +250,27 @@ pub async fn read_data_from_volume(volume_name: &str) -> Result<String, String> 
         .exec()
         .await?;
 
-    let res: Vec<Volume> = serde_json::from_str(&result).unwrap();
+    let res: Vec<Volume> = serde_json::from_str(&result)
+        .map_err(|err| format!("Could not decoded volume information as JSON: {}", err))?;
     let res = base64::engine::general_purpose::STANDARD_NO_PAD
-        .decode(&res[0].labels.data)
+        .decode(
+            &res.get(0)
+                .ok_or_else(|| "No volume returned".to_string())?
+                .labels
+                .data,
+        )
         .map_err(|err| format!("Could not base64 decoded volume's data label: {}", err))?;
     let res = String::from_utf8(res)
-        .map_err(|err| format!("Could not decode data stored in volume: {:?}", err))?;
+        .map_err(|err| format!("Could not decode data stored in volume: {}", err))?;
 
     Ok(res)
 }
 
 pub async fn remove_volume(volume_name: &str) -> Result<(), String> {
-    let _ = CliCommand::new(PODMAN_CMD)
+    CliCommand::new(PODMAN_CMD)
         .args(&["volume", "rm", volume_name])
         .exec()
-        .await;
+        .await?;
     Ok(())
 }
 
@@ -386,6 +392,7 @@ mod tests {
     #[tokio::test]
     async fn utest_play_kube_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         let sample_input = "sample input";
 
@@ -421,6 +428,7 @@ mod tests {
     #[tokio::test]
     async fn utest_play_kube_fail() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         let sample_input = "sample input";
 
@@ -439,6 +447,7 @@ mod tests {
     #[tokio::test]
     async fn utest_down_kube_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         let sample_input = "sample input";
 
@@ -457,6 +466,7 @@ mod tests {
     #[tokio::test]
     async fn utest_down_kube_fail() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         let sample_input = "sample input";
 
@@ -475,6 +485,7 @@ mod tests {
     #[tokio::test]
     async fn utest_list_workload_ids_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
@@ -496,6 +507,7 @@ mod tests {
     #[tokio::test]
     async fn utest_list_workload_ids_fail() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
@@ -517,6 +529,7 @@ mod tests {
     #[tokio::test]
     async fn utest_list_workload_names_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
@@ -542,6 +555,7 @@ mod tests {
     #[tokio::test]
     async fn utest_list_workload_names_podman_error() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
@@ -563,6 +577,7 @@ mod tests {
     #[tokio::test]
     async fn utest_list_workload_names_broken_response() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
@@ -584,6 +599,7 @@ mod tests {
     #[tokio::test]
     async fn utest_run_container_success_no_options() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
@@ -613,6 +629,7 @@ mod tests {
     #[tokio::test]
     async fn utest_run_container_fail_no_options() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
@@ -642,6 +659,7 @@ mod tests {
     #[tokio::test]
     async fn utest_run_container_success_with_options() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
@@ -687,6 +705,7 @@ mod tests {
     #[tokio::test]
     async fn utest_list_states_by_id_pending() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
@@ -706,6 +725,7 @@ mod tests {
     #[tokio::test]
     async fn utest_list_states_by_id_succeeded() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
@@ -725,6 +745,7 @@ mod tests {
     #[tokio::test]
     async fn utest_list_states_by_id_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
@@ -744,6 +765,7 @@ mod tests {
     #[tokio::test]
     async fn utest_list_states_by_id_running() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
@@ -763,6 +785,7 @@ mod tests {
     #[tokio::test]
     async fn utest_list_states_by_id_unknown() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
@@ -782,6 +805,7 @@ mod tests {
     #[tokio::test]
     async fn utest_list_states_by_id_podman_error() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
@@ -797,6 +821,7 @@ mod tests {
     #[tokio::test]
     async fn utest_list_states_by_id_broken_response() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
@@ -812,6 +837,7 @@ mod tests {
     #[tokio::test]
     async fn utest_list_states_from_pods_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
@@ -842,6 +868,7 @@ mod tests {
     #[tokio::test]
     async fn utest_list_states_from_pods_command_fails() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
@@ -866,6 +893,7 @@ mod tests {
     #[tokio::test]
     async fn utest_list_states_from_pods_result_not_json() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
@@ -888,8 +916,243 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn utest_list_volumes_by_name_success() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&[
+                    "volume",
+                    "ls",
+                    "--filter",
+                    "name=volume_regex",
+                    "--format={{.Name}}",
+                ])
+                .exec_returns(Ok("volume_1\nvolume_2\nvolume_3\n".into())),
+        );
+
+        let res = super::list_volumes_by_name("volume_regex").await;
+
+        assert!(matches!(res, Ok(volumes) if volumes == ["volume_1", "volume_2", "volume_3"] ));
+    }
+
+    #[tokio::test]
+    async fn utest_list_volumes_by_name_command_fails() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&[
+                    "volume",
+                    "ls",
+                    "--filter",
+                    "name=volume_regex",
+                    "--format={{.Name}}",
+                ])
+                .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
+        );
+
+        let res = super::list_volumes_by_name("volume_regex").await;
+
+        assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE ));
+    }
+
+    #[tokio::test]
+    async fn utest_store_data_as_volume_success_volume_existed_before() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["volume", "rm", "volume_1"])
+                .exec_returns(Ok("volume_1".into())),
+        );
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["volume", "create", "--label=data=QUJDRA", "volume_1"])
+                .exec_returns(Ok("".into())),
+        );
+
+        let res = super::store_data_as_volume("volume_1", "ABCD").await;
+
+        assert!(matches!(res, Ok(..)));
+    }
+
+    #[tokio::test]
+    async fn utest_store_data_as_volume_success_volume_did_not_exist_before() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["volume", "rm", "volume_1"])
+                .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
+        );
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["volume", "create", "--label=data=QUJDRA", "volume_1"])
+                .exec_returns(Ok("".into())),
+        );
+
+        let res = super::store_data_as_volume("volume_1", "ABCD").await;
+
+        assert!(matches!(res, Ok(..)));
+    }
+
+    #[tokio::test]
+    async fn utest_read_data_from_volume_success() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["volume", "inspect", "volume_1"])
+                .exec_returns(Ok(r#"[{"Labels": {"data": "QUJDRA"}}]"#.into())),
+        );
+
+        let res = super::read_data_from_volume("volume_1").await;
+        assert!(matches!(res, Ok(data) if data == "ABCD"));
+    }
+
+    #[tokio::test]
+    async fn utest_read_data_from_volume_command_fails() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["volume", "inspect", "volume_1"])
+                .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
+        );
+
+        let res = super::read_data_from_volume("volume_1").await;
+        assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
+    }
+
+    #[tokio::test]
+    async fn utest_read_data_from_volume_command_returns_illegal_json() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["volume", "inspect", "volume_1"])
+                .exec_returns(Ok("[{}]".into())),
+        );
+
+        let res = super::read_data_from_volume("volume_1").await;
+
+        assert!(
+            matches!(res, Err(msg) if msg.starts_with("Could not decoded volume information as JSON:"))
+        );
+    }
+
+    #[tokio::test]
+    async fn utest_read_data_from_volume_command_returns_no_volume() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["volume", "inspect", "volume_1"])
+                .exec_returns(Ok("[]".into())),
+        );
+
+        let res = super::read_data_from_volume("volume_1").await;
+
+        assert!(matches!(res, Err(msg) if msg == "No volume returned"));
+    }
+
+    #[tokio::test]
+    async fn utest_read_data_from_volume_data_contains_illegal_base64() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["volume", "inspect", "volume_1"])
+                .exec_returns(Ok(r#"[{"Labels": {"data": "a"}}]"#.into())),
+        );
+
+        let res = super::read_data_from_volume("volume_1").await;
+
+        assert!(
+            matches!(res, Err(msg) if msg.starts_with("Could not base64 decoded volume's data label:"))
+        );
+    }
+
+    #[tokio::test]
+    async fn utest_read_data_from_volume_data_contains_illegal_utf8() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["volume", "inspect", "volume_1"])
+                .exec_returns(Ok(r#"[{"Labels": {"data": "gA"}}]"#.into())),
+        );
+
+        let res = super::read_data_from_volume("volume_1").await;
+
+        assert!(
+            matches!(res, Err(msg) if msg.starts_with("Could not decode data stored in volume:"))
+        );
+    }
+
+    #[tokio::test]
+    async fn utest_remove_volume_success() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["volume", "rm", "volume_1"])
+                .exec_returns(Ok("".into())),
+        );
+
+        let res = super::remove_volume("volume_1").await;
+
+        assert!(matches!(res, Ok(..)));
+    }
+
+    #[tokio::test]
+    async fn utest_remove_volume_command_fails() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["volume", "rm", "volume_1"])
+                .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
+        );
+
+        let res = super::remove_volume("volume_1").await;
+
+        assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
+    }
+
+    #[tokio::test]
     async fn utest_remove_workloads_by_id_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
@@ -907,6 +1170,7 @@ mod tests {
     #[tokio::test]
     async fn utest_remove_workloads_by_id_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
