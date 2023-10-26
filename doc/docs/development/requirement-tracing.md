@@ -23,5 +23,5 @@ Eclipse Ankaios traces requirements between
 So for new features 
 
 * New requirements need to be added in the design or existing requirements need to be modified (type `swdd`)
-* Mark the parts in the source code that actually implement the design requirement (type `impl`)
-* Mark the tests that test the design and implementation (type `utest`, `itest` or `stest`)
+* Mark the parts in the source code that actually implement the design requirement using the type `impl`, e.g., `// [impl->swdd~this-is-a-requirement~1]`
+* Mark the tests that check the implementation of the design with one of the types `utest`, `itest` or `stest` depending on the type of the test, e.g., `// [utest->swdd~this-is-a-requirement~1]` for a unit test
