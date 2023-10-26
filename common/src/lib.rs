@@ -13,13 +13,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub const CHANNEL_CAPACITY: usize = 20;
-pub const DEFAULT_SOCKET_ADDRESS: &str = "127.0.0.1:50051";
-pub const DEFAULT_SERVER_ADDRESS: &str = "http://127.0.0.1:50051";
+pub const DEFAULT_SOCKET_ADDRESS: &str = "127.0.0.1:25551";
+pub const DEFAULT_SERVER_ADDRESS: &str = "http://127.0.0.1:25551";
 
 pub mod commands;
 pub mod communications_client;
-pub mod communications_server;
 pub mod communications_error;
+pub mod communications_server;
 pub mod execution_interface;
 pub mod helpers;
 pub mod objects;
