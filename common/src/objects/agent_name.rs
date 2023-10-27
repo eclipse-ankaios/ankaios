@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use crate::objects::workload_execution_instance_name::INSTANCE_NAME_SEPARATOR;
 
+#[derive(Debug, Eq, PartialEq)]
 pub struct AgentName(String);
 
 impl AgentName {

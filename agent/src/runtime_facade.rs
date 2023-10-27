@@ -274,3 +274,518 @@ impl<
         });
     }
 }
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+
+    use common::{
+        objects::{WorkloadExecutionInstanceName, WorkloadInstanceName},
+        state_change_interface::StateChangeCommand,
+        test_utils::generate_test_workload_spec_with_param,
+    };
+    use mockall::predicate;
+    use tokio::sync::mpsc::Sender;
+
+    use crate::{
+        control_interface::MockPipesChannelContext,
+        runtime::{
+            test::{MockRuntime, RuntimeCall, StubStateChecker},
+            OwnableRuntime,
+        },
+        runtime_facade::{GenericRuntimeFacade, RuntimeFacade},
+        workload::MockWorkload,
+    };
+
+    const RUNTIME_NAME: &str = "runtime1";
+    const AGENT_NAME: &str = "agent_x";
+    const WORKLOAD_1_NAME: &str = "workload1";
+    const WORKLOAD_ID: &str = "workload_id_1";
+    const PIPES_LOCATION: &str = "/some/path";
+
+    const OLD_WORKLOAD_ID: &str = "old_workload_id";
+
+    // [utest->swdd~agent-facade-forwards-list-reusable-workloads-call~1]
+    #[tokio::test]
+    async fn utest_runtime_facade_reusable_running_workloads() {
+        let mut runtime_mock = MockRuntime::new();
+
+        let workload_instance_name = WorkloadExecutionInstanceName::builder()
+            .workload_name(WORKLOAD_1_NAME)
+            .build();
+
+        runtime_mock
+            .expect(vec![RuntimeCall::GetReusableWorkloads(
+                AGENT_NAME.into(),
+                Ok(vec![workload_instance_name.clone()]),
+            )])
+            .await;
+
+        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
+            Box::new(runtime_mock.clone());
+        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
+            ownable_runtime_mock,
+        ));
+
+        assert_eq!(
+            test_runtime_facade
+                .get_reusable_running_workloads(&AGENT_NAME.into())
+                .await
+                .unwrap(),
+            vec![workload_instance_name]
+        );
+
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    // [utest->swdd~agent-create-workload~1]
+    #[tokio::test]
+    async fn utest_runtime_facade_create_workload() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mut control_interface_mock = MockPipesChannelContext::default();
+        control_interface_mock
+            .expect_get_api_location()
+            .once()
+            .return_const(PIPES_LOCATION);
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let (to_server, _server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(20);
+
+        let mock_workload = MockWorkload::default();
+        let new_workload_context = MockWorkload::new_context();
+        new_workload_context
+            .expect()
+            .once()
+            .return_once(|_, _| mock_workload);
+
+        let to_server_clone = to_server.clone();
+        let await_command_context = MockWorkload::await_new_command_context();
+        await_command_context
+            .expect()
+            .once()
+            .with(
+                predicate::eq(WORKLOAD_1_NAME.to_string()),
+                predicate::eq(AGENT_NAME.to_string()),
+                predicate::eq(Some(WORKLOAD_ID.to_string())),
+                predicate::always(),
+                predicate::function(move |sender: &Sender<StateChangeCommand>| {
+                    sender.same_channel(&to_server_clone)
+                }),
+                predicate::always(),
+                predicate::always(),
+            )
+            .return_once(|_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _| {});
+
+        let mut runtime_mock = MockRuntime::new();
+        runtime_mock
+            .expect(vec![RuntimeCall::CreateWorkload(
+                workload_spec.clone(),
+                Some(PIPES_LOCATION.into()),
+                to_server.clone(),
+                Ok((WORKLOAD_ID.to_string(), StubStateChecker {})),
+            )])
+            .await;
+
+        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
+            Box::new(runtime_mock.clone());
+        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
+            ownable_runtime_mock,
+        ));
+
+        let _workload = test_runtime_facade.create_workload(
+            workload_spec.clone(),
+            Some(control_interface_mock),
+            &to_server,
+        );
+
+        tokio::task::yield_now().await;
+
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    // [utest->swdd~agent-resume-workload~1]
+    #[tokio::test]
+    async fn utest_runtime_facade_resume_workload() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let control_interface_mock = MockPipesChannelContext::default();
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let (to_server, _server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(20);
+
+        let mock_workload = MockWorkload::default();
+        let new_workload_context = MockWorkload::new_context();
+        new_workload_context
+            .expect()
+            .once()
+            .return_once(|_, _| mock_workload);
+
+        let to_server_clone = to_server.clone();
+        let await_command_context = MockWorkload::await_new_command_context();
+        await_command_context
+            .expect()
+            .once()
+            .with(
+                predicate::eq(WORKLOAD_1_NAME.to_string()),
+                predicate::eq(AGENT_NAME.to_string()),
+                predicate::eq(Some(WORKLOAD_ID.to_string())),
+                predicate::always(),
+                predicate::function(move |sender: &Sender<StateChangeCommand>| {
+                    sender.same_channel(&to_server_clone)
+                }),
+                predicate::always(),
+                predicate::always(),
+            )
+            .return_once(|_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _| {});
+
+        let mut runtime_mock = MockRuntime::new();
+        runtime_mock
+            .expect(vec![
+                RuntimeCall::GetWorkloadId(
+                    workload_spec.instance_name(),
+                    Ok(WORKLOAD_ID.to_string()),
+                ),
+                RuntimeCall::StartChecker(
+                    WORKLOAD_ID.to_string(),
+                    workload_spec.clone(),
+                    to_server.clone(),
+                    Ok(StubStateChecker {}),
+                ),
+            ])
+            .await;
+
+        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
+            Box::new(runtime_mock.clone());
+        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
+            ownable_runtime_mock,
+        ));
+
+        let _workload = test_runtime_facade.resume_workload(
+            workload_spec.clone(),
+            Some(control_interface_mock),
+            &to_server,
+        );
+
+        tokio::task::yield_now().await;
+
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    // [utest->swdd~agent-replace-workload~1]
+    #[tokio::test]
+    async fn utest_runtime_facade_replace_workload_all_success() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mut control_interface_mock = MockPipesChannelContext::default();
+        control_interface_mock
+            .expect_get_api_location()
+            .once()
+            .return_const(PIPES_LOCATION);
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let (to_server, _server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(20);
+
+        let mock_workload = MockWorkload::default();
+        let new_workload_context = MockWorkload::new_context();
+        new_workload_context
+            .expect()
+            .once()
+            .return_once(|_, _| mock_workload);
+
+        let to_server_clone = to_server.clone();
+        let await_command_context = MockWorkload::await_new_command_context();
+        await_command_context
+            .expect()
+            .once()
+            .with(
+                predicate::eq(WORKLOAD_1_NAME.to_string()),
+                predicate::eq(AGENT_NAME.to_string()),
+                predicate::eq(Some(WORKLOAD_ID.to_string())),
+                predicate::always(),
+                predicate::function(move |sender: &Sender<StateChangeCommand>| {
+                    sender.same_channel(&to_server_clone)
+                }),
+                predicate::always(),
+                predicate::always(),
+            )
+            .return_once(|_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _| {});
+
+        let old_workload_instance_name = WorkloadExecutionInstanceName::builder()
+            .workload_name(WORKLOAD_1_NAME)
+            .config(&"config".to_string())
+            .build();
+
+        let mut runtime_mock = MockRuntime::new();
+        runtime_mock
+            .expect(vec![
+                RuntimeCall::GetWorkloadId(
+                    old_workload_instance_name.clone(),
+                    Ok(OLD_WORKLOAD_ID.to_string()),
+                ),
+                RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
+                RuntimeCall::CreateWorkload(
+                    workload_spec.clone(),
+                    Some(PIPES_LOCATION.into()),
+                    to_server.clone(),
+                    Ok((WORKLOAD_ID.to_string(), StubStateChecker {})),
+                ),
+            ])
+            .await;
+
+        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
+            Box::new(runtime_mock.clone());
+        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
+            ownable_runtime_mock,
+        ));
+
+        let _workload = test_runtime_facade.replace_workload(
+            old_workload_instance_name,
+            workload_spec.clone(),
+            Some(control_interface_mock),
+            &to_server,
+        );
+
+        tokio::task::yield_now().await;
+
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    // [utest->swdd~agent-replace-workload~1]
+    #[tokio::test]
+    async fn utest_runtime_facade_replace_workload_get_id_fails() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mut control_interface_mock = MockPipesChannelContext::default();
+        control_interface_mock
+            .expect_get_api_location()
+            .once()
+            .return_const(PIPES_LOCATION);
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let (to_server, _server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(20);
+
+        let mock_workload = MockWorkload::default();
+        let new_workload_context = MockWorkload::new_context();
+        new_workload_context
+            .expect()
+            .once()
+            .return_once(|_, _| mock_workload);
+
+        let to_server_clone = to_server.clone();
+        let await_command_context = MockWorkload::await_new_command_context();
+        await_command_context
+            .expect()
+            .once()
+            .with(
+                predicate::eq(WORKLOAD_1_NAME.to_string()),
+                predicate::eq(AGENT_NAME.to_string()),
+                predicate::eq(Some(WORKLOAD_ID.to_string())),
+                predicate::always(),
+                predicate::function(move |sender: &Sender<StateChangeCommand>| {
+                    sender.same_channel(&to_server_clone)
+                }),
+                predicate::always(),
+                predicate::always(),
+            )
+            .return_once(|_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _| {});
+
+        let old_workload_instance_name = WorkloadExecutionInstanceName::builder()
+            .workload_name(WORKLOAD_1_NAME)
+            .config(&"config".to_string())
+            .build();
+
+        let mut runtime_mock = MockRuntime::new();
+        runtime_mock
+            .expect(vec![
+                RuntimeCall::GetWorkloadId(
+                    old_workload_instance_name.clone(),
+                    Err(crate::runtime::RuntimeError::List("some error".to_string())),
+                ),
+                // The expectation is that delete is not called as the workload is now gone
+                RuntimeCall::CreateWorkload(
+                    workload_spec.clone(),
+                    Some(PIPES_LOCATION.into()),
+                    to_server.clone(),
+                    Ok((WORKLOAD_ID.to_string(), StubStateChecker {})),
+                ),
+            ])
+            .await;
+
+        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
+            Box::new(runtime_mock.clone());
+        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
+            ownable_runtime_mock,
+        ));
+
+        let _workload = test_runtime_facade.replace_workload(
+            old_workload_instance_name,
+            workload_spec.clone(),
+            Some(control_interface_mock),
+            &to_server,
+        );
+
+        tokio::task::yield_now().await;
+
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    // [utest->swdd~agent-replace-workload~1]
+    #[tokio::test]
+    async fn utest_runtime_facade_replace_workload_delete_fails_create_still_called() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mut control_interface_mock = MockPipesChannelContext::default();
+        control_interface_mock
+            .expect_get_api_location()
+            .once()
+            .return_const(PIPES_LOCATION);
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let (to_server, _server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(20);
+
+        let mock_workload = MockWorkload::default();
+        let new_workload_context = MockWorkload::new_context();
+        new_workload_context
+            .expect()
+            .once()
+            .return_once(|_, _| mock_workload);
+
+        let to_server_clone = to_server.clone();
+        let await_command_context = MockWorkload::await_new_command_context();
+        await_command_context
+            .expect()
+            .once()
+            .with(
+                predicate::eq(WORKLOAD_1_NAME.to_string()),
+                predicate::eq(AGENT_NAME.to_string()),
+                predicate::eq(Some(WORKLOAD_ID.to_string())),
+                predicate::always(),
+                predicate::function(move |sender: &Sender<StateChangeCommand>| {
+                    sender.same_channel(&to_server_clone)
+                }),
+                predicate::always(),
+                predicate::always(),
+            )
+            .return_once(|_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _| {});
+
+        let old_workload_instance_name = WorkloadExecutionInstanceName::builder()
+            .workload_name(WORKLOAD_1_NAME)
+            .config(&"config".to_string())
+            .build();
+
+        let mut runtime_mock = MockRuntime::new();
+        runtime_mock
+            .expect(vec![
+                RuntimeCall::GetWorkloadId(
+                    old_workload_instance_name.clone(),
+                    Ok(OLD_WORKLOAD_ID.to_string()),
+                ),
+                RuntimeCall::DeleteWorkload(
+                    OLD_WORKLOAD_ID.to_string(),
+                    Err(crate::runtime::RuntimeError::Delete(
+                        "some delete error".to_string(),
+                    )),
+                ),
+                // the expectation is that create will still be called although delete failed
+                RuntimeCall::CreateWorkload(
+                    workload_spec.clone(),
+                    Some(PIPES_LOCATION.into()),
+                    to_server.clone(),
+                    Ok((WORKLOAD_ID.to_string(), StubStateChecker {})),
+                ),
+            ])
+            .await;
+
+        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
+            Box::new(runtime_mock.clone());
+        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
+            ownable_runtime_mock,
+        ));
+
+        let _workload = test_runtime_facade.replace_workload(
+            old_workload_instance_name,
+            workload_spec.clone(),
+            Some(control_interface_mock),
+            &to_server,
+        );
+
+        tokio::task::yield_now().await;
+
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    // [utest->swdd~agent-delete-old-workload~1]
+    #[tokio::test]
+    async fn utest_runtime_facade_delete_workload() {
+        let mut runtime_mock = MockRuntime::new();
+
+        let workload_instance_name = WorkloadExecutionInstanceName::builder()
+            .workload_name(WORKLOAD_1_NAME)
+            .build();
+
+        runtime_mock
+            .expect(vec![
+                RuntimeCall::GetWorkloadId(
+                    workload_instance_name.clone(),
+                    Ok(WORKLOAD_ID.to_string()),
+                ),
+                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
+            ])
+            .await;
+
+        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
+            Box::new(runtime_mock.clone());
+        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
+            ownable_runtime_mock,
+        ));
+
+        test_runtime_facade.delete_workload(workload_instance_name);
+
+        tokio::task::yield_now().await;
+
+        runtime_mock.assert_all_expectations().await;
+    }
+}
