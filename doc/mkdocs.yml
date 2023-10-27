@@ -90,4 +90,5 @@ nav:
     - development/ci-cd.md
     - development/ci-cd-release.md
     - development/documentation-guidelines.md
-    
+  - support.md
+
