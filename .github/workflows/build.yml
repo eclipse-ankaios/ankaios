@@ -12,6 +12,7 @@ env:
 
 jobs:      
   test_and_build_linux_amd64:
+    name: Test and Build Linux amd64
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.3
@@ -19,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3.5.3
       - uses: Swatinem/rust-cache@v2.6.2
-      
+
       - name: Run tests
         run: RUST_LOG=debug cargo nextest run
 
@@ -66,6 +67,7 @@ jobs:
     # requesting the support for arm64: https://github.com/actions/runner-images/issues/5631
     # if arm64 variants will be released we can switch to an arm64 image and save the longer built time for cross platform build
     # and in addition, tests for arm64 can be enabled in this job, too
+    name: Build Linux arm64
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.3
@@ -92,6 +94,7 @@ jobs:
           path: target/aarch64-unknown-linux-gnu/debian/ankaios*.deb
 
   requirements:
+    name: Build Requirements Tracing
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.3

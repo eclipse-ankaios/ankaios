@@ -3,28 +3,39 @@ on:
   push:
     branches:
       - main
-    paths:
-      - 'doc/**'
-      - 'api/proto/**'
-      - '.github/workflows/documentation.yml'
   pull_request:
-    paths:
-      - 'doc/**'
-      - 'api/proto/**'
-      - '.github/workflows/documentation.yml'
   workflow_dispatch:
   workflow_call:
 
 permissions:
   contents: write
 jobs:
+  documentation_changes:
+    name: Check If Documentation Changed
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      documentation: ${{ steps.filter.outputs.documentation }}
+    steps:
+    - uses: actions/checkout@v3.5.3
+    - uses: dorny/paths-filter@v2.11.1
+      id: filter
+      with:
+        filters: |
+          documentation:
+              - 'doc/**'
+              - 'api/proto/**'
+              - '.github/workflows/documentation.yml'
   deploy:
+    name: Deploy Documentation
+    needs: documentation_changes
+    if: ${{ needs.documentation_changes.outputs.documentation == 'true' || github.ref_name == 'main' || github.ref_type == 'tag' }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.3
     steps:
       - uses: actions/checkout@v3.5.3
-
       - name: Prepare commit to branch gh-pages
         run: |
             git config --global --add safe.directory $PWD

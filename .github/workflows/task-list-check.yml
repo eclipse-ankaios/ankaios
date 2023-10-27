@@ -10,7 +10,7 @@ on:
 
 jobs:
   verify:
-    name: verify_pr_task_list
+    name: Verify PR Task List
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
