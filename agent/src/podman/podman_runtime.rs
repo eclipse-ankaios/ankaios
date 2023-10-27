@@ -18,16 +18,10 @@ use crate::{
 
 // [impl->swdd~podman-uses-podman-cli~1]
 #[cfg(not(test))]
-use crate::podman::podman_cli::{
-    list_states_by_id, list_workload_ids_by_label, list_workload_names_by_label,
-    remove_workloads_by_id, run_workload,
-};
+use crate::podman::podman_cli::PodmanCli;
 
 #[cfg(test)]
-use self::tests::{
-    list_states_by_id, list_workload_ids_by_label, list_workload_names_by_label,
-    remove_workloads_by_id, run_workload,
-};
+use self::tests::PodmanCli;
 
 use super::podman_runtime_config::PodmanRuntimeConfigCli;
 
@@ -51,7 +45,7 @@ impl RuntimeStateChecker<PodmanWorkloadId> for PodmanStateChecker {
 
         // [impl->swdd~podman-state-checker-returns-unknown-state~1]
         let mut exec_state = ExecutionState::ExecUnknown;
-        if let Ok(mut states) = list_states_by_id(workload_id.id.as_str()).await {
+        if let Ok(mut states) = PodmanCli::list_states_by_id(workload_id.id.as_str()).await {
             match states.len() {
                 1 => exec_state = states.swap_remove(0),
                 // [impl->swdd~podman-state-checker-returns-removed-state~1]
@@ -76,7 +70,7 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         agent_name: &AgentName,
     ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
         // [impl->swdd~podman-list-of-existing-workloads-uses-labels~1]
-        let res = list_workload_names_by_label("agent", agent_name.get())
+        let res = PodmanCli::list_workload_names_by_label("agent", agent_name.get())
             .await
             .map_err(|err| RuntimeError::List(err.to_string()))?;
 
@@ -102,7 +96,7 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         let workload_cfg = PodmanRuntimeConfigCli::try_from(&workload_spec)
             .map_err(|err| RuntimeError::Create(err.into()))?;
 
-        let workload_id = run_workload(
+        let workload_id = PodmanCli::run_workload(
             workload_cfg,
             workload_spec.instance_name().to_string().as_str(),
             workload_spec.agent.as_str(),
@@ -131,7 +125,7 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         instance_name: &WorkloadExecutionInstanceName,
     ) -> Result<PodmanWorkloadId, RuntimeError> {
         // [impl->swdd~podman-get-workload-id-uses-label~1]
-        let res = list_workload_ids_by_label("name", instance_name.to_string().as_str())
+        let res = PodmanCli::list_workload_ids_by_label("name", instance_name.to_string().as_str())
             .await
             .map_err(|err| RuntimeError::List(err.to_string()))?;
 
@@ -174,7 +168,7 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
     // [impl->swdd~podman-delete-workload-stops-and-removes-workload~1]
     async fn delete_workload(&self, workload_id: &PodmanWorkloadId) -> Result<(), RuntimeError> {
         log::info!("Deleting workload with id '{}'", workload_id.id);
-        remove_workloads_by_id(&workload_id.id)
+        PodmanCli::remove_workloads_by_id(&workload_id.id)
             .await
             .map_err(|err| RuntimeError::Delete(err.to_string()))
     }
@@ -216,76 +210,70 @@ mod tests {
     mockall::lazy_static! {
         pub static ref FAKE_LIST_WORKLOAD_IDS_RESULTS: Mutex<std::collections::VecDeque<Result<Vec<String>, String>>> =
         Mutex::new(std::collections::VecDeque::new());
-    }
-
-    pub async fn list_workload_ids_by_label(_key: &str, _val: &str) -> Result<Vec<String>, String> {
-        FAKE_LIST_WORKLOAD_IDS_RESULTS
-            .lock()
-            .unwrap()
-            .pop_front()
-            .unwrap()
-    }
-
-    mockall::lazy_static! {
         pub static ref FAKE_LIST_WORKLOAD_NAMES_RESULTS: Mutex<std::collections::VecDeque<Result<Vec<String>, String>>> =
         Mutex::new(std::collections::VecDeque::new());
-    }
-
-    pub async fn list_workload_names_by_label(
-        _key: &str,
-        _value: &str,
-    ) -> Result<Vec<String>, String> {
-        FAKE_LIST_WORKLOAD_NAMES_RESULTS
-            .lock()
-            .unwrap()
-            .pop_front()
-            .unwrap()
-    }
-
-    mockall::lazy_static! {
         pub static ref FAKE_RUN_WORKLOAD_RESULTS: Mutex<std::collections::VecDeque<Result<String, String>>> =
         Mutex::new(std::collections::VecDeque::new());
-    }
-
-    pub async fn run_workload(
-        _workload_cfg: PodmanRuntimeConfigCli,
-        _workload_name: &str,
-        _agent: &str,
-        _control_interface_location: Option<PathBuf>,
-    ) -> Result<String, String> {
-        FAKE_RUN_WORKLOAD_RESULTS
-            .lock()
-            .unwrap()
-            .pop_front()
-            .unwrap()
-    }
-
-    mockall::lazy_static! {
         pub static ref FAKE_LIST_STATES_RESULTS: Mutex<std::collections::VecDeque<Result<Vec<ExecutionState>, String>>> =
         Mutex::new(std::collections::VecDeque::new());
-    }
-
-    pub async fn list_states_by_id(_workload_id: &str) -> Result<Vec<ExecutionState>, String> {
-        FAKE_LIST_STATES_RESULTS
-            .lock()
-            .unwrap()
-            .pop_front()
-            .unwrap()
-    }
-
-    mockall::lazy_static! {
         pub static ref FAKE_DELETE_WORKLOAD_RESULTS: Mutex<std::collections::VecDeque<Result<(), String>>> =
         Mutex::new(std::collections::VecDeque::new());
     }
 
-    pub async fn remove_workloads_by_id(_workload_id: &str) -> Result<(), String> {
-        FAKE_DELETE_WORKLOAD_RESULTS
-            .lock()
-            .unwrap()
-            .pop_front()
-            .unwrap()
-    }
+    pub struct PodmanCli {}
 
+    impl PodmanCli {
+        pub async fn list_workload_ids_by_label(
+            _key: &str,
+            _val: &str,
+        ) -> Result<Vec<String>, String> {
+            FAKE_LIST_WORKLOAD_IDS_RESULTS
+                .lock()
+                .unwrap()
+                .pop_front()
+                .unwrap()
+        }
+
+        pub async fn list_workload_names_by_label(
+            _key: &str,
+            _value: &str,
+        ) -> Result<Vec<String>, String> {
+            FAKE_LIST_WORKLOAD_NAMES_RESULTS
+                .lock()
+                .unwrap()
+                .pop_front()
+                .unwrap()
+        }
+
+        pub async fn run_workload(
+            _workload_cfg: PodmanRuntimeConfigCli,
+            _workload_name: &str,
+            _agent: &str,
+            _control_interface_location: Option<PathBuf>,
+        ) -> Result<String, String> {
+            FAKE_RUN_WORKLOAD_RESULTS
+                .lock()
+                .unwrap()
+                .pop_front()
+                .unwrap()
+        }
+
+        pub async fn list_states_by_id(_workload_id: &str) -> Result<Vec<ExecutionState>, String> {
+            FAKE_LIST_STATES_RESULTS
+                .lock()
+                .unwrap()
+                .pop_front()
+                .unwrap()
+        }
+
+        pub async fn remove_workloads_by_id(_workload_id: &str) -> Result<(), String> {
+            FAKE_DELETE_WORKLOAD_RESULTS
+                .lock()
+                .unwrap()
+                .pop_front()
+                .unwrap()
+        }
+    }
     // [utest->swdd~podman-name-returns-podman~1]
     #[test]
     fn utest_name_podman() {

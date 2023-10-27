@@ -1,5 +1,7 @@
 use base64::Engine;
 use common::objects::ExecutionState;
+#[cfg(test)]
+use mockall::automock;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
 
@@ -31,7 +33,6 @@ impl From<PodmanContainerInfo> for ContainerState {
     }
 }
 
-// [impl->swdd~podman-state-checker-maps-state~1]
 impl From<PodmanContainerInfo> for ExecutionState {
     fn from(value: PodmanContainerInfo) -> Self {
         match value.state {
@@ -44,249 +45,259 @@ impl From<PodmanContainerInfo> for ExecutionState {
     }
 }
 
-pub async fn play_kube(
-    additional_options: &[String],
-    kube_yml: &[u8],
-) -> Result<Vec<String>, String> {
-    let mut args = vec!["kube", "play", "--quiet"];
-    args.extend(additional_options.iter().map(|x| x as &str));
-    args.push("-");
-    let result = CliCommand::new(PODMAN_CMD)
-        .args(&args)
-        .stdin(kube_yml)
-        .exec()
-        .await?;
-    Ok(parse_pods_from_output(result))
-}
+pub struct PodmanCli {}
 
-fn parse_pods_from_output(input: String) -> Vec<String> {
-    let mut result = Vec::new();
-    let mut is_pod = false;
-    for line in input.split('\n') {
-        let line = line.trim();
-        if line == "Pod:" {
-            is_pod = true;
-            continue;
+#[cfg_attr(test, automock)]
+impl PodmanCli {
+    pub async fn play_kube(
+        additional_options: &[String],
+        kube_yml: &[u8],
+    ) -> Result<Vec<String>, String> {
+        let mut args = vec!["kube", "play", "--quiet"];
+        args.extend(additional_options.iter().map(|x| x as &str));
+        args.push("-");
+        let result = CliCommand::new(PODMAN_CMD)
+            .args(&args)
+            .stdin(kube_yml)
+            .exec()
+            .await?;
+        Ok(Self::parse_pods_from_output(result))
+    }
+
+    fn parse_pods_from_output(input: String) -> Vec<String> {
+        let mut result = Vec::new();
+        let mut is_pod = false;
+        for line in input.split('\n') {
+            let line = line.trim();
+            if line == "Pod:" {
+                is_pod = true;
+                continue;
+            }
+            if line.ends_with(':') {
+                is_pod = false;
+                continue;
+            }
+            if is_pod && !line.is_empty() {
+                result.push(line.into())
+            }
         }
-        if line.ends_with(':') {
-            is_pod = false;
-            continue;
+        result
+    }
+
+    pub async fn down_kube(down_options: &[String], kube_yml: &[u8]) -> Result<(), String> {
+        let mut args = vec!["kube", "down"];
+        args.extend(down_options.iter().map(|x| x as &str));
+        args.push("-");
+
+        CliCommand::new(PODMAN_CMD)
+            .args(&args)
+            .stdin(kube_yml)
+            .exec()
+            .await?;
+        Ok(())
+    }
+
+    pub async fn list_workload_ids_by_label(key: &str, value: &str) -> Result<Vec<String>, String> {
+        log::debug!("Listing workload ids for: {}='{}'", key, value,);
+        let output = CliCommand::new(PODMAN_CMD)
+            .args(&[
+                "ps",
+                "-a",
+                "--filter",
+                &format!("label={key}={value}"),
+                "--format={{.ID}}",
+            ])
+            .exec()
+            .await?;
+        Ok(output
+            .split('\n')
+            .map(|x| x.trim().into())
+            .filter(|x: &String| !x.is_empty())
+            .collect())
+    }
+
+    pub async fn list_workload_names_by_label(
+        key: &str,
+        value: &str,
+    ) -> Result<Vec<String>, String> {
+        log::debug!("Listing workload names for: {}='{}'", key, value,);
+        let output = CliCommand::new(PODMAN_CMD)
+            .args(&[
+                "ps",
+                "-a",
+                "--filter",
+                &format!("label={key}={value}"),
+                "--format=json",
+            ])
+            .exec()
+            .await?;
+
+        let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
+            .map_err(|err| format!("Could not parse podman output: {}", err))?;
+
+        let mut names: Vec<String> = Vec::new();
+        for mut podman_info in res {
+            if let Some(name_val) = podman_info.labels.get_mut("name") {
+                names.push(name_val.to_string());
+            }
         }
-        if is_pod && !line.is_empty() {
-            result.push(line.into())
+        Ok(names)
+    }
+
+    pub async fn run_workload(
+        workload_cfg: PodmanRuntimeConfigCli,
+        workload_name: &str,
+        agent: &str,
+        control_interface_path: Option<PathBuf>,
+    ) -> Result<String, String> {
+        log::debug!("Creating the workload: '{}'", workload_cfg.image);
+
+        let mut args = if let Some(opts) = workload_cfg.general_options {
+            opts
+        } else {
+            Vec::new()
+        };
+
+        args.push("run".into());
+        args.push("-d".into());
+
+        // Setting "--name" flag is intentionally here before reading "command_options".
+        // We want to give the user chance to set own container name.
+        // In other words the user can overwrite our container name.
+        // We store workload name as a label (an use them from there).
+        // Therefore we do insist on container names in particular format.
+        args.append(&mut vec!["--name".into(), workload_name.to_string()]);
+
+        if let Some(mut x) = workload_cfg.command_options {
+            args.append(&mut x);
         }
-    }
-    result
-}
 
-pub async fn down_kube(additional_options: &[String], kube_yml: &[u8]) -> Result<(), String> {
-    let mut args = vec!["kube", "down"];
-    args.extend(additional_options.iter().map(|x| x as &str));
-    args.push("-");
-
-    CliCommand::new(PODMAN_CMD)
-        .args(&args)
-        .stdin(kube_yml)
-        .exec()
-        .await?;
-    Ok(())
-}
-
-pub async fn list_workload_ids_by_label(key: &str, value: &str) -> Result<Vec<String>, String> {
-    log::debug!("Listing workload ids for: {}='{}'", key, value,);
-    let output = CliCommand::new(PODMAN_CMD)
-        .args(&[
-            "ps",
-            "-a",
-            "--filter",
-            &format!("label={key}={value}"),
-            "--format={{.ID}}",
-        ])
-        .exec()
-        .await?;
-    Ok(output
-        .split('\n')
-        .map(|x| x.trim().into())
-        .filter(|x: &String| !x.is_empty())
-        .collect())
-}
-
-pub async fn list_workload_names_by_label(key: &str, value: &str) -> Result<Vec<String>, String> {
-    log::debug!("Listing workload names for: {}='{}'", key, value,);
-    let output = CliCommand::new(PODMAN_CMD)
-        .args(&[
-            "ps",
-            "-a",
-            "--filter",
-            &format!("label={key}={value}"),
-            "--format=json",
-        ])
-        .exec()
-        .await?;
-
-    let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
-        .map_err(|err| format!("Could not parse podman output: {}", err))?;
-
-    let mut names: Vec<String> = Vec::new();
-    for mut podman_info in res {
-        if let Some(name_val) = podman_info.labels.get_mut("name") {
-            names.push(name_val.to_string());
+        if let Some(path) = control_interface_path {
+            args.push(
+                [
+                    "--mount=type=bind,source=",
+                    &path.to_string_lossy(),
+                    ",destination=",
+                    API_PIPES_MOUNT_POINT,
+                ]
+                .concat(),
+            );
         }
-    }
-    Ok(names)
-}
 
-pub async fn run_workload(
-    workload_cfg: PodmanRuntimeConfigCli,
-    workload_name: &str,
-    agent: &str,
-    control_interface_path: Option<PathBuf>,
-) -> Result<String, String> {
-    log::debug!("Creating the workload: '{}'", workload_cfg.image);
+        args.push(format!("--label=name={workload_name}"));
+        args.push(format!("--label=agent={agent}"));
+        args.push(workload_cfg.image);
 
-    let mut args = if let Some(opts) = workload_cfg.general_options {
-        opts
-    } else {
-        Vec::new()
-    };
+        if let Some(mut x) = workload_cfg.command_args {
+            args.append(&mut x);
+        }
 
-    args.push("run".into());
-    args.push("-d".into());
-
-    // Setting "--name" flag is intentionally here before reading "command_options".
-    // We want to give the user chance to set own container name.
-    // In other words the user can overwrite our container name.
-    // We store workload name as a label (an use them from there).
-    // Therefore we do insist on container names in particular format.
-    //
-    // [impl->swdd~podman-create-workload-sets-optionally-container-name~1]
-    args.append(&mut vec!["--name".into(), workload_name.to_string()]);
-
-    if let Some(mut x) = workload_cfg.command_options {
-        args.append(&mut x);
+        log::debug!("The args are: '{:?}'", args);
+        let id = CliCommand::new(PODMAN_CMD)
+            .args(&args.iter().map(|x| &**x).collect::<Vec<&str>>())
+            .exec()
+            .await?
+            .trim()
+            .to_string();
+        Ok(id)
     }
 
-    // [impl->swdd~podman-create-workload-mounts-fifo-files~1]
-    if let Some(path) = control_interface_path {
-        args.push(
-            [
-                "--mount=type=bind,source=",
-                &path.to_string_lossy(),
-                ",destination=",
-                API_PIPES_MOUNT_POINT,
-            ]
-            .concat(),
-        );
+    pub async fn list_states_by_id(workload_id: &str) -> Result<Vec<ExecutionState>, String> {
+        let output = CliCommand::new(PODMAN_CMD)
+            .args(&[
+                "ps",
+                "--all",
+                "--filter",
+                &format!("id={workload_id}"),
+                "--format=json",
+            ])
+            .exec()
+            .await?;
+
+        let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
+            .map_err(|err| format!("Could not parse podman output:{}", err))?;
+
+        Ok(res.into_iter().map(|x| x.into()).collect())
     }
 
-    // [impl->swdd~podman-create-workload-creates-labels~1]
-    args.push(format!("--label=name={workload_name}"));
-    args.push(format!("--label=agent={agent}"));
-    args.push(workload_cfg.image);
+    pub async fn list_states_from_pods(pods: &[String]) -> Result<Vec<ContainerState>, String> {
+        let mut args = vec!["ps", "--all", "--format=json"];
+        let filters: Vec<String> = pods.iter().map(|p| format!("--filter=pod={}", p)).collect();
+        args.extend(filters.iter().map(|x| x as &str));
 
-    if let Some(mut x) = workload_cfg.command_args {
-        args.append(&mut x);
+        let output = CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
+
+        let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
+            .map_err(|err| format!("Could not parse podman output:{}", err))?;
+
+        Ok(res.into_iter().map(|x| x.into()).collect())
     }
 
-    log::debug!("The args are: '{:?}'", args);
-    let id = CliCommand::new(PODMAN_CMD)
-        .args(&args.iter().map(|x| &**x).collect::<Vec<&str>>())
-        .exec()
-        .await?
-        .trim()
-        .to_string();
-    Ok(id)
-}
+    pub async fn list_volumes_by_name(name: &str) -> Result<Vec<String>, String> {
+        let output = CliCommand::new(PODMAN_CMD)
+            .args(&[
+                "volume",
+                "ls",
+                "--filter",
+                &format!("name={name}"),
+                "--format={{.Name}}",
+            ])
+            .exec()
+            .await?;
+        Ok(output
+            .split('\n')
+            .map(|x| x.trim().to_string())
+            .filter(|x| !x.is_empty())
+            .collect())
+    }
 
-pub async fn list_states_by_id(workload_id: &str) -> Result<Vec<ExecutionState>, String> {
-    let output = CliCommand::new(PODMAN_CMD)
-        .args(&[
-            "ps",
-            "--all",
-            "--filter",
-            &format!("id={workload_id}"),
-            "--format=json",
-        ])
-        .exec()
-        .await?;
+    pub async fn store_data_as_volume(volume_name: &str, data: &str) -> Result<(), String> {
+        let _ = Self::remove_volume(volume_name).await;
 
-    let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
-        .map_err(|err| format!("Could not parse podman output:{}", err))?;
+        let mut label = "--label=data=".into();
+        base64::engine::general_purpose::STANDARD_NO_PAD.encode_string(data.as_bytes(), &mut label);
+        CliCommand::new(PODMAN_CMD)
+            .args(&["volume", "create", &label, volume_name])
+            .exec()
+            .await?;
+        Ok(())
+    }
 
-    Ok(res.into_iter().map(|x| x.into()).collect())
-}
+    pub async fn read_data_from_volume(volume_name: &str) -> Result<String, String> {
+        let result = CliCommand::new(PODMAN_CMD)
+            .args(&["volume", "inspect", volume_name])
+            .exec()
+            .await?;
 
-pub async fn list_states_from_pods(pods: &[String]) -> Result<Vec<ContainerState>, String> {
-    let mut args = vec!["ps", "--all", "--format=json"];
-    let filters: Vec<String> = pods.iter().map(|p| format!("--filter=pod={}", p)).collect();
-    args.extend(filters.iter().map(|x| x as &str));
+        let res: Vec<Volume> = serde_json::from_str(&result)
+            .map_err(|err| format!("Could not decoded volume information as JSON: {}", err))?;
+        let res = base64::engine::general_purpose::STANDARD_NO_PAD
+            .decode(
+                &res.get(0)
+                    .ok_or_else(|| "No volume returned".to_string())?
+                    .labels
+                    .data,
+            )
+            .map_err(|err| format!("Could not base64 decoded volume's data label: {}", err))?;
+        let res = String::from_utf8(res)
+            .map_err(|err| format!("Could not decode data stored in volume: {}", err))?;
 
-    let output = CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
+        Ok(res)
+    }
 
-    let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
-        .map_err(|err| format!("Could not parse podman output:{}", err))?;
+    pub async fn remove_volume(volume_name: &str) -> Result<(), String> {
+        CliCommand::new(PODMAN_CMD)
+            .args(&["volume", "rm", volume_name])
+            .exec()
+            .await?;
+        Ok(())
+    }
 
-    Ok(res.into_iter().map(|x| x.into()).collect())
-}
-
-pub async fn list_volumes_by_name(name: &str) -> Result<Vec<String>, String> {
-    let output = CliCommand::new(PODMAN_CMD)
-        .args(&[
-            "volume",
-            "ls",
-            "--filter",
-            &format!("name={name}"),
-            "--format={{.Name}}",
-        ])
-        .exec()
-        .await?;
-    Ok(output
-        .split('\n')
-        .map(|x| x.trim().to_string())
-        .filter(|x| !x.is_empty())
-        .collect())
-}
-
-pub async fn store_data_as_volume(volume_name: &str, data: &str) -> Result<(), String> {
-    let _ = remove_volume(volume_name).await;
-
-    let mut label = "--label=data=".into();
-    base64::engine::general_purpose::STANDARD_NO_PAD.encode_string(data.as_bytes(), &mut label);
-    CliCommand::new(PODMAN_CMD)
-        .args(&["volume", "create", &label, volume_name])
-        .exec()
-        .await?;
-    Ok(())
-}
-
-pub async fn read_data_from_volume(volume_name: &str) -> Result<String, String> {
-    let result = CliCommand::new(PODMAN_CMD)
-        .args(&["volume", "inspect", volume_name])
-        .exec()
-        .await?;
-
-    let res: Vec<Volume> = serde_json::from_str(&result)
-        .map_err(|err| format!("Could not decoded volume information as JSON: {}", err))?;
-    let res = base64::engine::general_purpose::STANDARD_NO_PAD
-        .decode(
-            &res.get(0)
-                .ok_or_else(|| "No volume returned".to_string())?
-                .labels
-                .data,
-        )
-        .map_err(|err| format!("Could not base64 decoded volume's data label: {}", err))?;
-    let res = String::from_utf8(res)
-        .map_err(|err| format!("Could not decode data stored in volume: {}", err))?;
-
-    Ok(res)
-}
-
-pub async fn remove_volume(volume_name: &str) -> Result<(), String> {
-    CliCommand::new(PODMAN_CMD)
-        .args(&["volume", "rm", volume_name])
-        .exec()
-        .await?;
-    Ok(())
+    pub async fn remove_workloads_by_id(workload_id: &str) -> Result<(), String> {
+        let args = vec!["rm", "-f", workload_id];
+        CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
+        Ok(())
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -298,12 +309,6 @@ struct Volume {
 #[derive(Deserialize, Debug)]
 struct DataLabel {
     data: String,
-}
-
-pub async fn remove_workloads_by_id(workload_id: &str) -> Result<(), String> {
-    let args = vec!["rm", "-f", workload_id];
-    CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
-    Ok(())
 }
 
 #[derive(Deserialize, Serialize)]
@@ -324,7 +329,6 @@ enum PodmanContainerState {
     #[serde(other)]
     Unknown,
 }
-
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -332,17 +336,13 @@ enum PodmanContainerState {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
-
-// [utest->swdd~podman-uses-podman-cli~1]
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
-    use common::objects::ExecutionState;
+    use super::{ContainerState, PodmanCli, PodmanContainerInfo, PodmanContainerState};
 
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
-
-    use super::{ContainerState, PodmanContainerInfo, PodmanContainerState};
+    use common::objects::ExecutionState;
+    use std::collections::HashMap;
 
     const SAMPLE_ERROR_MESSAGE: &str = "error message";
 
@@ -436,7 +436,7 @@ mod tests {
                 .into())),
         );
 
-        let res = super::play_kube(&["-a".into(), "-b".into()], sample_input.as_bytes()).await;
+        let res = PodmanCli::play_kube(&["-a".into(), "-b".into()], sample_input.as_bytes()).await;
         assert!(
             matches!(res, Ok(pods) if pods == ["3".to_string(), "5".to_string(), "6".to_string()])
         );
@@ -457,7 +457,7 @@ mod tests {
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
-        let res = super::play_kube(&["-a".into(), "-b".into()], sample_input.as_bytes()).await;
+        let res = PodmanCli::play_kube(&["-a".into(), "-b".into()], sample_input.as_bytes()).await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
@@ -476,7 +476,7 @@ mod tests {
                 .exec_returns(Ok("".into())),
         );
 
-        let res = super::down_kube(&["-a".into(), "-b".into()], sample_input.as_bytes()).await;
+        let res = PodmanCli::down_kube(&["-a".into(), "-b".into()], sample_input.as_bytes()).await;
         assert!(matches!(res, Ok(..)));
     }
 
@@ -495,7 +495,7 @@ mod tests {
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
-        let res = super::down_kube(&["-a".into(), "-b".into()], sample_input.as_bytes()).await;
+        let res = PodmanCli::down_kube(&["-a".into(), "-b".into()], sample_input.as_bytes()).await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
@@ -517,7 +517,7 @@ mod tests {
                 .exec_returns(Ok("result1\nresult2\n".into())),
         );
 
-        let res = super::list_workload_ids_by_label("name", "test_agent").await;
+        let res = PodmanCli::list_workload_ids_by_label("name", "test_agent").await;
         assert!(matches!(res, Ok(res) if res == vec!["result1", "result2"]));
     }
 
@@ -539,7 +539,7 @@ mod tests {
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
-        let res = super::list_workload_ids_by_label("name", "test_agent").await;
+        let res = PodmanCli::list_workload_ids_by_label("name", "test_agent").await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
@@ -565,7 +565,7 @@ mod tests {
                 ))),
         );
 
-        let res = super::list_workload_names_by_label("name", "test_agent").await;
+        let res = PodmanCli::list_workload_names_by_label("name", "test_agent").await;
         assert_eq!(res, Ok(vec!["workload_name".into()]));
     }
 
@@ -587,7 +587,7 @@ mod tests {
                 .exec_returns(Err("simulated error".to_string())),
         );
 
-        let res = super::list_workload_names_by_label("name", "test_agent").await;
+        let res = PodmanCli::list_workload_names_by_label("name", "test_agent").await;
         assert_eq!(res, Err("simulated error".to_string()));
     }
 
@@ -609,13 +609,10 @@ mod tests {
                 .exec_returns(Ok("non-json response from podman".to_string())),
         );
 
-        let res = super::list_workload_names_by_label("name", "test_agent").await;
+        let res = PodmanCli::list_workload_names_by_label("name", "test_agent").await;
         assert!(matches!(res, Err(msg) if msg.starts_with("Could not parse podman output") ));
     }
 
-    // [utest->swdd~podman-create-workload-creates-labels~1]
-    // [utest->swdd~podman-create-workload-sets-optionally-container-name~1]
-    // [utest->swdd~podman-create-workload-mounts-fifo-files~1]
     #[tokio::test]
     async fn utest_run_container_success_no_options() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -642,7 +639,8 @@ mod tests {
             image: "alpine:latest".into(),
             command_args: None,
         };
-        let res = super::run_workload(workload_cfg, "test_workload_name", "test_agent", None).await;
+        let res =
+            PodmanCli::run_workload(workload_cfg, "test_workload_name", "test_agent", None).await;
         assert_eq!(res, Ok("test_id".to_string()));
     }
 
@@ -672,12 +670,11 @@ mod tests {
             image: "alpine:latest".into(),
             command_args: None,
         };
-        let res = super::run_workload(workload_cfg, "test_workload_name", "test_agent", None).await;
+        let res =
+            PodmanCli::run_workload(workload_cfg, "test_workload_name", "test_agent", None).await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
-    // [utest->swdd~podman-create-workload-sets-optionally-container-name~1]
-    // [utest->swdd~podman-create-workload-mounts-fifo-files~1]
     #[tokio::test]
     async fn utest_run_container_success_with_options() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -714,7 +711,7 @@ mod tests {
             image: "alpine:latest".into(),
             command_args: Some(vec!["sh".into()]),
         };
-        let res = super::run_workload(
+        let res = PodmanCli::run_workload(
             workload_cfg,
             "test_workload_name",
             "test_agent",
@@ -724,7 +721,6 @@ mod tests {
         assert_eq!(res, Ok("test_id".to_string()));
     }
 
-    // [utest->swdd~podman-state-checker-maps-state~1]
     #[tokio::test]
     async fn utest_list_states_by_id_pending() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -741,11 +737,10 @@ mod tests {
                 ))),
         );
 
-        let res = super::list_states_by_id("test_id").await;
+        let res = PodmanCli::list_states_by_id("test_id").await;
         assert_eq!(res, Ok(vec![ExecutionState::ExecPending]));
     }
 
-    // [utest->swdd~podman-state-checker-maps-state~1]
     #[tokio::test]
     async fn utest_list_states_by_id_succeeded() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -762,11 +757,10 @@ mod tests {
                 ))),
         );
 
-        let res = super::list_states_by_id("test_id").await;
+        let res = PodmanCli::list_states_by_id("test_id").await;
         assert_eq!(res, Ok(vec![ExecutionState::ExecSucceeded]));
     }
 
-    // [utest->swdd~podman-state-checker-maps-state~1]
     #[tokio::test]
     async fn utest_list_states_by_id_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -783,11 +777,10 @@ mod tests {
                 ))),
         );
 
-        let res = super::list_states_by_id("test_id").await;
+        let res = PodmanCli::list_states_by_id("test_id").await;
         assert_eq!(res, Ok(vec![ExecutionState::ExecFailed]));
     }
 
-    // [utest->swdd~podman-state-checker-maps-state~1]
     #[tokio::test]
     async fn utest_list_states_by_id_running() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -804,11 +797,10 @@ mod tests {
                 ))),
         );
 
-        let res = super::list_states_by_id("test_id").await;
+        let res = PodmanCli::list_states_by_id("test_id").await;
         assert_eq!(res, Ok(vec![ExecutionState::ExecRunning]));
     }
 
-    // [utest->swdd~podman-state-checker-maps-state~1]
     #[tokio::test]
     async fn utest_list_states_by_id_unknown() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -825,7 +817,7 @@ mod tests {
                 ))),
         );
 
-        let res = super::list_states_by_id("test_id").await;
+        let res = PodmanCli::list_states_by_id("test_id").await;
         assert_eq!(res, Ok(vec![ExecutionState::ExecUnknown]));
     }
 
@@ -841,7 +833,7 @@ mod tests {
                 .exec_returns(Err("simulated error".to_string())),
         );
 
-        let res = super::list_states_by_id("test_id").await;
+        let res = PodmanCli::list_states_by_id("test_id").await;
         assert_eq!(res, Err("simulated error".to_string()));
     }
 
@@ -857,7 +849,7 @@ mod tests {
                 .exec_returns(Ok("non-json response from podman".to_string())),
         );
 
-        let res = super::list_states_by_id("test_id").await;
+        let res = PodmanCli::list_states_by_id("test_id").await;
         assert!(matches!(res, Err(msg) if msg.starts_with("Could not parse podman output") ));
     }
 
@@ -886,7 +878,7 @@ mod tests {
         );
 
         let res =
-            super::list_states_from_pods(&["pod1".into(), "pod2".into(), "pod3".into()]).await;
+            PodmanCli::list_states_from_pods(&["pod1".into(), "pod2".into(), "pod3".into()]).await;
         assert!(
             matches!(res, Ok(states) if states == [ContainerState::Running, ContainerState::Exited(42), ContainerState::Unknown] )
         );
@@ -912,7 +904,7 @@ mod tests {
         );
 
         let res =
-            super::list_states_from_pods(&["pod1".into(), "pod2".into(), "pod3".into()]).await;
+            PodmanCli::list_states_from_pods(&["pod1".into(), "pod2".into(), "pod3".into()]).await;
 
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE ));
     }
@@ -937,7 +929,7 @@ mod tests {
         );
 
         let res =
-            super::list_states_from_pods(&["pod1".into(), "pod2".into(), "pod3".into()]).await;
+            PodmanCli::list_states_from_pods(&["pod1".into(), "pod2".into(), "pod3".into()]).await;
 
         assert!(matches!(res, Err(msg) if msg.starts_with("Could not parse podman output:") ));
     }
@@ -960,7 +952,7 @@ mod tests {
                 .exec_returns(Ok("volume_1\nvolume_2\nvolume_3\n".into())),
         );
 
-        let res = super::list_volumes_by_name("volume_regex").await;
+        let res = PodmanCli::list_volumes_by_name("volume_regex").await;
 
         assert!(matches!(res, Ok(volumes) if volumes == ["volume_1", "volume_2", "volume_3"] ));
     }
@@ -983,7 +975,7 @@ mod tests {
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
-        let res = super::list_volumes_by_name("volume_regex").await;
+        let res = PodmanCli::list_volumes_by_name("volume_regex").await;
 
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE ));
     }
@@ -1007,7 +999,7 @@ mod tests {
                 .exec_returns(Ok("".into())),
         );
 
-        let res = super::store_data_as_volume("volume_1", "ABCD").await;
+        let res = PodmanCli::store_data_as_volume("volume_1", "ABCD").await;
 
         assert!(matches!(res, Ok(..)));
     }
@@ -1031,7 +1023,7 @@ mod tests {
                 .exec_returns(Ok("".into())),
         );
 
-        let res = super::store_data_as_volume("volume_1", "ABCD").await;
+        let res = PodmanCli::store_data_as_volume("volume_1", "ABCD").await;
 
         assert!(matches!(res, Ok(..)));
     }
@@ -1048,7 +1040,7 @@ mod tests {
                 .exec_returns(Ok(r#"[{"Labels": {"data": "QUJDRA"}}]"#.into())),
         );
 
-        let res = super::read_data_from_volume("volume_1").await;
+        let res = PodmanCli::read_data_from_volume("volume_1").await;
         assert!(matches!(res, Ok(data) if data == "ABCD"));
     }
 
@@ -1064,7 +1056,7 @@ mod tests {
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
-        let res = super::read_data_from_volume("volume_1").await;
+        let res = PodmanCli::read_data_from_volume("volume_1").await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
@@ -1080,7 +1072,7 @@ mod tests {
                 .exec_returns(Ok("[{}]".into())),
         );
 
-        let res = super::read_data_from_volume("volume_1").await;
+        let res = PodmanCli::read_data_from_volume("volume_1").await;
 
         assert!(
             matches!(res, Err(msg) if msg.starts_with("Could not decoded volume information as JSON:"))
@@ -1099,7 +1091,7 @@ mod tests {
                 .exec_returns(Ok("[]".into())),
         );
 
-        let res = super::read_data_from_volume("volume_1").await;
+        let res = PodmanCli::read_data_from_volume("volume_1").await;
 
         assert!(matches!(res, Err(msg) if msg == "No volume returned"));
     }
@@ -1116,7 +1108,7 @@ mod tests {
                 .exec_returns(Ok(r#"[{"Labels": {"data": "a"}}]"#.into())),
         );
 
-        let res = super::read_data_from_volume("volume_1").await;
+        let res = PodmanCli::read_data_from_volume("volume_1").await;
 
         assert!(
             matches!(res, Err(msg) if msg.starts_with("Could not base64 decoded volume's data label:"))
@@ -1135,7 +1127,7 @@ mod tests {
                 .exec_returns(Ok(r#"[{"Labels": {"data": "gA"}}]"#.into())),
         );
 
-        let res = super::read_data_from_volume("volume_1").await;
+        let res = PodmanCli::read_data_from_volume("volume_1").await;
 
         assert!(
             matches!(res, Err(msg) if msg.starts_with("Could not decode data stored in volume:"))
@@ -1154,7 +1146,7 @@ mod tests {
                 .exec_returns(Ok("".into())),
         );
 
-        let res = super::remove_volume("volume_1").await;
+        let res = PodmanCli::remove_volume("volume_1").await;
 
         assert!(matches!(res, Ok(..)));
     }
@@ -1171,7 +1163,7 @@ mod tests {
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
-        let res = super::remove_volume("volume_1").await;
+        let res = PodmanCli::remove_volume("volume_1").await;
 
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
@@ -1189,7 +1181,7 @@ mod tests {
         );
 
         assert_eq!(
-            super::remove_workloads_by_id("test_id").await,
+            PodmanCli::remove_workloads_by_id("test_id").await,
             Err("simulated error".to_string())
         );
     }
@@ -1206,7 +1198,7 @@ mod tests {
                 .exec_returns(Ok("".to_string())),
         );
 
-        let res = super::remove_workloads_by_id("test_id").await;
+        let res = PodmanCli::remove_workloads_by_id("test_id").await;
         assert_eq!(res, Ok(()));
     }
 
