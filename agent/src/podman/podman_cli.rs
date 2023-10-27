@@ -44,9 +44,15 @@ impl From<PodmanContainerInfo> for ExecutionState {
     }
 }
 
-pub async fn play_kube(kube_yml: &[u8]) -> Result<Vec<String>, String> {
+pub async fn play_kube(
+    additional_options: &[String],
+    kube_yml: &[u8],
+) -> Result<Vec<String>, String> {
+    let mut args = vec!["kube", "play", "--quiet"];
+    args.extend(additional_options.iter().map(|x| x as &str));
+    args.push("-");
     let result = CliCommand::new(PODMAN_CMD)
-        .args(&["kube", "play", "--quiet", "-"])
+        .args(&args)
         .stdin(kube_yml)
         .exec()
         .await?;
@@ -73,9 +79,13 @@ fn parse_pods_from_output(input: String) -> Vec<String> {
     result
 }
 
-pub async fn down_kube(kube_yml: &[u8]) -> Result<(), String> {
+pub async fn down_kube(additional_options: &[String], kube_yml: &[u8]) -> Result<(), String> {
+    let mut args = vec!["kube", "down"];
+    args.extend(additional_options.iter().map(|x| x as &str));
+    args.push("-");
+
     CliCommand::new(PODMAN_CMD)
-        .args(&["kube", "down", "--force", "-"])
+        .args(&args)
         .stdin(kube_yml)
         .exec()
         .await?;
@@ -406,7 +416,7 @@ mod tests {
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["kube", "play", "--quiet", "-"])
+                .expect_args(&["kube", "play", "--quiet", "-a", "-b", "-"])
                 .expect_stdin(sample_input)
                 .exec_returns(Ok(concat!(
                     "Not-Pod:\n",
@@ -426,7 +436,7 @@ mod tests {
                 .into())),
         );
 
-        let res = super::play_kube(sample_input.as_bytes()).await;
+        let res = super::play_kube(&["-a".into(), "-b".into()], sample_input.as_bytes()).await;
         assert!(
             matches!(res, Ok(pods) if pods == ["3".to_string(), "5".to_string(), "6".to_string()])
         );
@@ -442,12 +452,12 @@ mod tests {
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["kube", "play", "--quiet", "-"])
+                .expect_args(&["kube", "play", "--quiet", "-a", "-b", "-"])
                 .expect_stdin(sample_input)
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
-        let res = super::play_kube(sample_input.as_bytes()).await;
+        let res = super::play_kube(&["-a".into(), "-b".into()], sample_input.as_bytes()).await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
@@ -461,12 +471,12 @@ mod tests {
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["kube", "down", "--force", "-"])
+                .expect_args(&["kube", "down", "-a", "-b", "-"])
                 .expect_stdin(sample_input)
                 .exec_returns(Ok("".into())),
         );
 
-        let res = super::down_kube(sample_input.as_bytes()).await;
+        let res = super::down_kube(&["-a".into(), "-b".into()], sample_input.as_bytes()).await;
         assert!(matches!(res, Ok(..)));
     }
 
@@ -480,12 +490,12 @@ mod tests {
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["kube", "down", "--force", "-"])
+                .expect_args(&["kube", "down", "-a", "-b", "-"])
                 .expect_stdin(sample_input)
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
-        let res = super::down_kube(sample_input.as_bytes()).await;
+        let res = super::down_kube(&["-a".into(), "-b".into()], sample_input.as_bytes()).await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 

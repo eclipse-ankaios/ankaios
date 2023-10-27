@@ -15,6 +15,8 @@ use crate::{
     state_checker::{RuntimeStateChecker, StateChecker},
 };
 
+use super::podman_kube_runtime_config::PodmanKubeRuntimeConfig;
+
 const CONFIG_VOLUME_SUFFIX: &str = ".config";
 const PODS_VOLUME_SUFFIX: &str = ".pods";
 
@@ -31,6 +33,7 @@ pub struct PodmanKubeWorkloadId {
     pub name: WorkloadExecutionInstanceName,
     pub pods: Option<Vec<String>>,
     pub manifest: String,
+    pub down_options: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -87,6 +90,9 @@ impl Runtime<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRun
             .config(&workload_spec.runtime_config)
             .build();
 
+        let workload_config =
+            PodmanKubeRuntimeConfig::try_from(&workload_spec).map_err(RuntimeError::Create)?;
+
         podman_cli::store_data_as_volume(
             &(instance_name.to_string() + CONFIG_VOLUME_SUFFIX),
             &workload_spec.runtime_config,
@@ -100,9 +106,12 @@ impl Runtime<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRun
             )
         });
 
-        let created_pods = podman_cli::play_kube(workload_spec.runtime_config.as_bytes())
-            .await
-            .map_err(RuntimeError::Create)?;
+        let created_pods = podman_cli::play_kube(
+            &workload_config.play_options,
+            workload_config.manifest.as_bytes(),
+        )
+        .await
+        .map_err(RuntimeError::Create)?;
 
         match serde_json::to_string(&created_pods) {
             Ok(pods_as_json) => {
@@ -125,7 +134,8 @@ impl Runtime<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRun
         let workload_id = PodmanKubeWorkloadId {
             name: instance_name,
             pods: Some(created_pods),
-            manifest: workload_spec.runtime_config.clone(),
+            manifest: workload_config.manifest,
+            down_options: workload_config.down_options,
         };
 
         let state_checker = self
@@ -139,12 +149,16 @@ impl Runtime<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRun
         &self,
         instance_name: &WorkloadExecutionInstanceName,
     ) -> Result<PodmanKubeWorkloadId, RuntimeError> {
-        let manifest =
+        let runtime_config =
             podman_cli::read_data_from_volume(&(instance_name.to_string() + CONFIG_VOLUME_SUFFIX))
                 .await
                 .map_err(|err| format!("Could not read config from volume: {:?}", err))
+                .and_then(|json| {
+                    serde_yaml::from_str::<PodmanKubeRuntimeConfig>(&json).map_err(|err| {
+                        format!("Could not parse config read from volume: {:?}", err)
+                    })
+                })
                 .map_err(RuntimeError::Create)?;
-
         let pods =
             podman_cli::read_data_from_volume(&(instance_name.to_string() + PODS_VOLUME_SUFFIX))
                 .await
@@ -166,7 +180,8 @@ impl Runtime<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRun
         Ok(PodmanKubeWorkloadId {
             name: instance_name.clone(),
             pods,
-            manifest,
+            manifest: runtime_config.manifest,
+            down_options: runtime_config.down_options,
         })
     }
 
@@ -188,7 +203,7 @@ impl Runtime<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRun
         &self,
         workload_id: &PodmanKubeWorkloadId,
     ) -> Result<(), RuntimeError> {
-        podman_cli::down_kube(workload_id.manifest.as_bytes())
+        podman_cli::down_kube(&workload_id.down_options, workload_id.manifest.as_bytes())
             .map_err(RuntimeError::Delete)
             .await?;
         let _ =
