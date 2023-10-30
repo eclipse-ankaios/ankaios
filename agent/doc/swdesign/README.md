@@ -226,7 +226,7 @@ Tags:
 
 Needs:
 - impl
-- itest
+- stest
 
 #### Agent supports K8s resources via podman-kube runtime
 `swdd~agent-supports-podman-kube-runtime~1`
@@ -243,7 +243,7 @@ Tags:
 
 Needs:
 - impl
-- itest
+- stest
 
 ### Handling UpdateWorkload commands from the Ankaios Server
 
@@ -827,7 +827,6 @@ Tags:
 Needs:
 - impl
 - utest
-- itest
 
 ###### Podman create workload runs the workload object
 `swdd~podman-create-workload-runs-workload~1`
@@ -848,7 +847,7 @@ Tags:
 Needs:
 - impl
 - utest
-- itest
+- stest
 
 ###### Podman create workload returns workload id
 `swdd~podman-create-workload-returns-workload-id~1`
@@ -899,7 +898,7 @@ Tags:
 Needs:
 - impl
 - utest
-- itest
+- stest
 
 ###### Podman create workload optionally mounts FIFO files
 `swdd~podman-create-workload-mounts-fifo-files~1`
@@ -948,7 +947,7 @@ Tags:
 
 Needs:
 - impl
-- itest
+- utest
 
 ###### Podman delete workload stops and removes workload
 `swdd~podman-delete-workload-stops-and-removes-workload~1`
@@ -965,7 +964,7 @@ Tags:
 Needs:
 - impl
 - utest
-- itest
+- stest
 
 ##### Podman-kube runtime connector
 
@@ -1060,7 +1059,6 @@ Tags:
 Needs:
 - impl
 - utest
-- itest
 
 #### Podman runtime connector specific state getter
 
