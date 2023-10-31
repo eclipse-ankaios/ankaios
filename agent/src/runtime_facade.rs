@@ -309,8 +309,9 @@ mod tests {
     const WORKLOAD_1_NAME: &str = "workload1";
     const WORKLOAD_ID: &str = "workload_id_1";
     const PIPES_LOCATION: &str = "/some/path";
-
     const OLD_WORKLOAD_ID: &str = "old_workload_id";
+    const TEST_CHANNEL_BUFFER_SIZE: usize = 20;
+
 
     // [utest->swdd~agent-facade-forwards-list-reusable-workloads-call~1]
     #[tokio::test]
@@ -364,7 +365,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(20);
+        let (to_server, _server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -397,7 +398,7 @@ mod tests {
                 workload_spec.clone(),
                 Some(PIPES_LOCATION.into()),
                 to_server.clone(),
-                Ok((WORKLOAD_ID.to_string(), StubStateChecker {})),
+                Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
             )])
             .await;
 
@@ -433,7 +434,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(20);
+        let (to_server, _server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -471,7 +472,7 @@ mod tests {
                     WORKLOAD_ID.to_string(),
                     workload_spec.clone(),
                     to_server.clone(),
-                    Ok(StubStateChecker {}),
+                    Ok(StubStateChecker::new()),
                 ),
             ])
             .await;
@@ -512,7 +513,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(20);
+        let (to_server, _server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -556,7 +557,7 @@ mod tests {
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
                     to_server.clone(),
-                    Ok((WORKLOAD_ID.to_string(), StubStateChecker {})),
+                    Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
                 ),
             ])
             .await;
@@ -598,7 +599,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(20);
+        let (to_server, _server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -642,7 +643,7 @@ mod tests {
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
                     to_server.clone(),
-                    Ok((WORKLOAD_ID.to_string(), StubStateChecker {})),
+                    Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
                 ),
             ])
             .await;
@@ -684,7 +685,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(20);
+        let (to_server, _server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -734,7 +735,7 @@ mod tests {
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
                     to_server.clone(),
-                    Ok((WORKLOAD_ID.to_string(), StubStateChecker {})),
+                    Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
                 ),
             ])
             .await;
