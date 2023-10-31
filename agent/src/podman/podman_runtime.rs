@@ -16,12 +16,12 @@ use crate::{
     state_checker::{RuntimeStateChecker, StateChecker},
 };
 
-// [impl->swdd~podman-uses-podman-cli~1]
-#[cfg(not(test))]
-use crate::podman::podman_cli::PodmanCli;
-
 #[cfg(test)]
-use self::tests::PodmanCli;
+use mockall_double::double;
+
+// [impl->swdd~podman-uses-podman-cli~1]
+#[cfg_attr(test, double)]
+use crate::podman::podman_cli::PodmanCli;
 
 use super::podman_runtime_config::PodmanRuntimeConfigCli;
 
@@ -185,7 +185,7 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
 // [utest->swdd~functions-required-by-runtime-connector~1]
 #[cfg(test)]
 mod tests {
-    use std::{path::PathBuf, sync::Mutex};
+    use std::path::PathBuf;
 
     use common::{
         objects::{AgentName, ExecutionState, WorkloadExecutionInstanceName},
@@ -193,11 +193,9 @@ mod tests {
         test_utils::generate_test_workload_spec_cli,
     };
 
+    use super::PodmanCli;
     use crate::{
-        podman::{
-            podman_runtime::PodmanStateChecker, podman_runtime_config::PodmanRuntimeConfigCli,
-            PodmanWorkloadId,
-        },
+        podman::{podman_runtime::PodmanStateChecker, PodmanWorkloadId},
         runtime::{Runtime, RuntimeError},
         state_checker::RuntimeStateChecker,
         test_helper::MOCKALL_CONTEXT_SYNC,
@@ -207,73 +205,6 @@ mod tests {
 
     const BUFFER_SIZE: usize = 20;
 
-    mockall::lazy_static! {
-        pub static ref FAKE_LIST_WORKLOAD_IDS_RESULTS: Mutex<std::collections::VecDeque<Result<Vec<String>, String>>> =
-        Mutex::new(std::collections::VecDeque::new());
-        pub static ref FAKE_LIST_WORKLOAD_NAMES_RESULTS: Mutex<std::collections::VecDeque<Result<Vec<String>, String>>> =
-        Mutex::new(std::collections::VecDeque::new());
-        pub static ref FAKE_RUN_WORKLOAD_RESULTS: Mutex<std::collections::VecDeque<Result<String, String>>> =
-        Mutex::new(std::collections::VecDeque::new());
-        pub static ref FAKE_LIST_STATES_RESULTS: Mutex<std::collections::VecDeque<Result<Vec<ExecutionState>, String>>> =
-        Mutex::new(std::collections::VecDeque::new());
-        pub static ref FAKE_DELETE_WORKLOAD_RESULTS: Mutex<std::collections::VecDeque<Result<(), String>>> =
-        Mutex::new(std::collections::VecDeque::new());
-    }
-
-    pub struct PodmanCli {}
-
-    impl PodmanCli {
-        pub async fn list_workload_ids_by_label(
-            _key: &str,
-            _val: &str,
-        ) -> Result<Vec<String>, String> {
-            FAKE_LIST_WORKLOAD_IDS_RESULTS
-                .lock()
-                .unwrap()
-                .pop_front()
-                .unwrap()
-        }
-
-        pub async fn list_workload_names_by_label(
-            _key: &str,
-            _value: &str,
-        ) -> Result<Vec<String>, String> {
-            FAKE_LIST_WORKLOAD_NAMES_RESULTS
-                .lock()
-                .unwrap()
-                .pop_front()
-                .unwrap()
-        }
-
-        pub async fn run_workload(
-            _workload_cfg: PodmanRuntimeConfigCli,
-            _workload_name: &str,
-            _agent: &str,
-            _control_interface_location: Option<PathBuf>,
-        ) -> Result<String, String> {
-            FAKE_RUN_WORKLOAD_RESULTS
-                .lock()
-                .unwrap()
-                .pop_front()
-                .unwrap()
-        }
-
-        pub async fn list_states_by_id(_workload_id: &str) -> Result<Vec<ExecutionState>, String> {
-            FAKE_LIST_STATES_RESULTS
-                .lock()
-                .unwrap()
-                .pop_front()
-                .unwrap()
-        }
-
-        pub async fn remove_workloads_by_id(_workload_id: &str) -> Result<(), String> {
-            FAKE_DELETE_WORKLOAD_RESULTS
-                .lock()
-                .unwrap()
-                .pop_front()
-                .unwrap()
-        }
-    }
     // [utest->swdd~podman-name-returns-podman~1]
     #[test]
     fn utest_name_podman() {
@@ -286,14 +217,12 @@ mod tests {
     async fn utest_get_reusable_running_workloads_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        FAKE_LIST_WORKLOAD_NAMES_RESULTS
-            .lock()
-            .unwrap()
-            .push_back(Ok(vec![
-                "container1.hash.dummy_agent".to_string(),
-                "wrongcontainername".to_string(),
-                "container2.hash.dummy_agent".to_string(),
-            ]));
+        let context = PodmanCli::list_workload_names_by_label_context();
+        context.expect().return_const(Ok(vec![
+            "container1.hash.dummy_agent".to_string(),
+            "wrongcontainername".to_string(),
+            "container2.hash.dummy_agent".to_string(),
+        ]));
 
         let podman_runtime = PodmanRuntime {};
         let agent_name = AgentName::from("dummy_agent");
@@ -316,10 +245,8 @@ mod tests {
     async fn utest_get_reusable_running_workloads_empty_list() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        FAKE_LIST_WORKLOAD_NAMES_RESULTS
-            .lock()
-            .unwrap()
-            .push_back(Ok(Vec::new()));
+        let context = PodmanCli::list_workload_names_by_label_context();
+        context.expect().return_const(Ok(Vec::new()));
 
         let podman_runtime = PodmanRuntime {};
         let agent_name = AgentName::from("different_agent");
@@ -335,10 +262,10 @@ mod tests {
     async fn utest_get_reusable_running_workloads_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        FAKE_LIST_WORKLOAD_NAMES_RESULTS
-            .lock()
-            .unwrap()
-            .push_back(Err("Simulated error".to_string()));
+        let context = PodmanCli::list_workload_names_by_label_context();
+        context
+            .expect()
+            .return_const(Err("Simulated error".to_string()));
 
         let podman_runtime = PodmanRuntime {};
         let agent_name = AgentName::from("dummy_agent");
@@ -356,10 +283,8 @@ mod tests {
     async fn utest_create_workload_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        FAKE_RUN_WORKLOAD_RESULTS
-            .lock()
-            .unwrap()
-            .push_back(Ok("test_id".into()));
+        let context = PodmanCli::run_workload_context();
+        context.expect().return_const(Ok("test_id".into()));
 
         let workload_spec = generate_test_workload_spec_cli();
         let (to_server, _from_agent) =
@@ -380,10 +305,10 @@ mod tests {
     async fn utest_create_workload_run_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        FAKE_RUN_WORKLOAD_RESULTS
-            .lock()
-            .unwrap()
-            .push_back(Err("podman run failed".into()));
+        let context = PodmanCli::run_workload_context();
+        context
+            .expect()
+            .return_const(Err("podman run failed".into()));
 
         let workload_spec = generate_test_workload_spec_cli();
         let (to_server, _from_agent) =
@@ -420,10 +345,10 @@ mod tests {
     async fn utest_get_workload_id_workload_found() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        FAKE_LIST_WORKLOAD_IDS_RESULTS
-            .lock()
-            .unwrap()
-            .push_back(Ok(vec!["test_workload_id".to_string()]));
+        let context = PodmanCli::list_workload_ids_by_label_context();
+        context
+            .expect()
+            .return_const(Ok(vec!["test_workload_id".to_string()]));
 
         let workload_name =
             WorkloadExecutionInstanceName::new("container1.hash.dummy_agent").unwrap();
@@ -443,10 +368,8 @@ mod tests {
     async fn utest_get_workload_id_no_workload_found() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        FAKE_LIST_WORKLOAD_IDS_RESULTS
-            .lock()
-            .unwrap()
-            .push_back(Ok(Vec::new()));
+        let context = PodmanCli::list_workload_ids_by_label_context();
+        context.expect().return_const(Ok(Vec::new()));
 
         let workload_name =
             WorkloadExecutionInstanceName::new("container1.hash.dummy_agent").unwrap();
@@ -466,10 +389,8 @@ mod tests {
     async fn utest_get_workload_id_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        FAKE_LIST_WORKLOAD_IDS_RESULTS
-            .lock()
-            .unwrap()
-            .push_back(Err("simulated error".into()));
+        let context = PodmanCli::list_workload_ids_by_label_context();
+        context.expect().return_const(Err("simulated error".into()));
 
         let workload_name =
             WorkloadExecutionInstanceName::new("container1.hash.dummy_agent").unwrap();
@@ -484,10 +405,10 @@ mod tests {
     async fn utest_get_state_returns_state() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        FAKE_LIST_STATES_RESULTS
-            .lock()
-            .unwrap()
-            .push_back(Ok(vec![ExecutionState::ExecRunning]));
+        let context = PodmanCli::list_states_by_id_context();
+        context
+            .expect()
+            .return_const(Ok(vec![ExecutionState::ExecRunning]));
 
         let workload_id = PodmanWorkloadId {
             id: "test_id".into(),
@@ -502,10 +423,8 @@ mod tests {
     async fn utest_get_state_returns_removed_on_empty_list() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        FAKE_LIST_STATES_RESULTS
-            .lock()
-            .unwrap()
-            .push_back(Ok(Vec::new()));
+        let context = PodmanCli::list_states_by_id_context();
+        context.expect().return_const(Ok(Vec::new()));
 
         let workload_id = PodmanWorkloadId {
             id: "test_id".into(),
@@ -520,10 +439,8 @@ mod tests {
     async fn utest_get_state_returns_error() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        FAKE_LIST_STATES_RESULTS
-            .lock()
-            .unwrap()
-            .push_back(Err("simulated error".into()));
+        let context = PodmanCli::list_states_by_id_context();
+        context.expect().return_const(Err("simulated error".into()));
 
         let workload_id = PodmanWorkloadId {
             id: "test_id".into(),
@@ -538,10 +455,8 @@ mod tests {
     async fn utest_delete_workload_succeeds() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        FAKE_DELETE_WORKLOAD_RESULTS
-            .lock()
-            .unwrap()
-            .push_back(Ok(()));
+        let context = PodmanCli::remove_workloads_by_id_context();
+        context.expect().return_const(Ok(()));
 
         let workload_id = PodmanWorkloadId {
             id: "test_id".into(),
@@ -556,10 +471,8 @@ mod tests {
     async fn utest_delete_workload_fails() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        FAKE_DELETE_WORKLOAD_RESULTS
-            .lock()
-            .unwrap()
-            .push_back(Err("simulated error".into()));
+        let context = PodmanCli::remove_workloads_by_id_context();
+        context.expect().return_const(Err("simulated error".into()));
 
         let workload_id = PodmanWorkloadId {
             id: "test_id".into(),
