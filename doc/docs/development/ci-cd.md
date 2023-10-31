@@ -58,15 +58,35 @@ whenever the authors of the Github action update the generic tag to point to a n
 Example:
 
 Bad:
-```
+```yaml
 ...
   - uses: actions/checkout@v3
 ...
 ```
 
 Good:
-```
+```yaml
 ...
   - uses: actions/checkout@v3.5.3
 ...
 ```
+
+## Adding Github action jobs
+When creating a new job inside a workflow, specify a job name for each job.
+
+Example:
+
+```yaml
+...
+
+jobs:
+  test_and_build_linux_amd64:
+    name: Test and Build Linux amd64
+...
+```
+
+!!! Note
+
+    Giving a job a name is a best practice and if a job needs to configured as required status check inside the [self-service repository](https://github.com/eclipse-ankaios/.eclipsefdn) then this job is referenced by its name inside the configuration.
+
+
