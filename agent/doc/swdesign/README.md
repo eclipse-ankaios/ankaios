@@ -1240,6 +1240,7 @@ When receiving a Control Interface response from the Ankaios Server, the Ankaios
 Tags:
 - AgentManager
 - RuntimeManager
+- WorkloadObject
 - ControlInterface
 
 Needs:

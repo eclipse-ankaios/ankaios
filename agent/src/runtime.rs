@@ -14,7 +14,6 @@ pub enum RuntimeError {
     Create(String),
     Update(String),
     Delete(String),
-    CompleteState(String),
     List(String),
 }
 
@@ -29,9 +28,6 @@ impl Display for RuntimeError {
             }
             RuntimeError::Delete(msg) => {
                 write!(f, "Could not delete workload '{}'", msg)
-            }
-            RuntimeError::CompleteState(msg) => {
-                write!(f, "Could not forward complete state '{}'", msg)
             }
             RuntimeError::List(msg) => {
                 write!(f, "Could not get a list of workloads '{}'", msg)
@@ -129,7 +125,19 @@ pub mod test {
     }
 
     #[derive(Debug)]
-    pub struct StubStateChecker {}
+    pub struct StubStateChecker {
+        panic_if_not_stopped: bool,
+    }
+
+    impl StubStateChecker {
+        pub fn new() -> Self {
+            StubStateChecker {panic_if_not_stopped: false}
+        }
+
+        pub fn panic_if_not_stopped(&mut self) {
+            self.panic_if_not_stopped = true;
+        }
+    }
 
     #[async_trait]
     impl StateChecker<String> for StubStateChecker {
@@ -140,11 +148,20 @@ pub mod test {
             _state_checker: impl RuntimeStateChecker<String>,
         ) -> Self {
             log::info!("Starting the checker ;)");
-            StubStateChecker {}
+            StubStateChecker::new()
         }
 
-        async fn stop_checker(self) {
+        async fn stop_checker(mut self) {
             log::info!("Stopping the checker ;)");
+            self.panic_if_not_stopped = false;
+        }
+    }
+
+    impl Drop for StubStateChecker {
+        fn drop(&mut self) {
+            if self.panic_if_not_stopped {
+                panic!("The StubStateChecker was not stopped");
+            }
         }
     }
 

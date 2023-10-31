@@ -331,7 +331,7 @@ impl RuntimeManager {
 mod tests {
     use super::*;
     use crate::runtime_facade::MockRuntimeFacade;
-    use crate::workload::MockWorkload;
+    use crate::workload::{MockWorkload, WorkloadError};
     use crate::{control_interface::MockPipesChannelContext, runtime::RuntimeError};
     use common::objects::WorkloadExecutionInstanceNameBuilder;
     use common::test_utils::{generate_test_complete_state, generate_test_deleted_workload};
@@ -1037,7 +1037,7 @@ mod tests {
                         == WORKLOAD_1_NAME
             })
             .return_once(move |_| {
-                Err(RuntimeError::CompleteState(
+                Err(WorkloadError::CompleteState(
                     "failed to send complete state".to_string(),
                 ))
             });
