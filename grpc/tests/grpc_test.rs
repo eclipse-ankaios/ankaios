@@ -6,9 +6,10 @@ mod grpc_tests {
     use common::{
         commands::{self, CompleteState, RequestCompleteState},
         communications_client::CommunicationsClient,
+        communications_error::CommunicationMiddlewareError,
         communications_server::CommunicationsServer,
         execution_interface::ExecutionCommand,
-        state_change_interface::{StateChangeCommand, StateChangeInterface}, communications_error::CommunicationMiddlewareError,
+        state_change_interface::{StateChangeCommand, StateChangeInterface},
     };
     use grpc::{client::GRPCCommunicationsClient, server::GRPCCommunicationsServer};
 

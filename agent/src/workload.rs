@@ -10,7 +10,8 @@ use common::{
     commands::CompleteState,
     execution_interface::ExecutionCommand,
     objects::{ExecutionState, WorkloadSpec},
-    state_change_interface::{StateChangeSender, StateChangeInterface}, std_extensions::IllegalStateResult,
+    state_change_interface::{StateChangeInterface, StateChangeSender},
+    std_extensions::IllegalStateResult,
 };
 
 #[cfg(test)]
