@@ -15,6 +15,7 @@
 import subprocess
 import time
 import yaml
+import json
 from robot.api import logger
 
 import re
@@ -66,7 +67,10 @@ def table_to_dict(input_list, key):
     return out_dict
 
 def get_column_values(list, column_name):
-    return map(lambda r: r[column_name], list)
+    if column_name in list:
+        return map(lambda r: r[column_name], list) 
+    else:
+        return []
 
 def get_container_ids_by_workload_names(workload_names):
     res = run_command('podman ps -a --format "{{.Names}} {{.ID}}"')
@@ -144,3 +148,7 @@ def write_yaml(new_yaml: dict, path):
     with open(path,"w+") as file:
         replace_key(new_yaml, "runtimeConfig", yaml.dump)
         yaml.dump(new_yaml, file)
+
+def json_to_dict(raw):
+    json_data = json.loads(raw)
+    return json_data

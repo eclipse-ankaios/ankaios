@@ -181,7 +181,7 @@ fn setup_cli_communication(
     let communications_task = tokio::spawn(async move {
         if let Err(err) = grpc_communications_client
             .run(server_receiver, to_cli.clone())
-            .await 
+            .await
         {
             output_and_error!("{err}");
         }
@@ -397,13 +397,20 @@ impl CliCommands {
             .await
             .map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
-        let res = self.from_server.recv().await
-            .ok_or(CliError::ExecutionError("Failed to get execution command from server".to_string()))?;
+        let res = self
+            .from_server
+            .recv()
+            .await
+            .ok_or(CliError::ExecutionError(
+                "Failed to get execution command from server".to_string(),
+            ))?;
 
         let complete_state = if let ExecutionCommand::CompleteState(res) = res {
             res
         } else {
-            return Err(CliError::ExecutionError("Expected complete state".to_string()));
+            return Err(CliError::ExecutionError(
+                "Expected complete state".to_string(),
+            ));
         };
 
         output_debug!("Got current state: {:?}", complete_state);
@@ -435,7 +442,8 @@ impl CliCommands {
                 Duration::from_millis(self.response_timeout_ms),
                 self.from_server.recv(),
             )
-            .await.map_err(|_| CliError::ConnectionTimeout("No response from the server".to_string()))?;
+            .await
+            .map_err(|_| CliError::ConnectionTimeout("No response from the server".to_string()))?;
         } else {
             // [impl->swdd~no-delete-workloads-when-not-found~1]
             output_debug!("Current and new states are identical -> nothing to do");
@@ -474,7 +482,8 @@ impl CliCommands {
                 request_id: self.cli_name.to_owned(),
                 field_mask: Vec::new(),
             })
-            .await.map_err(|err| CliError::ExecutionError(err.to_string()))?;
+            .await
+            .map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
         if let Some(ExecutionCommand::CompleteState(res)) = self.from_server.recv().await {
             output_debug!("Got current state: {:?}", res);
@@ -486,7 +495,8 @@ impl CliCommands {
 
             let update_mask = vec!["currentState".to_string()];
             output_debug!("Sending the new state {:?}", new_state);
-            self.to_server.update_state(new_state, update_mask)
+            self.to_server
+                .update_state(new_state, update_mask)
                 .await
                 .map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
@@ -494,12 +504,15 @@ impl CliCommands {
                 Duration::from_millis(self.response_timeout_ms),
                 self.from_server.recv(),
             )
-            .await.map_err(|_| CliError::ConnectionTimeout("No response from the server".to_string()))?;
+            .await
+            .map_err(|_| CliError::ConnectionTimeout("No response from the server".to_string()))?;
 
             return Ok(());
         }
 
-        Err(CliError::ExecutionError("Failed to get complete state from server".to_string()))
+        Err(CliError::ExecutionError(
+            "Failed to get complete state from server".to_string(),
+        ))
     }
 }
 
@@ -619,10 +632,9 @@ mod tests {
         assert!(cmd_text.is_ok());
 
         let expected_empty_table: Vec<WorkloadInfo> = Vec::new();
-        let expected_table_text =
-            Table::new(expected_empty_table)
-                .with(Style::blank())
-                .to_string();
+        let expected_table_text = Table::new(expected_empty_table)
+            .with(Style::blank())
+            .to_string();
 
         assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
@@ -948,7 +960,9 @@ mod tests {
             tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
         cmd.to_server = test_to_server;
 
-        let delete_result = cmd.delete_workloads(vec!["name1".to_string(), "name2".to_string()]).await;
+        let delete_result = cmd
+            .delete_workloads(vec!["name1".to_string(), "name2".to_string()])
+            .await;
         assert!(delete_result.is_ok());
 
         // The request to get workloads
@@ -1024,7 +1038,9 @@ mod tests {
             tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
         cmd.to_server = test_to_server;
 
-        let delete_result = cmd.delete_workloads(vec!["unknown_workload".to_string()]).await;
+        let delete_result = cmd
+            .delete_workloads(vec!["unknown_workload".to_string()])
+            .await;
         assert!(delete_result.is_ok());
 
         // The request to get workloads
@@ -1422,13 +1438,15 @@ mod tests {
             tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
         cmd.to_server = test_to_server;
 
-        let run_workload_result = cmd.run_workload(
-            test_workload_name,
-            test_workload_runtime_name,
-            test_workload_runtime_cfg,
-            test_workload_agent,
-            vec![("key".to_string(), "value".to_string())],
-        ).await;
+        let run_workload_result = cmd
+            .run_workload(
+                test_workload_name,
+                test_workload_runtime_name,
+                test_workload_runtime_cfg,
+                test_workload_agent,
+                vec![("key".to_string(), "value".to_string())],
+            )
+            .await;
         assert!(run_workload_result.is_ok());
 
         // request to get workloads

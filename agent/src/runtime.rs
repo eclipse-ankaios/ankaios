@@ -265,7 +265,7 @@ pub mod test {
         }
     }
 
-    // This had to be implemented manually. 
+    // This had to be implemented manually.
     // The auto derived Clone does not understand that CallType doesn't need to be Clone
     impl<CallType> Clone for MockBase<CallType>
     where
@@ -302,10 +302,8 @@ pub mod test {
                 }
                 expected_call => {
                     self.unexpected_call().await;
-                    panic!(
-                    
-                    "Received an unexpected get_reusable_running_workloads call. Expected: '{expected_call:?}'"
-                )}
+                    panic!("Received an unexpected get_reusable_running_workloads call. Expected: '{expected_call:?}'")
+                }
             }
         }
 
@@ -392,8 +390,8 @@ pub mod test {
                 expected_call => {
                     self.unexpected_call().await;
                     panic!(
-                    "Received an unexpected start_checker call. Expected: '{expected_call:?}'"
-                )
+                        "Received an unexpected start_checker call. Expected: '{expected_call:?}'"
+                    )
                 }
             }
         }

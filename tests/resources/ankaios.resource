@@ -59,7 +59,7 @@ Run in background
 
 Run in foreground
     [Arguments]    ${cli_command}
-    Log    Run in background: ${cli_command}
+    Log    Run in foreground: ${cli_command}
     ${cmd}=    Split Command Line    ${cli_command}
     ${run_result}=    Run Process    @{cmd}    shell=True
     RETURN    ${run_result}
@@ -125,3 +125,57 @@ the workload "${workload_name}" has the execution state "${execution_state}"
 the workload "${workload_name}" shall have the execution state "${execution_state}"
     the workload "${workload_name}" has the execution state "${execution_state}"
     
+the workload "${workload_name}" shall not exist
+    Log    Assert: ${workload_name} shall not exist
+    @{list_result}=    table to list   ${CURRENT_RESULT.stdout}
+    &{dict_result}=    table to dict    ${list_result}    WORKLOAD NAME
+    Dictionary Should Not Contain Key    ${dict_result}    ${workload_name}
+
+user executes system app "${cli_command}"
+    Log    Executes ${cli_command}
+    ${cmd}=    Split Command Line    ${cli_command}    escaping=True
+    Log    ${cmd}
+    ${CURRENT_RESULT} =    Run Process    @{cmd}    timeout=20    shell=True
+    Log    ${CURRENT_RESULT.stdout}
+    Set Global Variable    ${CURRENT_RESULT}
+
+the result is valid JSON
+    Log    ${CURRENT_RESULT.stdout}
+    ${json_dict}=    Json To Dict    raw=${CURRENT_RESULT.stdout}
+    Log    ${json_dict}
+    RETURN    ${json_dict}
+
+the JSON array "${dict_array}" shall contain key "${main_key}" with subkey "${sub_key}" with the subvalue "${sub_value}"
+    Log    ${dict_array}
+    FOR    ${dict_array_item}    IN    @{dict_array}
+        Log    ${dict_array_item}
+        Dictionary Should Contain Key    dictionary=${dict_array_item}    key=${main_key}
+        Dictionary Should Contain Item    dictionary=${dict_array_item["${main_key}"]}    key=${sub_key}    value=${sub_value}
+    END
+
+the JSON array "${dict_array}" shall contain key "${main_key}" with subkey "${sub_key}" which matches the expression "${reg_exp}"
+    Log    ${dict_array}
+    FOR    ${dict_array_item}    IN    @{dict_array}
+        Log    ${dict_array_item}
+        Dictionary Should Contain Key    dictionary=${dict_array_item}    key=${main_key}
+        Should Match Regexp    string=${dict_array_item["${main_key}"]["${sub_key}"]}    pattern=${reg_exp}
+    END
+
+the JSON array "${dict_array}" shall contain array "${key}" which matches the expression "${reg_exp}"
+    Log    ${dict_array}
+    FOR    ${dict_array_item}    IN    @{dict_array}
+        Log    ${dict_array_item}
+        Dictionary Should Contain Key    dictionary=${dict_array_item}    key=${key}
+        FOR  ${key_array_item}  IN  @{dict_array_item["${key}"]}
+            Log    ${key_array_item}
+            Should Match Regexp    string=${key_array_item}    pattern=${reg_exp}
+        END 
+    END
+
+the JSON array "${dict_array}" shall contain array "${key}" which contains value "${value}"
+    Log    ${dict_array}
+    FOR    ${dict_array_item}    IN    @{dict_array}
+        Log    ${dict_array_item}
+        Dictionary Should Contain Key    dictionary=${dict_array_item}    key=${key}
+        List Should Contain Value    list_=${dict_array_item["${key}"]}    value=${value}
+    END

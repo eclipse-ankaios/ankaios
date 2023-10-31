@@ -1,0 +1,16 @@
+workloads:
+  hello1:
+    runtime: podman
+    agent: agent_A
+    restart: true
+    updateStrategy: AT_MOST_ONCE
+    accessRights:
+      allow: []
+      deny: []
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: alpine:latest
+      commandOptions: [ "--name", "test_workload1"]
+      commandArgs: [ "echo", "Hello Ankaios"]

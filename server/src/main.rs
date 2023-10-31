@@ -80,8 +80,7 @@ async fn main() -> Result<(), BoxedStdError> {
             .unwrap_or_illegal_state();
     });
 
-    try_join!(communications_task, server_task, initial_state_task)
-        .unwrap_or_illegal_state();
+    try_join!(communications_task, server_task, initial_state_task).unwrap_or_illegal_state();
 
     Ok(())
 }

@@ -42,7 +42,11 @@ impl AgentSendersMap {
     }
 
     pub fn get(&self, name: &str) -> Option<Sender<Result<ExecutionRequest, Status>>> {
-        self.agent_senders.lock().unwrap_or_illegal_state().get(name).cloned()
+        self.agent_senders
+            .lock()
+            .unwrap_or_illegal_state()
+            .get(name)
+            .cloned()
     }
 
     pub fn insert(&self, name: &str, sender: Sender<Result<ExecutionRequest, Status>>) {
@@ -63,11 +67,19 @@ impl AgentSendersMap {
     }
 
     pub fn get_all_agent_names(&self) -> Vec<String> {
-        self.agent_senders.lock().unwrap_or_illegal_state().keys().cloned().collect()
+        self.agent_senders
+            .lock()
+            .unwrap_or_illegal_state()
+            .keys()
+            .cloned()
+            .collect()
     }
 
     pub fn remove(&self, name: &str) {
-        self.agent_senders.lock().unwrap_or_illegal_state().remove(name);
+        self.agent_senders
+            .lock()
+            .unwrap_or_illegal_state()
+            .remove(name);
     }
 }
 
