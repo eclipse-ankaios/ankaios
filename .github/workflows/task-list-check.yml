@@ -6,7 +6,6 @@ on:
       - opened
       - edited
       - reopened
-      - synchronize
 
 jobs:
   verify:
