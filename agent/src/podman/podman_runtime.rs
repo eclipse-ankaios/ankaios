@@ -36,10 +36,8 @@ pub struct PodmanWorkloadId {
     pub id: String,
 }
 
-struct PodmanStateChecker {}
-
 #[async_trait]
-impl RuntimeStateChecker<PodmanWorkloadId> for PodmanStateChecker {
+impl RuntimeStateChecker<PodmanWorkloadId> for PodmanRuntime {
     async fn get_state(&self, workload_id: &PodmanWorkloadId) -> ExecutionState {
         log::trace!("Getting the state for the workload '{}'", workload_id.id);
 
@@ -154,13 +152,11 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
             workload_spec.name,
             workload_id.id
         );
-        // [impl->swdd~podman-start-checker-creates-podman-state-checker~1]
-        let podman_state_checker = PodmanStateChecker {};
         let checker = GenericPollingStateChecker::start_checker(
             &workload_spec,
             workload_id.clone(),
             update_state_tx,
-            podman_state_checker,
+            PodmanRuntime {},
         );
         Ok(checker)
     }
@@ -195,7 +191,7 @@ mod tests {
 
     use super::PodmanCli;
     use crate::{
-        podman::{podman_runtime::PodmanStateChecker, PodmanWorkloadId},
+        podman::PodmanWorkloadId,
         runtime::{Runtime, RuntimeError},
         state_checker::RuntimeStateChecker,
         test_helper::MOCKALL_CONTEXT_SYNC,
@@ -413,7 +409,7 @@ mod tests {
         let workload_id = PodmanWorkloadId {
             id: "test_id".into(),
         };
-        let checker: &dyn RuntimeStateChecker<PodmanWorkloadId> = &PodmanStateChecker {};
+        let checker: &dyn RuntimeStateChecker<PodmanWorkloadId> = &PodmanRuntime {};
         let res = checker.get_state(&workload_id).await;
         assert_eq!(res, ExecutionState::ExecRunning);
     }
@@ -429,7 +425,7 @@ mod tests {
         let workload_id = PodmanWorkloadId {
             id: "test_id".into(),
         };
-        let checker: &dyn RuntimeStateChecker<PodmanWorkloadId> = &PodmanStateChecker {};
+        let checker: &dyn RuntimeStateChecker<PodmanWorkloadId> = &PodmanRuntime {};
         let res = checker.get_state(&workload_id).await;
         assert_eq!(res, ExecutionState::ExecRemoved);
     }
@@ -445,7 +441,7 @@ mod tests {
         let workload_id = PodmanWorkloadId {
             id: "test_id".into(),
         };
-        let checker: &dyn RuntimeStateChecker<PodmanWorkloadId> = &PodmanStateChecker {};
+        let checker: &dyn RuntimeStateChecker<PodmanWorkloadId> = &PodmanRuntime {};
         let res = checker.get_state(&workload_id).await;
         assert_eq!(res, ExecutionState::ExecUnknown);
     }

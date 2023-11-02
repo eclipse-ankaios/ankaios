@@ -930,7 +930,7 @@ When the Podman runtime connector is called to create workload, the Podman runti
 * pull the workload image specified in the runtime configuration if the image is not already available locally
 * create the workload object
 * start the workload object in the detached mode
-* start the `PodmanStateChecker`
+* start the checking workload status
 
 Tags:
 - RuntimeConnector
@@ -1016,22 +1016,6 @@ Status: approved
 
 When the Podman runtime connector is called to get workload id, 
 the Podman runtime connector shall use the label `name` stored in the workload.
-
-Tags:
-- RuntimeConnector
-- PodmanRuntimeConnector
-
-Needs:
-- impl
-- utest
-
-###### Podman start the state checker creates PodmanStateChecker
-`swdd~podman-start-checker-creates-podman-state-checker~1`
-
-Status: approved
-
-When the Podman runtime connector is called to start the state checker,
-the Podman runtime connector shall create the `PodmanStateChecker` and start it using `GenericPollingStateChecker`.
 
 Tags:
 - RuntimeConnector

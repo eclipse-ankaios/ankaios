@@ -1,5 +1,5 @@
 workloads:
-  hello1:
+  nginx:
     runtime: podman
     agent: agent_A
     restart: true
@@ -11,6 +11,5 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: alpine:latest
-      commandOptions: [ "--name", "test_workload1"]
-      commandArgs: [ "echo", "Hello Ankaios"]
+      image: docker.io/nginx:latest
+      commandOptions: ["-p", "8081:80", "--name", "test_workload1"]

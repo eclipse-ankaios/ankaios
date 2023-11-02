@@ -67,10 +67,10 @@ Test Ankaios Podman create a container with custom name
     # Actions
     When user triggers "ank get workloads"
     # Asserts
-    Then the workload "hello1" shall have the execution state "Succeeded" on agent "agent_A"
+    Then the workload "nginx" shall have the execution state "Running" on agent "agent_A"
     When user executes system app "podman ps -a --format=json"
     ${dict_array}=    And the result is valid JSON
     Then the JSON array "${dict_array}" shall contain key "Labels" with subkey "agent" with the subvalue "agent_A"
-    Then the JSON array "${dict_array}" shall contain key "Labels" with subkey "name" which matches the expression "^hello1.\\w+.agent_A$"
+    Then the JSON array "${dict_array}" shall contain key "Labels" with subkey "name" which matches the expression "^nginx.\\w+.agent_A$"
     Then the JSON array "${dict_array}" shall contain array "Names" which contains value "test_workload1"
     [Teardown]    Clean up Ankaios
