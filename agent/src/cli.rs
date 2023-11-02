@@ -12,18 +12,64 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::path::Path;
+use std::{path::Path, str::FromStr};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::Directory;
 use crate::control_interface::FileSystemError;
 use clap::Parser;
-use common::DEFAULT_SERVER_ADDRESS;
+use common::{DEFAULT_SERVER_ADDRESS, SERVER_SOCKET_ENV_KEY};
 use url::Url;
 
 const DEFAULT_PODMAN_SOCK: &str = "/run/user/1000/podman/podman.sock";
 const DEFAULT_RUN_FOLDER: &str = "/tmp/ankaios/";
 const RUNFOLDER_SUFFIX: &str = "_io";
+
+#[derive(Clone)]
+struct CustomValueParser;
+
+impl CustomValueParser {
+    pub fn new() -> Self {
+        CustomValueParser {}
+    }
+}
+
+impl clap::builder::TypedValueParser for CustomValueParser {
+    type Value = Url;
+
+    fn parse_ref(
+        &self,
+        cmd: &clap::Command,
+        arg: Option<&clap::Arg>,
+        value: &std::ffi::OsStr,
+    ) -> Result<Self::Value, clap::Error> {
+        use clap::error::*;
+        let mut err = clap::Error::new(ErrorKind::ValueValidation).with_cmd(cmd);
+        if let Some(arg) = arg {
+            if arg.get_env().is_some() {
+                err.insert(
+                    ContextKind::InvalidArg,
+                    ContextValue::String(format!(
+                        "environment variable '{}'",
+                        SERVER_SOCKET_ENV_KEY
+                    )),
+                );
+            } else {
+                err.insert(
+                    ContextKind::InvalidArg,
+                    ContextValue::String(arg.to_string()),
+                );
+            }
+        }
+
+        err.insert(
+            ContextKind::InvalidValue,
+            ContextValue::String(value.to_str().unwrap().to_owned()),
+        );
+        let url = Url::from_str(value.to_str().unwrap()).map_err(|_| err)?;
+        Ok(url)
+    }
+}
 
 #[derive(Parser, Debug)]
 #[clap( author="The Ankaios team", 
@@ -44,6 +90,8 @@ pub struct Arguments {
     /// An existing path where to manage the fifo files.
     #[clap(short = 'r', long = "run-folder", default_value_t = DEFAULT_RUN_FOLDER.into())]
     pub run_folder: String,
+    #[clap(short = 'i', long = "integer", default_value_t = DEFAULT_SERVER_ADDRESS.parse().unwrap(), env = SERVER_SOCKET_ENV_KEY, value_parser = CustomValueParser::new())]
+    pub integer: Url,
 }
 
 impl Arguments {
