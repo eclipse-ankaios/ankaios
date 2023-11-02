@@ -1,0 +1,34 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/rust
+{
+    "name": "Ankaios Python3 Control Interface Dev",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "target": "dev"
+    },
+   "mounts": [
+   ],
+   "runArgs": [
+    "--shm-size=1g",
+	"--privileged"
+   ],
+   "appPort": ["25551:25551"],
+	// Configure tool-specific properties.
+	"customizations": {
+		// Configure properties specific to VS Code.
+		"vscode": {
+			// Set *default* container specific settings.json values on container create.
+			"settings": {
+				"python.defaultInterpreterPath": "/usr/bin/python3",
+				"python.analysis.extraPaths": ["/usr/local/lib/ankaios"]
+			},
+			
+			// Add the IDs of extensions you want installed when the container is created.
+			"extensions": [
+				"ms-python.python"
+			]
+		}
+	},
+   "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/app/,type=bind",
+   "workspaceFolder": "/workspaces/app/"
+}

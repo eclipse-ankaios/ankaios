@@ -33,10 +33,8 @@ async fn main() {
     let sc_req_fifo = pipes_location.join("output");
 
     let mut ex_req = File::open(&ex_req_fifo).await.unwrap();
-    println!("File 1 opened");
     let mut sc_req = File::create(&sc_req_fifo).await.unwrap();
-    println!("File 2 opened");
-
+    
     tokio::spawn(async move {
         println!("listen to ExecutionRequest FIFO2 ...");
         loop {
@@ -48,7 +46,7 @@ async fn main() {
         }
     });
 
-    tokio::time::sleep(Duration::from_secs(60)).await;
+    tokio::time::sleep(Duration::from_secs(30)).await;
 
     println!("Sending the UpdateState");
 
@@ -63,11 +61,11 @@ async fn main() {
             key: "owner".to_string(),
             value: "Ankaios team".to_string(),
         }],
-        runtime_config: "image: ankaios_workload_api_example".to_string(),
+        runtime_config: "image: docker.io/library/nginx\nports:\n- containerPort: 80\n  hostPort: 8081".to_string(),
         dependencies: HashMap::new(),
     };
 
-    wl.insert("api_sample".to_string(), wl_api);
+    wl.insert("dynamic_nginx".to_string(), wl_api);
 
     let proto_buf_update = proto::StateChangeRequest {
         state_change_request_enum: Some(
@@ -82,9 +80,7 @@ async fn main() {
                         ..Default::default()
                     }),
                     update_mask: vec![
-                        "currentState.workloads.api_sample".to_string(),
-                        "currentState.workloads.nginx".to_string(),
-                        "currentState.workloads.hello1".to_string(),
+                        "currentState.workloads.dynamic_nginx".to_string()
                     ],
                 },
             ),
@@ -120,7 +116,7 @@ async fn main() {
             .await
             .unwrap();
 
-        tokio::time::sleep(Duration::from_secs(60)).await;
+        tokio::time::sleep(Duration::from_secs(30)).await;
     }
 }
 

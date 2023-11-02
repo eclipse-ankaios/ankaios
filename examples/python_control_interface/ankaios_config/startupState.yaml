@@ -1,0 +1,14 @@
+workloads:
+  python_control_interface:
+    runtime: podman
+    agent: agent_A
+    restart: true
+    updateStrategy: AT_MOST_ONCE
+    accessRights:
+      allow: []
+      deny: []
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: python_control_interface_prod:0.1
