@@ -114,35 +114,38 @@ impl Workload {
                 Some(WorkloadCommand::Delete) => {
                     if let Some(old_id) = workload_id.take() {
                         if let Err(err) = runtime.delete_workload(&old_id).await {
+                            // [impl->swdd~agent-workload-task-delete-failed-allows-retry~1]
                             log::warn!("Could not stop workload '{}': '{}'", workload_name, err);
                             workload_id = Some(old_id);
+                            continue;
                         } else {
                             if let Some(old_checker) = state_checker.take() {
                                 old_checker.stop_checker().await;
                             }
-
-                            // Successfully stopped the workload and the state checker. Send a removed on the channel
-                            update_state_tx
-                                .update_workload_state(vec![common::objects::WorkloadState {
-                                    agent_name,
-                                    workload_name,
-                                    execution_state: ExecutionState::ExecRemoved,
-                                }])
-                                .await
-                                .unwrap_or_illegal_state();
-
                             log::debug!("Stop workload complete");
-                            return;
                         }
                     } else {
+                        // [impl->swdd~agent-workload-task-delete-broken-allowed~1]
                         log::debug!("Workload '{}' already gone.", workload_name);
-                        return;
                     }
+
+                    // Successfully stopped the workload and the state checker. Send a removed on the channel
+                    update_state_tx
+                        .update_workload_state(vec![common::objects::WorkloadState {
+                            agent_name,
+                            workload_name,
+                            execution_state: ExecutionState::ExecRemoved,
+                        }])
+                        .await
+                        .unwrap_or_illegal_state();
+
+                    return;
                 }
-                // [impl->swdd~agent-workload-tasks-executes-update~1]
+                // [impl->swdd~agent-workload-task-executes-update~1]
                 Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
                     if let Some(old_id) = workload_id.take() {
                         if let Err(err) = runtime.delete_workload(&old_id).await {
+                            // [impl->swdd~agent-workload-task-update-delete-failed-allows-retry~1]
                             log::warn!("Could not update workload '{}': '{}'", workload_name, err);
                             workload_id = Some(old_id);
                             continue;
@@ -150,6 +153,7 @@ impl Workload {
                             old_checker.stop_checker().await;
                         }
                     } else {
+                        // [impl->swdd~agent-workload-task-update-broken-allowed~1]
                         log::debug!("Workload '{}' already gone.", workload_name);
                     }
 
@@ -166,6 +170,7 @@ impl Workload {
                             state_checker = Some(new_state_checker);
                         }
                         Err(err) => {
+                            // [impl->swdd~agent-workload-task-update-create-failed-allows-retry~1]
                             log::warn!(
                                 "Could not start updated workload '{}': '{}'",
                                 workload_name,
@@ -387,10 +392,10 @@ mod tests {
         ));
     }
 
-    // Unfortunately this test also executes a delete of the newly updated workload. 
+    // Unfortunately this test also executes a delete of the newly updated workload.
     // We could not avoid this as it is the only possibility to check the internal variables
     // and to properly stop the control loop in the await new command method
-    // [utest->swdd~agent-workload-tasks-executes-update~1]
+    // [utest->swdd~agent-workload-task-executes-update~1]
     #[tokio::test]
     async fn utest_workload_obj_await_new_command_update_success() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -475,10 +480,246 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // TODO:
-    // test what happens if the workload id is None
-    // test what happens if the delete fails
-    // test what happens if the create fails
+    // [utest->swdd~agent-workload-task-update-broken-allowed~1]
+    #[tokio::test]
+    async fn utest_workload_obj_await_new_command_update_broken_allowed() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+
+        // Since we also send a delete command to exit the control loop properly, the new state
+        // checker will also we stopped. This also tests if the new state checker was properly stored.
+        let mut new_mock_state_checker = StubStateChecker::new();
+        new_mock_state_checker.panic_if_not_stopped();
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let mut runtime_mock = MockRuntime::new();
+        runtime_mock
+            .expect(vec![
+                RuntimeCall::CreateWorkload(
+                    workload_spec.clone(),
+                    Some(PIPES_LOCATION.into()),
+                    state_change_tx.clone(),
+                    Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
+                ),
+                // Since we also send a delete command to exit the control loop properly, the new workload
+                // will also we deleted. This also tests if the new workload id was properly stored.
+                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
+            ])
+            .await;
+
+        // Send the update command now. It will be buffered until the await receives it.
+        workload_command_tx
+            .send(WorkloadCommand::Update(
+                Box::new(workload_spec.clone()),
+                Some(PIPES_LOCATION.into()),
+            ))
+            .await
+            .unwrap();
+        // Send also a delete command so that we can properly get out of the loop
+        workload_command_tx
+            .send(WorkloadCommand::Delete)
+            .await
+            .unwrap();
+
+        assert!(timeout(
+            Duration::from_millis(200),
+            Workload::await_new_command(
+                WORKLOAD_1_NAME.to_string(),
+                AGENT_NAME.to_string(),
+                None,
+                None,
+                state_change_tx.clone(),
+                Box::new(runtime_mock.clone()),
+                workload_command_rx,
+            )
+        )
+        .await
+        .is_ok());
+
+        let expected_state = UpdateWorkloadState {
+            workload_states: vec![WorkloadState {
+                workload_name: WORKLOAD_1_NAME.to_string(),
+                agent_name: AGENT_NAME.to_string(),
+                execution_state: ExecutionState::ExecRemoved,
+            }],
+        };
+
+        assert!(matches!(
+            timeout(Duration::from_millis(200), state_change_rx.recv()).await,
+            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
+        if workload_state == expected_state));
+
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    //swdd~agent-workload-task-update-delete-failed-allows-retry~1
+    #[tokio::test]
+    async fn utest_workload_obj_await_new_command_update_delete_failed_allows_retry() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+
+        let mut old_mock_state_checker = StubStateChecker::new();
+        old_mock_state_checker.panic_if_not_stopped();
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let mut runtime_mock = MockRuntime::new();
+        runtime_mock
+            .expect(vec![
+                RuntimeCall::DeleteWorkload(
+                    OLD_WORKLOAD_ID.to_string(),
+                    Err(crate::runtime::RuntimeError::Delete(
+                        "some delete error".to_string(),
+                    )),
+                ),
+                // Since we also send a delete command to exit the control loop properly, we need to delete the workload mow
+                // This also tests if the old workload id was properly stored.
+                RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
+            ])
+            .await;
+
+        // Send the update command now. It will be buffered until the await receives it.
+        workload_command_tx
+            .send(WorkloadCommand::Update(
+                Box::new(workload_spec.clone()),
+                Some(PIPES_LOCATION.into()),
+            ))
+            .await
+            .unwrap();
+        // Send also a delete command so that we can properly get out of the loop
+        workload_command_tx
+            .send(WorkloadCommand::Delete)
+            .await
+            .unwrap();
+
+        assert!(timeout(
+            Duration::from_millis(200),
+            Workload::await_new_command(
+                WORKLOAD_1_NAME.to_string(),
+                AGENT_NAME.to_string(),
+                Some(OLD_WORKLOAD_ID.to_string()),
+                Some(old_mock_state_checker),
+                state_change_tx.clone(),
+                Box::new(runtime_mock.clone()),
+                workload_command_rx,
+            )
+        )
+        .await
+        .is_ok());
+
+        let expected_state = UpdateWorkloadState {
+            workload_states: vec![WorkloadState {
+                workload_name: WORKLOAD_1_NAME.to_string(),
+                agent_name: AGENT_NAME.to_string(),
+                execution_state: ExecutionState::ExecRemoved,
+            }],
+        };
+
+        assert!(matches!(
+            timeout(Duration::from_millis(200), state_change_rx.recv()).await,
+            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
+        if workload_state == expected_state));
+
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    //swdd~agent-workload-task-update-create-failed-allows-retry~1
+    #[tokio::test]
+    async fn utest_workload_obj_await_new_command_update_create_failed_allows_retry() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+
+        let mut old_mock_state_checker = StubStateChecker::new();
+        old_mock_state_checker.panic_if_not_stopped();
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let mut runtime_mock = MockRuntime::new();
+        runtime_mock
+            .expect(vec![
+                RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
+                RuntimeCall::CreateWorkload(
+                    workload_spec.clone(),
+                    Some(PIPES_LOCATION.into()),
+                    state_change_tx.clone(),
+                    Err(crate::runtime::RuntimeError::Create(
+                        "some delete error".to_string(),
+                    )),
+                ),
+                // We also send a delete command, but as no new workload was generated, there is also no
+                // new ID so no call to the runtime is expected to happen here.
+            ])
+            .await;
+
+        // Send the update command now. It will be buffered until the await receives it.
+        workload_command_tx
+            .send(WorkloadCommand::Update(
+                Box::new(workload_spec.clone()),
+                Some(PIPES_LOCATION.into()),
+            ))
+            .await
+            .unwrap();
+        // Send also a delete command so that we can properly get out of the loop
+        workload_command_tx
+            .send(WorkloadCommand::Delete)
+            .await
+            .unwrap();
+
+        assert!(timeout(
+            Duration::from_millis(200),
+            Workload::await_new_command(
+                WORKLOAD_1_NAME.to_string(),
+                AGENT_NAME.to_string(),
+                Some(OLD_WORKLOAD_ID.to_string()),
+                Some(old_mock_state_checker),
+                state_change_tx.clone(),
+                Box::new(runtime_mock.clone()),
+                workload_command_rx,
+            )
+        )
+        .await
+        .is_ok());
+
+        let expected_state = UpdateWorkloadState {
+            workload_states: vec![WorkloadState {
+                workload_name: WORKLOAD_1_NAME.to_string(),
+                agent_name: AGENT_NAME.to_string(),
+                execution_state: ExecutionState::ExecRemoved,
+            }],
+        };
+
+        assert!(matches!(
+            timeout(Duration::from_millis(200), state_change_rx.recv()).await,
+            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
+        if workload_state == expected_state));
+
+        runtime_mock.assert_all_expectations().await;
+    }
 
     // [utest->swdd~agent-workload-tasks-executes-delete~1]
     #[tokio::test]
@@ -538,9 +779,9 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-tasks-executes-delete~1]
+    // [utest->swdd~agent-workload-task-delete-failed-allows-retry~1]
     #[tokio::test]
-    async fn utest_workload_obj_await_new_command_delete_first_fail_second_success() {
+    async fn utest_workload_obj_await_new_command_delete_failed_allows_retry() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -606,7 +847,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-tasks-executes-delete~1]
+    // [utest->swdd~agent-workload-task-delete-broken-allowed~1]
     #[tokio::test]
     async fn utest_workload_obj_await_new_command_delete_already_gone() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

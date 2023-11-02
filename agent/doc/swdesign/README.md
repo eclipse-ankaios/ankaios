@@ -616,7 +616,7 @@ Needs:
 - utest
 
 ##### Workload task executes update command
-`swdd~agent-workload-tasks-executes-update~1`
+`swdd~agent-workload-task-executes-update~1`
 
 Status: approved
 
@@ -631,6 +631,61 @@ For details on the runtime connector specific actions, e.g., delete, see the spe
 
 Rationale:
 The workload task allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
+
+Tags:
+- WorkloadObject
+
+Needs:
+- impl
+- utest
+
+
+##### Workload task update broken allowed
+`swdd~agent-workload-task-update-broken-allowed~1`
+
+Status: approved
+
+When the workload control task has no old workload to delete during the update of a workload, the control task shall continue with the update.
+
+Comment:
+The assumption here is that the old workload is not running anymore.
+
+Rationale:
+This allow to bring the system into a working state.
+
+Tags:
+- WorkloadObject
+
+Needs:
+- impl
+- utest
+
+##### Workload task update delete failed allows retry
+`swdd~agent-workload-task-update-delete-failed-allows-retry~1`
+
+Status: approved
+
+When the workload control task encounters a failure while deleting the old workload during the update of a workload, the control task shall continue allowing a subsequent update or delete attempt.
+
+Rationale:
+This allow to try the update again instead of going in an undefined state.
+
+Tags:
+- WorkloadObject
+
+Needs:
+- impl
+- utest
+
+##### Workload task update create failed allows retry
+`swdd~agent-workload-task-update-create-failed-allows-retry~1`
+
+Status: approved
+
+When the workload control task encounters a failure while creating a new workload during the update of a workload, the control task shall continue allowing a subsequent update or delete attempt.
+
+Rationale:
+This allow to try the update again instead of going in an undefined state.
 
 Tags:
 - WorkloadObject
@@ -712,6 +767,43 @@ Needs:
 - impl
 - utest
 
+
+##### Workload task delete broken allowed
+`swdd~agent-workload-task-delete-broken-allowed~1`
+
+Status: approved
+
+When the workload control task has no old workload to delete during the deletion of a workload, the control task shall exit.
+
+Comment:
+The assumption here is that the old workload is not running anymore and the job is done.
+
+Rationale:
+This allow to bring the system into a working state.
+
+Tags:
+- WorkloadObject
+
+Needs:
+- impl
+- utest
+
+##### Workload task delete failed allows retry
+`swdd~agent-workload-task-delete-failed-allows-retry~1`
+
+Status: approved
+
+When the workload control task encounters a failure while deleting the workload, the control task shall continue allowing a subsequent update or delete attempt.
+
+Rationale:
+This allow to try the delete again instead of going in an undefined state.
+
+Tags:
+- WorkloadObject
+
+Needs:
+- impl
+- utest
 
 ##### Agent updates on add known workload
 `swdd~agent-update-on-add-known-workload~1`
