@@ -87,6 +87,6 @@ jobs:
 
 !!! Note
 
-    Giving a job a name is a best practice and if a job needs to configured as required status check inside the [self-service repository](https://github.com/eclipse-ankaios/.eclipsefdn) then this job is referenced by its name inside the configuration.
+    Beside being a best practice, giving a job a name is needed to reference it from the [self-service repository](https://github.com/eclipse-ankaios/.eclipsefdn) in order to configure the job as a required status check.
 
 
