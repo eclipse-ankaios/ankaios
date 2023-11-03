@@ -94,7 +94,7 @@ jobs:
           path: target/aarch64-unknown-linux-gnu/debian/ankaios*.deb
 
   requirements:
-    name: Build Requirements Tracing
+    name: Build requirements tracing
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.3
