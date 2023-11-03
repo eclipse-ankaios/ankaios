@@ -55,17 +55,7 @@ pub struct WorkloadExecutionInstanceName {
 
 impl WorkloadExecutionInstanceName {
     pub fn new(input: &str) -> Option<WorkloadExecutionInstanceName> {
-        let input_parts: Vec<&str> = input.split(INSTANCE_NAME_SEPARATOR).collect();
-
-        if INSTANCE_NAME_PARTS_COUNT == input_parts.len() {
-            return Some(WorkloadExecutionInstanceName {
-                agent_name: input_parts[InstanceNameParts::AgentName as usize].to_string(),
-                workload_name: input_parts[InstanceNameParts::WorkloadName as usize].to_string(),
-                hash: input_parts[InstanceNameParts::ConfigHash as usize].to_string(),
-            });
-        }
-
-        None
+        input.try_into().ok()
     }
 
     pub fn workload_name(&self) -> &str {
@@ -103,15 +93,23 @@ impl TryFrom<String> for WorkloadExecutionInstanceName {
     type Error = String;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
+        (*value).try_into()
+    }
+}
+
+impl TryFrom<&str> for WorkloadExecutionInstanceName {
+    type Error = String;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         let value_parts: Vec<&str> = value.split(INSTANCE_NAME_SEPARATOR).collect();
-        if value_parts.len() != 3 {
+        if value_parts.len() != INSTANCE_NAME_PARTS_COUNT {
             return Err(format!("Could not convert '{}' to a WorkloadExecutionInstanceName, as it consist of {} instead of 3.", value, value_parts.len()));
         }
 
         Ok(WorkloadExecutionInstanceName {
-            workload_name: value_parts[0].to_string(),
-            hash: value_parts[1].to_string(),
-            agent_name: value_parts[2].to_string(),
+            workload_name: value_parts[InstanceNameParts::WorkloadName as usize].to_string(),
+            hash: value_parts[InstanceNameParts::ConfigHash as usize].to_string(),
+            agent_name: value_parts[InstanceNameParts::AgentName as usize].to_string(),
         })
     }
 }
