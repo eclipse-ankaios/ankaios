@@ -28,7 +28,7 @@ jobs:
               - 'api/proto/**'
               - '.github/workflows/documentation.yml'
   deploy:
-    name: Deploy Documentation
+    name: Deploy documentation
     needs: documentation_changes
     if: ${{ needs.documentation_changes.outputs.documentation == 'true' || github.ref_name == 'main' || github.ref_type == 'tag' }}
     runs-on: ubuntu-latest
