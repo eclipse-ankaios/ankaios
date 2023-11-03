@@ -6,8 +6,8 @@ members = [
     "agent",
     "server",
     "grpc",
-    "ank",
-    "examples/workload_api_example"]
+    "ank"
+    ]
 
 [workspace.package]
 version = "0.1.0"

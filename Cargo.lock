@@ -97,15 +97,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ankaios-workload-api-example"
-version = "0.1.0"
-dependencies = [
- "api",
- "prost",
- "tokio",
-]
-
-[[package]]
 name = "anyhow"
 version = "1.0.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
