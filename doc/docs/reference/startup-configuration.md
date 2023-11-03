@@ -33,9 +33,7 @@ workloads:
         value: Ankaios team
     runtimeConfig: |
       image: docker.io/nginx:latest
-      ports:
-      - containerPort: 80
-        hostPort: 8081
+      commandOptions: ["-p", "8081:80"]
   api_sample: # this is used as the workload name which is 'api_sample'
     runtime: podman
     agent: agent_A
@@ -54,41 +52,24 @@ workloads:
 ### PodmanRuntimeConfig
 The runtime configuration for the `podman` runtime is specified as followed:
 
-| Field | Type | Required | Description |
-| - | - | - | - |
-| image | string | yes | Image repository or image id
-| command | array of strings | no | Entrypoint array. Not executed in a shell. The container image's ENTRYPOINT is used if this is not provided.
-| args | array of strings | no | Arguments to the entrypoint. The container image's CMD is used if this is not provided.
-| env |  object with string values | no | Key/value pairs provided as environment variables in the container
-| mounts | array of [Mount](#mount)| no | List of mounts
-| ports | array of [Mapping](#mapping) | no | List of ports to be exposed
-| remove | boolean | no | Specify whether the container shall be removed after exited
-| networkMode | string | no | Set the network mode for the container (like `bridge`, `host`, `none`)
+```yaml
+generalOptions: [<comma>, <separated>, <options>]
+image: <registry>/<image name>:<version>
+commandOptions: [<comma>, <separated>, <options>]
+commandArgs: [<comma>, <separated>, <arguments>]
+```
 
-**Note:** Some fields are optional in the runtime configuration. The Podman uses its default value if such field is not set. 
+where each attribute is passed directly to `podman run`.
 
-#### Mount
+If we take as an example the `podman run` command:
 
-| Field | Type | Required | Description |
-| - | - | - | - |
-| destination | string | yes | Mount destination |
-| options | array of strings | no | Additional options |
-| source | string | depends on type | Mount source |
-| type | string | yes | Type of the mount |
-| uid_mappings | array of [IdMap](#idmap) | no | Mapping from host to container user IDs |
-| gid_mappings | array of [IdMap](#idmap) | no | Mapping from host to container group IDs |
+```podman --noout run --env VAR=able docker.io/alpine:latest echo Hello!```
 
-#### IdMap
+it would translate to the following runtime configuration:
 
-| Field | Type | Required | Description |
-| - | - | - | - |
-| container_id | i64 | yes | The start of the ID range inside of the container |
-| host_id | i64 | yes | The start of the ID range on the host |
-| size | i64 | yes | The number of IDs to map |
-
-#### Mapping
-
-| Field | Type | Required | Description |
-| - | - | - | - |
-| container_port |  u16| yes | Port inside of the container |
-| host_port |  u16| yes | Port on the host |
+```yaml
+generalOptions: ["--noout"]
+image: docker.io/alpine:latest
+commandOptions: ["--env", "VAR=able"]
+commandArgs: ["echo", "Hello!"]
+```

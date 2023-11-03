@@ -41,8 +41,7 @@ currentState:
         value: Ankaios team
       runtimeConfig: |
         image: alpine:latest
-        command: ["echo"]
-        args: ["Hello Ankaios"]
+        commandArgs: [ "echo", "Hello Ankaios"]
     hello1:
       agent: agent_B
       dependencies: {}
@@ -58,9 +57,8 @@ currentState:
         value: Ankaios team
       runtimeConfig: |
         image: alpine:latest
-        command: ["echo"]
-        args: ["Hello Ankaios"]
-        remove: true
+        commandOptions: [ "--rm"]
+        commandArgs: [ "echo", "Hello Ankaios"]
     nginx:
       agent: agent_A
       dependencies: {}
@@ -76,9 +74,7 @@ currentState:
         value: Ankaios team
       runtimeConfig: |
         image: docker.io/nginx:latest
-        ports:
-        - containerPort: 80
-          hostPort: 8081
+        commandOptions: ["-p", "8081:80"]
     hello2:
       agent: agent_B
       dependencies: {}
@@ -94,9 +90,7 @@ currentState:
         value: Ankaios team
       runtimeConfig: |
         image: alpine:latest
-        command: ["echo"]
-        args: ["Hello Ankaios"]
-        remove: false
+        commandArgs: [ "echo", "Hello Ankaios"]
   configs: {}
   cronJobs: {}
 workloadStates: []
@@ -135,9 +129,7 @@ currentState:
         value: Ankaios team
       runtimeConfig: |
         image: docker.io/nginx:latest
-        ports:
-        - containerPort: 80
-          hostPort: 8081
+        commandOptions: ["-p", "8081:80"]
 ```
 
 2. Example `ank get state currentState.workloads.nginx.runtimeConfig` returns only the runtime configuration of nginx workload:
@@ -147,9 +139,7 @@ currentState:
     nginx:
       runtimeConfig: |
         image: docker.io/nginx:latest
-        ports:
-        - containerPort: 80
-          hostPort: 8081
+        commandOptions: ["-p", "8081:80"]
 ```
 
 3. Example `ank set state -f new-state.yaml currentState.workloads.nginx.restart` changes the restart behavior of nginx workload to `false`:

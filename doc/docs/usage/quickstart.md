@@ -22,9 +22,7 @@ workloads:
         value: Ankaios team
     runtimeConfig: |
       image: docker.io/nginx:latest
-      ports:
-      - containerPort: 80
-        hostPort: 8081
+      commandOptions: ["-p", "8081:80"]
 ```
 
 1.  Note that access rights are currently not implemented.
@@ -56,16 +54,11 @@ To add another workload call:
 
 ```shell
 ank run workload \
+helloworld \
 --runtime podman \
 --agent agent_A \
 --config 'image: docker.io/busybox:1.36
-env:
-  MESSAGE: Hello World!
-command:
-- sh
-- -c
-- echo "$MESSAGE"
-' helloworld
+commandArgs: ["echo", "Hello World!"]'
 ```
 
 We can check the state again with `ank get state` and see, that the workload

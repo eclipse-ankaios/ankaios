@@ -105,9 +105,7 @@ mod tests {
               value: Ankaios team 1
             runtimeConfig: |
               image: docker.io/nginx:latest
-              ports:
-              - containerPort: 80
-                hostPort: 8081
+              commandOptions: [\"-p\", \"8081:80\"]
           hello:
             runtime: podman
             agent: agent_B
@@ -118,8 +116,7 @@ mod tests {
               deny: []
             runtimeConfig: |
               image: alpine:latest
-              command: [\"echo\"]
-              args: [\"Hello Ankaios\"]
+              commandArgs: [ \"echo\", \"Hello Ankaios\"]
         "
         .to_string();
 
@@ -151,9 +148,10 @@ mod tests {
                 value: "Ankaios team 1".to_owned(),
             }
         );
-        let runtime_config_nginx = &workload_spec_nginx.runtime_config;
-        assert!(runtime_config_nginx.starts_with("image: docker.io/nginx:latest\n"));
-        assert!(runtime_config_nginx.ends_with("hostPort: 8081\n"));
+        assert_eq!(
+            workload_spec_nginx.runtime_config,
+            "image: docker.io/nginx:latest\ncommandOptions: [\"-p\", \"8081:80\"]\n"
+        );
 
         // asserts workload hello
         assert!(state.workloads.contains_key("hello"));
@@ -170,9 +168,10 @@ mod tests {
         assert_eq!(workload_spec_hello.access_rights.deny.len(), 0);
         assert_eq!(workload_spec_hello.tags.len(), 0);
 
-        let runtime_config_hello = &workload_spec_hello.runtime_config;
-        assert!(runtime_config_hello.starts_with("image: alpine:latest\n"));
-        assert!(runtime_config_hello.ends_with("args: [\"Hello Ankaios\"]\n"));
+        assert_eq!(
+            workload_spec_hello.runtime_config,
+            "image: alpine:latest\ncommandArgs: [ \"echo\", \"Hello Ankaios\"]\n"
+        );
     }
 
     #[test]
