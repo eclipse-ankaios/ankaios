@@ -11,7 +11,7 @@ permissions:
   contents: write
 jobs:
   documentation_changes:
-    name: Check If Documentation Changed
+    name: Check if documentation has changed
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
