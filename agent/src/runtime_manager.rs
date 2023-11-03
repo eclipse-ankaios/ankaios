@@ -508,7 +508,7 @@ mod tests {
             .once()
             .returning(|_| {
                 Box::pin(async {
-                    Err(RuntimeError::Update(
+                    Err(RuntimeError::List(
                         "failed to get reusable workloads".to_string(),
                     ))
                 })

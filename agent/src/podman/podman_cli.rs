@@ -7,7 +7,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 #[cfg_attr(test, mockall_double::double)]
 use super::cli_command::CliCommand;
-use super::podman_runtime_config::PodmanRuntimeConfigCli;
+use super::podman_runtime_config::PodmanRuntimeConfig;
 
 const PODMAN_CMD: &str = "podman";
 const API_PIPES_MOUNT_POINT: &str = "/run/ankaios/control_interface";
@@ -146,7 +146,7 @@ impl PodmanCli {
     }
 
     pub async fn run_workload(
-        workload_cfg: PodmanRuntimeConfigCli,
+        workload_cfg: PodmanRuntimeConfig,
         workload_name: &str,
         agent: &str,
         control_interface_path: Option<PathBuf>,
@@ -642,7 +642,7 @@ mod tests {
                 .exec_returns(Ok("test_id".to_string())),
         );
 
-        let workload_cfg = crate::podman::podman_runtime_config::PodmanRuntimeConfigCli {
+        let workload_cfg = crate::podman::podman_runtime_config::PodmanRuntimeConfig {
             general_options: None,
             command_options: None,
             image: "alpine:latest".into(),
@@ -673,7 +673,7 @@ mod tests {
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
-        let workload_cfg = crate::podman::podman_runtime_config::PodmanRuntimeConfigCli {
+        let workload_cfg = crate::podman::podman_runtime_config::PodmanRuntimeConfig {
             general_options: None,
             command_options: None,
             image: "alpine:latest".into(),
@@ -712,7 +712,7 @@ mod tests {
                 .exec_returns(Ok("test_id".to_string())),
         );
 
-        let workload_cfg = crate::podman::podman_runtime_config::PodmanRuntimeConfigCli {
+        let workload_cfg = crate::podman::podman_runtime_config::PodmanRuntimeConfig {
             general_options: Some(vec!["--remote".into()]),
             command_options: Some(vec![
                 "--network=host".into(),

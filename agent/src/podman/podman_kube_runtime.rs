@@ -22,6 +22,7 @@ use crate::{
 
 use super::podman_kube_runtime_config::PodmanKubeRuntimeConfig;
 
+pub const PODMAN_KUBE_RUNTIME_NAME: &str = "podman-kube";
 const CONFIG_VOLUME_SUFFIX: &str = ".config";
 const PODS_VOLUME_SUFFIX: &str = ".pods";
 
@@ -50,7 +51,7 @@ pub struct PlayKubeError {}
 #[async_trait]
 impl Runtime<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRuntime {
     fn name(&self) -> String {
-        "podman-kube".to_string()
+        PODMAN_KUBE_RUNTIME_NAME.to_string()
     }
 
     async fn get_reusable_running_workloads(
@@ -292,12 +293,14 @@ impl From<OrderedExecutionState> for ExecutionState {
 // [utest->swdd~functions-required-by-runtime-connector~1]
 #[cfg(test)]
 mod tests {
-    use common::objects::{ExecutionState, WorkloadExecutionInstanceName, WorkloadSpec};
+    use common::objects::{ExecutionState, WorkloadExecutionInstanceName};
+    use common::test_utils::generate_test_workload_spec_with_param;
     use mockall::predicate::eq;
 
     use super::PodmanCli;
     use crate::podman::podman_cli::ContainerState;
     use crate::podman::PodmanKubeWorkloadId;
+    use crate::podman::podman_kube_runtime::PODMAN_KUBE_RUNTIME_NAME;
     use crate::runtime::{Runtime, RuntimeError};
     use crate::state_checker::RuntimeStateChecker;
     use crate::{podman::PodmanKubeRuntime, test_helper::MOCKALL_CONTEXT_SYNC};
@@ -435,13 +438,13 @@ mod tests {
 
         let runtime = PodmanKubeRuntime {};
 
-        let workload_spec = WorkloadSpec {
-            agent: SAMPLE_AGENT.into(),
-            name: SAMPLE_WORKLOAD_1.into(),
-            runtime_config: SAMPLE_RUNTIME_CONFIG.into(),
-            ..Default::default()
-        };
-
+        let mut workload_spec = generate_test_workload_spec_with_param(
+            SAMPLE_AGENT.to_string(),
+            SAMPLE_WORKLOAD_1.to_string(),
+            PODMAN_KUBE_RUNTIME_NAME.to_string(),
+        );
+        workload_spec.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
+        
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime.create_workload(workload_spec, None, sender).await;
         assert!(matches!(workload, Ok((workload_id, _)) if 
@@ -493,12 +496,12 @@ mod tests {
 
         let runtime = PodmanKubeRuntime {};
 
-        let workload_spec = WorkloadSpec {
-            agent: SAMPLE_AGENT.into(),
-            name: SAMPLE_WORKLOAD_1.into(),
-            runtime_config: SAMPLE_RUNTIME_CONFIG.into(),
-            ..Default::default()
-        };
+        let mut workload_spec = generate_test_workload_spec_with_param(
+            SAMPLE_AGENT.to_string(),
+            SAMPLE_WORKLOAD_1.to_string(),
+            PODMAN_KUBE_RUNTIME_NAME.to_string(),
+        );
+        workload_spec.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime.create_workload(workload_spec, None, sender).await;
@@ -542,12 +545,12 @@ mod tests {
 
         let runtime = PodmanKubeRuntime {};
 
-        let workload_spec = WorkloadSpec {
-            agent: SAMPLE_AGENT.into(),
-            name: SAMPLE_WORKLOAD_1.into(),
-            runtime_config: SAMPLE_RUNTIME_CONFIG.into(),
-            ..Default::default()
-        };
+        let mut workload_spec = generate_test_workload_spec_with_param(
+            SAMPLE_AGENT.to_string(),
+            SAMPLE_WORKLOAD_1.to_string(),
+            PODMAN_KUBE_RUNTIME_NAME.to_string(),
+        );
+        workload_spec.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime.create_workload(workload_spec, None, sender).await;

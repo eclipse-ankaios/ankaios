@@ -156,7 +156,7 @@ mod tests {
     }
 
     lazy_static::lazy_static! {
-        static ref mock_cli_commands: Mutex<HashMap<String, VecDeque<MockCliCommand>>> =
+        static ref MOCK_CLI_COMMANDS: Mutex<HashMap<String, VecDeque<MockCliCommand>>> =
             Default::default();
     }
 
@@ -169,11 +169,11 @@ mod tests {
 
     impl MockCliCommand {
         pub fn reset() {
-            *mock_cli_commands.lock().unwrap() = HashMap::new();
+            *MOCK_CLI_COMMANDS.lock().unwrap() = HashMap::new();
         }
 
         pub fn new_expect(program: &str, mock_cli_command: MockCliCommand) {
-            mock_cli_commands
+            MOCK_CLI_COMMANDS
                 .lock()
                 .unwrap()
                 .entry(program.into())
@@ -197,7 +197,7 @@ mod tests {
         }
 
         pub fn new(program: &str) -> Self {
-            mock_cli_commands
+            MOCK_CLI_COMMANDS
                 .lock()
                 .unwrap()
                 .get_mut(program)

@@ -23,7 +23,9 @@ use mockall_double::double;
 #[cfg_attr(test, double)]
 use crate::podman::podman_cli::PodmanCli;
 
-use super::podman_runtime_config::PodmanRuntimeConfigCli;
+use super::podman_runtime_config::PodmanRuntimeConfig;
+
+pub const PODMAN_RUNTIME_NAME: &str = "podman";
 
 #[derive(Debug, Clone)]
 pub struct PodmanRuntime {}
@@ -60,7 +62,7 @@ impl RuntimeStateChecker<PodmanWorkloadId> for PodmanRuntime {
 impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
     // [impl->swdd~podman-name-returns-podman~1]
     fn name(&self) -> String {
-        "podman".to_string()
+        PODMAN_RUNTIME_NAME.to_string()
     }
 
     async fn get_reusable_running_workloads(
@@ -91,7 +93,7 @@ impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
         control_interface_path: Option<PathBuf>,
         update_state_tx: StateChangeSender,
     ) -> Result<(PodmanWorkloadId, GenericPollingStateChecker), RuntimeError> {
-        let workload_cfg = PodmanRuntimeConfigCli::try_from(&workload_spec)
+        let workload_cfg = PodmanRuntimeConfig::try_from(&workload_spec)
             .map_err(|err| RuntimeError::Create(err.into()))?;
 
         let workload_id = PodmanCli::run_workload(
@@ -186,12 +188,12 @@ mod tests {
     use common::{
         objects::{AgentName, ExecutionState, WorkloadExecutionInstanceName},
         state_change_interface::StateChangeCommand,
-        test_utils::generate_test_workload_spec_cli,
+        test_utils::generate_test_workload_spec_with_param,
     };
 
     use super::PodmanCli;
     use crate::{
-        podman::PodmanWorkloadId,
+        podman::{podman_runtime::PODMAN_RUNTIME_NAME, PodmanWorkloadId},
         runtime::{Runtime, RuntimeError},
         state_checker::RuntimeStateChecker,
         test_helper::MOCKALL_CONTEXT_SYNC,
@@ -200,6 +202,9 @@ mod tests {
     use super::PodmanRuntime;
 
     const BUFFER_SIZE: usize = 20;
+
+    const AGENT_NAME: &str = "agent_x";
+    const WORKLOAD_1_NAME: &str = "workload1";
 
     // [utest->swdd~podman-name-returns-podman~1]
     #[test]
@@ -282,7 +287,11 @@ mod tests {
         let context = PodmanCli::run_workload_context();
         context.expect().return_const(Ok("test_id".into()));
 
-        let workload_spec = generate_test_workload_spec_cli();
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            PODMAN_RUNTIME_NAME.to_string(),
+        );
         let (to_server, _from_agent) =
             tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
 
@@ -306,7 +315,11 @@ mod tests {
             .expect()
             .return_const(Err("podman run failed".into()));
 
-        let workload_spec = generate_test_workload_spec_cli();
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            PODMAN_RUNTIME_NAME.to_string(),
+        );
         let (to_server, _from_agent) =
             tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
 
@@ -322,7 +335,11 @@ mod tests {
     async fn utest_create_workload_parsing_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let mut workload_spec = generate_test_workload_spec_cli();
+        let mut workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            PODMAN_RUNTIME_NAME.to_string(),
+        );
         workload_spec.runtime_config = "broken runtime config".to_string();
 
         let (to_server, _from_agent) =

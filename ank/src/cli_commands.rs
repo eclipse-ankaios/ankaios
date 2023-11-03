@@ -1545,7 +1545,7 @@ mod tests {
                         "deny": []
                     },
                     "runtime": "podman",
-                    "runtimeConfig": "image: alpine:latest\ncommand: [\"echo\"]\nargs: [\"Hello Ankaios\"]"
+                    "runtimeConfig": "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
                     }
                 }
             }
@@ -1609,7 +1609,7 @@ mod tests {
                             "deny": []
                         },
                         "runtime": "podman",
-                        "runtimeConfig": "image: alpine:latest\ncommand: [\"echo\"]\nargs: [\"Hello Ankaios\"]"
+                        "runtimeConfig": "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
                     },
                     "name2": {
                         "agent": "agent_B"

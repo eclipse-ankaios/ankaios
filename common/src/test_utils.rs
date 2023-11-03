@@ -157,43 +157,13 @@ pub fn generate_test_workload_spec_with_param(
             key: "key".into(),
             value: "value".into(),
         }],
-        runtime_config: "image: alpine:latest\ncommand: [\"echo\"]\nargs: [\"Hello Ankaios\"]"
+        runtime_config: "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
             .to_string(),
     }
 }
 
 pub fn generate_test_workload_spec() -> WorkloadSpec {
     generate_test_workload_spec_with_param(
-        "agent".to_string(),
-        "name".to_string(),
-        "runtime".to_string(),
-    )
-}
-
-pub fn generate_test_workload_spec_with_param_cli(
-    agent_name: String,
-    workload_name: String,
-    runtime_name: String,
-) -> crate::objects::WorkloadSpec {
-    WorkloadSpec {
-        dependencies: generate_test_dependencies(),
-        update_strategy: UpdateStrategy::Unspecified,
-        restart: true,
-        access_rights: AccessRights::default(),
-        runtime: runtime_name,
-        name: workload_name,
-        agent: agent_name,
-        tags: vec![Tag {
-            key: "key".into(),
-            value: "value".into(),
-        }],
-        runtime_config: "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
-            .to_string(),
-    }
-}
-
-pub fn generate_test_workload_spec_cli() -> WorkloadSpec {
-    generate_test_workload_spec_with_param_cli(
         "agent".to_string(),
         "name".to_string(),
         "runtime".to_string(),
@@ -208,7 +178,7 @@ pub fn generate_test_proto_workload() -> proto::Workload {
         update_strategy: proto::UpdateStrategy::Unspecified.into(),
         access_rights: None,
         runtime: String::from("runtime"),
-        runtime_config: "image: alpine:latest\ncommand: [\"echo\"]\nargs: [\"Hello Ankaios\"]"
+        runtime_config: "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
             .to_string(),
         tags: vec![proto::Tag {
             key: "key".into(),

@@ -12,7 +12,6 @@ use crate::state_checker::StateChecker;
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeError {
     Create(String),
-    Update(String),
     Delete(String),
     List(String),
 }
@@ -22,9 +21,6 @@ impl Display for RuntimeError {
         match self {
             RuntimeError::Create(msg) => {
                 write!(f, "Could not create workload: '{}'", msg)
-            }
-            RuntimeError::Update(msg) => {
-                write!(f, "Could not update workload: '{}'", msg)
             }
             RuntimeError::Delete(msg) => {
                 write!(f, "Could not delete workload '{}'", msg)
