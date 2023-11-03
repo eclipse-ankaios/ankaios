@@ -293,14 +293,19 @@ impl From<OrderedExecutionState> for ExecutionState {
 // [utest->swdd~functions-required-by-runtime-connector~1]
 #[cfg(test)]
 mod tests {
-    use common::objects::{ExecutionState, WorkloadExecutionInstanceName};
     use common::test_utils::generate_test_workload_spec_with_param;
-    use mockall::predicate::eq;
+
+    use std::fmt::Display;
+
+    use common::objects::{ExecutionState, WorkloadExecutionInstanceName};
+    use mockall::{lazy_static, predicate::eq};
 
     use super::PodmanCli;
     use crate::podman::podman_cli::ContainerState;
-    use crate::podman::PodmanKubeWorkloadId;
+    use crate::podman::podman_cli::__mock_MockPodmanCli as podman_cli_mock;
     use crate::podman::podman_kube_runtime::PODMAN_KUBE_RUNTIME_NAME;
+    use crate::podman::podman_kube_runtime::{CONFIG_VOLUME_SUFFIX, PODS_VOLUME_SUFFIX};
+    use crate::podman::PodmanKubeWorkloadId;
     use crate::runtime::{Runtime, RuntimeError};
     use crate::state_checker::RuntimeStateChecker;
     use crate::{podman::PodmanKubeRuntime, test_helper::MOCKALL_CONTEXT_SYNC};
@@ -311,130 +316,122 @@ mod tests {
     const SAMPLE_AGENT: &str = "agent_A";
     const SAMPLE_WORKLOAD_1: &str = "workload_1";
 
+    lazy_static! {
+        pub static ref WORKLOAD_INSTANCE_NAME: WorkloadExecutionInstanceName =
+            WorkloadExecutionInstanceName::builder()
+                .agent_name(SAMPLE_AGENT)
+                .workload_name(SAMPLE_WORKLOAD_1)
+                .config(&SAMPLE_RUNTIME_CONFIG.to_string())
+                .build();
+        pub static ref SAMPLE_POD_LIST: Vec<String> = vec!["pod1".to_string(), "pod2".to_string()];
+        pub static ref SAMPLE_PLAY_OPTIONS: Vec<String> =
+            vec!["-pl".to_string(), "--ay".to_string()];
+        pub static ref SAMPLE_DOWN_OPTIONS: Vec<String> =
+            vec!["-do".to_string(), "--wn".to_string()];
+        pub static ref WORKLOAD_ID: PodmanKubeWorkloadId = PodmanKubeWorkloadId {
+            name: WORKLOAD_INSTANCE_NAME.clone(),
+            pods: Some(SAMPLE_POD_LIST.clone()),
+            manifest: SAMPLE_KUBE_CONFIG.into(),
+            down_options: SAMPLE_DOWN_OPTIONS.clone(),
+        };
+    }
+
     #[tokio::test]
     async fn utest_get_reusable_running_workloads_success() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let workload_instance_1 = "workload_1.hash_1.agent_A";
+        let workload_instance_2 = "workload_2.hash_2.agent_A";
 
-        let context = PodmanCli::list_volumes_by_name_context();
-        context
-            .expect()
-            .with(eq(".agent_A.config$".to_string()))
-            .return_const(Ok(vec![
-                "workload_1.hash_1.agent_A.config".into(),
-                "workload_2.hash_2.agent_A.config".into(),
-            ]));
+        let mock_context = MockContext::new().await;
+        mock_context.list_agent_config_volumes_returns(Ok(vec![
+            workload_instance_1.as_config_volume(),
+            workload_instance_2.as_config_volume(),
+        ]));
 
         let runtime = PodmanKubeRuntime {};
 
-        let agent = "agent_A".into();
-        let workloads = runtime.get_reusable_running_workloads(&agent).await;
+        let workloads = runtime
+            .get_reusable_running_workloads(&SAMPLE_AGENT.into())
+            .await;
 
         assert!(
-            matches!(workloads, Ok(res) if res == [WorkloadExecutionInstanceName::new("workload_1.hash_1.agent_A").unwrap(), WorkloadExecutionInstanceName::new("workload_2.hash_2.agent_A").unwrap()])
+            matches!(workloads, Ok(res) if res == [workload_instance_1.try_into().unwrap(), workload_instance_2.try_into().unwrap()])
         );
     }
 
     #[tokio::test]
     async fn utest_get_reusable_running_workloads_request_fails() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
-
-        let context = PodmanCli::list_volumes_by_name_context();
-        context
-            .expect()
-            .with(eq(".agent_A.config$".to_string()))
-            .return_const(Err(SAMPLE_ERROR.into()));
+        let mock_context = MockContext::new().await;
+        mock_context.list_agent_config_volumes_returns(Err(SAMPLE_ERROR.into()));
 
         let runtime = PodmanKubeRuntime {};
 
-        let agent = "agent_A".into();
-        let workloads = runtime.get_reusable_running_workloads(&agent).await;
+        let workloads = runtime
+            .get_reusable_running_workloads(&SAMPLE_AGENT.into())
+            .await;
 
         assert!(matches!(workloads, Err(RuntimeError::Create(msg)) if msg.ends_with(SAMPLE_ERROR)));
     }
 
     #[tokio::test]
     async fn utest_get_reusable_running_workloads_one_volume_cant_be_parsed() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let invalid_workload_instance = "hash_1.agent_A";
+        let workload_instance = "workload_2.hash_2.agent_A";
 
-        let context = PodmanCli::list_volumes_by_name_context();
-        context
-            .expect()
-            .with(eq(".agent_A.config$".to_string()))
-            .return_const(Ok(vec![
-                "hash_1.agent_A.config".into(),
-                "workload_2.hash_2.agent_A.config".into(),
-            ]));
+        let mock_context = MockContext::new().await;
+        mock_context.list_agent_config_volumes_returns(Ok(vec![
+            invalid_workload_instance.as_config_volume(),
+            workload_instance.as_config_volume(),
+        ]));
+
         let runtime = PodmanKubeRuntime {};
 
-        let agent = "agent_A".into();
-        let workloads = runtime.get_reusable_running_workloads(&agent).await;
+        let workloads = runtime
+            .get_reusable_running_workloads(&SAMPLE_AGENT.into())
+            .await;
 
-        assert!(
-            matches!(workloads, Ok(res) if res == [WorkloadExecutionInstanceName::new("workload_2.hash_2.agent_A").unwrap()])
-        );
+        assert!(matches!(workloads, Ok(res) if res == [workload_instance.try_into().unwrap()]));
     }
 
     #[tokio::test]
     async fn utest_get_reusable_running_workloads_handles_to_short_volume_name() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let workload_instance = "workload_2.hash_2.agent_A";
 
-        let context = PodmanCli::list_volumes_by_name_context();
-        context
-            .expect()
-            .with(eq(".agent_A.config$".to_string()))
-            .return_const(Ok(vec![
-                "config".into(),
-                "workload_2.hash_2.agent_A.config".into(),
-            ]));
+        let mock_context = MockContext::new().await;
+        mock_context.list_agent_config_volumes_returns(Ok(vec![
+            "config".into(),
+            workload_instance.as_config_volume(),
+        ]));
+
         let runtime = PodmanKubeRuntime {};
 
-        let agent = "agent_A".into();
-        let workloads = runtime.get_reusable_running_workloads(&agent).await;
+        let workloads = runtime
+            .get_reusable_running_workloads(&SAMPLE_AGENT.into())
+            .await;
 
-        assert!(
-            matches!(workloads, Ok(res) if res == [WorkloadExecutionInstanceName::new("workload_2.hash_2.agent_A").unwrap()])
-        );
+        assert!(matches!(workloads, Ok(res) if res == [workload_instance.try_into().unwrap()]));
     }
 
     #[tokio::test]
     async fn utest_create_workload_success() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let mock_context = MockContext::new().await;
 
-        let store_data_context = PodmanCli::store_data_as_volume_context();
-        let play_kube_context = PodmanCli::play_kube_context();
-
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
-            .agent_name(SAMPLE_AGENT)
-            .workload_name(SAMPLE_WORKLOAD_1)
-            .config(&SAMPLE_RUNTIME_CONFIG.to_string())
-            .build();
-
-        store_data_context
-            .expect()
-            .with(
-                eq(format!("{}.config", workload_instance_name)),
-                eq(SAMPLE_RUNTIME_CONFIG),
+        mock_context
+            .store_data(
+                WORKLOAD_INSTANCE_NAME.as_config_volume(),
+                SAMPLE_RUNTIME_CONFIG,
             )
-            .once()
-            .return_const(Ok(()));
+            .returns(Ok(()));
 
-        play_kube_context
-            .expect()
-            .with(
-                eq(["-pl".into(), "--ay".into()]),
-                eq(SAMPLE_KUBE_CONFIG.as_bytes()),
-            )
-            .once()
-            .return_const(Ok(vec!["pod1".into(), "pod2".into()]));
+        mock_context
+            .play_kube(&*SAMPLE_PLAY_OPTIONS, SAMPLE_KUBE_CONFIG)
+            .returns(Ok(SAMPLE_POD_LIST.clone()));
 
-        store_data_context
-            .expect()
-            .with(
-                eq(format!("{}.pods", workload_instance_name)),
-                eq(r#"["pod1","pod2"]"#),
+        mock_context
+            .store_data(
+                WORKLOAD_INSTANCE_NAME.as_pods_volume(),
+                r#"["pod1","pod2"]"#,
             )
-            .once()
-            .return_const(Ok(()));
+            .returns(Ok(()));
 
         let runtime = PodmanKubeRuntime {};
 
@@ -443,56 +440,39 @@ mod tests {
             SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
         );
+
         workload_spec.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
-        
+
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime.create_workload(workload_spec, None, sender).await;
-        assert!(matches!(workload, Ok((workload_id, _)) if 
-                workload_id.name == workload_instance_name &&
+        assert!(matches!(workload, Ok((workload_id, _)) if
+                workload_id.name == *WORKLOAD_INSTANCE_NAME &&
                 workload_id.manifest == SAMPLE_KUBE_CONFIG &&
-                workload_id.pods == Some(vec!["pod1".into(), "pod2".into()]) &&
-                workload_id.down_options == vec!["-do".to_string(), "--wn".to_string()]));
+                workload_id.pods == Some(SAMPLE_POD_LIST.clone()) &&
+                workload_id.down_options == *SAMPLE_DOWN_OPTIONS));
     }
 
     #[tokio::test]
     async fn utest_create_workload_handle_cant_store_config() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let mock_context = MockContext::new().await;
 
-        let store_data_context = PodmanCli::store_data_as_volume_context();
-        let play_kube_context = PodmanCli::play_kube_context();
-
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
-            .agent_name(SAMPLE_AGENT)
-            .workload_name(SAMPLE_WORKLOAD_1)
-            .config(&SAMPLE_RUNTIME_CONFIG.to_string())
-            .build();
-
-        store_data_context
-            .expect()
-            .with(
-                eq(format!("{}.config", workload_instance_name)),
-                eq(SAMPLE_RUNTIME_CONFIG),
+        mock_context
+            .store_data(
+                WORKLOAD_INSTANCE_NAME.as_config_volume(),
+                SAMPLE_RUNTIME_CONFIG,
             )
-            .once()
-            .return_const(Err(SAMPLE_ERROR.into()));
+            .returns(Err(SAMPLE_ERROR.into()));
 
-        play_kube_context
-            .expect()
-            .with(
-                eq(["-pl".into(), "--ay".into()]),
-                eq(SAMPLE_KUBE_CONFIG.as_bytes()),
-            )
-            .once()
-            .return_const(Ok(vec!["pod1".into(), "pod2".into()]));
+        mock_context
+            .play_kube(&*SAMPLE_PLAY_OPTIONS, SAMPLE_KUBE_CONFIG)
+            .returns(Ok(SAMPLE_POD_LIST.clone()));
 
-        store_data_context
-            .expect()
-            .with(
-                eq(format!("{}.pods", workload_instance_name)),
-                eq(r#"["pod1","pod2"]"#),
+        mock_context
+            .store_data(
+                WORKLOAD_INSTANCE_NAME.as_pods_volume(),
+                r#"["pod1","pod2"]"#,
             )
-            .once()
-            .return_const(Ok(()));
+            .returns(Ok(()));
 
         let runtime = PodmanKubeRuntime {};
 
@@ -505,43 +485,27 @@ mod tests {
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime.create_workload(workload_spec, None, sender).await;
-        assert!(matches!(workload, Ok((workload_id, _)) if 
-                workload_id.name == workload_instance_name &&
+        assert!(matches!(workload, Ok((workload_id, _)) if
+                workload_id.name == *WORKLOAD_INSTANCE_NAME &&
                 workload_id.manifest == SAMPLE_KUBE_CONFIG &&
-                workload_id.pods == Some(vec!["pod1".into(), "pod2".into()]) &&
-                workload_id.down_options == vec!["-do".to_string(), "--wn".to_string()]));
+                workload_id.pods == Some(SAMPLE_POD_LIST.clone()) &&
+                workload_id.down_options == *SAMPLE_DOWN_OPTIONS));
     }
 
     #[tokio::test]
     async fn utest_create_workload_command_fails() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let mock_context = MockContext::new().await;
 
-        let store_data_context = PodmanCli::store_data_as_volume_context();
-        let play_kube_context = PodmanCli::play_kube_context();
-
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
-            .agent_name(SAMPLE_AGENT)
-            .workload_name(SAMPLE_WORKLOAD_1)
-            .config(&SAMPLE_RUNTIME_CONFIG.to_string())
-            .build();
-
-        store_data_context
-            .expect()
-            .with(
-                eq(format!("{}.config", workload_instance_name)),
-                eq(SAMPLE_RUNTIME_CONFIG),
+        mock_context
+            .store_data(
+                WORKLOAD_INSTANCE_NAME.as_config_volume(),
+                SAMPLE_RUNTIME_CONFIG,
             )
-            .once()
-            .return_const(Ok(()));
+            .returns(Ok(()));
 
-        play_kube_context
-            .expect()
-            .with(
-                eq(["-pl".into(), "--ay".into()]),
-                eq(SAMPLE_KUBE_CONFIG.as_bytes()),
-            )
-            .once()
-            .return_const(Err(SAMPLE_ERROR.into()));
+        mock_context
+            .play_kube(&*SAMPLE_PLAY_OPTIONS, SAMPLE_KUBE_CONFIG)
+            .returns(Err(SAMPLE_ERROR.into()));
 
         let runtime = PodmanKubeRuntime {};
 
@@ -560,540 +524,291 @@ mod tests {
 
     #[tokio::test]
     async fn utest_get_workload_id_success() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let mock_context = MockContext::new().await;
 
-        let read_data_context = PodmanCli::read_data_from_volume_context();
-
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
-            .agent_name(SAMPLE_AGENT)
-            .workload_name(SAMPLE_WORKLOAD_1)
-            .config(&SAMPLE_RUNTIME_CONFIG.to_string())
-            .build();
-
-        read_data_context
-            .expect()
-            .with(eq(format!("{}.config", workload_instance_name)))
-            .once()
-            .return_const(Ok(SAMPLE_RUNTIME_CONFIG.into()));
-        read_data_context
-            .expect()
-            .with(eq(format!("{}.pods", workload_instance_name)))
-            .once()
-            .return_const(Ok(r#"["pod1","pod2"]"#.into()));
+        mock_context
+            .read_data(WORKLOAD_INSTANCE_NAME.as_config_volume())
+            .returns(Ok(SAMPLE_RUNTIME_CONFIG.into()));
+        mock_context
+            .read_data(WORKLOAD_INSTANCE_NAME.as_pods_volume())
+            .returns(Ok(r#"["pod1","pod2"]"#.into()));
 
         let runtime = PodmanKubeRuntime {};
-        let workload = runtime.get_workload_id(&workload_instance_name).await;
+        let workload = runtime.get_workload_id(&WORKLOAD_INSTANCE_NAME).await;
 
         assert!(matches!(workload, Ok(workload) if
-            workload.name == workload_instance_name &&
-            workload.pods == Some(vec!["pod1".into(), "pod2".into()]) &&
+            workload.name == *WORKLOAD_INSTANCE_NAME &&
+            workload.pods == Some(SAMPLE_POD_LIST.clone()) &&
             workload.manifest == SAMPLE_KUBE_CONFIG &&
-            workload.down_options == vec!["-do".to_string(), "--wn".to_string()]
+            workload.down_options == *SAMPLE_DOWN_OPTIONS
         ));
     }
 
     #[tokio::test]
     async fn utest_get_workload_id_could_not_read_pods() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let mock_context = MockContext::new().await;
 
-        let read_data_context = PodmanCli::read_data_from_volume_context();
-
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
-            .agent_name(SAMPLE_AGENT)
-            .workload_name(SAMPLE_WORKLOAD_1)
-            .config(&SAMPLE_RUNTIME_CONFIG.to_string())
-            .build();
-
-        read_data_context
-            .expect()
-            .with(eq(format!("{}.config", workload_instance_name)))
-            .once()
-            .return_const(Ok(SAMPLE_RUNTIME_CONFIG.into()));
-        read_data_context
-            .expect()
-            .with(eq(format!("{}.pods", workload_instance_name)))
-            .once()
-            .return_const(Err(SAMPLE_ERROR.into()));
+        mock_context
+            .read_data(WORKLOAD_INSTANCE_NAME.as_config_volume())
+            .returns(Ok(SAMPLE_RUNTIME_CONFIG.into()));
+        mock_context
+            .read_data(WORKLOAD_INSTANCE_NAME.as_pods_volume())
+            .returns(Err(SAMPLE_ERROR.into()));
 
         let runtime = PodmanKubeRuntime {};
-        let workload = runtime.get_workload_id(&workload_instance_name).await;
+        let workload = runtime.get_workload_id(&WORKLOAD_INSTANCE_NAME).await;
 
         assert!(matches!(workload, Ok(workload) if
-            workload.name == workload_instance_name &&
+            workload.name == *WORKLOAD_INSTANCE_NAME &&
             workload.pods.is_none() &&
             workload.manifest == SAMPLE_KUBE_CONFIG &&
-            workload.down_options == vec!["-do".to_string(), "--wn".to_string()]
+            workload.down_options == *SAMPLE_DOWN_OPTIONS
         ));
     }
 
     #[tokio::test]
     async fn utest_get_workload_id_could_not_parse_pods() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let mock_context = MockContext::new().await;
 
-        let read_data_context = PodmanCli::read_data_from_volume_context();
-
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
-            .agent_name(SAMPLE_AGENT)
-            .workload_name(SAMPLE_WORKLOAD_1)
-            .config(&SAMPLE_RUNTIME_CONFIG.to_string())
-            .build();
-
-        read_data_context
-            .expect()
-            .with(eq(format!("{}.config", workload_instance_name)))
-            .once()
-            .return_const(Ok(SAMPLE_RUNTIME_CONFIG.into()));
-        read_data_context
-            .expect()
-            .with(eq(format!("{}.pods", workload_instance_name)))
-            .once()
-            .return_const(Ok(r#"{"#.into()));
+        mock_context
+            .read_data(WORKLOAD_INSTANCE_NAME.as_config_volume())
+            .returns(Ok(SAMPLE_RUNTIME_CONFIG.into()));
+        mock_context
+            .read_data(WORKLOAD_INSTANCE_NAME.as_pods_volume())
+            .returns(Ok(r#"{"#.into()));
 
         let runtime = PodmanKubeRuntime {};
-        let workload = runtime.get_workload_id(&workload_instance_name).await;
+        let workload = runtime.get_workload_id(&WORKLOAD_INSTANCE_NAME).await;
 
         assert!(matches!(workload, Ok(workload) if
-            workload.name == workload_instance_name &&
+            workload.name == *WORKLOAD_INSTANCE_NAME &&
             workload.pods.is_none() &&
             workload.manifest == SAMPLE_KUBE_CONFIG &&
-            workload.down_options == vec!["-do".to_string(), "--wn".to_string()]
+            workload.down_options == *SAMPLE_DOWN_OPTIONS
         ));
     }
 
     #[tokio::test]
     async fn utest_get_workload_id_could_not_read_config() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let mock_context = MockContext::new().await;
 
-        let read_data_context = PodmanCli::read_data_from_volume_context();
-
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
-            .agent_name(SAMPLE_AGENT)
-            .workload_name(SAMPLE_WORKLOAD_1)
-            .config(&SAMPLE_RUNTIME_CONFIG.to_string())
-            .build();
-
-        read_data_context
-            .expect()
-            .with(eq(format!("{}.config", workload_instance_name)))
-            .once()
-            .return_const(Err(SAMPLE_ERROR.into()));
+        mock_context
+            .read_data(WORKLOAD_INSTANCE_NAME.as_config_volume())
+            .returns(Err(SAMPLE_ERROR.into()));
 
         let runtime = PodmanKubeRuntime {};
-        let workload = runtime.get_workload_id(&workload_instance_name).await;
+        let workload = runtime.get_workload_id(&WORKLOAD_INSTANCE_NAME).await;
 
         assert!(matches!(workload, Err(..)));
     }
 
     #[tokio::test]
     async fn utest_get_workload_id_could_not_parse_config() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let mock_context = MockContext::new().await;
 
-        let read_data_context = PodmanCli::read_data_from_volume_context();
-
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
-            .agent_name(SAMPLE_AGENT)
-            .workload_name(SAMPLE_WORKLOAD_1)
-            .config(&SAMPLE_RUNTIME_CONFIG.to_string())
-            .build();
-
-        read_data_context
-            .expect()
-            .with(eq(format!("{}.config", workload_instance_name)))
-            .once()
-            .return_const(Ok("{".into()));
+        mock_context
+            .read_data(WORKLOAD_INSTANCE_NAME.as_config_volume())
+            .returns(Ok("{".into()));
 
         let runtime = PodmanKubeRuntime {};
-        let workload = runtime.get_workload_id(&workload_instance_name).await;
+        let workload = runtime.get_workload_id(&WORKLOAD_INSTANCE_NAME).await;
 
         assert!(matches!(workload, Err(..)));
     }
 
     #[tokio::test]
     async fn utest_delete_workload_success() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let mock_context = MockContext::new().await;
 
-        let down_kube_context = PodmanCli::down_kube_context();
-        let remove_volume_context = PodmanCli::remove_volume_context();
-
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
-            .agent_name(SAMPLE_AGENT)
-            .workload_name(SAMPLE_WORKLOAD_1)
-            .config(&SAMPLE_RUNTIME_CONFIG.to_string())
-            .build();
-
-        down_kube_context
-            .expect()
-            .with(
-                eq(["-do".into(), "--wn".into()]),
-                eq(SAMPLE_KUBE_CONFIG.as_bytes()),
-            )
-            .once()
-            .return_const(Ok(()));
-        remove_volume_context
-            .expect()
-            .with(eq(format!("{workload_instance_name}.config")))
-            .once()
-            .return_const(Ok(()));
-        remove_volume_context
-            .expect()
-            .with(eq(format!("{workload_instance_name}.pods")))
-            .once()
-            .return_const(Ok(()));
-
-        let workload_id = PodmanKubeWorkloadId {
-            name: workload_instance_name,
-            pods: Some(vec!["pod1".into(), "pod2".into()]),
-            manifest: SAMPLE_KUBE_CONFIG.into(),
-            down_options: vec!["-do".into(), "--wn".into()],
-        };
+        mock_context
+            .down_kube(&*SAMPLE_DOWN_OPTIONS, SAMPLE_KUBE_CONFIG)
+            .returns(Ok(()));
+        mock_context
+            .remove_volume(WORKLOAD_INSTANCE_NAME.as_config_volume())
+            .returns(Ok(()));
+        mock_context
+            .remove_volume(WORKLOAD_INSTANCE_NAME.as_pods_volume())
+            .returns(Ok(()));
 
         let runtime = PodmanKubeRuntime {};
-        let workload = runtime.delete_workload(&workload_id).await;
+        let workload = runtime.delete_workload(&WORKLOAD_ID).await;
 
         assert!(matches!(workload, Ok(())));
     }
 
     #[tokio::test]
     async fn utest_delete_workload_handles_remove_volume_fails() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let mock_context = MockContext::new().await;
 
-        let down_kube_context = PodmanCli::down_kube_context();
-        let remove_volume_context = PodmanCli::remove_volume_context();
-
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
-            .agent_name(SAMPLE_AGENT)
-            .workload_name(SAMPLE_WORKLOAD_1)
-            .config(&SAMPLE_RUNTIME_CONFIG.to_string())
-            .build();
-
-        down_kube_context
-            .expect()
-            .with(
-                eq(["-do".into(), "--wn".into()]),
-                eq(SAMPLE_KUBE_CONFIG.as_bytes()),
-            )
-            .once()
-            .return_const(Ok(()));
-        remove_volume_context
-            .expect()
-            .with(eq(format!("{workload_instance_name}.config")))
-            .once()
-            .return_const(Err(SAMPLE_ERROR.into()));
-        remove_volume_context
-            .expect()
-            .with(eq(format!("{workload_instance_name}.pods")))
-            .once()
-            .return_const(Err(SAMPLE_ERROR.into()));
-
-        let workload_id = PodmanKubeWorkloadId {
-            name: workload_instance_name,
-            pods: Some(vec!["pod1".into(), "pod2".into()]),
-            manifest: SAMPLE_KUBE_CONFIG.into(),
-            down_options: vec!["-do".into(), "--wn".into()],
-        };
+        mock_context
+            .down_kube(&*SAMPLE_DOWN_OPTIONS, SAMPLE_KUBE_CONFIG)
+            .returns(Ok(()));
+        mock_context
+            .remove_volume(WORKLOAD_INSTANCE_NAME.as_config_volume())
+            .returns(Err(SAMPLE_ERROR.into()));
+        mock_context
+            .remove_volume(WORKLOAD_INSTANCE_NAME.as_pods_volume())
+            .returns(Err(SAMPLE_ERROR.into()));
 
         let runtime = PodmanKubeRuntime {};
-        let workload = runtime.delete_workload(&workload_id).await;
+        let workload = runtime.delete_workload(&WORKLOAD_ID).await;
 
         assert!(matches!(workload, Ok(())));
     }
 
     #[tokio::test]
     async fn utest_delete_workload_fails() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let mock_context = MockContext::new().await;
 
-        let down_kube_context = PodmanCli::down_kube_context();
-
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
-            .agent_name(SAMPLE_AGENT)
-            .workload_name(SAMPLE_WORKLOAD_1)
-            .config(&SAMPLE_RUNTIME_CONFIG.to_string())
-            .build();
-
-        down_kube_context
-            .expect()
-            .with(
-                eq(["-do".into(), "--wn".into()]),
-                eq(SAMPLE_KUBE_CONFIG.as_bytes()),
-            )
-            .once()
-            .return_const(Err(SAMPLE_ERROR.into()));
-
-        let workload_id = PodmanKubeWorkloadId {
-            name: workload_instance_name,
-            pods: Some(vec!["pod1".into(), "pod2".into()]),
-            manifest: SAMPLE_KUBE_CONFIG.into(),
-            down_options: vec!["-do".into(), "--wn".into()],
-        };
+        mock_context
+            .down_kube(&*SAMPLE_DOWN_OPTIONS, SAMPLE_KUBE_CONFIG)
+            .returns(Err(SAMPLE_ERROR.into()));
 
         let runtime = PodmanKubeRuntime {};
-        let workload = runtime.delete_workload(&workload_id).await;
+        let workload = runtime.delete_workload(&WORKLOAD_ID).await;
 
         assert!(matches!(workload, Err(..)));
     }
 
     #[tokio::test]
     async fn utest_get_state_failed() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let mock_context = MockContext::new().await;
 
-        let list_states_from_pods_context = PodmanCli::list_states_from_pods_context();
-
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
-            .agent_name(SAMPLE_AGENT)
-            .workload_name(SAMPLE_WORKLOAD_1)
-            .config(&SAMPLE_RUNTIME_CONFIG.to_string())
-            .build();
-
-        list_states_from_pods_context
-            .expect()
-            .with(eq(["pod1".into(), "pod2".into()]))
-            .returning(|_| {
-                Ok(vec![
-                    ContainerState::Created,
-                    ContainerState::Exited(1),
-                    ContainerState::Exited(0),
-                    ContainerState::Paused,
-                    ContainerState::Running,
-                    ContainerState::Unknown,
-                ])
-            });
-
-        let workload_id = PodmanKubeWorkloadId {
-            name: workload_instance_name,
-            pods: Some(vec!["pod1".into(), "pod2".into()]),
-            manifest: SAMPLE_KUBE_CONFIG.into(),
-            down_options: vec!["-do".into(), "--wn".into()],
-        };
+        mock_context
+            .list_states_from_pods(&*SAMPLE_POD_LIST)
+            .returns(Ok(vec![
+                ContainerState::Created,
+                ContainerState::Exited(1),
+                ContainerState::Exited(0),
+                ContainerState::Paused,
+                ContainerState::Running,
+                ContainerState::Unknown,
+            ]));
 
         let runtime = PodmanKubeRuntime {};
-        let execution_state = runtime.get_state(&workload_id).await;
+        let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
         assert_eq!(execution_state, ExecutionState::ExecFailed);
     }
 
     #[tokio::test]
     async fn utest_get_state_pending() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let mock_context = MockContext::new().await;
 
-        let list_states_from_pods_context = PodmanCli::list_states_from_pods_context();
-
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
-            .agent_name(SAMPLE_AGENT)
-            .workload_name(SAMPLE_WORKLOAD_1)
-            .config(&SAMPLE_RUNTIME_CONFIG.to_string())
-            .build();
-
-        list_states_from_pods_context
-            .expect()
-            .with(eq(["pod1".into(), "pod2".into()]))
-            .returning(|_| {
-                Ok(vec![
-                    ContainerState::Created,
-                    ContainerState::Exited(0),
-                    ContainerState::Paused,
-                    ContainerState::Running,
-                    ContainerState::Unknown,
-                ])
-            });
-
-        let workload_id = PodmanKubeWorkloadId {
-            name: workload_instance_name,
-            pods: Some(vec!["pod1".into(), "pod2".into()]),
-            manifest: SAMPLE_KUBE_CONFIG.into(),
-            down_options: vec!["-do".into(), "--wn".into()],
-        };
+        mock_context
+            .list_states_from_pods(&*SAMPLE_POD_LIST)
+            .returns(Ok(vec![
+                ContainerState::Created,
+                ContainerState::Exited(0),
+                ContainerState::Paused,
+                ContainerState::Running,
+                ContainerState::Unknown,
+            ]));
 
         let runtime = PodmanKubeRuntime {};
-        let execution_state = runtime.get_state(&workload_id).await;
+        let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
         assert_eq!(execution_state, ExecutionState::ExecPending);
     }
 
     #[tokio::test]
     async fn utest_get_state_unkown() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let mock_context = MockContext::new().await;
 
-        let list_states_from_pods_context = PodmanCli::list_states_from_pods_context();
-
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
-            .agent_name(SAMPLE_AGENT)
-            .workload_name(SAMPLE_WORKLOAD_1)
-            .config(&SAMPLE_RUNTIME_CONFIG.to_string())
-            .build();
-
-        list_states_from_pods_context
-            .expect()
-            .with(eq(["pod1".into(), "pod2".into()]))
-            .returning(|_| {
-                Ok(vec![
-                    ContainerState::Exited(0),
-                    ContainerState::Paused,
-                    ContainerState::Running,
-                    ContainerState::Unknown,
-                ])
-            });
-
-        let workload_id = PodmanKubeWorkloadId {
-            name: workload_instance_name,
-            pods: Some(vec!["pod1".into(), "pod2".into()]),
-            manifest: SAMPLE_KUBE_CONFIG.into(),
-            down_options: vec!["-do".into(), "--wn".into()],
-        };
+        mock_context
+            .list_states_from_pods(&*SAMPLE_POD_LIST)
+            .returns(Ok(vec![
+                ContainerState::Exited(0),
+                ContainerState::Paused,
+                ContainerState::Running,
+                ContainerState::Unknown,
+            ]));
 
         let runtime = PodmanKubeRuntime {};
-        let execution_state = runtime.get_state(&workload_id).await;
+        let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
         assert_eq!(execution_state, ExecutionState::ExecUnknown);
     }
 
     #[tokio::test]
     async fn utest_get_state_unkown_from_paused() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let mock_context = MockContext::new().await;
 
-        let list_states_from_pods_context = PodmanCli::list_states_from_pods_context();
-
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
-            .agent_name(SAMPLE_AGENT)
-            .workload_name(SAMPLE_WORKLOAD_1)
-            .config(&SAMPLE_RUNTIME_CONFIG.to_string())
-            .build();
-
-        list_states_from_pods_context
-            .expect()
-            .with(eq(["pod1".into(), "pod2".into()]))
-            .returning(|_| {
-                Ok(vec![
-                    ContainerState::Exited(0),
-                    ContainerState::Paused,
-                    ContainerState::Running,
-                ])
-            });
-
-        let workload_id = PodmanKubeWorkloadId {
-            name: workload_instance_name,
-            pods: Some(vec!["pod1".into(), "pod2".into()]),
-            manifest: SAMPLE_KUBE_CONFIG.into(),
-            down_options: vec!["-do".into(), "--wn".into()],
-        };
+        mock_context
+            .list_states_from_pods(&*SAMPLE_POD_LIST)
+            .returns(Ok(vec![
+                ContainerState::Exited(0),
+                ContainerState::Paused,
+                ContainerState::Running,
+            ]));
 
         let runtime = PodmanKubeRuntime {};
-        let execution_state = runtime.get_state(&workload_id).await;
+        let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
         assert_eq!(execution_state, ExecutionState::ExecUnknown);
     }
 
     #[tokio::test]
     async fn utest_get_state_running() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let mock_context = MockContext::new().await;
 
-        let list_states_from_pods_context = PodmanCli::list_states_from_pods_context();
-
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
-            .agent_name(SAMPLE_AGENT)
-            .workload_name(SAMPLE_WORKLOAD_1)
-            .config(&SAMPLE_RUNTIME_CONFIG.to_string())
-            .build();
-
-        list_states_from_pods_context
-            .expect()
-            .with(eq(["pod1".into(), "pod2".into()]))
-            .returning(|_| Ok(vec![ContainerState::Exited(0), ContainerState::Running]));
-
-        let workload_id = PodmanKubeWorkloadId {
-            name: workload_instance_name,
-            pods: Some(vec!["pod1".into(), "pod2".into()]),
-            manifest: SAMPLE_KUBE_CONFIG.into(),
-            down_options: vec!["-do".into(), "--wn".into()],
-        };
+        mock_context
+            .list_states_from_pods(&*SAMPLE_POD_LIST)
+            .returns(Ok(vec![ContainerState::Exited(0), ContainerState::Running]));
 
         let runtime = PodmanKubeRuntime {};
-        let execution_state = runtime.get_state(&workload_id).await;
+        let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
         assert_eq!(execution_state, ExecutionState::ExecRunning);
     }
 
     #[tokio::test]
     async fn utest_get_state_succeeded() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let mock_context = MockContext::new().await;
 
-        let list_states_from_pods_context = PodmanCli::list_states_from_pods_context();
-
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
-            .agent_name(SAMPLE_AGENT)
-            .workload_name(SAMPLE_WORKLOAD_1)
-            .config(&SAMPLE_RUNTIME_CONFIG.to_string())
-            .build();
-
-        list_states_from_pods_context
-            .expect()
-            .with(eq(["pod1".into(), "pod2".into()]))
-            .returning(|_| Ok(vec![ContainerState::Exited(0)]));
-
-        let workload_id = PodmanKubeWorkloadId {
-            name: workload_instance_name,
-            pods: Some(vec!["pod1".into(), "pod2".into()]),
-            manifest: SAMPLE_KUBE_CONFIG.into(),
-            down_options: vec!["-do".into(), "--wn".into()],
-        };
+        mock_context
+            .list_states_from_pods(&*SAMPLE_POD_LIST)
+            .returns(Ok(vec![ContainerState::Exited(0)]));
 
         let runtime = PodmanKubeRuntime {};
-        let execution_state = runtime.get_state(&workload_id).await;
+        let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
         assert_eq!(execution_state, ExecutionState::ExecSucceeded);
     }
 
     #[tokio::test]
     async fn utest_get_state_removed() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        let mock_context = MockContext::new().await;
 
-        let list_states_from_pods_context = PodmanCli::list_states_from_pods_context();
-
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
-            .agent_name(SAMPLE_AGENT)
-            .workload_name(SAMPLE_WORKLOAD_1)
-            .config(&SAMPLE_RUNTIME_CONFIG.to_string())
-            .build();
-
-        list_states_from_pods_context
-            .expect()
-            .with(eq(["pod1".into(), "pod2".into()]))
-            .returning(|_| Ok(vec![]));
-
-        let workload_id = PodmanKubeWorkloadId {
-            name: workload_instance_name,
-            pods: Some(vec!["pod1".into(), "pod2".into()]),
-            manifest: SAMPLE_KUBE_CONFIG.into(),
-            down_options: vec!["-do".into(), "--wn".into()],
-        };
+        mock_context
+            .list_states_from_pods(&*SAMPLE_POD_LIST)
+            .returns(Ok(vec![]));
 
         let runtime = PodmanKubeRuntime {};
-        let execution_state = runtime.get_state(&workload_id).await;
+        let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
         assert_eq!(execution_state, ExecutionState::ExecRemoved);
     }
 
     #[tokio::test]
-    async fn utest_get_state_unkown_as_command_fails() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+    async fn utest_get_state_unknown_as_command_fails() {
+        let mock_context = MockContext::new().await;
 
-        let list_states_from_pods_context = PodmanCli::list_states_from_pods_context();
+        mock_context
+            .list_states_from_pods(&*SAMPLE_POD_LIST)
+            .returns(Err(SAMPLE_ERROR.into()));
 
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
-            .agent_name(SAMPLE_AGENT)
-            .workload_name(SAMPLE_WORKLOAD_1)
-            .config(&SAMPLE_RUNTIME_CONFIG.to_string())
-            .build();
+        let runtime = PodmanKubeRuntime {};
+        let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        list_states_from_pods_context
-            .expect()
-            .with(eq(["pod1".into(), "pod2".into()]))
-            .returning(|_| Err(SAMPLE_ERROR.into()));
+        assert_eq!(execution_state, ExecutionState::ExecUnknown);
+    }
 
+    #[tokio::test]
+    async fn utest_get_state_unknown_as_pods_unknown() {
         let workload_id = PodmanKubeWorkloadId {
-            name: workload_instance_name,
-            pods: Some(vec!["pod1".into(), "pod2".into()]),
-            manifest: SAMPLE_KUBE_CONFIG.into(),
-            down_options: vec!["-do".into(), "--wn".into()],
+            pods: None,
+            ..WORKLOAD_ID.clone()
         };
 
         let runtime = PodmanKubeRuntime {};
@@ -1102,26 +817,176 @@ mod tests {
         assert_eq!(execution_state, ExecutionState::ExecUnknown);
     }
 
-    #[tokio::test]
-    async fn utest_get_state_unkown_as_pods_unkown() {
-        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+    struct MockContext<'a> {
+        list_volumes_by_name: podman_cli_mock::__list_volumes_by_name::Context,
+        store_data: podman_cli_mock::__store_data_as_volume::Context,
+        play_kube: podman_cli_mock::__play_kube::Context,
+        read_data: podman_cli_mock::__read_data_from_volume::Context,
+        down_kube: podman_cli_mock::__down_kube::Context,
+        remove_volume: podman_cli_mock::__remove_volume::Context,
+        list_states_from_pods: podman_cli_mock::__list_states_from_pods::Context,
+        _guard: tokio::sync::MutexGuard<'a, ()>, // The guard shall be dropped last
+    }
 
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
-            .agent_name(SAMPLE_AGENT)
-            .workload_name(SAMPLE_WORKLOAD_1)
-            .config(&SAMPLE_RUNTIME_CONFIG.to_string())
-            .build();
+    impl<'a> MockContext<'a> {
+        async fn new() -> MockContext<'a> {
+            Self {
+                list_volumes_by_name: PodmanCli::list_volumes_by_name_context(),
+                store_data: PodmanCli::store_data_as_volume_context(),
+                play_kube: PodmanCli::play_kube_context(),
+                read_data: PodmanCli::read_data_from_volume_context(),
+                down_kube: PodmanCli::down_kube_context(),
+                remove_volume: PodmanCli::remove_volume_context(),
+                list_states_from_pods: PodmanCli::list_states_from_pods_context(),
+                _guard: MOCKALL_CONTEXT_SYNC.get_lock_async().await,
+            }
+        }
 
-        let workload_id = PodmanKubeWorkloadId {
-            name: workload_instance_name,
-            pods: None,
-            manifest: SAMPLE_KUBE_CONFIG.into(),
-            down_options: vec!["-do".into(), "--wn".into()],
-        };
+        fn list_agent_config_volumes_returns(&self, volumes: Result<Vec<String>, String>) {
+            self.list_volumes_by_name
+                .expect()
+                .with(eq(".agent_A.config$".to_string()))
+                .once()
+                .return_const(volumes);
+        }
 
-        let runtime = PodmanKubeRuntime {};
-        let execution_state = runtime.get_state(&workload_id).await;
+        fn store_data<'b>(
+            &'b self,
+            volume_name: String,
+            data: impl Into<String>,
+        ) -> ReturnsStruct<impl FnOnce(Result<(), String>) + 'b> {
+            let store_data = &self.store_data;
+            let data = data.into();
+            ReturnsStruct {
+                function: |result| {
+                    store_data
+                        .expect()
+                        .with(eq(volume_name), eq(data))
+                        .once()
+                        .return_const(result);
+                },
+            }
+        }
 
-        assert_eq!(execution_state, ExecutionState::ExecUnknown);
+        fn play_kube<'b>(
+            &'b self,
+            additional_options: impl std::iter::IntoIterator<Item = impl ToString>,
+            kube_yml: impl ToString,
+        ) -> ReturnsStruct<impl FnOnce(Result<Vec<String>, String>) + 'b> {
+            let additional_options: Vec<String> = additional_options
+                .into_iter()
+                .map(|x| x.to_string())
+                .collect();
+            let kube_yml = kube_yml.to_string().as_bytes().to_vec();
+            let play_kube = &self.play_kube;
+            ReturnsStruct {
+                function: |result| {
+                    play_kube
+                        .expect()
+                        .with(eq(additional_options), eq(kube_yml))
+                        .once()
+                        .return_const(result);
+                },
+            }
+        }
+
+        fn read_data<'b>(
+            &'b self,
+            volume_name: impl ToString,
+        ) -> ReturnsStruct<impl FnOnce(Result<String, String>) + 'b> {
+            let read_data = &self.read_data;
+            let volume_name = volume_name.to_string();
+            ReturnsStruct {
+                function: |result| {
+                    read_data
+                        .expect()
+                        .with(eq(volume_name))
+                        .once()
+                        .return_const(result);
+                },
+            }
+        }
+
+        fn down_kube<'b>(
+            &'b self,
+            additional_options: impl std::iter::IntoIterator<Item = impl ToString>,
+            kube_yml: impl ToString,
+        ) -> ReturnsStruct<impl FnOnce(Result<(), String>) + 'b> {
+            let down_kube = &self.down_kube;
+            let additional_options: Vec<String> = additional_options
+                .into_iter()
+                .map(|x| x.to_string())
+                .collect();
+            let kube_yml = kube_yml.to_string().as_bytes().to_vec();
+            ReturnsStruct {
+                function: |result| {
+                    down_kube
+                        .expect()
+                        .with(eq(additional_options), eq(kube_yml))
+                        .once()
+                        .return_const(result);
+                },
+            }
+        }
+
+        fn remove_volume<'b>(
+            &'b self,
+            volume_name: String,
+        ) -> ReturnsStruct<impl FnOnce(Result<(), String>) + 'b> {
+            let remove_volume = &self.remove_volume;
+            ReturnsStruct {
+                function: |result| {
+                    remove_volume
+                        .expect()
+                        .with(eq(volume_name))
+                        .once()
+                        .return_const(result);
+                },
+            }
+        }
+
+        fn list_states_from_pods<'b>(
+            &'b self,
+            pods: impl IntoIterator<Item = impl ToString>,
+        ) -> ReturnsStruct<impl FnOnce(Result<Vec<ContainerState>, String>) + 'b> {
+            let list_states_from_pods = &self.list_states_from_pods;
+            let pods: Vec<String> = pods.into_iter().map(|x| x.to_string()).collect();
+            ReturnsStruct {
+                function: |result| {
+                    list_states_from_pods
+                        .expect()
+                        .with(eq(pods))
+                        .once()
+                        .return_once(|_| result);
+                },
+            }
+        }
+    }
+
+    struct ReturnsStruct<F> {
+        function: F,
+    }
+
+    impl<F> ReturnsStruct<F> {
+        fn returns<T>(self, result: T)
+        where
+            F: FnOnce(T),
+        {
+            (self.function)(result);
+        }
+    }
+
+    trait AsVolumeName {
+        fn as_config_volume(&self) -> String;
+        fn as_pods_volume(&self) -> String;
+    }
+
+    impl<T: Display> AsVolumeName for T {
+        fn as_config_volume(&self) -> String {
+            format!("{self}{}", CONFIG_VOLUME_SUFFIX)
+        }
+        fn as_pods_volume(&self) -> String {
+            format!("{self}{}", PODS_VOLUME_SUFFIX)
+        }
     }
 }
