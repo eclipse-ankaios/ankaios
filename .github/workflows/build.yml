@@ -12,7 +12,7 @@ env:
 
 jobs:      
   test_and_build_linux_amd64:
-    name: Test and Build Linux amd64
+    name: Test and build Linux amd64
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.3
