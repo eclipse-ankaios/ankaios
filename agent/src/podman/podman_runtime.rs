@@ -30,9 +30,6 @@ pub const PODMAN_RUNTIME_NAME: &str = "podman";
 #[derive(Debug, Clone)]
 pub struct PodmanRuntime {}
 
-#[derive(Debug)]
-pub struct PodmanConfig {}
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct PodmanWorkloadId {
     pub id: String,
