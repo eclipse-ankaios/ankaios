@@ -17,7 +17,7 @@ use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     podman::podman_cli,
     runtime::{RuntimeConnector, RuntimeError},
-    state_checker::{RuntimeStateChecker, StateChecker},
+    state_checker::{RuntimeStateGetter, StateChecker},
 };
 
 use super::podman_kube_runtime_config::PodmanKubeRuntimeConfig;
@@ -222,7 +222,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
 }
 
 #[async_trait]
-impl RuntimeStateChecker<PodmanKubeWorkloadId> for PodmanKubeRuntime {
+impl RuntimeStateGetter<PodmanKubeWorkloadId> for PodmanKubeRuntime {
     async fn get_state(&self, id: &PodmanKubeWorkloadId) -> ExecutionState {
         if let Some(pods) = &id.pods {
             let x = PodmanCli::list_states_from_pods(pods).await;
@@ -308,7 +308,7 @@ mod tests {
     use crate::podman::podman_kube_runtime::{CONFIG_VOLUME_SUFFIX, PODS_VOLUME_SUFFIX};
     use crate::podman::PodmanKubeWorkloadId;
     use crate::runtime::{RuntimeConnector, RuntimeError};
-    use crate::state_checker::RuntimeStateChecker;
+    use crate::state_checker::RuntimeStateGetter;
     use crate::{podman::PodmanKubeRuntime, test_helper::MOCKALL_CONTEXT_SYNC};
 
     const SAMPLE_ERROR: &str = "sample error";

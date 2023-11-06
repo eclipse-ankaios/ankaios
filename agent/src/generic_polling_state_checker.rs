@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use std::time::Duration;
 use tokio::{task::JoinHandle, time};
 
-use crate::state_checker::{RuntimeStateChecker, StateChecker};
+use crate::state_checker::{RuntimeStateGetter, StateChecker};
 use common::{
     objects::{ExecutionState, WorkloadSpec},
     state_change_interface::{StateChangeInterface, StateChangeSender},
@@ -28,7 +28,7 @@ where
         workload_spec: &WorkloadSpec,
         workload_id: WorkloadId,
         manager_interface: StateChangeSender,
-        state_checker: impl RuntimeStateChecker<WorkloadId>,
+        state_getter: impl RuntimeStateGetter<WorkloadId>,
     ) -> Self {
         let workload_spec = workload_spec.clone();
         let workload_name = workload_spec.name.clone();
@@ -37,7 +37,7 @@ where
             let mut interval = time::interval(Duration::from_millis(STATUS_CHECK_INTERVAL_MS));
             loop {
                 interval.tick().await;
-                let current_state = state_checker.get_state(&workload_id).await;
+                let current_state = state_getter.get_state(&workload_id).await;
 
                 if current_state != last_state {
                     log::debug!(
@@ -103,7 +103,7 @@ mod tests {
 
     use crate::{
         generic_polling_state_checker::GenericPollingStateChecker,
-        state_checker::{MockRuntimeStateChecker, StateChecker},
+        state_checker::{MockRuntimeStateGetter, StateChecker},
     };
 
     const RUNTIME_NAME: &str = "runtime1";
@@ -118,7 +118,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let mut mock_runtime_getter = MockRuntimeStateChecker::default();
+        let mut mock_runtime_getter = MockRuntimeStateGetter::default();
 
         mock_runtime_getter
             .expect_get_state()

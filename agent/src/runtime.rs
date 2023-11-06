@@ -106,7 +106,7 @@ pub mod test {
     };
     use tokio::sync::Mutex;
 
-    use crate::state_checker::{RuntimeStateChecker, StateChecker};
+    use crate::state_checker::{RuntimeStateGetter, StateChecker};
 
     use super::{RuntimeConnector, RuntimeError};
 
@@ -114,7 +114,7 @@ pub mod test {
     struct StubRuntimeStateChecker {}
 
     #[async_trait]
-    impl RuntimeStateChecker<String> for StubStateChecker {
+    impl RuntimeStateGetter<String> for StubStateChecker {
         async fn get_state(&self, _workload_id: &String) -> ExecutionState {
             ExecutionState::ExecRunning
         }
@@ -143,7 +143,7 @@ pub mod test {
             _workload_spec: &WorkloadSpec,
             _workload_id: String,
             _manager_interface: StateChangeSender,
-            _state_checker: impl RuntimeStateChecker<String>,
+            _state_getter: impl RuntimeStateGetter<String>,
         ) -> Self {
             log::info!("Starting the checker ;)");
             StubStateChecker::new()

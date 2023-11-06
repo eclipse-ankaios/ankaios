@@ -11,7 +11,7 @@ use mockall::automock;
 // [impl->swdd~agent-general-runtime-state-getter-interface~1]
 #[async_trait]
 #[cfg_attr(test, automock)]
-pub trait RuntimeStateChecker<WorkloadId>: Send + Sync + 'static
+pub trait RuntimeStateGetter<WorkloadId>: Send + Sync + 'static
 where
     WorkloadId: Send + Sync + 'static,
 {
@@ -29,7 +29,7 @@ where
         workload_spec: &WorkloadSpec,
         workload_id: WorkloadId,
         manager_interface: StateChangeSender,
-        state_checker: impl RuntimeStateChecker<WorkloadId>,
+        state_getter: impl RuntimeStateGetter<WorkloadId>,
     ) -> Self;
     async fn stop_checker(self);
 }
