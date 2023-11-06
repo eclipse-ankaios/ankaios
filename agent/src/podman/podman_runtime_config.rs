@@ -3,14 +3,15 @@ use common::objects::WorkloadSpec;
 use super::podman_runtime::PODMAN_RUNTIME_NAME;
 
 #[derive(Debug, serde::Deserialize, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct PodmanRuntimeConfig {
-    #[serde(alias = "generalOptions")]
-    pub general_options: Option<Vec<String>>,
-    #[serde(alias = "commandOptions")]
-    pub command_options: Option<Vec<String>>,
+    #[serde(default)]
+    pub general_options: Vec<String>,
+    #[serde(default)]
+    pub command_options: Vec<String>,
     pub image: String,
-    #[serde(alias = "commandArgs")]
-    pub command_args: Option<Vec<String>>,
+    #[serde(default)]
+    pub command_args: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -91,10 +92,10 @@ mod tests {
         );
 
         let expected_podman_config = PodmanRuntimeConfig {
-            general_options: Some(vec!["--version".to_string()]),
-            command_options: Some(vec!["--network=host".to_string()]),
+            general_options: vec!["--version".to_string()],
+            command_options: vec!["--network=host".to_string()],
             image: "alpine:latest".to_string(),
-            command_args: Some(vec!["bash".to_string()]),
+            command_args: vec!["bash".to_string()],
         };
 
         workload_spec.runtime_config = "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n".to_string();

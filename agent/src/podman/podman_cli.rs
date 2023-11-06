@@ -146,18 +146,14 @@ impl PodmanCli {
     }
 
     pub async fn run_workload(
-        workload_cfg: PodmanRuntimeConfig,
+        mut workload_cfg: PodmanRuntimeConfig,
         workload_name: &str,
         agent: &str,
         control_interface_path: Option<PathBuf>,
     ) -> Result<String, String> {
         log::debug!("Creating the workload: '{}'", workload_cfg.image);
 
-        let mut args = if let Some(opts) = workload_cfg.general_options {
-            opts
-        } else {
-            Vec::new()
-        };
+        let mut args = workload_cfg.general_options;
 
         args.push("run".into());
         args.push("-d".into());
@@ -171,9 +167,7 @@ impl PodmanCli {
         // [impl->swdd~podman-create-workload-sets-optionally-container-name~1]
         args.append(&mut vec!["--name".into(), workload_name.to_string()]);
 
-        if let Some(mut x) = workload_cfg.command_options {
-            args.append(&mut x);
-        }
+        args.append(&mut workload_cfg.command_options);
 
         // [impl->swdd~podman-create-workload-mounts-fifo-files~1]
         if let Some(path) = control_interface_path {
@@ -193,9 +187,7 @@ impl PodmanCli {
         args.push(format!("--label=agent={agent}"));
         args.push(workload_cfg.image);
 
-        if let Some(mut x) = workload_cfg.command_args {
-            args.append(&mut x);
-        }
+        args.append(&mut workload_cfg.command_args);
 
         log::debug!("The args are: '{:?}'", args);
         let id = CliCommand::new(PODMAN_CMD)
@@ -643,10 +635,10 @@ mod tests {
         );
 
         let workload_cfg = crate::podman::podman_runtime_config::PodmanRuntimeConfig {
-            general_options: None,
-            command_options: None,
+            general_options: Vec::new(),
+            command_options: Vec::new(),
             image: "alpine:latest".into(),
-            command_args: None,
+            command_args: Vec::new(),
         };
         let res =
             PodmanCli::run_workload(workload_cfg, "test_workload_name", "test_agent", None).await;
@@ -674,10 +666,10 @@ mod tests {
         );
 
         let workload_cfg = crate::podman::podman_runtime_config::PodmanRuntimeConfig {
-            general_options: None,
-            command_options: None,
+            general_options: Vec::new(),
+            command_options: Vec::new(),
             image: "alpine:latest".into(),
-            command_args: None,
+            command_args: Vec::new(),
         };
         let res =
             PodmanCli::run_workload(workload_cfg, "test_workload_name", "test_agent", None).await;
@@ -713,14 +705,10 @@ mod tests {
         );
 
         let workload_cfg = crate::podman::podman_runtime_config::PodmanRuntimeConfig {
-            general_options: Some(vec!["--remote".into()]),
-            command_options: Some(vec![
-                "--network=host".into(),
-                "--name".into(),
-                "myCont".into(),
-            ]),
+            general_options: vec!["--remote".into()],
+            command_options: vec!["--network=host".into(), "--name".into(), "myCont".into()],
             image: "alpine:latest".into(),
-            command_args: Some(vec!["sh".into()]),
+            command_args: vec!["sh".into()],
         };
         let res = PodmanCli::run_workload(
             workload_cfg,
