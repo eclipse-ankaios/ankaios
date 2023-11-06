@@ -113,6 +113,7 @@ impl Runtime<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRun
         });
 
         let created_pods = PodmanCli::play_kube(
+            &workload_config.general_options,
             &workload_config.play_options,
             workload_config.manifest.as_bytes(),
         )
@@ -312,7 +313,7 @@ mod tests {
 
     const SAMPLE_ERROR: &str = "sample error";
     const SAMPLE_KUBE_CONFIG: &str = "kube_config";
-    const SAMPLE_RUNTIME_CONFIG: &str = r#"{"playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], "manifest": "kube_config"}"#;
+    const SAMPLE_RUNTIME_CONFIG: &str = r#"{"generalOptions": ["-gen", "--eral"], "playOptions": ["-pl", "--ay"], "downOptions": ["-do", "--wn"], "manifest": "kube_config"}"#;
     const SAMPLE_AGENT: &str = "agent_A";
     const SAMPLE_WORKLOAD_1: &str = "workload_1";
 
@@ -324,6 +325,8 @@ mod tests {
                 .config(&SAMPLE_RUNTIME_CONFIG.to_string())
                 .build();
         pub static ref SAMPLE_POD_LIST: Vec<String> = vec!["pod1".to_string(), "pod2".to_string()];
+        pub static ref SAMPLE_GENERAL_OPTIONS: Vec<String> =
+            vec!["-gen".to_string(), "--eral".to_string()];
         pub static ref SAMPLE_PLAY_OPTIONS: Vec<String> =
             vec!["-pl".to_string(), "--ay".to_string()];
         pub static ref SAMPLE_DOWN_OPTIONS: Vec<String> =
@@ -423,7 +426,11 @@ mod tests {
             .returns(Ok(()));
 
         mock_context
-            .play_kube(&*SAMPLE_PLAY_OPTIONS, SAMPLE_KUBE_CONFIG)
+            .play_kube(
+                &*SAMPLE_GENERAL_OPTIONS,
+                &*SAMPLE_PLAY_OPTIONS,
+                SAMPLE_KUBE_CONFIG,
+            )
             .returns(Ok(SAMPLE_POD_LIST.clone()));
 
         mock_context
@@ -464,7 +471,11 @@ mod tests {
             .returns(Err(SAMPLE_ERROR.into()));
 
         mock_context
-            .play_kube(&*SAMPLE_PLAY_OPTIONS, SAMPLE_KUBE_CONFIG)
+            .play_kube(
+                &*SAMPLE_GENERAL_OPTIONS,
+                &*SAMPLE_PLAY_OPTIONS,
+                SAMPLE_KUBE_CONFIG,
+            )
             .returns(Ok(SAMPLE_POD_LIST.clone()));
 
         mock_context
@@ -504,7 +515,11 @@ mod tests {
             .returns(Ok(()));
 
         mock_context
-            .play_kube(&*SAMPLE_PLAY_OPTIONS, SAMPLE_KUBE_CONFIG)
+            .play_kube(
+                &*SAMPLE_GENERAL_OPTIONS,
+                &*SAMPLE_PLAY_OPTIONS,
+                SAMPLE_KUBE_CONFIG,
+            )
             .returns(Err(SAMPLE_ERROR.into()));
 
         let runtime = PodmanKubeRuntime {};
@@ -870,9 +885,12 @@ mod tests {
 
         fn play_kube<'b>(
             &'b self,
+            general_options: impl std::iter::IntoIterator<Item = impl ToString>,
             additional_options: impl std::iter::IntoIterator<Item = impl ToString>,
             kube_yml: impl ToString,
         ) -> ReturnsStruct<impl FnOnce(Result<Vec<String>, String>) + 'b> {
+            let general_options: Vec<String> =
+                general_options.into_iter().map(|x| x.to_string()).collect();
             let additional_options: Vec<String> = additional_options
                 .into_iter()
                 .map(|x| x.to_string())
@@ -883,7 +901,7 @@ mod tests {
                 function: |result| {
                     play_kube
                         .expect()
-                        .with(eq(additional_options), eq(kube_yml))
+                        .with(eq(general_options), eq(additional_options), eq(kube_yml))
                         .once()
                         .return_const(result);
                 },

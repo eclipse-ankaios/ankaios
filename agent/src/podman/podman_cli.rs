@@ -51,11 +51,13 @@ pub struct PodmanCli {}
 #[cfg_attr(test, automock)]
 impl PodmanCli {
     pub async fn play_kube(
-        additional_options: &[String],
+        general_options: &[String],
+        play_options: &[String],
         kube_yml: &[u8],
     ) -> Result<Vec<String>, String> {
-        let mut args = vec!["kube", "play", "--quiet"];
-        args.extend(additional_options.iter().map(|x| x as &str));
+        let mut args: Vec<&str> = general_options.iter().map(|x| x as &str).collect();
+        args.extend(["kube", "play", "--quiet"]);
+        args.extend(play_options.iter().map(|x| x as &str));
         args.push("-");
         let result = CliCommand::new(PODMAN_CMD)
             .args(&args)
@@ -414,7 +416,16 @@ mod tests {
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["kube", "play", "--quiet", "-a", "-b", "-"])
+                .expect_args(&[
+                    "-gen",
+                    "--eral",
+                    "kube",
+                    "play",
+                    "--quiet",
+                    "-play",
+                    "--options",
+                    "-",
+                ])
                 .expect_stdin(sample_input)
                 .exec_returns(Ok(concat!(
                     "Not-Pod:\n",
@@ -434,7 +445,12 @@ mod tests {
                 .into())),
         );
 
-        let res = PodmanCli::play_kube(&["-a".into(), "-b".into()], sample_input.as_bytes()).await;
+        let res = PodmanCli::play_kube(
+            &["-gen".into(), "--eral".into()],
+            &["-play".into(), "--options".into()],
+            sample_input.as_bytes(),
+        )
+        .await;
         assert!(
             matches!(res, Ok(pods) if pods == ["3".to_string(), "5".to_string(), "6".to_string()])
         );
@@ -450,12 +466,26 @@ mod tests {
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["kube", "play", "--quiet", "-a", "-b", "-"])
+                .expect_args(&[
+                    "-gen",
+                    "--eral",
+                    "kube",
+                    "play",
+                    "--quiet",
+                    "-play",
+                    "--options",
+                    "-",
+                ])
                 .expect_stdin(sample_input)
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
-        let res = PodmanCli::play_kube(&["-a".into(), "-b".into()], sample_input.as_bytes()).await;
+        let res = PodmanCli::play_kube(
+            &["-gen".into(), "--eral".into()],
+            &["-play".into(), "--options".into()],
+            sample_input.as_bytes(),
+        )
+        .await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
     }
 
