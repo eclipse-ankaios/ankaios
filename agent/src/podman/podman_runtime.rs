@@ -62,7 +62,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         PODMAN_RUNTIME_NAME.to_string()
     }
 
-    async fn get_reusable_running_workloads(
+    async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
     ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
@@ -225,7 +225,7 @@ mod tests {
         let podman_runtime = PodmanRuntime {};
         let agent_name = AgentName::from("dummy_agent");
         let res = podman_runtime
-            .get_reusable_running_workloads(&agent_name)
+            .get_reusable_workloads(&agent_name)
             .await
             .unwrap();
 
@@ -249,7 +249,7 @@ mod tests {
         let podman_runtime = PodmanRuntime {};
         let agent_name = AgentName::from("different_agent");
         let res = podman_runtime
-            .get_reusable_running_workloads(&agent_name)
+            .get_reusable_workloads(&agent_name)
             .await
             .unwrap();
 
@@ -269,9 +269,7 @@ mod tests {
         let agent_name = AgentName::from("dummy_agent");
 
         assert_eq!(
-            podman_runtime
-                .get_reusable_running_workloads(&agent_name)
-                .await,
+            podman_runtime.get_reusable_workloads(&agent_name).await,
             Err(crate::runtime::RuntimeError::List("Simulated error".into()))
         );
     }

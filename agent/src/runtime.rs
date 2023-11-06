@@ -41,7 +41,7 @@ where
 {
     fn name(&self) -> String;
 
-    async fn get_reusable_running_workloads(
+    async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
     ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError>;
@@ -284,7 +284,7 @@ pub mod test {
             "mock-runtime".to_string()
         }
 
-        async fn get_reusable_running_workloads(
+        async fn get_reusable_workloads(
             &self,
             agent_name: &AgentName,
         ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {

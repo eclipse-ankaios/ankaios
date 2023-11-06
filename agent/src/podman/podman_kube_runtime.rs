@@ -54,7 +54,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         PODMAN_KUBE_RUNTIME_NAME.to_string()
     }
 
-    async fn get_reusable_running_workloads(
+    async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
     ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
@@ -352,9 +352,7 @@ mod tests {
 
         let runtime = PodmanKubeRuntime {};
 
-        let workloads = runtime
-            .get_reusable_running_workloads(&SAMPLE_AGENT.into())
-            .await;
+        let workloads = runtime.get_reusable_workloads(&SAMPLE_AGENT.into()).await;
 
         assert!(
             matches!(workloads, Ok(res) if res == [workload_instance_1.try_into().unwrap(), workload_instance_2.try_into().unwrap()])
@@ -368,9 +366,7 @@ mod tests {
 
         let runtime = PodmanKubeRuntime {};
 
-        let workloads = runtime
-            .get_reusable_running_workloads(&SAMPLE_AGENT.into())
-            .await;
+        let workloads = runtime.get_reusable_workloads(&SAMPLE_AGENT.into()).await;
 
         assert!(matches!(workloads, Err(RuntimeError::Create(msg)) if msg.ends_with(SAMPLE_ERROR)));
     }
@@ -388,9 +384,7 @@ mod tests {
 
         let runtime = PodmanKubeRuntime {};
 
-        let workloads = runtime
-            .get_reusable_running_workloads(&SAMPLE_AGENT.into())
-            .await;
+        let workloads = runtime.get_reusable_workloads(&SAMPLE_AGENT.into()).await;
 
         assert!(matches!(workloads, Ok(res) if res == [workload_instance.try_into().unwrap()]));
     }
@@ -407,9 +401,7 @@ mod tests {
 
         let runtime = PodmanKubeRuntime {};
 
-        let workloads = runtime
-            .get_reusable_running_workloads(&SAMPLE_AGENT.into())
-            .await;
+        let workloads = runtime.get_reusable_workloads(&SAMPLE_AGENT.into()).await;
 
         assert!(matches!(workloads, Ok(res) if res == [workload_instance.try_into().unwrap()]));
     }

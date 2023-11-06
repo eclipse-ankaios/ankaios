@@ -81,9 +81,7 @@ impl<
         &self,
         agent_name: &AgentName,
     ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
-        self.runtime
-            .get_reusable_running_workloads(agent_name)
-            .await
+        self.runtime.get_reusable_workloads(agent_name).await
     }
 
     // [impl->swdd~agent-create-workload~1]
