@@ -127,7 +127,9 @@ pub mod test {
 
     impl StubStateChecker {
         pub fn new() -> Self {
-            StubStateChecker {panic_if_not_stopped: false}
+            StubStateChecker {
+                panic_if_not_stopped: false,
+            }
         }
 
         pub fn panic_if_not_stopped(&mut self) {
@@ -245,7 +247,7 @@ pub mod test {
             self.call_checker.lock().await.unexpected_call_count += 1;
         }
 
-        pub async fn assert_all_expectations(&self) {
+        pub async fn assert_all_expectations(self) {
             let call_checker = self.call_checker.lock().await;
 
             assert!(
@@ -287,18 +289,14 @@ pub mod test {
             agent_name: &AgentName,
         ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
             match self.get_expected_call().await {
-                RuntimeCall::GetReusableWorkloads(expected_agent_name, result) => {
-                    if expected_agent_name == *agent_name {
-                        return result;
-                    } else {
-                        self.unexpected_call().await;
-                        panic!(                            "Expected arguments '{expected_agent_name:?}' do not match the received: '{agent_name:?}'"
-                        )
-                    }
+                RuntimeCall::GetReusableWorkloads(expected_agent_name, result)
+                    if expected_agent_name == *agent_name =>
+                {
+                    return result;
                 }
                 expected_call => {
                     self.unexpected_call().await;
-                    panic!("Received an unexpected get_reusable_running_workloads call. Expected: '{expected_call:?}'")
+                    panic!("Unexpected get_reusable_running_workloads call. Expected: '{expected_call:?}'");
                 }
             }
         }
@@ -315,22 +313,15 @@ pub mod test {
                     expected_control_interface_path,
                     expected_update_state_tx,
                     result,
-                ) => {
-                    if expected_runtime_workload_config == runtime_workload_config
-                        && expected_control_interface_path == control_interface_path
-                        && expected_update_state_tx.same_channel(&update_state_tx)
-                    {
-                        return result;
-                    } else {
-                        self.unexpected_call().await;
-                        panic!(
-                            "Expected arguments '{expected_runtime_workload_config:?}', '{expected_control_interface_path:?}' or channel do not match the received: '{runtime_workload_config:?}', '{control_interface_path:?}' or channel."
-                        );
-                    }
+                ) if expected_runtime_workload_config == runtime_workload_config
+                    && expected_control_interface_path == control_interface_path
+                    && expected_update_state_tx.same_channel(&update_state_tx) =>
+                {
+                    return result;
                 }
                 expected_call => {
                     self.unexpected_call().await;
-                    panic!("Received an unexpected create_workload call. Expected: '{expected_call:?}'");
+                    panic!("Unexpected create_workload call. Expected: '{expected_call:?}'");
                 }
             }
         }
@@ -340,20 +331,14 @@ pub mod test {
             instance_name: &WorkloadExecutionInstanceName,
         ) -> Result<String, RuntimeError> {
             match self.get_expected_call().await {
-                RuntimeCall::GetWorkloadId(expected_instance_name, result) => {
-                    if expected_instance_name == *instance_name {
-                        return result;
-                    } else {
-                        self.unexpected_call().await;
-                        panic!(    "Expected arguments '{expected_instance_name:?}' do not match the received: '{instance_name:?}'"
-                        );
-                    }
+                RuntimeCall::GetWorkloadId(expected_instance_name, result)
+                    if expected_instance_name == *instance_name =>
+                {
+                    return result;
                 }
                 expected_call => {
                     self.unexpected_call().await;
-                    panic!(
-                    "Received an unexpected get_workload_id call. Expected: '{expected_call:?}'"
-                )
+                    panic!("Unexpected get_workload_id call. Expected: '{expected_call:?}'");
                 }
             }
         }
@@ -370,45 +355,29 @@ pub mod test {
                     expected_runtime_workload_config,
                     expected_update_state_tx,
                     result,
-                ) => {
-                    if expected_workload_id == *workload_id
-                        && expected_runtime_workload_config == runtime_workload_config
-                        && expected_update_state_tx.same_channel(&update_state_tx)
-                    {
-                        return result;
-                    } else {
-                        self.unexpected_call().await;
-                        panic!(
-                            "Expected arguments '{expected_workload_id:?}', '{expected_runtime_workload_config:?}' or channel do not match the received: '{workload_id:?}', '{runtime_workload_config:?}' or channel."
-                        )
-                    }
+                ) if expected_workload_id == *workload_id
+                    && expected_runtime_workload_config == runtime_workload_config
+                    && expected_update_state_tx.same_channel(&update_state_tx) =>
+                {
+                    return result;
                 }
                 expected_call => {
                     self.unexpected_call().await;
-                    panic!(
-                        "Received an unexpected start_checker call. Expected: '{expected_call:?}'"
-                    )
+                    panic!("Unexpected start_checker call. Expected: '{expected_call:?}'");
                 }
             }
         }
 
         async fn delete_workload(&self, workload_id: &String) -> Result<(), RuntimeError> {
             match self.get_expected_call().await {
-                RuntimeCall::DeleteWorkload(expected_workload_id, result) => {
-                    if expected_workload_id == *workload_id {
-                        return result;
-                    } else {
-                        self.unexpected_call().await;
-                        panic!(
-                            "Expected arguments '{expected_workload_id:?}' do not match the received: '{workload_id:?}'"
-                        )
-                    }
+                RuntimeCall::DeleteWorkload(expected_workload_id, result)
+                    if expected_workload_id == *workload_id =>
+                {
+                    return result;
                 }
                 expected_call => {
                     self.unexpected_call().await;
-                    panic!(
-                    "Received an unexpected delete_workload call. Expected: '{expected_call:?}'"
-                )
+                    panic!("Unexpected delete_workload call. Expected: '{expected_call:?}'");
                 }
             }
         }
