@@ -1138,12 +1138,12 @@ Needs:
 
 #### Podman runtime connector specific state getter
 
-##### PodmanStateChecker maps workload state
-`swdd~podman-state-checker-maps-state~1`
+##### PodmanStateGetter maps workload state
+`swdd~podman-state-getter-maps-state~1`
 
 Status: approved
 
-The `PodmanStateChecker` shall map the workload state returned by the Podman into workload states according to the next table:
+The `PodmanStateGetter` shall map the workload state returned by the Podman into workload states according to the next table:
 
 | Podman Container State | Container ExitCode | Workload State |
 | ---------------------- | :----------------: | :------------: |
@@ -1158,45 +1158,45 @@ Comment:
 The Podman also supports "pod states". This table shows the container states only.
 
 Tags:
-- PodmanStateChecker
+- PodmanStateGetter
 - PodmanRuntimeConnector
 
 Needs:
 - impl
 - utest
 
-##### PodmanStateChecker returns removed state
-`swdd~podman-state-checker-returns-removed-state~1`
+##### PodmanStateGetter returns removed state
+`swdd~podman-state-getter-returns-removed-state~1`
 
 Status: approved
 
-When the `PodmanStateChecker` is called to get the current state over the state getter interface and
-the `PodmanStateChecker` gets empty list of current states, the `PodmanStateChecker` shall return the state removed.
+When the `PodmanStateGetter` is called to get the current state over the state getter interface and
+the `PodmanStateGetter` gets empty list of current states, the `PodmanStateGetter` shall return the state removed.
 
 Rationale:
 This happens when the container has been removed and the Agent meanwhile triggers status check of the workload.
 
 Tags:
-- PodmanStateChecker
+- PodmanStateGetter
 - PodmanRuntimeConnector
 
 Needs:
 - impl
 - utest
 
-##### PodmanStateChecker returns unknown state
-`swdd~podman-state-checker-returns-unknown-state~1`
+##### PodmanStateGetter returns unknown state
+`swdd~podman-state-getter-returns-unknown-state~1`
 
 Status: approved
 
-When the `PodmanStateChecker` is called to get the current state over the state getter interface and
-the `PodmanStateChecker` is unable to read the container state (error or too many current states read), the unknown state shall be returned.
+When the `PodmanStateGetter` is called to get the current state over the state getter interface and
+the `PodmanStateGetter` is unable to read the container state (error or too many current states read), the unknown state shall be returned.
 
 Comment:
 In other words the unknown state shall be the default state.
 
 Tags:
-- PodmanStateChecker
+- PodmanStateGetter
 - PodmanRuntimeConnector
 
 Needs:

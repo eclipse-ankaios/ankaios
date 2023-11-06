@@ -40,12 +40,12 @@ impl RuntimeStateGetter<PodmanWorkloadId> for PodmanRuntime {
     async fn get_state(&self, workload_id: &PodmanWorkloadId) -> ExecutionState {
         log::trace!("Getting the state for the workload '{}'", workload_id.id);
 
-        // [impl->swdd~podman-state-checker-returns-unknown-state~1]
+        // [impl->swdd~podman-state-getter-returns-unknown-state~1]
         let mut exec_state = ExecutionState::ExecUnknown;
         if let Ok(mut states) = PodmanCli::list_states_by_id(workload_id.id.as_str()).await {
             match states.len() {
                 1 => exec_state = states.swap_remove(0),
-                // [impl->swdd~podman-state-checker-returns-removed-state~1]
+                // [impl->swdd~podman-state-getter-returns-removed-state~1]
                 0 => exec_state = ExecutionState::ExecRemoved, // we know that container was removed
                 _ => log::error!("Too many matches for the container Id '{:?}'", workload_id),
             }
@@ -426,7 +426,7 @@ mod tests {
         assert_eq!(res, ExecutionState::ExecRunning);
     }
 
-    // [utest->swdd~podman-state-checker-returns-removed-state~1]
+    // [utest->swdd~podman-state-getter-returns-removed-state~1]
     #[tokio::test]
     async fn utest_get_state_returns_removed_on_empty_list() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -442,7 +442,7 @@ mod tests {
         assert_eq!(res, ExecutionState::ExecRemoved);
     }
 
-    // [utest->swdd~podman-state-checker-returns-unknown-state~1]
+    // [utest->swdd~podman-state-getter-returns-unknown-state~1]
     #[tokio::test]
     async fn utest_get_state_returns_error() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;

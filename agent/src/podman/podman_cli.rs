@@ -33,7 +33,7 @@ impl From<PodmanContainerInfo> for ContainerState {
     }
 }
 
-// [impl->swdd~podman-state-checker-maps-state~1]
+// [impl->swdd~podman-state-getter-maps-state~1]
 impl From<PodmanContainerInfo> for ExecutionState {
     fn from(value: PodmanContainerInfo) -> Self {
         match value.state {
@@ -750,7 +750,7 @@ mod tests {
         assert_eq!(res, Ok("test_id".to_string()));
     }
 
-    // [utest->swdd~podman-state-checker-maps-state~1]
+    // [utest->swdd~podman-state-getter-maps-state~1]
     #[tokio::test]
     async fn utest_list_states_by_id_pending() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -771,7 +771,7 @@ mod tests {
         assert_eq!(res, Ok(vec![ExecutionState::ExecPending]));
     }
 
-    // [utest->swdd~podman-state-checker-maps-state~1]
+    // [utest->swdd~podman-state-getter-maps-state~1]
     #[tokio::test]
     async fn utest_list_states_by_id_succeeded() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -792,7 +792,7 @@ mod tests {
         assert_eq!(res, Ok(vec![ExecutionState::ExecSucceeded]));
     }
 
-    // [utest->swdd~podman-state-checker-maps-state~1]
+    // [utest->swdd~podman-state-getter-maps-state~1]
     #[tokio::test]
     async fn utest_list_states_by_id_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -813,7 +813,7 @@ mod tests {
         assert_eq!(res, Ok(vec![ExecutionState::ExecFailed]));
     }
 
-    // [utest->swdd~podman-state-checker-maps-state~1]
+    // [utest->swdd~podman-state-getter-maps-state~1]
     #[tokio::test]
     async fn utest_list_states_by_id_running() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
@@ -834,7 +834,7 @@ mod tests {
         assert_eq!(res, Ok(vec![ExecutionState::ExecRunning]));
     }
 
-    // [utest->swdd~podman-state-checker-maps-state~1]
+    // [utest->swdd~podman-state-getter-maps-state~1]
     #[tokio::test]
     async fn utest_list_states_by_id_unknown() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
