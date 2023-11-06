@@ -436,6 +436,7 @@ Tags:
 Needs:
 - impl
 - utest
+- swdd
 
 ##### RuntimeManager handles existing workloads resumes existing workloads
 `swdd~agent-existing-workloads-resume-existing~1`
@@ -473,6 +474,7 @@ Tags:
 Needs:
 - impl
 - utest
+- swdd
 
 ##### RuntimeManager handles existing workloads replace updated Workloads
 `swdd~agent-existing-workloads-replace-updated~1`
@@ -514,6 +516,7 @@ Tags:
 Needs:
 - impl
 - utest
+- swdd
 
 ##### RuntimeManager handles existing workloads deletes unneeded workloads
 `swdd~agent-existing-workloads-delete-unneeded~1`
@@ -638,7 +641,7 @@ Tags:
 Needs:
 - impl
 - utest
-
+- swdd
 
 ##### Workload task update broken allowed
 `swdd~agent-workload-task-update-broken-allowed~1`
@@ -766,7 +769,7 @@ Tags:
 Needs:
 - impl
 - utest
-
+- swdd
 
 ##### Workload task delete broken allowed
 `swdd~agent-workload-task-delete-broken-allowed~1`
@@ -1086,6 +1089,7 @@ Tags:
 
 Needs:
 - impl
+- swdd
 
 #### Allowed workload states
 `swdd~allowed-workload-states~1`
@@ -1104,6 +1108,7 @@ Tags:
 
 Needs:
 - impl
+- swdd
 
 #### GenericPollingStateChecker implementation
 `swdd~agent-provides-generic-state-checker-implementation~1`
