@@ -337,7 +337,7 @@ Needs:
 - impl
 - utest
 
-#### Handling the initial UpdateWorkload after Agent start (starting the RuntimeAdapters)
+#### Handling the initial UpdateWorkload after Agent start
 
 The following diagram and the subsequent requirements show the steps the Ankaios Agent takes when receiving the first UpdateWorkload command sent by Server. The first UpdateWorkload contains the complete initial list of workloads the Agent shall manage.
 
