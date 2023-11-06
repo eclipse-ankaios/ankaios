@@ -5,12 +5,12 @@ use super::podman_runtime::PODMAN_RUNTIME_NAME;
 #[derive(Debug, serde::Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PodmanRuntimeConfig {
-    #[serde(default)]
+    #[serde(default, alias = "generalOptions")]
     pub general_options: Vec<String>,
-    #[serde(default)]
+    #[serde(default, alias = "commandOptions")]
     pub command_options: Vec<String>,
     pub image: String,
-    #[serde(default)]
+    #[serde(default, alias = "commandArgs")]
     pub command_args: Vec<String>,
 }
 

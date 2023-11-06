@@ -39,7 +39,7 @@ The initial setup of the Ankaios agent is done in the main.rs is also counted as
 
 ### RuntimeManager
 
-The RuntimeManager holds a list of wrapped in a RuntimeFacade supported runtime connectors and a list of running workloads. It is also responsible for the handling the update workload calls including the workload reuse and the logic of translating the added and deleted workload lists into commands to a RuntimeFacade or a WorkloadObject.
+The RuntimeManager holds a list of RuntimeFacades (more precisely a list of runtime connectors wrapped into a RuntimeFacade) and a list of running workloads. It is also responsible for the handling the update workload calls including the workload reuse and the logic of translating the added and deleted workload lists into commands to a RuntimeFacade or a WorkloadObject.
 
 ### RuntimeFacade
 
@@ -383,7 +383,7 @@ Needs:
 
 Status: approved
 
-When receiving a call to list all reusable workloads by the wrapped runtime, the RuntimeFacade shall directly forward the call and return the list.
+When receiving a call to list all reusable workloads, the RuntimeFacade shall forward the call to the wrapped runtime and return the list to the caller.
 
 Comment:
 No decoupling is done here and we wait for the list to be build in order to prevent race conditions with calls from the server.
@@ -402,7 +402,7 @@ Needs:
 
 Status: approved
 
-When handling existing workloads, the RuntimeManager shall only request the corresponding RuntimeFacade to start workloads that are not already running.
+When handling existing workloads, the RuntimeManager shall only request the corresponding RuntimeFacade to start workloads that are not found on the system.
 
 Comment:
 The RuntimeManager can check if the specified workload is already running by comparing the new workload execution instance name with that of the running instance. Details about starting a workload can be found further on.
@@ -442,7 +442,7 @@ Needs:
 
 Status: approved
 
-When handling existing workloads, for each found existing workload that is request to be started and has unchanged configuration, the RuntimeManager shall request the corresponding RuntimeFacade to resume the workload using a new control interface instance.
+When handling existing workloads, for each found existing workload which is requested to be started and has unchanged configuration, the RuntimeManager shall request the corresponding RuntimeFacade to resume the workload using a new control interface instance.
 
 Tags:
 - RuntimeManager
