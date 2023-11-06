@@ -2,7 +2,7 @@ use std::{fmt::Display, path::PathBuf};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::PipesChannelContext;
-use crate::{runtime::Runtime, state_checker::StateChecker};
+use crate::{runtime::RuntimeConnector, state_checker::StateChecker};
 use common::{
     commands::CompleteState,
     execution_interface::ExecutionCommand,
@@ -102,7 +102,7 @@ impl Workload {
         mut workload_id: Option<WorkloadId>,
         mut state_checker: Option<StChecker>,
         update_state_tx: StateChangeSender,
-        runtime: Box<dyn Runtime<WorkloadId, StChecker>>,
+        runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>,
         mut command_receiver: mpsc::Receiver<WorkloadCommand>,
     ) where
         WorkloadId: Send + Sync + 'static,
@@ -236,7 +236,7 @@ mod tests {
 
     use crate::{
         control_interface::MockPipesChannelContext,
-        runtime::test::{MockRuntime, RuntimeCall, StubStateChecker},
+        runtime::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
         workload::{Workload, WorkloadCommand, WorkloadError},
     };
 
@@ -419,7 +419,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let mut runtime_mock = MockRuntime::new();
+        let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
             .expect(vec![
                 RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
@@ -501,7 +501,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let mut runtime_mock = MockRuntime::new();
+        let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
             .expect(vec![
                 RuntimeCall::CreateWorkload(
@@ -580,7 +580,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let mut runtime_mock = MockRuntime::new();
+        let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
             .expect(vec![
                 RuntimeCall::DeleteWorkload(
@@ -659,7 +659,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let mut runtime_mock = MockRuntime::new();
+        let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
             .expect(vec![
                 RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
@@ -734,7 +734,7 @@ mod tests {
         let mut mock_state_checker = StubStateChecker::new();
         mock_state_checker.panic_if_not_stopped();
 
-        let mut runtime_mock = MockRuntime::new();
+        let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
             .expect(vec![RuntimeCall::DeleteWorkload(
                 OLD_WORKLOAD_ID.to_string(),
@@ -792,7 +792,7 @@ mod tests {
         let mut mock_state_checker = StubStateChecker::new();
         mock_state_checker.panic_if_not_stopped();
 
-        let mut runtime_mock = MockRuntime::new();
+        let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
             .expect(vec![
                 RuntimeCall::DeleteWorkload(
@@ -857,7 +857,7 @@ mod tests {
         let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let runtime_mock = MockRuntime::new();
+        let runtime_mock = MockRuntimeConnector::new();
 
         // Send the delete command now. It will be buffered until the await receives it.
         workload_command_tx

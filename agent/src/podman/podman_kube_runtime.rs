@@ -16,7 +16,7 @@ use crate::podman::podman_cli::PodmanCli;
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     podman::podman_cli,
-    runtime::{Runtime, RuntimeError},
+    runtime::{RuntimeConnector, RuntimeError},
     state_checker::{RuntimeStateChecker, StateChecker},
 };
 
@@ -49,7 +49,7 @@ pub struct PlayKubeOutput {}
 pub struct PlayKubeError {}
 
 #[async_trait]
-impl Runtime<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRuntime {
+impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRuntime {
     fn name(&self) -> String {
         PODMAN_KUBE_RUNTIME_NAME.to_string()
     }
@@ -307,7 +307,7 @@ mod tests {
     use crate::podman::podman_kube_runtime::PODMAN_KUBE_RUNTIME_NAME;
     use crate::podman::podman_kube_runtime::{CONFIG_VOLUME_SUFFIX, PODS_VOLUME_SUFFIX};
     use crate::podman::PodmanKubeWorkloadId;
-    use crate::runtime::{Runtime, RuntimeError};
+    use crate::runtime::{RuntimeConnector, RuntimeError};
     use crate::state_checker::RuntimeStateChecker;
     use crate::{podman::PodmanKubeRuntime, test_helper::MOCKALL_CONTEXT_SYNC};
 

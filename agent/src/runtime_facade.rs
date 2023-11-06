@@ -297,7 +297,7 @@ mod tests {
     use crate::{
         control_interface::MockPipesChannelContext,
         runtime::{
-            test::{MockRuntime, RuntimeCall, StubStateChecker},
+            test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
             OwnableRuntime,
         },
         runtime_facade::{GenericRuntimeFacade, RuntimeFacade},
@@ -312,11 +312,10 @@ mod tests {
     const OLD_WORKLOAD_ID: &str = "old_workload_id";
     const TEST_CHANNEL_BUFFER_SIZE: usize = 20;
 
-
     // [utest->swdd~agent-facade-forwards-list-reusable-workloads-call~1]
     #[tokio::test]
     async fn utest_runtime_facade_reusable_running_workloads() {
-        let mut runtime_mock = MockRuntime::new();
+        let mut runtime_mock = MockRuntimeConnector::new();
 
         let workload_instance_name = WorkloadExecutionInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME)
@@ -365,7 +364,8 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
+        let (to_server, _server_receiver) =
+            tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -392,7 +392,7 @@ mod tests {
             )
             .return_once(|_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _| {});
 
-        let mut runtime_mock = MockRuntime::new();
+        let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
             .expect(vec![RuntimeCall::CreateWorkload(
                 workload_spec.clone(),
@@ -434,7 +434,8 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
+        let (to_server, _server_receiver) =
+            tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -461,7 +462,7 @@ mod tests {
             )
             .return_once(|_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _| {});
 
-        let mut runtime_mock = MockRuntime::new();
+        let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
             .expect(vec![
                 RuntimeCall::GetWorkloadId(
@@ -513,7 +514,8 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
+        let (to_server, _server_receiver) =
+            tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -545,7 +547,7 @@ mod tests {
             .config(&"config".to_string())
             .build();
 
-        let mut runtime_mock = MockRuntime::new();
+        let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
             .expect(vec![
                 RuntimeCall::GetWorkloadId(
@@ -599,7 +601,8 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
+        let (to_server, _server_receiver) =
+            tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -631,7 +634,7 @@ mod tests {
             .config(&"config".to_string())
             .build();
 
-        let mut runtime_mock = MockRuntime::new();
+        let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
             .expect(vec![
                 RuntimeCall::GetWorkloadId(
@@ -685,7 +688,8 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
+        let (to_server, _server_receiver) =
+            tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -717,7 +721,7 @@ mod tests {
             .config(&"config".to_string())
             .build();
 
-        let mut runtime_mock = MockRuntime::new();
+        let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
             .expect(vec![
                 RuntimeCall::GetWorkloadId(
@@ -761,7 +765,7 @@ mod tests {
     // [utest->swdd~agent-delete-old-workload~1]
     #[tokio::test]
     async fn utest_runtime_facade_delete_workload() {
-        let mut runtime_mock = MockRuntime::new();
+        let mut runtime_mock = MockRuntimeConnector::new();
 
         let workload_instance_name = WorkloadExecutionInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME)

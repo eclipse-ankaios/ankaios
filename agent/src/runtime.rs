@@ -34,7 +34,7 @@ impl Display for RuntimeError {
 
 // [impl->swdd~functions-required-by-runtime-connector~1]
 #[async_trait]
-pub trait Runtime<WorkloadId, StChecker>: Sync + Send
+pub trait RuntimeConnector<WorkloadId, StChecker>: Sync + Send
 where
     StChecker: StateChecker<WorkloadId> + Send + Sync,
     WorkloadId: Send + Sync + 'static,
@@ -68,21 +68,21 @@ where
     async fn delete_workload(&self, workload_id: &WorkloadId) -> Result<(), RuntimeError>;
 }
 
-pub trait OwnableRuntime<WorkloadId, StChecker>: Runtime<WorkloadId, StChecker>
+pub trait OwnableRuntime<WorkloadId, StChecker>: RuntimeConnector<WorkloadId, StChecker>
 where
     StChecker: StateChecker<WorkloadId> + Send + Sync,
     WorkloadId: Send + Sync + 'static,
 {
-    fn to_owned(&self) -> Box<dyn Runtime<WorkloadId, StChecker>>;
+    fn to_owned(&self) -> Box<dyn RuntimeConnector<WorkloadId, StChecker>>;
 }
 
 impl<R, WorkloadId, StChecker> OwnableRuntime<WorkloadId, StChecker> for R
 where
-    R: Runtime<WorkloadId, StChecker> + Clone + 'static,
+    R: RuntimeConnector<WorkloadId, StChecker> + Clone + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync,
     WorkloadId: Send + Sync + 'static,
 {
-    fn to_owned(&self) -> Box<dyn Runtime<WorkloadId, StChecker>> {
+    fn to_owned(&self) -> Box<dyn RuntimeConnector<WorkloadId, StChecker>> {
         Box::new(self.clone())
     }
 }
@@ -108,7 +108,7 @@ pub mod test {
 
     use crate::state_checker::{RuntimeStateChecker, StateChecker};
 
-    use super::{Runtime, RuntimeError};
+    use super::{RuntimeConnector, RuntimeError};
 
     #[derive(Debug)]
     struct StubRuntimeStateChecker {}
@@ -276,10 +276,10 @@ pub mod test {
         }
     }
 
-    pub type MockRuntime = MockBase<RuntimeCall>;
+    pub type MockRuntimeConnector = MockBase<RuntimeCall>;
 
     #[async_trait]
-    impl Runtime<String, StubStateChecker> for MockBase<RuntimeCall> {
+    impl RuntimeConnector<String, StubStateChecker> for MockBase<RuntimeCall> {
         fn name(&self) -> String {
             "mock-runtime".to_string()
         }

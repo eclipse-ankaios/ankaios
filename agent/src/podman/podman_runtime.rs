@@ -12,7 +12,7 @@ use common::{
 
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
-    runtime::{Runtime, RuntimeError},
+    runtime::{RuntimeConnector, RuntimeError},
     state_checker::{RuntimeStateChecker, StateChecker},
 };
 
@@ -56,7 +56,7 @@ impl RuntimeStateChecker<PodmanWorkloadId> for PodmanRuntime {
 }
 
 #[async_trait]
-impl Runtime<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
+impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
     // [impl->swdd~podman-name-returns-podman~1]
     fn name(&self) -> String {
         PODMAN_RUNTIME_NAME.to_string()
@@ -191,7 +191,7 @@ mod tests {
     use super::PodmanCli;
     use crate::{
         podman::{podman_runtime::PODMAN_RUNTIME_NAME, PodmanWorkloadId},
-        runtime::{Runtime, RuntimeError},
+        runtime::{RuntimeConnector, RuntimeError},
         state_checker::RuntimeStateChecker,
         test_helper::MOCKALL_CONTEXT_SYNC,
     };
