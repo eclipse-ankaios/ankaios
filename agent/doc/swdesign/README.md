@@ -945,8 +945,8 @@ Status: approved
 When the Podman runtime connector is called to create workload, the Podman runtime connector shall:
 
 * pull the workload image specified in the runtime configuration if the image is not already available locally
-* create the workload object
-* start the workload object in the detached mode
+* create the container
+* start the container in the detached mode
 * start a GenericPollingStateChecker to check the workload state
 
 Tags:
