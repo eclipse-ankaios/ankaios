@@ -395,8 +395,6 @@ Needs:
 - impl
 - utest
 
-
-
 ##### RuntimeManager handles existing workloads starts new only if not found
 `swdd~agent-existing-workloads-starts-new-if-not-found~1`
 
@@ -436,7 +434,6 @@ Tags:
 Needs:
 - impl
 - utest
-- swdd
 
 ##### RuntimeManager handles existing workloads resumes existing workloads
 `swdd~agent-existing-workloads-resume-existing~1`
@@ -474,7 +471,6 @@ Tags:
 Needs:
 - impl
 - utest
-- swdd
 
 ##### RuntimeManager handles existing workloads replace updated Workloads
 `swdd~agent-existing-workloads-replace-updated~1`
@@ -516,7 +512,6 @@ Tags:
 Needs:
 - impl
 - utest
-- swdd
 
 ##### RuntimeManager handles existing workloads deletes unneeded workloads
 `swdd~agent-existing-workloads-delete-unneeded~1`
@@ -641,7 +636,6 @@ Tags:
 Needs:
 - impl
 - utest
-- swdd
 
 ##### Workload task update broken allowed
 `swdd~agent-workload-task-update-broken-allowed~1`
@@ -769,7 +763,6 @@ Tags:
 Needs:
 - impl
 - utest
-- swdd
 
 ##### Workload task delete broken allowed
 `swdd~agent-workload-task-delete-broken-allowed~1`
@@ -907,6 +900,9 @@ Needs:
 - impl
 - utest
 
+Covers:
+- swdd~functions-required-by-runtime-connector~1
+
 ###### Podman list of existing workloads uses labels
 `swdd~podman-list-of-existing-workloads-uses-labels~1`
 
@@ -922,6 +918,9 @@ Tags:
 Needs:
 - impl
 - utest
+
+Covers:
+- swdd~functions-required-by-runtime-connector~1
 
 ###### Podman create workload runs the workload object
 `swdd~podman-create-workload-runs-workload~1`
@@ -944,6 +943,9 @@ Needs:
 - utest
 - stest
 
+Covers:
+- swdd~functions-required-by-runtime-connector~1
+
 ###### Podman create workload returns workload id
 `swdd~podman-create-workload-returns-workload-id~1`
 
@@ -959,6 +961,9 @@ Tags:
 Needs:
 - impl
 - utest
+
+Covers:
+- swdd~functions-required-by-runtime-connector~1
 
 ###### Podman create workload creates labels
 `swdd~podman-create-workload-creates-labels~1`
@@ -978,6 +983,9 @@ Needs:
 - impl
 - utest
 
+Covers:
+- swdd~functions-required-by-runtime-connector~1
+
 ###### Podman create workload sets optionally container name
 `swdd~podman-create-workload-sets-optionally-container-name~1`
 
@@ -994,6 +1002,9 @@ Needs:
 - impl
 - utest
 - stest
+
+Covers:
+- swdd~functions-required-by-runtime-connector~1
 
 ###### Podman create workload optionally mounts FIFO files
 `swdd~podman-create-workload-mounts-fifo-files~1`
@@ -1012,6 +1023,9 @@ Needs:
 - impl
 - utest
 
+Covers:
+- swdd~functions-required-by-runtime-connector~1
+
 ###### Podman get workload id uses label
 `swdd~podman-get-workload-id-uses-label~1`
 
@@ -1027,6 +1041,9 @@ Tags:
 Needs:
 - impl
 - utest
+
+Covers:
+- swdd~functions-required-by-runtime-connector~1
 
 ###### Podman delete workload stops and removes workload
 `swdd~podman-delete-workload-stops-and-removes-workload~1`
@@ -1044,6 +1061,9 @@ Needs:
 - impl
 - utest
 - stest
+
+Covers:
+- swdd~functions-required-by-runtime-connector~1
 
 ##### Podman-kube runtime connector
 
@@ -1094,7 +1114,7 @@ Needs:
 #### Allowed workload states
 `swdd~allowed-workload-states~1`
 
-The state getter interface shall return one of one of following workload states:
+The state getter interface shall return one of following workload states:
 
 * pending
 * running
@@ -1170,6 +1190,9 @@ Needs:
 - impl
 - utest
 
+Covers:
+- swdd~allowed-workload-states~1
+
 ##### PodmanStateGetter returns removed state
 `swdd~podman-state-getter-returns-removed-state~1`
 
@@ -1189,6 +1212,9 @@ Needs:
 - impl
 - utest
 
+Covers:
+- swdd~allowed-workload-states~1
+
 ##### PodmanStateGetter returns unknown state
 `swdd~podman-state-getter-returns-unknown-state~1`
 
@@ -1207,6 +1233,9 @@ Tags:
 Needs:
 - impl
 - utest
+
+Covers:
+- swdd~allowed-workload-states~1
 
 #### Podman-kube runtime connector specific state getter
 
