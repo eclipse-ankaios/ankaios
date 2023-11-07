@@ -105,6 +105,7 @@ Test Ankaios CLI get workloads
 
 ## System test execution
 A shell script is provided for the easy execution of the system tests. The script does the following:
+
 1. It checks if the required Ankaios executables (`ank`, `ank-server` and `ank-agent`) are available at specified path.
 2. It prints out the version number executables.
 3. It starts the `podman` service if it is not started yet.
