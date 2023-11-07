@@ -16,7 +16,6 @@ If a configuration needs to be changed the process is the following:
 1. Fork the [.eclipsefdn](https://github.com/eclipse-ankaios/.eclipsefdn) repository.
 2. Do the configuration changes (Use the [Eclipse playground](https://eclipse-ankaios.github.io/.eclipsefdn/playground/) for trying out the available settings).
 3. Open a PR pointing from your fork's branch to the [.eclipsefdn](https://github.com/eclipse-ankaios/.eclipsefdn) repository.
-4. Request review from: Ankaios project committer, eclipsefdn-releng, eclipsefdn-security.
-5. After the changes were approved by the reviewers, merge the changes into the main branch.
+4. Make sure that review is request from: Ankaios project committer, eclipsefdn-releng, eclipsefdn-security.
+5. After the changes were approved by the reviewers, a member of Eclipse Foundation IT staff will merge the changes and applies the new settings by using the [otterdog cli](https://otterdog.readthedocs.io/en/latest/).
 
-After the changes were merged an Eclipse member will apply the new settings by using the [otterdog cli](https://otterdog.readthedocs.io/en/latest/).
