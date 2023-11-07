@@ -1096,7 +1096,6 @@ Tags:
 
 Needs:
 - impl
-- swdd
 
 #### Allowed workload states
 `swdd~allowed-workload-states~1`

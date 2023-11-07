@@ -561,7 +561,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    //swdd~agent-workload-task-update-delete-failed-allows-retry~1
+    // [utest->swdd~agent-workload-task-update-delete-failed-allows-retry~1]
     #[tokio::test]
     async fn utest_workload_obj_await_new_command_update_delete_failed_allows_retry() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -640,7 +640,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    //swdd~agent-workload-task-update-create-failed-allows-retry~1
+    // [utest->swdd~agent-workload-task-update-create-failed-allows-retry~1]
     #[tokio::test]
     async fn utest_workload_obj_await_new_command_update_create_failed_allows_retry() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

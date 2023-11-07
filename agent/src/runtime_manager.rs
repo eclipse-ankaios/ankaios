@@ -813,7 +813,7 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_2_NAME));
     }
 
-    // TODO: swdd~agent-add-on-update-missing-workload~1
+    // [utest->swdd~agent-add-on-update-missing-workload~1]
     #[tokio::test]
     async fn utest_handle_update_workload_subsequent_add_on_update_missing() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
