@@ -1036,6 +1036,23 @@ Needs:
 - impl
 - utest
 
+###### Podman start the state checker starts PodmanStateGetter
+`swdd~podman-start-checker-starts-podman-state-checker~1`
+
+Status: approved
+
+When the Podman runtime connector is called to start the state checker,
+the Podman runtime connector shall create the `PodmanStateGetter` and start it using `GenericPollingStateChecker`.
+
+Comment:
+No unit tests are required here as this function is simple and writing a unit test too difficult.
+
+Tags:
+- PodmanRuntimeConnector
+
+Needs:
+- impl
+
 ###### Podman delete workload stops and removes workload
 `swdd~podman-delete-workload-stops-and-removes-workload~1`
 
