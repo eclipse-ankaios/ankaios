@@ -1,3 +1,4 @@
+*** Comments ***
 # Copyright (c) 2023 Elektrobit Automotive GmbH
 #
 # This program and the accompanying materials are made available under the
@@ -11,22 +12,26 @@
 # under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
+
+
 *** Settings ***
-Documentation    Tests to verify that Ankaios can create Podman workloads.
-Resource     ../../resources/ankaios.resource
-Resource    ../../resources/variables.resource
+Documentation       Tests to verify that Ankaios can create Podman workloads.
+
+Resource            ../../resources/ankaios.resource
+Resource            ../../resources/variables.resource
+
 
 *** Test Cases ***
 # [stest->swdd~agent-supports-podman~2]
 # [stest->swdd~podman-create-workload-runs-workload~1]
 # [stest->swdd~podman-delete-workload-stops-and-removes-workload~1]
 Test Ankaios Podman create and remove workloads
-    [Setup]        Run Keywords    Setup Ankaios
+    [Setup]    Run Keywords    Setup Ankaios
 
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
-    Run Process    podman    rm    -a    -f    timeout=20    shell=True
-    Given Ankaios server is started with "ank-server --startup-config ${CONFIGS_DIR}/default.yaml"
+    Given Podman has deleted all existing containers
+    And Ankaios server is started with "ank-server --startup-config ${CONFIGS_DIR}/default.yaml"
     And Ankaios agent is started with "ank-agent --name agent_B"
     And all workloads of agent "agent_B" have an initial execution state
     And Ankaios agent is started with "ank-agent --name agent_A"
@@ -55,13 +60,14 @@ Test Ankaios Podman create and remove workloads
 # [stest->swdd~agent-supports-podman~2]
 # [stest->swdd~podman-create-workload-runs-workload~1]
 # [stest->swdd~podman-create-workload-sets-optionally-container-name~1]
+
 Test Ankaios Podman create a container with custom name
-    [Setup]        Run Keywords    Setup Ankaios
+    [Setup]    Run Keywords    Setup Ankaios
 
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
-    Run Process    podman    rm    -a    -f    timeout=20    shell=True
-    Given Ankaios server is started with "ank-server --startup-config ${CONFIGS_DIR}/create_workload_custom_name.yaml"
+    Given Podman has deleted all existing containers
+    And Ankaios server is started with "ank-server --startup-config ${CONFIGS_DIR}/create_workload_custom_name.yaml"
     And Ankaios agent is started with "ank-agent --name agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions

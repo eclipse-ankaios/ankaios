@@ -1036,7 +1036,7 @@ Needs:
 - impl
 - utest
 
-###### Podman start the state checker starts PodmanStateGetter
+###### Podman start state checker starts PodmanStateGetter
 `swdd~podman-start-checker-starts-podman-state-checker~1`
 
 Status: approved

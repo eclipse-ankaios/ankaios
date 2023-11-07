@@ -105,7 +105,7 @@ impl PodmanCli {
         let output = CliCommand::new(PODMAN_CMD)
             .args(&[
                 "ps",
-                "-a",
+                "--all",
                 "--filter",
                 &format!("label={key}={value}"),
                 "--format={{.ID}}",
@@ -127,7 +127,7 @@ impl PodmanCli {
         let output = CliCommand::new(PODMAN_CMD)
             .args(&[
                 "ps",
-                "-a",
+                "--all",
                 "--filter",
                 &format!("label={key}={value}"),
                 "--format=json",
@@ -158,7 +158,7 @@ impl PodmanCli {
         let mut args = workload_cfg.general_options;
 
         args.push("run".into());
-        args.push("-d".into());
+        args.push("--detach".into());
 
         // Setting "--name" flag is intentionally here before reading "command_options".
         // We want to give the user chance to set own container name.
@@ -293,7 +293,7 @@ impl PodmanCli {
     }
 
     pub async fn remove_workloads_by_id(workload_id: &str) -> Result<(), String> {
-        let args = vec!["rm", "-f", workload_id];
+        let args = vec!["rm", "--force", workload_id];
         CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
         Ok(())
     }
@@ -537,7 +537,7 @@ mod tests {
             super::CliCommand::default()
                 .expect_args(&[
                     "ps",
-                    "-a",
+                    "--all",
                     "--filter",
                     "label=name=test_agent",
                     "--format={{.ID}}",
@@ -559,7 +559,7 @@ mod tests {
             super::CliCommand::default()
                 .expect_args(&[
                     "ps",
-                    "-a",
+                    "--all",
                     "--filter",
                     "label=name=test_agent",
                     "--format={{.ID}}",
@@ -581,7 +581,7 @@ mod tests {
             super::CliCommand::default()
                 .expect_args(&[
                     "ps",
-                    "-a",
+                    "--all",
                     "--filter",
                     "label=name=test_agent",
                     "--format=json",
@@ -607,7 +607,7 @@ mod tests {
             super::CliCommand::default()
                 .expect_args(&[
                     "ps",
-                    "-a",
+                    "--all",
                     "--filter",
                     "label=name=test_agent",
                     "--format=json",
@@ -629,7 +629,7 @@ mod tests {
             super::CliCommand::default()
                 .expect_args(&[
                     "ps",
-                    "-a",
+                    "--all",
                     "--filter",
                     "label=name=test_agent",
                     "--format=json",
@@ -654,7 +654,7 @@ mod tests {
             super::CliCommand::default()
                 .expect_args(&[
                     "run",
-                    "-d",
+                    "--detach",
                     "--name",
                     "test_workload_name",
                     "--label=name=test_workload_name",
@@ -685,7 +685,7 @@ mod tests {
             super::CliCommand::default()
                 .expect_args(&[
                     "run",
-                    "-d",
+                    "--detach",
                     "--name",
                     "test_workload_name",
                     "--label=name=test_workload_name",
@@ -719,7 +719,7 @@ mod tests {
                 .expect_args(&[
                     "--remote",
                     "run",
-                    "-d",
+                    "--detach",
                     "--name",
                     "test_workload_name",
                     "--network=host",
@@ -1210,7 +1210,7 @@ mod tests {
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["rm", "-f", "test_id"])
+                .expect_args(&["rm", "--force", "test_id"])
                 .exec_returns(Err("simulated error".to_string())),
         );
 
@@ -1228,7 +1228,7 @@ mod tests {
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["rm", "-f", "test_id"])
+                .expect_args(&["rm", "--force", "test_id"])
                 .exec_returns(Ok("".to_string())),
         );
 
