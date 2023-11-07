@@ -8,6 +8,7 @@ license = "Apache-2.0"
 
 [dependencies]
 api = { package = "ankaios_api", version = "0", path = "ankaios_api" }
+chrono = "0.4"
 # required for encoding/decoding of probuf varint format
 prost = "0.11"
 

@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{collections::HashMap, io, path::Path, time::Duration, vec};
-
+use chrono;
 use api::proto;
 
 use prost::Message;
@@ -23,6 +23,10 @@ use tokio::{
 };
 
 const MAX_VARINT_SIZE: usize = 19;
+
+fn log(msg: &str) {
+    println!("[{}] {}", chrono::offset::Utc::now().format("%Y-%m-%dT%H:%M:%SZ"), msg);
+}
 
 #[tokio::main]
 async fn main() {
@@ -34,21 +38,19 @@ async fn main() {
 
     let mut ex_req = File::open(&ex_req_fifo).await.unwrap();
     let mut sc_req = File::create(&sc_req_fifo).await.unwrap();
+
     
     tokio::spawn(async move {
-        println!("listen to ExecutionRequest FIFO2 ...");
-        loop {
+        loop { 
             if let Ok(binary) = read_protobuf_data(&mut ex_req).await {
                 let proto = proto::ExecutionRequest::decode(&mut Box::new(binary.as_ref()));
 
-                println!("Got ExecutionRequest: {:#?}", proto);
+                log(format!("Receiving ExecutionRequest containing the workload states of the current state: {:?}", proto).as_str());
             }
         }
     });
 
     tokio::time::sleep(Duration::from_secs(30)).await;
-
-    println!("Sending the UpdateState");
 
     let mut wl = HashMap::new();
     let wl_api = proto::Workload {
@@ -87,14 +89,14 @@ async fn main() {
         ),
     };
 
+    log(format!("Sending StateChangeRequest containing details for adding the dynamic workload \"dynamic_nginx\": {:?}", proto_buf_update).as_str());
+
     sc_req
         .write_all(&proto_buf_update.encode_length_delimited_to_vec())
         .await
         .unwrap();
 
     let mut i = 0;
-
-    println!("Sending RequestCompleteState ");
 
     loop {
         let protobuf = proto::StateChangeRequest {
@@ -111,6 +113,7 @@ async fn main() {
 
         i += 1;
 
+        log(format!("Sending StateChangeRequest containing details for requesting all workload states: {:?}", protobuf).as_str());
         sc_req
             .write_all(&protobuf.encode_length_delimited_to_vec())
             .await
