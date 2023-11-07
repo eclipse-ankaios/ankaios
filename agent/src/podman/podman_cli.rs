@@ -123,7 +123,7 @@ impl PodmanCli {
         key: &str,
         value: &str,
     ) -> Result<Vec<String>, String> {
-        log::debug!("Listing workload names for: {}='{}'", key, value,);
+        log::debug!("Listing workload names for: '{}'='{}'", key, value,);
         let output = CliCommand::new(PODMAN_CMD)
             .args(&[
                 "ps",
@@ -136,7 +136,7 @@ impl PodmanCli {
             .await?;
 
         let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
-            .map_err(|err| format!("Could not parse podman output: {}", err))?;
+            .map_err(|err| format!("Could not parse podman output: '{}'", err))?;
 
         let mut names: Vec<String> = Vec::new();
         for mut podman_info in res {
@@ -163,7 +163,7 @@ impl PodmanCli {
         // Setting "--name" flag is intentionally here before reading "command_options".
         // We want to give the user chance to set own container name.
         // In other words the user can overwrite our container name.
-        // We store workload name as a label (an use them from there).
+        // We store workload name as a label (and use them from there).
         // Therefore we do insist on container names in particular format.
         //
         // [impl->swdd~podman-create-workload-sets-optionally-container-name~1]

@@ -131,7 +131,8 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
             .await
             .map_err(|err| RuntimeError::List(err.to_string()))?;
 
-        if let Some(id) = res.first() {
+        if 1 == res.len() {
+        let id = res.first().unwrap_or_unreachable();
             log::debug!("Found a workload: '{}'", id);
             Ok(PodmanWorkloadId { id: id.to_string() })
         } else {
