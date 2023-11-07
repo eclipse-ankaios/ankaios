@@ -1071,7 +1071,283 @@ Needs:
 
 ##### Podman-kube runtime connector
 
-TODO describe the functions of the specific runtime connector
+###### Podman kube runtime connector implements the runtime connector trait
+`swdd~podman-kube-implements-runtime-connector~1`
+
+Status: approved
+
+The Podman kube runtime connector shall implement the runtime connector trait.
+
+Comment:
+No unit tests are required here as this is just a simple implementation of a trait.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+
+###### Podman kube runtime connector uses CLI
+`swdd~podman-kube-uses-podman-cli~1`
+
+Status: approved
+
+The Podman kube runtime connector shall use the Podman CLI.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+###### Podman kube get name returns `podman-kube`
+`swdd~podman-kube-name-returns-podman-kube~1`
+
+Status: approved
+
+When the Podman kube runtime connector is called to return its unique name, the Podman kube runtime connector shall return `podman-kube`
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+Covers:
+- swdd~functions-required-by-runtime-connector~1
+
+###### Podman kube create workload apply the manifest file
+`swdd~podman-kube-create-workload-runs-workload~1`
+
+Status: approved
+
+When the Podman kube runtime connector is called to create a workload,
+the Podman kube runtime connector shall apply the manifest file.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+Covers:
+- swdd~functions-required-by-runtime-connector~1
+
+###### Podman kube workload id
+`swdd~podman-kube-workload-id`
+
+Status: approved
+
+The Podman kube runtime workload id consists of:
+
+* workload execution instance name
+* list of pods
+* manifest
+* down_options
+
+Rationale:
+The down_options and the manifest are needed as parameters for `podman kube down`.
+The list of pods is needed to get the current state of the workload.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+Covers:
+- swdd~functions-required-by-runtime-connector~1
+
+###### Podman kube create workload returns workload id
+`swdd~podman-kube-create-workload-returns-workload-id~1`
+
+Status: approved
+
+When the Podman kube runtime connector is called to create workload and the action is successfully processed by the Podman kube runtime connector,
+the Podman kube runtime connector shall return a Podman kube workload id.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+Covers:
+- swdd~functions-required-by-runtime-connector~1
+
+###### Podman kube create workload creates config volume
+`swdd~podman-kube-create-workload-creates-config-volume~1`
+
+Status: approved
+
+When the Podman kube runtime connector is called to create workload, before applying the manifest,
+the Podman kube runtime connector shall store the runtime configuration in a volume:
+
+* the name of the volume shall be the workload execution instance name appended by ".config"
+* the data is stored base64 encoded in the label `data` of the volume
+
+Rationale:
+The data stored in this volume is needed, if the agent is restarted to find existing workloads.
+It is created before applying the manifest, to ensure the running workload can always be found,
+even if the agent crashes during the creation of the workload.
+
+The data is stored in a label and not as content of the volume, as this is easier to implement using the Podman CLI.
+Storing the data as content of the volume:
+
+* makes it necessary to put it in a TAR archive, and import it with `podman volume import`.
+* does not work with a remote podman instance.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+Covers:
+- swdd~functions-required-by-runtime-connector~1
+
+###### Podman kube create workload creates pods volume
+`swdd~podman-kube-create-workload-creates-pods-volume~1`
+
+Status: approved
+
+When the Podman kube runtime connector is called to create a workload and the manifest is successfully applied by the Podman kube runtime connector,
+the Podman kube runtime connector shall store the pods in a volume:
+
+* the pod list is encoded as JSON
+* the JSON data is stored base64 encoded in the label `data` of the volume
+
+Rationale:
+The data stored in this volume is needed, if the agent is restarted to recreated the Podman kube workload ID.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+Covers:
+- swdd~functions-required-by-runtime-connector~1
+
+###### Podman kube create continues if it cannot create volumes
+`swdd~podman-kube-create-continues-if-cannot-create-volume~1`
+
+Status: approved
+
+When the Podman kube runtime connector is called to create a workload and the Podman kube runtime fails to create the config or pods volume,
+the Podman kube runtime continues with applying the manifest and returning the workload ID.
+
+Rationale:
+The volumes are needed for a restart of the the agent, but are not necessary for the current execution of the agent.
+If the agent ignores the failure of creating of the volumes, the workloads can operate normally and only after a restart of the agent errors occur.
+If the agent fails the start of a workload if it is not able to create the volumes, the workloads cannot operate currently and after a restart of the agent.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+Covers:
+- swdd~functions-required-by-runtime-connector~1
+
+###### Podman kube create starts PodmanKubeStateGetter
+`swdd~podman-kube-create-starts-podman-kube-state-getter~1`
+
+Status: approved
+
+When the Podman kube runtime connector is called to create workload,
+the Podman kube runtime connector shall create a `PodmanStateGetter` for this workload and start it using a `GenericPollingStateChecker`.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+Covers:
+- swdd~functions-required-by-runtime-connector~1
+
+###### Podman kube list of existing workloads uses config volumes
+`swdd~podman-kube-list-existing-workloads-using-config-volumes~1`
+
+Status: approved
+
+When the Podman kube runtime connector is called to return a list of existing workloads,
+the Podman kube runtime shall use the config volumes.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+Covers:
+- swdd~functions-required-by-runtime-connector~1
+
+###### Podman kube get workload id uses volumes
+`swdd~podman-kube-get-workload-id-uses-volumes~1`
+
+Status: approved
+
+When the Podman kube runtime connector is called to get a workload ID,
+the Podman kube runtime connector shall use the data stored in the config and pods volume.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+Covers:
+- swdd~functions-required-by-runtime-connector~1
+
+###### Podman kube delete workload downs manifest file
+`swdd~podman-kube-delete-workload-downs-manifest-file~1`
+
+Status: approved
+
+When the Podman kube runtime connector is called to delete a workload,
+the Podman kube runtime connector shall use the `podman kube down` command with the manifest stored in the workload ID.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+Covers:
+- swdd~functions-required-by-runtime-connector~1
+
+###### Podman kube delete workload remove volumes
+`swdd~podman-kube-delete-removes-volumes~1`
+
+Status: approved
+
+When the Podman kube runtime connector is called to delete a workload, and Podman kube runtime successfully called the `podman kube down` command,
+the Podman kube runtime connector shall remove the config and pod volume.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+Covers:
+- swdd~functions-required-by-runtime-connector~1
 
 ### Getting workload states
 
@@ -1244,9 +1520,101 @@ Needs:
 - impl
 - utest
 
-#### Podman-kube runtime connector specific state getter
+#### Podman kube runtime connector specific state getter
 
-TODO
+###### Podman kube runtime connector implements the runtime state getter trait
+`swdd~podman-kube-implements-runtime-state-getter~1`
+
+Status: approved
+
+The Podman kube runtime connector shall implement the runtime state getter trait.
+
+Comment:
+In the following requirements this part of the functionality is called the PodmanKubeStateGetter.
+No unit tests are required here as this is just a simple implementation of a trait.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+
+##### PodmanKubeStateGetter used container states
+`swdd~podman-kube-state-getter-uses-container-states~1`
+
+Status: approved
+
+When the `PodmanKubeStateGetter` is called to get the current state of a workload,
+the `PodmanKubeStateGetter` requests Podman for the state of all containers of the pods listed in the workload ID.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+##### PodmanKubeStateGetter returns `removed` if no container exists
+`swdd~podman-kube-state-getter-removed-if-no-container~1`
+
+Status: approved
+
+When the `PodmanKubeStateGetter` is called to get the current state of a workload and Podman returns no container for the pods of this workload,
+the `PodmanKubeStateGetter` shall return the state `removed`.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+##### PodmanKubeStateGetter maps workload state
+`swdd~podman-kube-state-getter-maps-state~1`
+
+Status: approved
+
+The `PodmanKubeStateGetter` shall map pod state returned by Podman into workload states according to the next table:
+
+| Podman Container State | Container ExitCode | Workload State |
+| ---------------------- | :----------------: | :------------: |
+| Created                |         -          |    Pending     |
+| Paused                 |         -          |    Unknown     |
+| Running                |         -          |    Running     |
+| Exited                 |        == 0        |   Succeeded    |
+| Exited                 |        != 0        |     Failed     |
+| (anything else)        |         -          |    Unknown     |
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+##### PodmanKubeStateGetter combines pod states from containers
+`swdd~podman-kube-state-getter-combines-states~1`
+
+Status: approved
+
+When the `PodmanKubeStateGetter` is called to get the current state of a workload,
+the `PodmanKubeStateGetter` shall return the workload state with the lowest priority of all containers of this workload.
+The priority of the workload state is given in the table below:
+
+| Workload State | Priority |
+| -------------- | -------: |
+| Failed         |        0 |
+| Pending        |        1 |
+| Unknown        |        2 |
+| Running        |        3 |
+| Succeeded      |        4 |
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
 
 ### Handling UpdateWorkloadState
 
