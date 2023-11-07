@@ -8,6 +8,7 @@ use common::{
         WorkloadSpec,
     },
     state_change_interface::StateChangeSender,
+    std_extensions::UnreachableOption,
 };
 
 use crate::{
@@ -132,7 +133,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
             .map_err(|err| RuntimeError::List(err.to_string()))?;
 
         if 1 == res.len() {
-        let id = res.first().unwrap_or_unreachable();
+            let id = res.first().unwrap_or_unreachable();
             log::debug!("Found a workload: '{}'", id);
             Ok(PodmanWorkloadId { id: id.to_string() })
         } else {
