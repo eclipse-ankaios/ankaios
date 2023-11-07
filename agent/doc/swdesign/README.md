@@ -57,9 +57,18 @@ Stores information which the Agent gets from the Server. Currently the storage s
 
 The ControlInterface is responsible for setting up the communication interface between a workload and the Ankaios agent. It translates between the provided to the workload pipes and the internal Ankaios communication channels.
 
+### RuntimeConnectorInterfaces
+
+This is not really a component but defines the "requirements" towards specific runtime connectors s.t. they can be used by Ankaios. Three traits need to be implemented by each specific connector:
+* runtime state getter trait - specifies that the workload state can be obtained using a workload id
+* state checker trait - specifies that each workload state checker can be stopped
+* runtime connector trait - specifies the methods that Ankaios requires in order to use a runtime (see below for more details)
+
 ### PodmanRuntime connector
 
 The PodmanRuntime connector implements the runtime connector trait for Podman. It serves as glue between Ankaios and the Podman container engine for running Podman containers.
+
+The PodmanRuntime also implements the runtime state getter trait for Podman to enable getting workload states.
 
 ### PodmanKubeRuntime connector
 
@@ -67,7 +76,7 @@ The PodmanKubeRuntime connector implements the runtime connector trait for 'podm
 
 ### GenericPollingStateChecker
 
-The GenericPollingStateChecker is a general purpose StateChecker that can be used by a runtime connector to make polling requests for workload state as predefined intervals.
+The GenericPollingStateChecker is a general purpose StateChecker (and implements the state checker trait) that can be used by a runtime connector to make polling requests for workload state as predefined intervals.
 
 ### External Libraries
 
@@ -834,14 +843,14 @@ Needs:
 
 #### Runtime connector workflows
 
-Ankaios supports multiple runtimes by providing a runtime connector trait that specifies the functions shall be supported by the runtime.
+Ankaios supports multiple runtimes by providing a runtime connector trait specifying the functions that shall be implemented by the runtime.
 
 ##### Functions required by the runtime connector trait
 `swdd~functions-required-by-runtime-connector~1`
 
 Status: approved
 
-The runtime shall implement following functions of the runtime connector trait:
+The runtime connector trait shall require the implementation of the following functions:
 
 * get unique runtime connector name
 * get list of existing workloads
@@ -859,16 +868,31 @@ The function to start the state checker shall be public (i.e. not only embedded 
 to distinguish between use cases to create new workload object and to resume existing workload object.
 
 Tags:
-- RuntimeConnector
+- RuntimeConnectorInterfaces
 
 Needs:
 - impl
 - utest
-- swdd
 
 ##### Podman runtime connector
 
 This section describes features specific to the Podman runtime connector.
+
+###### Podman runtime connector implements the runtime connector trait
+`swdd~podman-implements-runtime-connector~1`
+
+Status: approved
+
+The Podman runtime connector shall implement the runtime connector trait.
+
+Comment:
+No unit tests are required here as this is just a simple implementation of a trait.
+
+Tags:
+- PodmanRuntimeConnector
+
+Needs:
+- impl
 
 ###### Podman runtime connector uses CLI
 `swdd~podman-uses-podman-cli~1`
@@ -878,7 +902,6 @@ Status: approved
 The Podman runtime connector shall use the Podman CLI.
 
 Tags:
-- RuntimeConnector
 - PodmanRuntimeConnector
 
 Needs:
@@ -893,15 +916,11 @@ Status: approved
 When the Podman runtime connector is called to return its unique name, the Podman runtime connector shall return `podman`
 
 Tags:
-- RuntimeConnector
 - PodmanRuntimeConnector
 
 Needs:
 - impl
 - utest
-
-Covers:
-- swdd~functions-required-by-runtime-connector~1
 
 ###### Podman list of existing workloads uses labels
 `swdd~podman-list-of-existing-workloads-uses-labels~1`
@@ -912,15 +931,11 @@ When the Podman runtime connector is called to return list of existing workloads
 the Podman runtime connector shall use the label `agent` stored in the workloads.
 
 Tags:
-- RuntimeConnector
 - PodmanRuntimeConnector
 
 Needs:
 - impl
 - utest
-
-Covers:
-- swdd~functions-required-by-runtime-connector~1
 
 ###### Podman create workload runs the workload object
 `swdd~podman-create-workload-runs-workload~1`
@@ -932,19 +947,15 @@ When the Podman runtime connector is called to create workload, the Podman runti
 * pull the workload image specified in the runtime configuration if the image is not already available locally
 * create the workload object
 * start the workload object in the detached mode
-* start the checking workload status
+* start a GenericPollingStateChecker to check the workload state
 
 Tags:
-- RuntimeConnector
 - PodmanRuntimeConnector
 
 Needs:
 - impl
 - utest
 - stest
-
-Covers:
-- swdd~functions-required-by-runtime-connector~1
 
 ###### Podman create workload returns workload id
 `swdd~podman-create-workload-returns-workload-id~1`
@@ -955,15 +966,11 @@ When the Podman runtime connector is called to create workload and the action is
 the Podman runtime connector shall return workload id.
 
 Tags:
-- RuntimeConnector
 - PodmanRuntimeConnector
 
 Needs:
 - impl
 - utest
-
-Covers:
-- swdd~functions-required-by-runtime-connector~1
 
 ###### Podman create workload creates labels
 `swdd~podman-create-workload-creates-labels~1`
@@ -976,15 +983,11 @@ When the Podman runtime connector is called to create workload, the Podman runti
 * `agent` as the key and the agent name where the workload is being created as the value
 
 Tags:
-- RuntimeConnector
 - PodmanRuntimeConnector
 
 Needs:
 - impl
 - utest
-
-Covers:
-- swdd~functions-required-by-runtime-connector~1
 
 ###### Podman create workload sets optionally container name
 `swdd~podman-create-workload-sets-optionally-container-name~1`
@@ -995,16 +998,12 @@ When the Podman runtime connector is called to create workload and the workload 
 the Podman runtime connector shall set the workload execution name as the workload name.
 
 Tags:
-- RuntimeConnector
 - PodmanRuntimeConnector
 
 Needs:
 - impl
 - utest
 - stest
-
-Covers:
-- swdd~functions-required-by-runtime-connector~1
 
 ###### Podman create workload optionally mounts FIFO files
 `swdd~podman-create-workload-mounts-fifo-files~1`
@@ -1015,16 +1014,12 @@ When the Podman runtime connector is called to create workload and the RuntimeFa
 the Podman runtime connector shall mount the the Control Interface pipes into the container in the file path `/run/ankaios/control_interface`.
 
 Tags:
-- RuntimeConnector
 - ControlInterface
 - PodmanRuntimeConnector
 
 Needs:
 - impl
 - utest
-
-Covers:
-- swdd~functions-required-by-runtime-connector~1
 
 ###### Podman get workload id uses label
 `swdd~podman-get-workload-id-uses-label~1`
@@ -1035,15 +1030,11 @@ When the Podman runtime connector is called to get workload id,
 the Podman runtime connector shall use the label `name` stored in the workload.
 
 Tags:
-- RuntimeConnector
 - PodmanRuntimeConnector
 
 Needs:
 - impl
 - utest
-
-Covers:
-- swdd~functions-required-by-runtime-connector~1
 
 ###### Podman delete workload stops and removes workload
 `swdd~podman-delete-workload-stops-and-removes-workload~1`
@@ -1054,16 +1045,12 @@ When the Podman runtime connector is called to delete workload,
 the Podman runtime connector shall stop and remove the workload.
 
 Tags:
-- RuntimeConnector
 - PodmanRuntimeConnector
 
 Needs:
 - impl
 - utest
 - stest
-
-Covers:
-- swdd~functions-required-by-runtime-connector~1
 
 ##### Podman-kube runtime connector
 
@@ -1092,7 +1079,7 @@ The specific runtime state getter allows the implementation of common state chec
 The stop action is needed in order to stop the state checker when a workload is deleted.
 
 Tags: 
-- RuntimeInterfaces
+- RuntimeConnectorInterfaces
 
 Needs:
 - impl
@@ -1105,7 +1092,7 @@ Status: approved
 The state getter interface shall allow getting the current state of a workload for a given Id.
 
 Tags: 
-- RuntimeInterfaces
+- RuntimeConnectorInterfaces
 
 Needs:
 - impl
@@ -1124,11 +1111,10 @@ The state getter interface shall return one of following workload states:
 * removed
 
 Tags: 
-- RuntimeInterfaces
+- RuntimeConnectorInterfaces
 
 Needs:
 - impl
-- swdd
 
 #### GenericPollingStateChecker implementation
 `swdd~agent-provides-generic-state-checker-implementation~1`
@@ -1163,6 +1149,23 @@ Needs:
 
 #### Podman runtime connector specific state getter
 
+###### Podman runtime implements the runtime state getter trait
+`swdd~podman-implements-runtime-state-getter~1`
+
+Status: approved
+
+The Podman runtime connector shall implement the runtime state getter trait.
+
+Comment:
+In the following requirements this part of the functionality is called the PodmanStateGetter.
+No unit tests are required here as this is just a simple implementation of a trait.
+
+Tags:
+- PodmanRuntimeConnector
+
+Needs:
+- impl
+
 ##### PodmanStateGetter maps workload state
 `swdd~podman-state-getter-maps-state~1`
 
@@ -1183,15 +1186,11 @@ Comment:
 The Podman also supports "pod states". This table shows the container states only.
 
 Tags:
-- PodmanStateGetter
 - PodmanRuntimeConnector
 
 Needs:
 - impl
 - utest
-
-Covers:
-- swdd~allowed-workload-states~1
 
 ##### PodmanStateGetter returns removed state
 `swdd~podman-state-getter-returns-removed-state~1`
@@ -1205,15 +1204,11 @@ Rationale:
 This happens when the container has been removed and the Agent meanwhile triggers status check of the workload.
 
 Tags:
-- PodmanStateGetter
 - PodmanRuntimeConnector
 
 Needs:
 - impl
 - utest
-
-Covers:
-- swdd~allowed-workload-states~1
 
 ##### PodmanStateGetter returns unknown state
 `swdd~podman-state-getter-returns-unknown-state~1`
@@ -1227,15 +1222,11 @@ Comment:
 In other words the unknown state shall be the default state.
 
 Tags:
-- PodmanStateGetter
 - PodmanRuntimeConnector
 
 Needs:
 - impl
 - utest
-
-Covers:
-- swdd~allowed-workload-states~1
 
 #### Podman-kube runtime connector specific state getter
 
