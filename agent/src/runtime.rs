@@ -110,9 +110,6 @@ pub mod test {
 
     use super::{RuntimeConnector, RuntimeError};
 
-    #[derive(Debug)]
-    struct StubRuntimeStateChecker {}
-
     #[async_trait]
     impl RuntimeStateGetter<String> for StubStateChecker {
         async fn get_state(&self, _workload_id: &String) -> ExecutionState {
