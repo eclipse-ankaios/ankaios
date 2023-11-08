@@ -59,7 +59,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         PODMAN_KUBE_RUNTIME_NAME.to_string()
     }
 
-    // [impl->podman-kube-list-existing-workloads-using-config-volumes]
+    // [impl->swdd~podman-kube-list-existing-workloads-using-config-volumes~1]
     async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
@@ -228,10 +228,10 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         PodmanCli::down_kube(&workload_id.down_options, workload_id.manifest.as_bytes())
             .map_err(RuntimeError::Delete)
             .await?;
-        // [utest->swdd~podman-kube-delete-removes-volumes~1]
+        // [impl->swdd~podman-kube-delete-removes-volumes~1]
         let _ =
             PodmanCli::remove_volume(&(workload_id.name.to_string() + PODS_VOLUME_SUFFIX)).await;
-        // [utest->swdd~podman-kube-delete-removes-volumes~1]
+        // [impl->swdd~podman-kube-delete-removes-volumes~1]
         let _ =
             PodmanCli::remove_volume(&(workload_id.name.to_string() + CONFIG_VOLUME_SUFFIX)).await;
         Ok(())
@@ -278,7 +278,7 @@ enum OrderedExecutionState {
     Removed,
 }
 
-// [impl->`swdd~podman-kube-state-getter-maps-state~1`]
+// [impl->swdd~podman-kube-state-getter-maps-state~1]
 impl From<podman_cli::ContainerState> for OrderedExecutionState {
     fn from(value: podman_cli::ContainerState) -> Self {
         match value {
@@ -294,7 +294,7 @@ impl From<podman_cli::ContainerState> for OrderedExecutionState {
     }
 }
 
-// [impl->`swdd~podman-kube-state-getter-maps-state~1`]
+// [impl->swdd~podman-kube-state-getter-maps-state~1]
 impl From<OrderedExecutionState> for ExecutionState {
     fn from(value: OrderedExecutionState) -> Self {
         match value {
@@ -330,7 +330,10 @@ mod tests {
     use crate::runtime_connectors::podman_cli::__mock_MockPodmanCli as podman_cli_mock;
     use crate::runtime_connectors::{podman_cli::ContainerState, RuntimeConnector, RuntimeError};
 
-    use super::{CONFIG_VOLUME_SUFFIX, PODMAN_KUBE_RUNTIME_NAME, PODS_VOLUME_SUFFIX, PodmanKubeWorkloadId, PodmanKubeRuntime};
+    use super::{
+        PodmanKubeRuntime, PodmanKubeWorkloadId, CONFIG_VOLUME_SUFFIX, PODMAN_KUBE_RUNTIME_NAME,
+        PODS_VOLUME_SUFFIX,
+    };
     use crate::runtime_connectors::RuntimeStateGetter;
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
@@ -369,7 +372,7 @@ mod tests {
         assert_eq!(runtime.name(), "podman-kube");
     }
 
-    // [utest->podman-kube-list-existing-workloads-using-config-volumes]
+    // [utest->swdd~podman-kube-list-existing-workloads-using-config-volumes~1]
     #[tokio::test]
     async fn utest_get_reusable_running_workloads_success() {
         let workload_instance_1 = "workload_1.hash_1.agent_A";
