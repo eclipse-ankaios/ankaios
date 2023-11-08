@@ -89,5 +89,6 @@ nav:
     - development/extending-dev-container.md
     - development/ci-cd.md
     - development/ci-cd-release.md
+    - development/self-service.md
     - development/documentation-guidelines.md
     
