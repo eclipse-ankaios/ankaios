@@ -16,7 +16,7 @@ use common::{
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::PipesChannelContext;
 
-use crate::runtime_facade::RuntimeFacade;
+use crate::runtime_connectors::RuntimeFacade;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
@@ -330,9 +330,9 @@ impl RuntimeManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::runtime_facade::MockRuntimeFacade;
+    use crate::control_interface::MockPipesChannelContext;
+    use crate::runtime_connectors::{MockRuntimeFacade, RuntimeError};
     use crate::workload::{MockWorkload, WorkloadError};
-    use crate::{control_interface::MockPipesChannelContext, runtime::RuntimeError};
     use common::objects::WorkloadExecutionInstanceNameBuilder;
     use common::test_utils::{generate_test_complete_state, generate_test_deleted_workload};
     use common::{

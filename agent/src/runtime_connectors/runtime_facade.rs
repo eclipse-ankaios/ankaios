@@ -10,10 +10,7 @@ use tokio::sync::mpsc;
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::PipesChannelContext;
 
-use crate::{
-    runtime::{OwnableRuntime, RuntimeError},
-    state_checker::StateChecker,
-};
+use crate::runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
@@ -294,11 +291,11 @@ mod tests {
 
     use crate::{
         control_interface::MockPipesChannelContext,
-        runtime::{
-            test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
+        runtime_connectors::{
+            runtime_connector::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
             OwnableRuntime,
         },
-        runtime_facade::{GenericRuntimeFacade, RuntimeFacade},
+        runtime_connectors::{GenericRuntimeFacade, RuntimeFacade},
         workload::MockWorkload,
     };
 
@@ -637,7 +634,9 @@ mod tests {
             .expect(vec![
                 RuntimeCall::GetWorkloadId(
                     old_workload_instance_name.clone(),
-                    Err(crate::runtime::RuntimeError::List("some error".to_string())),
+                    Err(crate::runtime_connectors::RuntimeError::List(
+                        "some error".to_string(),
+                    )),
                 ),
                 // The expectation is that delete is not called as the workload is now gone
                 RuntimeCall::CreateWorkload(
@@ -728,7 +727,7 @@ mod tests {
                 ),
                 RuntimeCall::DeleteWorkload(
                     OLD_WORKLOAD_ID.to_string(),
-                    Err(crate::runtime::RuntimeError::Delete(
+                    Err(crate::runtime_connectors::RuntimeError::Delete(
                         "some delete error".to_string(),
                     )),
                 ),

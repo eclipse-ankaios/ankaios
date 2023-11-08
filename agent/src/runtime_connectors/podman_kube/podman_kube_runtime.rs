@@ -13,12 +13,12 @@ use mockall_double::double;
 
 // [impl->swdd~podman-kube-uses-podman-cli~1]
 #[cfg_attr(test, double)]
-use crate::podman::podman_cli::PodmanCli;
+use crate::runtime_connectors::podman_cli::PodmanCli;
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
-    podman::podman_cli,
-    runtime::{RuntimeConnector, RuntimeError},
-    state_checker::{RuntimeStateGetter, StateChecker},
+    runtime_connectors::{
+        podman_cli, RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker,
+    },
 };
 
 use super::podman_kube_runtime_config::PodmanKubeRuntimeConfig;
@@ -327,14 +327,12 @@ mod tests {
     use mockall::{lazy_static, predicate::eq};
 
     use super::PodmanCli;
-    use crate::podman::podman_cli::ContainerState;
-    use crate::podman::podman_cli::__mock_MockPodmanCli as podman_cli_mock;
-    use crate::podman::podman_kube_runtime::PODMAN_KUBE_RUNTIME_NAME;
-    use crate::podman::podman_kube_runtime::{CONFIG_VOLUME_SUFFIX, PODS_VOLUME_SUFFIX};
-    use crate::podman::PodmanKubeWorkloadId;
-    use crate::runtime::{RuntimeConnector, RuntimeError};
-    use crate::state_checker::RuntimeStateGetter;
-    use crate::{podman::PodmanKubeRuntime, test_helper::MOCKALL_CONTEXT_SYNC};
+    use crate::runtime_connectors::podman_cli::__mock_MockPodmanCli as podman_cli_mock;
+    use crate::runtime_connectors::{podman_cli::ContainerState, RuntimeConnector, RuntimeError};
+
+    use super::{CONFIG_VOLUME_SUFFIX, PODMAN_KUBE_RUNTIME_NAME, PODS_VOLUME_SUFFIX, PodmanKubeWorkloadId, PodmanKubeRuntime};
+    use crate::runtime_connectors::RuntimeStateGetter;
+    use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
     const SAMPLE_ERROR: &str = "sample error";
     const SAMPLE_KUBE_CONFIG: &str = "kube_config";

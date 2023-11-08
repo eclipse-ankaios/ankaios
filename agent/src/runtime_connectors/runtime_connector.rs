@@ -7,7 +7,7 @@ use common::{
     state_change_interface::StateChangeSender,
 };
 
-use crate::state_checker::StateChecker;
+use crate::runtime_connectors::StateChecker;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeError {
@@ -106,7 +106,7 @@ pub mod test {
     };
     use tokio::sync::Mutex;
 
-    use crate::state_checker::{RuntimeStateGetter, StateChecker};
+    use crate::runtime_connectors::{RuntimeStateGetter, StateChecker};
 
     use super::{RuntimeConnector, RuntimeError};
 

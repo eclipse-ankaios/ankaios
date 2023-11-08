@@ -42,10 +42,7 @@ impl TryFrom<&WorkloadSpec> for PodmanKubeRuntimeConfig {
 mod tests {
     use common::test_utils::generate_test_workload_spec_with_param;
 
-    use crate::podman::{
-        podman_kube_runtime::PODMAN_KUBE_RUNTIME_NAME,
-        podman_kube_runtime_config::PodmanKubeRuntimeConfig,
-    };
+    use super::{PodmanKubeRuntimeConfig, PODMAN_KUBE_RUNTIME_NAME};
 
     const DIFFERENT_RUNTIME_NAME: &str = "different-runtime-name";
     const AGENT_NAME: &str = "agent_x";

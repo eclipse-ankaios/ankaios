@@ -51,9 +51,7 @@ impl From<TryFromWorkloadSpecError> for String {
 mod tests {
     use common::test_utils::generate_test_workload_spec_with_param;
 
-    use crate::podman::{
-        podman_runtime::PODMAN_RUNTIME_NAME, podman_runtime_config::PodmanRuntimeConfig,
-    };
+    use crate::runtime_connectors::podman::{podman_runtime::PODMAN_RUNTIME_NAME, PodmanRuntimeConfig};
 
     const DIFFERENT_RUNTIME_NAME: &str = "different-runtime-name";
     const AGENT_NAME: &str = "agent_x";

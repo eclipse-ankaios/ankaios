@@ -13,8 +13,7 @@ use common::{
 
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
-    runtime::{RuntimeConnector, RuntimeError},
-    state_checker::{RuntimeStateGetter, StateChecker},
+    runtime_connectors::{RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker},
 };
 
 #[cfg(test)]
@@ -22,7 +21,7 @@ use mockall_double::double;
 
 // [impl->swdd~podman-uses-podman-cli~1]
 #[cfg_attr(test, double)]
-use crate::podman::podman_cli::PodmanCli;
+use crate::runtime_connectors::podman_cli::PodmanCli;
 
 use super::podman_runtime_config::PodmanRuntimeConfig;
 
@@ -197,17 +196,10 @@ mod tests {
     };
 
     use super::PodmanCli;
-    use crate::{
-        podman::{
-            podman_runtime::{PodmanStateGetter, PODMAN_RUNTIME_NAME},
-            PodmanWorkloadId,
-        },
-        runtime::{RuntimeConnector, RuntimeError},
-        state_checker::RuntimeStateGetter,
-        test_helper::MOCKALL_CONTEXT_SYNC,
-    };
-
     use super::PodmanRuntime;
+    use super::{PodmanStateGetter, PodmanWorkloadId, PODMAN_RUNTIME_NAME};
+    use crate::runtime_connectors::{RuntimeConnector, RuntimeError, RuntimeStateGetter};
+    use crate::test_helper::MOCKALL_CONTEXT_SYNC;
 
     const BUFFER_SIZE: usize = 20;
 
@@ -281,7 +273,7 @@ mod tests {
 
         assert_eq!(
             podman_runtime.get_reusable_workloads(&agent_name).await,
-            Err(crate::runtime::RuntimeError::List("Simulated error".into()))
+            Err(crate::runtime_connectors::RuntimeError::List("Simulated error".into()))
         );
     }
 

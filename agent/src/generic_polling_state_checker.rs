@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use std::time::Duration;
 use tokio::{task::JoinHandle, time};
 
-use crate::state_checker::{RuntimeStateGetter, StateChecker};
+use crate::runtime_connectors::{RuntimeStateGetter, StateChecker};
 use common::{
     objects::{ExecutionState, WorkloadSpec},
     state_change_interface::{StateChangeInterface, StateChangeSender},
@@ -103,7 +103,7 @@ mod tests {
 
     use crate::{
         generic_polling_state_checker::GenericPollingStateChecker,
-        state_checker::{MockRuntimeStateGetter, StateChecker},
+        runtime_connectors::{MockRuntimeStateGetter, StateChecker},
     };
 
     const RUNTIME_NAME: &str = "runtime1";

@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
 
 #[cfg_attr(test, mockall_double::double)]
-use super::cli_command::CliCommand;
-use super::podman_runtime_config::PodmanRuntimeConfig;
+use crate::runtime_connectors::cli_command::CliCommand;
+use crate::runtime_connectors::podman::PodmanRuntimeConfig;
 
 const PODMAN_CMD: &str = "podman";
 const API_PIPES_MOUNT_POINT: &str = "/run/ankaios/control_interface";
@@ -667,7 +667,7 @@ mod tests {
                 .exec_returns(Ok("test_id".to_string())),
         );
 
-        let workload_cfg = crate::podman::podman_runtime_config::PodmanRuntimeConfig {
+        let workload_cfg = crate::runtime_connectors::podman::PodmanRuntimeConfig {
             general_options: Vec::new(),
             command_options: Vec::new(),
             image: "alpine:latest".into(),
@@ -698,7 +698,7 @@ mod tests {
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
-        let workload_cfg = crate::podman::podman_runtime_config::PodmanRuntimeConfig {
+        let workload_cfg = crate::runtime_connectors::podman::PodmanRuntimeConfig {
             general_options: Vec::new(),
             command_options: Vec::new(),
             image: "alpine:latest".into(),
@@ -737,7 +737,7 @@ mod tests {
                 .exec_returns(Ok("test_id".to_string())),
         );
 
-        let workload_cfg = crate::podman::podman_runtime_config::PodmanRuntimeConfig {
+        let workload_cfg = crate::runtime_connectors::podman::PodmanRuntimeConfig {
             general_options: vec!["--remote".into()],
             command_options: vec!["--network=host".into(), "--name".into(), "myCont".into()],
             image: "alpine:latest".into(),

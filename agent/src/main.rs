@@ -23,18 +23,13 @@ mod agent_manager;
 mod cli;
 mod control_interface;
 mod parameter_storage;
-mod podman;
+mod runtime_connectors;
 #[cfg(test)]
 pub mod test_helper;
 
 mod generic_polling_state_checker;
-mod runtime;
-mod runtime_facade;
 mod runtime_manager;
-mod state_checker;
 mod workload;
-
-use runtime_facade::GenericRuntimeFacade;
 
 use common::execution_interface::ExecutionCommand;
 use common::std_extensions::{GracefulExitResult, IllegalStateResult, UnreachableResult};
@@ -42,13 +37,13 @@ use grpc::client::GRPCCommunicationsClient;
 
 use agent_manager::AgentManager;
 
-use podman::{PodmanKubeRuntime, PodmanKubeWorkloadId};
-
-use crate::podman::{PodmanRuntime, PodmanWorkloadId};
-use crate::runtime::RuntimeConnector;
-use crate::runtime_facade::RuntimeFacade;
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_manager::RuntimeManager;
+use runtime_connectors::{
+    podman::{PodmanRuntime, PodmanWorkloadId},
+    podman_kube::{PodmanKubeRuntime, PodmanKubeWorkloadId},
+    GenericRuntimeFacade, RuntimeConnector, RuntimeFacade,
+};
 
 const BUFFER_SIZE: usize = 20;
 

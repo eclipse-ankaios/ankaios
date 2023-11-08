@@ -2,7 +2,7 @@ use std::{fmt::Display, path::PathBuf};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::PipesChannelContext;
-use crate::{runtime::RuntimeConnector, state_checker::StateChecker};
+use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use common::{
     commands::CompleteState,
     execution_interface::ExecutionCommand,
@@ -236,7 +236,7 @@ mod tests {
 
     use crate::{
         control_interface::MockPipesChannelContext,
-        runtime::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
+        runtime_connectors::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
         workload::{Workload, WorkloadCommand, WorkloadError},
     };
 
@@ -585,7 +585,7 @@ mod tests {
             .expect(vec![
                 RuntimeCall::DeleteWorkload(
                     OLD_WORKLOAD_ID.to_string(),
-                    Err(crate::runtime::RuntimeError::Delete(
+                    Err(crate::runtime_connectors::RuntimeError::Delete(
                         "some delete error".to_string(),
                     )),
                 ),
@@ -667,7 +667,7 @@ mod tests {
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
                     state_change_tx.clone(),
-                    Err(crate::runtime::RuntimeError::Create(
+                    Err(crate::runtime_connectors::RuntimeError::Create(
                         "some delete error".to_string(),
                     )),
                 ),
@@ -797,7 +797,7 @@ mod tests {
             .expect(vec![
                 RuntimeCall::DeleteWorkload(
                     OLD_WORKLOAD_ID.to_string(),
-                    Err(crate::runtime::RuntimeError::Delete(
+                    Err(crate::runtime_connectors::RuntimeError::Delete(
                         "some delete error".to_string(),
                     )),
                 ),
