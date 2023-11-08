@@ -107,10 +107,9 @@ Test Ankaios CLI get workloads
 A shell script is provided for the easy execution of the system tests. The script does the following:
 
 1. It checks if the required Ankaios executables (`ank`, `ank-server` and `ank-agent`) are available at specified path.
-2. It prints out the version number executables.
-3. It starts the `podman` service if it is not started yet.
-4. It starts all the tests under specified folder or a specific robot test file.
-5. It stores the test result in the folder `{Ankaios root folder}/target/robot_tests_result`.
+1. It prints out the version number executables.
+1. It starts all the tests under specified folder or a specific robot test file.
+1. It stores the test result in the folder `{Ankaios root folder}/target/robot_tests_result`.
 
 ### Run in development container
 Generic syntax:
@@ -178,7 +177,6 @@ Use default executable directory: /workspaces/ankaios/tools/../target/debug
 Found ank 0.1.0
 Found ank-server 0.1.0
 Found ank-agent 0.1.0
-podman service is already running
 ==============================================================================
 List Workloads :: List workloads test cases.                                  
 ==============================================================================
