@@ -43,7 +43,7 @@ The RuntimeManager holds a list of RuntimeFacades (more precisely a list of runt
 
 ### RuntimeFacade
 
-The RuntimeFacade wraps some common actions shared between all runtime connectors, s.t. they don't need to be implemented multiple times. The RuntimeFacade is responsible for creating, resuming and replacing a WorkloadObject including the start of the workload control task. The RuntimeFacade is also responsible for providing functionality for deleting a workloads that do not have an internal WorkloadObject (found unneeded workloads started in a previous execution of the Ankaios agent).
+The RuntimeFacade wraps some common actions shared between all runtime connectors, s.t. they don't need to be implemented multiple times. The RuntimeFacade is responsible for creating, resuming and replacing a WorkloadObject including the start of the workload control task. Furthermore, The RuntimeFacade is responsible for providing functionality for deleting workloads that do not have an internal WorkloadObject (found unneeded workloads started in a previous execution of the Ankaios agent).
 
 ### WorkloadObject
 
@@ -378,7 +378,7 @@ Status: approved
 When handling existing workloads, the RuntimeManager shall call each RuntimeFacade to request a list of existing workloads started during the same machine runtime window by a previous execution of an Ankaios Agent with the same name as the currently running Agent.
 
 Comment:
-A 'machine runtime window' is the time between the start and shutdown of the machine. Finding existing workloads needs to be done fore stating new workloads in order to avoid conflicts. If this call fails, the agent currently ignores the failure assumes that no workloads are running. It must be confirmed that this behavior is correct.
+A 'machine runtime window' is the time between the start and shutdown of the machine. Finding existing workloads needs to be done before stating new workloads in order to avoid conflicts. If this call fails, the agent currently ignores the failure assumes that no workloads are running. It must be confirmed that this behavior is correct.
 
 Tags: 
 - RuntimeManager
@@ -395,7 +395,7 @@ Status: approved
 When receiving a call to list all reusable workloads, the RuntimeFacade shall forward the call to the wrapped runtime and return the list to the caller.
 
 Comment:
-No decoupling is done here and we wait for the list to be build in order to prevent race conditions with calls from the server.
+No decoupling is done here and we wait for the list to be built in order to prevent race conditions with calls from the server.
 
 Tags: 
 - RuntimeFacade
@@ -486,7 +486,7 @@ Needs:
 
 Status: approved
 
-When handling existing workloads, for each found existing workload that is request to be started and for which a change in the configuration was detected, the RuntimeManager shall request the RuntimeFacade to replace the workload.
+When handling existing workloads, for each found existing workload which is requested to be started and for which a change in the configuration was detected, the RuntimeManager shall request the RuntimeFacade to replace the workload.
 
 Comment:
 The RuntimeManager can check if the specified workload is already running, but was updated by comparing the new workload execution instance name with that of the running instance.
@@ -529,7 +529,7 @@ Status: approved
 
 When handling existing workloads, for each found existing workload that is not in the provided list of initial workloads, the RuntimeManager shall request the RuntimeFacade to delete the workload.
 
-If the the Runtime Adapter finds an existing Workload that is not in the provided list of initial workloads, the Ankaios Agent shall stop the existing Workload.
+If the the RuntimeManager finds an existing Workload that is not in the provided list of initial workloads, the Ankaios Agent shall stop the existing Workload.
 
 Tags:
 - RuntimeManager
@@ -657,7 +657,7 @@ Comment:
 The assumption here is that the old workload is not running anymore.
 
 Rationale:
-This allow to bring the system into a working state.
+This allows to bring the system into a working state.
 
 Tags:
 - WorkloadObject
@@ -674,7 +674,7 @@ Status: approved
 When the workload control task encounters a failure while deleting the old workload during the update of a workload, the control task shall continue allowing a subsequent update or delete attempt.
 
 Rationale:
-This allow to try the update again instead of going in an undefined state.
+This allows to try the update again instead of going in an undefined state.
 
 Tags:
 - WorkloadObject
@@ -691,7 +691,7 @@ Status: approved
 When the workload control task encounters a failure while creating a new workload during the update of a workload, the control task shall continue allowing a subsequent update or delete attempt.
 
 Rationale:
-This allow to try the update again instead of going in an undefined state.
+This allows to try the update again instead of going in an undefined state.
 
 Tags:
 - WorkloadObject
@@ -736,7 +736,7 @@ Needs:
 
 Status: approved
 
-When the WorkloadObject receives a trigger to deletion the workload, it:
+When the WorkloadObject receives a trigger to delete the workload, it:
 * stops the control interface
 * sends a command on the command channel to the workload task to delete the workload
 
@@ -784,7 +784,7 @@ Comment:
 The assumption here is that the old workload is not running anymore and the job is done.
 
 Rationale:
-This allow to bring the system into a working state.
+This allows to bring the system into a working state.
 
 Tags:
 - WorkloadObject
@@ -801,7 +801,7 @@ Status: approved
 When the workload control task encounters a failure while deleting the workload, the control task shall continue allowing a subsequent update or delete attempt.
 
 Rationale:
-This allow to try the delete again instead of going in an undefined state.
+This allows to try the delete again instead of going in an undefined state.
 
 Tags:
 - WorkloadObject
@@ -815,7 +815,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Agent gets an `UpdateWorkload` message with an added workloads that was already started by the RuntimeManager, the RuntimeManager shall trigger the update of the workload.
+When the Ankaios Agent gets an `UpdateWorkload` message with an added workload that was already started by the RuntimeManager, the RuntimeManager shall trigger the update of the workload.
 
 Comment:
 This situation can happen if the Ankaios Server gets restarted. It is not yet confirmed if this handling is correct and it is subject to change.
@@ -832,7 +832,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios agent gets an `UpdateWorkload` message with an added workload that was not started already and the runtime is known, the Agent Manager shall request the corresponding RuntimeFacade to create the workload.
+When the Ankaios agent gets an `UpdateWorkload` message with an added workload that was not started already and the runtime is known, the RuntimeManager shall request the corresponding RuntimeFacade to create the workload.
 
 Tags:
 - RuntimeManager
@@ -913,7 +913,7 @@ Needs:
 
 Status: approved
 
-When the Podman runtime connector is called to return its unique name, the Podman runtime connector shall return `podman`
+When the Podman runtime connector is called to return its unique name, the Podman runtime connector shall return `podman`.
 
 Tags:
 - PodmanRuntimeConnector
@@ -1209,7 +1209,7 @@ the Podman kube runtime connector shall store the pods in a volume:
 * the JSON data is stored base64 encoded in the label `data` of the volume
 
 Rationale:
-The data stored in this volume is needed, if the agent is restarted to recreated the Podman kube workload ID.
+The data stored in this volume is needed, if the agent is restarted to recreate the Podman kube workload ID.
 
 Tags:
 - PodmanKubeRuntimeConnector
