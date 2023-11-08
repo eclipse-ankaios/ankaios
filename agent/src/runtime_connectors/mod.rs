@@ -17,11 +17,8 @@ mod cli_command;
 mod podman_cli;
 
 pub(crate) mod podman;
-// pub use podman::{PodmanRuntime, PodmanRuntimeConfig, PodmanWorkloadId};
-// pub use podman::{PodmanRuntime, PodmanRuntimeConfig, PodmanWorkloadId};
 
 pub(crate) mod podman_kube;
-// pub use podman_kube::{PodmanKubeConfig, PodmanKubeRuntime, PodmanKubeWorkloadId};
 
 mod runtime_connector;
 pub use runtime_connector::{OwnableRuntime, RuntimeConnector, RuntimeError};
