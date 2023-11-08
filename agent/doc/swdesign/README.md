@@ -51,7 +51,7 @@ A WorkloadObject represents a workload inside the Ankaios agent. It holds the co
 
 ### ParameterStorage
 
-Stores information which the Agent gets from the Server. Currently the storage stores the workload status and mapping from workload name to runtime name.
+Stores information which the Agent gets from the Server. Currently the storage stores the workload state of workloads for each agent.
 
 ### ControlInterface
 
@@ -59,7 +59,7 @@ The ControlInterface is responsible for setting up the communication interface b
 
 ### RuntimeConnectorInterfaces
 
-This is not really a component but defines the "requirements" towards specific runtime connectors s.t. they can be used by Ankaios. Three traits need to be implemented by each specific connector:
+This is not really a component but a collection of traits that define the "requirements" towards specific runtime connectors s.t. they can be used by Ankaios. The following three traits specify the interface of the connectors where for one of them (state checker) a reusable default implementation is provided:
 * runtime state getter trait - specifies that the workload state can be obtained using a workload id
 * state checker trait - specifies that each workload state checker can be stopped
 * runtime connector trait - specifies the methods that Ankaios requires in order to use a runtime (see below for more details)
@@ -361,7 +361,7 @@ Status: approved
 After receiving the complete list of added workloads from the Ankaios Sever at the initial connection establishment, the RuntimeManager shall handle existing workloads.
 
 Comment:
-In case the Agent was already running, the Runtime Adapter can take care of Workloads that were started in an earlier execution. Some of these workloads can be reused, some have to be updated and some stopped.
+In case the Agent was already running, the RuntimeManager can take care of Workloads that were started in an earlier execution. Some of these workloads can be reused, some have to be updated and some stopped.
 
 Tags: 
 - RuntimeManager
