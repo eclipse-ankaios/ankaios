@@ -17,24 +17,29 @@ use std::{path::Path, str::FromStr};
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::Directory;
 use crate::control_interface::FileSystemError;
-use clap::Parser;
-use common::{DEFAULT_SERVER_ADDRESS, SERVER_SOCKET_ENV_KEY};
+use clap::{
+    error::{ContextKind, ContextValue, ErrorKind},
+    Parser,
+};
+use common::{DEFAULT_SERVER_ADDRESS, SERVER_URL_ENV_KEY};
 use url::Url;
 
 const DEFAULT_PODMAN_SOCK: &str = "/run/user/1000/podman/podman.sock";
 const DEFAULT_RUN_FOLDER: &str = "/tmp/ankaios/";
 const RUNFOLDER_SUFFIX: &str = "_io";
 
-#[derive(Clone)]
-struct CustomValueParser;
+#[derive(Clone, Default)]
+/// Custom url parser as a workaround to Clap's bug about
+/// outputting the wrong error message context
+/// when using the environment variable and not the cli argument.
+/// When using a wrong value inside environment variable
+/// Clap still outputs that the cli argument was wrongly set,
+/// but not the environment variable. This is poor use-ability.
+/// An issue for this bug is already opened (https://github.com/clap-rs/clap/issues/5202).
+/// The code will be removed if the bug in Clap is fixed.
+struct ServerUrlParser;
 
-impl CustomValueParser {
-    pub fn new() -> Self {
-        CustomValueParser {}
-    }
-}
-
-impl clap::builder::TypedValueParser for CustomValueParser {
+impl clap::builder::TypedValueParser for ServerUrlParser {
     type Value = Url;
 
     fn parse_ref(
@@ -43,17 +48,23 @@ impl clap::builder::TypedValueParser for CustomValueParser {
         arg: Option<&clap::Arg>,
         value: &std::ffi::OsStr,
     ) -> Result<Self::Value, clap::Error> {
-        use clap::error::*;
         let mut err = clap::Error::new(ErrorKind::ValueValidation).with_cmd(cmd);
         if let Some(arg) = arg {
-            if arg.get_env().is_some() {
-                err.insert(
-                    ContextKind::InvalidArg,
-                    ContextValue::String(format!(
-                        "environment variable '{}'",
-                        SERVER_SOCKET_ENV_KEY
-                    )),
-                );
+            if let Ok(env_var) = std::env::var(SERVER_URL_ENV_KEY) {
+                if env_var == value.to_string_lossy() {
+                    err.insert(
+                        ContextKind::InvalidArg,
+                        ContextValue::String(format!(
+                            "environment variable '{}'",
+                            SERVER_URL_ENV_KEY
+                        )),
+                    );
+                } else {
+                    err.insert(
+                        ContextKind::InvalidArg,
+                        ContextValue::String(arg.to_string()),
+                    );
+                }
             } else {
                 err.insert(
                     ContextKind::InvalidArg,
@@ -80,7 +91,7 @@ pub struct Arguments {
     #[clap(short = 'n', long = "name")]
     /// The name to use for the registration with the server. Every agent has to register with a unique name.
     pub agent_name: String,
-    #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.parse().unwrap())]
+    #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.parse().unwrap(), env = SERVER_URL_ENV_KEY, value_parser = ServerUrlParser::default())]
     /// The server url.
     pub server_url: Url,
     #[clap(short = 'p', long = "podman-socket-path", default_value_t = DEFAULT_PODMAN_SOCK.into())]
@@ -90,8 +101,6 @@ pub struct Arguments {
     /// An existing path where to manage the fifo files.
     #[clap(short = 'r', long = "run-folder", default_value_t = DEFAULT_RUN_FOLDER.into())]
     pub run_folder: String,
-    #[clap(short = 'i', long = "integer", default_value_t = DEFAULT_SERVER_ADDRESS.parse().unwrap(), env = SERVER_SOCKET_ENV_KEY, value_parser = CustomValueParser::new())]
-    pub integer: Url,
 }
 
 impl Arguments {

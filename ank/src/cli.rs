@@ -12,12 +12,70 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::error::Error;
+use std::{error::Error, str::FromStr};
 
-use clap::{command, Parser, Subcommand};
+use clap::{
+    command,
+    error::{ContextKind, ContextValue, ErrorKind},
+    Parser, Subcommand,
+};
 
-use common::DEFAULT_SERVER_ADDRESS;
+use common::{DEFAULT_SERVER_ADDRESS, SERVER_URL_ENV_KEY};
 use url::Url;
+
+#[derive(Clone, Default)]
+/// Custom url parser as a workaround to Clap's bug about
+/// outputting the wrong error message context
+/// when using the environment variable and not the cli argument.
+/// When using a wrong value inside environment variable
+/// Clap still outputs that the cli argument was wrongly set,
+/// but not the environment variable. This is poor use-ability.
+/// An issue for this bug is already opened (https://github.com/clap-rs/clap/issues/5202).
+/// The code will be removed if the bug in Clap is fixed.
+struct ServerUrlParser;
+
+impl clap::builder::TypedValueParser for ServerUrlParser {
+    type Value = Url;
+
+    fn parse_ref(
+        &self,
+        cmd: &clap::Command,
+        arg: Option<&clap::Arg>,
+        value: &std::ffi::OsStr,
+    ) -> Result<Self::Value, clap::Error> {
+        let mut err = clap::Error::new(ErrorKind::ValueValidation).with_cmd(cmd);
+        if let Some(arg) = arg {
+            if let Ok(env_var) = std::env::var(SERVER_URL_ENV_KEY) {
+                if env_var == value.to_string_lossy() {
+                    err.insert(
+                        ContextKind::InvalidArg,
+                        ContextValue::String(format!(
+                            "environment variable '{}'",
+                            SERVER_URL_ENV_KEY
+                        )),
+                    );
+                } else {
+                    err.insert(
+                        ContextKind::InvalidArg,
+                        ContextValue::String(arg.to_string()),
+                    );
+                }
+            } else {
+                err.insert(
+                    ContextKind::InvalidArg,
+                    ContextValue::String(arg.to_string()),
+                );
+            }
+        }
+
+        err.insert(
+            ContextKind::InvalidValue,
+            ContextValue::String(value.to_str().unwrap().to_owned()),
+        );
+        let url = Url::from_str(value.to_str().unwrap()).map_err(|_| err)?;
+        Ok(url)
+    }
+}
 
 #[derive(Parser)] // requires `derive` feature
 #[command(name = "ank")]
@@ -27,7 +85,7 @@ use url::Url;
 pub struct AnkCli {
     #[command(subcommand)]
     pub command: Commands,
-    #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.parse().unwrap())]
+    #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.parse().unwrap(), env = SERVER_URL_ENV_KEY, value_parser = ServerUrlParser::default() )]
     /// The url to Ankaios server.
     pub server_url: Url,
     #[clap(long = "response-timeout", default_value_t = 3000)]
