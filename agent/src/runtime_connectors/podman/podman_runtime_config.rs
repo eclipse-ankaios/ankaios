@@ -1,5 +1,7 @@
 use common::objects::WorkloadSpec;
 
+use crate::runtime_connectors::podman_cli::PodmanRunConfig;
+
 use super::podman_runtime::PODMAN_RUNTIME_NAME;
 
 #[derive(Debug, serde::Deserialize, Eq, PartialEq)]
@@ -12,6 +14,17 @@ pub struct PodmanRuntimeConfig {
     pub image: String,
     #[serde(default, alias = "commandArgs")]
     pub command_args: Vec<String>,
+}
+
+impl From<PodmanRuntimeConfig> for PodmanRunConfig {
+    fn from(value: PodmanRuntimeConfig) -> Self {
+        PodmanRunConfig {
+            general_options: value.general_options,
+            command_options: value.command_options,
+            image: value.image,
+            command_args: value.command_args,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -51,14 +64,17 @@ impl From<TryFromWorkloadSpecError> for String {
 mod tests {
     use common::test_utils::generate_test_workload_spec_with_param;
 
-    use crate::runtime_connectors::podman::{podman_runtime::PODMAN_RUNTIME_NAME, PodmanRuntimeConfig};
+    use super::PodmanRuntimeConfig;
+    use crate::runtime_connectors::{
+        podman::podman_runtime::PODMAN_RUNTIME_NAME, podman_cli::PodmanRunConfig,
+    };
 
     const DIFFERENT_RUNTIME_NAME: &str = "different-runtime-name";
     const AGENT_NAME: &str = "agent_x";
     const WORKLOAD_1_NAME: &str = "workload1";
 
-    #[tokio::test]
-    async fn utest_podman_config_failure_missing_image() {
+    #[test]
+    fn utest_podman_config_failure_missing_image() {
         let mut workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
@@ -70,8 +86,8 @@ mod tests {
         assert!(PodmanRuntimeConfig::try_from(&workload_spec).is_err());
     }
 
-    #[tokio::test]
-    async fn utest_podman_config_failure_wrong_runtime() {
+    #[test]
+    fn utest_podman_config_failure_wrong_runtime() {
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
@@ -81,8 +97,8 @@ mod tests {
         assert!(PodmanRuntimeConfig::try_from(&workload_spec).is_err());
     }
 
-    #[tokio::test]
-    async fn utest_podman_config_success() {
+    #[test]
+    fn utest_podman_config_success() {
         let mut workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
@@ -101,6 +117,28 @@ mod tests {
         assert_eq!(
             PodmanRuntimeConfig::try_from(&workload_spec).unwrap(),
             expected_podman_config
+        );
+    }
+
+    #[test]
+    fn utest_podman_config_to_podman_run_config() {
+        let podman_runtime_config = PodmanRuntimeConfig {
+            general_options: vec!["1".to_string(), "42".to_string()],
+            command_options: vec!["--network=host".to_string(), "foo".to_string()],
+            image: "alpine:latest".to_string(),
+            command_args: vec!["bash".to_string(), "bar".to_string()],
+        };
+
+        let podman_run_config = PodmanRunConfig {
+            general_options: vec!["1".to_string(), "42".to_string()],
+            command_options: vec!["--network=host".to_string(), "foo".to_string()],
+            image: "alpine:latest".to_string(),
+            command_args: vec!["bash".to_string(), "bar".to_string()],
+        };
+
+        assert_eq!(
+            PodmanRunConfig::from(podman_runtime_config),
+            podman_run_config
         );
     }
 }

@@ -30,9 +30,6 @@ const PODS_VOLUME_SUFFIX: &str = ".pods";
 #[derive(Debug, Clone)]
 pub struct PodmanKubeRuntime {}
 
-#[derive(Debug)]
-pub struct PodmanKubeConfig {}
-
 #[derive(Clone, Debug)]
 
 // [impl->swdd~podman-kube-workload-id]

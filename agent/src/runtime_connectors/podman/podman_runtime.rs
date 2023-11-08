@@ -98,8 +98,8 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         let workload_cfg = PodmanRuntimeConfig::try_from(&workload_spec)
             .map_err(|err| RuntimeError::Create(err.into()))?;
 
-        let workload_id = PodmanCli::run_workload(
-            workload_cfg,
+        let workload_id = PodmanCli::podman_run(
+            workload_cfg.into(),
             workload_spec.instance_name().to_string().as_str(),
             workload_spec.agent.as_str(),
             control_interface_path,
@@ -273,7 +273,9 @@ mod tests {
 
         assert_eq!(
             podman_runtime.get_reusable_workloads(&agent_name).await,
-            Err(crate::runtime_connectors::RuntimeError::List("Simulated error".into()))
+            Err(crate::runtime_connectors::RuntimeError::List(
+                "Simulated error".into()
+            ))
         );
     }
 
@@ -282,7 +284,7 @@ mod tests {
     async fn utest_create_workload_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let context = PodmanCli::run_workload_context();
+        let context = PodmanCli::podman_run_context();
         context.expect().return_const(Ok("test_id".into()));
 
         let workload_spec = generate_test_workload_spec_with_param(
@@ -308,7 +310,7 @@ mod tests {
     async fn utest_create_workload_run_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let context = PodmanCli::run_workload_context();
+        let context = PodmanCli::podman_run_context();
         context
             .expect()
             .return_const(Err("podman run failed".into()));
