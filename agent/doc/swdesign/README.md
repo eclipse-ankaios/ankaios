@@ -1115,9 +1115,6 @@ Needs:
 - impl
 - utest
 
-Covers:
-- swdd~functions-required-by-runtime-connector~1
-
 ###### Podman kube create workload apply the manifest file
 `swdd~podman-kube-create-workload-runs-workload~1`
 
@@ -1132,9 +1129,6 @@ Tags:
 Needs:
 - impl
 - utest
-
-Covers:
-- swdd~functions-required-by-runtime-connector~1
 
 ###### Podman kube workload id
 `swdd~podman-kube-workload-id`
@@ -1159,9 +1153,6 @@ Needs:
 - impl
 - utest
 
-Covers:
-- swdd~functions-required-by-runtime-connector~1
-
 ###### Podman kube create workload returns workload id
 `swdd~podman-kube-create-workload-returns-workload-id~1`
 
@@ -1176,9 +1167,6 @@ Tags:
 Needs:
 - impl
 - utest
-
-Covers:
-- swdd~functions-required-by-runtime-connector~1
 
 ###### Podman kube create workload creates config volume
 `swdd~podman-kube-create-workload-creates-config-volume~1`
@@ -1209,9 +1197,6 @@ Needs:
 - impl
 - utest
 
-Covers:
-- swdd~functions-required-by-runtime-connector~1
-
 ###### Podman kube create workload creates pods volume
 `swdd~podman-kube-create-workload-creates-pods-volume~1`
 
@@ -1233,9 +1218,6 @@ Needs:
 - impl
 - utest
 
-Covers:
-- swdd~functions-required-by-runtime-connector~1
-
 ###### Podman kube create continues if it cannot create volumes
 `swdd~podman-kube-create-continues-if-cannot-create-volume~1`
 
@@ -1256,9 +1238,6 @@ Needs:
 - impl
 - utest
 
-Covers:
-- swdd~functions-required-by-runtime-connector~1
-
 ###### Podman kube create starts PodmanKubeStateGetter
 `swdd~podman-kube-create-starts-podman-kube-state-getter~1`
 
@@ -1273,9 +1252,6 @@ Tags:
 Needs:
 - impl
 - utest
-
-Covers:
-- swdd~functions-required-by-runtime-connector~1
 
 ###### Podman kube list of existing workloads uses config volumes
 `swdd~podman-kube-list-existing-workloads-using-config-volumes~1`
@@ -1292,9 +1268,6 @@ Needs:
 - impl
 - utest
 
-Covers:
-- swdd~functions-required-by-runtime-connector~1
-
 ###### Podman kube get workload id uses volumes
 `swdd~podman-kube-get-workload-id-uses-volumes~1`
 
@@ -1309,9 +1282,6 @@ Tags:
 Needs:
 - impl
 - utest
-
-Covers:
-- swdd~functions-required-by-runtime-connector~1
 
 ###### Podman kube delete workload downs manifest file
 `swdd~podman-kube-delete-workload-downs-manifest-file~1`
@@ -1328,9 +1298,6 @@ Needs:
 - impl
 - utest
 
-Covers:
-- swdd~functions-required-by-runtime-connector~1
-
 ###### Podman kube delete workload remove volumes
 `swdd~podman-kube-delete-removes-volumes~1`
 
@@ -1345,9 +1312,6 @@ Tags:
 Needs:
 - impl
 - utest
-
-Covers:
-- swdd~functions-required-by-runtime-connector~1
 
 ### Getting workload states
 
