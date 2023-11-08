@@ -306,7 +306,9 @@ impl PodmanCli {
     }
 
     pub async fn remove_workloads_by_id(workload_id: &str) -> Result<(), String> {
-        let args = vec!["rm", "--force", workload_id];
+        let args = vec!["stop", workload_id];
+        CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
+        let args = vec!["rm", workload_id];
         CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
         Ok(())
     }
@@ -1217,14 +1219,39 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_remove_workloads_by_id_failed() {
+    async fn utest_remove_workloads_by_id_stop_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
 
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["rm", "--force", "test_id"])
+                .expect_args(&["stop", "test_id"])
+                .exec_returns(Err("simulated error".to_string())),
+        );
+
+        assert_eq!(
+            PodmanCli::remove_workloads_by_id("test_id").await,
+            Err("simulated error".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn utest_remove_workloads_by_id_remove_failed() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["stop", "test_id"])
+                .exec_returns(Ok("".to_string())),
+        );
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["rm", "test_id"])
                 .exec_returns(Err("simulated error".to_string())),
         );
 
@@ -1242,7 +1269,14 @@ mod tests {
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["rm", "--force", "test_id"])
+                .expect_args(&["stop", "test_id"])
+                .exec_returns(Ok("".to_string())),
+        );
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["rm", "test_id"])
                 .exec_returns(Ok("".to_string())),
         );
 
