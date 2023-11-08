@@ -11,6 +11,7 @@ use futures_util::TryFutureExt;
 #[cfg(test)]
 use mockall_double::double;
 
+// [impl->swdd~podman-kube-uses-podman-cli~1]
 #[cfg_attr(test, double)]
 use crate::podman::podman_cli::PodmanCli;
 use crate::{
@@ -33,6 +34,8 @@ pub struct PodmanKubeRuntime {}
 pub struct PodmanKubeConfig {}
 
 #[derive(Clone, Debug)]
+
+// [impl->swdd~podman-kube-workload-id]
 pub struct PodmanKubeWorkloadId {
     // Podman currently does not provide an Id for a created manifest
     // and one needs the complete manifest to tear down the deployed resources.
@@ -49,11 +52,14 @@ pub struct PlayKubeOutput {}
 pub struct PlayKubeError {}
 
 #[async_trait]
+// [impl->swdd~podman-kube-implements-runtime-connector~1]
 impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRuntime {
+    // [impl->swdd~podman-kube-name-returns-podman-kube~1]
     fn name(&self) -> String {
         PODMAN_KUBE_RUNTIME_NAME.to_string()
     }
 
+    // [impl->podman-kube-list-existing-workloads-using-config-volumes]
     async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
@@ -99,6 +105,8 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         let workload_config =
             PodmanKubeRuntimeConfig::try_from(&workload_spec).map_err(RuntimeError::Create)?;
 
+        // [impl->swdd~podman-kube-create-workload-creates-config-volume~1]
+        // [impl->swdd~podman-kube-create-continues-if-cannot-create-volume~1]
         PodmanCli::store_data_as_volume(
             &(instance_name.to_string() + CONFIG_VOLUME_SUFFIX),
             &workload_spec.runtime_config,
@@ -112,6 +120,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
             )
         });
 
+        // [impl->swdd~podman-kube-create-workload-runs-workload~1]
         let created_pods = PodmanCli::play_kube(
             &workload_config.general_options,
             &workload_config.play_options,
@@ -120,6 +129,8 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         .await
         .map_err(RuntimeError::Create)?;
 
+        // [impl->swdd~podman-kube-create-workload-creates-pods-volume~1]
+        // [impl->swdd~podman-kube-create-continues-if-cannot-create-volume~1]
         match serde_json::to_string(&created_pods) {
             Ok(pods_as_json) => {
                 PodmanCli::store_data_as_volume(
@@ -145,13 +156,16 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
             down_options: workload_config.down_options,
         };
 
+        // [impl->swdd~podman-kube-create-starts-podman-kube-state-getter~1]
         let state_checker = self
             .start_checker(&workload_id, workload_spec, update_state_tx)
             .await?;
 
+        // [impl->swdd~podman-kube-create-workload-returns-workload-id~1]
         Ok((workload_id, state_checker))
     }
 
+    // [impl->swdd~podman-kube-get-workload-id-uses-volumes~1]
     async fn get_workload_id(
         &self,
         instance_name: &WorkloadExecutionInstanceName,
@@ -210,11 +224,14 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         &self,
         workload_id: &PodmanKubeWorkloadId,
     ) -> Result<(), RuntimeError> {
+        // [impl->swdd~podman-kube-delete-workload-downs-manifest-file~1]
         PodmanCli::down_kube(&workload_id.down_options, workload_id.manifest.as_bytes())
             .map_err(RuntimeError::Delete)
             .await?;
+        // [utest->swdd~podman-kube-delete-removes-volumes~1]
         let _ =
             PodmanCli::remove_volume(&(workload_id.name.to_string() + PODS_VOLUME_SUFFIX)).await;
+        // [utest->swdd~podman-kube-delete-removes-volumes~1]
         let _ =
             PodmanCli::remove_volume(&(workload_id.name.to_string() + CONFIG_VOLUME_SUFFIX)).await;
         Ok(())
@@ -222,12 +239,16 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
 }
 
 #[async_trait]
+// [impl->swdd~podman-kube-implements-runtime-state-getter~1]
 impl RuntimeStateGetter<PodmanKubeWorkloadId> for PodmanKubeRuntime {
     async fn get_state(&self, id: &PodmanKubeWorkloadId) -> ExecutionState {
         if let Some(pods) = &id.pods {
+            // [impl->swdd~podman-kube-state-getter-uses-container-states~1]
             let x = PodmanCli::list_states_from_pods(pods).await;
 
             match x {
+                // [impl->swdd~podman-kube-state-getter-removed-if-no-container~1]
+                // [impl->swdd~podman-kube-state-getter-combines-states~1]
                 Ok(x) => x
                     .into_iter()
                     .map(OrderedExecutionState::from)
@@ -246,6 +267,8 @@ impl RuntimeStateGetter<PodmanKubeWorkloadId> for PodmanKubeRuntime {
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
+
+// [impl->swdd~podman-kube-state-getter-removed-if-no-container~1]
 enum OrderedExecutionState {
     Failed,
     Pending,
@@ -255,6 +278,7 @@ enum OrderedExecutionState {
     Removed,
 }
 
+// [impl->`swdd~podman-kube-state-getter-maps-state~1`]
 impl From<podman_cli::ContainerState> for OrderedExecutionState {
     fn from(value: podman_cli::ContainerState) -> Self {
         match value {
@@ -270,6 +294,7 @@ impl From<podman_cli::ContainerState> for OrderedExecutionState {
     }
 }
 
+// [impl->`swdd~podman-kube-state-getter-maps-state~1`]
 impl From<OrderedExecutionState> for ExecutionState {
     fn from(value: OrderedExecutionState) -> Self {
         match value {
@@ -339,6 +364,14 @@ mod tests {
         };
     }
 
+    // [utest->swdd~podman-kube-name-returns-podman-kube~1]
+    #[test]
+    fn utest_name_podman_kube() {
+        let runtime = PodmanKubeRuntime {};
+        assert_eq!(runtime.name(), "podman-kube");
+    }
+
+    // [utest->podman-kube-list-existing-workloads-using-config-volumes]
     #[tokio::test]
     async fn utest_get_reusable_running_workloads_success() {
         let workload_instance_1 = "workload_1.hash_1.agent_A";
@@ -410,6 +443,7 @@ mod tests {
     async fn utest_create_workload_success() {
         let mock_context = MockContext::new().await;
 
+        // [utest->swdd~podman-kube-create-workload-creates-config-volume~1]
         mock_context
             .store_data(
                 WORKLOAD_INSTANCE_NAME.as_config_volume(),
@@ -417,6 +451,7 @@ mod tests {
             )
             .returns(Ok(()));
 
+        // [utest->swdd~podman-kube-create-workload-runs-workload~1]
         mock_context
             .play_kube(
                 &*SAMPLE_GENERAL_OPTIONS,
@@ -425,6 +460,7 @@ mod tests {
             )
             .returns(Ok(SAMPLE_POD_LIST.clone()));
 
+        // [utest->swdd~podman-kube-create-workload-creates-pods-volume~1]
         mock_context
             .store_data(
                 WORKLOAD_INSTANCE_NAME.as_pods_volume(),
@@ -444,6 +480,7 @@ mod tests {
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime.create_workload(workload_spec, None, sender).await;
+        // [utest->swdd~podman-kube-create-workload-returns-workload-id~1]
         assert!(matches!(workload, Ok((workload_id, _)) if
                 workload_id.name == *WORKLOAD_INSTANCE_NAME &&
                 workload_id.manifest == SAMPLE_KUBE_CONFIG &&
@@ -451,6 +488,7 @@ mod tests {
                 workload_id.down_options == *SAMPLE_DOWN_OPTIONS));
     }
 
+    // [utest->swdd~podman-kube-create-continues-if-cannot-create-volume~1]
     #[tokio::test]
     async fn utest_create_workload_handle_cant_store_config() {
         let mock_context = MockContext::new().await;
@@ -495,10 +533,57 @@ mod tests {
                 workload_id.down_options == *SAMPLE_DOWN_OPTIONS));
     }
 
+    // [utest->swdd~podman-kube-create-continues-if-cannot-create-volume~1]
+    #[tokio::test]
+    async fn utest_create_workload_handle_cant_store_pods() {
+        let mock_context = MockContext::new().await;
+
+        mock_context
+            .store_data(
+                WORKLOAD_INSTANCE_NAME.as_config_volume(),
+                SAMPLE_RUNTIME_CONFIG,
+            )
+            .returns(Ok(()));
+
+        mock_context
+            .play_kube(
+                &*SAMPLE_GENERAL_OPTIONS,
+                &*SAMPLE_PLAY_OPTIONS,
+                SAMPLE_KUBE_CONFIG,
+            )
+            .returns(Ok(SAMPLE_POD_LIST.clone()));
+
+        mock_context
+            .store_data(
+                WORKLOAD_INSTANCE_NAME.as_pods_volume(),
+                r#"["pod1","pod2"]"#,
+            )
+            .returns(Err(SAMPLE_ERROR.into()));
+
+        let runtime = PodmanKubeRuntime {};
+
+        let mut workload_spec = generate_test_workload_spec_with_param(
+            SAMPLE_AGENT.to_string(),
+            SAMPLE_WORKLOAD_1.to_string(),
+            PODMAN_KUBE_RUNTIME_NAME.to_string(),
+        );
+
+        workload_spec.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
+
+        let (sender, _) = tokio::sync::mpsc::channel(1);
+        let workload = runtime.create_workload(workload_spec, None, sender).await;
+        assert!(matches!(workload, Ok((workload_id, _)) if
+                workload_id.name == *WORKLOAD_INSTANCE_NAME &&
+                workload_id.manifest == SAMPLE_KUBE_CONFIG &&
+                workload_id.pods == Some(SAMPLE_POD_LIST.clone()) &&
+                workload_id.down_options == *SAMPLE_DOWN_OPTIONS));
+    }
+
     #[tokio::test]
     async fn utest_create_workload_command_fails() {
         let mock_context = MockContext::new().await;
 
+        // [utest->swdd~podman-kube-create-workload-creates-config-volume~1]
         mock_context
             .store_data(
                 WORKLOAD_INSTANCE_NAME.as_config_volume(),
@@ -529,6 +614,7 @@ mod tests {
         assert!(matches!(workload, Err(RuntimeError::Create(msg)) if msg == SAMPLE_ERROR));
     }
 
+    // [utest->swdd~podman-kube-get-workload-id-uses-volumes~1]
     #[tokio::test]
     async fn utest_get_workload_id_success() {
         let mock_context = MockContext::new().await;
@@ -627,12 +713,15 @@ mod tests {
     async fn utest_delete_workload_success() {
         let mock_context = MockContext::new().await;
 
+        // [utest->swdd~podman-kube-delete-workload-downs-manifest-file~1]
         mock_context
             .down_kube(&*SAMPLE_DOWN_OPTIONS, SAMPLE_KUBE_CONFIG)
             .returns(Ok(()));
+        // [utest->swdd~podman-kube-delete-removes-volumes~1]
         mock_context
             .remove_volume(WORKLOAD_INSTANCE_NAME.as_config_volume())
             .returns(Ok(()));
+        // [utest->swdd~podman-kube-delete-removes-volumes~1]
         mock_context
             .remove_volume(WORKLOAD_INSTANCE_NAME.as_pods_volume())
             .returns(Ok(()));
@@ -677,10 +766,13 @@ mod tests {
         assert!(matches!(workload, Err(..)));
     }
 
+    // [utest->swdd~podman-kube-state-getter-maps-state~1]
+    // [utest->swdd~podman-kube-state-getter-combines-states~1]
     #[tokio::test]
     async fn utest_get_state_failed() {
         let mock_context = MockContext::new().await;
 
+        // [utest->swdd~podman-kube-state-getter-uses-container-states~1]
         mock_context
             .list_states_from_pods(&*SAMPLE_POD_LIST)
             .returns(Ok(vec![
@@ -698,10 +790,13 @@ mod tests {
         assert_eq!(execution_state, ExecutionState::ExecFailed);
     }
 
+    // [utest->swdd~podman-kube-state-getter-maps-state~1]
+    // [utest->swdd~podman-kube-state-getter-combines-states~1]
     #[tokio::test]
     async fn utest_get_state_pending() {
         let mock_context = MockContext::new().await;
 
+        // [utest->swdd~podman-kube-state-getter-uses-container-states~1]
         mock_context
             .list_states_from_pods(&*SAMPLE_POD_LIST)
             .returns(Ok(vec![
@@ -718,10 +813,13 @@ mod tests {
         assert_eq!(execution_state, ExecutionState::ExecPending);
     }
 
+    // [utest->swdd~podman-kube-state-getter-maps-state~1]
+    // [utest->swdd~podman-kube-state-getter-combines-states~1]
     #[tokio::test]
     async fn utest_get_state_unkown() {
         let mock_context = MockContext::new().await;
 
+        // [utest->swdd~podman-kube-state-getter-uses-container-states~1]
         mock_context
             .list_states_from_pods(&*SAMPLE_POD_LIST)
             .returns(Ok(vec![
@@ -737,10 +835,13 @@ mod tests {
         assert_eq!(execution_state, ExecutionState::ExecUnknown);
     }
 
+    // [utest->swdd~podman-kube-state-getter-maps-state~1]
+    // [utest->swdd~podman-kube-state-getter-combines-states~1]
     #[tokio::test]
     async fn utest_get_state_unkown_from_paused() {
         let mock_context = MockContext::new().await;
 
+        // [utest->swdd~podman-kube-state-getter-uses-container-states~1]
         mock_context
             .list_states_from_pods(&*SAMPLE_POD_LIST)
             .returns(Ok(vec![
@@ -755,10 +856,13 @@ mod tests {
         assert_eq!(execution_state, ExecutionState::ExecUnknown);
     }
 
+    // [utest->swdd~podman-kube-state-getter-maps-state~1]
+    // [utest->swdd~podman-kube-state-getter-combines-states~1]
     #[tokio::test]
     async fn utest_get_state_running() {
         let mock_context = MockContext::new().await;
 
+        // [utest->swdd~podman-kube-state-getter-uses-container-states~1]
         mock_context
             .list_states_from_pods(&*SAMPLE_POD_LIST)
             .returns(Ok(vec![ContainerState::Exited(0), ContainerState::Running]));
@@ -769,10 +873,13 @@ mod tests {
         assert_eq!(execution_state, ExecutionState::ExecRunning);
     }
 
+    // [utest->swdd~podman-kube-state-getter-maps-state~1]
+    // [utest->swdd~podman-kube-state-getter-combines-states~1]
     #[tokio::test]
     async fn utest_get_state_succeeded() {
         let mock_context = MockContext::new().await;
 
+        // [utest->swdd~podman-kube-state-getter-uses-container-states~1]
         mock_context
             .list_states_from_pods(&*SAMPLE_POD_LIST)
             .returns(Ok(vec![ContainerState::Exited(0)]));
@@ -783,10 +890,13 @@ mod tests {
         assert_eq!(execution_state, ExecutionState::ExecSucceeded);
     }
 
+    // [utest->swdd~podman-kube-state-getter-removed-if-no-container~1]
+    // [utest->swdd~podman-kube-state-getter-combines-states~1]
     #[tokio::test]
     async fn utest_get_state_removed() {
         let mock_context = MockContext::new().await;
 
+        // [utest->swdd~podman-kube-state-getter-uses-container-states~1]
         mock_context
             .list_states_from_pods(&*SAMPLE_POD_LIST)
             .returns(Ok(vec![]));

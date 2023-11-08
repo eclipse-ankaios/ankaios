@@ -1151,7 +1151,6 @@ Tags:
 
 Needs:
 - impl
-- utest
 
 ###### Podman kube create workload returns workload id
 `swdd~podman-kube-create-workload-returns-workload-id~1`
@@ -1251,7 +1250,6 @@ Tags:
 
 Needs:
 - impl
-- utest
 
 ###### Podman kube list of existing workloads uses config volumes
 `swdd~podman-kube-list-existing-workloads-using-config-volumes~1`

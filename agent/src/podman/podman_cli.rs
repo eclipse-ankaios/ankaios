@@ -250,6 +250,8 @@ impl PodmanCli {
             .collect())
     }
 
+    // [impl->swdd~podman-kube-create-workload-creates-config-volume~1]
+    // [impl->swdd~podman-kube-create-workload-creates-pods-volume~1]
     pub async fn store_data_as_volume(volume_name: &str, data: &str) -> Result<(), String> {
         let _ = Self::remove_volume(volume_name).await;
 
@@ -336,6 +338,7 @@ enum PodmanContainerState {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 // [utest->swdd~podman-uses-podman-cli~1]
+// [utest->swdd~podman-kube-uses-podman-cli~1]
 #[cfg(test)]
 mod tests {
     use super::{ContainerState, PodmanCli, PodmanContainerInfo, PodmanContainerState};
@@ -1014,6 +1017,8 @@ mod tests {
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE ));
     }
 
+    // [utest->swdd~podman-kube-create-workload-creates-config-volume~1]
+    // [utest->swdd~podman-kube-create-workload-creates-pods-volume~1]
     #[tokio::test]
     async fn utest_store_data_as_volume_success_volume_existed_before() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
