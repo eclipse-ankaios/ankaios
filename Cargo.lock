@@ -341,13 +341,16 @@ version = "0.1.0"
 dependencies = [
  "api",
  "async-trait",
+ "clap",
  "common",
  "log",
+ "mockall",
  "serde",
  "serde_yaml",
  "sha256",
  "tokio",
  "tokio-stream",
+ "url",
 ]
 
 [[package]]

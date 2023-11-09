@@ -18,6 +18,7 @@ pub const DEFAULT_SERVER_ADDRESS: &str = "http://127.0.0.1:25551";
 pub const SERVER_URL_ENV_KEY: &str = "ANKAIOS_SERVER_URL";
 pub const SERVER_ADDRESS_ENV_KEY: &str = "ANKAIOS_SERVER_SOCKET";
 
+pub mod cli_utils;
 pub mod commands;
 pub mod communications_client;
 pub mod communications_error;

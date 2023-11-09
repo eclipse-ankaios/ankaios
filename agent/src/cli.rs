@@ -12,75 +12,18 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{path::Path, str::FromStr};
+use std::path::Path;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::Directory;
 use crate::control_interface::FileSystemError;
-use clap::{
-    error::{ContextKind, ContextValue, ErrorKind},
-    Parser,
-};
-use common::{DEFAULT_SERVER_ADDRESS, SERVER_URL_ENV_KEY};
+use clap::Parser;
+use common::{cli_utils::ServerUrlParser, DEFAULT_SERVER_ADDRESS, SERVER_URL_ENV_KEY};
 use url::Url;
 
 const DEFAULT_PODMAN_SOCK: &str = "/run/user/1000/podman/podman.sock";
 const DEFAULT_RUN_FOLDER: &str = "/tmp/ankaios/";
 const RUNFOLDER_SUFFIX: &str = "_io";
-
-#[derive(Clone, Default)]
-/// Custom url parser as a workaround to Clap's bug about
-/// outputting the wrong error message context
-/// when using the environment variable and not the cli argument.
-/// When using a wrong value inside environment variable
-/// Clap still outputs that the cli argument was wrongly set,
-/// but not the environment variable. This is poor use-ability.
-/// An issue for this bug is already opened (https://github.com/clap-rs/clap/issues/5202).
-/// The code will be removed if the bug in Clap is fixed.
-struct ServerUrlParser;
-
-impl clap::builder::TypedValueParser for ServerUrlParser {
-    type Value = Url;
-
-    fn parse_ref(
-        &self,
-        cmd: &clap::Command,
-        arg: Option<&clap::Arg>,
-        value: &std::ffi::OsStr,
-    ) -> Result<Self::Value, clap::Error> {
-        let mut err = clap::Error::new(ErrorKind::ValueValidation).with_cmd(cmd);
-        if let Some(arg) = arg {
-            if let Ok(env_var) = std::env::var(SERVER_URL_ENV_KEY) {
-                if env_var == value.to_string_lossy() {
-                    err.insert(
-                        ContextKind::InvalidArg,
-                        ContextValue::String(format!(
-                            "environment variable '{}'",
-                            SERVER_URL_ENV_KEY
-                        )),
-                    );
-                } else {
-                    err.insert(
-                        ContextKind::InvalidArg,
-                        ContextValue::String(arg.to_string()),
-                    );
-                }
-            } else {
-                err.insert(
-                    ContextKind::InvalidArg,
-                    ContextValue::String(arg.to_string()),
-                );
-            }
-        }
-
-        err.insert(
-            ContextKind::InvalidValue,
-            ContextValue::String(value.to_str().unwrap().to_owned()),
-        );
-        let url = Url::from_str(value.to_str().unwrap()).map_err(|_| err)?;
-        Ok(url)
-    }
-}
 
 #[derive(Parser, Debug)]
 #[clap( author="The Ankaios team", 
@@ -91,7 +34,7 @@ pub struct Arguments {
     #[clap(short = 'n', long = "name")]
     /// The name to use for the registration with the server. Every agent has to register with a unique name.
     pub agent_name: String,
-    #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.parse().unwrap(), env = SERVER_URL_ENV_KEY, value_parser = ServerUrlParser::default())]
+    #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.parse().unwrap(), env = SERVER_URL_ENV_KEY, value_parser = ServerUrlParser)]
     /// The server url.
     pub server_url: Url,
     #[clap(short = 'p', long = "podman-socket-path", default_value_t = DEFAULT_PODMAN_SOCK.into())]
@@ -131,10 +74,17 @@ pub fn parse() -> Arguments {
 
 #[cfg(test)]
 mod tests {
-    use common::DEFAULT_SERVER_ADDRESS;
-
     use super::*;
     use crate::control_interface::generate_test_directory_mock;
+
+    struct CleanupEnv;
+
+    impl Drop for CleanupEnv {
+        fn drop(&mut self) {
+            std::env::remove_var(common::SERVER_URL_ENV_KEY);
+            std::env::remove_var(common::SERVER_ADDRESS_ENV_KEY);
+        }
+    }
 
     #[test]
     fn utest_arguments_get_run_directory_use_default_directory() {
