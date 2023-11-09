@@ -91,4 +91,5 @@ nav:
     - development/ci-cd-release.md
     - development/self-service.md
     - development/documentation-guidelines.md
-    
+  - support.md
+
