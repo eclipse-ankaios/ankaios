@@ -70,7 +70,7 @@ impl RuntimeManager {
         deleted_workloads: Vec<DeletedWorkload>,
     ) {
         log::info!(
-            "Received new desired state with '{}' added and '{}' deleted workloads.",
+            "Received a new desired state with '{}' added and '{}' deleted workloads.",
             added_workloads.len(),
             deleted_workloads.len()
         );
