@@ -69,7 +69,10 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         Ok(PodmanCli::list_volumes_by_name(&name_filter)
             .await
             .map_err(|err| {
-                RuntimeError::Create(format!("Could not list volume containing config: {}", err))
+                RuntimeError::Create(format!(
+                    "Could not list volume containing config: '{}'",
+                    err
+                ))
             })?
             .into_iter()
             .map(|volume_name| {
@@ -80,7 +83,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
             .filter_map(|x| match x {
                 Ok(value) => Some(value),
                 Err(err) => {
-                    log::warn!("Could not recreate workload from volume: {}", err);
+                    log::warn!("Could not recreate workload from volume: '{}'", err);
                     None
                 }
             })
@@ -111,7 +114,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         .await
         .unwrap_or_else(|err| {
             log::warn!(
-                "Could not store config for '{}' in volume: {}",
+                "Could not store config for '{}' in volume: '{}'",
                 workload_spec.name,
                 err
             )
@@ -140,7 +143,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         }
         .unwrap_or_else(|err| {
             log::warn!(
-                "Could not store pods for '{}' in volume: {}",
+                "Could not store pods for '{}' in volume: '{}'",
                 workload_spec.name,
                 err
             )
@@ -152,6 +155,12 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
             manifest: workload_config.manifest,
             down_options: workload_config.down_options,
         };
+
+        log::debug!(
+            "The workload '{}' has been created with workload execution instance name '{:?}'",
+            workload_spec.name,
+            workload_id.name
+        );
 
         // [impl->swdd~podman-kube-create-starts-podman-kube-state-getter~1]
         let state_checker = self
@@ -209,6 +218,11 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         workload_spec: WorkloadSpec,
         update_state_tx: StateChangeSender,
     ) -> Result<GenericPollingStateChecker, RuntimeError> {
+        log::debug!(
+            "Starting the checker for the workload '{}' with workload execution instance name '{}'",
+            workload_spec.name,
+            workload_id.name
+        );
         Ok(GenericPollingStateChecker::start_checker(
             &workload_spec,
             workload_id.clone(),
@@ -221,16 +235,24 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         &self,
         workload_id: &PodmanKubeWorkloadId,
     ) -> Result<(), RuntimeError> {
+        log::debug!(
+            "Deleting workload with workload execution instance name '{}'",
+            workload_id.name
+        );
+
         // [impl->swdd~podman-kube-delete-workload-downs-manifest-file~1]
         PodmanCli::down_kube(&workload_id.down_options, workload_id.manifest.as_bytes())
             .map_err(RuntimeError::Delete)
             .await?;
         // [impl->swdd~podman-kube-delete-removes-volumes~1]
-        let _ =
-            PodmanCli::remove_volume(&(workload_id.name.to_string() + PODS_VOLUME_SUFFIX)).await;
+        PodmanCli::remove_volume(&(workload_id.name.to_string() + PODS_VOLUME_SUFFIX))
+            .await
+            .unwrap_or_else(|err| log::warn!("Could not remove pods volume: '{}'", err));
         // [impl->swdd~podman-kube-delete-removes-volumes~1]
-        let _ =
-            PodmanCli::remove_volume(&(workload_id.name.to_string() + CONFIG_VOLUME_SUFFIX)).await;
+
+        PodmanCli::remove_volume(&(workload_id.name.to_string() + CONFIG_VOLUME_SUFFIX))
+            .await
+            .unwrap_or_else(|err| log::warn!("Could not remove configs volume: '{}'", err));
         Ok(())
     }
 }
@@ -239,6 +261,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
 // [impl->swdd~podman-kube-implements-runtime-state-getter~1]
 impl RuntimeStateGetter<PodmanKubeWorkloadId> for PodmanKubeRuntime {
     async fn get_state(&self, id: &PodmanKubeWorkloadId) -> ExecutionState {
+        log::trace!("Getting the state for the workload '{}'", id.name);
         if let Some(pods) = &id.pods {
             // [impl->swdd~podman-kube-state-getter-uses-container-states~1]
             match PodmanCli::list_states_from_pods(pods).await {
