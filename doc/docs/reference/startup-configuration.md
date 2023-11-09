@@ -63,6 +63,9 @@ The runtime configuration for the `podman` runtime is specified as followed:
 | mounts | array of [Mount](#mount)| no | List of mounts
 | ports | array of [Mapping](#mapping) | no | List of ports to be exposed
 | remove | boolean | no | Specify whether the container shall be removed after exited
+| networkMode | string | no | Set the network mode for the container (like `bridge`, `host`, `none`)
+
+**Note:** Some fields are optional in the runtime configuration. The Podman uses its default value if such field is not set. 
 
 #### Mount
 

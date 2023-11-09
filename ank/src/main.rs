@@ -12,20 +12,24 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::env;
+
 mod cli;
 mod cli_commands;
+use cli_commands::CliCommands;
+mod log;
+
 #[cfg(test)]
 pub mod test_helper;
-
-use cli_commands::CliCommands;
 
 // [impl->swdd~cli-standalone-application~1]
 #[tokio::main]
 async fn main() {
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or("error"));
     let args = cli::parse();
 
     let cli_name = "ank-cli";
+
+    env::set_var(log::VERBOSITY_KEY, args.verbose.to_string());
 
     match args.command {
         cli::Commands::Get(get_args) => match get_args.command {
@@ -44,9 +48,9 @@ async fn main() {
                 // [impl -> swdd~cli-blocks-until-ankaios-server-responds-get-current-state~1]
                 if let Some(out_text) = cmd.get_state(object_field_mask, output_format).await {
                     // [impl -> swdd~cli-returns-current-state-from-server~1]
-                    println!("{}", out_text);
+                    output_and_exit!("{}", out_text);
                 } else {
-                    eprintln!("Could not retrieve state.");
+                    output_and_error!("Could not retrieve state.");
                 }
             }
 
@@ -55,7 +59,7 @@ async fn main() {
                 agent_name,
                 state,
             }) => {
-                log::debug!(
+                output_debug!(
                     "Received get workload with workload_name='{:?}', agent_name='{:?}', state='{:?}'",
                     workload_name,
                     agent_name,
@@ -67,8 +71,8 @@ async fn main() {
                     args.server_url,
                 );
                 match cmd.get_workloads(agent_name, state, workload_name).await {
-                    Ok(out_text) => println!("{}", out_text),
-                    Err(error) => eprintln!("Failed to get workloads: '{}'", error),
+                    Ok(out_text) => output_and_exit!("{}", out_text),
+                    Err(error) => output_and_error!("Failed to get workloads: '{}'", error),
                 }
             }
             None => unreachable!("Unreachable code."),
@@ -79,7 +83,7 @@ async fn main() {
                 object_field_mask,
                 state_object_file,
             }) => {
-                log::debug!(
+                output_debug!(
                     "Received set with object_field_mask='{:?}' and state_object_file='{:?}'",
                     object_field_mask,
                     state_object_file
@@ -102,7 +106,7 @@ async fn main() {
         },
         cli::Commands::Delete(delete_args) => match delete_args.command {
             Some(cli::DeleteCommands::Workload { workload_name }) => {
-                log::debug!(
+                output_debug!(
                     "Received delete workload with workload_name = '{:?}'",
                     workload_name
                 );
@@ -112,7 +116,7 @@ async fn main() {
                     args.server_url,
                 );
                 if let Err(error) = cmd.delete_workloads(workload_name).await {
-                    eprintln!("Failed to delete workloads: '{}'", error);
+                    output_and_error!("Failed to delete workloads: '{}'", error);
                 }
             }
             None => unreachable!("Unreachable code."),
@@ -125,7 +129,7 @@ async fn main() {
                 agent_name,
                 tags,
             }) => {
-                log::debug!(
+                output_debug!(
                     "Received run workload with workload_name='{:?}', runtime='{:?}', runtime_config='{:?}', agent_name='{:?}', tags='{:?}'",
                     workload_name,
                     runtime_name,
@@ -148,7 +152,7 @@ async fn main() {
                     )
                     .await
                 {
-                    println!("Failed to run workloads: '{}'", error);
+                    output_and_error!("Failed to run workloads: '{}'", error);
                 }
             }
             None => unreachable!("Unreachable code."),

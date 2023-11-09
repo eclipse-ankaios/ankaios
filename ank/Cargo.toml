@@ -23,8 +23,6 @@ api = { package = "api", version = "0", path = "../api" }
 common = { package = "common", version = "0.1", path = "../common" }
 grpc = { package = "grpc", version = "0.1", path = "../grpc" }
 clap = { version = "4.0", features = ["derive"] }
-log = "0.4"
-env_logger = "0.10"
 tokio = { version = "1.28", features = [
     "macros",
     "rt-multi-thread",

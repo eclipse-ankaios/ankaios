@@ -1,5 +1,3 @@
-#!/bin/bash
-
 # Copyright (c) 2023 Elektrobit Automotive GmbH
 #
 # This program and the accompanying materials are made available under the
@@ -13,9 +11,5 @@
 # under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
-
-# It is also recommended to activate traces with ```RUST_LOG=debug``` before you generate the report.
-# This way the trace report also includes trace lines.
-# Without activated traces, the report complains that the trace lines are not covered by any test.
-RUST_LOG=debug cargo llvm-cov nextest --ignore-filename-regex "test|main|test_utils|cli.rs" "$@"
-
+*** Variables ***
+${CONFIGS_DIR}=    ${CURDIR}/configs
