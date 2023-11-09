@@ -53,7 +53,7 @@ pub async fn forward_from_proto_to_ankaios(
     agent_tx: &Sender<ExecutionCommand>,
 ) -> Result<(), GrpcProxyError> {
     while let Some(value) = grpc_streaming.message().await? {
-        log::debug!("RESPONSE={:?}", value);
+        log::trace!("RESPONSE={:?}", value);
 
         let try_block = async {
             match value
@@ -113,7 +113,7 @@ pub async fn forward_from_ankaios_to_proto(
     while let Some(execution_command) = receiver.recv().await {
         match execution_command {
             ExecutionCommand::UpdateWorkload(method_obj) => {
-                log::debug!("Received UpdateWorkload from server: {:?}.", method_obj);
+                log::trace!("Received UpdateWorkload from server: {:?}.", method_obj);
 
                 distribute_workloads_to_agents(
                     agent_senders,
@@ -123,29 +123,37 @@ pub async fn forward_from_ankaios_to_proto(
                 .await?;
             }
             ExecutionCommand::UpdateWorkloadState(method_obj) => {
-                log::debug!("Received UpdateWorkloadState from server: {:?}", method_obj);
+                log::trace!("Received UpdateWorkloadState from server: {:?}", method_obj);
 
                 distribute_workload_states_to_agents(agent_senders, method_obj.workload_states)
                     .await?;
             }
             ExecutionCommand::CompleteState(method_obj) => {
-                log::debug!("Received CompleteState from server: {:?}", method_obj);
+                log::trace!("Received CompleteState from server: {:?}", method_obj);
                 let (agent_name, request_id) =
                     detach_prefix_from_request_id(method_obj.request_id.as_ref());
                 if let Some(sender) = agent_senders.get(&agent_name) {
+                    let complete_state = proto::CompleteState {
+                        request_id,
+                        current_state: Some(method_obj.current_state.into()),
+                        startup_state: Some(method_obj.startup_state.into()),
+                        workload_states: method_obj
+                            .workload_states
+                            .into_iter()
+                            .map(|x| x.into())
+                            .collect(),
+                    };
+
+                    log::trace!(
+                        "Sending complete state to agent '{}': {:?}.",
+                        agent_name,
+                        complete_state
+                    );
+
                     sender
                         .send(Ok(proto::ExecutionRequest {
                             execution_request_enum: Some(ExecutionRequestEnum::CompleteState(
-                                proto::CompleteState {
-                                    request_id,
-                                    current_state: Some(method_obj.current_state.into()),
-                                    startup_state: Some(method_obj.startup_state.into()),
-                                    workload_states: method_obj
-                                        .workload_states
-                                        .into_iter()
-                                        .map(|x| x.into())
-                                        .collect(),
-                                },
+                                complete_state,
                             )),
                         }))
                         .await?;
@@ -179,13 +187,18 @@ async fn distribute_workload_states_to_agents(
             .map(|x| x.into())
             .collect();
         if filtered_workload_states.is_empty() {
-            log::debug!(
+            log::trace!(
                 "Skipping sending workload states to agent '{agent_name}'. Nothing to send."
             );
             continue;
         }
 
         if let Some(sender) = agent_senders.get(&agent_name) {
+            log::trace!(
+                "Sending workload states to agent '{}': {:?}.",
+                agent_name,
+                filtered_workload_states
+            );
             sender
                 .send(Ok(proto::ExecutionRequest {
                     execution_request_enum: Some(ExecutionRequestEnum::UpdateWorkloadState(
@@ -213,9 +226,9 @@ async fn distribute_workloads_to_agents(
     for (agent_name, (added_workload_vector, deleted_workload_vector)) in
         get_workloads_per_agent(added_workloads, deleted_workloads)
     {
-        log::debug!("Sending added and deleted workloads to agent '{}'.\n\tAdded workloads: {:?}.\n\tDeleted workloads: {:?}.", 
-            agent_name, added_workload_vector, deleted_workload_vector);
         if let Some(sender) = agent_senders.get(&agent_name) {
+            log::trace!("Sending added and deleted workloads to agent '{}'.\n\tAdded workloads: {:?}.\n\tDeleted workloads: {:?}.", 
+                agent_name, added_workload_vector, deleted_workload_vector);
             sender
                 .send(Ok(proto::ExecutionRequest {
                     execution_request_enum: Some(ExecutionRequestEnum::UpdateWorkload(
@@ -233,7 +246,7 @@ async fn distribute_workloads_to_agents(
                 }))
                 .await?;
         } else {
-            log::warn!(
+            log::info!(
                 "Agent {} not found, workloads not sent. Waiting for agent to connect.",
                 agent_name
             )

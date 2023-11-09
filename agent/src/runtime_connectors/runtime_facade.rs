@@ -78,6 +78,11 @@ impl<
         &self,
         agent_name: &AgentName,
     ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
+        log::debug!(
+            "Searching for reusable '{}' workloads on agent '{}'.",
+            self.runtime.name(),
+            agent_name
+        );
         self.runtime.get_reusable_workloads(agent_name).await
     }
 
@@ -97,6 +102,13 @@ impl<
         let control_interface_path = control_interface
             .as_ref()
             .map(|control_interface| control_interface.get_api_location());
+
+        log::info!(
+            "Creating '{}' workload '{}' on agent '{}'",
+            runtime.name(),
+            workload_name,
+            agent_name
+        );
 
         tokio::spawn(async move {
             let (workload_id, state_checker) = runtime
@@ -146,6 +158,13 @@ impl<
         let control_interface_path = control_interface
             .as_ref()
             .map(|control_interface| control_interface.get_api_location());
+
+        log::info!(
+            "Replacing '{}' workload '{}' on agent '{}'",
+            runtime.name(),
+            workload_name,
+            agent_name
+        );
 
         tokio::spawn(async move {
             let old_workload_name = old_instance_name.workload_name();
@@ -216,6 +235,13 @@ impl<
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
 
+        log::info!(
+            "Resuming '{}' workload '{}' on agent '{}'",
+            runtime.name(),
+            workload_name,
+            agent_name
+        );
+
         tokio::spawn(async move {
             let workload_id = runtime
                 .get_workload_id(&workload_spec.instance_name())
@@ -262,6 +288,14 @@ impl<
     // [impl->swdd~agent-delete-old-workload~1]
     fn delete_workload(&self, instance_name: WorkloadExecutionInstanceName) {
         let runtime = self.runtime.to_owned();
+
+        log::info!(
+            "Deleting '{}' workload '{}' on agent '{}'",
+            runtime.name(),
+            instance_name.workload_name(),
+            instance_name.agent_name(),
+        );
+
         tokio::spawn(async move {
             runtime
                 .delete_workload(&runtime.get_workload_id(&instance_name).await?)

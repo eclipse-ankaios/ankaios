@@ -56,7 +56,7 @@ impl AgentSendersMap {
             .insert(name.to_owned(), sender)
             .map_or_else(
                 || {
-                    log::debug!("Successfully added a new agent sender.");
+                    log::trace!("Successfully added a new agent sender.");
                 },
                 |_replaced| {
                     log::warn!(

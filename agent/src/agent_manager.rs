@@ -54,7 +54,7 @@ impl AgentManager {
 
     // [impl->swdd~agent-manager-listens-requests-from-server~1]
     async fn listen_to_server(&mut self) {
-        log::debug!("Start listening to communication server.");
+        log::debug!("Start listening to server.");
         while let Some(x) = self.receiver.recv().await {
             match x {
                 ExecutionCommand::UpdateWorkload(method_obj) => {

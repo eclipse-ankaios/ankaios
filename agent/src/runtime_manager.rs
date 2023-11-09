@@ -69,6 +69,12 @@ impl RuntimeManager {
         added_workloads: Vec<WorkloadSpec>,
         deleted_workloads: Vec<DeletedWorkload>,
     ) {
+        log::info!(
+            "Received new desired state with '{}' added and '{}' deleted workloads.",
+            added_workloads.len(),
+            deleted_workloads.len()
+        );
+
         if !self.initial_workload_list_received {
             self.initial_workload_list_received = true;
             if !deleted_workloads.is_empty() {
@@ -139,6 +145,12 @@ impl RuntimeManager {
                 .await
             {
                 Ok(running_instance_names) => {
+                    log::info!(
+                        "Found '{}' reusable '{}' workload(s).",
+                        running_instance_names.len(),
+                        runtime_name,
+                    );
+
                     for instance_name in running_instance_names {
                         if let Some(new_workload_spec) = added_workloads_per_runtime
                             .get_mut(runtime_name)

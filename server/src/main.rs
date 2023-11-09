@@ -38,12 +38,18 @@ async fn main() -> Result<(), BoxedStdError> {
 
     let args = cli::parse();
 
+    log::debug!(
+        "Starting the Ankaios server with \n\tserver address: {}, \n\tstartup config path: {}",
+        args.addr,
+        args.path,
+    );
+
     let data = fs::read_to_string(args.path).unwrap_or_exit("Could not read the startup config");
     // [impl->swdd~server-state-in-memory~1]
     // [impl->swdd~server-loads-startup-state-file~1]
     let state: State =
         state_parser::parse(data).unwrap_or_exit("Parsing start config failed with error");
-    log::debug!(
+    log::trace!(
         "The state is initialized with the following workloads: {:?}",
         state.workloads
     );

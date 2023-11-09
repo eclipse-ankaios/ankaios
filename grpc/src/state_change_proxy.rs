@@ -52,7 +52,7 @@ pub async fn forward_from_proto_to_ankaios(
     sink: Sender<StateChangeCommand>,
 ) -> Result<(), GrpcProxyError> {
     while let Some(message) = grpc_streaming.message().await? {
-        log::debug!("REQUEST={:?}", message);
+        log::trace!("REQUEST={:?}", message);
 
         match message
             .state_change_request_enum
@@ -77,7 +77,7 @@ pub async fn forward_from_proto_to_ankaios(
                 }
             }
             StateChangeRequestEnum::UpdateWorkloadState(update_workload_state) => {
-                log::debug!("Received UpdateWorkloadState from {}", agent_name);
+                log::trace!("Received UpdateWorkloadState from {}", agent_name);
 
                 sink.update_workload_state(
                     update_workload_state
@@ -89,7 +89,7 @@ pub async fn forward_from_proto_to_ankaios(
                 .await?;
             }
             StateChangeRequestEnum::RequestCompleteState(request_complete_state) => {
-                log::debug!("Received RequestCompleteState from {}", agent_name);
+                log::trace!("Received RequestCompleteState from {}", agent_name);
 
                 // [impl->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
                 sink.request_complete_state(
@@ -120,7 +120,7 @@ pub async fn forward_from_ankaios_to_proto(
     while let Some(x) = server_rx.recv().await {
         match x {
             StateChangeCommand::UpdateState(method_obj) => {
-                log::debug!("Received UpdateWorkload from agent");
+                log::trace!("Received UpdateWorkload from agent");
 
                 grpc_tx
                     .send(proto::StateChangeRequest {
@@ -136,7 +136,7 @@ pub async fn forward_from_ankaios_to_proto(
                     .await?;
             }
             StateChangeCommand::UpdateWorkloadState(method_obj) => {
-                log::debug!("Received UpdateWorkloadState from agent");
+                log::trace!("Received UpdateWorkloadState from agent");
 
                 grpc_tx
                     .send(proto::StateChangeRequest {
@@ -149,7 +149,7 @@ pub async fn forward_from_ankaios_to_proto(
                     .await?;
             }
             StateChangeCommand::RequestCompleteState(method_obj) => {
-                log::debug!("Received RequestCompleteState from agent");
+                log::trace!("Received RequestCompleteState from agent");
 
                 grpc_tx
                     .send(proto::StateChangeRequest {

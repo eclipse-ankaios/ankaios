@@ -77,7 +77,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
             .map_err(|err| RuntimeError::List(err.to_string()))?;
 
         log::debug!(
-            "get_reusable_running_workloads found {} workload(s): '{:?}'",
+            "Found {} reusable workload(s): '{:?}'",
             res.len(),
             &res
         );
@@ -107,7 +107,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         .await
         .map_err(RuntimeError::Create)?;
 
-        log::info!(
+        log::debug!(
             "The workload '{}' has been created with id '{}'",
             workload_spec.name,
             workload_id
@@ -153,7 +153,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         workload_spec: WorkloadSpec,
         update_state_tx: StateChangeSender,
     ) -> Result<GenericPollingStateChecker, RuntimeError> {
-        log::info!(
+        log::debug!(
             "Starting the checker for the workload '{}' with id '{}'",
             workload_spec.name,
             workload_id.id
@@ -169,7 +169,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
 
     // [impl->swdd~podman-delete-workload-stops-and-removes-workload~1]
     async fn delete_workload(&self, workload_id: &PodmanWorkloadId) -> Result<(), RuntimeError> {
-        log::info!("Deleting workload with id '{}'", workload_id.id);
+        log::debug!("Deleting workload with id '{}'", workload_id.id);
         PodmanCli::remove_workloads_by_id(&workload_id.id)
             .await
             .map_err(|err| RuntimeError::Delete(err.to_string()))

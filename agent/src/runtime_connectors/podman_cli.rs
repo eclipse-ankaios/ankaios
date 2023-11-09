@@ -130,7 +130,7 @@ impl PodmanCli {
         key: &str,
         value: &str,
     ) -> Result<Vec<String>, String> {
-        log::debug!("Listing workload names for: '{}'='{}'", key, value,);
+        log::trace!("Listing workload names for: '{}'='{}'", key, value,);
         let output = CliCommand::new(PODMAN_CMD)
             .args(&[
                 "ps",
