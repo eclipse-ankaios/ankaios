@@ -2,7 +2,7 @@ use base64::Engine;
 use common::objects::ExecutionState;
 #[cfg(test)]
 use mockall::automock;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::{collections::HashMap, path::PathBuf};
 
 #[cfg_attr(test, mockall_double::double)]
@@ -231,11 +231,17 @@ impl PodmanCli {
     }
 
     pub async fn list_states_from_pods(pods: &[String]) -> Result<Vec<ContainerState>, String> {
+        if pods.is_empty() {
+            return Ok(vec![]);
+        }
+
         let mut args = vec!["ps", "--all", "--format=json"];
         let filters: Vec<String> = pods.iter().map(|p| format!("--filter=pod={}", p)).collect();
         args.extend(filters.iter().map(|x| x as &str));
 
         let output = CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
+
+        log::trace!("Pod states for pods '{:?}': '{}'", pods, output);
 
         let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
             .map_err(|err| format!("Could not parse podman output:{}", err))?;
@@ -330,7 +336,16 @@ struct DataLabel {
 struct PodmanContainerInfo {
     state: PodmanContainerState,
     exit_code: u8,
+    #[serde(deserialize_with = "nullable_labels")]
     labels: HashMap<String, String>,
+}
+
+fn nullable_labels<'a, D>(deserializer: D) -> Result<HashMap<String, String>, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let opt = Option::deserialize(deserializer)?;
+    Ok(opt.unwrap_or_default())
 }
 
 #[derive(Deserialize, Serialize)]
@@ -980,6 +995,14 @@ mod tests {
             PodmanCli::list_states_from_pods(&["pod1".into(), "pod2".into(), "pod3".into()]).await;
 
         assert!(matches!(res, Err(msg) if msg.starts_with("Could not parse podman output:") ));
+    }
+
+    #[tokio::test]
+    async fn utest_list_states_from_pods_empty_input() {
+        assert!(PodmanCli::list_states_from_pods(&[])
+            .await
+            .unwrap()
+            .is_empty());
     }
 
     #[tokio::test]

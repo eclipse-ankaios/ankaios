@@ -241,16 +241,21 @@ impl RuntimeStateGetter<PodmanKubeWorkloadId> for PodmanKubeRuntime {
     async fn get_state(&self, id: &PodmanKubeWorkloadId) -> ExecutionState {
         if let Some(pods) = &id.pods {
             // [impl->swdd~podman-kube-state-getter-uses-container-states~1]
-            let x = PodmanCli::list_states_from_pods(pods).await;
-
-            match x {
+            match PodmanCli::list_states_from_pods(pods).await {
                 // [impl->swdd~podman-kube-state-getter-removed-if-no-container~1]
                 // [impl->swdd~podman-kube-state-getter-combines-states~1]
-                Ok(x) => x
-                    .into_iter()
-                    .map(OrderedExecutionState::from)
-                    .fold(OrderedExecutionState::Removed, min)
-                    .into(),
+                Ok(container_states) => {
+                    log::trace!(
+                        "Received following states for workload '{}': '{:?}'",
+                        id.name,
+                        container_states
+                    );
+                    container_states
+                        .into_iter()
+                        .map(OrderedExecutionState::from)
+                        .fold(OrderedExecutionState::Removed, min)
+                        .into()
+                }
 
                 Err(err) => {
                     log::warn!("Could not get state of workload '{}': {}", id.name, err);
@@ -258,6 +263,7 @@ impl RuntimeStateGetter<PodmanKubeWorkloadId> for PodmanKubeRuntime {
                 }
             }
         } else {
+            log::warn!("No pods in the workload '{}'", id.name.workload_name());
             ExecutionState::ExecUnknown
         }
     }

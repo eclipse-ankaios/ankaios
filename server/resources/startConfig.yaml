@@ -56,7 +56,7 @@ workloads:
       image: alpine:latest
       commandArgs: [ "echo", "Hello Ankaios"]
   hello3:
-    runtime: podman
+    runtime: podman-kube
     agent: agent_B
     restart: true
     updateStrategy: AT_MOST_ONCE
@@ -67,5 +67,19 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: alpine:latest
-      commandArgs: [ "echo", "Hello Ankaios"]
+      manifest: |
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: hello-pod
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: hello-container
+            image: alpine:latest
+            command: 
+            - echo
+            - "Hello from a container in a pod"
+
+
+      
