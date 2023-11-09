@@ -2,6 +2,8 @@ use std::fmt::Display;
 
 use crate::objects::workload_execution_instance_name::INSTANCE_NAME_SEPARATOR;
 
+// [impl->swdd~common-object-representation~1]
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct AgentName(String);
 
@@ -10,12 +12,10 @@ impl AgentName {
         &self.0
     }
 
-    // [impl->swdd~agent-existing-workloads-finds-list~1]
     pub fn get_filter_regex(&self) -> String {
         format!("[{}]{}$", INSTANCE_NAME_SEPARATOR, self.0)
     }
 
-    // [impl->swdd~agent-existing-workloads-finds-list~1]
     pub fn get_filter_suffix(&self) -> String {
         format!("{}{}", INSTANCE_NAME_SEPARATOR, self.0)
     }
@@ -46,13 +46,14 @@ impl Display for AgentName {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
+// [utest->swdd~common-object-representation~1]
 #[cfg(test)]
 mod tests {
     use super::AgentName;
 
     const AGENT_NAME: &str = "agent";
 
-    // [utest->swdd~agent-existing-workloads-finds-list~1]
     #[test]
     fn utest_agent_name_get_filter_regex() {
         assert_eq!(
@@ -61,7 +62,6 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-existing-workloads-finds-list~1]
     #[test]
     fn utest_agent_name_get_filter_suffix() {
         assert_eq!(
