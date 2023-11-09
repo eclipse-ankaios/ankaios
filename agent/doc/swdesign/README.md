@@ -80,17 +80,48 @@ The following diagram shows the startup sequence of the Ankaios Agent:
 
 Status: approved
 
-The Ankaios Agent shall use the given interfaces and channels to communicate with the Server.
+The Ankaios agent shall use the given interfaces and channels to communicate with the server.
 
 Tags:
 - AgentManager
 
-Rationale: The Server is "only source of true" and ensures that Agents are in the consistent state.
+Rationale: The server is "only source of true" and ensures that Agents are in the consistent state.
 
 Needs:
 - impl
 - itest
 
+#### Agent supports environment variable for the server url
+`swdd~agent-shall-support-environment-variable-for-server-url~1`
+
+Status: approved
+
+When the environment variable with key `ANKAIOS_SERVER_URL` is set and the user has not provided the server url via cli argument,
+the Ankaios agent shall use the server url from the environment variable to connect to the Ankaios server.
+
+Tags:
+- AnkaiosAgent
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Agent prioritizes cli argument over environment variable
+`swdd~agent-prioritizes-cli-argument-over-environment-variable~1`
+
+Status: approved
+
+When an environment variable is set and the user specifies a value for the corresponding cli argument,
+the Ankaios agent shall use the value from the cli argument.
+
+Tags:
+- AnkaiosAgent
+
+Needs:
+- impl
+- utest
+- stest
 
 #### Agent sends hello
 `swdd~agent-sends-hello~1`

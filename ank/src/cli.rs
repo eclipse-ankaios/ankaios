@@ -27,6 +27,7 @@ use url::Url;
 pub struct AnkCli {
     #[command(subcommand)]
     pub command: Commands,
+    // [impl->swdd~cli-shall-support-environment-variable-for-server-url~1]
     #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.parse().unwrap(), env = SERVER_URL_ENV_KEY, value_parser = ServerUrlParser)]
     /// The url to Ankaios server.
     pub server_url: Url,

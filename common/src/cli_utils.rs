@@ -11,6 +11,9 @@ fn create_error_context(
 ) -> clap::Error {
     let mut err = clap::Error::new(ErrorKind::ValueValidation).with_cmd(cmd); // the order in which the errors are inserted is important
     if let Some(arg) = arg {
+        // [impl->swdd~agent-prioritizes-cli-argument-over-environment-variable~1]
+        // [impl->swdd~cli-prioritizes-cli-argument-over-environment-variable~1]
+        // [impl->swdd~server-prioritizes-cli-argument-over-environment-variable~1]
         if let Ok(env_value) = env::var(env_key) {
             if env_value == *arg_value {
                 err.insert(
@@ -127,6 +130,8 @@ mod tests {
         }
     }
 
+    // [utest->swdd~agent-shall-support-environment-variable-for-server-url~1]
+    // [utest->swdd~cli-shall-support-environment-variable-for-server-url~1]
     #[test]
     fn utest_cli_argument_server_url_use_cli_arg() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
@@ -141,6 +146,8 @@ mod tests {
         assert_eq!(actual_url, expected_url);
     }
 
+    // [utest->swdd~agent-shall-support-environment-variable-for-server-url~1]
+    // [utest->swdd~cli-shall-support-environment-variable-for-server-url~1]
     #[test]
     fn utest_cli_argument_server_url_use_env_var() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
@@ -157,6 +164,10 @@ mod tests {
         assert_eq!(actual_url, expected_url);
     }
 
+    // [utest->swdd~agent-shall-support-environment-variable-for-server-url~1]
+    // [utest->swdd~cli-shall-support-environment-variable-for-server-url~1]
+    // [utest->swdd~agent-prioritizes-cli-argument-over-environment-variable~1]
+    // [utest->swdd~cli-prioritizes-cli-argument-over-environment-variable~1]
     #[test]
     fn utest_cli_argument_server_url_prioritize_cli_arg() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
@@ -173,6 +184,8 @@ mod tests {
         assert_eq!(actual_url, expected_url);
     }
 
+    // [utest->swdd~agent-shall-support-environment-variable-for-server-url~1]
+    // [utest->swdd~cli-shall-support-environment-variable-for-server-url~1]
     #[test]
     fn utest_cli_argument_server_url_use_env_var_error_context() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
@@ -190,6 +203,8 @@ mod tests {
             .contains("environment variable"));
     }
 
+    // [utest->swdd~agent-shall-support-environment-variable-for-server-url~1]
+    // [utest->swdd~cli-shall-support-environment-variable-for-server-url~1]
     #[test]
     fn utest_cli_argument_server_url_use_cli_arg_error_context() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
@@ -201,6 +216,8 @@ mod tests {
         assert!(parsing_result.err().unwrap().to_string().contains(ARG_NAME));
     }
 
+    // [utest->swdd~agent-shall-support-environment-variable-for-server-url~1]
+    // [utest->swdd~cli-shall-support-environment-variable-for-server-url~1]
     #[test]
     fn utest_cli_argument_server_url_none_arg_error_context() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
@@ -212,6 +229,7 @@ mod tests {
         assert!(err.contains("invalid value for one of the arguments"));
     }
 
+    // [utest->swdd~server-shall-support-environment-variable-for-server-socket-address~1]
     #[test]
     fn utest_cli_argument_server_address_use_cli_arg() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
@@ -226,6 +244,7 @@ mod tests {
         assert_eq!(actual_socket_addr, expected_socket_addr);
     }
 
+    // [utest->swdd~server-shall-support-environment-variable-for-server-socket-address~1]
     #[test]
     fn utest_cli_argument_server_address_use_env_var() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
@@ -242,6 +261,8 @@ mod tests {
         assert_eq!(actual_socket_addr, expected_socket_addr);
     }
 
+    // [utest->swdd~server-shall-support-environment-variable-for-server-socket-address~1]
+    // [utest->swdd~server-prioritizes-cli-argument-over-environment-variable~1]
     #[test]
     fn utest_cli_argument_server_address_prioritize_cli_arg() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
@@ -258,6 +279,7 @@ mod tests {
         assert_eq!(actual_socket_addr, expected_socket_addr);
     }
 
+    // [utest->swdd~server-shall-support-environment-variable-for-server-socket-address~1]
     #[test]
     fn utest_cli_argument_server_address_use_env_var_error_context() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
@@ -275,6 +297,7 @@ mod tests {
             .contains("environment variable"));
     }
 
+    // [utest->swdd~server-shall-support-environment-variable-for-server-socket-address~1]
     #[test]
     fn utest_cli_argument_server_address_use_cli_arg_error_context() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();
@@ -286,6 +309,7 @@ mod tests {
         assert!(parsing_result.err().unwrap().to_string().contains(ARG_NAME));
     }
 
+    // [utest->swdd~server-shall-support-environment-variable-for-server-socket-address~1]
     #[test]
     fn utest_cli_argument_server_address_none_arg_error_context() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock();

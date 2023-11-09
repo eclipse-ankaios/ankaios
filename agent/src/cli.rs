@@ -34,6 +34,7 @@ pub struct Arguments {
     #[clap(short = 'n', long = "name")]
     /// The name to use for the registration with the server. Every agent has to register with a unique name.
     pub agent_name: String,
+    // [impl->swdd~agent-shall-support-environment-variable-for-server-url~1]
     #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.parse().unwrap(), env = SERVER_URL_ENV_KEY, value_parser = ServerUrlParser)]
     /// The server url.
     pub server_url: Url,

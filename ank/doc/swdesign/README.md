@@ -125,6 +125,38 @@ Needs:
 - impl
 - itest
 
+#### CLI supports environment variable for the server url
+`swdd~cli-shall-support-environment-variable-for-server-url~1`
+
+Status: approved
+
+When the environment variable with key `ANKAIOS_SERVER_URL` is set and the user has not provided the server url via cli argument,
+the Ankaios CLI shall use the server url from the environment variable to connect to the Ankaios server.
+
+Tags:
+- CliStartup
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI prioritizes cli argument over environment variable
+`swdd~cli-prioritizes-cli-argument-over-environment-variable~1`
+
+Status: approved
+
+When an environment variable is set and the user specifies a value for the corresponding cli argument,
+the Ankaios CLI shall use the value from the cli argument.
+
+Tags:
+- CliStartup
+
+Needs:
+- impl
+- utest
+- stest
+
 #### CLI is a standalone application
 `swdd~cli-standalone-application~1`
 

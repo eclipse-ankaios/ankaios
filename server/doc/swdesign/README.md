@@ -59,6 +59,38 @@ The following diagram shows the startup sequence of the Ankaios Server:
 
 ![Startup](plantuml/seq_startup.svg)
 
+#### Server supports environment variable for server socket address
+`swdd~server-shall-support-environment-variable-for-server-socket-address~1`
+
+Status: approved
+
+When the environment variable with key `ANKAIOS_SERVER_SOCKET` is set and the user has not provided the server url via cli argument,
+the Ankaios agent shall use the server url from the environment variable to connect to the Ankaios server.
+
+Tags:
+- AnkaiosServer
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Server prioritizes cli argument over environment variable
+`swdd~server-prioritizes-cli-argument-over-environment-variable~1`
+
+Status: approved
+
+When an environment variable is set and the user specifies a value for the corresponding cli argument,
+the Ankaios server shall use the value from the cli argument.
+
+Tags:
+- AnkaiosServer
+
+Needs:
+- impl
+- utest
+- stest
+
 #### Server holds Current State in memory
 `swdd~server-state-in-memory~1`
 
