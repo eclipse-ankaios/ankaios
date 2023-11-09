@@ -104,6 +104,10 @@ Test Ankaios CLI get workloads
 ```
 
 ## System test execution
+!!! warning
+    The system tests will delete all Podman containers, pods and volume.
+    We recomment to only execute the system tests in the dev container.
+
 A shell script is provided for the easy execution of the system tests. The script does the following:
 
 1. It checks if the required Ankaios executables (`ank`, `ank-server` and `ank-agent`) are available at specified path.
@@ -111,7 +115,7 @@ A shell script is provided for the easy execution of the system tests. The scrip
 1. It starts all the tests under specified folder or a specific robot test file.
 1. It stores the test result in the folder `{Ankaios root folder}/target/robot_tests_result`.
 
-### Run in development container
+### Run in dev container
 Generic syntax:
 ```bash
 /workspaces/ankaios$ [ANK_BIN_DIR=path_to_ankaios_executables] tools/run_robot_tests <options> <directory or robot file>
@@ -119,7 +123,7 @@ Generic syntax:
 If *ANK_BIN_DIR* is not provided the script looks in the path `{Ankaios root folder}/target/debug` for the Ankaios executables.
 The supported options are the same as of `robot` cli, so for more detailed description about it see [here](https://robotframework.org/robotframework/latest/RobotFrameworkUserGuide.html#using-command-line-options).
 
-*Note: In order to be able to start `podman` runtime in the development container properly, the development container needs to be run in `privilege` mode.*
+*Note: In order to be able to start `podman` runtime in the dev container properly, the dev container needs to be run in `privilege` mode.*
 
 #### Example: Run all tests under the folder tests.
 ```bash
