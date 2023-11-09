@@ -1,0 +1,26 @@
+workloads:
+  nginx:
+    runtime: podman-kube
+    agent: agent_A
+    restart: true
+    updateStrategy: AT_MOST_ONCE
+    accessRights:
+      allow: []
+      deny: []
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      manifest: |
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: nginx
+        spec:
+          containers:
+          - name: nginx
+            image: docker.io/nginx:latest
+            ports:
+            - containerPort: 80
+              hostPort: 8081
+

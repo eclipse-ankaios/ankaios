@@ -1129,6 +1129,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 ###### Podman kube workload id
 `swdd~podman-kube-workload-id`
@@ -1195,6 +1196,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 ###### Podman kube create workload creates pods volume
 `swdd~podman-kube-create-workload-creates-pods-volume~1`
@@ -1216,6 +1218,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 ###### Podman kube create continues if it cannot create volumes
 `swdd~podman-kube-create-continues-if-cannot-create-volume~1`
@@ -1295,6 +1298,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 ###### Podman kube delete workload remove volumes
 `swdd~podman-kube-delete-removes-volumes~1`
@@ -1310,6 +1314,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 ### Getting workload states
 

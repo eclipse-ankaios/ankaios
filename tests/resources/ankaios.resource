@@ -41,21 +41,9 @@ Clean up Ankaios
 
 Clean up Podman
     Log    Clean up Podman
-    @{list_result}=    Table To List    ${CURRENT_RESULT.stdout}
-    @{workload_names}=    Get Column Values    ${list_result}    WORKLOAD NAME
-    @{workload_container_ids}=    Get Container Ids By Workload Names    ${workload_names}
-    Log    ${workload_container_ids}
-    @{stop_cmd_list}=    Create List    podman stop
-    @{rm_cmd_list}=    Create List    podman rm
-    FOR    ${wln_id_tuple}    IN    @{workload_container_ids}
-        @{wln_id_list}=    Convert To List    ${wln_id_tuple}
-        Append To List    ${stop_cmd_list}    ${wln_id_list}[1]
-        Append To List    ${rm_cmd_list}    ${wln_id_list}[1]
-    END
-    ${stop_cmd}=    Catenate    @{stop_cmd_list}
-    ${rm_cmd}=    Catenate    @{rm_cmd_list}
-    Run Command    ${stop_cmd}    timeout=20
-    Run Command    ${rm_cmd}    timeout=20
+    Podman has deleted all existing containers
+    Podman has deleted all existing pods
+    Podman has deleted all existing volumes
 
 Run in background
     [Arguments]    ${location}    ${cli_command}
@@ -91,6 +79,12 @@ Ankaios agent is started with "${ank_agent_cli_command}"
 
 Podman has deleted all existing containers
     Run Process    podman    rm    -a    -f    timeout=20    shell=True
+
+Podman has deleted all existing pods
+    Run Process    podman    pod    stop    -a    &&    podman    pod    rm    -a    -f    timeout=20    shell=True
+
+Podman has deleted all existing volumes
+    Run Process    podman    volume    rm    -a    timeout=20    shell=True
 
 all workloads of agent "${agent_name}" have an initial execution state
     Log    Waiting for initial execution states of agent '${agent_name}'
@@ -177,6 +171,20 @@ the JSON array "${dict_array}" shall contain key "${main_key}" with subkey "${su
         Log    ${dict_array_item}
         Dictionary Should Contain Key    dictionary=${dict_array_item}    key=${main_key}
         Should Match Regexp    string=${dict_array_item["${main_key}"]["${sub_key}"]}    pattern=${reg_exp}
+    END
+
+the JSON array "${dict_array}" shall contain key "${key}" which matches the expression "${reg_exp}"
+    Log    ${dict_array}
+    FOR    ${dict_array_item}    IN    @{dict_array}
+        Log    ${dict_array_item}
+        Should Match Regexp    string=${dict_array_item["${key}"]}    pattern=${reg_exp}
+    END
+
+the JSON array "${dict_array}" shall contain key "${key}" which not matches the expression "${reg_exp}"
+    Log    ${dict_array}
+    FOR    ${dict_array_item}    IN    @{dict_array}
+        Log    ${dict_array_item}
+        Should Not Match Regexp    string=${dict_array_item["${key}"]}    pattern=${reg_exp}
     END
 
 the JSON array "${dict_array}" shall contain array "${key}" which matches the expression "${reg_exp}"
