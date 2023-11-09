@@ -313,7 +313,6 @@ mod tests {
     }
 
     // [utest->swdd~cli-shall-support-environment-variables~1]
-    // [utest->swdd~cli-prioritizes-cli-argument-over-environment-variable~1]
     #[test]
     fn utest_cli_argument_server_url_prioritize_cli_arg() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC.get_lock();
