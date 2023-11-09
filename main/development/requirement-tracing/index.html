@@ -22,7 +22,7 @@
     
     
       
-        <title>Requirements tracing - Eclipse Ankaios</title>
+        <title>Requirement tracing - Eclipse Ankaios</title>
       
     
     
@@ -57,7 +57,7 @@
       
         <meta  property="og:type"  content="website" >
       
-        <meta  property="og:title"  content="Requirements tracing - Eclipse Ankaios" >
+        <meta  property="og:title"  content="Requirement tracing - Eclipse Ankaios" >
       
         <meta  property="og:description"  content="None" >
       
@@ -73,7 +73,7 @@
       
         <meta  name="twitter:card"  content="summary_large_image" >
       
-        <meta  name="twitter:title"  content="Requirements tracing - Eclipse Ankaios" >
+        <meta  name="twitter:title"  content="Requirement tracing - Eclipse Ankaios" >
       
         <meta  name="twitter:description"  content="None" >
       
@@ -103,7 +103,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#requirements-tracing" class="md-skip">
+        <a href="#requirement-tracing" class="md-skip">
           Skip to content
         </a>
       
@@ -152,7 +152,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Requirements tracing
+              Requirement tracing
             
           </span>
         </div>
@@ -338,6 +338,23 @@
         </a>
       </li>
     
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../support/" class="md-tabs__link">
+        
+  
+    
+  
+  Support
+
+      </a>
+    </li>
   
 
       
@@ -851,15 +868,59 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Requirement tracing
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
-    Requirements tracing
+    Requirement tracing
   </span>
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#introduction" class="md-nav__link">
+    Introduction
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-requirements" class="md-nav__link">
+    Adding requirements
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -973,6 +1034,25 @@
   
 
     
+      
+      
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../support/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Support
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -992,6 +1072,28 @@
   
     
   
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#introduction" class="md-nav__link">
+    Introduction
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-requirements" class="md-nav__link">
+    Adding requirements
+  </a>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -1014,9 +1116,26 @@
   
 
 
-<h1 id="requirements-tracing">Requirements tracing<a class="headerlink" href="#requirements-tracing" title="Permanent link">&para;</a></h1>
-<p>The Eclipse Ankaios project provides requirements tracing using the <a href="https://github.com/itsallcode/openfasttrace">Open Fast Trace</a> requirement tracing suite. The dev container already includes an <code>oft</code> executable and supports the <code>oft</code> command. For convenience, you can run the <code>tools/generate_oft_html_report.sh</code> script to automatically generate an HTML report showing the current coverage state. The script automatically includes all src and doc folders in the root folder. As long as you name your folders accordingly they will be processed by <code>oft</code>. </p>
-<p>For details on the <code>oft</code> tool, please consult the <a href="https://github.com/itsallcode/openfasttrace/blob/main/doc/user_guide.md">user documentation</a> or execute <code>oft help</code>.</p>
+<h1 id="requirement-tracing">Requirement tracing<a class="headerlink" href="#requirement-tracing" title="Permanent link">&para;</a></h1>
+<h2 id="introduction">Introduction<a class="headerlink" href="#introduction" title="Permanent link">&para;</a></h2>
+<p>The Eclipse Ankaios project provides requirement tracing using the <a href="https://github.com/itsallcode/openfasttrace">OpenFastTrace</a> requirement tracing suite. The dev container already includes the required tooling. To generate a requirement tracing report call:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>tools/generate_oft_html_report.sh
+</code></pre></div>
+<p>Afterwards the HTML report is available under <code>build/req/req_tracing_report.html</code> and shows the current coverage state.</p>
+<p>For details on the OpenFastTrace tool, please consult <a href="https://github.com/itsallcode/openfasttrace/blob/main/doc/user_guide.md">OFT's user documentation</a> or execute <code>oft help</code>.</p>
+<h2 id="adding-requirements">Adding requirements<a class="headerlink" href="#adding-requirements" title="Permanent link">&para;</a></h2>
+<p>Eclipse Ankaios traces requirements between </p>
+<ul>
+<li>Design (<code>**/doc/README.md</code>)</li>
+<li>Implementations (<code>**/src/**</code>)</li>
+<li>Tests (<code>**/src/**</code>, <code>tests/**</code>)</li>
+</ul>
+<p>So for new features </p>
+<ul>
+<li>New requirements need to be added in the design or existing requirements need to be modified (type <code>swdd</code>)</li>
+<li>Mark the parts in the source code that actually implement the design requirement using the type <code>impl</code>, e.g., <code>// [impl-&gt;swdd~this-is-a-requirement~1]</code></li>
+<li>Mark the tests that check the implementation of the design with one of the types <code>utest</code>, <code>itest</code> or <code>stest</code> depending on the type of the test, e.g., <code>// [utest-&gt;swdd~this-is-a-requirement~1]</code> for a unit test</li>
+</ul>
 
 
 
