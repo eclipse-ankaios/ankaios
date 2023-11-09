@@ -241,8 +241,6 @@ impl PodmanCli {
 
         let output = CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
 
-        log::trace!("Pod states for pods '{:?}': '{}'", pods, output);
-
         let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
             .map_err(|err| format!("Could not parse podman output:{}", err))?;
 

@@ -111,6 +111,7 @@ impl<
         );
 
         tokio::spawn(async move {
+            let workload_name = workload_spec.name.clone();
             let (workload_id, state_checker) = runtime
                 .create_workload(
                     workload_spec,
@@ -138,7 +139,7 @@ impl<
             .await;
         });
 
-        Workload::new(command_sender, control_interface)
+        Workload::new(workload_name, command_sender, control_interface)
     }
 
     // [impl->swdd~agent-replace-workload~1]
@@ -167,7 +168,7 @@ impl<
         );
 
         tokio::spawn(async move {
-            let old_workload_name = old_instance_name.workload_name();
+            let workload_name = new_workload_spec.name.clone();
             match runtime.get_workload_id(&old_instance_name).await {
                 Ok(old_id) => runtime
                     .delete_workload(&old_id)
@@ -175,13 +176,13 @@ impl<
                     .unwrap_or_else(|err| {
                         log::warn!(
                             "Failed to delete workload when replacing workload '{}': '{}'",
-                            old_workload_name,
+                            workload_name,
                             err
                         )
                     }),
                 Err(err) => log::warn!(
                     "Failed to get workload id when replacing workload '{}': '{}'",
-                    old_workload_name,
+                    workload_name,
                     err
                 ),
             }
@@ -197,7 +198,7 @@ impl<
                     |err| {
                         log::warn!(
                             "Failed to create workload when replacing workload '{}': '{}'",
-                            old_workload_name,
+                            workload_name,
                             err
                         );
                         (None, None)
@@ -218,7 +219,7 @@ impl<
             .await;
         });
 
-        Workload::new(command_sender, control_interface)
+        Workload::new(workload_name, command_sender, control_interface)
     }
 
     // [impl->swdd~agent-resume-workload~1]
@@ -243,6 +244,7 @@ impl<
         );
 
         tokio::spawn(async move {
+            let workload_name = workload_spec.name.clone();
             let workload_id = runtime
                 .get_workload_id(&workload_spec.instance_name())
                 .await;
@@ -282,7 +284,7 @@ impl<
             .await;
         });
 
-        Workload::new(command_sender, control_interface)
+        Workload::new(workload_name, command_sender, control_interface)
     }
 
     // [impl->swdd~agent-delete-old-workload~1]
@@ -401,7 +403,7 @@ mod tests {
         new_workload_context
             .expect()
             .once()
-            .return_once(|_, _| mock_workload);
+            .return_once(|_, _, _| mock_workload);
 
         let to_server_clone = to_server.clone();
         let await_command_context = MockWorkload::await_new_command_context();
@@ -471,7 +473,7 @@ mod tests {
         new_workload_context
             .expect()
             .once()
-            .return_once(|_, _| mock_workload);
+            .return_once(|_, _, _| mock_workload);
 
         let to_server_clone = to_server.clone();
         let await_command_context = MockWorkload::await_new_command_context();
@@ -551,7 +553,7 @@ mod tests {
         new_workload_context
             .expect()
             .once()
-            .return_once(|_, _| mock_workload);
+            .return_once(|_, _, _| mock_workload);
 
         let to_server_clone = to_server.clone();
         let await_command_context = MockWorkload::await_new_command_context();
@@ -638,7 +640,7 @@ mod tests {
         new_workload_context
             .expect()
             .once()
-            .return_once(|_, _| mock_workload);
+            .return_once(|_, _, _| mock_workload);
 
         let to_server_clone = to_server.clone();
         let await_command_context = MockWorkload::await_new_command_context();
@@ -727,7 +729,7 @@ mod tests {
         new_workload_context
             .expect()
             .once()
-            .return_once(|_, _| mock_workload);
+            .return_once(|_, _, _| mock_workload);
 
         let to_server_clone = to_server.clone();
         let await_command_context = MockWorkload::await_new_command_context();

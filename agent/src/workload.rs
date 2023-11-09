@@ -43,6 +43,7 @@ pub enum WorkloadCommand {
 
 // #[derive(Debug)]
 pub struct Workload {
+    name: String,
     channel: mpsc::Sender<WorkloadCommand>,
     control_interface: Option<PipesChannelContext>,
 }
@@ -50,10 +51,12 @@ pub struct Workload {
 #[cfg_attr(test, automock)]
 impl Workload {
     pub fn new(
+        name: String,
         channel: mpsc::Sender<WorkloadCommand>,
         control_interface: Option<PipesChannelContext>,
     ) -> Self {
         Workload {
+            name,
             channel,
             control_interface,
         }
@@ -65,6 +68,8 @@ impl Workload {
         spec: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
     ) -> Result<(), WorkloadError> {
+        log::info!("Updating workload '{}'.", self.name);
+
         if let Some(control_interface) = self.control_interface.take() {
             control_interface.abort_pipes_channel_task()
         }
@@ -86,6 +91,8 @@ impl Workload {
 
     // [impl->swdd~agent-workload-obj-delete-command~1]
     pub async fn delete(self) -> Result<(), WorkloadError> {
+        log::info!("Deleting workload '{}'.", self.name);
+
         if let Some(control_interface) = self.control_interface {
             control_interface.abort_pipes_channel_task()
         }
@@ -279,8 +286,11 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let mut test_workload =
-            Workload::new(workload_command_tx, Some(old_control_interface_mock));
+        let mut test_workload = Workload::new(
+            WORKLOAD_1_NAME.to_string(),
+            workload_command_tx,
+            Some(old_control_interface_mock),
+        );
 
         test_workload
             .update(workload_spec.clone(), Some(new_control_interface_mock))
@@ -329,8 +339,11 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let mut test_workload =
-            Workload::new(workload_command_tx, Some(old_control_interface_mock));
+        let mut test_workload = Workload::new(
+            WORKLOAD_1_NAME.to_string(),
+            workload_command_tx,
+            Some(old_control_interface_mock),
+        );
 
         assert!(matches!(
             test_workload
@@ -356,7 +369,11 @@ mod tests {
             .once()
             .return_const(());
 
-        let test_workload = Workload::new(workload_command_tx, Some(old_control_interface_mock));
+        let test_workload = Workload::new(
+            WORKLOAD_1_NAME.to_string(),
+            workload_command_tx,
+            Some(old_control_interface_mock),
+        );
 
         test_workload.delete().await.unwrap();
 
@@ -384,7 +401,11 @@ mod tests {
             .once()
             .return_const(());
 
-        let test_workload = Workload::new(workload_command_tx, Some(old_control_interface_mock));
+        let test_workload = Workload::new(
+            WORKLOAD_1_NAME.to_string(),
+            workload_command_tx,
+            Some(old_control_interface_mock),
+        );
 
         assert!(matches!(
             test_workload.delete().await,
@@ -900,7 +921,11 @@ mod tests {
             .once()
             .return_const(state_change_tx);
 
-        let mut test_workload = Workload::new(workload_command_tx, Some(control_interface_mock));
+        let mut test_workload = Workload::new(
+            WORKLOAD_1_NAME.to_string(),
+            workload_command_tx,
+            Some(control_interface_mock),
+        );
         let complete_state = generate_test_complete_state(
             format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
             vec![generate_test_workload_spec_with_param(
@@ -942,7 +967,11 @@ mod tests {
             .once()
             .return_const(state_change_tx);
 
-        let mut test_workload = Workload::new(workload_command_tx, Some(control_interface_mock));
+        let mut test_workload = Workload::new(
+            WORKLOAD_1_NAME.to_string(),
+            workload_command_tx,
+            Some(control_interface_mock),
+        );
         let complete_state = CompleteState::default();
 
         assert!(matches!(
@@ -961,7 +990,8 @@ mod tests {
         let (workload_command_tx, _workload_command_rx) =
             mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
 
-        let mut test_workload = Workload::new(workload_command_tx, None);
+        let mut test_workload =
+            Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_tx, None);
         let complete_state = CompleteState::default();
 
         assert!(matches!(

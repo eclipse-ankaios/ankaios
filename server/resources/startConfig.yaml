@@ -55,7 +55,7 @@ workloads:
     runtimeConfig: |
       image: alpine:latest
       commandArgs: [ "echo", "Hello Ankaios"]
-  hello3:
+  hello-pod:
     runtime: podman-kube
     agent: agent_B
     restart: true
@@ -75,11 +75,16 @@ workloads:
         spec:
           restartPolicy: Never
           containers:
-          - name: hello-container
+          - name: greater
             image: alpine:latest
             command: 
             - echo
             - "Hello from a container in a pod"
+          - name: looper
+            image: alpine:latest
+            command: 
+            - sleep
+            - 50000
 
 
       
