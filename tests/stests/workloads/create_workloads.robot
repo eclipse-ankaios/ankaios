@@ -83,7 +83,7 @@ Test Ankaios Podman create a container with custom name
 
 # [stest->swdd~podman-kube-create-workload-apply-manifest~1]
 # [stest->swdd~podman-kube-create-workload-creates-config-volume~1]
-# [stest->podman-kube-create-workload-creates-pods-volume~1]
+# [stest->swdd~podman-kube-create-workload-creates-pods-volume~1]
 # [stest->swdd~podman-kube-delete-workload-downs-manifest-file~1]
 # [stest->swdd~podman-kube-delete-removes-volumes~1]
 
