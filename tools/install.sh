@@ -217,16 +217,17 @@ fi
 # Write uninstall script
 ${BIN_SUDO} tee "${BIN_DESTINATION}/${BASEFILE_ANK_UNINSTALL}" >/dev/null << EOF
 #!/bin/bash
-set -x
 [ \$(id -u) -eq 0 ] || exec sudo \$0 \$@ 
 
-if command -v systemctl; then
+if command -v systemctl >/dev/null; then
     if [ -s "${FILE_ANK_SERVER_SERVICE}" ]; then
+        echo "Stopping Ankaios server and removing from systemd"
         systemctl stop "${ANK_SERVER_SERVICE}"
         systemctl disable "${ANK_SERVER_SERVICE}"
         systemctl daemon-reload
     fi
     if [ -s "${FILE_ANK_AGENT_SERVICE}" ]; then
+        echo "Stopping Ankaios agent and removing from systemd"
         systemctl stop "${ANK_AGENT_SERVICE}"
         systemctl disable "${ANK_AGENT_SERVICE}"
         systemctl daemon-reload
@@ -234,7 +235,9 @@ if command -v systemctl; then
 fi
 rm -f "${FILE_ANK_SERVER_SERVICE}" "${FILE_ANK_AGENT_SERVICE}"
 
+echo "Removing Ankaios binaries"
 rm -f "${BIN_DESTINATION}"/ank{,-server,-agent}
+echo "Removing this uninstall script"
 rm -f "${BIN_DESTINATION}/${BASEFILE_ANK_UNINSTALL}"
 EOF
 ${BIN_SUDO} chmod +x "${BIN_DESTINATION}/${BASEFILE_ANK_UNINSTALL}"
