@@ -47,11 +47,12 @@ setup_verify_arch() {
 display_usage() {  
     echo -e "Usage: $0 [-v] [-i] [-t] [-s] [-a]"
     echo -e "Install Ankaios on a system."
-    echo -e "  -v: Ankaios specific version to install. Default: latest version."
-    echo -e "  -i: Installation path. Default: $DEFAULT_BIN_DESTINATION"
-    echo -e "  -t: Install systemd unit files. 'server', 'agent', 'none' or 'both' (default)"
-    echo -e "  -s: Options which will be passed to the server. Default '$DEFAULT_SERVER_OPT'"
-    echo -e "  -a: Options which will be passed to the agent. Default '$DEFAULT_AGENT_OPT'"
+    echo -e "  -v VERSION: Ankaios specific VERSION to install. Default: latest version."
+    echo -e "  -i PATH: Installation PATH. Default: $DEFAULT_BIN_DESTINATION"
+    echo -e "  -t TARGET: Install systemd unit files for TARGET"
+    echo -e "             'server', 'agent', 'none' or 'both' (default)"
+    echo -e "  -s OPTIONS: OPTIONS which will be passed to the server. Default '$DEFAULT_SERVER_OPT'"
+    echo -e "  -a OPTIONS: OPTIONS which will be passed to the agent. Default '$DEFAULT_AGENT_OPT'"
 }
 
 fail() {
