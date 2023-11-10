@@ -1,13 +1,13 @@
 # Quickstart
 
 If you have not installed Ankaios, please follow the instructions
-[here](installation.md). The following examples assume that the
+[here](installation.md). The following examples assumes that the
 installation script has been used with default options.
 
 Ankaios needs a startup configuration that contains all the workloads and their
 configuration which should be started when Ankaios starts up.
 
-Let's modify the default config which is stored in `/etc/ank/state.yaml`:
+Let's modify the default config which is stored in `/etc/ankaios/state.yaml`:
 
 ```yaml
 workloads:
@@ -16,7 +16,7 @@ workloads:
     agent: agent_A
     restart: true
     updateStrategy: AT_MOST_ONCE
-    accessRights: # (1)
+    accessRights:
       allow: []
       deny: []
     tags:
@@ -26,9 +26,6 @@ workloads:
       image: docker.io/nginx:latest
       commandOptions: ["-p", "8081:80"]
 ```
-
-1.  Note that access rights are currently not implemented.
-
 
 Then we can start the Ankaios server:
 
