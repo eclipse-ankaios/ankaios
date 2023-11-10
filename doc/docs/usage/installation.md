@@ -10,7 +10,7 @@ work as well but have not been tested.
 ## Pre-requisites
 
 Ankaios currently requires a Linux OS and is available for x86_64 and arm64
-targets. [Podman](https://podman.io) needs to be installed as this is used as 
+targets. [Podman](https://podman.io) (version 3.4.2 or later) needs to be installed as this is used as 
 container runtime
 (see [Podman installation instructions](https://podman.io/docs/installation)).
 
