@@ -555,6 +555,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#uninstall-ankaios" class="md-nav__link">
+    Uninstall Ankaios
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#manual-download-of-binaries" class="md-nav__link">
     Manual download of binaries
   </a>
@@ -1129,6 +1136,13 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#uninstall-ankaios" class="md-nav__link">
+    Uninstall Ankaios
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#manual-download-of-binaries" class="md-nav__link">
     Manual download of binaries
   </a>
@@ -1180,21 +1194,26 @@ work as well but have not been tested.</p>
 </ul>
 <h2 id="pre-requisites">Pre-requisites<a class="headerlink" href="#pre-requisites" title="Permanent link">&para;</a></h2>
 <p>Ankaios currently requires a Linux OS and is available for x86_64 and arm64
-targets. <a href="https://podman.io">Podman</a> needs to be installed as this is used as 
+targets. <a href="https://podman.io">Podman</a> (version 3.4.2 or later) needs to be installed as this is used as 
 container runtime
 (see <a href="https://podman.io/docs/installation">Podman installation instructions</a>).</p>
 <h2 id="installation-methods">Installation methods<a class="headerlink" href="#installation-methods" title="Permanent link">&para;</a></h2>
 <p>There a different ways to install Ankaios.</p>
 <h3 id="setup-with-script">Setup with script<a class="headerlink" href="#setup-with-script" title="Permanent link">&para;</a></h3>
-<p>The recommend way to install Ankaios is using the installation script.
-To install the latest pre-built version of Ankaios into the default installation path <code>/usr/local/bin</code>, please run the following command:</p>
+<p>The recommended way to install Ankaios is using the installation script.
+To install the latest release version of Ankaios, please run the following command:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>curl<span class="w"> </span>-sfL<span class="w"> </span>https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash<span class="w"> </span>-
 </code></pre></div>
-<p>The installation process automatically detects the platform and downloads the appropriate binaries.</p>
+<p>The installation process automatically detects the platform and downloads the appropriate binaries.
+The default installation path for the binaries is <code>/usr/local/bin</code> but can be changed.
+The installation also creates systemd unit files and an uninstall script.</p>
 <p>Supported platforms: <code>linux/amd64</code>, <code>linux/arm64</code></p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>The script requires root privileges to install the pre-built binaries into the default installation path <code>/usr/local/bin</code>. You can set a custom installation path if only non-root privileges are available.</p>
+<p>The script requires root privileges to install the pre-built binaries into
+the default installation path <code>/usr/local/bin</code> and also for systemd
+integration. You can set a custom installation path and disable systemd unit
+file generation if only non-root privileges are available.</p>
 </div>
 <p>The following table shows the optional arguments that can be passed to the script:</p>
 <table>
@@ -1213,12 +1232,29 @@ To install the latest pre-built version of Ankaios into the default installation
 <td>-i &lt;install-path&gt;</td>
 <td>File path where Ankaios will be installed, default: <code>/usr/local/bin</code></td>
 </tr>
+<tr>
+<td>-t &lt;install-type&gt;</td>
+<td>Installation type for systemd integration: <code>server</code>, <code>agent</code>, <code>none</code> or <code>both</code> (default)</td>
+</tr>
+<tr>
+<td>-s &lt;server-options&gt;</td>
+<td>Options which will be passed to the Ankaios server. Default <code>--startup-config /etc/ank/state.yaml</code></td>
+</tr>
+<tr>
+<td>-a &lt;agent-options&gt;</td>
+<td>Options which will be passed to the Ankaios agent. Default <code>--name agent_A</code></td>
+</tr>
 </tbody>
 </table>
 <p>To install a specific version run the following command and substitute <code>&lt;version&gt;</code> with a specific version tag e.g. <code>v0.1.0</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>curl<span class="w"> </span>-sfL<span class="w"> </span>https://github.com/eclipse-ankaios/ankaios/releases/download/&lt;version&gt;/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash<span class="w"> </span>-s<span class="w"> </span>--<span class="w"> </span>-v<span class="w"> </span>&lt;version&gt;
 </code></pre></div>
 <p>For available versions see the <a href="https://github.com/eclipse-ankaios/ankaios/tags">list of releases</a>.</p>
+<h3 id="uninstall-ankaios">Uninstall Ankaios<a class="headerlink" href="#uninstall-ankaios" title="Permanent link">&para;</a></h3>
+<p>If Ankaios has been installed with the installation script, it can be uninstalled with:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>ank-uninstall.sh
+</code></pre></div>
+<p>The folder <code>/etc/ankaios</code> will remain.</p>
 <h3 id="manual-download-of-binaries">Manual download of binaries<a class="headerlink" href="#manual-download-of-binaries" title="Permanent link">&para;</a></h3>
 <p>As an alternative to the installation script, the pre-built binaries can be downloaded manually from the Ankaios repository <a href="https://github.com/eclipse-ankaios/ankaios/releases">here</a>.
 This is useful if the automatic detection of the platform is failing in case of <code>uname</code> system command is not allowed or supported on the target.</p>
