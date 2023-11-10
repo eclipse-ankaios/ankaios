@@ -89,7 +89,7 @@ impl clap::builder::TypedValueParser for ServerUrlParser {
 
 // [impl->swdd~cli-shall-support-environment-variables~1]
 // [impl->swdd~cli-prioritizes-cli-argument-over-environment-variable~1]
-#[derive(Parser)] // requires `derive` feature
+#[derive(Parser, Debug)] // requires `derive` feature
 #[command(name = "ank")]
 #[command(bin_name = "ank")]
 #[command(version)]
