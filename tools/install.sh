@@ -9,7 +9,7 @@ DEFAULT_BIN_DESTINATION="/usr/local/bin"
 BIN_DESTINATION="${DEFAULT_BIN_DESTINATION}"
 DEFAULT_AGENT_OPT="--name agent_A"
 AGENT_OPT="$DEFAULT_AGENT_OPT"
-CONFIG_DEST="/etc/ank"
+CONFIG_DEST="/etc/ankaios"
 FILE_STARTUP_STATE="${CONFIG_DEST}/state.yaml"
 DEFAULT_SERVER_OPT="--startup-config ${FILE_STARTUP_STATE}"
 SERVER_OPT="$DEFAULT_SERVER_OPT"
@@ -159,12 +159,12 @@ if [ -d "$SERVICE_DEST" ]; then
 Description=Ankaios server
 
 [Service]
-ExecStart=/usr/local/bin/ank-server $SERVER_OPT
+ExecStart=${BIN_DESTINATION}/ank-server $SERVER_OPT
 
 [Install]
 WantedBy=default.target
 EOF
-    echo "Start server with 'systemctl start $ANK_SERVER_SERVICE'"
+    echo "Start server with 'sudo systemctl start $ANK_SERVER_SERVICE'"
     fi
 
     if [[ "$INSTALL_TYPE" == agent || "$INSTALL_TYPE" == both ]]; then
@@ -173,12 +173,12 @@ EOF
 Description=Ankaios agent
 
 [Service]
-ExecStart=/usr/local/bin/ank-agent $AGENT_OPT
+ExecStart=${BIN_DESTINATION}/ank-agent $AGENT_OPT
 
 [Install]
 WantedBy=default.target
 EOF
-    echo "Start agent with 'systemctl start $ANK_AGENT_SERVICE'"
+    echo "Start agent with 'sudo systemctl start $ANK_AGENT_SERVICE'"
     fi
 
 else
@@ -186,16 +186,18 @@ else
 fi
 
 # Write sample state startup config
-if ! [ -s "$FILE_STARTUP_STATE" ] && [[ "$INSTALL_TYPE" == server || "$INSTALL_TYPE" == both ]]; then
-    $SVC_SUDO mkdir -p "${CONFIG_DEST}"
-    $SVC_SUDO tee "$FILE_STARTUP_STATE" >/dev/null << EOF
+if [[ "$INSTALL_TYPE" == server || "$INSTALL_TYPE" == both ]]; then
+    if ! [ -s "$FILE_STARTUP_STATE" ]; then 
+        $SVC_SUDO mkdir -p "${CONFIG_DEST}"
+        $SVC_SUDO tee "$FILE_STARTUP_STATE" >/dev/null << EOF
+# Per default no workload is started. Adapt the file according to your needs.
 workloads:
 #   nginx:
 #     runtime: podman
 #     agent: agent_A
 #     restart: true
 #     updateStrategy: AT_MOST_ONCE
-#     accessRights: # 
+#     accessRights:
 #       allow: []
 #       deny: []
 #     tags:
@@ -205,7 +207,10 @@ workloads:
 #       image: docker.io/nginx:latest
 #       commandOptions: ["-p", "8081:80"]
 EOF
-    echo "Created sample startup config in $FILE_STARTUP_STATE."
+        echo "Created sample startup config in $FILE_STARTUP_STATE."
+    else
+        echo "Skipping creation of sample startup file in $FILE_STARTUP_STATE as one already exists."
+    fi
 fi
 
 # Write uninstall script

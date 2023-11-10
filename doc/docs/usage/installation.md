@@ -20,7 +20,7 @@ There a different ways to install Ankaios.
 
 ### Setup with script
 
-The recommend way to install Ankaios is using the installation script.
+The recommended way to install Ankaios is using the installation script.
 To install the latest release version of Ankaios, please run the following command:
 
 ```shell
@@ -65,6 +65,8 @@ If Ankaios has been installed with the installation script, it can be uninstalle
 ```shell
 ank-uninstall.sh
 ```
+
+The folder `/etc/ankaios` will remain.
 
 ### Manual download of binaries
 

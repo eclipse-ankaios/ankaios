@@ -33,7 +33,7 @@ workloads:
 Then we can start the Ankaios server:
 
 ```shell
-systemctl start ank-server
+sudo systemctl start ank-server
 ```
 
 The Ankaios server will read the config but detect that no agent with the name
@@ -46,7 +46,7 @@ journalctl -u ank-server
 Now let's start an agent:
 
 ```shell
-systemctl start ank-agent
+sudo systemctl start ank-agent
 ```
 
 This Ankaios agent will run the workload that has been assigned to it. We can
