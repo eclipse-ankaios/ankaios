@@ -120,7 +120,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
             )
         });
 
-        // [impl->swdd~podman-kube-create-workload-runs-workload~1]
+        // [impl->swdd~podman-kube-create-workload-apply-manifest~1]
         let created_pods = PodmanCli::play_kube(
             &workload_config.general_options,
             &workload_config.play_options,
@@ -478,7 +478,7 @@ mod tests {
             )
             .returns(Ok(()));
 
-        // [utest->swdd~podman-kube-create-workload-runs-workload~1]
+        // [utest->swdd~podman-kube-create-workload-apply-manifest~1]
         mock_context
             .play_kube(
                 &*SAMPLE_GENERAL_OPTIONS,
