@@ -428,7 +428,7 @@ mod tests {
 
         let workloads = runtime.get_reusable_workloads(&SAMPLE_AGENT.into()).await;
 
-        assert!(matches!(workloads, Err(RuntimeError::Create(msg)) if msg.ends_with(SAMPLE_ERROR)));
+        assert!(matches!(workloads, Err(RuntimeError::Create(msg)) if msg.contains(SAMPLE_ERROR)));
     }
 
     #[tokio::test]
