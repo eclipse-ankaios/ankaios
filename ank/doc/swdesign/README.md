@@ -135,7 +135,7 @@ The Ankaios CLI shall support the usage of the following environment variables:
 - `ANK_SERVER_URL`, for providing the server url
 
 Rationale:
-This increases use-ability for the Ankaios CLI when the Ankaios CLI is used in different terminal windows to connect to the same Ankaios server remotely.
+This increases usability for the Ankaios CLI when the Ankaios CLI is used in different terminal windows to connect to the same Ankaios server remotely.
 
 Tags: 
 - CliStartup
