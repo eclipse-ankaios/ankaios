@@ -53,6 +53,12 @@ use the Ankaios CLI to check the current state:
 ank get state
 ```
 
+or
+
+```shell
+ank get workloads
+```
+
 Ankaios also provides adding and removing workloads dynamically.
 To add another workload call:
 
@@ -62,8 +68,8 @@ helloworld \
 --runtime podman \
 --agent agent_A \
 --config 'image: docker.io/busybox:1.36
-commandArgs: ["echo", "Hello World!"]'
-
+commandOptions: [ "-e", "MESSAGE=Hello World"]
+commandArgs: [ "sh", "-c", "echo $MESSAGE"]'
 ```
 
 We can check the state again with `ank get state` and see, that the workload
