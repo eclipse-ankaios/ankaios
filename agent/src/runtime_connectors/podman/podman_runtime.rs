@@ -45,15 +45,24 @@ impl RuntimeStateGetter<PodmanWorkloadId> for PodmanStateGetter {
         log::trace!("Getting the state for the workload '{}'", workload_id.id);
 
         // [impl->swdd~podman-state-getter-returns-unknown-state~1]
-        let mut exec_state = ExecutionState::ExecUnknown;
-        if let Ok(mut states) = PodmanCli::list_states_by_id(workload_id.id.as_str()).await {
-            match states.len() {
-                1 => exec_state = states.swap_remove(0),
-                // [impl->swdd~podman-state-getter-returns-removed-state~1]
-                0 => exec_state = ExecutionState::ExecRemoved, // we know that container was removed
-                _ => log::error!("Too many matches for the container Id '{:?}'", workload_id),
+        let exec_state = match PodmanCli::list_states_by_id(workload_id.id.as_str()).await {
+            Ok(state) => {
+                if let Some(state) = state {
+                    state
+                } else {
+                    ExecutionState::ExecUnknown
+                }
             }
-        }
+            Err(err) => {
+                log::error!(
+                    "Could not get state of workload '{:?}': '{}'",
+                    workload_id,
+                    err
+                );
+                ExecutionState::ExecUnknown
+            }
+        };
+
         log::trace!("Returning the state {}", exec_state);
         exec_state
     }
@@ -417,7 +426,7 @@ mod tests {
         let context = PodmanCli::list_states_by_id_context();
         context
             .expect()
-            .return_const(Ok(vec![ExecutionState::ExecRunning]));
+            .return_const(Ok(Some(ExecutionState::ExecRunning)));
 
         let workload_id = PodmanWorkloadId {
             id: "test_id".into(),
@@ -429,11 +438,11 @@ mod tests {
 
     // [utest->swdd~podman-state-getter-returns-removed-state~1]
     #[tokio::test]
-    async fn utest_get_state_returns_removed_on_empty_list() {
+    async fn utest_get_state_returns_removed_on_missing_state() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         let context = PodmanCli::list_states_by_id_context();
-        context.expect().return_const(Ok(Vec::new()));
+        context.expect().return_const(Ok(None));
 
         let workload_id = PodmanWorkloadId {
             id: "test_id".into(),

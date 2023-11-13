@@ -3,7 +3,8 @@ use common::objects::ExecutionState;
 #[cfg(test)]
 use mockall::automock;
 use serde::{Deserialize, Deserializer, Serialize};
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, sync::Arc, time};
+use tokio::sync::Mutex;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_connectors::cli_command::CliCommand;
@@ -11,7 +12,7 @@ use crate::runtime_connectors::cli_command::CliCommand;
 const PODMAN_CMD: &str = "podman";
 const API_PIPES_MOUNT_POINT: &str = "/run/ankaios/control_interface";
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ContainerState {
     Created,
     Exited(u8),
@@ -52,6 +53,63 @@ impl From<PodmanContainerInfo> for ExecutionState {
         }
     }
 }
+
+struct TimedPodmanPsResult {
+    last_update_time: time::Instant,
+    data: Arc<PodmanPsResult>,
+}
+
+#[derive(Debug)]
+struct PodmanPsResult {
+    container_states: Result<HashMap<String, ExecutionState>, String>,
+    pod_states: Result<HashMap<String, Vec<ContainerState>>, String>,
+}
+
+impl From<Result<Vec<PodmanContainerInfo>, String>> for PodmanPsResult {
+    fn from(value: Result<Vec<PodmanContainerInfo>, String>) -> Self {
+        match value {
+            Ok(value) => {
+                let mut container_states = HashMap::new();
+                let mut pod_states: HashMap<String, Vec<ContainerState>> = HashMap::new();
+
+                for i in value {
+                    container_states.insert(i.id.clone(), i.clone().into());
+                    pod_states.entry(i.pod.clone()).or_default().push(i.into());
+                }
+                Self {
+                    container_states: Ok(container_states),
+                    pod_states: Ok(pod_states),
+                }
+            }
+            Err(err) => Self {
+                container_states: Err(err.clone()),
+                pod_states: Err(err),
+            },
+        }
+    }
+}
+
+impl TimedPodmanPsResult {
+    async fn new() -> Self {
+        Self {
+            last_update_time: time::Instant::now(),
+            data: Arc::new(PodmanCli::list_states_internal().await.into()),
+        }
+    }
+
+    async fn update_if_too_old(&mut self) {
+        if self.last_update_time.elapsed().as_millis() > 1000 {
+            *self = Self::new().await;
+        }
+    }
+
+    async fn get(&mut self) -> &PodmanPsResult {
+        self.update_if_too_old().await;
+        &self.data
+    }
+}
+
+static LAST_PS_RESULT: Mutex<Option<TimedPodmanPsResult>> = Mutex::const_new(Option::None);
 
 pub struct PodmanCli {}
 
@@ -115,15 +173,15 @@ impl PodmanCli {
                 "--all",
                 "--filter",
                 &format!("label={key}={value}"),
-                "--format={{.ID}}",
+                "--format=json",
             ])
             .exec()
             .await?;
-        Ok(output
-            .split('\n')
-            .map(|x| x.trim().into())
-            .filter(|x: &String| !x.is_empty())
-            .collect())
+
+        let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
+            .map_err(|err| format!("Could not parse podman output: '{}'", err))?;
+
+        Ok(res.into_iter().map(|x| x.id).collect())
     }
 
     pub async fn list_workload_names_by_label(
@@ -212,39 +270,54 @@ impl PodmanCli {
         Ok(id)
     }
 
-    pub async fn list_states_by_id(workload_id: &str) -> Result<Vec<ExecutionState>, String> {
-        let output = CliCommand::new(PODMAN_CMD)
-            .args(&[
-                "ps",
-                "--all",
-                "--filter",
-                &format!("id={workload_id}"),
-                "--format=json",
-            ])
-            .exec()
-            .await?;
-
-        let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
-            .map_err(|err| format!("Could not parse podman output:{}", err))?;
-
-        Ok(res.into_iter().map(|x| x.into()).collect())
+    pub async fn list_states_by_id(workload_id: &str) -> Result<Option<ExecutionState>, String> {
+        let ps_result = &Self::get_ps_result().await;
+        let all_containers_states = ps_result
+            .as_ref()
+            .container_states
+            .as_ref()
+            .map_err(|err| err.to_owned())?;
+        Ok(all_containers_states
+            .get(workload_id)
+            .map(ToOwned::to_owned))
     }
 
     pub async fn list_states_from_pods(pods: &[String]) -> Result<Vec<ContainerState>, String> {
-        if pods.is_empty() {
-            return Ok(vec![]);
+        let ps_result = &Self::get_ps_result().await;
+        let all_pod_states = ps_result
+            .as_ref()
+            .pod_states
+            .as_ref()
+            .map_err(|err| err.to_owned())?;
+        Ok(pods
+            .iter()
+            .filter_map(|key| all_pod_states.get(key))
+            .flatten()
+            .map(|x| x.to_owned())
+            .collect())
+    }
+
+    async fn get_ps_result() -> Arc<PodmanPsResult> {
+        let mut guard = LAST_PS_RESULT.lock().await;
+        if let Some(value) = &mut *guard {
+            value.update_if_too_old().await;
+            value.data.clone()
+        } else {
+            let ps_result = TimedPodmanPsResult::new().await;
+            let result = ps_result.data.clone();
+            *guard = Some(ps_result);
+            result
         }
+    }
 
-        let mut args = vec!["ps", "--all", "--format=json"];
-        let filters: Vec<String> = pods.iter().map(|p| format!("--filter=pod={}", p)).collect();
-        args.extend(filters.iter().map(|x| x as &str));
+    async fn list_states_internal() -> Result<Vec<PodmanContainerInfo>, String> {
+        let output = CliCommand::new(PODMAN_CMD)
+            .args(&["ps", "--all", "--format=json"])
+            .exec()
+            .await?;
 
-        let output = CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
-
-        let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
-            .map_err(|err| format!("Could not parse podman output:{}", err))?;
-
-        Ok(res.into_iter().map(|x| x.into()).collect())
+        serde_json::from_str(&output)
+            .map_err(|err| format!("Could not parse podman output:{}", err))
     }
 
     pub async fn list_volumes_by_name(name: &str) -> Result<Vec<String>, String> {
@@ -329,24 +402,29 @@ struct DataLabel {
     data: String,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 struct PodmanContainerInfo {
     state: PodmanContainerState,
     exit_code: u8,
     #[serde(deserialize_with = "nullable_labels")]
     labels: HashMap<String, String>,
+    #[serde(deserialize_with = "nullable_labels")]
+    id: String,
+    #[serde(deserialize_with = "nullable_labels")]
+    pod: String,
 }
 
-fn nullable_labels<'a, D>(deserializer: D) -> Result<HashMap<String, String>, D::Error>
+fn nullable_labels<'a, D, V>(deserializer: D) -> Result<V, D::Error>
 where
     D: Deserializer<'a>,
+    V: Deserialize<'a> + Default,
 {
     let opt = Option::deserialize(deserializer)?;
     Ok(opt.unwrap_or_default())
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "lowercase")]
 enum PodmanContainerState {
     Created,
@@ -381,6 +459,8 @@ mod tests {
             state: PodmanContainerState::Created,
             exit_code: 0,
             labels: Default::default(),
+            pod: "".into(),
+            id: "".into(),
         }
         .into();
 
@@ -393,6 +473,8 @@ mod tests {
             state: PodmanContainerState::Exited,
             exit_code: 23,
             labels: Default::default(),
+            pod: "".into(),
+            id: "".into(),
         }
         .into();
 
@@ -405,6 +487,8 @@ mod tests {
             state: PodmanContainerState::Paused,
             exit_code: 0,
             labels: Default::default(),
+            pod: "".into(),
+            id: "".into(),
         }
         .into();
 
@@ -417,6 +501,8 @@ mod tests {
             state: PodmanContainerState::Running,
             exit_code: 0,
             labels: Default::default(),
+            pod: "".into(),
+            id: "".into(),
         }
         .into();
 
@@ -429,6 +515,8 @@ mod tests {
             state: PodmanContainerState::Unknown,
             exit_code: 0,
             labels: Default::default(),
+            pod: "".into(),
+            id: "".into(),
         }
         .into();
 
@@ -795,7 +883,7 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(vec![ExecutionState::ExecPending]));
+        assert_eq!(res, Ok(Some(ExecutionState::ExecPending)));
     }
 
     // [utest->swdd~podman-state-getter-maps-state~1]
@@ -816,7 +904,7 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(vec![ExecutionState::ExecSucceeded]));
+        assert_eq!(res, Ok(Some(ExecutionState::ExecSucceeded)));
     }
 
     // [utest->swdd~podman-state-getter-maps-state~1]
@@ -837,7 +925,7 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(vec![ExecutionState::ExecFailed]));
+        assert_eq!(res, Ok(Some(ExecutionState::ExecFailed)));
     }
 
     // [utest->swdd~podman-state-getter-maps-state~1]
@@ -858,7 +946,7 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(vec![ExecutionState::ExecRunning]));
+        assert_eq!(res, Ok(Some(ExecutionState::ExecRunning)));
     }
 
     // [utest->swdd~podman-state-getter-maps-state~1]
@@ -879,7 +967,7 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(vec![ExecutionState::ExecUnknown]));
+        assert_eq!(res, Ok(Some(ExecutionState::ExecUnknown)));
     }
 
     #[tokio::test]
@@ -1314,6 +1402,8 @@ mod tests {
             state,
             exit_code,
             labels: HashMap::from([("name".to_string(), workload_name)]),
+            pod: "".into(),
+            id: "".into(),
         }])
         .unwrap()
     }
