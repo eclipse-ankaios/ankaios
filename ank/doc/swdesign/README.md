@@ -156,7 +156,7 @@ Tags:
 
 Needs:
 - impl
-
+- stest
 #### CLI is a standalone application
 `swdd~cli-standalone-application~1`
 
