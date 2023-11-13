@@ -47,7 +47,7 @@ jobs:
         run: |
           cargo build --release
           mkdir -p dist/
-          cp target/release/ank target/release/ank-server target/release/ank-agent dist/
+          cp target/x86_64-unknown-linux-musl/release/ank target/x86_64-unknown-linux-musl/release/ank-server target/x86_64-unknown-linux-musl/release/ank-agent dist/
       - uses: actions/upload-artifact@v3.1.2
         with:
           name: ankaios-linux-amd64-bin
@@ -55,11 +55,11 @@ jobs:
           
       - name: Build linux-amd64 debian package
         run: |
-          cargo deb -p ank
+          cargo deb -p ank --target x86_64-unknown-linux-musl
       - uses: actions/upload-artifact@v3.1.2
         with:
           name: ankaios-linux-amd64-deb
-          path: target/debian/ankaios*.deb
+          path: target/x86_64-unknown-linux-musl/debian/ankaios*.deb
 
   build_linux_arm64:
     # currently there is no arm64 github built-in runner available
@@ -77,9 +77,9 @@ jobs:
       
       - name: Build linux-arm64 release-mode
         run: |
-          cargo build --target aarch64-unknown-linux-gnu --release
+          cargo build --target aarch64-unknown-linux-musl --release
           mkdir -p dist/
-          cp target/aarch64-unknown-linux-gnu/release/ank target/aarch64-unknown-linux-gnu/release/ank-server target/aarch64-unknown-linux-gnu/release/ank-agent dist/
+          cp target/aarch64-unknown-linux-musl/release/ank target/aarch64-unknown-linux-musl/release/ank-server target/aarch64-unknown-linux-musl/release/ank-agent dist/
       - uses: actions/upload-artifact@v3.1.2
         with:
           name: ankaios-linux-arm64-bin
@@ -87,11 +87,11 @@ jobs:
 
       - name: Build linux-arm64 debian package
         run: |
-          cargo deb -p ank --target aarch64-unknown-linux-gnu
+          cargo deb -p ank --target aarch64-unknown-linux-musl
       - uses: actions/upload-artifact@v3.1.2
         with:
           name: ankaios-linux-arm64-deb
-          path: target/aarch64-unknown-linux-gnu/debian/ankaios*.deb
+          path: target/aarch64-unknown-linux-musl/debian/ankaios*.deb
 
   requirements:
     name: Build requirements tracing
