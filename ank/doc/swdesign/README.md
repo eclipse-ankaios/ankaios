@@ -142,7 +142,7 @@ Tags:
 
 Needs:
 - impl
-- utest
+- stest
 
 #### CLI prioritizes cli argument over environment variable
 `swdd~cli-prioritizes-cli-argument-over-environment-variable~1`
