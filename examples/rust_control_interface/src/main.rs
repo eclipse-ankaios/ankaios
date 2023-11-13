@@ -13,7 +13,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{collections::HashMap, io, path::Path, time::Duration, vec};
-use chrono;
 use api::proto;
 
 use prost::Message;

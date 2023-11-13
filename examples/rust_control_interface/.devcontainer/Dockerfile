@@ -1,23 +1,26 @@
 FROM ghcr.io/eclipse-ankaios/app-ankaios-dev:latest as dev
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 RUN apt-get update && apt-get -y install \
     # Development tools
-    gcc \
+    musl \
+    musl-dev \
+    musl-tools\
     && \
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash /dev/stdin -y \
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y \
     && \
     rm -rf /var/lib/apt/lists/*
 
-# prod stage
-FROM docker.io/library/rust:1.72-slim-bullseye
-RUN apt-get update && apt-get -y install \
-    protobuf-compiler \
-    protobuf-compiler-grpc
+RUN rustup target add x86_64-unknown-linux-musl && rustup toolchain add stable-x86_64-unknown-linux-musl
 
-# copy ankaios.proto
-COPY --from=dev /usr/local/lib/ankaios /usr/local/lib/ankaios
-COPY . /workspaces/app
-WORKDIR /workspaces/app
-RUN cargo build -r
+# stage compile
+FROM dev as compile
+COPY . /workspaces/build
+WORKDIR /workspaces/build
+RUN cargo build --release
 
-ENTRYPOINT ["/workspaces/app/target/release/rust_control_interface_example"]
+# stage prod
+FROM docker.io/library/alpine:latest
+COPY --from=compile /workspaces/build/target/x86_64-unknown-linux-musl/release/rust_control_interface_example /usr/local/bin/rust_control_interface_example
+RUN chmod +x /usr/local/bin/rust_control_interface_example
+ENTRYPOINT ["/usr/local/bin/rust_control_interface_example"]
