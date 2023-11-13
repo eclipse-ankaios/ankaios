@@ -68,7 +68,7 @@ fn create_error_context(
 /// Clap still outputs that the cli argument was wrongly set,
 /// but not the environment variable. This is poor use-ability.
 /// An issue for this bug is already opened (https://github.com/clap-rs/clap/issues/5202).
-/// The code will be removed if the bug in Clap is fixed.
+/// The code will be removed when the bug in Clap is fixed.
 pub struct ServerUrlParser;
 
 impl clap::builder::TypedValueParser for ServerUrlParser {
