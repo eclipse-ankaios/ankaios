@@ -66,7 +66,7 @@ fn create_error_context(
 /// when using the environment variable and not the cli argument.
 /// When using a wrong value inside environment variable
 /// Clap still outputs that the cli argument was wrongly set,
-/// but not the environment variable. This is poor use-ability.
+/// but not the environment variable. This is poor usability.
 /// An issue for this bug is already opened (https://github.com/clap-rs/clap/issues/5202).
 /// The code will be removed when the bug in Clap is fixed.
 pub struct ServerUrlParser;
