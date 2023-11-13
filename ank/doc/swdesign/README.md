@@ -149,8 +149,7 @@ Needs:
 
 Status: approved
 
-When an environment variable is set and the user specifies a value for the corresponding cli argument,
-the Ankaios CLI shall use the value from the cli argument.
+Command line arguments provided to the the Ankaios CLI shall overwrite environment variables.
 
 Tags:
 - CliStartup
