@@ -16,6 +16,7 @@ import subprocess
 import time
 import yaml
 import json
+import re
 from robot.api import logger
 
 import re
@@ -152,3 +153,24 @@ def write_yaml(new_yaml: dict, path):
 def json_to_dict(raw):
     json_data = json.loads(raw)
     return json_data
+
+def check_podman_kube_volumes_gone(workload_name, agent_name):
+    start_time = time.time()
+    command = "podman volume ls --format=json"
+    regex_str = f"^{workload_name}.\\w+.{agent_name}.(config|pods)$"
+    reg_exp = re.compile(regex_str)
+    while (time.time() - start_time) < 5:
+        res = run_command(command)
+        dict = json_to_dict(res.stdout if res else "")
+        logger.trace(dict)
+        still_matching = False
+        for value in dict:
+            if "Name" in value:
+                logger.trace("checking: " + value["Name"])
+                if reg_exp.match(value["Name"]):
+                    logger.trace("still matching")
+                    still_matching = True
+        if not still_matching:
+            return True
+        time.sleep(1)
+    return False

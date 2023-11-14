@@ -205,3 +205,7 @@ the JSON array "${dict_array}" shall contain array "${key}" which contains value
         Dictionary Should Contain Key    dictionary=${dict_array_item}    key=${key}
         List Should Contain Value    list_=${dict_array_item["${key}"]}    value=${value}
     END
+
+volume for "${workload_name}" shall not exists on "${agent_name}"
+    ${result}=    check podman kube volumes gone    ${workload_name}    ${agent_name}
+    Should Be True     ${result}

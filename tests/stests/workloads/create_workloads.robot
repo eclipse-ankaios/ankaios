@@ -107,7 +107,5 @@ Test Ankaios Podman create kube workload
     When user triggers "ank delete workload nginx"
     And user triggers "ank get workloads"
     Then the workload "nginx" shall not exist
-    When user executes system app "podman volume ls --format=json"
-    ${dict_array}=    And the result is valid JSON
-    Then the JSON array "${dict_array}" shall contain key "Name" which not matches the expression "^nginx.\\w+.agent_A.(config|pods)$"
+    And volume for "nginx" shall not exists on "agent_A"
     [Teardown]    Clean up Ankaios
