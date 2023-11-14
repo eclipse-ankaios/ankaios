@@ -54,7 +54,7 @@ async fn main() {
     let args = cli::parse();
 
     log::debug!(
-        "Starting the Ankaios agent with \n\tname: {}, \n\tserver url: {}, \n\trun directory: {}",
+        "Starting the Ankaios agent with \n\tname: '{}', \n\tserver url: '{}', \n\trun directory: '{}'",
         args.agent_name,
         args.server_url,
         args.run_folder,
