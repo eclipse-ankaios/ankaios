@@ -22,10 +22,12 @@ and for release
 cargo build --release
 ```
 
+As Ankaios uses musl for static linking, the binaries will be located in `target/x86_64-unknown-linux-musl`.
+
 ## Build for arm64 target on x86 host
 
 The dev container adds required tools for `arm64` architecture. To build Ankaios for `arm64`, run the following command inside the dev container:
 
 ```shell
-cargo build --target aarch64-unknown-linux-gnu --release
+cargo build --target aarch64-unknown-linux-musl --release
 ```

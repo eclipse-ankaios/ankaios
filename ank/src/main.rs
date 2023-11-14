@@ -28,9 +28,13 @@ async fn main() {
     let args = cli::parse();
 
     let cli_name = "ank-cli";
-
     env::set_var(log::VERBOSITY_KEY, args.verbose.to_string());
 
+    output_debug!(
+        "Started '{}' with the following parameters: '{:?}'",
+        cli_name,
+        args
+    );
     match args.command {
         cli::Commands::Get(get_args) => match get_args.command {
             // [impl->swdd~cli-provides-get-current-state~1]

@@ -12,12 +12,12 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-FROM ghcr.io/eclipse-ankaios/devcontainer-base:0.5.0 as builder
+FROM ghcr.io/eclipse-ankaios/devcontainer-base:0.6.4 as builder
 WORKDIR /usr/src/myapp
 COPY examples/workload_api_example examples/workload_api_example
 COPY api api
-RUN cd examples/workload_api_example && cargo build --release
+RUN cd examples/workload_api_example && cargo build --release --target x86_64-unknown-linux-musl
 
-FROM debian:bullseye
-COPY --from=builder  /usr/src/myapp/examples/workload_api_example/target/release/ankaios-workload-api-example /usr/local/bin
+FROM docker.io/library/alpine:latest
+COPY --from=builder  /usr/src/myapp/examples/workload_api_example/target/x86_64-unknown-linux-musl/release/ankaios-workload-api-example /usr/local/bin
 ENTRYPOINT /usr/local/bin/ankaios-workload-api-example
