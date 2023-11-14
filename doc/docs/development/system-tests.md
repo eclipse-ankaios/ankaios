@@ -116,7 +116,7 @@ Generic syntax:
 ```bash
 /workspaces/ankaios$ [ANK_BIN_DIR=path_to_ankaios_executables] tools/run_robot_tests <options> <directory or robot file>
 ```
-If *ANK_BIN_DIR* is not provided the script looks in the path `{Ankaios root folder}/target/debug` for the Ankaios executables.
+If *ANK_BIN_DIR* is not provided the script looks in the path `{Ankaios root folder}/target/x86_64-unknown-linux-musl/debug` for the Ankaios executables.
 The supported options are the same as of `robot` cli, so for more detailed description about it see [here](https://robotframework.org/robotframework/latest/RobotFrameworkUserGuide.html#using-command-line-options).
 
 *Note: In order to be able to start `podman` runtime in the development container properly, the development container needs to be run in `privilege` mode.*
@@ -127,7 +127,7 @@ The supported options are the same as of `robot` cli, so for more detailed descr
 ```
 Example output:
 ```text
-Use default executable directory: /workspaces/ankaios/tools/../target/debug
+Use default executable directory: /workspaces/ankaios/tools/../target/x86_64-unknown-linux-musl/debug
 Found ank 0.1.0
 Found ank-server 0.1.0
 Found ank-agent 0.1.0
@@ -175,7 +175,7 @@ Report:  /workspaces/ankaios/target/robot_tests_result/report.html
 
 Example output:
 ```text
-Use default executable directory: /workspaces/ankaios/tools/../target/debug
+Use default executable directory: /workspaces/ankaios/tools/../target/x86_64-unknown-linux-musl/debug
 Found ank 0.1.0
 Found ank-server 0.1.0
 Found ank-agent 0.1.0
