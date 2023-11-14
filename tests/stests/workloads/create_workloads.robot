@@ -109,6 +109,5 @@ Test Ankaios Podman create kube workload
     Then the workload "nginx" shall not exist
     When user executes system app "podman volume ls --format=json"
     ${dict_array}=    And the result is valid JSON
-    # TODO: reactivate this line and fix the failure
-    # Then the JSON array "${dict_array}" shall contain key "Name" which not matches the expression "^nginx.\\w+.agent_A.(config|pods)$"
+    Then the JSON array "${dict_array}" shall contain key "Name" which not matches the expression "^nginx.\\w+.agent_A.(config|pods)$"
     [Teardown]    Clean up Ankaios
