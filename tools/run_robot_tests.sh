@@ -19,7 +19,7 @@ set -e
 script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 base_dir="$script_dir/.."
 target_dir="$base_dir/target/robot_tests_result"
-default_executable_dir="$base_dir/target/debug"
+default_executable_dir="$base_dir/target/x86_64-unknown-linux-musl/debug"
 
 check_executable() {
     if [[ -x "$1" ]]

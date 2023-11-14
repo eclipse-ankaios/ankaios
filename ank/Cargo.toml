@@ -20,8 +20,8 @@ assets = [
 
 [dependencies]
 api = { package = "api", version = "0", path = "../api" }
-common = { package = "common", version = "0.1", path = "../common" }
-grpc = { package = "grpc", version = "0.1", path = "../grpc" }
+common = { package = "common", version = "0.2", path = "../common" }
+grpc = { package = "grpc", version = "0.2", path = "../grpc" }
 clap = { version = "4.0", features = ["derive", "env"] }
 tokio = { version = "1.28", features = [
     "macros",
@@ -40,6 +40,6 @@ tabled = "0.12"
 
 [dev-dependencies]
 mockall = "0.11"
-common = { package = "common", version = "0.1", path = "../common", features = [
+common = { package = "common", version = "0.2", path = "../common", features = [
     "test_utils",
 ] }
