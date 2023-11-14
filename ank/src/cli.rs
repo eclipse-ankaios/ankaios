@@ -19,7 +19,11 @@ use clap::{command, Parser, Subcommand};
 use common::DEFAULT_SERVER_ADDRESS;
 use url::Url;
 
-#[derive(Parser)] // requires `derive` feature
+const ANK_SERVER_URL_ENV_KEY: &str = "ANK_SERVER_URL";
+
+// [impl->swdd~cli-shall-support-environment-variables~1]
+// [impl->swdd~cli-prioritizes-cli-argument-over-environment-variable~1]
+#[derive(Parser, Debug)] // requires `derive` feature
 #[command(name = "ank")]
 #[command(bin_name = "ank")]
 #[command(version)]
@@ -27,7 +31,7 @@ use url::Url;
 pub struct AnkCli {
     #[command(subcommand)]
     pub command: Commands,
-    #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.parse().unwrap())]
+    #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.parse().unwrap(), env = ANK_SERVER_URL_ENV_KEY)]
     /// The url to Ankaios server.
     pub server_url: Url,
     #[clap(long = "response-timeout", default_value_t = 3000)]
