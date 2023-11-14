@@ -310,9 +310,10 @@ impl PodmanCli {
     }
 
     pub async fn remove_workloads_by_id(workload_id: &str) -> Result<(), String> {
-        let args = vec!["stop", workload_id];
+        // Containers may have "--rm" flag -> it can happen, that they already do not exist.
+        let args = vec!["stop", "--ignore", workload_id];
         CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
-        let args = vec!["rm", workload_id];
+        let args = vec!["rm", "--ignore", workload_id];
         CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
         Ok(())
     }
@@ -1247,7 +1248,7 @@ mod tests {
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["stop", "test_id"])
+                .expect_args(&["stop", "--ignore", "test_id"])
                 .exec_returns(Err("simulated error".to_string())),
         );
 
@@ -1265,14 +1266,14 @@ mod tests {
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["stop", "test_id"])
+                .expect_args(&["stop", "--ignore", "test_id"])
                 .exec_returns(Ok("".to_string())),
         );
 
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["rm", "test_id"])
+                .expect_args(&["rm", "--ignore", "test_id"])
                 .exec_returns(Err("simulated error".to_string())),
         );
 
@@ -1290,14 +1291,14 @@ mod tests {
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["stop", "test_id"])
+                .expect_args(&["stop", "--ignore", "test_id"])
                 .exec_returns(Ok("".to_string())),
         );
 
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["rm", "test_id"])
+                .expect_args(&["rm", "--ignore", "test_id"])
                 .exec_returns(Ok("".to_string())),
         );
 
