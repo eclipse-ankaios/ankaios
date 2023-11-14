@@ -1178,8 +1178,8 @@ Status: approved
 When the podman-kube runtime connector is called to create workload, before applying the manifest,
 the podman-kube runtime connector shall store the runtime configuration in a volume:
 
-* the name of the volume shall be the workload execution instance name appended by ".config"
 * the data is stored base64 encoded in the label `data` of the volume
+* the name of the volume shall be the workload execution instance name suffixed with ".config"
 
 Rationale:
 The data stored in this volume is needed, if the agent is restarted to find existing workloads.
@@ -1210,6 +1210,7 @@ the podman-kube runtime connector shall store the pods in a volume:
 
 * the pod list is encoded as JSON
 * the JSON data is stored base64 encoded in the label `data` of the volume
+* the name of the volume shall be the workload execution instance name suffixed with ".pods"
 
 Rationale:
 The data stored in this volume is needed, if the agent is restarted to recreate the podman-kube workload ID.
