@@ -86,8 +86,8 @@ RUN cargo install cargo-llvm-cov --locked; \
     cargo install cargo-deb --locked; \
     cargo install cargo-nextest --locked
 
-# Install cargo tools for cross compilation
-RUN rustup target add aarch64-unknown-linux-gnu \
-    && rustup toolchain install stable-aarch64-unknown-linux-gnu
+# Install required cargo targets and toolchains
+RUN rustup target add x86_64-unknown-linux-musl \
+    && rustup target add aarch64-unknown-linux-musl
 
 USER root
