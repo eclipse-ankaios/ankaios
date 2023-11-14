@@ -76,7 +76,7 @@ impl AgentConnection for GRPCAgentConnection {
             .ok_or_else(invalid_argument_empty)?
         {
             StateChangeRequestEnum::AgentHello(AgentHello { agent_name }) => {
-                log::trace!("Received a hello from {:?}", agent_name);
+                log::trace!("Received a hello from '{}'", agent_name);
 
                 // [impl->swdd~grpc-agent-connection-stores-execution-channel-tx~1]
                 self.agent_senders
