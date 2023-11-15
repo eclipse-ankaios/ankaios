@@ -27,12 +27,16 @@ Library             ankaios_library.py
 
 *** Variables ***
 ${CURRENT_RESULT}       ${EMPTY}
+${TEST_FOLDER_NAME}    ${EMPTY}
 
 
 *** Keywords ***
 Setup Ankaios
     ${run_result}=    Run Process    command=mktemp -d    shell=True
     Set Environment Variable    name=ANKAIOS_TEMP    value=${run_result.stdout}
+    ${TEST_FOLDER_NAME}=    Evaluate    '${TEST_NAME}'.lower().replace(' ', '_')
+    Set Global Variable    ${TEST_FOLDER_NAME}
+    ${run_result}=    Run Process    command=mkdir -p "target/robot_tests_result/${TEST_FOLDER_NAME}"    shell=True
 
 Clean up Ankaios
     Terminate All Processes    kill=True
@@ -50,7 +54,7 @@ Run in background
     Log    Run in background: ${cli_command}
     ${cmd}=    Split Command Line    ${cli_command}
     Set List Value    ${cmd}    0    ${location}${/}${cmd}[0]
-    Start Process    @{cmd}
+    Start Process    @{cmd}    stderr=target/robot_tests_result/agent_A_logs.txt
 
 Run in foreground
     [Arguments]    ${cli_command}
@@ -69,13 +73,13 @@ the command "${cli_command}" finished with exit code "${exit_code}"
 the command "${cli_command}" shall finish with exit code "${exit_code}"
     the command "${cli_command}" finished with exit code "${exit_code}"
 
-Ankaios server is started with "${ank_server_cli_command}"
-    Log    Ankaios server is started with ${ank_server_cli_command}
-    Run in background    %{ANK_BIN_DIR}    ${ank_server_cli_command}
+Ankaios server is started with config "${config_path}"
+    Log    Ankaios server is started with config ${config_path}
+    Start Process    %{ANK_BIN_DIR}${/}ank-server    --startup-config    ${config_path}    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
 
-Ankaios agent is started with "${ank_agent_cli_command}"
-    Log    Ankaios agent is started with ${ank_agent_cli_command}
-    Run in background    %{ANK_BIN_DIR}    ${ank_agent_cli_command}
+Ankaios agent is started with name "${name}"
+    Log    Ankaios agent is started with name ${name}
+    Start Process    %{ANK_BIN_DIR}${/}ank-agent    --name    ${name}    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
 
 Podman has deleted all existing containers
     Run Process    podman    rm    -a    -f    timeout=20    shell=True
