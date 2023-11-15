@@ -99,14 +99,14 @@ Test Ankaios Podman create kube workload
     And Ankaios agent is started with "ank-agent --name agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     When user triggers "ank get workloads"
-    Then the workload "nginx" shall have the execution state "Running"
+    Then the workload "hello-k8s" shall have the execution state "Running"
     # Check config and pods volumes has been created
     When user executes system app "podman volume ls --format=json"
     ${dict_array}=    And the result is valid JSON
-    Then the JSON array "${dict_array}" shall contain key "Name" which matches the expression "^nginx.\\w+.agent_A.(config|pods)$"
+    Then the JSON array "${dict_array}" shall contain key "Name" which matches the expression "^hello-k8s.\\w+.agent_A.(config|pods)$"
     # Check config and pods volumes are deleted when workload is deleted
-    When user triggers "ank delete workload nginx"
+    When user triggers "ank delete workload hello-k8s"
     And user triggers "ank get workloads"
-    Then the workload "nginx" shall not exist
-    And volume for "nginx" shall not exists on "agent_A"
+    Then the workload "hello-k8s" shall not exist
+    And volume for "hello-k8s" shall not exists on "agent_A"
     [Teardown]    Clean up Ankaios

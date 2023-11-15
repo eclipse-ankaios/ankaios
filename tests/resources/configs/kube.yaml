@@ -1,5 +1,5 @@
 workloads:
-  nginx:
+  hello-k8s:
     runtime: podman-kube
     agent: agent_A
     restart: true
@@ -15,12 +15,12 @@ workloads:
         apiVersion: v1
         kind: Pod
         metadata:
-          name: nginx
+          name: hello-pod
         spec:
           containers:
-          - name: nginx
-            image: docker.io/nginx:latest
-            ports:
-            - containerPort: 80
-              hostPort: 8081
+          - name: hello-container
+            image: docker.io/alpine:latest
+            command: 
+            - echo
+            - Hi!
 
