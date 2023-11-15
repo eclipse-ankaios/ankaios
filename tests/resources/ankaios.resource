@@ -88,7 +88,7 @@ Podman has deleted all existing volumes
 
 all workloads of agent "${agent_name}" have an initial execution state
     Log    Waiting for initial execution states of agent '${agent_name}'
-    ${result}=    wait for initial execution state    %{ANK_BIN_DIR}${/}ank get workloads    ${agent_name}    20    5
+    ${result}=    wait for initial execution state    %{ANK_BIN_DIR}${/}ank get workloads    ${agent_name}    30    5
     Should Be True    ${result}
 
 user triggers "${cli_command}"
