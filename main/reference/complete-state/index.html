@@ -1157,65 +1157,59 @@
 <a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a><span class="w">        </span>value:<span class="w"> </span>Ankaios<span class="w"> </span>team
 <a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a><span class="w">      </span>runtimeConfig:<span class="w"> </span><span class="p">|</span>
 <a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a><span class="w">        </span>image:<span class="w"> </span>alpine:latest
-<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a><span class="w">        </span>command:<span class="w"> </span><span class="o">[</span><span class="s2">&quot;echo&quot;</span><span class="o">]</span>
-<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a><span class="w">        </span>args:<span class="w"> </span><span class="o">[</span><span class="s2">&quot;Hello Ankaios&quot;</span><span class="o">]</span>
-<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a><span class="w">    </span>hello1:
-<a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a><span class="w">      </span>agent:<span class="w"> </span>agent_B
-<a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a><span class="w">      </span>dependencies:<span class="w"> </span><span class="o">{}</span>
-<a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a><span class="w">      </span>updateStrategy:<span class="w"> </span>AT_MOST_ONCE
-<a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a><span class="w">      </span>accessRights:
-<a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a><span class="w">        </span>allow:<span class="w"> </span><span class="o">[]</span>
-<a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a><span class="w">        </span>deny:<span class="w"> </span><span class="o">[]</span>
-<a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a><span class="w">      </span>runtime:<span class="w"> </span>podman
-<a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a><span class="w">      </span>name:<span class="w"> </span>hello1
-<a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a><span class="w">      </span>restart:<span class="w"> </span><span class="nb">true</span>
-<a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a><span class="w">      </span>tags:
-<a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a><span class="w">      </span>-<span class="w"> </span>key:<span class="w"> </span>owner
-<a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a><span class="w">        </span>value:<span class="w"> </span>Ankaios<span class="w"> </span>team
-<a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a><span class="w">      </span>runtimeConfig:<span class="w"> </span><span class="p">|</span>
-<a id="__codelineno-0-54" name="__codelineno-0-54" href="#__codelineno-0-54"></a><span class="w">        </span>image:<span class="w"> </span>alpine:latest
-<a id="__codelineno-0-55" name="__codelineno-0-55" href="#__codelineno-0-55"></a><span class="w">        </span>command:<span class="w"> </span><span class="o">[</span><span class="s2">&quot;echo&quot;</span><span class="o">]</span>
-<a id="__codelineno-0-56" name="__codelineno-0-56" href="#__codelineno-0-56"></a><span class="w">        </span>args:<span class="w"> </span><span class="o">[</span><span class="s2">&quot;Hello Ankaios&quot;</span><span class="o">]</span>
-<a id="__codelineno-0-57" name="__codelineno-0-57" href="#__codelineno-0-57"></a><span class="w">        </span>remove:<span class="w"> </span><span class="nb">true</span>
-<a id="__codelineno-0-58" name="__codelineno-0-58" href="#__codelineno-0-58"></a><span class="w">    </span>nginx:
-<a id="__codelineno-0-59" name="__codelineno-0-59" href="#__codelineno-0-59"></a><span class="w">      </span>agent:<span class="w"> </span>agent_A
-<a id="__codelineno-0-60" name="__codelineno-0-60" href="#__codelineno-0-60"></a><span class="w">      </span>dependencies:<span class="w"> </span><span class="o">{}</span>
-<a id="__codelineno-0-61" name="__codelineno-0-61" href="#__codelineno-0-61"></a><span class="w">      </span>updateStrategy:<span class="w"> </span>AT_MOST_ONCE
-<a id="__codelineno-0-62" name="__codelineno-0-62" href="#__codelineno-0-62"></a><span class="w">      </span>accessRights:
-<a id="__codelineno-0-63" name="__codelineno-0-63" href="#__codelineno-0-63"></a><span class="w">        </span>allow:<span class="w"> </span><span class="o">[]</span>
-<a id="__codelineno-0-64" name="__codelineno-0-64" href="#__codelineno-0-64"></a><span class="w">        </span>deny:<span class="w"> </span><span class="o">[]</span>
-<a id="__codelineno-0-65" name="__codelineno-0-65" href="#__codelineno-0-65"></a><span class="w">      </span>runtime:<span class="w"> </span>podman
-<a id="__codelineno-0-66" name="__codelineno-0-66" href="#__codelineno-0-66"></a><span class="w">      </span>name:<span class="w"> </span>nginx
-<a id="__codelineno-0-67" name="__codelineno-0-67" href="#__codelineno-0-67"></a><span class="w">      </span>restart:<span class="w"> </span><span class="nb">true</span>
-<a id="__codelineno-0-68" name="__codelineno-0-68" href="#__codelineno-0-68"></a><span class="w">      </span>tags:
-<a id="__codelineno-0-69" name="__codelineno-0-69" href="#__codelineno-0-69"></a><span class="w">      </span>-<span class="w"> </span>key:<span class="w"> </span>owner
-<a id="__codelineno-0-70" name="__codelineno-0-70" href="#__codelineno-0-70"></a><span class="w">        </span>value:<span class="w"> </span>Ankaios<span class="w"> </span>team
-<a id="__codelineno-0-71" name="__codelineno-0-71" href="#__codelineno-0-71"></a><span class="w">      </span>runtimeConfig:<span class="w"> </span><span class="p">|</span>
-<a id="__codelineno-0-72" name="__codelineno-0-72" href="#__codelineno-0-72"></a><span class="w">        </span>image:<span class="w"> </span>docker.io/nginx:latest
-<a id="__codelineno-0-73" name="__codelineno-0-73" href="#__codelineno-0-73"></a><span class="w">        </span>ports:
-<a id="__codelineno-0-74" name="__codelineno-0-74" href="#__codelineno-0-74"></a><span class="w">        </span>-<span class="w"> </span>containerPort:<span class="w"> </span><span class="m">80</span>
-<a id="__codelineno-0-75" name="__codelineno-0-75" href="#__codelineno-0-75"></a><span class="w">          </span>hostPort:<span class="w"> </span><span class="m">8081</span>
-<a id="__codelineno-0-76" name="__codelineno-0-76" href="#__codelineno-0-76"></a><span class="w">    </span>hello2:
-<a id="__codelineno-0-77" name="__codelineno-0-77" href="#__codelineno-0-77"></a><span class="w">      </span>agent:<span class="w"> </span>agent_B
-<a id="__codelineno-0-78" name="__codelineno-0-78" href="#__codelineno-0-78"></a><span class="w">      </span>dependencies:<span class="w"> </span><span class="o">{}</span>
-<a id="__codelineno-0-79" name="__codelineno-0-79" href="#__codelineno-0-79"></a><span class="w">      </span>updateStrategy:<span class="w"> </span>AT_MOST_ONCE
-<a id="__codelineno-0-80" name="__codelineno-0-80" href="#__codelineno-0-80"></a><span class="w">      </span>accessRights:
-<a id="__codelineno-0-81" name="__codelineno-0-81" href="#__codelineno-0-81"></a><span class="w">        </span>allow:<span class="w"> </span><span class="o">[]</span>
-<a id="__codelineno-0-82" name="__codelineno-0-82" href="#__codelineno-0-82"></a><span class="w">        </span>deny:<span class="w"> </span><span class="o">[]</span>
-<a id="__codelineno-0-83" name="__codelineno-0-83" href="#__codelineno-0-83"></a><span class="w">      </span>runtime:<span class="w"> </span>podman
-<a id="__codelineno-0-84" name="__codelineno-0-84" href="#__codelineno-0-84"></a><span class="w">      </span>name:<span class="w"> </span>hello2
-<a id="__codelineno-0-85" name="__codelineno-0-85" href="#__codelineno-0-85"></a><span class="w">      </span>restart:<span class="w"> </span><span class="nb">true</span>
-<a id="__codelineno-0-86" name="__codelineno-0-86" href="#__codelineno-0-86"></a><span class="w">      </span>tags:
-<a id="__codelineno-0-87" name="__codelineno-0-87" href="#__codelineno-0-87"></a><span class="w">      </span>-<span class="w"> </span>key:<span class="w"> </span>owner
-<a id="__codelineno-0-88" name="__codelineno-0-88" href="#__codelineno-0-88"></a><span class="w">        </span>value:<span class="w"> </span>Ankaios<span class="w"> </span>team
-<a id="__codelineno-0-89" name="__codelineno-0-89" href="#__codelineno-0-89"></a><span class="w">      </span>runtimeConfig:<span class="w"> </span><span class="p">|</span>
-<a id="__codelineno-0-90" name="__codelineno-0-90" href="#__codelineno-0-90"></a><span class="w">        </span>image:<span class="w"> </span>alpine:latest
-<a id="__codelineno-0-91" name="__codelineno-0-91" href="#__codelineno-0-91"></a><span class="w">        </span>command:<span class="w"> </span><span class="o">[</span><span class="s2">&quot;echo&quot;</span><span class="o">]</span>
-<a id="__codelineno-0-92" name="__codelineno-0-92" href="#__codelineno-0-92"></a><span class="w">        </span>args:<span class="w"> </span><span class="o">[</span><span class="s2">&quot;Hello Ankaios&quot;</span><span class="o">]</span>
-<a id="__codelineno-0-93" name="__codelineno-0-93" href="#__codelineno-0-93"></a><span class="w">        </span>remove:<span class="w"> </span><span class="nb">false</span>
-<a id="__codelineno-0-94" name="__codelineno-0-94" href="#__codelineno-0-94"></a><span class="w">  </span>configs:<span class="w"> </span><span class="o">{}</span>
-<a id="__codelineno-0-95" name="__codelineno-0-95" href="#__codelineno-0-95"></a><span class="w">  </span>cronJobs:<span class="w"> </span><span class="o">{}</span>
-<a id="__codelineno-0-96" name="__codelineno-0-96" href="#__codelineno-0-96"></a>workloadStates:<span class="w"> </span><span class="o">[]</span>
+<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a><span class="w">        </span>commandArgs:<span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">&quot;echo&quot;</span>,<span class="w"> </span><span class="s2">&quot;Hello Ankaios&quot;</span><span class="o">]</span>
+<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a><span class="w">    </span>hello1:
+<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a><span class="w">      </span>agent:<span class="w"> </span>agent_B
+<a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a><span class="w">      </span>dependencies:<span class="w"> </span><span class="o">{}</span>
+<a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a><span class="w">      </span>updateStrategy:<span class="w"> </span>AT_MOST_ONCE
+<a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a><span class="w">      </span>accessRights:
+<a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a><span class="w">        </span>allow:<span class="w"> </span><span class="o">[]</span>
+<a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a><span class="w">        </span>deny:<span class="w"> </span><span class="o">[]</span>
+<a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a><span class="w">      </span>runtime:<span class="w"> </span>podman
+<a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a><span class="w">      </span>name:<span class="w"> </span>hello1
+<a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a><span class="w">      </span>restart:<span class="w"> </span><span class="nb">true</span>
+<a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a><span class="w">      </span>tags:
+<a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a><span class="w">      </span>-<span class="w"> </span>key:<span class="w"> </span>owner
+<a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a><span class="w">        </span>value:<span class="w"> </span>Ankaios<span class="w"> </span>team
+<a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a><span class="w">      </span>runtimeConfig:<span class="w"> </span><span class="p">|</span>
+<a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a><span class="w">        </span>image:<span class="w"> </span>alpine:latest
+<a id="__codelineno-0-54" name="__codelineno-0-54" href="#__codelineno-0-54"></a><span class="w">        </span>commandOptions:<span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">&quot;--rm&quot;</span><span class="o">]</span>
+<a id="__codelineno-0-55" name="__codelineno-0-55" href="#__codelineno-0-55"></a><span class="w">        </span>commandArgs:<span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">&quot;echo&quot;</span>,<span class="w"> </span><span class="s2">&quot;Hello Ankaios&quot;</span><span class="o">]</span>
+<a id="__codelineno-0-56" name="__codelineno-0-56" href="#__codelineno-0-56"></a><span class="w">    </span>nginx:
+<a id="__codelineno-0-57" name="__codelineno-0-57" href="#__codelineno-0-57"></a><span class="w">      </span>agent:<span class="w"> </span>agent_A
+<a id="__codelineno-0-58" name="__codelineno-0-58" href="#__codelineno-0-58"></a><span class="w">      </span>dependencies:<span class="w"> </span><span class="o">{}</span>
+<a id="__codelineno-0-59" name="__codelineno-0-59" href="#__codelineno-0-59"></a><span class="w">      </span>updateStrategy:<span class="w"> </span>AT_MOST_ONCE
+<a id="__codelineno-0-60" name="__codelineno-0-60" href="#__codelineno-0-60"></a><span class="w">      </span>accessRights:
+<a id="__codelineno-0-61" name="__codelineno-0-61" href="#__codelineno-0-61"></a><span class="w">        </span>allow:<span class="w"> </span><span class="o">[]</span>
+<a id="__codelineno-0-62" name="__codelineno-0-62" href="#__codelineno-0-62"></a><span class="w">        </span>deny:<span class="w"> </span><span class="o">[]</span>
+<a id="__codelineno-0-63" name="__codelineno-0-63" href="#__codelineno-0-63"></a><span class="w">      </span>runtime:<span class="w"> </span>podman
+<a id="__codelineno-0-64" name="__codelineno-0-64" href="#__codelineno-0-64"></a><span class="w">      </span>name:<span class="w"> </span>nginx
+<a id="__codelineno-0-65" name="__codelineno-0-65" href="#__codelineno-0-65"></a><span class="w">      </span>restart:<span class="w"> </span><span class="nb">true</span>
+<a id="__codelineno-0-66" name="__codelineno-0-66" href="#__codelineno-0-66"></a><span class="w">      </span>tags:
+<a id="__codelineno-0-67" name="__codelineno-0-67" href="#__codelineno-0-67"></a><span class="w">      </span>-<span class="w"> </span>key:<span class="w"> </span>owner
+<a id="__codelineno-0-68" name="__codelineno-0-68" href="#__codelineno-0-68"></a><span class="w">        </span>value:<span class="w"> </span>Ankaios<span class="w"> </span>team
+<a id="__codelineno-0-69" name="__codelineno-0-69" href="#__codelineno-0-69"></a><span class="w">      </span>runtimeConfig:<span class="w"> </span><span class="p">|</span>
+<a id="__codelineno-0-70" name="__codelineno-0-70" href="#__codelineno-0-70"></a><span class="w">        </span>image:<span class="w"> </span>docker.io/nginx:latest
+<a id="__codelineno-0-71" name="__codelineno-0-71" href="#__codelineno-0-71"></a><span class="w">        </span>commandOptions:<span class="w"> </span><span class="o">[</span><span class="s2">&quot;-p&quot;</span>,<span class="w"> </span><span class="s2">&quot;8081:80&quot;</span><span class="o">]</span>
+<a id="__codelineno-0-72" name="__codelineno-0-72" href="#__codelineno-0-72"></a><span class="w">    </span>hello2:
+<a id="__codelineno-0-73" name="__codelineno-0-73" href="#__codelineno-0-73"></a><span class="w">      </span>agent:<span class="w"> </span>agent_B
+<a id="__codelineno-0-74" name="__codelineno-0-74" href="#__codelineno-0-74"></a><span class="w">      </span>dependencies:<span class="w"> </span><span class="o">{}</span>
+<a id="__codelineno-0-75" name="__codelineno-0-75" href="#__codelineno-0-75"></a><span class="w">      </span>updateStrategy:<span class="w"> </span>AT_MOST_ONCE
+<a id="__codelineno-0-76" name="__codelineno-0-76" href="#__codelineno-0-76"></a><span class="w">      </span>accessRights:
+<a id="__codelineno-0-77" name="__codelineno-0-77" href="#__codelineno-0-77"></a><span class="w">        </span>allow:<span class="w"> </span><span class="o">[]</span>
+<a id="__codelineno-0-78" name="__codelineno-0-78" href="#__codelineno-0-78"></a><span class="w">        </span>deny:<span class="w"> </span><span class="o">[]</span>
+<a id="__codelineno-0-79" name="__codelineno-0-79" href="#__codelineno-0-79"></a><span class="w">      </span>runtime:<span class="w"> </span>podman
+<a id="__codelineno-0-80" name="__codelineno-0-80" href="#__codelineno-0-80"></a><span class="w">      </span>name:<span class="w"> </span>hello2
+<a id="__codelineno-0-81" name="__codelineno-0-81" href="#__codelineno-0-81"></a><span class="w">      </span>restart:<span class="w"> </span><span class="nb">true</span>
+<a id="__codelineno-0-82" name="__codelineno-0-82" href="#__codelineno-0-82"></a><span class="w">      </span>tags:
+<a id="__codelineno-0-83" name="__codelineno-0-83" href="#__codelineno-0-83"></a><span class="w">      </span>-<span class="w"> </span>key:<span class="w"> </span>owner
+<a id="__codelineno-0-84" name="__codelineno-0-84" href="#__codelineno-0-84"></a><span class="w">        </span>value:<span class="w"> </span>Ankaios<span class="w"> </span>team
+<a id="__codelineno-0-85" name="__codelineno-0-85" href="#__codelineno-0-85"></a><span class="w">      </span>runtimeConfig:<span class="w"> </span><span class="p">|</span>
+<a id="__codelineno-0-86" name="__codelineno-0-86" href="#__codelineno-0-86"></a><span class="w">        </span>image:<span class="w"> </span>alpine:latest
+<a id="__codelineno-0-87" name="__codelineno-0-87" href="#__codelineno-0-87"></a><span class="w">        </span>commandArgs:<span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="s2">&quot;echo&quot;</span>,<span class="w"> </span><span class="s2">&quot;Hello Ankaios&quot;</span><span class="o">]</span>
+<a id="__codelineno-0-88" name="__codelineno-0-88" href="#__codelineno-0-88"></a><span class="w">  </span>configs:<span class="w"> </span><span class="o">{}</span>
+<a id="__codelineno-0-89" name="__codelineno-0-89" href="#__codelineno-0-89"></a><span class="w">  </span>cronJobs:<span class="w"> </span><span class="o">{}</span>
+<a id="__codelineno-0-90" name="__codelineno-0-90" href="#__codelineno-0-90"></a>workloadStates:<span class="w"> </span><span class="o">[]</span>
 </code></pre></div>
 It is not necessary to provide the whole structure of the the <a href="../_ankaios.proto/#completestate">CompleteState</a> data structure when using it in conjunction with the <a href="#object-field-mask">object field mask</a>. It is sufficient to provide the relevant branch of the <a href="../_ankaios.proto/#completestate">CompleteState</a> object. As an example, to change the restart behavior of the nginx workload, only the relevant branch of the <a href="../_ankaios.proto/#completestate">CompleteState</a> needs to be provided:
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>currentState:
@@ -1248,9 +1242,7 @@ The object field mask can be constructed using the field names of the <a href=".
 <a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">        </span>value:<span class="w"> </span>Ankaios<span class="w"> </span>team
 <a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">      </span>runtimeConfig:<span class="w"> </span><span class="p">|</span>
 <a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">        </span>image:<span class="w"> </span>docker.io/nginx:latest
-<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">        </span>ports:
-<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="w">        </span>-<span class="w"> </span>containerPort:<span class="w"> </span><span class="m">80</span>
-<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">          </span>hostPort:<span class="w"> </span><span class="m">8081</span>
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">        </span>commandOptions:<span class="w"> </span><span class="o">[</span><span class="s2">&quot;-p&quot;</span>,<span class="w"> </span><span class="s2">&quot;8081:80&quot;</span><span class="o">]</span>
 </code></pre></div></p>
 </li>
 <li>
@@ -1260,9 +1252,7 @@ The object field mask can be constructed using the field names of the <a href=".
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>nginx:
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">      </span>runtimeConfig:<span class="w"> </span><span class="p">|</span>
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">        </span>image:<span class="w"> </span>docker.io/nginx:latest
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span>ports:
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">        </span>-<span class="w"> </span>containerPort:<span class="w"> </span><span class="m">80</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">          </span>hostPort:<span class="w"> </span><span class="m">8081</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span>commandOptions:<span class="w"> </span><span class="o">[</span><span class="s2">&quot;-p&quot;</span>,<span class="w"> </span><span class="s2">&quot;8081:80&quot;</span><span class="o">]</span>
 </code></pre></div></p>
 </li>
 <li>

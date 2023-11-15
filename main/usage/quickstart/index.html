@@ -1087,22 +1087,25 @@ configuration which should be started when Ankaios starts up.</p>
 use the Ankaios CLI to check the current state:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>ank<span class="w"> </span>get<span class="w"> </span>state
 </code></pre></div>
+<p>or</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>ank<span class="w"> </span>get<span class="w"> </span>workloads
+</code></pre></div>
 <p>Ankaios also provides adding and removing workloads dynamically.
 To add another workload call:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>ank<span class="w"> </span>run<span class="w"> </span>workload<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>--runtime<span class="w"> </span>podman<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>--agent<span class="w"> </span>agent_A<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>--config<span class="w"> </span><span class="s1">&#39;image: docker.io/busybox:1.36</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="s1">commandOptions: [ &quot;-e&quot;, &quot;MESSAGE=&#39;</span>Hello<span class="w"> </span>World<span class="s1">&#39;&quot;]</span>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="s1">commandArgs: [ &quot;sh&quot;, &quot;-c&quot;, &quot;echo $MESSAGE&quot;]</span>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="s1">&#39;</span><span class="w"> </span>helloworld
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>ank<span class="w"> </span>run<span class="w"> </span>workload<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>helloworld<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>--runtime<span class="w"> </span>podman<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>--agent<span class="w"> </span>agent_A<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>--config<span class="w"> </span><span class="s1">&#39;image: docker.io/busybox:1.36</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="s1">commandOptions: [ &quot;-e&quot;, &quot;MESSAGE=Hello World&quot;]</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="s1">commandArgs: [ &quot;sh&quot;, &quot;-c&quot;, &quot;echo $MESSAGE&quot;]&#39;</span>
 </code></pre></div>
 <p>We can check the state again with <code>ank get state</code> and see, that the workload
 <code>helloworld</code> has been added to <code>currentState.workloads</code> and the execution
 state is available in <code>workloadStates</code>.</p>
 <p>As the workload had a one time job its state is <code>ExecSucceeded</code> and we can 
 delete it from the state again with:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>ank<span class="w"> </span>delete<span class="w"> </span>workload<span class="w"> </span>helloworld
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>ank<span class="w"> </span>delete<span class="w"> </span>workload<span class="w"> </span>helloworld
 </code></pre></div>
 
 

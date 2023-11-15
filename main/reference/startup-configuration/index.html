@@ -691,32 +691,12 @@
     PodmanRuntimeConfig
   </a>
   
-    <nav class="md-nav" aria-label="PodmanRuntimeConfig">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#mount" class="md-nav__link">
-    Mount
-  </a>
-  
 </li>
         
           <li class="md-nav__item">
-  <a href="#idmap" class="md-nav__link">
-    IdMap
+  <a href="#podmankuberuntimeconfig" class="md-nav__link">
+    PodmanKubeRuntimeConfig
   </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mapping" class="md-nav__link">
-    Mapping
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
         
@@ -1125,32 +1105,12 @@
     PodmanRuntimeConfig
   </a>
   
-    <nav class="md-nav" aria-label="PodmanRuntimeConfig">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#mount" class="md-nav__link">
-    Mount
-  </a>
-  
 </li>
         
           <li class="md-nav__item">
-  <a href="#idmap" class="md-nav__link">
-    IdMap
+  <a href="#podmankuberuntimeconfig" class="md-nav__link">
+    PodmanKubeRuntimeConfig
   </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mapping" class="md-nav__link">
-    Mapping
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
         
@@ -1183,22 +1143,22 @@
 
 
 <h1 id="startup-configuration">Startup configuration<a class="headerlink" href="#startup-configuration" title="Permanent link">&para;</a></h1>
-<p>In the Ankaios system it is mandatory to specify all the <a href="../glossary/#node">nodes</a> and <a href="../glossary/#workload">workloads</a> that are going to be run. Currently the startup configuration is provided as a file which is in YAML file format and can be passed to the Ankaios server through a command line argument. Depending on the demands towards Ankaios, the startup configuration can later be provided in a different way.</p>
+<p>In the Ankaios system it is mandatory to specify all the <a href="../glossary/#node">nodes</a> and <a href="../glossary/#workload">workloads</a> that are going to be ran. Currently the startup configuration is provided as a file which is in YAML file format and can be passed to the Ankaios server through a command line argument. Depending on the demands towards Ankaios, the startup configuration can later be provided in a different way.</p>
 <h2 id="configuration-structure">Configuration structure<a class="headerlink" href="#configuration-structure" title="Permanent link">&para;</a></h2>
 <p>The startup configuration is composed of a list of workload specifications within the <code>workloads</code> object.
 A workload specification must contain the following information:</p>
 <ul>
 <li><code>workload name</code><em>(via field key)</em>, specify the workload name to identify the workload in the Ankaios system.</li>
-<li><code>runtime</code>, specify the type of the runtime. Currently supported value is <code>podman</code>.</li>
+<li><code>runtime</code>, specify the type of the runtime. Currently supported values are <code>podman</code> and <code>podman-kube</code>.</li>
 <li><code>agent</code>, specify the name of the owning agent which is going to execute the workload.</li>
-<li><code>restart</code>, specify if the workload shall be restarted when it exits. Currently not implemented.</li>
-<li><code>updateStrategy</code>, specify the update strategy which can be one of the following values:<ul>
+<li><code>restart</code>, specify if the workload shall be restarted when it exits (not implemented yet).</li>
+<li><code>updateStrategy</code>, specify the update strategy (not implemented yet) which can be one of the following values:<ul>
 <li><code>UNSPECIFIED</code></li>
 <li><code>AT_LEAST_ONCE</code></li>
 <li><code>AT_MOST_ONCE</code></li>
 </ul>
 </li>
-<li><code>accessRights</code>, specify lists of access rules for <code>allow</code> and <code>deny</code> (currently not implemented and shall be set to empty list for both).</li>
+<li><code>accessRights</code>, specify lists of access rules for <code>allow</code> and <code>deny</code> (not implemented yet; shall be set to empty list for both).</li>
 <li><code>tags</code>, specify a list of <code>key</code> <code>value</code>  pairs.</li>
 <li><code>runtimeConfig</code>, specify as a <em>string</em> the configuration for the <a href="../glossary/#runtime">runtime</a> whose configuration structure is specific for each runtime, e.g., for <code>podman</code> runtime the <a href="#podmanruntimeconfig">PodmanRuntimeConfig</a> is used.</li>
 </ul>
@@ -1217,191 +1177,55 @@ A workload specification must contain the following information:</p>
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">        </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Ankaios team</span>
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
 <a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">      </span><span class="no">image: docker.io/nginx:latest</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">      </span><span class="no">ports:</span>
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">      </span><span class="no">- containerPort: 80</span>
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">        </span><span class="no">hostPort: 8081</span>
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">  </span><span class="nt">api_sample</span><span class="p">:</span><span class="w"> </span><span class="c1"># this is used as the workload name which is &#39;api_sample&#39;</span>
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">    </span><span class="nt">agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent_A</span>
-<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">    </span><span class="nt">restart</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">    </span><span class="nt">updateStrategy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AT_MOST_ONCE</span>
-<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">    </span><span class="nt">accessRights</span><span class="p">:</span>
-<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="w">      </span><span class="nt">allow</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span>
-<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="w">      </span><span class="nt">deny</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span>
-<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="w">    </span><span class="nt">tags</span><span class="p">:</span>
-<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">owner</span>
-<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="w">        </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Ankaios team</span>
-<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="w">      </span><span class="no">image: ankaios_workload_api_example</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">      </span><span class="no">commandOptions: [&quot;-p&quot;, &quot;8081:80&quot;]</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">  </span><span class="nt">api_sample</span><span class="p">:</span><span class="w"> </span><span class="c1"># this is used as the workload name which is &#39;api_sample&#39;</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">    </span><span class="nt">agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent_A</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">    </span><span class="nt">restart</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">    </span><span class="nt">updateStrategy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AT_MOST_ONCE</span>
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">    </span><span class="nt">accessRights</span><span class="p">:</span>
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">      </span><span class="nt">allow</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span>
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">      </span><span class="nt">deny</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span>
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="w">    </span><span class="nt">tags</span><span class="p">:</span>
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">owner</span>
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="w">        </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Ankaios team</span>
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="w">      </span><span class="no">image: ankaios_workload_api_example</span>
 </code></pre></div></p>
 <h3 id="podmanruntimeconfig">PodmanRuntimeConfig<a class="headerlink" href="#podmanruntimeconfig" title="Permanent link">&para;</a></h3>
-<p>The runtime configuration for the <code>podman</code> runtime is specified as followed:</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Type</th>
-<th>Required</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>image</td>
-<td>string</td>
-<td>yes</td>
-<td>Image repository or image id</td>
-</tr>
-<tr>
-<td>command</td>
-<td>array of strings</td>
-<td>no</td>
-<td>Entrypoint array. Not executed in a shell. The container image's ENTRYPOINT is used if this is not provided.</td>
-</tr>
-<tr>
-<td>args</td>
-<td>array of strings</td>
-<td>no</td>
-<td>Arguments to the entrypoint. The container image's CMD is used if this is not provided.</td>
-</tr>
-<tr>
-<td>env</td>
-<td>object with string values</td>
-<td>no</td>
-<td>Key/value pairs provided as environment variables in the container</td>
-</tr>
-<tr>
-<td>mounts</td>
-<td>array of <a href="#mount">Mount</a></td>
-<td>no</td>
-<td>List of mounts</td>
-</tr>
-<tr>
-<td>ports</td>
-<td>array of <a href="#mapping">Mapping</a></td>
-<td>no</td>
-<td>List of ports to be exposed</td>
-</tr>
-<tr>
-<td>remove</td>
-<td>boolean</td>
-<td>no</td>
-<td>Specify whether the container shall be removed after exited</td>
-</tr>
-<tr>
-<td>networkMode</td>
-<td>string</td>
-<td>no</td>
-<td>Set the network mode for the container (like <code>bridge</code>, <code>host</code>, <code>none</code>)</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Note:</strong> Some fields are optional in the runtime configuration. The Podman uses its default value if such field is not set. </p>
-<h4 id="mount">Mount<a class="headerlink" href="#mount" title="Permanent link">&para;</a></h4>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Type</th>
-<th>Required</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>destination</td>
-<td>string</td>
-<td>yes</td>
-<td>Mount destination</td>
-</tr>
-<tr>
-<td>options</td>
-<td>array of strings</td>
-<td>no</td>
-<td>Additional options</td>
-</tr>
-<tr>
-<td>source</td>
-<td>string</td>
-<td>depends on type</td>
-<td>Mount source</td>
-</tr>
-<tr>
-<td>type</td>
-<td>string</td>
-<td>yes</td>
-<td>Type of the mount</td>
-</tr>
-<tr>
-<td>uid_mappings</td>
-<td>array of <a href="#idmap">IdMap</a></td>
-<td>no</td>
-<td>Mapping from host to container user IDs</td>
-</tr>
-<tr>
-<td>gid_mappings</td>
-<td>array of <a href="#idmap">IdMap</a></td>
-<td>no</td>
-<td>Mapping from host to container group IDs</td>
-</tr>
-</tbody>
-</table>
-<h4 id="idmap">IdMap<a class="headerlink" href="#idmap" title="Permanent link">&para;</a></h4>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Type</th>
-<th>Required</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>container_id</td>
-<td>i64</td>
-<td>yes</td>
-<td>The start of the ID range inside of the container</td>
-</tr>
-<tr>
-<td>host_id</td>
-<td>i64</td>
-<td>yes</td>
-<td>The start of the ID range on the host</td>
-</tr>
-<tr>
-<td>size</td>
-<td>i64</td>
-<td>yes</td>
-<td>The number of IDs to map</td>
-</tr>
-</tbody>
-</table>
-<h4 id="mapping">Mapping<a class="headerlink" href="#mapping" title="Permanent link">&para;</a></h4>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Type</th>
-<th>Required</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>container_port</td>
-<td>u16</td>
-<td>yes</td>
-<td>Port inside of the container</td>
-</tr>
-<tr>
-<td>host_port</td>
-<td>u16</td>
-<td>yes</td>
-<td>Port on the host</td>
-</tr>
-</tbody>
-</table>
+<p>The runtime configuration for the <code>podman</code> runtime is specified as follows:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">generalOptions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">&lt;comma&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;separated&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;options&gt;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;registry&gt;/&lt;image name&gt;:&lt;version&gt;</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nt">commandOptions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">&lt;comma&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;separated&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;options&gt;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nt">commandArgs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">&lt;comma&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;separated&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;arguments&gt;</span><span class="p p-Indicator">]</span>
+</code></pre></div>
+<p>where each attribute is passed directly to <code>podman run</code>.</p>
+<p>If we take as an example the <code>podman run</code> command:</p>
+<p><code>podman --events-backend file run --env VAR=able docker.io/alpine:latest echo Hello!</code></p>
+<p>it would translate to the following runtime configuration:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">generalOptions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;--events-backend&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;file&quot;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nt">image</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">docker.io/alpine:latest</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nt">commandOptions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;--env&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;VAR=able&quot;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="nt">commandArgs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;echo&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;Hello!&quot;</span><span class="p p-Indicator">]</span>
+</code></pre></div>
+<h3 id="podmankuberuntimeconfig">PodmanKubeRuntimeConfig<a class="headerlink" href="#podmankuberuntimeconfig" title="Permanent link">&para;</a></h3>
+<p>The runtime configuration for the <code>podman-kube</code> runtime is specified as follows:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">generalOptions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">&lt;comma&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;separated&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;options&gt;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nt">play_options</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">&lt;comma&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;separated&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;options&gt;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="nt">down_options</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">&lt;comma&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;separated&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;options&gt;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="nt">manifest</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;string containing the K8s manifest&gt;</span>
+</code></pre></div>
+<p>where each attribute is passed directly to <code>podman play kube</code>.</p>
+<p>If we take as an example the <code>podman play kube</code> command:</p>
+<p><code>podman --events-backend file play kube --userns host manifest.yaml</code></p>
+<p>and the corresponding command for deleting the manifest file:</p>
+<p><code>podman --events-backend file play kube manifest.yaml --down --force</code></p>
+<p>they would translate to the following runtime configuration:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">generalOptions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;--events-backend&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;file&quot;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nt">play_options</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;--userns&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;host&quot;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nt">down_options</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;--force&quot;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="nt">manifest</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;contents of manifest.yaml&gt;</span>
+</code></pre></div>
 
 
 
