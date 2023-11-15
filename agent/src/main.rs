@@ -13,7 +13,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use common::communications_client::CommunicationsClient;
+use common::objects::AgentName;
 use common::state_change_interface::StateChangeCommand;
+use generic_polling_state_checker::GenericPollingStateChecker;
 use std::collections::HashMap;
 use tokio::try_join;
 
@@ -21,22 +23,27 @@ mod agent_manager;
 mod cli;
 mod control_interface;
 mod parameter_storage;
-mod podman;
-mod runtime_adapter;
+mod runtime_connectors;
 #[cfg(test)]
 pub mod test_helper;
-mod workload_facade;
-mod workload_trait;
+
+mod generic_polling_state_checker;
+mod runtime_manager;
+mod workload;
 
 use common::execution_interface::ExecutionCommand;
-use common::std_extensions::{GracefulExitResult, UnreachableResult, IllegalStateResult};
+use common::std_extensions::{GracefulExitResult, IllegalStateResult, UnreachableResult};
 use grpc::client::GRPCCommunicationsClient;
 
 use agent_manager::AgentManager;
 
-use podman::PodmanAdapter;
-
-use crate::runtime_adapter::RuntimeAdapter;
+#[cfg_attr(test, mockall_double::double)]
+use crate::runtime_manager::RuntimeManager;
+use runtime_connectors::{
+    podman::{PodmanRuntime, PodmanWorkloadId},
+    podman_kube::{PodmanKubeRuntime, PodmanKubeWorkloadId},
+    GenericRuntimeFacade, RuntimeConnector, RuntimeFacade,
+};
 
 const BUFFER_SIZE: usize = 20;
 
@@ -46,11 +53,10 @@ async fn main() {
 
     let args = cli::parse();
 
-    log::info!(
-        "Starting the Ankaios agent with \n\tname: {}, \n\tserver url: {}, \n\tpodman socket path: {}, \n\trun directory: {}",
+    log::debug!(
+        "Starting the Ankaios agent with \n\tname: '{}', \n\tserver url: '{}', \n\trun directory: '{}'",
         args.agent_name,
         args.server_url,
-        args.podman_socket_path,
         args.run_folder,
     );
 
@@ -60,33 +66,48 @@ async fn main() {
     let (to_server, server_receiver) =
         tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
 
-    let mut adapter_interface_map: HashMap<&str, Box<dyn RuntimeAdapter + Send + Sync>> =
-        HashMap::new();
-
     let run_directory = args
         .get_run_directory()
         .unwrap_or_exit("Run folder creation failed. Cannot continue without run folder.");
 
-    // Podman currently directly gets the server StateChangeInterface, but it shall get the agent manager interface
+    // [impl->swdd~agent-supports-podman~2]
+    let podman_runtime = Box::new(PodmanRuntime {});
+    let podman_runtime_name = podman_runtime.name();
+    let podman_facade = Box::new(GenericRuntimeFacade::<
+        PodmanWorkloadId,
+        GenericPollingStateChecker,
+    >::new(podman_runtime));
+    let mut runtime_facade_map: HashMap<String, Box<dyn RuntimeFacade>> = HashMap::new();
+    runtime_facade_map.insert(podman_runtime_name, podman_facade);
+
+    // [impl->swdd~agent-supports-podman-kube-runtime~1]
+    let podman_kube_runtime = Box::new(PodmanKubeRuntime {});
+    let podman_kube_runtime_name = podman_kube_runtime.name();
+    let podman_kube_facade = Box::new(GenericRuntimeFacade::<
+        PodmanKubeWorkloadId,
+        GenericPollingStateChecker,
+    >::new(podman_kube_runtime));
+    runtime_facade_map.insert(podman_kube_runtime_name, podman_kube_facade);
+
+    // The RuntimeManager currently directly gets the server StateChangeInterface, but it shall get the agent manager interface
     // This is needed to be able to filter/authorize the commands towards the Ankaios server
     // The pipe connecting the workload to Ankaios must be in the runtime adapter
-    // [impl->swdd~agent-supports-podman~1]
-    let podman_adapter = PodmanAdapter::new(
+    let runtime_manager = RuntimeManager::new(
+        AgentName::from(args.agent_name.as_str()),
         run_directory.get_path(),
         to_server.clone(),
-        args.podman_socket_path,
+        runtime_facade_map,
+        to_server.clone(),
     );
+
     let mut grpc_communications_client =
         GRPCCommunicationsClient::new_agent_communication(args.agent_name.clone(), args.server_url);
-
-    adapter_interface_map.insert(podman_adapter.get_name(), Box::new(podman_adapter));
 
     let mut agent_manager = AgentManager::new(
         args.agent_name,
         manager_receiver,
-        adapter_interface_map,
+        runtime_manager,
         to_server,
-        run_directory.get_path(),
     );
 
     let manager_task = tokio::spawn(async move { agent_manager.start().await });

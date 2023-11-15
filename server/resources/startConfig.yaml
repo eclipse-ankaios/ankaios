@@ -12,9 +12,7 @@ workloads:
         value: Ankaios team
     runtimeConfig: |
       image: docker.io/nginx:latest
-      ports:
-      - containerPort: 80
-        hostPort: 8081
+      commandOptions: ["-p", "8081:80"]
   api_sample:
     runtime: podman
     agent: agent_A
@@ -41,9 +39,8 @@ workloads:
         value: Ankaios team
     runtimeConfig: |
       image: alpine:latest
-      command: ["echo"]
-      args: ["Hello Ankaios"]
-      remove: true
+      commandOptions: [ "--rm"]
+      commandArgs: [ "echo", "Hello Ankaios"]
   hello2:
     runtime: podman
     agent: agent_B
@@ -57,11 +54,9 @@ workloads:
         value: Ankaios team
     runtimeConfig: |
       image: alpine:latest
-      command: ["echo"]
-      args: ["Hello Ankaios"]
-      remove: false
-  hello3:
-    runtime: podman
+      commandArgs: [ "echo", "Hello Ankaios"]
+  hello-pod:
+    runtime: podman-kube
     agent: agent_B
     restart: true
     updateStrategy: AT_MOST_ONCE
@@ -72,6 +67,21 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: alpine:latest
-      command: ["echo"]
-      args: ["Hello Ankaios"]
+      manifest: |
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: hello-pod
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: looper
+            image: alpine:latest
+            command: 
+            - sleep
+            - 50000
+          - name: greater
+            image: alpine:latest
+            command: 
+            - echo
+            - "Hello from a container in a pod"

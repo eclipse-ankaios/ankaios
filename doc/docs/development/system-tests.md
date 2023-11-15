@@ -89,9 +89,9 @@ Test Ankaios CLI get workloads
     [Setup]        Setup Ankaios
     # Preconditions
     Given Ankaios server is started with "ank-server --startup-config ${CONFIGS_DIR}/default.yaml"
-    And Ankaios agent is started with "ank-agent --name agent_B -p /tmp/podman.sock"
+    And Ankaios agent is started with "ank-agent --name agent_B"
     And all workloads of agent "agent_B" have an initial execution state
-    And Ankaios agent is started with "ank-agent --name agent_A -p /tmp/podman.sock"
+    And Ankaios agent is started with "ank-agent --name agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
     When user triggers "ank get workloads"
@@ -104,14 +104,18 @@ Test Ankaios CLI get workloads
 ```
 
 ## System test execution
-A shell script is provided for the easy execution of the system tests. The script does the following:
-1. It checks if the required Ankaios executables (`ank`, `ank-server` and `ank-agent`) are available at specified path.
-2. It prints out the version number executables.
-3. It starts the `podman` service if it is not started yet.
-4. It starts all the tests under specified folder or a specific robot test file.
-5. It stores the test result in the folder `{Ankaios root folder}/target/robot_tests_result`.
+!!! warning
+    The system tests will delete all Podman containers, pods and volume.
+    We recomment to only execute the system tests in the dev container.
 
-### Run in development container
+A shell script is provided for the easy execution of the system tests. The script does the following:
+
+1. It checks if the required Ankaios executables (`ank`, `ank-server` and `ank-agent`) are available at specified path.
+1. It prints out the version number executables.
+1. It starts all the tests under specified folder or a specific robot test file.
+1. It stores the test result in the folder `{Ankaios root folder}/target/robot_tests_result`.
+
+### Run in dev container
 Generic syntax:
 ```bash
 /workspaces/ankaios$ [ANK_BIN_DIR=path_to_ankaios_executables] tools/run_robot_tests <options> <directory or robot file>
@@ -119,7 +123,7 @@ Generic syntax:
 If *ANK_BIN_DIR* is not provided the script looks in the path `{Ankaios root folder}/target/x86_64-unknown-linux-musl/debug` for the Ankaios executables.
 The supported options are the same as of `robot` cli, so for more detailed description about it see [here](https://robotframework.org/robotframework/latest/RobotFrameworkUserGuide.html#using-command-line-options).
 
-*Note: In order to be able to start `podman` runtime in the development container properly, the development container needs to be run in `privilege` mode.*
+*Note: In order to be able to start `podman` runtime in the dev container properly, the dev container needs to be run in `privilege` mode.*
 
 #### Example: Run all tests under the folder tests.
 ```bash
@@ -131,8 +135,6 @@ Use default executable directory: /workspaces/ankaios/tools/../target/x86_64-unk
 Found ank 0.1.0
 Found ank-server 0.1.0
 Found ank-agent 0.1.0
-podman service not running -> start podman service
-/tmp/podman.sock created.
 ==============================================================================
 Tests                                                                         
 ==============================================================================
@@ -179,7 +181,6 @@ Use default executable directory: /workspaces/ankaios/tools/../target/x86_64-unk
 Found ank 0.1.0
 Found ank-server 0.1.0
 Found ank-agent 0.1.0
-podman service is already running
 ==============================================================================
 List Workloads :: List workloads test cases.                                  
 ==============================================================================

@@ -15,7 +15,12 @@
 import subprocess
 import time
 import yaml
+import json
+import re
 from robot.api import logger
+
+import re
+list_pattern = re.compile("^[\"|\']*\[.*\][\"|\']*$")
 
 def run_command(command, timeout=3):
     try:
@@ -63,7 +68,10 @@ def table_to_dict(input_list, key):
     return out_dict
 
 def get_column_values(list, column_name):
-    return map(lambda r: r[column_name], list)
+    if column_name in list:
+        return map(lambda r: r[column_name], list) 
+    else:
+        return []
 
 def get_container_ids_by_workload_names(workload_names):
     res = run_command('podman ps -a --format "{{.Names}} {{.ID}}"')
@@ -133,10 +141,36 @@ def replace_config(data, filter_path, new_value):
             break
 
         next_level = next_level[level] if isinstance(next_level, dict) else next_level[int(level)]
-    next_level[filter_path[-1]] = int(new_value) if new_value.isdigit() else new_value
+    next_level[filter_path[-1]] = int(new_value) if new_value.isdigit() else yaml.safe_load(new_value) if list_pattern.match(new_value) else new_value
+
     return data
 
 def write_yaml(new_yaml: dict, path):
     with open(path,"w+") as file:
         replace_key(new_yaml, "runtimeConfig", yaml.dump)
         yaml.dump(new_yaml, file)
+
+def json_to_dict(raw):
+    json_data = json.loads(raw)
+    return json_data
+
+def check_podman_kube_volumes_gone(workload_name, agent_name):
+    start_time = time.time()
+    command = "podman volume ls --format=json"
+    regex_str = f"^{workload_name}.\\w+.{agent_name}.(config|pods)$"
+    reg_exp = re.compile(regex_str)
+    while (time.time() - start_time) < 5:
+        res = run_command(command)
+        dict = json_to_dict(res.stdout if res else "")
+        logger.trace(dict)
+        still_matching = False
+        for value in dict:
+            if "Name" in value:
+                logger.trace("checking: " + value["Name"])
+                if reg_exp.match(value["Name"]):
+                    logger.trace("still matching")
+                    still_matching = True
+        if not still_matching:
+            return True
+        time.sleep(1)
+    return False

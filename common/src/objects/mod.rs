@@ -25,7 +25,7 @@ pub use workload_state::{ExecutionState, WorkloadState};
 mod workload_spec;
 pub use workload_spec::{
     get_workloads_per_agent, DeletedWorkload, DeletedWorkloadCollection, ExpectedState,
-    RuntimeWorkload, UpdateStrategy, WorkloadCollection, WorkloadSpec,
+    UpdateStrategy, WorkloadCollection, WorkloadSpec,
 };
 
 mod cronjob;
@@ -41,3 +41,6 @@ mod workload_execution_instance_name;
 pub use workload_execution_instance_name::{
     WorkloadExecutionInstanceName, WorkloadExecutionInstanceNameBuilder, WorkloadInstanceName,
 };
+
+mod agent_name;
+pub use agent_name::AgentName;

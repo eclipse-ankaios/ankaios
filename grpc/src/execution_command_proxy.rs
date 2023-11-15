@@ -53,7 +53,7 @@ pub async fn forward_from_proto_to_ankaios(
     agent_tx: &Sender<ExecutionCommand>,
 ) -> Result<(), GrpcProxyError> {
     while let Some(value) = grpc_streaming.message().await? {
-        log::debug!("RESPONSE={:?}", value);
+        log::trace!("RESPONSE={:?}", value);
 
         let try_block = async {
             match value
@@ -113,7 +113,7 @@ pub async fn forward_from_ankaios_to_proto(
     while let Some(execution_command) = receiver.recv().await {
         match execution_command {
             ExecutionCommand::UpdateWorkload(method_obj) => {
-                log::debug!("Received UpdateWorkload from server: {:?}.", method_obj);
+                log::trace!("Received UpdateWorkload from server: {:?}.", method_obj);
 
                 distribute_workloads_to_agents(
                     agent_senders,
@@ -123,29 +123,37 @@ pub async fn forward_from_ankaios_to_proto(
                 .await?;
             }
             ExecutionCommand::UpdateWorkloadState(method_obj) => {
-                log::debug!("Received UpdateWorkloadState from server: {:?}", method_obj);
+                log::trace!("Received UpdateWorkloadState from server: {:?}", method_obj);
 
                 distribute_workload_states_to_agents(agent_senders, method_obj.workload_states)
                     .await?;
             }
             ExecutionCommand::CompleteState(method_obj) => {
-                log::debug!("Received CompleteState from server: {:?}", method_obj);
+                log::trace!("Received CompleteState from server: {:?}", method_obj);
                 let (agent_name, request_id) =
                     detach_prefix_from_request_id(method_obj.request_id.as_ref());
                 if let Some(sender) = agent_senders.get(&agent_name) {
+                    let complete_state = proto::CompleteState {
+                        request_id,
+                        current_state: Some(method_obj.current_state.into()),
+                        startup_state: Some(method_obj.startup_state.into()),
+                        workload_states: method_obj
+                            .workload_states
+                            .into_iter()
+                            .map(|x| x.into())
+                            .collect(),
+                    };
+
+                    log::trace!(
+                        "Sending complete state to agent '{}': {:?}.",
+                        agent_name,
+                        complete_state
+                    );
+
                     sender
                         .send(Ok(proto::ExecutionRequest {
                             execution_request_enum: Some(ExecutionRequestEnum::CompleteState(
-                                proto::CompleteState {
-                                    request_id,
-                                    current_state: Some(method_obj.current_state.into()),
-                                    startup_state: Some(method_obj.startup_state.into()),
-                                    workload_states: method_obj
-                                        .workload_states
-                                        .into_iter()
-                                        .map(|x| x.into())
-                                        .collect(),
-                                },
+                                complete_state,
                             )),
                         }))
                         .await?;
@@ -179,13 +187,18 @@ async fn distribute_workload_states_to_agents(
             .map(|x| x.into())
             .collect();
         if filtered_workload_states.is_empty() {
-            log::debug!(
+            log::trace!(
                 "Skipping sending workload states to agent '{agent_name}'. Nothing to send."
             );
             continue;
         }
 
         if let Some(sender) = agent_senders.get(&agent_name) {
+            log::trace!(
+                "Sending workload states to agent '{}': {:?}.",
+                agent_name,
+                filtered_workload_states
+            );
             sender
                 .send(Ok(proto::ExecutionRequest {
                     execution_request_enum: Some(ExecutionRequestEnum::UpdateWorkloadState(
@@ -213,9 +226,9 @@ async fn distribute_workloads_to_agents(
     for (agent_name, (added_workload_vector, deleted_workload_vector)) in
         get_workloads_per_agent(added_workloads, deleted_workloads)
     {
-        log::debug!("Sending added and deleted workloads to agent '{}'.\n\tAdded workloads: {:?}.\n\tDeleted workloads: {:?}.", 
-            agent_name, added_workload_vector, deleted_workload_vector);
         if let Some(sender) = agent_senders.get(&agent_name) {
+            log::trace!("Sending added and deleted workloads to agent '{}'.\n\tAdded workloads: {:?}.\n\tDeleted workloads: {:?}.", 
+                agent_name, added_workload_vector, deleted_workload_vector);
             sender
                 .send(Ok(proto::ExecutionRequest {
                     execution_request_enum: Some(ExecutionRequestEnum::UpdateWorkload(
@@ -233,7 +246,7 @@ async fn distribute_workloads_to_agents(
                 }))
                 .await?;
         } else {
-            log::warn!(
+            log::info!(
                 "Agent {} not found, workloads not sent. Waiting for agent to connect.",
                 agent_name
             )
@@ -266,7 +279,7 @@ mod tests {
     use async_trait::async_trait;
     use common::commands::CompleteState;
     use common::execution_interface::{ExecutionCommand, ExecutionInterface};
-    use common::objects::{AccessRights, RuntimeWorkload, State, UpdateStrategy, WorkloadSpec};
+    use common::objects::{State, WorkloadSpec};
     use common::test_utils::*;
     use tokio::sync::mpsc::error::TryRecvError;
     use tokio::{
@@ -281,6 +294,8 @@ mod tests {
         Receiver<Result<ExecutionRequest, tonic::Status>>,
         AgentSendersMap,
     );
+
+    const WORKLOAD_NAME: &str = "workload_1";
 
     fn create_test_setup(agent_name: &str) -> TestSetup {
         let (to_manager, manager_receiver) =
@@ -368,7 +383,7 @@ mod tests {
         let update_workload_state_result = to_manager
             .update_workload_state(vec![common::objects::WorkloadState {
                 agent_name: "other_agent".into(),
-                workload_name: "workload_1".into(),
+                workload_name: WORKLOAD_NAME.into(),
                 execution_state: common::objects::ExecutionState::ExecRunning,
             }])
             .await;
@@ -611,7 +626,9 @@ mod tests {
                 "workload1".to_string()
             ),],
             vec![]
-        )).0.unwrap();
+        ))
+        .0
+        .unwrap();
 
         let result = agent_rx.recv().await.unwrap().unwrap();
 
@@ -636,7 +653,9 @@ mod tests {
                 "workload1".to_string()
             ),],
             vec![]
-        )).0.unwrap();
+        ))
+        .0
+        .unwrap();
 
         // shall not receive any execution request
         assert!(matches!(agent_rx.try_recv(), Err(TryRecvError::Empty)))
@@ -655,7 +674,9 @@ mod tests {
                 workload_name: "workload1".to_string(),
                 execution_state: common::objects::ExecutionState::ExecRunning
             }],
-        )).0.unwrap();
+        ))
+        .0
+        .unwrap();
 
         let result = agent_rx.recv().await.unwrap().unwrap();
 
@@ -674,15 +695,12 @@ mod tests {
 
         let mut startup_workloads = HashMap::<String, WorkloadSpec>::new();
         startup_workloads.insert(
-            String::from("workload_1"),
-            WorkloadSpec {
-                agent: String::from("agent_X"),
-                dependencies: HashMap::default(),
-                access_rights: AccessRights::default(),
-                runtime: String::from("my_runtime"),
-                workload: RuntimeWorkload::default(),
-                update_strategy: UpdateStrategy::Unspecified,
-            },
+            String::from(WORKLOAD_NAME),
+            generate_test_workload_spec_with_param(
+                agent_name.to_string(),
+                WORKLOAD_NAME.to_string(),
+                "my_runtime".to_string(),
+            ),
         );
 
         let my_request_id = "my_request_id".to_owned();
@@ -798,15 +816,12 @@ mod tests {
 
         let mut startup_workloads = HashMap::<String, WorkloadSpec>::new();
         startup_workloads.insert(
-            String::from("workload_1"),
-            WorkloadSpec {
-                agent: agent_name.to_string(),
-                dependencies: HashMap::default(),
-                access_rights: AccessRights::default(),
-                runtime: String::from("my_runtime"),
-                workload: RuntimeWorkload::default(),
-                update_strategy: UpdateStrategy::Unspecified,
-            },
+            String::from(WORKLOAD_NAME),
+            generate_test_workload_spec_with_param(
+                agent_name.to_string(),
+                WORKLOAD_NAME.to_string(),
+                "my_runtime".to_string(),
+            ),
         );
 
         let my_request_id = "my_request_id".to_owned();

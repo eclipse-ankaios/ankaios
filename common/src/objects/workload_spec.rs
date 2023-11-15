@@ -68,13 +68,15 @@ impl From<DeletedWorkload> for proto::DeletedWorkload {
 #[serde(default, rename_all = "camelCase")]
 pub struct WorkloadSpec {
     pub agent: String,
+    pub name: String,
+    pub tags: Vec<Tag>,
     #[serde(serialize_with = "serialize_to_ordered_map")]
     pub dependencies: HashMap<String, ExpectedState>,
     pub update_strategy: UpdateStrategy,
+    pub restart: bool,
     pub access_rights: AccessRights,
     pub runtime: String,
-    #[serde(flatten)]
-    pub workload: RuntimeWorkload,
+    pub runtime_config: String,
 }
 
 impl TryFrom<(String, proto::AddedWorkload)> for WorkloadSpec {
@@ -82,21 +84,19 @@ impl TryFrom<(String, proto::AddedWorkload)> for WorkloadSpec {
 
     fn try_from((agent, workload): (String, proto::AddedWorkload)) -> Result<Self, String> {
         Ok(WorkloadSpec {
-            agent,
             dependencies: workload
                 .dependencies
                 .into_iter()
                 .map(|(k, v)| Ok((k, v.try_into()?)))
                 .collect::<Result<HashMap<String, ExpectedState>, String>>()?,
             update_strategy: workload.update_strategy.try_into()?,
+            restart: workload.restart,
             access_rights: workload.access_rights.unwrap_or_default().try_into()?,
             runtime: workload.runtime,
-            workload: RuntimeWorkload {
-                name: workload.name,
-                restart: workload.restart,
-                tags: workload.tags.into_iter().map(|x| x.into()).collect(),
-                runtime_config: workload.runtime_config,
-            },
+            name: workload.name,
+            agent,
+            tags: workload.tags.into_iter().map(|x| x.into()).collect(),
+            runtime_config: workload.runtime_config,
         })
     }
 }
@@ -106,21 +106,19 @@ impl TryFrom<(String, proto::Workload)> for WorkloadSpec {
 
     fn try_from((name, workload): (String, proto::Workload)) -> Result<Self, Self::Error> {
         Ok(WorkloadSpec {
-            agent: workload.agent,
             dependencies: workload
                 .dependencies
                 .into_iter()
                 .map(|(k, v)| Ok((k, v.try_into()?)))
                 .collect::<Result<HashMap<String, ExpectedState>, String>>()?,
             update_strategy: workload.update_strategy.try_into()?,
+            restart: workload.restart,
             access_rights: workload.access_rights.unwrap_or_default().try_into()?,
             runtime: workload.runtime,
-            workload: RuntimeWorkload {
-                name,
-                restart: workload.restart,
-                tags: workload.tags.into_iter().map(|x| x.into()).collect(),
-                runtime_config: workload.runtime_config,
-            },
+            name,
+            agent: workload.agent,
+            tags: workload.tags.into_iter().map(|x| x.into()).collect(),
+            runtime_config: workload.runtime_config,
         })
     }
 }
@@ -134,7 +132,7 @@ impl From<WorkloadSpec> for proto::Workload {
                 .into_iter()
                 .map(|(k, v)| (k, v as i32))
                 .collect(),
-            restart: workload.workload.restart,
+            restart: workload.restart,
             update_strategy: workload.update_strategy as i32,
             access_rights: if workload.access_rights.is_empty() {
                 None
@@ -142,13 +140,8 @@ impl From<WorkloadSpec> for proto::Workload {
                 Some(workload.access_rights.into())
             },
             runtime: workload.runtime,
-            runtime_config: workload.workload.runtime_config,
-            tags: workload
-                .workload
-                .tags
-                .into_iter()
-                .map(|x| x.into())
-                .collect(),
+            runtime_config: workload.runtime_config,
+            tags: workload.tags.into_iter().map(|x| x.into()).collect(),
         }
     }
 }
@@ -156,13 +149,13 @@ impl From<WorkloadSpec> for proto::Workload {
 impl From<WorkloadSpec> for proto::AddedWorkload {
     fn from(workload: WorkloadSpec) -> Self {
         proto::AddedWorkload {
-            name: workload.workload.name,
+            name: workload.name,
             dependencies: workload
                 .dependencies
                 .into_iter()
                 .map(|(k, v)| (k, v as i32))
                 .collect(),
-            restart: workload.workload.restart,
+            restart: workload.restart,
             update_strategy: workload.update_strategy as i32,
             access_rights: if workload.access_rights.is_empty() {
                 None
@@ -170,24 +163,10 @@ impl From<WorkloadSpec> for proto::AddedWorkload {
                 Some(workload.access_rights.into())
             },
             runtime: workload.runtime,
-            runtime_config: workload.workload.runtime_config,
-            tags: workload
-                .workload
-                .tags
-                .into_iter()
-                .map(|x| x.into())
-                .collect(),
+            runtime_config: workload.runtime_config,
+            tags: workload.tags.into_iter().map(|x| x.into()).collect(),
         }
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[serde(default, rename_all = "camelCase")]
-pub struct RuntimeWorkload {
-    pub name: String,
-    pub restart: bool,
-    pub tags: Vec<Tag>,
-    pub runtime_config: String,
 }
 
 pub type AgentWorkloadMap = HashMap<String, (WorkloadCollection, DeletedWorkloadCollection)>;
@@ -337,7 +316,7 @@ mod tests {
             update_strategy: proto::UpdateStrategy::Unspecified.into(),
             access_rights: None,
             runtime: String::from("runtime"),
-            runtime_config: workload.workload.runtime_config.clone(),
+            runtime_config: workload.runtime_config.clone(),
             tags: vec![proto::Tag {
                 key: "key".into(),
                 value: "value".into(),
@@ -359,23 +338,21 @@ mod tests {
     #[test]
     fn utest_converts_to_ankaios_workload() {
         let workload = WorkloadSpec {
-            agent: String::from("agent"),
             dependencies: HashMap::from([
                 (String::from("workload A"), ExpectedState::Running),
                 (String::from("workload C"), ExpectedState::Stopped),
             ]),
             update_strategy: UpdateStrategy::Unspecified,
+            restart: true,
             access_rights: AccessRights {
                 allow: vec![],
                 deny: vec![],
             },
             runtime: String::from("runtime"),
-            workload: RuntimeWorkload {
-                name: String::from("name"),
-                restart: true,
-                tags: vec![],
-                runtime_config: String::from("some config"),
-            },
+            name: String::from("name"),
+            agent: String::from("agent"),
+            tags: vec![],
+            runtime_config: String::from("some config"),
         };
 
         let proto_workload = proto::Workload {
@@ -433,23 +410,21 @@ mod tests {
     #[test]
     fn utest_converts_to_ankaios_added_workload() {
         let workload = WorkloadSpec {
-            agent: String::from("agent"),
             dependencies: HashMap::from([
                 (String::from("workload A"), ExpectedState::Running),
                 (String::from("workload C"), ExpectedState::Stopped),
             ]),
             update_strategy: UpdateStrategy::Unspecified,
+            restart: true,
             access_rights: AccessRights {
                 allow: vec![],
                 deny: vec![],
             },
             runtime: String::from("runtime"),
-            workload: RuntimeWorkload {
-                name: String::from("name"),
-                restart: true,
-                tags: vec![],
-                runtime_config: String::from("some config"),
-            },
+            name: String::from("name"),
+            agent: String::from("agent"),
+            tags: vec![],
+            runtime_config: String::from("some config"),
         };
 
         let proto_workload = proto::AddedWorkload {

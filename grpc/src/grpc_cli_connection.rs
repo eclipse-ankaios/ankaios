@@ -63,7 +63,7 @@ impl CliConnection for GRPCCliConnection {
         >(common::CHANNEL_CAPACITY);
 
         let cli_connection_name = format!("cli-conn-{}", uuid::Uuid::new_v4());
-        log::info!("Connection to CLI (name={}) open.", cli_connection_name);
+        log::debug!("Connection to CLI (name={}) open.", cli_connection_name);
 
         let ankaios_tx = self.to_ankaios_server.clone();
         let cli_senders = self.cli_senders.clone();
@@ -79,7 +79,7 @@ impl CliConnection for GRPCCliConnection {
                 .is_err()
             {
                 cli_senders.remove(&cli_connection_name);
-                log::info!("Connection to CLI (name={}) closed.", cli_connection_name);
+                log::debug!("Connection to CLI (name={}) closed.", cli_connection_name);
             }
         });
 

@@ -173,7 +173,7 @@ mod tests {
     use crate::{
         commands,
         execution_interface::ExecutionCommand,
-        objects::{ExecutionState, RuntimeWorkload, WorkloadSpec, WorkloadState},
+        objects::{ExecutionState, WorkloadSpec, WorkloadState},
         test_utils::{generate_test_deleted_workload, generate_test_proto_deleted_workload},
     };
 
@@ -185,10 +185,7 @@ mod tests {
     fn utest_convert_execution_command_to_proto_update_workload() {
         let test_ex_com = ExecutionCommand::UpdateWorkload(commands::UpdateWorkload {
             added_workloads: vec![WorkloadSpec {
-                workload: RuntimeWorkload {
-                    name: "test_workload".to_owned(),
-                    ..Default::default()
-                },
+                name: "test_workload".to_owned(),
                 runtime: "tes_runtime".to_owned(),
                 ..Default::default()
             }],

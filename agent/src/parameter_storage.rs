@@ -12,44 +12,21 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::{ExecutionState, WorkloadSpec, WorkloadState};
+use common::objects::{ExecutionState, WorkloadState};
 use std::collections::HashMap;
 
 type WorkloadStates = HashMap<String, common::objects::ExecutionState>;
 type AgentWorkloadStates = HashMap<String, WorkloadStates>;
-type WorkloadName = String;
-type RuntimeName = String;
-type WorkloadRuntimeMapping = HashMap<WorkloadName, RuntimeName>;
 
 pub struct ParameterStorage {
     states_storage: AgentWorkloadStates,
-    workload_storage: WorkloadRuntimeMapping,
 }
 
 impl ParameterStorage {
     pub fn new() -> Self {
         Self {
             states_storage: HashMap::new(),
-            workload_storage: HashMap::new(),
         }
-    }
-
-    // [impl->swdd~agent-manager-deletes-workload-runtime-mapping~1]
-    pub fn get_workload_runtime(&self, workload_name: &WorkloadName) -> Option<&RuntimeName> {
-        self.workload_storage.get(workload_name)
-    }
-
-    // [impl->swdd~agent-manager-stores-workload-runtime-mapping~1]
-    pub fn set_workload_runtime(&mut self, workload_spec: &WorkloadSpec) {
-        self.workload_storage.insert(
-            workload_spec.workload.name.clone(),
-            workload_spec.runtime.clone(),
-        );
-    }
-
-    // [impl->swdd~agent-manager-deletes-workload-runtime-mapping~1]
-    pub fn delete_workload_runtime(&mut self, workload_name: &WorkloadName) {
-        self.workload_storage.remove(workload_name);
     }
 
     // Currently used only in tests. Update tests if you have another "public getter".
@@ -80,67 +57,8 @@ impl ParameterStorage {
 
 #[cfg(test)]
 mod tests {
-    use common::{
-        objects::{ExecutionState, WorkloadState},
-        test_utils::generate_test_workload_spec_with_param,
-    };
-
     use crate::parameter_storage::ParameterStorage;
-
-    const AGENT_NAME: &str = "agent_x";
-
-    const WORKLOAD_1_NAME: &str = "workload A";
-    const RUNTIME_1_NAME: &str = "runtime B";
-    const WORKLOAD_2_NAME: &str = "workload C";
-    const RUNTIME_2_NAME: &str = "runtime D";
-
-    // [utest->swdd~agent-manager-stores-workload-runtime-mapping~1]
-    // [utest->swdd~agent-manager-deletes-workload-runtime-mapping~1]
-    #[test]
-    fn utest_parameter_storage_runtime_set_get_del() {
-        let mut storage = ParameterStorage::new();
-        assert!(storage.workload_storage.is_empty());
-
-        let workload_spec_1 = generate_test_workload_spec_with_param(
-            AGENT_NAME.into(),
-            WORKLOAD_1_NAME.into(),
-            RUNTIME_1_NAME.into(),
-        );
-
-        let workload_spec_2 = generate_test_workload_spec_with_param(
-            AGENT_NAME.into(),
-            WORKLOAD_2_NAME.into(),
-            RUNTIME_2_NAME.into(),
-        );
-
-        // Nothing in the storage yet
-        assert!(storage.workload_storage.is_empty());
-
-        storage.set_workload_runtime(&workload_spec_1);
-        storage.set_workload_runtime(&workload_spec_2);
-
-        assert_eq!(
-            storage
-                .get_workload_runtime(&workload_spec_1.workload.name)
-                .expect("runtime for workload is there"),
-            &workload_spec_1.runtime
-        );
-
-        storage.delete_workload_runtime(&workload_spec_1.workload.name);
-        assert!(storage
-            .get_workload_runtime(&workload_spec_1.workload.name)
-            .is_none());
-
-        assert_eq!(
-            storage
-                .get_workload_runtime(&workload_spec_2.workload.name)
-                .expect("runtime for workload is there"),
-            &workload_spec_2.runtime
-        );
-
-        storage.delete_workload_runtime(&workload_spec_2.workload.name);
-        assert!(storage.workload_storage.is_empty());
-    }
+    use common::objects::{ExecutionState, WorkloadState};
 
     #[test]
     fn utest_update_storage_empty_storage() {
@@ -156,16 +74,11 @@ mod tests {
 
         assert_eq!(storage.states_storage.len(), 1);
 
-        let agent_workloads = storage.states_storage.get(&test_update.agent_name);
-        assert!(agent_workloads.is_some());
-        assert_eq!(agent_workloads.unwrap().len(), 1);
+        let agent_workloads = storage.states_storage.get(&test_update.agent_name).unwrap();
+        assert_eq!(agent_workloads.len(), 1);
 
-        let storage_record = agent_workloads.unwrap().get(&test_update.workload_name);
-        assert!(storage_record.is_some());
-        assert_eq!(
-            storage_record.unwrap().to_owned(),
-            ExecutionState::ExecRunning
-        );
+        let storage_record = agent_workloads.get(&test_update.workload_name).unwrap();
+        assert_eq!(storage_record.to_owned(), ExecutionState::ExecRunning);
 
         let mut removed_update = test_update.clone();
         removed_update.execution_state = ExecutionState::ExecRemoved;
@@ -188,16 +101,11 @@ mod tests {
 
         assert_eq!(storage.states_storage.len(), 1);
 
-        let mut agent_workloads = storage.states_storage.get(&test_update.agent_name);
-        assert!(agent_workloads.is_some());
-        assert_eq!(agent_workloads.unwrap().len(), 1);
+        let mut agent_workloads = storage.states_storage.get(&test_update.agent_name).unwrap();
+        assert_eq!(agent_workloads.len(), 1);
 
-        let storage_record = agent_workloads.unwrap().get(&test_update.workload_name);
-        assert!(storage_record.is_some());
-        assert_eq!(
-            storage_record.unwrap().to_owned(),
-            ExecutionState::ExecRunning
-        );
+        let storage_record = agent_workloads.get(&test_update.workload_name).unwrap();
+        assert_eq!(storage_record.to_owned(), ExecutionState::ExecRunning);
 
         let mut update_record = test_update.clone();
         update_record.execution_state = ExecutionState::ExecSucceeded;
@@ -206,13 +114,9 @@ mod tests {
 
         assert_eq!(storage.states_storage.len(), 1);
 
-        agent_workloads = storage.states_storage.get(&test_update.agent_name);
-        let updated_record = agent_workloads.unwrap().get(&update_record.workload_name);
-        assert!(updated_record.is_some());
-        assert_eq!(
-            updated_record.unwrap().to_owned(),
-            ExecutionState::ExecSucceeded
-        );
+        agent_workloads = storage.states_storage.get(&test_update.agent_name).unwrap();
+        let updated_record = agent_workloads.get(&update_record.workload_name).unwrap();
+        assert_eq!(updated_record.to_owned(), ExecutionState::ExecSucceeded);
     }
 
     #[test]
@@ -255,40 +159,22 @@ mod tests {
 
         assert_eq!(storage.states_storage.len(), 2);
 
-        let agent_a_workloads = storage.states_storage.get(&agent_name_a);
-        assert!(agent_a_workloads.is_some());
-        assert_eq!(agent_a_workloads.unwrap().len(), 2);
+        let agent_a_workloads = storage.states_storage.get(&agent_name_a).unwrap();
+        assert_eq!(agent_a_workloads.len(), 2);
 
-        let storage_record_1 = agent_a_workloads.unwrap().get(&workload_name_1);
-        assert!(storage_record_1.is_some());
-        assert_eq!(
-            storage_record_1.unwrap().to_owned(),
-            ExecutionState::ExecRunning
-        );
+        let storage_record_1 = agent_a_workloads.get(&workload_name_1).unwrap();
+        assert_eq!(storage_record_1.to_owned(), ExecutionState::ExecRunning);
 
-        let storage_record_2 = agent_a_workloads.unwrap().get(&workload_name_2);
-        assert!(storage_record_2.is_some());
-        assert_eq!(
-            storage_record_2.unwrap().to_owned(),
-            ExecutionState::ExecFailed
-        );
+        let storage_record_2 = agent_a_workloads.get(&workload_name_2).unwrap();
+        assert_eq!(storage_record_2.to_owned(), ExecutionState::ExecFailed);
 
-        let agent_b_workloads = storage.states_storage.get(&agent_name_b);
-        assert!(agent_b_workloads.is_some());
-        assert_eq!(agent_b_workloads.unwrap().len(), 2);
+        let agent_b_workloads = storage.states_storage.get(&agent_name_b).unwrap();
+        assert_eq!(agent_b_workloads.len(), 2);
 
-        let storage_record_3 = agent_b_workloads.unwrap().get(&workload_name_1);
-        assert!(storage_record_3.is_some());
-        assert_eq!(
-            storage_record_3.unwrap().to_owned(),
-            ExecutionState::ExecSucceeded
-        );
+        let storage_record_3 = agent_b_workloads.get(&workload_name_1).unwrap();
+        assert_eq!(storage_record_3.to_owned(), ExecutionState::ExecSucceeded);
 
-        let storage_record_4 = agent_b_workloads.unwrap().get(&workload_name_2);
-        assert!(storage_record_4.is_some());
-        assert_eq!(
-            storage_record_4.unwrap().to_owned(),
-            ExecutionState::ExecPending
-        );
+        let storage_record_4 = agent_b_workloads.get(&workload_name_2).unwrap();
+        assert_eq!(storage_record_4.to_owned(), ExecutionState::ExecPending);
     }
 }

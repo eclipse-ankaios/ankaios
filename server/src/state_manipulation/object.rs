@@ -542,8 +542,7 @@ mod tests {
                                     .entry("value", "value")
                                     .into()] as Vec<Value>,
                             )
-                            .entry("runtimeConfig", "image: alpine:latest\ncommand: [\"echo\"]\nargs: [\"Hello Ankaios\"]"),
-
+                            .entry("runtimeConfig", "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"),
                     ),
                 )
                 .entry("configs", Mapping::default())

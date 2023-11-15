@@ -1,0 +1,26 @@
+workloads:
+  hello-k8s:
+    runtime: podman-kube
+    agent: agent_A
+    restart: true
+    updateStrategy: AT_MOST_ONCE
+    accessRights:
+      allow: []
+      deny: []
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      manifest: |
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: hello-pod
+        spec:
+          containers:
+          - name: hello-container
+            image: docker.io/alpine:latest
+            command: 
+            - sleep
+            - 50000
+

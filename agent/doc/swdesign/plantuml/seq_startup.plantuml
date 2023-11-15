@@ -5,9 +5,9 @@ box "Ankaios Agent"
     participant Main as main
 
     participant "<<thread>>\nAgentManager" as manager
-
-    participant "PodmanAdapter" as podman
-
+    participant "RuntimeManager" as runtime_mgr
+    participant "<RuntimeConnector>\n e.g., podman" as runtime
+    participant "RuntimeFacade" as facade
     participant "<<thread>>\nMiddleware (gRPC)" as grpc_client
     participant "<<task>>\nListen to Ankaios\nServer" as listen_to_server
     participant "<<task>>\nListen to Agent \nManager" as listen_to_manager
@@ -21,9 +21,13 @@ end box
 main -> main ++--: create communication channels
 main ->> grpc_client ** : create and start in a new thread
 activate grpc_client
-main ->> podman ** : create
-activate podman
-main ->> manager **: create and start in a new thread \nproviding all RuntimeAdapters
+loop for each supported runtime
+    main ->> runtime ** : create
+    main ->> facade ** : create (RuntimeConnector)
+end
+main ->> runtime_mgr ** : create (vec<RuntimeFacade>)
+
+main ->> manager **: create and start in a new thread\n (RuntimeManager)
 activate manager
 
 grpc_client -> grpc_client ++: start and endless loop \ntrying to (re)connect to the server

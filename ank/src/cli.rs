@@ -156,7 +156,7 @@ pub enum RunCommands {
         /// A string with the runtime configuration for the configured runtime.
         /// For example to run the nginx server as the parameter as follows:
         ///
-        /// CFG=$'image: docker.io/nginx:latest\nports:\n- containerPort: 80\n  hostPort: 8081'
+        /// CFG=$'image: docker.io/nginx:latest\ncommandOptions: ["-p", "8081:80"]'
         ///
         /// --config "$CFG"
         #[arg(long = "config")]

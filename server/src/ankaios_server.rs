@@ -118,22 +118,29 @@ impl AnkaiosServer {
         while let Some(state_change_command) = self.receiver.recv().await {
             match state_change_command {
                 StateChangeCommand::AgentHello(method_obj) => {
-                    log::debug!("Received AgentHello from communications server");
+                    log::info!("Received AgentHello from '{}'", method_obj.agent_name);
 
                     // Send this agent all workloads in the current state which are assigned to him
+                    let added_workloads = self
+                        .current_complete_state
+                        .current_state
+                        .workloads
+                        .clone()
+                        .into_values()
+                        // [impl->swdd~agent-from-agent-field~1]
+                        .filter(|workload_spec| workload_spec.agent.eq(&method_obj.agent_name))
+                        .collect();
+
+                    log::debug!(
+                        "Sending initial UpdateWorkload to agent '{}' with added workloads: '{:?}'",
+                        method_obj.agent_name,
+                        added_workloads,
+                    );
+
                     // [impl->swdd~server-sends-all-workloads-on-start~1]
                     self.to_agents
                         .update_workload(
-                            self.current_complete_state
-                                .current_state
-                                .workloads
-                                .clone()
-                                .into_values()
-                                // [impl->swdd~agent-from-agent-field~1]
-                                .filter(|workload_spec| {
-                                    workload_spec.agent.eq(&method_obj.agent_name)
-                                })
-                                .collect(),
+                            added_workloads,
                             // It's a newly connected agent, no need to delete anything.
                             vec![],
                         )
@@ -145,17 +152,24 @@ impl AnkaiosServer {
                     let workload_states = self
                         .workload_state_db
                         .get_workload_state_excluding_agent(&method_obj.agent_name);
+
                     if !workload_states.is_empty() {
+                        log::debug!(
+                            "Sending initial UpdateWorkloadState to agent '{}' with workload states: '{:?}'",
+                            method_obj.agent_name,
+                            workload_states,
+                        );
+
                         self.to_agents
                             .update_workload_state(workload_states)
                             .await
                             .unwrap_or_illegal_state();
                     } else {
-                        log::debug!("No workload states to send. Nothing to do.");
+                        log::debug!("No workload states to send.");
                     }
                 }
                 StateChangeCommand::AgentGone(method_obj) => {
-                    log::debug!("Received AgentGone from communications server");
+                    log::debug!("Received AgentGone from '{}'", method_obj.agent_name);
                     // [impl->swdd~server-set-workload-state-unknown-on-disconnect~1]
                     self.workload_state_db
                         .mark_all_workload_state_for_agent_unknown(&method_obj.agent_name);
@@ -172,7 +186,11 @@ impl AnkaiosServer {
                 }
                 // [impl->swdd~server-provides-update-current-state-interface~1]
                 StateChangeCommand::UpdateState(update_request) => {
-                    log::debug!("Received UpdateState from communications server");
+                    log::debug!(
+                        "Received UpdateState. State '{:?}', update mask '{:?}'",
+                        update_request.state,
+                        update_request.update_mask
+                    );
 
                     match update_state(&self.current_complete_state, update_request) {
                         Ok(new_state) => {
@@ -181,11 +199,8 @@ impl AnkaiosServer {
                                 &new_state.current_state,
                             );
 
-                            if cmd.is_some() {
-                                self.to_agents
-                                    .send(cmd.unwrap())
-                                    .await
-                                    .unwrap_or_illegal_state();
+                            if let Some(cmd) = cmd {
+                                self.to_agents.send(cmd).await.unwrap_or_illegal_state();
                             } else {
                                 log::debug!("The current state and new state are identical -> nothing to do");
                             }
@@ -198,7 +213,8 @@ impl AnkaiosServer {
                 }
                 StateChangeCommand::UpdateWorkloadState(method_obj) => {
                     log::debug!(
-                        "Received UpdateWorkloadState from communications server: {method_obj:?}"
+                        "Received UpdateWorkloadState: '{:?}'",
+                        method_obj.workload_states
                     );
 
                     // [impl->swdd~server-stores-workload-state~1]
@@ -215,7 +231,9 @@ impl AnkaiosServer {
                 // [impl->swdd~server-includes-id-in-control-interface-response~1]
                 StateChangeCommand::RequestCompleteState(method_obj) => {
                     log::debug!(
-                        "Received RequestCompleteState from communications server: {method_obj:?}"
+                        "Received RequestCompleteState with id '{}' and field mask: '{:?}'",
+                        method_obj.request_id,
+                        method_obj.field_mask
                     );
 
                     match self.get_complete_state_by_field_mask(&method_obj) {
@@ -241,10 +259,6 @@ impl AnkaiosServer {
                 StateChangeCommand::Stop(_method_obj) => {
                     log::debug!("Received Stop from communications server");
                     // TODO: handle the call
-                    // for operator in self.operator_map.values() {
-                    //     operator.stop().await;
-                    // }
-
                     break;
                 }
             }
@@ -270,8 +284,9 @@ mod tests {
 
     use common::commands::{RequestCompleteState, UpdateStateRequest};
     use common::objects::{
-        AccessRights, DeletedWorkload, RuntimeWorkload, State, Tag, WorkloadSpec, WorkloadState,
+        DeletedWorkload, ExpectedState, State, Tag, WorkloadSpec, WorkloadState,
     };
+    use common::test_utils::generate_test_workload_spec_with_param;
     use common::{
         commands::CompleteState,
         execution_interface::ExecutionCommand,
@@ -293,6 +308,8 @@ mod tests {
         (Sender<StateChangeCommand>, Sender<ExecutionCommand>), // (state change sender channel to ankaios server, execution sender channel to communication mapper)
         Receiver<TestResult>,                                   // test result receiver channel
     );
+
+    const RUNTIME_NAME: &str = "fake_runtime";
 
     #[derive(PartialEq, Debug, Clone)]
     enum TestResult {
@@ -487,31 +504,6 @@ mod tests {
         )
     }
 
-    fn create_fake_workload_spec(agent_name: String, workload_name: String) -> WorkloadSpec {
-        WorkloadSpec {
-            agent: agent_name,
-            runtime: "fake_runtime".to_owned(),
-            dependencies: HashMap::default(),
-            access_rights: AccessRights::default(),
-            update_strategy: common::objects::UpdateStrategy::Unspecified,
-            workload: common::objects::RuntimeWorkload {
-                name: workload_name,
-                restart: false,
-                tags: vec![
-                    Tag {
-                        key: "tag_key_1".into(),
-                        value: "tag_value_1".into(),
-                    },
-                    Tag {
-                        key: "tag_key_2".into(),
-                        value: "tag_value_2".into(),
-                    },
-                ],
-                runtime_config: "fake_runtime_config".to_owned(),
-            },
-        }
-    }
-
     fn get_workloads(
         result_from_fake_agent: &TestResult,
     ) -> Option<common::commands::UpdateWorkload> {
@@ -555,7 +547,7 @@ mod tests {
             let workload_names: Vec<(String, String)> = wl
                 .added_workloads
                 .into_iter()
-                .map(|wls| (wls.agent, wls.workload.name))
+                .map(|wls| (wls.agent, wls.name))
                 .collect();
 
             let agent_name: &str = workload_names[0].0.as_ref();
@@ -607,7 +599,7 @@ mod tests {
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states() {
         // prepare test setup
-        let fake_agent_names = vec!["fake_agent_1", "fake_agent_2"];
+        let fake_agent_names = ["fake_agent_1", "fake_agent_2"];
         let (
             (mut ankaios_server, cm_server_task, fake_agent_1_task, fake_agent_2_task),
             (to_server, _to_cm_server),
@@ -618,15 +610,27 @@ mod tests {
         let mut wl = HashMap::new();
         wl.insert(
             "fake_workload_spec_1".to_owned(),
-            create_fake_workload_spec(fake_agent_names[0].to_owned(), "fake_workload_1".to_owned()),
+            generate_test_workload_spec_with_param(
+                fake_agent_names[0].to_owned(),
+                "fake_workload_1".to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
         );
         wl.insert(
             "fake_workload_spec_2".to_owned(),
-            create_fake_workload_spec(fake_agent_names[0].to_owned(), "fake_workload_2".to_owned()),
+            generate_test_workload_spec_with_param(
+                fake_agent_names[0].to_owned(),
+                "fake_workload_2".to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
         );
         wl.insert(
             "fake_workload_spec_3".to_owned(),
-            create_fake_workload_spec(fake_agent_names[1].to_owned(), "fake_workload_3".to_owned()),
+            generate_test_workload_spec_with_param(
+                fake_agent_names[1].to_owned(),
+                "fake_workload_3".to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
         );
 
         // prepare current state
@@ -781,15 +785,23 @@ mod tests {
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state() {
         // prepare names
-        let agent_names = vec!["fake_agent_1", "fake_agent_2"];
-        let workload_names = vec!["workload_1", "workload_2"];
+        let agent_names = ["fake_agent_1", "fake_agent_2"];
+        let workload_names = ["workload_1", "workload_2"];
         let request_id = "id1";
         let update_mask = format!("workloads.{}", workload_names[1]);
 
         // prepare structures
         let workloads = vec![
-            create_fake_workload_spec(agent_names[0].to_owned(), workload_names[0].to_owned()),
-            create_fake_workload_spec(agent_names[1].to_owned(), workload_names[1].to_owned()),
+            generate_test_workload_spec_with_param(
+                agent_names[0].to_owned(),
+                workload_names[0].to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
+            generate_test_workload_spec_with_param(
+                agent_names[1].to_owned(),
+                workload_names[1].to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
         ];
 
         let original_state = CompleteState {
@@ -930,23 +942,26 @@ mod tests {
         let mut workloads = HashMap::new();
         workloads.insert(
             "fake_workload_spec_1".to_owned(),
-            create_fake_workload_spec(
+            generate_test_workload_spec_with_param(
                 agent_name_fake_agent_1.to_owned(),
                 "fake_workload_1".to_owned(),
+                RUNTIME_NAME.to_string(),
             ),
         );
         workloads.insert(
             "fake_workload_spec_2".to_owned(),
-            create_fake_workload_spec(
+            generate_test_workload_spec_with_param(
                 agent_name_fake_agent_1.to_owned(),
                 "fake_workload_2".to_owned(),
+                RUNTIME_NAME.to_string(),
             ),
         );
         workloads.insert(
             "fake_workload_spec_3".to_owned(),
-            create_fake_workload_spec(
+            generate_test_workload_spec_with_param(
                 agent_name_fake_agent_1.to_owned(),
                 "fake_workload_3".to_owned(),
+                RUNTIME_NAME.to_string(),
             ),
         );
 
@@ -1050,19 +1065,10 @@ mod tests {
                         (
                             "fake_workload_spec_3".into(),
                             WorkloadSpec {
-                                workload: RuntimeWorkload {
-                                    tags: vec![
-                                        Tag {
-                                            key: "tag_key_1".into(),
-                                            value: "tag_value_1".into(),
-                                        },
-                                        Tag {
-                                            key: "tag_key_2".into(),
-                                            value: "tag_value_2".into(),
-                                        },
-                                    ],
-                                    ..Default::default()
-                                },
+                                tags: vec![Tag {
+                                    key: "key".into(),
+                                    value: "value".into(),
+                                }],
                                 ..Default::default()
                             },
                         ),
@@ -1086,7 +1092,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         const BUFFER_SIZE: usize = 20;
-        let fake_agent_names = vec!["fake_agent_1", "fake_agent_2"];
+        let fake_agent_names = ["fake_agent_1", "fake_agent_2"];
 
         let (to_agents, mut agents_receiver) = mpsc::channel::<ExecutionCommand>(BUFFER_SIZE);
         let (to_server, server_receiver) = mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
@@ -1097,15 +1103,27 @@ mod tests {
         let mut wl = HashMap::new();
         wl.insert(
             "fake_workload_spec_1".to_owned(),
-            create_fake_workload_spec(fake_agent_names[0].to_owned(), "fake_workload_1".to_owned()),
+            generate_test_workload_spec_with_param(
+                fake_agent_names[0].to_owned(),
+                "fake_workload_1".to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
         );
         wl.insert(
             "fake_workload_spec_2".to_owned(),
-            create_fake_workload_spec(fake_agent_names[0].to_owned(), "fake_workload_2".to_owned()),
+            generate_test_workload_spec_with_param(
+                fake_agent_names[0].to_owned(),
+                "fake_workload_2".to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
         );
         wl.insert(
             "fake_workload_spec_3".to_owned(),
-            create_fake_workload_spec(fake_agent_names[1].to_owned(), "fake_workload_3".to_owned()),
+            generate_test_workload_spec_with_param(
+                fake_agent_names[1].to_owned(),
+                "fake_workload_3".to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
         );
 
         // prepare current state
@@ -1264,7 +1282,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         const BUFFER_SIZE: usize = 20;
-        let fake_agent_names = vec!["fake_agent_1", "fake_agent_2"];
+        let fake_agent_names = ["fake_agent_1", "fake_agent_2"];
 
         let (to_agents, mut agents_receiver) = mpsc::channel::<ExecutionCommand>(BUFFER_SIZE);
         let (to_server, server_receiver) = mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
@@ -1275,15 +1293,27 @@ mod tests {
         let mut wl = HashMap::new();
         wl.insert(
             "fake_workload_spec_1".to_owned(),
-            create_fake_workload_spec(fake_agent_names[0].to_owned(), "fake_workload_1".to_owned()),
+            generate_test_workload_spec_with_param(
+                fake_agent_names[0].to_owned(),
+                "fake_workload_1".to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
         );
         wl.insert(
             "fake_workload_spec_2".to_owned(),
-            create_fake_workload_spec(fake_agent_names[0].to_owned(), "fake_workload_2".to_owned()),
+            generate_test_workload_spec_with_param(
+                fake_agent_names[0].to_owned(),
+                "fake_workload_2".to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
         );
         wl.insert(
             "fake_workload_spec_3".to_owned(),
-            create_fake_workload_spec(fake_agent_names[1].to_owned(), "fake_workload_3".to_owned()),
+            generate_test_workload_spec_with_param(
+                fake_agent_names[1].to_owned(),
+                "fake_workload_3".to_owned(),
+                RUNTIME_NAME.to_string(),
+            ),
         );
 
         // prepare current state
@@ -1303,8 +1333,7 @@ mod tests {
             .workloads
             .get_mut("fake_workload_spec_1")
             .unwrap()
-            .workload
-            .restart = true;
+            .restart = false;
         new_state
             .current_state
             .workloads
@@ -1393,12 +1422,18 @@ mod tests {
                         DeletedWorkload {
                             agent: "fake_agent_1".to_string(),
                             name: "fake_workload_spec_1".to_string(),
-                            dependencies: HashMap::new(),
+                            dependencies: HashMap::from([
+                                ("workload C".to_string(), ExpectedState::Stopped),
+                                ("workload A".to_string(), ExpectedState::Running)
+                            ]),
                         },
                         DeletedWorkload {
                             agent: "fake_agent_1".to_string(),
                             name: "fake_workload_spec_2".to_string(),
-                            dependencies: HashMap::new(),
+                            dependencies: HashMap::from([
+                                ("workload C".to_string(), ExpectedState::Stopped),
+                                ("workload A".to_string(), ExpectedState::Running)
+                            ]),
                         }
                     ]
                 );
