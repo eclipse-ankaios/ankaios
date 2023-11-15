@@ -50,6 +50,8 @@ Test Ankaios Podman create and remove workloads
     And the workload "hello1" shall have the execution state "Removed" from agent "agent_B"
     And the workload "hello2" shall have the execution state "Succeeded" on agent "agent_B"
     And the workload "hello3" shall have the execution state "Succeeded" on agent "agent_B"
+    # Temporary workaround: Leave Podman a bit more time to delete the containers.
+    When user executes system app "sleep 2"
     When user executes system app "podman ps -a --format=json"
     ${dict_array}=    And the result is valid JSON
     Then the JSON array "${dict_array}" shall contain key "Labels" with subkey "agent" with the subvalue "agent_B"

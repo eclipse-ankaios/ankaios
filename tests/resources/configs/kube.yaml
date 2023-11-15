@@ -21,6 +21,6 @@ workloads:
           - name: hello-container
             image: docker.io/alpine:latest
             command: 
-            - echo
-            - Hi!
+            - sleep
+            - 50000
 
