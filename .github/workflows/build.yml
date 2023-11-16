@@ -32,7 +32,7 @@ jobs:
       - name: change permissions
         run: |
           ls -la /
-          chown -R vscode /__*
+          chown -R vscode /__w*
           ls -la /
 
       - uses: actions/checkout@v3.5.3
