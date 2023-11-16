@@ -18,9 +18,6 @@ jobs:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.4
       options: --privileged --user vscode
     steps:
-      - uses: actions/checkout@v3.5.3
-      - uses: Swatinem/rust-cache@v2.6.2
-
       - name: check cgroup
         run: |
           cd /sys/fs/cgroup
@@ -30,6 +27,13 @@ jobs:
         run: |
           whoami
           sudo whoami
+
+      - name: check permissions
+        run: |
+          ls -la /
+
+      - uses: actions/checkout@v3.5.3
+      - uses: Swatinem/rust-cache@v2.6.2
 
       - name: Run tests
         run: RUST_LOG=debug cargo nextest run
