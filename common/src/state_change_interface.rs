@@ -262,11 +262,8 @@ mod tests {
                         workloads: HashMap::from([(
                             "test_workload".to_owned(),
                             crate::objects::WorkloadSpec {
+                                name: "test_workload".to_owned(),
                                 agent: "test_agent".to_owned(),
-                                workload: crate::objects::RuntimeWorkload {
-                                    name: "test_workload".to_owned(),
-                                    ..Default::default()
-                                },
                                 ..Default::default()
                             },
                         )]),

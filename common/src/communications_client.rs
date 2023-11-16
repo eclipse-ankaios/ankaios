@@ -15,7 +15,10 @@
 use async_trait::async_trait;
 use tokio::sync::mpsc::Sender;
 
-use crate::{execution_interface::ExecutionCommand, state_change_interface::StateChangeReceiver, communications_error::CommunicationMiddlewareError};
+use crate::{
+    communications_error::CommunicationMiddlewareError, execution_interface::ExecutionCommand,
+    state_change_interface::StateChangeReceiver,
+};
 
 // [impl->swdd~common-interface-definitions~1]
 #[async_trait]

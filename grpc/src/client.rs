@@ -76,7 +76,7 @@ impl CommunicationsClient for GRPCCommunicationsClient {
         mut server_rx: StateChangeReceiver,
         agent_tx: Sender<ExecutionCommand>,
     ) -> Result<(), CommunicationMiddlewareError> {
-        log::info!("gRPC Communication Client starts.");
+        log::debug!("gRPC Communication Client starts.");
 
         // [impl->swdd~grpc-client-retries-connection~2]
         loop {

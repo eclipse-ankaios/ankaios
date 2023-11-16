@@ -104,7 +104,7 @@ pub trait IllegalStateResult<T, E> {
 
 impl<T, E: std::fmt::Display> IllegalStateResult<T, E> for Result<T, E> {
     /// Returns the contained [`Ok`] value or panics
-    /// by executing the unreachable! macro with logging the error E of the Result<T,E>.
+    /// by executing the panic! macro with logging the error E of the Result<T,E>.
     ///
     /// # Examples
     ///
@@ -112,7 +112,7 @@ impl<T, E: std::fmt::Display> IllegalStateResult<T, E> for Result<T, E> {
     /// use common::std_extensions::extended_result::IllegalStateResult;
     /// assert_eq!(Ok::<&str, &str>("bar").unwrap_or_illegal_state(), "bar");
     ///
-    /// // shall panic because unreachable is hit
+    /// // shall panic
     /// Err::<&str, &str>("some error").unwrap_or_illegal_state();
     /// ```
     fn unwrap_or_illegal_state(self) -> T {

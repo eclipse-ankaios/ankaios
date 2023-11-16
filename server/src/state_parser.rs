@@ -61,16 +61,14 @@ fn from_stored_workloads(
     let mut workload_specs: HashMap<String, ankaios::WorkloadSpec> = HashMap::new();
     for (name, stored_workload) in stored_workloads {
         let workload = ankaios::WorkloadSpec {
-            workload: ankaios::RuntimeWorkload {
-                name: name.to_owned(),
-                restart: stored_workload.restart,
-                tags: stored_workload.tags,
-                runtime_config: stored_workload.runtime_config,
-            },
-            runtime: stored_workload.runtime,
+            name: name.to_owned(),
             agent: stored_workload.agent,
+            tags: stored_workload.tags,
+            runtime_config: stored_workload.runtime_config,
+            runtime: stored_workload.runtime,
             dependencies: stored_workload.dependencies,
             update_strategy: stored_workload.update_strategy,
+            restart: stored_workload.restart,
             access_rights: stored_workload.access_rights,
         };
         // TODO: What happens when there are two agents with the same name?
@@ -107,9 +105,7 @@ mod tests {
               value: Ankaios team 1
             runtimeConfig: |
               image: docker.io/nginx:latest
-              ports:
-              - containerPort: 80
-                hostPort: 8081
+              commandOptions: [\"-p\", \"8081:80\"]
           hello:
             runtime: podman
             agent: agent_B
@@ -120,8 +116,7 @@ mod tests {
               deny: []
             runtimeConfig: |
               image: alpine:latest
-              command: [\"echo\"]
-              args: [\"Hello Ankaios\"]
+              commandArgs: [ \"echo\", \"Hello Ankaios\"]
         "
         .to_string();
 
@@ -137,44 +132,46 @@ mod tests {
         let workload_spec_nginx = state.workloads.get("nginx").unwrap();
         assert_eq!(workload_spec_nginx.runtime, "podman");
         assert_eq!(workload_spec_nginx.agent, "agent_A");
-        assert_eq!(workload_spec_nginx.workload.name, "nginx");
-        assert!(workload_spec_nginx.workload.restart);
+        assert_eq!(workload_spec_nginx.name, "nginx");
+        assert!(workload_spec_nginx.restart);
         assert_eq!(
             workload_spec_nginx.update_strategy,
             UpdateStrategy::AtMostOnce
         );
         assert_eq!(workload_spec_nginx.access_rights.allow.len(), 0);
         assert_eq!(workload_spec_nginx.access_rights.deny.len(), 0);
-        assert_eq!(workload_spec_nginx.workload.tags.len(), 1);
+        assert_eq!(workload_spec_nginx.tags.len(), 1);
         assert_eq!(
-            workload_spec_nginx.workload.tags[0],
+            workload_spec_nginx.tags[0],
             Tag {
                 key: "owner".to_owned(),
                 value: "Ankaios team 1".to_owned(),
             }
         );
-        let runtime_config_nginx = &workload_spec_nginx.workload.runtime_config;
-        assert!(runtime_config_nginx.starts_with("image: docker.io/nginx:latest\n"));
-        assert!(runtime_config_nginx.ends_with("hostPort: 8081\n"));
+        assert_eq!(
+            workload_spec_nginx.runtime_config,
+            "image: docker.io/nginx:latest\ncommandOptions: [\"-p\", \"8081:80\"]\n"
+        );
 
         // asserts workload hello
         assert!(state.workloads.contains_key("hello"));
         let workload_spec_hello = state.workloads.get("hello").unwrap();
         assert_eq!(workload_spec_hello.runtime, "podman");
         assert_eq!(workload_spec_hello.agent, "agent_B");
-        assert_eq!(workload_spec_hello.workload.name, "hello");
-        assert!(!workload_spec_hello.workload.restart);
+        assert_eq!(workload_spec_hello.name, "hello");
+        assert!(!workload_spec_hello.restart);
         assert_eq!(
             workload_spec_hello.update_strategy,
             UpdateStrategy::AtLeastOnce
         );
         assert_eq!(workload_spec_hello.access_rights.allow.len(), 0);
         assert_eq!(workload_spec_hello.access_rights.deny.len(), 0);
-        assert_eq!(workload_spec_hello.workload.tags.len(), 0);
+        assert_eq!(workload_spec_hello.tags.len(), 0);
 
-        let runtime_config_hello = &workload_spec_hello.workload.runtime_config;
-        assert!(runtime_config_hello.starts_with("image: alpine:latest\n"));
-        assert!(runtime_config_hello.ends_with("args: [\"Hello Ankaios\"]\n"));
+        assert_eq!(
+            workload_spec_hello.runtime_config,
+            "image: alpine:latest\ncommandArgs: [ \"echo\", \"Hello Ankaios\"]\n"
+        );
     }
 
     #[test]

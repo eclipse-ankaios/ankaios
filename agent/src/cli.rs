@@ -21,7 +21,6 @@ use clap::Parser;
 use common::DEFAULT_SERVER_ADDRESS;
 use url::Url;
 
-const DEFAULT_PODMAN_SOCK: &str = "/run/user/1000/podman/podman.sock";
 const DEFAULT_RUN_FOLDER: &str = "/tmp/ankaios/";
 const RUNFOLDER_SUFFIX: &str = "_io";
 
@@ -37,9 +36,6 @@ pub struct Arguments {
     #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.parse().unwrap())]
     /// The server url.
     pub server_url: Url,
-    #[clap(short = 'p', long = "podman-socket-path", default_value_t = DEFAULT_PODMAN_SOCK.into())]
-    /// The path to the podman socket.
-    pub podman_socket_path: String,
 
     /// An existing path where to manage the fifo files.
     #[clap(short = 'r', long = "run-folder", default_value_t = DEFAULT_RUN_FOLDER.into())]
@@ -85,7 +81,6 @@ mod tests {
 
         let args = Arguments {
             agent_name: "test_agent_name".to_owned(),
-            podman_socket_path: "test_podman_socket_path".to_owned(),
             server_url: DEFAULT_SERVER_ADDRESS.parse().unwrap(),
             run_folder: DEFAULT_RUN_FOLDER.to_owned(),
         };
@@ -102,7 +97,6 @@ mod tests {
 
         let args = Arguments {
             agent_name: "test_agent_name".to_owned(),
-            podman_socket_path: "test_podman_socket_path".to_owned(),
             server_url: DEFAULT_SERVER_ADDRESS.parse().unwrap(),
             run_folder: "/tmp/x".to_owned(),
         };

@@ -19,7 +19,7 @@ set -e
 script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 base_dir="$script_dir/.."
 target_dir="$base_dir/target/robot_tests_result"
-default_executable_dir="$base_dir/target/debug"
+default_executable_dir="$base_dir/target/x86_64-unknown-linux-musl/debug"
 
 check_executable() {
     if [[ -x "$1" ]]
@@ -44,19 +44,4 @@ check_executable $ANK
 check_executable $ANK_SERVER
 check_executable $ANK_AGENT
 
-# This can be removed when podman cli is used in Ankaios agents!
-if [ $(ps aux | grep 'podman system service'| wc -l) -eq "1" ]; then
-  echo "podman service not running -> start podman service"
-  podman system service --time=0 unix:///tmp/podman.sock &
-  t=0
-  until [ -e /tmp/podman.sock ] || (( t++ >= 10 )); do
-    sleep 1
-  done
-  [ -e /tmp/podman.sock ] && echo /tmp/podman.sock created. || echo /tmp/podman.sock not found.
-else
-  echo "podman service is already running"
-fi
-
-
 ANK_BIN_DIR=$ANK_BIN_DIR robot --pythonpath tests --loglevel=TRACE:INFO -d ${target_dir} "$@"
-

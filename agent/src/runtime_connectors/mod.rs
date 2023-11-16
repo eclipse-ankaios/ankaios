@@ -12,16 +12,28 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use async_trait::async_trait;
-use common::objects::WorkloadSpec;
+mod cli_command;
 
-#[cfg_attr(test, mockall::automock)]
-#[async_trait]
-pub trait RuntimeAdapter {
-    async fn start(&mut self, agent_name: &str, initial_workload_list: Vec<WorkloadSpec>);
-    fn get_name(&self) -> &'static str;
-    fn add_workload(&mut self, workload: WorkloadSpec);
-    async fn update_workload(&mut self, workload: WorkloadSpec);
-    async fn delete_workload(&mut self, workload_name: &str);
-    async fn stop(&self);
-}
+mod podman_cli;
+
+pub(crate) mod podman;
+
+pub(crate) mod podman_kube;
+
+mod runtime_connector;
+pub use runtime_connector::{OwnableRuntime, RuntimeConnector, RuntimeError};
+
+#[cfg(test)]
+pub use runtime_connector::test;
+
+mod runtime_facade;
+pub use runtime_facade::{GenericRuntimeFacade, RuntimeFacade};
+
+#[cfg(test)]
+pub use runtime_facade::MockRuntimeFacade;
+
+mod state_checker;
+pub use state_checker::{RuntimeStateGetter, StateChecker};
+
+#[cfg(test)]
+pub use state_checker::MockRuntimeStateGetter;

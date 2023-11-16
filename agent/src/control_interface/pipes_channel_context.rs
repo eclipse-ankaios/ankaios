@@ -14,6 +14,9 @@
 
 use common::objects::WorkloadExecutionInstanceName;
 
+#[cfg(test)]
+use mockall::automock;
+
 #[cfg_attr(test, mockall_double::double)]
 use super::input_output::InputOutput;
 #[cfg_attr(test, mockall_double::double)]
@@ -52,6 +55,7 @@ pub struct PipesChannelContext {
     task_handle: JoinHandle<()>,
 }
 
+#[cfg_attr(test, automock)]
 impl PipesChannelContext {
     pub fn new(
         run_directory: &Path,
@@ -100,20 +104,6 @@ impl PipesChannelContext {
 impl Drop for PipesChannelContext {
     fn drop(&mut self) {
         self.abort_pipes_channel_task()
-    }
-}
-
-#[cfg(test)]
-mockall::mock! {
-    pub PipesChannelContext {
-        pub fn new(run_directory: &Path, execution_instance_name: &WorkloadExecutionInstanceName, output_pipe_sender: StateChangeSender,) -> Result<Self, PipesChannelContextError>;
-        pub fn get_api_location(&self) -> PathBuf;
-        pub fn get_input_pipe_sender(&self) -> ExecutionSender;
-        pub fn abort_pipes_channel_task(&self);
-    }
-
-    impl Drop for PipesChannelContext {
-        fn drop(&mut self);
     }
 }
 

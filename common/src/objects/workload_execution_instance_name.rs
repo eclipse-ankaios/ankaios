@@ -17,7 +17,7 @@ impl ConfigHash for String {
 
 impl ConfigHash for WorkloadSpec {
     fn hash_config(&self) -> String {
-        self.workload.runtime_config.hash_config()
+        self.runtime_config.hash_config()
     }
 }
 
@@ -29,8 +29,8 @@ impl WorkloadInstanceName for WorkloadSpec {
     fn instance_name(&self) -> WorkloadExecutionInstanceName {
         WorkloadExecutionInstanceName::builder()
             .agent_name(self.agent.clone())
-            .workload_name(self.workload.name.clone())
-            .config(&self.workload.runtime_config)
+            .workload_name(self.name.clone())
+            .config(&self.runtime_config)
             .build()
     }
 }
@@ -55,17 +55,7 @@ pub struct WorkloadExecutionInstanceName {
 
 impl WorkloadExecutionInstanceName {
     pub fn new(input: &str) -> Option<WorkloadExecutionInstanceName> {
-        let input_parts: Vec<&str> = input.split(INSTANCE_NAME_SEPARATOR).collect();
-
-        if INSTANCE_NAME_PARTS_COUNT == input_parts.len() {
-            return Some(WorkloadExecutionInstanceName {
-                agent_name: input_parts[InstanceNameParts::AgentName as usize].to_string(),
-                workload_name: input_parts[InstanceNameParts::WorkloadName as usize].to_string(),
-                hash: input_parts[InstanceNameParts::ConfigHash as usize].to_string(),
-            });
-        }
-
-        None
+        input.try_into().ok()
     }
 
     pub fn workload_name(&self) -> &str {
@@ -82,11 +72,6 @@ impl WorkloadExecutionInstanceName {
             self.workload_name, INSTANCE_NAME_SEPARATOR, self.hash
         ))
     }
-
-    // [impl->swdd~agent-adapter-start-finds-existing-workloads~1]
-    pub fn get_agent_filter_regex(agent_name: &str) -> String {
-        format!("[{}]{}$", INSTANCE_NAME_SEPARATOR, agent_name)
-    }
 }
 
 // [impl->swdd~common-workload-execution-instance-naming~1]
@@ -101,6 +86,31 @@ impl Display for WorkloadExecutionInstanceName {
             INSTANCE_NAME_SEPARATOR,
             self.agent_name
         )
+    }
+}
+
+impl TryFrom<String> for WorkloadExecutionInstanceName {
+    type Error = String;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        (*value).try_into()
+    }
+}
+
+impl TryFrom<&str> for WorkloadExecutionInstanceName {
+    type Error = String;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let value_parts: Vec<&str> = value.split(INSTANCE_NAME_SEPARATOR).collect();
+        if value_parts.len() != INSTANCE_NAME_PARTS_COUNT {
+            return Err(format!("Could not convert '{}' to a WorkloadExecutionInstanceName, as it consist of {} instead of 3.", value, value_parts.len()));
+        }
+
+        Ok(WorkloadExecutionInstanceName {
+            workload_name: value_parts[InstanceNameParts::WorkloadName as usize].to_string(),
+            hash: value_parts[InstanceNameParts::ConfigHash as usize].to_string(),
+            agent_name: value_parts[InstanceNameParts::AgentName as usize].to_string(),
+        })
     }
 }
 
@@ -157,15 +167,6 @@ mod tests {
     const WORKLOAD_NAME: &str = "workload";
     const CONFIG: &str = "config";
     const EXPECTED_HASH: &str = "b79606fb3afea5bd1609ed40b622142f1c98125abcfe89a76a661b0e8e343910";
-
-    // [utest->swdd~agent-adapter-start-finds-existing-workloads~1]
-    #[test]
-    fn utest_workload_execution_instance_name_agent_filter_string() {
-        assert_eq!(
-            format!("[.]{AGENT_NAME}$"),
-            WorkloadExecutionInstanceName::get_agent_filter_regex("agent")
-        );
-    }
 
     // [utest->swdd~common-workload-execution-instance-naming~1]
     #[test]
