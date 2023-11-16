@@ -50,7 +50,7 @@ impl RuntimeStateGetter<PodmanWorkloadId> for PodmanStateGetter {
                 if let Some(state) = state {
                     state
                 } else {
-                    ExecutionState::ExecUnknown
+                    ExecutionState::ExecRemoved
                 }
             }
             Err(err) => {
