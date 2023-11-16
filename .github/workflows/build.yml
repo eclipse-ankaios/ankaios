@@ -26,6 +26,11 @@ jobs:
           cd /sys/fs/cgroup
           ls -la
 
+      - name: whoami
+        run: |
+          whoami
+          sudo whoami
+
       - name: Run tests
         run: RUST_LOG=debug cargo nextest run
 
