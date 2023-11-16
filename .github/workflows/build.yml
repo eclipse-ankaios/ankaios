@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.4
-      options: --privileged --user vscode
+      options: --privileged --user 1001
     steps:
       - name: check cgroup
         run: |
@@ -27,6 +27,7 @@ jobs:
         run: |
           whoami
           sudo whoami
+          cat /etc/passwd
 
       - name: check permissions
         run: |
@@ -41,7 +42,8 @@ jobs:
       - name: Run robot tests
         run: |
           cargo build
-          sudo tools/run_robot_tests.sh tests 
+          su vscode
+          tools/run_robot_tests.sh tests 
       - uses: actions/upload-artifact@v3.1.2
         if: success() || failure()
         with:
