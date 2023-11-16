@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.4
-      options: --privileged --user 1001
+      options: --privileged --user vscode
     steps:
       - name: check cgroup
         run: |
@@ -29,8 +29,10 @@ jobs:
           sudo whoami
           cat /etc/passwd
 
-      - name: check permissions
+      - name: change permissions
         run: |
+          ls -la /
+          chown -R vscode /__*
           ls -la /
 
       - uses: actions/checkout@v3.5.3
