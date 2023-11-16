@@ -25,7 +25,7 @@ Resource            ../../resources/variables.resource
 
 Test if pods can be created
 
-    When user executes system app "podman pod create test-pod"
+    When user executes system app "sudo podman pod create test-pod"
     Log    ${CURRENT_RESULT.stdout}
     Log    ${CURRENT_RESULT.stderr}
 
@@ -91,32 +91,32 @@ Test if pods can be created
 #     Then the JSON array "${dict_array}" shall contain array "Names" which contains value "test_workload1"
 #     [Teardown]    Clean up Ankaios
 
-# # [stest->swdd~podman-kube-create-workload-apply-manifest~1]
-# # [stest->swdd~podman-kube-create-workload-creates-config-volume~1]
-# # [stest->swdd~podman-kube-create-workload-creates-pods-volume~1]
-# # [stest->swdd~podman-kube-delete-workload-downs-manifest-file~1]
-# # [stest->swdd~podman-kube-delete-removes-volumes~1]
-# # [stest->swdd~agent-supports-podman-kube-runtime~1]
+# [stest->swdd~podman-kube-create-workload-apply-manifest~1]
+# [stest->swdd~podman-kube-create-workload-creates-config-volume~1]
+# [stest->swdd~podman-kube-create-workload-creates-pods-volume~1]
+# [stest->swdd~podman-kube-delete-workload-downs-manifest-file~1]
+# [stest->swdd~podman-kube-delete-removes-volumes~1]
+# [stest->swdd~agent-supports-podman-kube-runtime~1]
 
-# Test Ankaios Podman create kube workload
-#     [Setup]    Run Keywords    Setup Ankaios
+Test Ankaios Podman create kube workload
+    [Setup]    Run Keywords    Setup Ankaios
 
-#     # Preconditions
-#     # This test assumes that all pods and volume in the podman have been created with this test -> clean it up first
-#     Given Podman has deleted all existing pods
-#     Given Podman has deleted all existing volumes
-#     And Ankaios server is started with config "${CONFIGS_DIR}/kube.yaml"
-#     And Ankaios agent is started with name "agent_A"
-#     And all workloads of agent "agent_A" have an initial execution state
-#     When user triggers "ank get workloads"
-#     Then the workload "hello-k8s" shall have the execution state "Running"
-#     # Check config and pods volumes has been created
-#     When user executes system app "podman volume ls --format=json"
-#     ${dict_array}=    And the result is valid JSON
-#     Then the JSON array "${dict_array}" shall contain key "Name" which matches the expression "^hello-k8s.\\w+.agent_A.(config|pods)$"
-#     # Check config and pods volumes are deleted when workload is deleted
-#     When user triggers "ank delete workload hello-k8s"
-#     And user triggers "ank get workloads"
-#     Then the workload "hello-k8s" shall not exist
-#     And volume for "hello-k8s" shall not exists on "agent_A"
-#     [Teardown]    Clean up Ankaios
+    # Preconditions
+    # This test assumes that all pods and volume in the podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing pods
+    Given Podman has deleted all existing volumes
+    And Ankaios server is started with config "${CONFIGS_DIR}/kube.yaml"
+    And Ankaios agent is started with name "agent_A"
+    And all workloads of agent "agent_A" have an initial execution state
+    When user triggers "ank get workloads"
+    Then the workload "hello-k8s" shall have the execution state "Running"
+    # Check config and pods volumes has been created
+    When user executes system app "podman volume ls --format=json"
+    ${dict_array}=    And the result is valid JSON
+    Then the JSON array "${dict_array}" shall contain key "Name" which matches the expression "^hello-k8s.\\w+.agent_A.(config|pods)$"
+    # Check config and pods volumes are deleted when workload is deleted
+    When user triggers "ank delete workload hello-k8s"
+    And user triggers "ank get workloads"
+    Then the workload "hello-k8s" shall not exist
+    And volume for "hello-k8s" shall not exists on "agent_A"
+    [Teardown]    Clean up Ankaios
