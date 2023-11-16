@@ -22,6 +22,13 @@ Resource            ../../resources/variables.resource
 
 
 *** Test Cases ***
+
+Test if pods can be created
+
+    When user executes system app "podman pod create test-pod"
+
+
+
 # [stest->swdd~agent-supports-podman~2]
 # [stest->swdd~podman-create-workload-runs-workload~1]
 # [stest->swdd~podman-delete-workload-stops-and-removes-workload~1]
