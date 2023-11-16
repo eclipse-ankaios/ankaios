@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.4
-      options: --privileged
+      options: --privileged --user root
     steps:
       - uses: actions/checkout@v3.5.3
       - uses: Swatinem/rust-cache@v2.6.2
