@@ -1,11 +1,13 @@
 # Quickstart
 
-If you have not installed Ankaios or build from source already, please follow the instructions [here](installation.md). 
+If you have not installed Ankaios, please follow the instructions
+[here](installation.md). The following examples assumes that the
+installation script has been used with default options.
 
 Ankaios needs a startup configuration that contains all the workloads and their
 configuration which should be started when Ankaios starts up.
 
-Let's create a simple config and store that in `state.yaml`
+Let's modify the default config which is stored in `/etc/ankaios/state.yaml`:
 
 ```yaml
 workloads:
@@ -14,7 +16,7 @@ workloads:
     agent: agent_A
     restart: true
     updateStrategy: AT_MOST_ONCE
-    accessRights: # (1)
+    accessRights:
       allow: []
       deny: []
     tags:
@@ -25,28 +27,36 @@ workloads:
       commandOptions: ["-p", "8081:80"]
 ```
 
-1.  Note that access rights are currently not implemented.
-
 Then we can start the Ankaios server:
 
 ```shell
-ank-server --startup-config state.yaml
+sudo systemctl start ank-server
 ```
 
 The Ankaios server will read the config but detect that no agent with the name
-`agent_A` is available that could start the workload.
-
-In a new terminal let's start an agent:
+`agent_A` is available that could start the workload, see logs with:
 
 ```shell
-ank-agent --name agent_A
+journalctl -u ank-server
+```
+
+Now let's start an agent:
+
+```shell
+sudo systemctl start ank-agent
 ```
 
 This Ankaios agent will run the workload that has been assigned to it. We can
-use the Ankaios CLI to check the current state (again in an other terminal):
+use the Ankaios CLI to check the current state:
 
 ```shell
 ank get state
+```
+
+or
+
+```shell
+ank get workloads
 ```
 
 Ankaios also provides adding and removing workloads dynamically.
@@ -58,7 +68,8 @@ helloworld \
 --runtime podman \
 --agent agent_A \
 --config 'image: docker.io/busybox:1.36
-commandArgs: ["echo", "Hello World!"]'
+commandOptions: [ "-e", "MESSAGE=Hello World"]
+commandArgs: [ "sh", "-c", "echo $MESSAGE"]'
 ```
 
 We can check the state again with `ank get state` and see, that the workload

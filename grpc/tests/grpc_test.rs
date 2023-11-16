@@ -113,7 +113,7 @@ mod grpc_tests {
     ) {
         let test_request_id = "test_request_id";
         let (to_grpc_client, mut server_receiver, _, _) =
-            generate_test_grpc_communication_setup(50051, CommunicationType::Cli, test_request_id)
+            generate_test_grpc_communication_setup(25551, CommunicationType::Cli, test_request_id)
                 .await;
 
         // send request to grpc client

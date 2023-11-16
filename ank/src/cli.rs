@@ -19,7 +19,11 @@ use clap::{command, Parser, Subcommand};
 use common::DEFAULT_SERVER_ADDRESS;
 use url::Url;
 
-#[derive(Parser)] // requires `derive` feature
+const ANK_SERVER_URL_ENV_KEY: &str = "ANK_SERVER_URL";
+
+// [impl->swdd~cli-shall-support-environment-variables~1]
+// [impl->swdd~cli-prioritizes-cli-argument-over-environment-variable~1]
+#[derive(Parser, Debug)] // requires `derive` feature
 #[command(name = "ank")]
 #[command(bin_name = "ank")]
 #[command(version)]
@@ -27,7 +31,7 @@ use url::Url;
 pub struct AnkCli {
     #[command(subcommand)]
     pub command: Commands,
-    #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.parse().unwrap())]
+    #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.parse().unwrap(), env = ANK_SERVER_URL_ENV_KEY)]
     /// The url to Ankaios server.
     pub server_url: Url,
     #[clap(long = "response-timeout", default_value_t = 3000)]
@@ -73,7 +77,7 @@ pub enum GetCommands {
         /// Specify the output format
         #[arg(short = 'o', value_enum, default_value_t = OutputFormat::Yaml)]
         output_format: OutputFormat,
-        /// Select which parts of the state object shall be output e.g. 'current_state.workloads.nginx' [default: empty = the complete state]
+        /// Select which parts of the state object shall be output e.g. 'currentState.workloads.nginx' [default: empty = the complete state]
         object_field_mask: Vec<String>,
     },
     /// Information about workloads of the Ankaios system
@@ -103,7 +107,7 @@ pub struct SetArgs {
 pub enum SetCommands {
     /// State information of Ankaios system
     State {
-        /// Select which parts of the state object shall be updated e.g. 'current_state.workloads.nginx'
+        /// Select which parts of the state object shall be updated e.g. 'currentState.workloads.nginx'
         #[arg(required = true)]
         object_field_mask: Vec<String>,
         /// A file containing the new State Object Description in yaml format

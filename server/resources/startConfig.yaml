@@ -75,16 +75,13 @@ workloads:
         spec:
           restartPolicy: Never
           containers:
-          - name: greater
-            image: alpine:latest
-            command: 
-            - echo
-            - "Hello from a container in a pod"
           - name: looper
             image: alpine:latest
             command: 
             - sleep
             - 50000
-
-
-      
+          - name: greater
+            image: alpine:latest
+            command: 
+            - echo
+            - "Hello from a container in a pod"

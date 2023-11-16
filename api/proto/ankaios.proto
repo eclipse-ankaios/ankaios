@@ -154,7 +154,7 @@ message CompleteState {
 */
 message RequestCompleteState {
   string requestId = 1; /// A request id. This can be any string literal.
-  repeated string fieldMask = 2; /// A list of symbolic field paths within the State message structure e.g. 'current_state.workloads.nginx'.
+  repeated string fieldMask = 2; /// A list of symbolic field paths within the State message structure e.g. 'currentState.workloads.nginx'.
 }
 
 /**
@@ -165,7 +165,7 @@ message RequestCompleteState {
 */
 message UpdateStateRequest {
   CompleteState newState = 1; /// The new state of the Ankaios system.
-  repeated string updateMask = 2; /// A list of symbolic field paths within the state message structure e.g. 'current_state.workloads.nginx' to specify what to be updated.
+  repeated string updateMask = 2; /// A list of symbolic field paths within the state message structure e.g. 'currentState.workloads.nginx' to specify what to be updated.
 }
 
 /**
