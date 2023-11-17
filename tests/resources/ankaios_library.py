@@ -154,12 +154,12 @@ def json_to_dict(raw):
     json_data = json.loads(raw)
     return json_data
 
-def check_podman_kube_volumes_gone(workload_name, agent_name):
+def check_podman_kube_volumes_gone(workload_name, agent_name, timeout=500, next_try_in_sec=100):
     start_time = time.time()
     command = "podman volume ls --format=json"
     regex_str = f"^{workload_name}.\\w+.{agent_name}.(config|pods)$"
     reg_exp = re.compile(regex_str)
-    while (time.time() - start_time) < 5:
+    while True:
         res = run_command(command)
         dict = json_to_dict(res.stdout if res else "")
         logger.trace(dict)
@@ -170,7 +170,13 @@ def check_podman_kube_volumes_gone(workload_name, agent_name):
                 if reg_exp.match(value["Name"]):
                     logger.trace("still matching")
                     still_matching = True
+                    break
+
         if not still_matching:
             return True
-        time.sleep(1)
+        time.sleep(next_try_in_sec / 1000)
+
+        # emulate a do while to support 0 ms timeouts
+        if (time.time() - start_time) < timeout:
+            break
     return False

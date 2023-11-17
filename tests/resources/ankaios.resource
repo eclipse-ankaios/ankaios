@@ -126,19 +126,30 @@ user updates the state "${new_state_yaml_file}" with "${field_value}"
     Log    ${new_config}
     Write Yaml    new_yaml=${new_config}    path=${new_state_yaml_file}
 
-the workload "${workload_name}" has the execution state "${execution_state}"
-    ${result}=    Wait For Execution State
-    ...    %{ANK_BIN_DIR}${/}ank get workloads
-    ...    ${workload_name}
-    ...    ${execution_state}
-    ...    20
-    ...    5
-    Should Be True    ${result}
+# TODO delete this one:
+# the workload "${workload_name}" has the execution state "${execution_state}"
+#     ${result}=    Wait For Execution State
+#     ...    %{ANK_BIN_DIR}${/}ank get workloads
+#     ...    ${workload_name}
+#     ...    ${execution_state}
+#     ...    20
+#     ...    5
+#     Should Be True    ${result}
 
 the workload "${workload_name}" shall have the execution state "${execution_state}"
-    the workload "${workload_name}" has the execution state "${execution_state}"
+    the workload "${workload_name}" shall have the execution state "${execution_state}" on agent ""
+
+the workload "${workload_name}" shall have the execution state "${execution_state}" on agent "${expected_agent_name}"
+    the workload "${workload_name}" shall have the execution state "${execution_state}" on agent "${expected_agent_name}" within "0" ms
+
+the workload "${workload_name}" shall have the execution state "${execution_state}" on agent "${expected_agent_name}" within "${timeout}" ms
+    # TODO
 
 the workload "${workload_name}" shall not exist
+    the workload "${workload_name}" shall not exist within "0" ms
+
+the workload "${workload_name}" shall not exist within "${timeout}" ms
+    # TODO add timeout handling with calling the command
     Log    Assert: ${workload_name} shall not exist
     @{list_result}=    table to list    ${CURRENT_RESULT.stdout}
     &{dict_result}=    table to dict    ${list_result}    WORKLOAD NAME
@@ -158,6 +169,7 @@ the result is valid JSON
     Log    ${json_dict}
     RETURN    ${json_dict}
 
+# TODO: clean up. Most of these are probabaly not needed anymore
 the JSON array "${dict_array}" shall contain key "${main_key}" with subkey "${sub_key}" with the subvalue "${sub_value}"
     Log    ${dict_array}
     FOR    ${dict_array_item}    IN    @{dict_array}
@@ -210,6 +222,24 @@ the JSON array "${dict_array}" shall contain array "${key}" which contains value
         List Should Contain Value    list_=${dict_array_item["${key}"]}    value=${value}
     END
 
-volume for "${workload_name}" shall not exists on "${agent_name}"
-    ${result}=    check podman kube volumes gone    ${workload_name}    ${agent_name}
+volumes for "${workload_name}" shall exists on "${agent_name}" within "${timeout}" ms
+    # TODO: check that the volume is there
+
+volumes for "${workload_name}" shall not exists on "${agent_name}" within "${timeout}" ms
+    ${result}=    check podman kube volumes gone    ${workload_name}    ${agent_name}    ${timeout}
     Should Be True     ${result}
+
+podman shall have a container for workload ${workload_name} on agent "${agent_name}"
+    podman shall have a container for workload ${workload_name} on agent "${agent_name}" within "0" ms
+
+podman shall have a container for workload ${workload_name} on agent "${agent_name}" within "${timeout}" ms
+    podman shall have a container for workload ${workload_name} with custom name "${workload_name}" on agent "${agent_name}" within "${timeout}" ms
+
+podman shall have a container for workload ${workload_name} with custom name "${name}" on agent "${agent_name}" within "${timeout}" ms
+    # TODO
+
+podman shall not have a container for workload ${workload_name} on agent "${agent_name}"
+    podman shall not have a container for workload ${workload_name} on agent "${agent_name}" within "0" ms
+
+podman shall not have a container for workload ${workload_name} on agent "${agent_name}" within "${timeout}" ms
+    # TODO
