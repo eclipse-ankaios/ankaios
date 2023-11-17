@@ -8,7 +8,7 @@ use std::{
     ops::Deref,
     path::PathBuf,
     sync::Arc,
-    time::{self, Duration},
+    time::{Duration, Instant},
 };
 use tokio::sync::Mutex;
 
@@ -61,35 +61,40 @@ impl From<PodmanContainerInfo> for ExecutionState {
     }
 }
 
-struct TimedPodmanPsResult(Mutex<Option<(time::Instant, Arc<PodmanPsResult>)>>);
+struct PodmanPsCache {
+    last_update: Instant,
+    cache: Arc<PodmanPsResult>,
+}
+
+struct TimedPodmanPsResult(Mutex<Option<PodmanPsCache>>);
 
 impl TimedPodmanPsResult {
     async fn get(&self) -> Arc<PodmanPsResult> {
         let mut guard = self.lock().await;
 
         if let Some(value) = &mut *guard {
-            if value.0.elapsed() > PODMAN_PS_CACHE_MAX_AGE {
+            if value.last_update.elapsed() > PODMAN_PS_CACHE_MAX_AGE {
                 *value = Self::new_inner().await;
             }
-            value.1.clone()
+            value.cache.clone()
         } else {
             let ps_result = Self::new_inner().await;
-            let result = ps_result.1.clone();
+            let result = ps_result.cache.clone();
             *guard = Some(ps_result);
             result
         }
     }
 
-    async fn new_inner() -> (time::Instant, Arc<PodmanPsResult>) {
-        (
-            time::Instant::now(),
-            Arc::new(PodmanCli::list_states_internal().await.into()),
-        )
+    async fn new_inner() -> PodmanPsCache {
+        PodmanPsCache {
+            last_update: Instant::now(),
+            cache: Arc::new(PodmanCli::list_states_internal().await.into()),
+        }
     }
 }
 
 impl Deref for TimedPodmanPsResult {
-    type Target = Mutex<Option<(time::Instant, Arc<PodmanPsResult>)>>;
+    type Target = Mutex<Option<PodmanPsCache>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -450,7 +455,7 @@ enum PodmanContainerState {
 // [utest->swdd~podman-kube-uses-podman-cli~1]
 #[cfg(test)]
 mod tests {
-    use super::{ContainerState, PodmanCli, PodmanContainerState};
+    use super::{ContainerState, PodmanCli, PodmanContainerState, PodmanPsCache};
 
     use super::PodmanContainerInfo;
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
@@ -1067,15 +1072,15 @@ mod tests {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
 
-        *super::LAST_PS_RESULT.lock().await = Some((
-            time::Instant::now(),
-            Arc::new(super::PodmanPsResult {
+        *super::LAST_PS_RESULT.lock().await = Some(PodmanPsCache {
+            last_update: time::Instant::now(),
+            cache: Arc::new(super::PodmanPsResult {
                 container_states: Ok([("test_id".into(), ExecutionState::ExecRunning)]
                     .into_iter()
                     .collect()),
                 pod_states: Err("".into()),
             }),
-        ));
+        });
 
         let res = PodmanCli::list_states_by_id("test_id").await;
         assert_eq!(res, Ok(Some(ExecutionState::ExecRunning)));
@@ -1088,15 +1093,15 @@ mod tests {
 
         let old_time_stamp = time::Instant::now() - Duration::from_secs(10);
 
-        *super::LAST_PS_RESULT.lock().await = Some((
-            old_time_stamp,
-            Arc::new(super::PodmanPsResult {
+        *super::LAST_PS_RESULT.lock().await = Some(PodmanPsCache {
+            last_update: old_time_stamp,
+            cache: Arc::new(super::PodmanPsResult {
                 container_states: Ok([("test_id".into(), ExecutionState::ExecFailed)]
                     .into_iter()
                     .collect()),
                 pod_states: Err("".into()),
             }),
-        ));
+        });
 
         super::CliCommand::new_expect(
             "podman",
