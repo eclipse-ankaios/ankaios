@@ -3,7 +3,7 @@ use common::objects::ExecutionState;
 #[cfg(test)]
 use mockall::automock;
 use serde::{Deserialize, Deserializer, Serialize};
-use std::{collections::HashMap, path::PathBuf, sync::Arc, time};
+use std::{collections::HashMap, ops::Deref, path::PathBuf, sync::Arc, time};
 use tokio::sync::Mutex;
 
 #[cfg_attr(test, mockall_double::double)]
@@ -11,6 +11,7 @@ use crate::runtime_connectors::cli_command::CliCommand;
 
 const PODMAN_CMD: &str = "podman";
 const API_PIPES_MOUNT_POINT: &str = "/run/ankaios/control_interface";
+const PODMAN_PS_CACHE_MAX_AGE: u128 = 1000;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ContainerState {
@@ -54,9 +55,39 @@ impl From<PodmanContainerInfo> for ExecutionState {
     }
 }
 
-struct TimedPodmanPsResult {
-    last_update_time: time::Instant,
-    data: Arc<PodmanPsResult>,
+struct TimedPodmanPsResult(Mutex<Option<(time::Instant, Arc<PodmanPsResult>)>>);
+
+impl TimedPodmanPsResult {
+    async fn get(&self) -> Arc<PodmanPsResult> {
+        let mut guard = self.lock().await;
+
+        if let Some(value) = &mut *guard {
+            if value.0.elapsed().as_millis() > PODMAN_PS_CACHE_MAX_AGE {
+                *value = Self::new_inner().await;
+            }
+            value.1.clone()
+        } else {
+            let ps_result = Self::new_inner().await;
+            let result = ps_result.1.clone();
+            *guard = Some(ps_result);
+            result
+        }
+    }
+
+    async fn new_inner() -> (time::Instant, Arc<PodmanPsResult>) {
+        (
+            time::Instant::now(),
+            Arc::new(PodmanCli::list_states_internal().await.into()),
+        )
+    }
+}
+
+impl Deref for TimedPodmanPsResult {
+    type Target = Mutex<Option<(time::Instant, Arc<PodmanPsResult>)>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 #[derive(Debug)]
@@ -89,27 +120,7 @@ impl From<Result<Vec<PodmanContainerInfo>, String>> for PodmanPsResult {
     }
 }
 
-impl TimedPodmanPsResult {
-    async fn new() -> Self {
-        Self {
-            last_update_time: time::Instant::now(),
-            data: Arc::new(PodmanCli::list_states_internal().await.into()),
-        }
-    }
-
-    async fn update_if_too_old(&mut self) {
-        if self.last_update_time.elapsed().as_millis() > 1000 {
-            *self = Self::new().await;
-        }
-    }
-
-    async fn get(&mut self) -> &PodmanPsResult {
-        self.update_if_too_old().await;
-        &self.data
-    }
-}
-
-static LAST_PS_RESULT: Mutex<Option<TimedPodmanPsResult>> = Mutex::const_new(Option::None);
+static LAST_PS_RESULT: TimedPodmanPsResult = TimedPodmanPsResult(Mutex::const_new(Option::None));
 
 pub struct PodmanCli {}
 
@@ -271,7 +282,7 @@ impl PodmanCli {
     }
 
     pub async fn list_states_by_id(workload_id: &str) -> Result<Option<ExecutionState>, String> {
-        let ps_result = &Self::get_ps_result().await;
+        let ps_result = LAST_PS_RESULT.get().await;
         let all_containers_states = ps_result
             .as_ref()
             .container_states
@@ -283,7 +294,7 @@ impl PodmanCli {
     }
 
     pub async fn list_states_from_pods(pods: &[String]) -> Result<Vec<ContainerState>, String> {
-        let ps_result = &Self::get_ps_result().await;
+        let ps_result = LAST_PS_RESULT.get().await;
         let all_pod_states = ps_result
             .as_ref()
             .pod_states
@@ -295,19 +306,6 @@ impl PodmanCli {
             .flatten()
             .map(|x| x.to_owned())
             .collect())
-    }
-
-    async fn get_ps_result() -> Arc<PodmanPsResult> {
-        let mut guard = LAST_PS_RESULT.lock().await;
-        if let Some(value) = &mut *guard {
-            value.update_if_too_old().await;
-            value.data.clone()
-        } else {
-            let ps_result = TimedPodmanPsResult::new().await;
-            let result = ps_result.data.clone();
-            *guard = Some(ps_result);
-            result
-        }
     }
 
     async fn list_states_internal() -> Result<Vec<PodmanContainerInfo>, String> {
@@ -453,7 +451,6 @@ mod tests {
     use common::objects::ExecutionState;
     use common::test_utils::serialize_as_map;
     use serde::Serialize;
-    use std::collections::HashMap;
     use std::sync::Arc;
     use std::time::{self, Duration};
 
@@ -516,7 +513,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_container_state_from_podman_container_info_unkown() {
+    fn utest_container_state_from_podman_container_info_unknown() {
         let container_state: ContainerState = PodmanContainerInfo {
             state: PodmanContainerState::Unknown,
             exit_code: 0,
@@ -1064,15 +1061,15 @@ mod tests {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
 
-        *super::LAST_PS_RESULT.lock().await = Some(super::TimedPodmanPsResult {
-            last_update_time: time::Instant::now(),
-            data: Arc::new(super::PodmanPsResult {
+        *super::LAST_PS_RESULT.lock().await = Some((
+            time::Instant::now(),
+            Arc::new(super::PodmanPsResult {
                 container_states: Ok([("test_id".into(), ExecutionState::ExecRunning)]
                     .into_iter()
                     .collect()),
                 pod_states: Err("".into()),
             }),
-        });
+        ));
 
         let res = PodmanCli::list_states_by_id("test_id").await;
         assert_eq!(res, Ok(Some(ExecutionState::ExecRunning)));
@@ -1085,15 +1082,15 @@ mod tests {
 
         let old_time_stamp = time::Instant::now() - Duration::from_secs(10);
 
-        *super::LAST_PS_RESULT.lock().await = Some(super::TimedPodmanPsResult {
-            last_update_time: old_time_stamp,
-            data: Arc::new(super::PodmanPsResult {
+        *super::LAST_PS_RESULT.lock().await = Some((
+            old_time_stamp,
+            Arc::new(super::PodmanPsResult {
                 container_states: Ok([("test_id".into(), ExecutionState::ExecFailed)]
                     .into_iter()
                     .collect()),
                 pod_states: Err("".into()),
             }),
-        });
+        ));
 
         super::CliCommand::new_expect(
             "podman",
