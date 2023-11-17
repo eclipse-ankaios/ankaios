@@ -1,5 +1,5 @@
 [package]
-name = "rust_control_interface_example"
+name = "control_interface_example"
 version = "0.1.0"
 edition = "2021"
 license = "Apache-2.0"

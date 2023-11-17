@@ -1,6 +1,6 @@
-# Ankaios Control Interface Communcation with C++
+# Ankaios control interface communcation with C++
 
-This section provides an example workload developed in C++ that uses the [Ankaios Control Interface](https://eclipse-ankaios.github.io/ankaios/latest/reference/control-interface/).
+This section provides an example workload developed in C++ that uses the [Ankaios control interface](https://eclipse-ankaios.github.io/ankaios/latest/reference/control-interface/).
 
 ## Build the example
 
@@ -24,12 +24,12 @@ Please replace the host path with your specific absolute path pointing to this e
 Build the workload with the following command:
 
 ```shell
-podman build -t cpp_control_interface_prod:0.1 -f .devcontainer/Dockerfile .
+podman build -t control_interface_prod:0.1 -f .devcontainer/Dockerfile .
 ```
 
 ## Run the example
 
-Start podman:
+Start Podman service (only for For Ankaios version < 0.2 ):
 ```shell
 podman system service --time=0 unix:///tmp/podman.sock &
 ```
@@ -37,7 +37,7 @@ podman system service --time=0 unix:///tmp/podman.sock &
 Start the Ankaios server as background process:
 
 ```shell
-ank-server --startup-config ankaios_config/startupState.yaml > /var/log/ankaios-server.log 2>&1 &
+ank-server --startup-config config/startupState.yaml > /var/log/ankaios-server.log 2>&1 &
 ```
 
 Start the Ankaios agent `agent_A` as background process:
@@ -49,7 +49,7 @@ ank-agent --name agent_A -p /tmp/podman.sock > /var/log/ankaios-agent_A.log 2>&1
 Watch and wait until the `dynamic_nginx` workload becomes state EXEC_RUNNING by using the podman logs command:
 
 ```shell
-podman logs -f $(podman ps -a | grep cpp_control_interface | awk '{print $1}')
+podman logs -f $(podman ps -a | grep control_interface | awk '{print $1}')
 ```
 
 After the new nginx service was added dynamically and is running, you can do a curl to the nginx welcome website:

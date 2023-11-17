@@ -1,5 +1,5 @@
 workloads:
-  nodejs_control_interface:
+  control_interface_example:
     runtime: podman
     agent: agent_A
     restart: true
@@ -11,4 +11,4 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: nodejs_control_interface_prod:0.1
+      image: control_interface_prod:0.1

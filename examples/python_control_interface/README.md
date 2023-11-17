@@ -24,7 +24,7 @@ Please replace the host path with your specific absolute path pointing to this e
 Build the example workload with the following command:
 
 ```shell
-podman build -t python_control_interface_prod:0.1 -f .devcontainer/Dockerfile .
+podman build -t control_interface_prod:0.1 -f .devcontainer/Dockerfile .
 ```
 
 ## Run the example
@@ -37,7 +37,7 @@ podman system service --time=0 unix:///tmp/podman.sock &
 Start the Ankaios server as background process:
 
 ```shell
-ank-server --startup-config ankaios_config/startupState.yaml > /var/log/ankaios-server.log 2>&1 &
+ank-server --startup-config config/startupState.yaml > /var/log/ankaios-server.log 2>&1 &
 ```
 
 Start the Ankaios agent `agent_A` as background process:
@@ -49,7 +49,7 @@ ank-agent --name agent_A -p /tmp/podman.sock > /var/log/ankaios-agent_A.log 2>&1
 Watch and wait until the `dynamic_nginx` workload becomes state EXEC_RUNNING by using the podman logs command:
 
 ```shell
-podman logs -f $(podman ps -a | grep python_control_interface | awk '{print $1}')
+podman logs -f $(podman ps -a | grep control_interface | awk '{print $1}')
 ```
 
 After the new nginx service was added dynamically and is running, you can do a curl to the nginx welcome website:

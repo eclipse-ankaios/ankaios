@@ -15,12 +15,13 @@ RUN rustup target add x86_64-unknown-linux-musl && rustup toolchain add stable-x
 
 # stage compile
 FROM dev as compile
+COPY ../config /workspaces/build
 COPY . /workspaces/build
 WORKDIR /workspaces/build
 RUN cargo build --release
 
 # stage prod
 FROM docker.io/library/alpine:latest
-COPY --from=compile /workspaces/build/target/x86_64-unknown-linux-musl/release/rust_control_interface_example /usr/local/bin/rust_control_interface_example
-RUN chmod +x /usr/local/bin/rust_control_interface_example
-ENTRYPOINT ["/usr/local/bin/rust_control_interface_example"]
+COPY --from=compile /workspaces/build/target/x86_64-unknown-linux-musl/release/control_interface_example /usr/local/bin/control_interface_example
+RUN chmod +x /usr/local/bin/control_interface_example
+ENTRYPOINT ["/usr/local/bin/control_interface_example"]
