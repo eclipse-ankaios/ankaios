@@ -110,13 +110,13 @@ struct PodmanPsResult {
 impl From<Result<Vec<PodmanContainerInfo>, String>> for PodmanPsResult {
     fn from(value: Result<Vec<PodmanContainerInfo>, String>) -> Self {
         match value {
-            Ok(value) => {
+            Ok(container_infos) => {
                 let mut container_states = HashMap::new();
                 let mut pod_states: HashMap<String, Vec<ContainerState>> = HashMap::new();
 
-                for i in value {
-                    container_states.insert(i.id.clone(), i.clone().into());
-                    pod_states.entry(i.pod.clone()).or_default().push(i.into());
+                for container_entry in container_infos {
+                    container_states.insert(container_entry.id.clone(), container_entry.clone().into());
+                    pod_states.entry(container_entry.pod.clone()).or_default().push(container_entry.into());
                 }
                 Self {
                     container_states: Ok(container_states),
