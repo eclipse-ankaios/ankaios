@@ -3,7 +3,13 @@ use common::objects::ExecutionState;
 #[cfg(test)]
 use mockall::automock;
 use serde::{Deserialize, Deserializer, Serialize};
-use std::{collections::HashMap, ops::Deref, path::PathBuf, sync::Arc, time};
+use std::{
+    collections::HashMap,
+    ops::Deref,
+    path::PathBuf,
+    sync::Arc,
+    time::{self, Duration},
+};
 use tokio::sync::Mutex;
 
 #[cfg_attr(test, mockall_double::double)]
@@ -11,7 +17,7 @@ use crate::runtime_connectors::cli_command::CliCommand;
 
 const PODMAN_CMD: &str = "podman";
 const API_PIPES_MOUNT_POINT: &str = "/run/ankaios/control_interface";
-const PODMAN_PS_CACHE_MAX_AGE: u128 = 1000;
+const PODMAN_PS_CACHE_MAX_AGE: Duration = Duration::from_millis(1000);
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ContainerState {
@@ -62,7 +68,7 @@ impl TimedPodmanPsResult {
         let mut guard = self.lock().await;
 
         if let Some(value) = &mut *guard {
-            if value.0.elapsed().as_millis() > PODMAN_PS_CACHE_MAX_AGE {
+            if value.0.elapsed() > PODMAN_PS_CACHE_MAX_AGE {
                 *value = Self::new_inner().await;
             }
             value.1.clone()
