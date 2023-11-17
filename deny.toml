@@ -1,0 +1,18 @@
+# Config file for cargo deny
+# For all options see https://github.com/EmbarkStudios/cargo-deny/blob/main/deny.template.toml
+
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-3-Clause",
+]
+private = { ignore = true }
+exceptions = [{ name = "unicode-ident", allow = ["Unicode-DFS-2016"] }]
+copyleft = "deny"
+
+[bans]
+multiple-versions = "allow"
+
+[advisories]
+vulnerability = "warn"
