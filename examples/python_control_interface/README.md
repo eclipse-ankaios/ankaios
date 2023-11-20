@@ -18,16 +18,22 @@ If you do not want to use the devcontainer feature of VSCode just run the follow
 Please replace the host path with your specific absolute path pointing to this example subfolder.
 
 ```shell
- docker run -it --rm -v /absolute/path/to/examples/python_control_interface:/workspaces/app --workdir /workspaces/app --privileged ghcr.io/eclipse-ankaios/app-ankaios-dev:latest /bin/bash
+ docker run -it --rm -v /absolute/path/to/examples/config:/workspaces/app/config -v /absolute/path/to/examples/scripts:/workspaces/app/scripts -v /absolute/path/to/examples/python_control_interface:/workspaces/app --workdir /workspaces/app --privileged ghcr.io/eclipse-ankaios/app-ankaios-dev:latest /bin/bash
 ```
 
-Build the example workload with the following command:
+## Build and run the example using script
+
+```shell
+scripts/run_example.sh
+```
+
+## Build and run the example manually
+
+Build the workload with the following command:
 
 ```shell
 podman build -t control_interface_prod:0.1 -f .devcontainer/Dockerfile .
 ```
-
-## Run the example
 
 Start podman:
 ```shell
