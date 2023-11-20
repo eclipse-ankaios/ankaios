@@ -54,8 +54,8 @@ impl RuntimeStateGetter<PodmanWorkloadId> for PodmanStateGetter {
                 }
             }
             Err(err) => {
-                log::error!(
-                    "Could not get state of workload '{:?}': '{}'",
+                log::warn!(
+                    "Could not get state of workload '{:?}': '{}'. Returning unknown.",
                     workload_id,
                     err
                 );
