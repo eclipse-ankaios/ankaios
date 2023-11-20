@@ -19,7 +19,7 @@ Every subfolder represents an example for a specific programming language. Feel 
 **Note:** The examples are simplified to focus on the usage of the control interface and designed for easy readability. They are not optimized for production usage.
 
 ## How to run the examples?
-1. Open the one of example project folder (e.g. [rust_control_interface](./rust_control_interface/)) in a dev container with VSCode
+1. Open one of the example project folders (e.g. [rust_control_interface](./rust_control_interface/)) in a dev container with VSCode
 2. Build the example container and start the Ankaios cluster by run the shell command: 
 ```shell
 ./scripts/run_example.sh
