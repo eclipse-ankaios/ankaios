@@ -1,4 +1,6 @@
 {
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
     "[python]": {
         "editor.defaultFormatter": "ms-python.autopep8"
     },

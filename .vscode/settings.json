@@ -1,6 +1,5 @@
 {
     "files.insertFinalNewline": true,
-    "files.trimFinalNewlines": true,
     "cSpell.words": [
         "ankaios",
         "Comms",

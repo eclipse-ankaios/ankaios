@@ -1,4 +1,6 @@
 {
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
     "files.associations": {
         "array": "cpp",
         "atomic": "cpp",
