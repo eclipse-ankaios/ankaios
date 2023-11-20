@@ -115,8 +115,12 @@ impl From<Result<Vec<PodmanContainerInfo>, String>> for PodmanPsResult {
                 let mut pod_states: HashMap<String, Vec<ContainerState>> = HashMap::new();
 
                 for container_entry in container_infos {
-                    container_states.insert(container_entry.id.clone(), container_entry.clone().into());
-                    pod_states.entry(container_entry.pod.clone()).or_default().push(container_entry.into());
+                    container_states
+                        .insert(container_entry.id.clone(), container_entry.clone().into());
+                    pod_states
+                        .entry(container_entry.pod.clone())
+                        .or_default()
+                        .push(container_entry.into());
                 }
                 Self {
                     container_states: Ok(container_states),
@@ -313,9 +317,12 @@ impl PodmanCli {
             .map_err(|err| err.to_owned())?;
         Ok(pods
             .iter()
-            .filter_map(|key| all_pod_states.get(key))
-            .flatten()
-            .map(|x| x.to_owned())
+            .flat_map(|key| {
+                all_pod_states.get(key).cloned().unwrap_or_else(|| {
+                    log::warn!("The pod '{}' is missing.", key);
+                    vec![ContainerState::Unknown]
+                })
+            })
             .collect())
     }
 

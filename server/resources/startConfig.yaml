@@ -1,60 +1,4 @@
 workloads:
-  nginx:
-    runtime: podman
-    agent: agent_A
-    restart: true
-    updateStrategy: AT_MOST_ONCE
-    accessRights:
-      allow: []
-      deny: []
-    tags:
-      - key: owner
-        value: Ankaios team
-    runtimeConfig: |
-      image: docker.io/nginx:latest
-      commandOptions: ["-p", "8081:80"]
-  api_sample:
-    runtime: podman
-    agent: agent_A
-    restart: true
-    updateStrategy: AT_MOST_ONCE
-    accessRights:
-      allow: []
-      deny: []
-    tags:
-      - key: owner
-        value: Ankaios team
-    runtimeConfig: |
-      image: ankaios_workload_api_example
-  hello1:
-    runtime: podman
-    agent: agent_B
-    restart: true
-    updateStrategy: AT_MOST_ONCE
-    accessRights:
-      allow: []
-      deny: []
-    tags:
-      - key: owner
-        value: Ankaios team
-    runtimeConfig: |
-      image: alpine:latest
-      commandOptions: [ "--rm"]
-      commandArgs: [ "echo", "Hello Ankaios"]
-  hello2:
-    runtime: podman
-    agent: agent_B
-    restart: true
-    updateStrategy: AT_MOST_ONCE
-    accessRights:
-      allow: []
-      deny: []
-    tags:
-      - key: owner
-        value: Ankaios team
-    runtimeConfig: |
-      image: alpine:latest
-      commandArgs: [ "echo", "Hello Ankaios"]
   hello-pod:
     runtime: podman-kube
     agent: agent_B
@@ -72,6 +16,24 @@ workloads:
         kind: Pod
         metadata:
           name: hello-pod
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: looper
+            image: alpine:latest
+            command: 
+            - sleep
+            - 50000
+          - name: greater
+            image: alpine:latest
+            command: 
+            - echo
+            - "Hello from a container in a pod"
+        ---
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          name: hello2-pod
         spec:
           restartPolicy: Never
           containers:
