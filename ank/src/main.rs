@@ -99,12 +99,7 @@ async fn main() {
                 );
                 // [impl -> swdd~cli-provides-set-current-state~1]
                 // [impl -> swdd~cli-blocks-until-ankaios-server-responds-set-current-state~1]
-                cmd.set_state(
-                    object_field_mask,
-                    state_object_file,
-                    args.response_timeout_ms,
-                )
-                .await;
+                cmd.set_state(object_field_mask, state_object_file).await;
             }
             None => unreachable!("Unreachable code."),
         },
