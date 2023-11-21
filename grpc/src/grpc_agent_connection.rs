@@ -102,8 +102,11 @@ impl AgentConnection for GRPCAgentConnection {
                             error
                         );
 
-                        // As the connection is interrupted, this agent sender is not needed anymore
                         agent_senders.remove(&agent_name);
+                        log::trace!(
+                            "The connection is interrupted or has been closed. Deleting the agent sender '{}'",
+                            agent_name
+                        );
                         // inform also the server that the agent is gone
                         // [impl->swdd~grpc-agent-connection-sends-agent-gone~1]
                         if let Err(error) = ankaios_tx.agent_gone(agent_name).await {

@@ -70,17 +70,24 @@ impl CliConnection for GRPCCliConnection {
         self.cli_senders.insert(&cli_connection_name, new_sender);
         let _x = tokio::spawn(async move {
             let mut stream = GRPCStateChangeRequestStreaming::new(stream);
-            if (forward_from_proto_to_ankaios(
+            let result = forward_from_proto_to_ankaios(
                 cli_connection_name.clone(),
                 &mut stream,
                 ankaios_tx.clone(),
             )
-            .await)
-                .is_err()
-            {
-                cli_senders.remove(&cli_connection_name);
-                log::debug!("Connection to CLI (name={}) closed.", cli_connection_name);
+            .await;
+            if result.is_err() {
+                log::debug!(
+                    "Connection to CLI (name={}) failed with {:?}.",
+                    cli_connection_name,
+                    result
+                );
             }
+            cli_senders.remove(&cli_connection_name);
+            log::debug!(
+                "Connection to CLI (name={}) has been closed.",
+                cli_connection_name
+            );
         });
 
         Ok(Response::new(Box::pin(ReceiverStream::new(new_receiver))))
