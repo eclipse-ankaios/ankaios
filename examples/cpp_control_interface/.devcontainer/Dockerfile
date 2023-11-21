@@ -8,14 +8,11 @@ RUN apt-get update && apt-get -y install \
     && \
     rm -rf /var/lib/apt/lists/*
 
-# RUN protoc --python_out=/usr/local/lib/ankaios/ --proto_path=/usr/local/lib/ankaios/ ankaios.proto
-
 FROM dev as compile
 COPY ./ /workspaces/app
 RUN cd /workspaces/app && mkdir build && cd build && cmake .. && make
 
 # prod stage
-#FROM docker.io/library/alpine:latest
 FROM docker.io/library/ubuntu:22.04
 COPY --from=compile /workspaces/app/build/main /usr/local/bin/control_interface_example
 COPY --from=compile /lib/x86_64-linux-gnu/libprotobuf.so.23 /usr/lib
