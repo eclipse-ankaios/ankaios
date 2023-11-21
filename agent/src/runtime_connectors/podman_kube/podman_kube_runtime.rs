@@ -309,9 +309,7 @@ impl From<podman_cli::ContainerState> for OrderedExecutionState {
     fn from(value: podman_cli::ContainerState) -> Self {
         match value {
             podman_cli::ContainerState::Created => OrderedExecutionState::Pending,
-            podman_cli::ContainerState::Exited(exit_code) if exit_code == 0 => {
-                OrderedExecutionState::Succeeded
-            }
+            podman_cli::ContainerState::Exited(0) => OrderedExecutionState::Succeeded,
             podman_cli::ContainerState::Exited(_) => OrderedExecutionState::Failed,
             podman_cli::ContainerState::Paused => OrderedExecutionState::Unknown,
             podman_cli::ContainerState::Running => OrderedExecutionState::Running,
