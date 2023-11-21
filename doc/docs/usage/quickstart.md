@@ -37,7 +37,7 @@ The Ankaios server will read the config but detect that no agent with the name
 `agent_A` is available that could start the workload, see logs with:
 
 ```shell
-journalctl -u ank-server
+journalctl -t ank-server
 ```
 
 Now let's start an agent:
@@ -53,13 +53,54 @@ use the Ankaios CLI to check the current state:
 ank get state
 ```
 
+which creates:
+
+```
+requestId: ank-cli
+startupState:
+  workloads: {}
+  configs: {}
+  cronJobs: {}
+currentState:
+  workloads:
+    nginx:
+      agent: agent_A
+      name: nginx
+      tags:
+      - key: owner
+        value: Ankaios team
+      dependencies: {}
+      updateStrategy: AT_MOST_ONCE
+      restart: true
+      accessRights:
+        allow: []
+        deny: []
+      runtime: podman
+      runtimeConfig: |
+        image: docker.io/nginx:latest
+        commandOptions: ["-p", "8081:80"]
+  configs: {}
+  cronJobs: {}
+workloadStates:
+- workloadName: nginx
+  agentName: agent_A
+  executionState: ExecRunning
+```
+
 or
 
 ```shell
 ank get workloads
 ```
 
-Ankaios also provides adding and removing workloads dynamically.
+which results in:
+
+```
+ WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE 
+ nginx           agent_A   podman    Running         
+```
+
+Ankaios also supports adding and removing workloads dynamically.
 To add another workload call:
 
 ```shell
@@ -82,3 +123,8 @@ delete it from the state again with:
 ```shell
 ank delete workload helloworld
 ```
+
+For next steps see the reference documentation for the
+[startup configuration](../reference/startup-configuration.md) including the 
+`podman-kube` runtime and also working with the
+[complete state data structure](../reference/complete-state.md).

@@ -27,9 +27,9 @@ protoc --plugin=protoc-gen-doc="/usr/local/bin/protoc-gen-doc" --doc_out="$targe
 echo "Generate Markdown from ./api/proto/ankaios.proto done."
 
 if [[ "$1" = serve ]]; then
-    mkdocs serve -f "$target_dir/mkdocs.yml"
+    mkdocs serve --config-file "$target_dir/mkdocs.yml"
 elif [[ "$1" = build ]]; then
-    mkdocs build -f "$target_dir/mkdocs.yml" -d html
+    mkdocs build --config-file "$target_dir/mkdocs.yml" -d html
 elif [[ "$1" = deploy ]]; then
     mike deploy --push --config-file "$target_dir/mkdocs.yml" main
 elif [[ "$1" = deploy-release && ! (-z "$2") ]]; then
