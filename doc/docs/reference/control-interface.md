@@ -2,6 +2,11 @@
 
 The [control interface](./control-interface.md) allows the [workload](glossary.md#workload) developers to easily integrate the communication between the Ankaios system and their applications.
 
+!!! note
+
+    The control interface is currently only available for workloads using the 
+    `podman` runtime and not for the `podman-kube` runtime.
+
 ## Overview
 ```mermaid
 ---
