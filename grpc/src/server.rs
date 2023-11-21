@@ -75,8 +75,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
 
         // TODO these two awaits one after the other do not seem correct ...
         // [impl->swdd~grpc-server-forwards-commands-to-grpc-client~1]
-        execution_command_proxy::forward_from_ankaios_to_proto(&self.agent_senders, receiver)
-            .await?;
+        execution_command_proxy::forward_from_ankaios_to_proto(&self.agent_senders, receiver).await;
 
         grpc_task.await??;
         Ok(())
