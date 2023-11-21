@@ -308,6 +308,7 @@ impl PodmanCli {
             .map(ToOwned::to_owned))
     }
 
+    // [impl->swdd~podman-kube-state-getter-treats-missing-pods-as-unknown~1]
     pub async fn list_states_from_pods(pods: &[String]) -> Result<Vec<ContainerState>, String> {
         let ps_result = LAST_PS_RESULT.get().await;
         let all_pod_states = ps_result
@@ -1184,6 +1185,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~podman-kube-state-getter-treats-missing-pods-as-unknown~1]
     #[tokio::test]
     async fn utest_list_states_from_pods_some_missing_leads_to_unknown() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
