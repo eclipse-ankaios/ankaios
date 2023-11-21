@@ -83,14 +83,47 @@ def get_container_ids_by_workload_names(workload_names):
     logger.trace(wln_id_tuple_list)
     return wln_id_tuple_list
 
-def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_in_sec=1):
+def to_wn_an(workload_name, agent_name):
+    return f"{workload_name}.{agent_name}"
+
+def to_vol_an_type(workload_name, agent_name, type):
+    return f"{workload_name}.{agent_name}.{type}"
+
+def from_wn_hash_an_to_wn_an(wn_hash_an_string):
+    items = wn_hash_an_string.split('.')
+    if len(items) == 3:
+        return f"{items[0]}.{items[2]}"
+    elif len(items) == 4:
+        return f"{items[0]}.{items[2]}.{items[3]}"
+    return items[0]
+
+def get_workload_names_from_podman():
+    res = run_command('podman ps -a --format "{{.Names}}"')
+    raw = res.stdout.strip()
+    raw_wln = raw.split('\n')
+    # ["workload_name.hash.agent_name id", ...] -> [(workload_name,id), ...]
+    workload_names = list(map(from_wn_hash_an_to_wn_an, raw_wln))
+    logger.trace(workload_names)
+    return workload_names
+
+def get_volume_names_from_podman():
+    res = run_command('podman volume ls --format "{{.Name}}"')
+    raw = res.stdout.strip()
+    raw_vols = raw.split('\n')
+    # ["workload_name.hash.agent_name id", ...] -> [(workload_name,id), ...]
+    vol_names = list(map(from_wn_hash_an_to_wn_an, raw_vols))
+    logger.trace(vol_names)
+    return vol_names
+
+def wait_for_initial_execution_state(command, agent_name, timeout_ms=10000, next_try_in_sec=1):
         start_time = time.time()
         logger.trace(run_command("ps aux | grep ank").stdout)
         logger.trace(run_command("podman ps -a").stdout)
         res = run_command(command)
         table = table_to_list(res.stdout if res else "")
         logger.trace(table)
-        while (time.time() - start_time) < timeout:
+        timeout_secs = timeout_ms / 1000
+        while (time.time() - start_time) < timeout_secs:
             if table and all([len(row["EXECUTION STATE"].strip()) > 0 for row in filter(lambda r: r["AGENT"] == agent_name, table)]):
                 return True
 
@@ -102,12 +135,13 @@ def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_i
             logger.trace(table)
         return False
 
-def wait_for_execution_state(command, workload_name, expected_state, timeout=10, next_try_in_sec=1):
+def wait_for_execution_state(command, workload_name, expected_state, timeout_ms=10000, next_try_in_sec=1):
         start_time = time.time()
         res = run_command(command)
         table = table_to_list(res.stdout if res else "")
         logger.trace(table)
-        while (time.time() - start_time) < timeout:
+        timeout_secs = timeout_ms / 1000
+        while (time.time() - start_time) < timeout_secs:
             if table and any([row["EXECUTION STATE"].strip() == expected_state for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name, table)]):
                 return True
 

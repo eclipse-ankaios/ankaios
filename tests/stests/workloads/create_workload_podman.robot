@@ -41,7 +41,7 @@ Test Ankaios Podman create workloads
     And the workload "hello2" shall have the execution state "Succeeded" on agent "agent_B" within "500" ms
     And the workload "hello3" shall have the execution state "Succeeded" on agent "agent_B" within "500" ms
     And podman shall have a container for workload "nginx" on agent "agent_A"
-    And podman shall have a container for workload "hello1" on agent "agent_B"
+    And podman shall not have a container for workload "hello1" on agent "agent_B"
     And podman shall have a container for workload "hello2" on agent "agent_B"
     And podman shall have a container for workload "hello3" on agent "agent_B"
     [Teardown]    Clean up Ankaios
@@ -59,5 +59,5 @@ Test Ankaios Podman create a container with custom name
     When Ankaios agent is started with name "agent_A"
     # Asserts
     Then the workload "nginx" shall have the execution state "Running" on agent "agent_A" within "500" ms
-    And podman shall have a container for workload ${nginx} with custom name "test_workload1" on agent "agent_A"
+    And podman shall have a container for workload "nginx" with custom name "test_workload1" on agent "agent_A"
     [Teardown]    Clean up Ankaios
