@@ -1,16 +1,16 @@
 # Ankaios control interface examples
 
-The [Ankaios control interface](https://eclipse-ankaios.github.io/ankaios/latest/reference/control-interface/) allows the workload developers to easily integrate the communication between the Ankaios system and their applications.
+The [Ankaios control interface](https://eclipse-ankaios.github.io/ankaios/latest/reference/control-interface/) allows workload developers to easily integrate the communication between the Ankaios system and their applications.
 
-This subfolder contains examples, written in different programming languages, about how to use the [Ankaios control interface](https://eclipse-ankaios.github.io/ankaios/latest/reference/control-interface/) within a workload managed by Ankaios.
+This subfolder contains examples in different programming languages showing how to use [Ankaios control interface](https://eclipse-ankaios.github.io/ankaios/latest/reference/control-interface/) within a workload managed by Ankaios.
 
 The intention of the examples is to give a simple introduction in various programming languages about the usage of the control interface in self-developed applications.
 Furthermore, they shall enable an easy start to develop applications using the control interface by providing a basic development environment (devcontainer) and a running example application.
 
 All examples share the same behavior regardless of the programming language and do the following:
 
-1. Send a request to Ankaios cluster via the [Ankaios Control Interface](https://eclipse-ankaios.github.io/ankaios/latest/reference/control-interface/) to start a new workload  (named `dynamic_workload`) dynamically.
-2. Send a request to Ankaios cluster via the [Ankaios Control Interface](https://eclipse-ankaios.github.io/ankaios/latest/reference/control-interface/) every 30 sec. to get the workload states that are part of the current state of the Ankaios cluster and output them to the console.
+1. Send a request to Ankaios cluster via the [Ankaios Control Interface](https://eclipse-ankaios.github.io/ankaios/latest/reference/control-interface/) to start a new workload  (named `dynamic_workload`) which was not part of the initial startup configuration.
+2. Every 30 seconds request the workload states from the Ankaios cluster via the [Ankaios Control Interface](https://eclipse-ankaios.github.io/ankaios/latest/reference/control-interface/) and output them to the console.
 
 You can track the execution state of the dynamically added workload on the console and see when the workload `dynamic_nginx` is up and running (execution state: EXEC_RUNNING).
 

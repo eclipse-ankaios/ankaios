@@ -2,7 +2,7 @@
 
 This subfolder contains configurations for a devcontainer image that can be used to develop applications to be managed by Ankaios.
 
-The devcontainer image was designed to make the start of developing workloads by using Ankaios as your orchestrator easy and to minimize your effort and time to get started with development.
+The devcontainer image was designed to make the start of developing workloads by using Ankaios as your orchestrator easy and to minimize your effort and time to get started with the development.
 
 You can just use the prebuilt public devcontainer as base image in your specific devcontainer setup:
 
