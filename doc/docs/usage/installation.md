@@ -10,9 +10,11 @@ work as well but have not been tested.
 ## Pre-requisites
 
 Ankaios currently requires a Linux OS and is available for x86_64 and arm64
-targets. [Podman](https://podman.io) (version 3.4.2 or later) needs to be installed as this is used as 
+targets. [Podman](https://podman.io) needs to be installed as this is used as 
 container runtime
 (see [Podman installation instructions](https://podman.io/docs/installation)).
+For using the `podman` runtime, Podman version 3.4.2 is sufficient but the
+`podman-kube` runtime requires at least Podman version 4.3.1.
 
 ## Installation methods
 
@@ -47,7 +49,7 @@ The following table shows the optional arguments that can be passed to the scrip
 | -v <version\> | e.g. `v0.1.0`, default: latest version |
 | -i <install-path\> | File path where Ankaios will be installed, default: `/usr/local/bin` |
 | -t <install-type\> | Installation type for systemd integration: `server`, `agent`, `none` or `both` (default) |
-| -s <server-options\> | Options which will be passed to the Ankaios server. Default `--startup-config /etc/ank/state.yaml` |
+| -s <server-options\> | Options which will be passed to the Ankaios server. Default `--startup-config /etc/ankaios/state.yaml` |
 | -a <agent-options\> | Options which will be passed to the Ankaios agent. Default `--name agent_A` |
 
 To install a specific version run the following command and substitute `<version>` with a specific version tag e.g. `v0.1.0`:
