@@ -1165,6 +1165,42 @@ mod tests {
                         ..Default::default()
                     },
                     TestPodmanContainerInfo {
+                        pod: "pod2",
+                        state: "exited",
+                        exit_code: 42,
+                        ..Default::default()
+                    },
+                    TestPodmanContainerInfo {
+                        pod: "pod2",
+                        state: "unknown",
+                        ..Default::default()
+                    },
+                ]
+                .to_json())),
+        );
+        let res = PodmanCli::list_states_from_pods(&["pod1".into(), "pod2".into()]).await;
+        assert!(
+            matches!(res, Ok(states) if states == [ContainerState::Running, ContainerState::Exited(42), ContainerState::Unknown] )
+        );
+    }
+
+    #[tokio::test]
+    async fn utest_list_states_from_pods_some_missing_leads_to_unknown() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+        *super::LAST_PS_RESULT.lock().await = None;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([
+                    TestPodmanContainerInfo {
+                        pod: "pod1",
+                        state: "running",
+                        ..Default::default()
+                    },
+                    TestPodmanContainerInfo {
                         pod: "pod3",
                         state: "exited",
                         exit_code: 42,
@@ -1181,7 +1217,7 @@ mod tests {
         let res =
             PodmanCli::list_states_from_pods(&["pod1".into(), "pod2".into(), "pod3".into()]).await;
         assert!(
-            matches!(res, Ok(states) if states == [ContainerState::Running, ContainerState::Exited(42), ContainerState::Unknown] )
+            matches!(res, Ok(states) if states == [ContainerState::Running, ContainerState::Unknown, ContainerState::Exited(42), ContainerState::Unknown] )
         );
     }
 
