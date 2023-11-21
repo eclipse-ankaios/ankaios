@@ -15,6 +15,7 @@
 use std::collections::HashMap;
 
 use api::proto;
+use serde::{Serialize, Serializer};
 
 use crate::commands::CompleteState;
 use crate::objects::{
@@ -264,4 +265,14 @@ impl Default for MockAllContextSync {
     fn default() -> Self {
         Self::new()
     }
+}
+
+pub fn serialize_as_map<A, B, S>(x: &[(A, B)], s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+    A: Clone + Serialize + Eq + std::hash::Hash,
+    B: Clone + Serialize,
+{
+    let x: HashMap<A, B> = x.iter().cloned().collect();
+    x.serialize(s)
 }

@@ -3,15 +3,23 @@ use common::objects::ExecutionState;
 #[cfg(test)]
 use mockall::automock;
 use serde::{Deserialize, Deserializer, Serialize};
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::HashMap,
+    ops::Deref,
+    path::PathBuf,
+    sync::Arc,
+    time::{Duration, Instant},
+};
+use tokio::sync::Mutex;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_connectors::cli_command::CliCommand;
 
 const PODMAN_CMD: &str = "podman";
 const API_PIPES_MOUNT_POINT: &str = "/run/ankaios/control_interface";
+const PODMAN_PS_CACHE_MAX_AGE: Duration = Duration::from_millis(1000);
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ContainerState {
     Created,
     Exited(u8),
@@ -52,6 +60,82 @@ impl From<PodmanContainerInfo> for ExecutionState {
         }
     }
 }
+
+struct PodmanPsCache {
+    last_update: Instant,
+    cache: Arc<PodmanPsResult>,
+}
+
+struct TimedPodmanPsResult(Mutex<Option<PodmanPsCache>>);
+
+impl TimedPodmanPsResult {
+    async fn get(&self) -> Arc<PodmanPsResult> {
+        let mut guard = self.lock().await;
+
+        if let Some(value) = &mut *guard {
+            if value.last_update.elapsed() > PODMAN_PS_CACHE_MAX_AGE {
+                *value = Self::new_inner().await;
+            }
+            value.cache.clone()
+        } else {
+            let ps_result = Self::new_inner().await;
+            let result = ps_result.cache.clone();
+            *guard = Some(ps_result);
+            result
+        }
+    }
+
+    async fn new_inner() -> PodmanPsCache {
+        PodmanPsCache {
+            last_update: Instant::now(),
+            cache: Arc::new(PodmanCli::list_states_internal().await.into()),
+        }
+    }
+}
+
+impl Deref for TimedPodmanPsResult {
+    type Target = Mutex<Option<PodmanPsCache>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[derive(Debug)]
+struct PodmanPsResult {
+    container_states: Result<HashMap<String, ExecutionState>, String>,
+    pod_states: Result<HashMap<String, Vec<ContainerState>>, String>,
+}
+
+impl From<Result<Vec<PodmanContainerInfo>, String>> for PodmanPsResult {
+    fn from(value: Result<Vec<PodmanContainerInfo>, String>) -> Self {
+        match value {
+            Ok(container_infos) => {
+                let mut container_states = HashMap::new();
+                let mut pod_states: HashMap<String, Vec<ContainerState>> = HashMap::new();
+
+                for container_entry in container_infos {
+                    container_states
+                        .insert(container_entry.id.clone(), container_entry.clone().into());
+                    pod_states
+                        .entry(container_entry.pod.clone())
+                        .or_default()
+                        .push(container_entry.into());
+                }
+                Self {
+                    container_states: Ok(container_states),
+                    pod_states: Ok(pod_states),
+                }
+            }
+            Err(err) => Self {
+                container_states: Err(err.clone()),
+                pod_states: Err(err),
+            },
+        }
+    }
+}
+
+static LAST_PS_RESULT: TimedPodmanPsResult = TimedPodmanPsResult(Mutex::const_new(Option::None));
 
 pub struct PodmanCli {}
 
@@ -115,15 +199,15 @@ impl PodmanCli {
                 "--all",
                 "--filter",
                 &format!("label={key}={value}"),
-                "--format={{.ID}}",
+                "--format=json",
             ])
             .exec()
             .await?;
-        Ok(output
-            .split('\n')
-            .map(|x| x.trim().into())
-            .filter(|x: &String| !x.is_empty())
-            .collect())
+
+        let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
+            .map_err(|err| format!("Could not parse podman output: '{}'", err))?;
+
+        Ok(res.into_iter().map(|x| x.id).collect())
     }
 
     pub async fn list_workload_names_by_label(
@@ -212,39 +296,45 @@ impl PodmanCli {
         Ok(id)
     }
 
-    pub async fn list_states_by_id(workload_id: &str) -> Result<Vec<ExecutionState>, String> {
+    pub async fn list_states_by_id(workload_id: &str) -> Result<Option<ExecutionState>, String> {
+        let ps_result = LAST_PS_RESULT.get().await;
+        let all_containers_states = ps_result
+            .as_ref()
+            .container_states
+            .as_ref()
+            .map_err(|err| err.to_owned())?;
+        Ok(all_containers_states
+            .get(workload_id)
+            .map(ToOwned::to_owned))
+    }
+
+    // [impl->swdd~podman-kube-state-getter-treats-missing-pods-as-unknown~1]
+    pub async fn list_states_from_pods(pods: &[String]) -> Result<Vec<ContainerState>, String> {
+        let ps_result = LAST_PS_RESULT.get().await;
+        let all_pod_states = ps_result
+            .as_ref()
+            .pod_states
+            .as_ref()
+            .map_err(|err| err.to_owned())?;
+        Ok(pods
+            .iter()
+            .flat_map(|key| {
+                all_pod_states.get(key).cloned().unwrap_or_else(|| {
+                    log::warn!("The pod '{}' is missing.", key);
+                    vec![ContainerState::Unknown]
+                })
+            })
+            .collect())
+    }
+
+    async fn list_states_internal() -> Result<Vec<PodmanContainerInfo>, String> {
         let output = CliCommand::new(PODMAN_CMD)
-            .args(&[
-                "ps",
-                "--all",
-                "--filter",
-                &format!("id={workload_id}"),
-                "--format=json",
-            ])
+            .args(&["ps", "--all", "--format=json"])
             .exec()
             .await?;
 
-        let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
-            .map_err(|err| format!("Could not parse podman output:{}", err))?;
-
-        Ok(res.into_iter().map(|x| x.into()).collect())
-    }
-
-    pub async fn list_states_from_pods(pods: &[String]) -> Result<Vec<ContainerState>, String> {
-        if pods.is_empty() {
-            return Ok(vec![]);
-        }
-
-        let mut args = vec!["ps", "--all", "--format=json"];
-        let filters: Vec<String> = pods.iter().map(|p| format!("--filter=pod={}", p)).collect();
-        args.extend(filters.iter().map(|x| x as &str));
-
-        let output = CliCommand::new(PODMAN_CMD).args(&args).exec().await?;
-
-        let res: Vec<PodmanContainerInfo> = serde_json::from_str(&output)
-            .map_err(|err| format!("Could not parse podman output:{}", err))?;
-
-        Ok(res.into_iter().map(|x| x.into()).collect())
+        serde_json::from_str(&output)
+            .map_err(|err| format!("Could not parse podman output:{}", err))
     }
 
     pub async fn list_volumes_by_name(name: &str) -> Result<Vec<String>, String> {
@@ -330,24 +420,29 @@ struct DataLabel {
     data: String,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 struct PodmanContainerInfo {
     state: PodmanContainerState,
     exit_code: u8,
     #[serde(deserialize_with = "nullable_labels")]
     labels: HashMap<String, String>,
+    #[serde(deserialize_with = "nullable_labels")]
+    id: String,
+    #[serde(deserialize_with = "nullable_labels")]
+    pod: String,
 }
 
-fn nullable_labels<'a, D>(deserializer: D) -> Result<HashMap<String, String>, D::Error>
+fn nullable_labels<'a, D, V>(deserializer: D) -> Result<V, D::Error>
 where
     D: Deserializer<'a>,
+    V: Deserialize<'a> + Default,
 {
     let opt = Option::deserialize(deserializer)?;
     Ok(opt.unwrap_or_default())
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "lowercase")]
 enum PodmanContainerState {
     Created,
@@ -368,11 +463,15 @@ enum PodmanContainerState {
 // [utest->swdd~podman-kube-uses-podman-cli~1]
 #[cfg(test)]
 mod tests {
-    use super::{ContainerState, PodmanCli, PodmanContainerInfo, PodmanContainerState};
+    use super::{ContainerState, PodmanCli, PodmanContainerState, PodmanPsCache};
 
+    use super::PodmanContainerInfo;
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
     use common::objects::ExecutionState;
-    use std::collections::HashMap;
+    use common::test_utils::serialize_as_map;
+    use serde::Serialize;
+    use std::sync::Arc;
+    use std::time::{self, Duration};
 
     const SAMPLE_ERROR_MESSAGE: &str = "error message";
 
@@ -382,6 +481,8 @@ mod tests {
             state: PodmanContainerState::Created,
             exit_code: 0,
             labels: Default::default(),
+            pod: "".into(),
+            id: "".into(),
         }
         .into();
 
@@ -394,6 +495,8 @@ mod tests {
             state: PodmanContainerState::Exited,
             exit_code: 23,
             labels: Default::default(),
+            pod: "".into(),
+            id: "".into(),
         }
         .into();
 
@@ -406,6 +509,8 @@ mod tests {
             state: PodmanContainerState::Paused,
             exit_code: 0,
             labels: Default::default(),
+            pod: "".into(),
+            id: "".into(),
         }
         .into();
 
@@ -418,6 +523,8 @@ mod tests {
             state: PodmanContainerState::Running,
             exit_code: 0,
             labels: Default::default(),
+            pod: "".into(),
+            id: "".into(),
         }
         .into();
 
@@ -425,11 +532,13 @@ mod tests {
     }
 
     #[test]
-    fn utest_container_state_from_podman_container_info_unkown() {
+    fn utest_container_state_from_podman_container_info_unknown() {
         let container_state: ContainerState = PodmanContainerInfo {
             state: PodmanContainerState::Unknown,
             exit_code: 0,
             labels: Default::default(),
+            pod: "".into(),
+            id: "".into(),
         }
         .into();
 
@@ -570,9 +679,19 @@ mod tests {
                     "--all",
                     "--filter",
                     "label=name=test_agent",
-                    "--format={{.ID}}",
+                    "--format=json",
                 ])
-                .exec_returns(Ok("result1\nresult2\n".into())),
+                .exec_returns(Ok([
+                    TestPodmanContainerInfo {
+                        id: "result1",
+                        ..Default::default()
+                    },
+                    TestPodmanContainerInfo {
+                        id: "result2",
+                        ..Default::default()
+                    },
+                ]
+                .to_json())),
         );
 
         let res = PodmanCli::list_workload_ids_by_label("name", "test_agent").await;
@@ -592,13 +711,35 @@ mod tests {
                     "--all",
                     "--filter",
                     "label=name=test_agent",
-                    "--format={{.ID}}",
+                    "--format=json",
                 ])
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
         let res = PodmanCli::list_workload_ids_by_label("name", "test_agent").await;
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE));
+    }
+
+    #[tokio::test]
+    async fn utest_list_workload_ids_broken_response() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&[
+                    "ps",
+                    "--all",
+                    "--filter",
+                    "label=name=test_agent",
+                    "--format=json",
+                ])
+                .exec_returns(Ok("non-json response from podman".into())),
+        );
+
+        let res = PodmanCli::list_workload_ids_by_label("name", "test_agent").await;
+        assert!(matches!(res, Err(msg) if msg.contains("Could not parse podman output")));
     }
 
     #[tokio::test]
@@ -616,15 +757,37 @@ mod tests {
                     "label=name=test_agent",
                     "--format=json",
                 ])
-                .exec_returns(Ok(generate_container_info_json(
-                    PodmanContainerState::Running,
-                    0,
-                    "workload_name".into(),
-                ))),
+                .exec_returns(Ok([TestPodmanContainerInfo {
+                    labels: &[("name", "workload_name")],
+                    ..Default::default()
+                }]
+                .to_json())),
         );
 
         let res = PodmanCli::list_workload_names_by_label("name", "test_agent").await;
         assert_eq!(res, Ok(vec!["workload_name".into()]));
+    }
+
+    #[tokio::test]
+    async fn utest_list_workload_names_not_found_success() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&[
+                    "ps",
+                    "--all",
+                    "--filter",
+                    "label=name=test_agent",
+                    "--format=json",
+                ])
+                .exec_returns(Ok([TestPodmanContainerInfo::default()].to_json())),
+        );
+
+        let res = PodmanCli::list_workload_names_by_label("name", "test_agent").await;
+        assert_eq!(res, Ok(vec![]));
     }
 
     #[tokio::test]
@@ -783,20 +946,22 @@ mod tests {
     async fn utest_list_states_by_id_pending() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
+        *super::LAST_PS_RESULT.lock().await = None;
 
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--filter", "id=test_id", "--format=json"])
-                .exec_returns(Ok(generate_container_info_json(
-                    PodmanContainerState::Created,
-                    0,
-                    "workload_name".into(),
-                ))),
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([TestPodmanContainerInfo {
+                    id: "test_id",
+                    state: "created",
+                    ..Default::default()
+                }]
+                .to_json())),
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(vec![ExecutionState::ExecPending]));
+        assert_eq!(res, Ok(Some(ExecutionState::ExecPending)));
     }
 
     // [utest->swdd~podman-state-getter-maps-state~1]
@@ -804,20 +969,23 @@ mod tests {
     async fn utest_list_states_by_id_succeeded() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
+        *super::LAST_PS_RESULT.lock().await = None;
 
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--filter", "id=test_id", "--format=json"])
-                .exec_returns(Ok(generate_container_info_json(
-                    PodmanContainerState::Exited,
-                    0,
-                    "workload_name".into(),
-                ))),
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([TestPodmanContainerInfo {
+                    id: "test_id",
+                    state: "exited",
+                    exit_code: 0,
+                    ..Default::default()
+                }]
+                .to_json())),
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(vec![ExecutionState::ExecSucceeded]));
+        assert_eq!(res, Ok(Some(ExecutionState::ExecSucceeded)));
     }
 
     // [utest->swdd~podman-state-getter-maps-state~1]
@@ -825,20 +993,23 @@ mod tests {
     async fn utest_list_states_by_id_failed() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
+        *super::LAST_PS_RESULT.lock().await = None;
 
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--filter", "id=test_id", "--format=json"])
-                .exec_returns(Ok(generate_container_info_json(
-                    PodmanContainerState::Exited,
-                    1,
-                    "workload_name".into(),
-                ))),
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([TestPodmanContainerInfo {
+                    id: "test_id",
+                    state: "exited",
+                    exit_code: 1,
+                    ..Default::default()
+                }]
+                .to_json())),
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(vec![ExecutionState::ExecFailed]));
+        assert_eq!(res, Ok(Some(ExecutionState::ExecFailed)));
     }
 
     // [utest->swdd~podman-state-getter-maps-state~1]
@@ -846,20 +1017,22 @@ mod tests {
     async fn utest_list_states_by_id_running() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
+        *super::LAST_PS_RESULT.lock().await = None;
 
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--filter", "id=test_id", "--format=json"])
-                .exec_returns(Ok(generate_container_info_json(
-                    PodmanContainerState::Running,
-                    0,
-                    "workload_name".into(),
-                ))),
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([TestPodmanContainerInfo {
+                    id: "test_id",
+                    state: "running",
+                    ..Default::default()
+                }]
+                .to_json())),
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(vec![ExecutionState::ExecRunning]));
+        assert_eq!(res, Ok(Some(ExecutionState::ExecRunning)));
     }
 
     // [utest->swdd~podman-state-getter-maps-state~1]
@@ -867,31 +1040,34 @@ mod tests {
     async fn utest_list_states_by_id_unknown() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
+        *super::LAST_PS_RESULT.lock().await = None;
 
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--filter", "id=test_id", "--format=json"])
-                .exec_returns(Ok(generate_container_info_json(
-                    PodmanContainerState::Paused,
-                    0,
-                    "workload_name".into(),
-                ))),
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([TestPodmanContainerInfo {
+                    id: "test_id",
+                    state: "unknown",
+                    ..Default::default()
+                }]
+                .to_json())),
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(vec![ExecutionState::ExecUnknown]));
+        assert_eq!(res, Ok(Some(ExecutionState::ExecUnknown)));
     }
 
     #[tokio::test]
     async fn utest_list_states_by_id_podman_error() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
+        *super::LAST_PS_RESULT.lock().await = None;
 
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--filter", "id=test_id", "--format=json"])
+                .expect_args(&["ps", "--all", "--format=json"])
                 .exec_returns(Err("simulated error".to_string())),
         );
 
@@ -900,14 +1076,67 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_list_states_by_id_broken_response() {
+    async fn utest_list_states_by_id_podman_use_existing_ps_result() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
+
+        *super::LAST_PS_RESULT.lock().await = Some(PodmanPsCache {
+            last_update: time::Instant::now(),
+            cache: Arc::new(super::PodmanPsResult {
+                container_states: Ok([("test_id".into(), ExecutionState::ExecRunning)]
+                    .into_iter()
+                    .collect()),
+                pod_states: Err("".into()),
+            }),
+        });
+
+        let res = PodmanCli::list_states_by_id("test_id").await;
+        assert_eq!(res, Ok(Some(ExecutionState::ExecRunning)));
+    }
+
+    #[tokio::test]
+    async fn utest_list_states_by_id_podman_existing_ps_result_to_old() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+
+        let old_time_stamp = time::Instant::now() - Duration::from_secs(10);
+
+        *super::LAST_PS_RESULT.lock().await = Some(PodmanPsCache {
+            last_update: old_time_stamp,
+            cache: Arc::new(super::PodmanPsResult {
+                container_states: Ok([("test_id".into(), ExecutionState::ExecFailed)]
+                    .into_iter()
+                    .collect()),
+                pod_states: Err("".into()),
+            }),
+        });
 
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--filter", "id=test_id", "--format=json"])
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([TestPodmanContainerInfo {
+                    id: "test_id",
+                    state: "running",
+                    ..Default::default()
+                }]
+                .to_json())),
+        );
+
+        let res = PodmanCli::list_states_by_id("test_id").await;
+        assert_eq!(res, Ok(Some(ExecutionState::ExecRunning)));
+    }
+
+    #[tokio::test]
+    async fn utest_list_states_by_id_broken_response() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+        *super::LAST_PS_RESULT.lock().await = None;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--format=json"])
                 .exec_returns(Ok("non-json response from podman".to_string())),
         );
 
@@ -919,30 +1148,78 @@ mod tests {
     async fn utest_list_states_from_pods_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
+        *super::LAST_PS_RESULT.lock().await = None;
 
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&[
-                    "ps",
-                    "--all",
-                    "--format=json",
-                    "--filter=pod=pod1",
-                    "--filter=pod=pod2",
-                    "--filter=pod=pod3",
-                ])
-                .exec_returns(Ok(concat!(
-                    r#"[{"State": "running", "ExitCode": 0, "Labels": {}},"#,
-                    r#" {"State": "exited", "ExitCode": 42, "Labels": {}},"#,
-                    r#" {"State": "", "ExitCode": 0, "Labels": {}}]"#,
-                )
-                .into())),
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([
+                    TestPodmanContainerInfo {
+                        pod: "pod1",
+                        state: "running",
+                        ..Default::default()
+                    },
+                    TestPodmanContainerInfo {
+                        pod: "pod_other",
+                        state: "created",
+                        ..Default::default()
+                    },
+                    TestPodmanContainerInfo {
+                        pod: "pod2",
+                        state: "exited",
+                        exit_code: 42,
+                        ..Default::default()
+                    },
+                    TestPodmanContainerInfo {
+                        pod: "pod2",
+                        state: "unknown",
+                        ..Default::default()
+                    },
+                ]
+                .to_json())),
         );
+        let res = PodmanCli::list_states_from_pods(&["pod1".into(), "pod2".into()]).await;
+        assert!(
+            matches!(res, Ok(states) if states == [ContainerState::Running, ContainerState::Exited(42), ContainerState::Unknown] )
+        );
+    }
 
+    // [utest->swdd~podman-kube-state-getter-treats-missing-pods-as-unknown~1]
+    #[tokio::test]
+    async fn utest_list_states_from_pods_some_missing_leads_to_unknown() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+        *super::LAST_PS_RESULT.lock().await = None;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([
+                    TestPodmanContainerInfo {
+                        pod: "pod1",
+                        state: "running",
+                        ..Default::default()
+                    },
+                    TestPodmanContainerInfo {
+                        pod: "pod3",
+                        state: "exited",
+                        exit_code: 42,
+                        ..Default::default()
+                    },
+                    TestPodmanContainerInfo {
+                        pod: "pod3",
+                        state: "unknown",
+                        ..Default::default()
+                    },
+                ]
+                .to_json())),
+        );
         let res =
             PodmanCli::list_states_from_pods(&["pod1".into(), "pod2".into(), "pod3".into()]).await;
         assert!(
-            matches!(res, Ok(states) if states == [ContainerState::Running, ContainerState::Exited(42), ContainerState::Unknown] )
+            matches!(res, Ok(states) if states == [ContainerState::Running, ContainerState::Unknown, ContainerState::Exited(42), ContainerState::Unknown] )
         );
     }
 
@@ -950,18 +1227,12 @@ mod tests {
     async fn utest_list_states_from_pods_command_fails() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
+        *super::LAST_PS_RESULT.lock().await = None;
 
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&[
-                    "ps",
-                    "--all",
-                    "--format=json",
-                    "--filter=pod=pod1",
-                    "--filter=pod=pod2",
-                    "--filter=pod=pod3",
-                ])
+                .expect_args(&["ps", "--all", "--format=json"])
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
 
@@ -975,19 +1246,13 @@ mod tests {
     async fn utest_list_states_from_pods_result_not_json() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
+        *super::LAST_PS_RESULT.lock().await = None;
 
         super::CliCommand::new_expect(
             "podman",
             super::CliCommand::default()
-                .expect_args(&[
-                    "ps",
-                    "--all",
-                    "--format=json",
-                    "--filter=pod=pod1",
-                    "--filter=pod=pod2",
-                    "--filter=pod=pod3",
-                ])
-                .exec_returns(Ok("{".into())),
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok("non-json response from podman".into())),
         );
 
         let res =
@@ -998,6 +1263,22 @@ mod tests {
 
     #[tokio::test]
     async fn utest_list_states_from_pods_empty_input() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+        *super::LAST_PS_RESULT.lock().await = None;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([TestPodmanContainerInfo {
+                    pod: "pod1",
+                    state: "running",
+                    ..Default::default()
+                }]
+                .to_json())),
+        );
+
         assert!(PodmanCli::list_states_from_pods(&[])
             .await
             .unwrap()
@@ -1306,16 +1587,24 @@ mod tests {
         assert_eq!(res, Ok(()));
     }
 
-    fn generate_container_info_json(
-        state: PodmanContainerState,
+    #[derive(Serialize, Clone, Default)]
+    #[serde(rename_all = "PascalCase")]
+    struct TestPodmanContainerInfo<'a> {
+        state: &'a str,
         exit_code: u8,
-        workload_name: String,
-    ) -> String {
-        serde_json::to_string(&vec![PodmanContainerInfo {
-            state,
-            exit_code,
-            labels: HashMap::from([("name".to_string(), workload_name)]),
-        }])
-        .unwrap()
+        #[serde(serialize_with = "serialize_as_map")]
+        labels: &'a [(&'a str, &'a str)],
+        id: &'a str,
+        pod: &'a str,
+    }
+
+    impl<'a> ToJson for [TestPodmanContainerInfo<'a>] {
+        fn to_json(&self) -> String {
+            serde_json::to_string(self).unwrap()
+        }
+    }
+
+    trait ToJson {
+        fn to_json(&self) -> String;
     }
 }
