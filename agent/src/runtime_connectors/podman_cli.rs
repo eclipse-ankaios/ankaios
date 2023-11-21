@@ -769,7 +769,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_list_workload_names_no_name_label() {
+    async fn utest_list_workload_names_not_found_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
 
