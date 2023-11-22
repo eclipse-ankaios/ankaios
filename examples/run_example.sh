@@ -43,6 +43,8 @@ if [ -z ${ANK_BIN_DIR} ]; then
   ANK_BIN_DIR=${DEFAULT_ANKAIOS_BIN_PATH}
 fi
 
+ANK_BIN_DIR=${ANK_BIN_DIR%/} # remove trailing / if there is one
+
 if [[ ! -f ${ANK_BIN_DIR}/ank-server || ! -f ${ANK_BIN_DIR}/ank-agent ]]; then
   echo "Failed to build and execute example: no Ankaios executables inside '${ANK_BIN_DIR}'."
   display_usage
