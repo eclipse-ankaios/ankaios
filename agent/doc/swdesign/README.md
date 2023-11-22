@@ -1586,6 +1586,22 @@ Needs:
 - impl
 - utest
 
+##### PodmanKubeStateGetter treats missing pods as being of state unknown
+`swdd~podman-kube-state-getter-treats-missing-pods-as-unknown~1`
+
+Status: approved
+
+
+When the `PodmanKubeStateGetter` is called to get the current state of a workload and a pod of this workload is missing,
+the `PodmanKubeStateGetter` shall treat this pod, as if it contains one container with the state `unknown`.
+
+Tags:
+- PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
 ### Handling UpdateWorkloadState
 
 After the Ankaios agent is started it receives an information about Workload States of other Workloads running in other agents. This information is needed for dependency management inside the Ankaios cluster.

@@ -586,7 +586,6 @@ mod tests {
             generate_test_deleted_workload("agent X".to_string(), "workload X".to_string());
 
         let serialized_deleted_workload = serde_yaml::to_string(&deleted_workload).unwrap();
-        println!("{}", serialized_deleted_workload);
         let indices = [
             serialized_deleted_workload.find("workload A").unwrap(),
             serialized_deleted_workload.find("workload C").unwrap(),
