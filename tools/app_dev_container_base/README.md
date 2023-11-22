@@ -29,6 +29,17 @@ The prebuilt public container image containing the latest release of Ankaios bin
 docker pull ghcr.io/eclipse-ankaios/app-ankaios-dev:latest
 ```
 
+## Build for multi-platform
+
+```shell
+docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+docker buildx create --name mybuilder --driver docker-container --bootstrap
+docker buildx use mybuilder
+docker buildx build -t ghcr.io/eclipse-ankaios/app-ankaios-dev:latest --platform linux/amd64,linux/arm64 .
+```
+
+**NOTE:** If you are committer to Eclipse Ankaios project you are allowed to push the image to the public package repository of the organization. Just add `--push` to the command above.
+
 If you need a previous version, please built the devcontainer image by yourself according to the steps described [here](#build-for-local-usage).
 
 ## Build for local usage
