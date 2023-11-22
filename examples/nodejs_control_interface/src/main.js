@@ -2,6 +2,8 @@ const protobuf = require('protobufjs');
 const fs = require('fs');
 const util = require('util')
 
+const WAITING_TIME_IN_SEC = 5;
+
 let StateChangeRequestMessage;
 let ExecutionRequestMessage;
 let UpdateStrategyEnum;
@@ -32,7 +34,7 @@ function create_update_workload_request(root) {
                             runtime: "podman",
                             restart: true,
                             updateStrategy: UpdateStrategyEnum.AT_MOST_ONCE,
-                            runtimeConfig: "image: docker.io/library/nginx\nports:\n- containerPort: 80\n  hostPort: 8081"
+                            runtimeConfig: "image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]"
                         }
                     }
                 },
@@ -108,7 +110,7 @@ async function main() {
             write_to_control_interface(root, message);
         }
 
-        setInterval(send_request_complete_state, 30000); // StateChangeRequest.RequestCompletestate every 30 secs.
+        setInterval(send_request_complete_state, WAITING_TIME_IN_SEC * 1000); // StateChangeRequest.RequestCompletestate every x secs according to WAITING_TIME.
     });
 }
 

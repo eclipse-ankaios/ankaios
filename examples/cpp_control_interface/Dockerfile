@@ -1,15 +1,17 @@
-FROM ghcr.io/eclipse-ankaios/app-ankaios-dev:latest as dev
-
+FROM docker.io/ubuntu:latest as dev
 
 RUN apt-get update && apt-get -y install \
     # Development tools
+    protobuf-compiler \
+    protobuf-compiler-grpc \
     build-essential \
     cmake \
     && \
     rm -rf /var/lib/apt/lists/*
 
 FROM dev as compile
-COPY ./ /workspaces/app
+COPY api/proto/ankaios.proto /usr/local/lib/ankaios/ankaios.proto
+COPY examples/cpp_control_interface /workspaces/app
 RUN cd /workspaces/app && mkdir build && cd build && cmake .. && make
 
 # prod stage

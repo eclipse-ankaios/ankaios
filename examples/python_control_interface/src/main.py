@@ -6,6 +6,7 @@ import time
 import logging
 
 ANKAIOS_CONTROL_INTERFACE_BASE_PATH = "/run/ankaios/control_interface"
+WAITING_TIME_IN_SEC = 5
 
 def create_logger():
     """Create a logger with custom format and default log level."""
@@ -35,7 +36,7 @@ def create_update_workload_request():
                                     runtime="podman", 
                                     restart=True, 
                                     updateStrategy=ank.AT_MOST_ONCE, 
-                                    runtimeConfig="image: docker.io/library/nginx\nports:\n- containerPort: 80\n  hostPort: 8081")
+                                    runtimeConfig="image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]")
                 }
             )
         ),
@@ -106,7 +107,7 @@ def write_to_control_interface():
             f.write(_VarintBytes(request_complete_state_byte_len)) # Send the byte length of the proto msg
             f.write(proto_request_complete_state_msg) # Send the proto msg itself
             f.flush()
-            time.sleep(30) # Wait until sending the next RequestCompleteState to avoid spamming...
+            time.sleep(WAITING_TIME_IN_SEC) # Wait until sending the next RequestCompleteState to avoid spamming...
 
 if __name__ == '__main__':
     read_thread = threading.Thread(target=read_from_control_interface)

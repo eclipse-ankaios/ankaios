@@ -9,6 +9,7 @@
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 
 static const std::string ANKAIOS_CONTROL_INTERFACE_BASE_PATH{"/run/ankaios/control_interface"};
+static const int WAITING_TIME_IN_SEC { 5 };
 
 namespace logging
 {
@@ -34,7 +35,7 @@ ankaios::StateChangeRequest createUpdateWorkloadRequest()
     newWorkload.set_runtime("podman");
     newWorkload.set_restart(true);
     newWorkload.set_updatestrategy(ankaios::UpdateStrategy::AT_MOST_ONCE);
-    newWorkload.set_runtimeconfig("image: docker.io/library/nginx\nports:\n- containerPort: 80\n  hostPort: 8081");
+    newWorkload.set_runtimeconfig("image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]");
 
     ankaios::State *state{new ankaios::State};
     state->mutable_workloads()->insert({"dynamic_nginx", std::move(newWorkload)});
@@ -133,7 +134,7 @@ void writeToControlInterface()
         // write length-delimited protobuf message into output fifo to receive the workload states
         send_result = google::protobuf::util::SerializeDelimitedToOstream(requestCompleteState, &output);
         output.flush();
-        std::this_thread::sleep_for(std::chrono::seconds(30));
+        std::this_thread::sleep_for(std::chrono::seconds(WAITING_TIME_IN_SEC));
     } while (send_result);
 }
 

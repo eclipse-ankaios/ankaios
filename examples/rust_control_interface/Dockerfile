@@ -1,22 +1,21 @@
-FROM ghcr.io/eclipse-ankaios/app-ankaios-dev:latest as dev
+FROM docker.io/ubuntu:latest as dev
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 RUN apt-get update && apt-get -y install \
+    curl \
     # Development tools
+    protobuf-compiler \
+    protobuf-compiler-grpc \
     musl \
     musl-dev \
     musl-tools\
-    && \
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y \
-    && \
-    rm -rf /var/lib/apt/lists/*
-
-RUN rustup target add x86_64-unknown-linux-musl && rustup toolchain add stable-x86_64-unknown-linux-musl
+    && curl --proto '=https' --tlsv1.2 -sS https://sh.rustup.rs | bash -s -- --target x86_64-unknown-linux-musl -y > /dev/null \
+    && rm -rf /var/lib/apt/lists/*
 
 # stage compile
 FROM dev as compile
-COPY ../config /workspaces/build
-COPY . /workspaces/build
+COPY api /workspaces/build/api
+COPY examples/rust_control_interface /workspaces/build
 WORKDIR /workspaces/build
 RUN cargo build --release
 

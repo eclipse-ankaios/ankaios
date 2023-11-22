@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashMap, io, path::Path, time::Duration, vec};
+use std::{collections::HashMap, io, path::Path, time::Duration, vec, process::exit};
 use api::proto;
 
 use prost::Message;
@@ -22,6 +22,7 @@ use tokio::{
 };
 
 const MAX_VARINT_SIZE: usize = 19;
+const WAITING_TIME_IN_SEC: usize = 5;
 
 fn log(msg: &str) {
     println!("[{}] {}", chrono::offset::Utc::now().format("%Y-%m-%dT%H:%M:%SZ"), msg);
@@ -35,8 +36,14 @@ async fn main() {
     let ex_req_fifo = pipes_location.join("input");
     let sc_req_fifo = pipes_location.join("output");
 
-    let mut ex_req = File::open(&ex_req_fifo).await.unwrap();
-    let mut sc_req = File::create(&sc_req_fifo).await.unwrap();
+    let mut ex_req = File::open(&ex_req_fifo).await.unwrap_or_else(|err| {
+        log(&format!("Error: cannot open '{}': '{}'", ex_req_fifo.to_str().unwrap(), err));
+        exit(1);
+    });
+    let mut sc_req = File::create(&sc_req_fifo).await.unwrap_or_else(|err| {
+        log(&format!("Error: cannot create '{}': '{}'", sc_req_fifo.to_str().unwrap(), err));
+        exit(1);
+    });
 
     
     tokio::spawn(async move {
@@ -44,12 +51,12 @@ async fn main() {
             if let Ok(binary) = read_protobuf_data(&mut ex_req).await {
                 let proto = proto::ExecutionRequest::decode(&mut Box::new(binary.as_ref()));
 
-                log(format!("Receiving ExecutionRequest containing the workload states of the current state: {:?}", proto).as_str());
+                log(&format!("Receiving ExecutionRequest containing the workload states of the current state: {:?}", proto));
             }
         }
     });
 
-    tokio::time::sleep(Duration::from_secs(30)).await;
+    tokio::time::sleep(Duration::from_secs(WAITING_TIME_IN_SEC)).await;
 
     let mut wl = HashMap::new();
     let wl_api = proto::Workload {
@@ -62,7 +69,7 @@ async fn main() {
             key: "owner".to_string(),
             value: "Ankaios team".to_string(),
         }],
-        runtime_config: "image: docker.io/library/nginx\nports:\n- containerPort: 80\n  hostPort: 8081".to_string(),
+        runtime_config: "image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]".to_string(),
         dependencies: HashMap::new(),
     };
 
@@ -118,7 +125,7 @@ async fn main() {
             .await
             .unwrap();
 
-        tokio::time::sleep(Duration::from_secs(30)).await;
+        tokio::time::sleep(Duration::from_secs(WAITING_TIME_IN_SEC)).await;
     }
 }
 
