@@ -748,6 +748,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#goodbye" class="md-nav__link">
+    <span class="md-ellipsis">
+      Goodbye
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#interval" class="md-nav__link">
     <span class="md-ellipsis">
       Interval
@@ -1478,6 +1487,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#goodbye" class="md-nav__link">
+    <span class="md-ellipsis">
+      Goodbye
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#interval" class="md-nav__link">
     <span class="md-ellipsis">
       Interval
@@ -1711,6 +1729,7 @@
 <li><a href="#ankaios-DeletedWorkload">DeletedWorkload</a></li>
 <li><a href="#ankaios-DeletedWorkload-DependenciesEntry">DeletedWorkload.DependenciesEntry</a></li>
 <li><a href="#ankaios-ExecutionRequest">ExecutionRequest</a></li>
+<li><a href="#ankaios-Goodbye">Goodbye</a></li>
 <li><a href="#ankaios-Interval">Interval</a></li>
 <li><a href="#ankaios-RequestCompleteState">RequestCompleteState</a></li>
 <li><a href="#ankaios-State">State</a></li>
@@ -2093,6 +2112,9 @@ This is a response to the <a href="#requestcompletestate">RequestCompletestate</
 </tr>
 </tbody>
 </table>
+<p><a name="ankaios-Goodbye"></a></p>
+<h3 id="goodbye">Goodbye<a class="headerlink" href="#goodbye" title="Permanent link">&para;</a></h3>
+<p>A message to the Ankaios server to signalize a client (agent or cli) is shutting down.</p>
 <p><a name="ankaios-Interval"></a></p>
 <h3 id="interval">Interval<a class="headerlink" href="#interval" title="Permanent link">&para;</a></h3>
 <p>A message containing the interval information for the cron job.</p>
@@ -2301,6 +2323,12 @@ This is usually answered with a <a href="#completestate">CompleteState</a> messa
 <td><a href="#ankaios-RequestCompleteState">RequestCompleteState</a></td>
 <td></td>
 <td>A message to Ankaios server to request the complete state by the given request id and the optional field mask.</td>
+</tr>
+<tr>
+<td>goodbye</td>
+<td><a href="#ankaios-Goodbye">Goodbye</a></td>
+<td></td>
+<td></td>
 </tr>
 </tbody>
 </table>
