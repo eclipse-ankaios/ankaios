@@ -50,7 +50,7 @@ if [[ ! -f ${ANK_BIN_DIR}/ank-server || ! -f ${ANK_BIN_DIR}/ank-agent ]]; then
 fi
 
 echo Build control interface example ...
-podman build --no-cache -t control_interface_prod:0.1 -f examples/$1/Dockerfile ${SCRIPT_DIR}/../
+podman build "${@:2}" -t control_interface_prod:0.1 -f examples/$1/Dockerfile ${SCRIPT_DIR}/../
 echo done.
 
 run_ankaios &
