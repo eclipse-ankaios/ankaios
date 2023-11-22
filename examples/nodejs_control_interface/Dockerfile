@@ -12,7 +12,7 @@ RUN apt-get update && apt-get -y install \
 # prod stage
 FROM docker.io/library/node:21-alpine3.17
 # copy ankaios.proto
-COPY api/proto/ankaios.proto /usr/local/lib/ankaios
+COPY api/proto/ankaios.proto /usr/local/lib/ankaios/ankaios.proto
 COPY examples/nodejs_control_interface /workspaces/app
 WORKDIR /workspaces/app
 RUN npm install

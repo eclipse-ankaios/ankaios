@@ -22,7 +22,7 @@ use tokio::{
 };
 
 const MAX_VARINT_SIZE: usize = 19;
-const WAITING_TIME_IN_SEC: usize = 5;
+const WAITING_TIME_IN_SEC: u64 = 5;
 
 fn log(msg: &str) {
     println!("[{}] {}", chrono::offset::Utc::now().format("%Y-%m-%dT%H:%M:%SZ"), msg);
