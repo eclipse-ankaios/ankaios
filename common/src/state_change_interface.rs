@@ -28,6 +28,7 @@ pub enum StateChangeCommand {
     UpdateWorkloadState(commands::UpdateWorkloadState),
     RequestCompleteState(commands::RequestCompleteState),
     Stop(commands::Stop),
+    Goodbye(commands::Goodbye),
 }
 
 impl TryFrom<proto::StateChangeRequest> for StateChangeCommand {
@@ -52,6 +53,7 @@ impl TryFrom<proto::StateChangeRequest> for StateChangeCommand {
             StateChangeRequestEnum::RequestCompleteState(protobuf) => {
                 StateChangeCommand::RequestCompleteState(protobuf.into())
             }
+            StateChangeRequestEnum::Goodbye(_) => StateChangeCommand::Goodbye(commands::Goodbye {}),
         })
     }
 }

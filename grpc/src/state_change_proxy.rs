@@ -104,6 +104,13 @@ pub async fn forward_from_proto_to_ankaios(
                 )
                 .await?;
             }
+            StateChangeRequestEnum::Goodbye(_goodbye) => {
+                log::trace!(
+                    "Received Goodbye from {}. Stopping the control loop.",
+                    agent_name
+                );
+                break;
+            }
             unknown_message => {
                 log::warn!("Wrong StateChangeRequest: {:?}", unknown_message);
             }
@@ -167,12 +174,28 @@ pub async fn forward_from_ankaios_to_proto(
                 // TODO: handle the call
                 break;
             }
-            StateChangeCommand::AgentHello(_) => todo!(),
+            StateChangeCommand::AgentHello(_) => {
+                panic!("AgentHello was not expected at this point.");
+            }
             StateChangeCommand::AgentGone(_) => {
-                panic!("This internal messages is not intended to be sent over the network");
+                panic!("AgentGone internal messages is not intended to be sent over the network");
+            }
+            StateChangeCommand::Goodbye(_) => {
+                panic!("Goodbye was not expected at this point.");
             }
         }
     }
+
+    grpc_tx
+        .send(proto::StateChangeRequest {
+            state_change_request_enum: Some(
+                proto::state_change_request::StateChangeRequestEnum::Goodbye(
+                    api::proto::Goodbye {},
+                ),
+            ),
+        })
+        .await?;
+    grpc_tx.closed().await;
 
     Ok(())
 }
