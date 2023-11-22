@@ -1,4 +1,4 @@
-FROM ghcr.io/eclipse-ankaios/app-ankaios-dev:latest as dev
+FROM docker.io/ubuntu:latest as dev
 
 ENV PYTHONPATH="${PYTHONPATH}:/usr/local/lib/ankaios"
 
