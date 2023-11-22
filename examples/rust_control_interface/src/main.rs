@@ -51,7 +51,7 @@ async fn main() {
             if let Ok(binary) = read_protobuf_data(&mut ex_req).await {
                 let proto = proto::ExecutionRequest::decode(&mut Box::new(binary.as_ref()));
 
-                log(&format!("Receiving ExecutionRequest containing the workload states of the current state: {:?}", proto));
+                log(&format!("Receiving ExecutionRequest containing the workload states of the current state: {:#?}", proto));
             }
         }
     });
@@ -95,7 +95,7 @@ async fn main() {
         ),
     };
 
-    log(format!("Sending StateChangeRequest containing details for adding the dynamic workload \"dynamic_nginx\": {:?}", proto_buf_update).as_str());
+    log(format!("Sending StateChangeRequest containing details for adding the dynamic workload \"dynamic_nginx\": {:#?}", proto_buf_update).as_str());
 
     sc_req
         .write_all(&proto_buf_update.encode_length_delimited_to_vec())
