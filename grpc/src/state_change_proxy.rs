@@ -269,11 +269,12 @@ mod tests {
             .await;
         assert!(update_state_result.is_ok());
 
-        let handle = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx);
+        tokio::spawn(async move {
+            let _ = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx).await;
+        });
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(server_tx);
-        let _ = join!(handle);
 
         let result = grpc_rx.recv().await.unwrap();
 
@@ -303,11 +304,12 @@ mod tests {
             .await;
         assert!(update_workload_state_result.is_ok());
 
-        let handle = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx);
+        tokio::spawn(async move {
+            let _ = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx).await;
+        });
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(server_tx);
-        let _ = join!(handle);
 
         let result = grpc_rx.recv().await.unwrap();
 
@@ -572,6 +574,7 @@ mod tests {
         }) if request_id == expected_prefixed_my_request_id && field_mask == exepected_empty_field_mask)
         );
     }
+
     #[tokio::test]
     async fn utest_state_change_command_forward_from_ankaios_to_proto_request_complete_state() {
         let (server_tx, mut server_rx) =
@@ -588,11 +591,12 @@ mod tests {
             .await;
         assert!(request_complete_state_result.is_ok());
 
-        let handle = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx);
+        tokio::spawn(async move {
+            let _ = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx).await;
+        });
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(server_tx);
-        let _ = join!(handle);
 
         let result = grpc_rx.recv().await.unwrap();
 
