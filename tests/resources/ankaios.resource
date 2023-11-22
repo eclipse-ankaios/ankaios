@@ -70,11 +70,10 @@ the command "${cli_command}" finished with exit code "${exit_code}"
     Should Be Equal    ${run_result.rc}    ${exit_code_int}
 
 Ankaios server is started with config "${config_path}"
-    Start Process    %{ANK_BIN_DIR}${/}ank-server    --startup-config    ${config_path}    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
+    Start Process    %{ANK_BIN_DIR}${/}ank-server    --startup-config    ${config_path}    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt    env:RUST_LOG=debug
 
 Ankaios agent is started with name "${name}"
-    Log    Ankaios agent is started with name ${name}
-    Start Process    %{ANK_BIN_DIR}${/}ank-agent    --name    ${name}    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
+    Start Process    %{ANK_BIN_DIR}${/}ank-agent    --name    ${name}    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt    env:RUST_LOG=debug
 
 Podman has deleted all existing containers
     Run Process    podman    rm    -a    -f    timeout=20    shell=True
