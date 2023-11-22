@@ -26,7 +26,7 @@ Every subfolder represents an example for a specific programming language. Feel 
 ```
 If the Ankaios executables are not inside the default path mentioned in the [Installation instructions](https://eclipse-ankaios.github.io/ankaios/latest/usage/installation/), you can specify an alternative Ankaios executable path like the following:
 ```shell
-ANK_BIN_DIR=ANK_BIN_DIR=/absolute/path/to/ankaios/executables ./run_example.sh <example_subfolder>
+ANK_BIN_DIR=/absolute/path/to/ankaios/executables ./run_example.sh <example_subfolder>
 ```
 3. Open an additional terminal in the dev container and run the following shell command to see the logs of the example workload: 
 ```shell
