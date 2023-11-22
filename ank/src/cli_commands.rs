@@ -204,23 +204,23 @@ pub struct CliCommands {
     from_server: tokio::sync::mpsc::Receiver<ExecutionCommand>,
 }
 
-impl Drop for CliCommands {
-    fn drop(&mut self) {
-        self.task.abort(); // abort task to signalize the server to close cli connection
-    }
-}
-
 impl CliCommands {
     pub fn init(response_timeout_ms: u64, cli_name: String, server_url: Url) -> Self {
         let (task, to_server, from_server) =
             setup_cli_communication(cli_name.as_str(), server_url.clone());
         Self {
-            _response_timeout_ms : response_timeout_ms,
+            _response_timeout_ms: response_timeout_ms,
             cli_name,
             task,
             to_server,
             from_server,
         }
+    }
+
+    pub async fn shut_down(self) {
+        drop(self.to_server);
+
+        let _ = self.task.await;
     }
 
     pub async fn get_state(
