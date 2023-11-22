@@ -48,6 +48,7 @@ message StateChangeRequest {
     UpdateWorkloadState updateWorkloadState = 2; /// A message to Ankaios server to update the execution state of a workload.
     UpdateStateRequest updateState = 3; /// A message to Ankaios server to update the State of one or more agent(s).
     RequestCompleteState requestCompleteState = 4; /// A message to Ankaios server to request the complete state by the given request id and the optional field mask.
+    Goodbye goodbye = 5;
   }
 }
 
@@ -67,6 +68,12 @@ message ExecutionRequest {
 */
 message AgentHello {
   string agentName = 1; /// A unique agent name.
+}
+
+/**
+* A message to the Ankaios server to signalize a client (agent or cli) is shutting down.
+*/
+message Goodbye {
 }
 
 /**

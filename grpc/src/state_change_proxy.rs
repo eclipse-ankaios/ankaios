@@ -104,6 +104,13 @@ pub async fn forward_from_proto_to_ankaios(
                 )
                 .await?;
             }
+            StateChangeRequestEnum::Goodbye(_goodbye) => {
+                log::trace!(
+                    "Received Goodbye from {}. Stopping the control loop.",
+                    agent_name
+                );
+                break;
+            }
             unknown_message => {
                 log::warn!("Wrong StateChangeRequest: {:?}", unknown_message);
             }
@@ -167,12 +174,28 @@ pub async fn forward_from_ankaios_to_proto(
                 // TODO: handle the call
                 break;
             }
-            StateChangeCommand::AgentHello(_) => todo!(),
+            StateChangeCommand::AgentHello(_) => {
+                panic!("AgentHello was not expected at this point.");
+            }
             StateChangeCommand::AgentGone(_) => {
-                panic!("This internal messages is not intended to be sent over the network");
+                panic!("AgentGone internal messages is not intended to be sent over the network");
+            }
+            StateChangeCommand::Goodbye(_) => {
+                panic!("Goodbye was not expected at this point.");
             }
         }
     }
+
+    grpc_tx
+        .send(proto::StateChangeRequest {
+            state_change_request_enum: Some(
+                proto::state_change_request::StateChangeRequestEnum::Goodbye(
+                    api::proto::Goodbye {},
+                ),
+            ),
+        })
+        .await?;
+    grpc_tx.closed().await;
 
     Ok(())
 }
@@ -246,11 +269,12 @@ mod tests {
             .await;
         assert!(update_state_result.is_ok());
 
-        let handle = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx);
+        tokio::spawn(async move {
+            let _ = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx).await;
+        });
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(server_tx);
-        let _ = join!(handle);
 
         let result = grpc_rx.recv().await.unwrap();
 
@@ -280,11 +304,12 @@ mod tests {
             .await;
         assert!(update_workload_state_result.is_ok());
 
-        let handle = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx);
+        tokio::spawn(async move {
+            let _ = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx).await;
+        });
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(server_tx);
-        let _ = join!(handle);
 
         let result = grpc_rx.recv().await.unwrap();
 
@@ -549,6 +574,7 @@ mod tests {
         }) if request_id == expected_prefixed_my_request_id && field_mask == exepected_empty_field_mask)
         );
     }
+
     #[tokio::test]
     async fn utest_state_change_command_forward_from_ankaios_to_proto_request_complete_state() {
         let (server_tx, mut server_rx) =
@@ -565,11 +591,12 @@ mod tests {
             .await;
         assert!(request_complete_state_result.is_ok());
 
-        let handle = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx);
+        tokio::spawn(async move {
+            let _ = forward_from_ankaios_to_proto(grpc_tx, &mut server_rx).await;
+        });
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(server_tx);
-        let _ = join!(handle);
 
         let result = grpc_rx.recv().await.unwrap();
 

@@ -142,6 +142,9 @@ impl TryFrom<proto::CompleteState> for CompleteState {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct Goodbye {}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Stop {}
 
 //////////////////////////////////////////////////////////////////////////////

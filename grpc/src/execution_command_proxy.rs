@@ -109,7 +109,7 @@ pub async fn forward_from_proto_to_ankaios(
 pub async fn forward_from_ankaios_to_proto(
     agent_senders: &AgentSendersMap,
     receiver: &mut Receiver<ExecutionCommand>,
-) -> Result<(), GrpcProxyError> {
+) {
     while let Some(execution_command) = receiver.recv().await {
         match execution_command {
             ExecutionCommand::UpdateWorkload(method_obj) => {
@@ -120,13 +120,13 @@ pub async fn forward_from_ankaios_to_proto(
                     method_obj.added_workloads,
                     method_obj.deleted_workloads,
                 )
-                .await?;
+                .await;
             }
             ExecutionCommand::UpdateWorkloadState(method_obj) => {
                 log::trace!("Received UpdateWorkloadState from server: {:?}", method_obj);
 
                 distribute_workload_states_to_agents(agent_senders, method_obj.workload_states)
-                    .await?;
+                    .await;
             }
             ExecutionCommand::CompleteState(method_obj) => {
                 log::trace!("Received CompleteState from server: {:?}", method_obj);
@@ -150,13 +150,16 @@ pub async fn forward_from_ankaios_to_proto(
                         complete_state
                     );
 
-                    sender
+                    let result = sender
                         .send(Ok(proto::ExecutionRequest {
                             execution_request_enum: Some(ExecutionRequestEnum::CompleteState(
                                 complete_state,
                             )),
                         }))
-                        .await?;
+                        .await;
+                    if result.is_err() {
+                        log::warn!("Could not send complete state to agent '{}'", agent_name,);
+                    }
                 } else {
                     log::warn!("Unknown agent with name: '{}'", agent_name);
                 }
@@ -168,14 +171,13 @@ pub async fn forward_from_ankaios_to_proto(
             }
         }
     }
-    Ok(())
 }
 
 // [impl->swdd~grpc-server-forwards-commands-to-grpc-client~1]
 async fn distribute_workload_states_to_agents(
     agent_senders: &AgentSendersMap,
     workload_state_collection: Vec<WorkloadState>,
-) -> Result<(), GrpcProxyError> {
+) {
     // Workload states are agent related. Sending a flattened set here is not very good for the performance ...
 
     for agent_name in agent_senders.get_all_agent_names() {
@@ -199,7 +201,7 @@ async fn distribute_workload_states_to_agents(
                 agent_name,
                 filtered_workload_states
             );
-            sender
+            let result = sender
                 .send(Ok(proto::ExecutionRequest {
                     execution_request_enum: Some(ExecutionRequestEnum::UpdateWorkloadState(
                         proto::UpdateWorkloadState {
@@ -207,13 +209,14 @@ async fn distribute_workload_states_to_agents(
                         },
                     )),
                 }))
-                .await?;
+                .await;
+            if result.is_err() {
+                log::warn!("Could not send workload states to agent '{}'", agent_name,);
+            }
         } else {
             log::info!("Skipping sending workload states to agent '{agent_name}'. Agent disappeared in the meantime.");
         }
     }
-
-    Ok(())
 }
 
 // [impl->swdd~grpc-server-forwards-commands-to-grpc-client~1]
@@ -221,7 +224,7 @@ async fn distribute_workloads_to_agents(
     agent_senders: &AgentSendersMap,
     added_workloads: WorkloadCollection,
     deleted_workloads: DeletedWorkloadCollection,
-) -> Result<(), GrpcProxyError> {
+) {
     // [impl->swdd~grpc-server-sorts-commands-according-agents~1]
     for (agent_name, (added_workload_vector, deleted_workload_vector)) in
         get_workloads_per_agent(added_workloads, deleted_workloads)
@@ -229,7 +232,7 @@ async fn distribute_workloads_to_agents(
         if let Some(sender) = agent_senders.get(&agent_name) {
             log::trace!("Sending added and deleted workloads to agent '{}'.\n\tAdded workloads: {:?}.\n\tDeleted workloads: {:?}.", 
                 agent_name, added_workload_vector, deleted_workload_vector);
-            sender
+            let result = sender
                 .send(Ok(proto::ExecutionRequest {
                     execution_request_enum: Some(ExecutionRequestEnum::UpdateWorkload(
                         proto::UpdateWorkload {
@@ -244,7 +247,13 @@ async fn distribute_workloads_to_agents(
                         },
                     )),
                 }))
-                .await?;
+                .await;
+            if result.is_err() {
+                log::warn!(
+                    "Could not send added and deleted workloads to agent '{}'",
+                    agent_name,
+                );
+            }
         } else {
             log::info!(
                 "Agent {} not found, workloads not sent. Waiting for agent to connect.",
@@ -252,8 +261,6 @@ async fn distribute_workloads_to_agents(
             )
         }
     }
-
-    Ok(())
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -363,7 +370,7 @@ mod tests {
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(to_manager);
-        join!(handle).0.unwrap();
+        join!(handle).0;
 
         //if this returns the test is successful
         let result = agent_rx.recv().await.unwrap().unwrap();
@@ -393,7 +400,7 @@ mod tests {
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(to_manager);
-        join!(handle).0.unwrap();
+        join!(handle).0;
 
         //if this returns the test is successful
         let result = agent_rx.recv().await.unwrap().unwrap();
@@ -627,8 +634,7 @@ mod tests {
             ),],
             vec![]
         ))
-        .0
-        .unwrap();
+        .0;
 
         let result = agent_rx.recv().await.unwrap().unwrap();
 
@@ -654,8 +660,7 @@ mod tests {
             ),],
             vec![]
         ))
-        .0
-        .unwrap();
+        .0;
 
         // shall not receive any execution request
         assert!(matches!(agent_rx.try_recv(), Err(TryRecvError::Empty)))
@@ -675,8 +680,7 @@ mod tests {
                 execution_state: common::objects::ExecutionState::ExecRunning
             }],
         ))
-        .0
-        .unwrap();
+        .0;
 
         let result = agent_rx.recv().await.unwrap().unwrap();
 
@@ -734,7 +738,7 @@ mod tests {
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(to_manager);
-        join!(handle).0.unwrap();
+        join!(handle).0;
 
         //if this returns the test is successful
         let result = agent_rx.recv().await.unwrap().unwrap();

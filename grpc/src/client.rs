@@ -30,9 +30,9 @@ use common::execution_interface::ExecutionCommand;
 
 use common::state_change_interface::StateChangeReceiver;
 
+use tokio::select;
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::{Receiver, Sender};
-use tokio::try_join;
 use tokio_stream::wrappers::ReceiverStream;
 
 use async_trait::async_trait;
@@ -80,31 +80,34 @@ impl CommunicationsClient for GRPCCommunicationsClient {
 
         // [impl->swdd~grpc-client-retries-connection~2]
         loop {
-            if let Err(x) = self.run_internal(&mut server_rx, &agent_tx).await {
-                match self.connection_type {
-                    ConnectionType::Agent => {
-                        log::warn!("Connection to server interrupted. Error: {x}");
+            let result = self.run_internal(&mut server_rx, &agent_tx).await;
 
-                        use tokio::time::{sleep, Duration};
-                        sleep(Duration::from_secs(RECONNECT_TIMEOUT_SECONDS)).await;
-                    }
-                    ConnectionType::Cli => {
-                        match x {
-                            // [impl->swdd~grpc-client-outputs-error-server-unavailability-for-cli-connection~1]
-                            GrpcConnectionError::ServerNotAvailable(err) => {
-                                log::debug!("No connection to the server: '{err}'");
-                                return Err(CommunicationMiddlewareError("No connection to the server! Make sure that Ankaios Server is running.".to_string()));
-                            }
-                            // [impl->swdd~grpc-client-outputs-error-server-connection-loss-for-cli-connection~1]
-                            GrpcConnectionError::ConnectionInterrupted(err) => {
-                                log::debug!(
-                                    "The connection to the Ankaios Server was closed: '{err}'"
-                                );
-                            }
+            match self.connection_type {
+                ConnectionType::Agent => {
+                    log::warn!("Connection to server interrupted: '{:?}'", result);
+
+                    use tokio::time::{sleep, Duration};
+                    sleep(Duration::from_secs(RECONNECT_TIMEOUT_SECONDS)).await;
+                }
+                ConnectionType::Cli => {
+                    match result {
+                        // [impl->swdd~grpc-client-outputs-error-server-unavailability-for-cli-connection~1]
+                        Err(GrpcConnectionError::ServerNotAvailable(err)) => {
+                            log::debug!("No connection to the server: '{err}'");
+                            return Err(CommunicationMiddlewareError("No connection to the server! Make sure that Ankaios Server is running.".to_string()));
                         }
-                        // [impl->swdd~grpc-client-never-retries-cli-connection~1]
-                        break; // no retry of cli connection
+                        // [impl->swdd~grpc-client-outputs-error-server-connection-loss-for-cli-connection~1]
+                        Err(GrpcConnectionError::ConnectionInterrupted(err)) => {
+                            log::debug!(
+                                "The connection to the Ankaios Server was interrupted: '{err}'"
+                            );
+                        }
+                        _ => {
+                            log::debug!("The connection to the Ankaios Server was closed.");
+                        }
                     }
+                    // [impl->swdd~grpc-client-never-retries-cli-connection~1]
+                    break; // no retry of cli connection
                 }
             }
         }
@@ -193,17 +196,20 @@ impl GRPCCommunicationsClient {
             GRPCExecutionRequestStreaming::new(self.connect_to_server(grpc_rx).await?);
 
         // [impl->swdd~grpc-client-forwards-commands-to-agent~1]
-        let ankaios_server_task = execution_command_proxy::forward_from_proto_to_ankaios(
+        let forward_exec_from_proto_task = execution_command_proxy::forward_from_proto_to_ankaios(
             self.name.as_str(),
             &mut grpc_execution_request_streaming,
             agent_tx,
         );
 
         // [impl->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
-        let manager_handler_task =
+        let forward_state_change_from_ank_task =
             state_change_proxy::forward_from_ankaios_to_proto(grpc_tx, server_rx);
 
-        try_join!(ankaios_server_task, manager_handler_task)?;
+        select! {
+            _ = forward_exec_from_proto_task => {log::debug!("Forward execution command from proto to Ankaios task completed");}
+            _ = forward_state_change_from_ank_task => {log::debug!("Forward execution command from Ankaios to proto task completed");}
+        };
 
         Ok(())
     }
