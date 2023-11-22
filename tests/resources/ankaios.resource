@@ -54,7 +54,7 @@ Run in background
     Log    Run in background: ${cli_command}
     ${cmd}=    Split Command Line    ${cli_command}
     Set List Value    ${cmd}    0    ${location}${/}${cmd}[0]
-    Start Process    @{cmd}    stderr=target/robot_tests_result/agent_A_logs.txt
+    Start Process    @{cmd}
 
 Run in foreground
     [Arguments]    ${cli_command}
@@ -64,17 +64,12 @@ Run in foreground
     RETURN    ${run_result}
 
 the command "${cli_command}" finished with exit code "${exit_code}"
-    Log    run ${cli_command}
     ${run_result}=    Run in foreground    ${cli_command}
     Log    ${run_result.stdout}
     ${exit_code_int}=    Convert To Integer    ${exit_code}
     Should Be Equal    ${run_result.rc}    ${exit_code_int}
 
-the command "${cli_command}" shall finish with exit code "${exit_code}"
-    the command "${cli_command}" finished with exit code "${exit_code}"
-
 Ankaios server is started with config "${config_path}"
-    Log    Ankaios server is started with config ${config_path}
     Start Process    %{ANK_BIN_DIR}${/}ank-server    --startup-config    ${config_path}    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
 
 Ankaios agent is started with name "${name}"
@@ -91,71 +86,45 @@ Podman has deleted all existing volumes
     Run Process    podman    volume    rm    -a    timeout=20    shell=True
 
 all workloads of agent "${agent_name}" have an initial execution state
-    Log    Waiting for initial execution states of agent '${agent_name}'
-    ${result}=    wait for initial execution state    %{ANK_BIN_DIR}${/}ank get workloads    ${agent_name}    30000    5
-    Should Be True    ${result}
+    ${list_result}=    wait for initial execution state    %{ANK_BIN_DIR}${/}ank get workloads    ${agent_name}    60    5
+    Should Not Be Empty    ${list_result}    msg=Timeout: Workloads on agent '${agent_name}' do not have the expected initial execution states!
+    
+    &{dict_result}=    table to dict    ${list_result}    WORKLOAD NAME
+    ${workload_names}=    Get Dictionary Keys    ${dict_result}
+    FOR  ${workload_name}  IN  @{workload_names}
+        &{item}=    Get From Dictionary    ${dict_result}    ${workload_name}
+        ${actual_agent_name}=    Get From Dictionary    ${item}    AGENT
+        IF  "${actual_agent_name}" == "${agent_name}"
+            ${actual_execution_state}=    Get From Dictionary    ${item}    EXECUTION STATE
+            Should Not Be Empty    ${actual_execution_state} 
+        END
+    END
 
 user triggers "${cli_command}"
-    Log    Triggers ${cli_command}
     ${cmd}=    Split Command Line    ${cli_command}
-    Log    ${cmd}
     Set List Value    ${cmd}    0    %{ANK_BIN_DIR}${/}${cmd}[0]
     ${CURRENT_RESULT}=    Run Process    @{cmd}    timeout=20    shell=True
     Log    ${CURRENT_RESULT.stdout}
     Set Global Variable    ${CURRENT_RESULT}
 
-the workload "${workload_name}" shall have the execution state "${expected_execution_state}" from agent "${expected_agent_name}"
-    the workload "${workload_name}" shall have the execution state "${expected_execution_state}" on agent "${expected_agent_name}"
-
-# the workload "${workload_name}" shall have the execution state "${expected_execution_state}" on agent "${expected_agent_name}"
-#     Log    Assert: ${workload_name} shall have execution state ${expected_execution_state}
-#     @{list_result}=    table to list    ${CURRENT_RESULT.stdout}
-#     &{dict_result}=    table to dict    ${list_result}    WORKLOAD NAME
-#     &{item}=    Get From Dictionary    ${dict_result}    ${workload_name}
-#     ${actual_execution_state}=    Get From Dictionary    ${item}    EXECUTION STATE
-#     ${actual_agent_name}=    Get From Dictionary    ${item}    AGENT
-#     Should be equal    ${actual_execution_state}    ${expected_execution_state}
-#     Should be equal    ${actual_agent_name}    ${expected_agent_name}
-
 user updates the state "${new_state_yaml_file}" with "${field_value}"
     @{key_val}=    Split String    ${field_value}    separator==
     ${yaml_data}=    Get File    ${new_state_yaml_file}
     ${result_dict}=    Yaml To Dict    ${yaml_data}
-    Log    ${result_dict}
     ${new_config}=    Replace Config    ${result_dict}    filter_path=${key_val}[0]    new_value=${key_val}[1]
-    Log    ${new_config}
     Write Yaml    new_yaml=${new_config}    path=${new_state_yaml_file}
 
-# TODO delete this one:
-# the workload "${workload_name}" has the execution state "${execution_state}"
-#     ${result}=    Wait For Execution State
-#     ...    %{ANK_BIN_DIR}${/}ank get workloads
-#     ...    ${workload_name}
-#     ...    ${execution_state}
-#     ...    20
-#     ...    5
-#     Should Be True    ${result}
-
-# the workload "${workload_name}" shall have the execution state "${execution_state}"
-#     the workload "${workload_name}" shall have the execution state "${execution_state}" on agent ""
-
-the workload "${workload_name}" shall have the execution state "${execution_state}" on agent "${expected_agent_name}"
-    the workload "${workload_name}" shall have the execution state "${execution_state}" on agent "${expected_agent_name}" within "0" ms
-
-the workload "${workload_name}" shall have the execution state "${expected_execution_state}" on agent "${expected_agent_name}" within "${timeout_ms}" ms
-    Log    Assert: ${workload_name} shall have execution state ${expected_execution_state} within ${timeout_ms} ms
-    IF    ${timeout_ms} > 0
-        Wait For Execution State
+the workload "${workload_name}" shall have the execution state "${expected_execution_state}" on agent "${expected_agent_name}" within "${timeout}" seconds
+    @{list_result}=    Create List
+    IF    ${timeout} > 0
+        @{list_result}=    Wait For Execution State
         ...    %{ANK_BIN_DIR}${/}ank get workloads
         ...    ${workload_name}
         ...    ${expected_execution_state}
-        ...    ${timeout_ms}
-        ...    5
-    ${CURRENT_RESULT}=    Run Command    %{ANK_BIN_DIR}${/}ank get workloads    ${timeout_ms}
-    Set Global Variable   ${CURRENT_RESULT}  
+        ...    ${timeout}
     END
+    Should Not Be Empty    ${list_result}    msg=Timeout: Workload '${workload_name}' on agent '${expected_agent_name}' does not have the execution state '${expected_execution_state}'!
 
-    @{list_result}=    table to list    ${CURRENT_RESULT.stdout}
     &{dict_result}=    table to dict    ${list_result}    WORKLOAD NAME
     &{item}=    Get From Dictionary    ${dict_result}    ${workload_name}
     ${actual_execution_state}=    Get From Dictionary    ${item}    EXECUTION STATE
@@ -163,113 +132,69 @@ the workload "${workload_name}" shall have the execution state "${expected_execu
     Should be equal    ${actual_execution_state}    ${expected_execution_state}
     Should be equal    ${actual_agent_name}    ${expected_agent_name}
 
-the workload "${workload_name}" shall have the execution state "${expected_execution_state}" from agent "${expected_agent_name}" within "${timeout_ms}" ms
-    the workload "${workload_name}" shall have the execution state "${expected_execution_state}" on agent "${expected_agent_name}" within "${timeout_ms}" ms
-
-the workload "${workload_name}" shall not exist
-    the workload "${workload_name}" shall not exist within "0" ms
-
-the workload "${workload_name}" shall not exist within "${timeout}" ms
-    # TODO add timeout handling with calling the command
-    Log    Assert: ${workload_name} shall not exist
+the workload "${workload_name}" shall not exist within "${timeout}" seconds
     @{list_result}=    table to list    ${CURRENT_RESULT.stdout}
     &{dict_result}=    table to dict    ${list_result}    WORKLOAD NAME
     Dictionary Should Not Contain Key    ${dict_result}    ${workload_name}
 
 user executes system app "${cli_command}"
-    Log    Executes ${cli_command}
     ${cmd}=    Split Command Line    ${cli_command}    escaping=True
-    Log    ${cmd}
     ${CURRENT_RESULT}=    Run Process    @{cmd}    timeout=20    shell=True
     Log    ${CURRENT_RESULT.stdout}
     Set Global Variable    ${CURRENT_RESULT}
 
-the result is valid JSON
-    Log    ${CURRENT_RESULT.stdout}
-    ${json_dict}=    Json To Dict    raw=${CURRENT_RESULT.stdout}
-    Log    ${json_dict}
-    RETURN    ${json_dict}
-
-# TODO: clean up. Most of these are probabaly not needed anymore
-the JSON array "${dict_array}" shall contain key "${main_key}" with subkey "${sub_key}" with the subvalue "${sub_value}"
-    Log    ${dict_array}
-    FOR    ${dict_array_item}    IN    @{dict_array}
-        Log    ${dict_array_item}
-        Dictionary Should Contain Key    dictionary=${dict_array_item}    key=${main_key}
-        Dictionary Should Contain Item
-        ...    dictionary=${dict_array_item["${main_key}"]}
-        ...    key=${sub_key}
-        ...    value=${sub_value}
-    END
-
-the JSON array "${dict_array}" shall contain key "${main_key}" with subkey "${sub_key}" which matches the expression "${reg_exp}"
-    Log    ${dict_array}
-    FOR    ${dict_array_item}    IN    @{dict_array}
-        Log    ${dict_array_item}
-        Dictionary Should Contain Key    dictionary=${dict_array_item}    key=${main_key}
-        Should Match Regexp    string=${dict_array_item["${main_key}"]["${sub_key}"]}    pattern=${reg_exp}
-    END
-
-the JSON array "${dict_array}" shall contain key "${key}" which matches the expression "${reg_exp}"
-    Log    ${dict_array}
-    FOR    ${dict_array_item}    IN    @{dict_array}
-        Log    ${dict_array_item}
-        Should Match Regexp    string=${dict_array_item["${key}"]}    pattern=${reg_exp}
-    END
-
-the JSON array "${dict_array}" shall contain key "${key}" which not matches the expression "${reg_exp}"
-    Log    ${dict_array}
-    FOR    ${dict_array_item}    IN    @{dict_array}
-        Log    ${dict_array_item}
-        Should Not Match Regexp    string=${dict_array_item["${key}"]}    pattern=${reg_exp}
-    END
-
-the JSON array "${dict_array}" shall contain array "${key}" which matches the expression "${reg_exp}"
-    Log    ${dict_array}
-    FOR    ${dict_array_item}    IN    @{dict_array}
-        Log    ${dict_array_item}
-        Dictionary Should Contain Key    dictionary=${dict_array_item}    key=${key}
-        FOR    ${key_array_item}    IN    @{dict_array_item["${key}"]}
-            Log    ${key_array_item}
-            Should Match Regexp    string=${key_array_item}    pattern=${reg_exp}
-        END
-    END
-
-the JSON array "${dict_array}" shall contain array "${key}" which contains value "${value}"
-    Log    ${dict_array}
-    FOR    ${dict_array_item}    IN    @{dict_array}
-        Log    ${dict_array_item}
-        Dictionary Should Contain Key    dictionary=${dict_array_item}    key=${key}
-        List Should Contain Value    list_=${dict_array_item["${key}"]}    value=${value}
-    END
-
-volumes for "${workload_name}" shall exist on "${agent_name}"
+volumes for "${workload_name}" shall exist on "${agent_name}" within "${timeout}" seconds
     ${volume_names}=    Get Volume Names From Podman
-    Log Many    ${volume_names}
-    ${volume_agent_config}=    To VOL AN TYPE    ${workload_name}    ${agent_name}    config
-    Should Contain X Times    ${volume_names}    ${volume_agent_config}    1    msg=Volume '${workload_name}.x.${agent_name}.config' not found in podman!
-    ${volume_agent_pods}=    To VOL AN TYPE    ${workload_name}    ${agent_name}    pods
-    Should Contain X Times    ${volume_names}    ${volume_agent_pods}    1    msg=Volume '${workload_name}.x.${agent_name}.pods' not found in podman!
+    ${volume_agent_config}=    To X Dot Y Dot Z Format    ${workload_name}    ${agent_name}    config
+    Should Contain X Times    ${volume_names}    ${volume_agent_config}    1    msg=Volume '${workload_name}.{hash}.${agent_name}.config' not found in podman!
+    ${volume_agent_pods}=    To X Dot Y Dot Z Format    ${workload_name}    ${agent_name}    pods
+    Should Contain X Times    ${volume_names}    ${volume_agent_pods}    1    msg=Volume '${workload_name}.{hash}.${agent_name}.pods' not found in podman!
 
-volumes for "${workload_name}" shall not exists on "${agent_name}" within "${timeout}" ms
-    ${result}=    check podman kube volumes gone    ${workload_name}    ${agent_name}    ${timeout}
-    Should Be True     ${result}
+volumes for "${workload_name}" shall not exists on "${agent_name}" within "${timeout}" seconds
+    ${volume_names}=    Get Volume Names From Podman    ${timeout}
+    ${workload_dot_agent}=    To X Dot Y Format    ${workload_name}    ${agent_name}
+    Should Contain X Times    ${volume_names}    ${workload_dot_agent}    0    msg=Unexpected Volume '${workload_name}.{hash}.${agent_name}.{config|pods}' found in podman!
 
-podman shall have a container for workload "${workload_name}" on agent "${agent_name}"
-    podman shall have a container for workload "${workload_name}" with custom name "" on agent "${agent_name}"
-
-podman shall have a container for workload "${workload_name}" with custom name "${name}" on agent "${agent_name}"
-    ${workload_names}=    Get Workload Names From Podman
-    Log Many    ${workload_names}
+podman shall have a container for workload "${workload_name}" with custom name "${name}" on agent "${agent_name}" within "${timeout}" seconds
+    ${workload_names}=    Get Workload Names From Podman    ${timeout}
     ${used_name}=    Set Variable    ${name}
     ${workload_name_angent_name}=    Set Variable    ${name}
     IF    "${name}" == ""
         ${used_name}=    Set Variable    ${workload_name}
-        ${workload_name_angent_name}=    To WN AN    ${workload_name}    ${agent_name}
+        ${workload_name_angent_name}=    To X Dot Y Format    ${workload_name}    ${agent_name}
     END
     Should Contain X Times    ${workload_names}    ${workload_name_angent_name}    1    msg=Workload '${used_name}' on agent '${agent_name}' not found in podman!
 
-podman shall not have a container for workload "${workload_name}" on agent "${agent_name}"
-    ${workload_names}=    Get Workload Names From Podman
-    ${workload_name_angent_name}=    To WN AN    ${workload_name}    ${agent_name}
+podman shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
+    ${workload_names}=    Get Workload Names From Podman    ${timeout}
+    ${workload_name_angent_name}=    To X Dot Y Format    ${workload_name}    ${agent_name}
     Should Not Contain    ${workload_names}    ${workload_name_angent_name}     msg=Unexpected workload '${workload_name}' on agent '${agent_name}' found in podman!
+
+
+# ALIASES
+the command "${cli_command}" shall finish with exit code "${exit_code}"
+    the command "${cli_command}" finished with exit code "${exit_code}"
+
+the workload "${workload_name}" shall have the execution state "${expected_execution_state}" from agent "${expected_agent_name}"
+    the workload "${workload_name}" shall have the execution state "${expected_execution_state}" on agent "${expected_agent_name}"
+
+the workload "${workload_name}" shall have the execution state "${expected_execution_state}" from agent "${expected_agent_name}" within "${timeout}" seconds
+    the workload "${workload_name}" shall have the execution state "${expected_execution_state}" on agent "${expected_agent_name}" within "${timeout}" seconds
+
+the workload "${workload_name}" shall have the execution state "${execution_state}" on agent "${expected_agent_name}"
+    the workload "${workload_name}" shall have the execution state "${execution_state}" on agent "${expected_agent_name}" within "5" seconds
+
+the workload "${workload_name}" shall not exist
+    the workload "${workload_name}" shall not exist within "1" seconds
+
+volumes for "${workload_name}" shall exist on "${agent_name}"
+    volumes for "${workload_name}" shall exist on "${agent_name}" within "1" seconds
+
+podman shall have a container for workload "${workload_name}" on agent "${agent_name}"
+    podman shall have a container for workload "${workload_name}" with custom name "" on agent "${agent_name}" within "1" seconds
+
+podman shall have a container for workload "${workload_name}" with custom name "${name}" on agent "${agent_name}"
+    podman shall have a container for workload "${workload_name}" with custom name "${name}" on agent "${agent_name}" within "1" seconds
+
+podman shall not have a container for workload "${workload_name}" on agent "${agent_name}"
+    podman shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "1" seconds

@@ -67,29 +67,13 @@ def table_to_dict(input_list, key):
     logger.trace(out_dict)
     return out_dict
 
-def get_column_values(list, column_name):
-    if column_name in list:
-        return map(lambda r: r[column_name], list) 
-    else:
-        return []
+def to_x_dot_y_format(x, y):
+    return f"{x}.{y}"
 
-def get_container_ids_by_workload_names(workload_names):
-    res = run_command('podman ps -a --format "{{.Names}} {{.ID}}"')
-    raw = res.stdout.strip()
-    raw_wln_id = raw.split('\n')
-    # ["workload_name.hash.agent_name id", ...] -> [(workload_name,id), ...]
-    wln_ids = map(lambda t: (t[0].split('.')[0], t[1]), map(lambda s: tuple(s.split(' ')), raw_wln_id))
-    wln_id_tuple_list = wln_ids if not workload_names else filter(lambda wln_id_tuple: wln_id_tuple[0] in workload_names, wln_ids)
-    logger.trace(wln_id_tuple_list)
-    return wln_id_tuple_list
+def to_x_dot_y_dot_z_format(x, y, z):
+    return f"{x}.{y}.{z}"
 
-def to_wn_an(workload_name, agent_name):
-    return f"{workload_name}.{agent_name}"
-
-def to_vol_an_type(workload_name, agent_name, type):
-    return f"{workload_name}.{agent_name}.{type}"
-
-def from_wn_hash_an_to_wn_an(wn_hash_an_string):
+def remove_hash_from_workload_name(wn_hash_an_string):
     items = wn_hash_an_string.split('.')
     if len(items) == 3:
         return f"{items[0]}.{items[2]}"
@@ -97,35 +81,40 @@ def from_wn_hash_an_to_wn_an(wn_hash_an_string):
         return f"{items[0]}.{items[2]}.{items[3]}"
     return items[0]
 
-def get_workload_names_from_podman():
-    res = run_command('podman ps -a --format "{{.Names}}"')
-    raw = res.stdout.strip()
-    raw_wln = raw.split('\n')
-    # ["workload_name.hash.agent_name id", ...] -> [(workload_name,id), ...]
-    workload_names = list(map(from_wn_hash_an_to_wn_an, raw_wln))
-    logger.trace(workload_names)
+def get_workload_names_from_podman(timeout_secs=1, next_try_in_sec=1):
+    start_time = time.time()
+    workload_names = list()
+    while (time.time() - start_time) < timeout_secs:
+        res = run_command('podman ps -a --format "{{.Names}}"')
+        raw = res.stdout.strip()
+        raw_wln = raw.split('\n')
+        workload_names = list(map(remove_hash_from_workload_name, raw_wln))
+        logger.trace(workload_names)
+        time.sleep(next_try_in_sec)
     return workload_names
 
-def get_volume_names_from_podman():
-    res = run_command('podman volume ls --format "{{.Name}}"')
-    raw = res.stdout.strip()
-    raw_vols = raw.split('\n')
-    # ["workload_name.hash.agent_name id", ...] -> [(workload_name,id), ...]
-    vol_names = list(map(from_wn_hash_an_to_wn_an, raw_vols))
-    logger.trace(vol_names)
+def get_volume_names_from_podman(timeout_secs=1, next_try_in_sec=1):
+    start_time = time.time()
+    vol_names = list()
+    while (time.time() - start_time) < timeout_secs:
+        res = run_command('podman volume ls --format "{{.Name}}"')
+        raw = res.stdout.strip()
+        raw_vols = raw.split('\n')
+        vol_names = list(map(remove_hash_from_workload_name, raw_vols))
+        logger.trace(vol_names)
+        time.sleep(next_try_in_sec)
     return vol_names
 
-def wait_for_initial_execution_state(command, agent_name, timeout_ms=10000, next_try_in_sec=1):
+def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_in_sec=1):
         start_time = time.time()
         logger.trace(run_command("ps aux | grep ank").stdout)
         logger.trace(run_command("podman ps -a").stdout)
         res = run_command(command)
         table = table_to_list(res.stdout if res else "")
         logger.trace(table)
-        timeout_secs = timeout_ms / 1000
-        while (time.time() - start_time) < timeout_secs:
+        while (time.time() - start_time) < timeout:
             if table and all([len(row["EXECUTION STATE"].strip()) > 0 for row in filter(lambda r: r["AGENT"] == agent_name, table)]):
-                return True
+                return table
 
             time.sleep(next_try_in_sec)
             logger.trace(run_command("ps aux | grep ank").stdout)
@@ -133,23 +122,22 @@ def wait_for_initial_execution_state(command, agent_name, timeout_ms=10000, next
             res = run_command(command)
             table = table_to_list(res.stdout if res else "")
             logger.trace(table)
-        return False
+        return list()
 
-def wait_for_execution_state(command, workload_name, expected_state, timeout_ms=10000, next_try_in_sec=1):
+def wait_for_execution_state(command, workload_name, expected_state, timeout=10, next_try_in_sec=1):
         start_time = time.time()
         res = run_command(command)
         table = table_to_list(res.stdout if res else "")
         logger.trace(table)
-        timeout_secs = timeout_ms / 1000
-        while (time.time() - start_time) < timeout_secs:
+        while (time.time() - start_time) < timeout:
             if table and any([row["EXECUTION STATE"].strip() == expected_state for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name, table)]):
-                return True
+                return table
 
             time.sleep(next_try_in_sec)
             res = run_command(command)
             table = table_to_list(res.stdout if res else "")
             logger.trace(table)
-        return False
+        return list()
 
 def replace_key(data, match, func):
     if isinstance(data, dict):
@@ -187,30 +175,3 @@ def write_yaml(new_yaml: dict, path):
 def json_to_dict(raw):
     json_data = json.loads(raw)
     return json_data
-
-def check_podman_kube_volumes_gone(workload_name, agent_name, timeout=500, next_try_in_sec=100):
-    start_time = time.time()
-    command = "podman volume ls --format=json"
-    regex_str = f"^{workload_name}.\\w+.{agent_name}.(config|pods)$"
-    reg_exp = re.compile(regex_str)
-    while True:
-        res = run_command(command)
-        dict = json_to_dict(res.stdout if res else "")
-        logger.trace(dict)
-        still_matching = False
-        for value in dict:
-            if "Name" in value:
-                logger.trace("checking: " + value["Name"])
-                if reg_exp.match(value["Name"]):
-                    logger.trace("still matching")
-                    still_matching = True
-                    break
-
-        if not still_matching:
-            return True
-        time.sleep(next_try_in_sec / 1000)
-
-        # emulate a do while to support 0 ms timeouts
-        if (time.time() - start_time) < timeout:
-            break
-    return False
