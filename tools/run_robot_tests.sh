@@ -44,4 +44,4 @@ check_executable $ANK
 check_executable $ANK_SERVER
 check_executable $ANK_AGENT
 
-ANK_BIN_DIR=$ANK_BIN_DIR robot --pythonpath tests --loglevel=TRACE:INFO -d ${target_dir} "$@"
+ANK_BIN_DIR=$ANK_BIN_DIR robot --pythonpath tests --loglevel=TRACE:TRACE -d ${target_dir} "$@"

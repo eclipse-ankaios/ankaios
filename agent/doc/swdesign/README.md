@@ -1108,7 +1108,7 @@ Needs:
 
 Status: approved
 
-When the podman-kube runtime connector is called to return its unique name, the podman-kube runtime connector shall return `podman-kube`
+When the podman-kube runtime connector is called to return its unique name, the podman-kube runtime connector shall return `podman-kube`.
 
 Tags:
 - PodmanKubeRuntimeConnector

@@ -27,7 +27,9 @@ jobs:
       - name: Run robot tests
         run: |
           cargo build
-          tools/run_robot_tests.sh tests 
+          mkdir -p target/robot_tests_result
+          chown vscode target/robot_tests_result
+          su vscode -c "tools/run_robot_tests.sh tests"
       - uses: actions/upload-artifact@v3.1.2
         if: success() || failure()
         with:
