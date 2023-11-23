@@ -63,10 +63,22 @@ Run in foreground
     ${run_result}=    Run Process    @{cmd}    shell=True
     RETURN    ${run_result}
 
-the command "${cli_command}" finished with exit code "${exit_code}"
-    ${run_result}=    Run in foreground    ${cli_command}
-    Log    ${run_result.stdout}
-    ${exit_code_int}=    Convert To Integer    ${exit_code}
+the command "${cli_command}" finished with exit code "${exit_code}" within "${timeout}" seconds
+    ${start_time}=    Get Time Secs
+    ${run_result}=    Create Dictionary
+    WHILE    True
+        ${current_secs}=    Get Time Secs
+        ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
+        ${run_result}=    Run in foreground    ${cli_command}
+        Log    ${run_result.stdout}
+        ${exit_code_int}=    Convert To Integer    ${exit_code}
+        IF    ${exit_code_int}==${exit_code}
+            BREAK
+        END
+        IF  ${elapsed_secs} >= ${timeout}
+            BREAK
+        END
+    END
     Should Be Equal    ${run_result.rc}    ${exit_code_int}
 
 Ankaios server is started with config "${config_path}"
@@ -224,8 +236,14 @@ podman shall not have a container for workload "${workload_name}" on agent "${ag
 
 
 # ALIASES
+the command "${cli_command}" finished with exit code "${exit_code}"
+    the command "${cli_command}" finished with exit code "${exit_code}" within "1" seconds
+
 the command "${cli_command}" shall finish with exit code "${exit_code}"
     the command "${cli_command}" finished with exit code "${exit_code}"
+
+the command "${cli_command}" shall finish with exit code "${exit_code}" within "${timeout}" seconds
+    the command "${cli_command}" finished with exit code "${exit_code}" within "${timeout}" seconds
 
 the workload "${workload_name}" shall have the execution state "${expected_execution_state}" from agent "${expected_agent_name}"
     the workload "${workload_name}" shall have the execution state "${expected_execution_state}" on agent "${expected_agent_name}"
