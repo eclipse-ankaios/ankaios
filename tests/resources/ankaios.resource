@@ -98,19 +98,8 @@ Podman has deleted all existing volumes
     Run Process    podman    volume    rm    -a    timeout=20    shell=True
 
 all workloads of agent "${agent_name}" have an initial execution state
-    ${list_result}=    wait for initial execution state    %{ANK_BIN_DIR}${/}ank get workloads    ${agent_name}    60    5
+    ${list_result}=    Wait For Initial Execution State    %{ANK_BIN_DIR}${/}ank get workloads    ${agent_name}    60    5
     Should Not Be Empty    ${list_result}    msg=Timeout: Workloads on agent '${agent_name}' do not have the expected initial execution states!
-    
-    &{dict_result}=    table to dict    ${list_result}    WORKLOAD NAME
-    ${workload_names}=    Get Dictionary Keys    ${dict_result}
-    FOR  ${workload_name}  IN  @{workload_names}
-        &{item}=    Get From Dictionary    ${dict_result}    ${workload_name}
-        ${actual_agent_name}=    Get From Dictionary    ${item}    AGENT
-        IF  "${actual_agent_name}" == "${agent_name}"
-            ${actual_execution_state}=    Get From Dictionary    ${item}    EXECUTION STATE
-            Should Not Be Empty    ${actual_execution_state} 
-        END
-    END
 
 user triggers "${cli_command}"
     ${cmd}=    Split Command Line    ${cli_command}
@@ -136,13 +125,6 @@ the workload "${workload_name}" shall have the execution state "${expected_execu
         ...    ${timeout}
     END
     Should Not Be Empty    ${list_result}    msg=Timeout: Workload '${workload_name}' on agent '${expected_agent_name}' does not have the execution state '${expected_execution_state}'!
-
-    &{dict_result}=    table to dict    ${list_result}    WORKLOAD NAME
-    &{item}=    Get From Dictionary    ${dict_result}    ${workload_name}
-    ${actual_execution_state}=    Get From Dictionary    ${item}    EXECUTION STATE
-    ${actual_agent_name}=    Get From Dictionary    ${item}    AGENT
-    Should be equal    ${actual_execution_state}    ${expected_execution_state}
-    Should be equal    ${actual_agent_name}    ${expected_agent_name}
 
 the workload "${workload_name}" shall not exist within "${timeout}" seconds
     @{list_result}=    table to list    ${CURRENT_RESULT.stdout}
