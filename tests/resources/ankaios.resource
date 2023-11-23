@@ -73,13 +73,14 @@ the command "${cli_command}" finished with exit code "${exit_code}" within "${ti
         Log    ${run_result.stdout}
         ${exit_code_int}=    Convert To Integer    ${exit_code}
         IF    ${exit_code_int}==${exit_code}
+            Should Be Equal    ${run_result.rc}    ${exit_code_int}
             BREAK
         END
         IF  ${elapsed_secs} >= ${timeout}
+            Should Be Equal    ${run_result.rc}    ${exit_code_int}    msg=Timeout: Execution result is still '${run_result.rc}!=${exit_code_int}' after ${timeout} seconds!
             BREAK
         END
     END
-    Should Be Equal    ${run_result.rc}    ${exit_code_int}
 
 Ankaios server is started with config "${config_path}"
     Start Process    %{ANK_BIN_DIR}${/}ank-server    --startup-config    ${config_path}    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt    env:RUST_LOG=debug
