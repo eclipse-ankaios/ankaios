@@ -8,28 +8,34 @@ You can just use the prebuilt public devcontainer as base image in your specific
 
 Example devcontainer Dockerfile:
 ```Docker
-FROM ghcr.io/eclipse-ankaios/app-ankaios-dev:latest
+FROM ghcr.io/eclipse-ankaios/app-ankaios-dev:<ankaios_version>
 
 RUN ... # customize the image with your dev dependencies
 ```
 
-The devcontainer contains the prebuilt binaries of Ankaios and the daemonless podman container orchestration tool which is used by Ankaios.
+**NOTE:** Replace the `<ankaios_version>` with a tag pointing to an Ankaios release, e.g. 0.1.0.
 
-The prebuilt Ankaios binaries are the following:
+The devcontainer contains the following:
 
-- Ankaios server
-- Ankaios agent
-- Ankaios CLI
+- Prebult Ankaios executables:
+  - Ankaios server
+  - Ankaios agent
+  - Ankaios CLI
+  
+- Control interface dependencies:
+  - ankaios.proto (located at /usr/local/lib/ankaios/ankaios.proto)
+  - protobuf-compiler
+  - grpcurl
+  
+- Podman 4 (daemonless container orchestrator)
 
-Furthermore, the devcontainer image contains the proto file (/usr/local/lib/ankaios/ankaios.proto), the dev dependencies protobuf-compiler and grpcurl which are needed for use cases in which your app shall use the [Ankaios Control Interface](https://eclipse-ankaios.github.io/ankaios/latest/reference/control-interface/) to be able to communicate with the Ankaios orchestrator. An example use case would be to write a workload that shall request Ankaios to dynamically start another workload.
+The control interface dependencies are essentially needed for use cases in which your app shall use the [Ankaios Control Interface](https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/) to be able to communicate with the Ankaios orchestrator. An example use case would be to write a workload that shall request Ankaios to dynamically start another workload.
 
 The prebuilt public container can be downloaded with the following command:
 
 ```shell
 docker pull ghcr.io/eclipse-ankaios/app-ankaios-dev:<ankaios_version>
 ```
-
-**Note:** Replace the `<ankaios_version>` with a tag pointing to an Ankaios release, e.g. 0.1.0.
 
 ## Run
 
@@ -43,7 +49,7 @@ Use the container with rootless podman inside:
 docker run --privileged -it --rm --user ankaios ghcr.io/eclipse-ankaios/app-ankaios-dev:<ankaios_version> /bin/bash
 ```
 
-Now, follow the steps in the [Quickstart guide](https://eclipse-ankaios.github.io/ankaios/latest/usage/quickstart/).
+Next, follow the steps in the [Quickstart guide](https://eclipse-ankaios.github.io/ankaios/main/usage/quickstart/) to try Ankaios out within the devcontainer.
 
 ## Build for multi-platform
 

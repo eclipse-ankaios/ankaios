@@ -92,7 +92,6 @@ function read_from_control_interface(root, decode_func) {
 }
 
 async function main() {
-    // For more details see https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/
     protobuf.load("/usr/local/lib/ankaios/ankaios.proto", async function (err, root) {
         if (err) throw err;
 
