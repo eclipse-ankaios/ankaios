@@ -76,7 +76,7 @@ The PodmanKubeRuntime connector implements the runtime connector trait for 'podm
 
 ### GenericPollingStateChecker
 
-The GenericPollingStateChecker is a general purpose StateChecker (and implements the state checker trait) that can be used by a runtime connector to make polling requests for workload state as predefined intervals.
+The `GenericPollingStateChecker` is a general purpose `StateChecker` (and implements the state checker trait) that can be used by a runtime connector to make polling requests for workload state as predefined intervals.
 
 ### External Libraries
 
@@ -947,7 +947,7 @@ When the podman runtime connector is called to create workload, the podman runti
 * pull the workload image specified in the runtime configuration if the image is not already available locally
 * create the container
 * start the container in the detached mode
-* start a GenericPollingStateChecker to check the workload state
+* start a `GenericPollingStateChecker` to check the workload state
 
 Tags:
 - PodmanRuntimeConnector
@@ -1326,7 +1326,7 @@ This section describes how workload states are sampled inside the Ankaios agent 
 It is required that each runtime connector delivers a state checker when a workload is created. Additionally, the runtime connector provides an extra method for starting a checker for workloads that are resumed by the WorkloadFacade. 
 
 How the state checker is implemented is up to the specific runtime connector, given that the state checker trait is implemented. The state checker trait requires a state getter object to be provided. The object must implement the runtime state getter trait and is specific to the runtime connector. The provided state getter object is called inside the state checker.
-The extra complexity introduced by having two traits is needed in order to provide common state checker implementations that can be reused among runtime connectors. One of these checkers is the GenericPollingStateChecker.
+The extra complexity introduced by having two traits is needed in order to provide common state checker implementations that can be reused among runtime connectors. One of these checkers is the `GenericPollingStateChecker`.
 
 #### General state checker interface
 `swdd~agent-general-state-checker-interface~1`
@@ -1383,10 +1383,10 @@ Needs:
 
 Status: approved
 
-A GenericPollingStateChecker implementation is provided that polls the workload state every second via the provided runtime state getter.
+A `GenericPollingStateChecker` implementation is provided that polls the workload state every second via the provided runtime state getter.
 
 Rationale:
-The GenericPollingStateChecker helps avoiding code duplication.
+The `GenericPollingStateChecker` helps avoiding code duplication.
 
 Tags:
 - GenericPollingStateChecker
@@ -1400,10 +1400,63 @@ Needs:
 
 Status: approved
 
-When the Workload State of a Workload changes on a workload, the GenericPollingStateChecker shall send an UpdateWorkloadState message to the Ankaios Server, containing the new Workload State.
+When the Workload State of a Workload changes on a workload, the `GenericPollingStateChecker` shall send an UpdateWorkloadState message to the Ankaios Server, containing the new Workload State.
 
 Tags:
 - GenericPollingStateChecker
+
+Needs:
+- impl
+- utest
+
+#### PodmanCli container state cache
+
+##### PodmanCli container state cache contains all containers
+`swdd~podmancli-container-state-cache-all-containers~1`
+
+Status: approved
+
+The PodmanCli container state cache shall store the state of all Podman containers.
+
+Rationale:
+Calling podman for each workload to get its current state uses unnecessary system resources.
+Using this cache only one Podman call is needed to get the states of all Podman workloads (podman runtime and podman-kube runtime).
+
+Tags:
+- PodmanCli
+
+Needs:
+- impl
+- utest
+
+##### PodmanCli uses container state cache
+`swdd~podmancli-uses-container-state-cache~1`
+
+Status: approved
+
+When the PodmanCli is called to get container states,
+the PodmanCli shall use the PodmanCli container state cache for returning the requested states.
+
+Tags:
+- PodmanCli
+
+Needs:
+- impl
+- utest
+
+##### PodmanCli container state cache refresh
+`swdd~podmancli-container-state-cache-refresh~1`
+
+Status: approved
+
+When the PodmanCli is called to get container states
+and the cache is empty or the content is older than a second,
+the PodmanCli shall request Podman for the current container states
+and refresh the PodmanCli container state cache with the result
+before returning the requested states.
+
+Tags:
+- PodmanCli
 
 Needs:
 - impl
@@ -1454,13 +1507,51 @@ Needs:
 - impl
 - utest
 
+
+##### PodmanStateGetter uses PodmanCli
+`swdd~podman-state-getter-uses-podmancli~1`
+
+Status: approved
+
+When the `PodmanStateGetter` is called to get the current state of a workload over the state getter interface
+the `PodmanStateGetter` shall use the `PodmanCli`.
+
+Tags:
+- PodmanRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+##### PodmanStateGetter reset Podman container state cache
+`swdd~podman-state-getter-reset-cache~1`
+
+Status: approved
+
+When the `PodmanStateGetter` is created for a new workload,
+the `PodmanStateGetter` shall reset the Podman container state cache.
+
+Rationale:
+After a new workload is created,
+the Podman container state cache will not contain containers of this workload,
+the `PodmanStateGetter` will return `removed` and
+the `GenericPollingStateChecker` will stop updating the state of this workload.
+
+Tags:
+- PodmanRuntimeConnector
+
+Needs:
+- impl
+- utest
+
 ##### PodmanStateGetter returns removed state
 `swdd~podman-state-getter-returns-removed-state~1`
 
 Status: approved
 
-When the `PodmanStateGetter` is called to get the current state over the state getter interface and
-the `PodmanStateGetter` gets empty list of current states, the `PodmanStateGetter` shall return the state removed.
+When the `PodmanStateGetter` is called to get the current state of a workload over the state getter interface
+and the `PodmanStateGetter` gets no state for this workload,
+the `PodmanStateGetter` shall return the state removed.
 
 Rationale:
 This happens when the container has been removed and the Agent meanwhile triggers status check of the workload.
@@ -1478,7 +1569,7 @@ Needs:
 Status: approved
 
 When the `PodmanStateGetter` is called to get the current state over the state getter interface and
-the `PodmanStateGetter` is unable to read the container state (error or too many current states read), the unknown state shall be returned.
+the `PodmanStateGetter` is unable to read the container state, the unknown state shall be returned.
 
 Comment:
 In other words the unknown state shall be the default state.
@@ -1515,10 +1606,31 @@ Needs:
 Status: approved
 
 When the `PodmanKubeStateGetter` is called to get the current state of a workload,
-the `PodmanKubeStateGetter` requests Podman for the state of all containers of the pods listed in the workload ID.
+the `PodmanKubeStateGetter` requests PodmanCli for the state of all containers of the pods listed in the workload ID.
 
 Tags:
 - PodmanKubeRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+##### PodmanKubeStateGetter reset Podman container state cache
+`swdd~podman-kube-state-getter-reset-cache~1`
+
+Status: approved
+
+When the `PodmanKubeStateGetter` is created for a new workload,
+the `PodmanKubeStateGetter` shall reset the Podman container state cache.
+
+Rationale:
+After a new workload is created,
+the Podman container state cache will not contain containers of this workload,
+the `PodmanKubeStateGetter` will return `removed` and
+the `GenericPollingStateChecker` will stop updating the state of this workload.
+
+Tags:
+- PodmanRuntimeConnector
 
 Needs:
 - impl
