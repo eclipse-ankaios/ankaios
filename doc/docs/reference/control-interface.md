@@ -72,9 +72,9 @@ The byte length has a dynamic length and is encoded as [VARINT](https://protobuf
 
 ## Control interface examples
 
-The subfolder `examples` inside the [Ankaios repository](https://github.com/eclipse-ankaios/ankaios) contains example workload applications in various programming languages that are using the control interface. They demonstrate how to easily use the control interface in self-developed workloads. All examples share the same behavior regardless of the programming language and are simplified to focus on the usage of the control interface but they are not optimized for production usage.
+The subfolder `examples` inside the [Ankaios repository](https://github.com/eclipse-ankaios/ankaios) contains example workload applications in various programming languages that are using the control interface. They demonstrate how to easily use the control interface in self-developed workloads. All examples share the same behavior regardless of the programming language and are simplified to focus on the usage of the control interface. Please note that the examples are not are not optimized for production usage.
 
-The following sections describe important parts of the communication with the Ankaios cluster via the control interface written in Rust. The same concepts are also used in all of the example workload applications.
+The following sections showcase in Rust some important parts of the communication with the Ankaios cluster using the control interface. The same concepts are also used in all of the example workload applications.
 
 ### Sending request message from a workload to Ankaios server
 To send out a request message from the workload to the Ankaios Server the request message needs to be serialized using the generated serializing function, then encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) and then written directly into the `output` FIFO file. The type of request message is [StateChangeRequest](_ankaios.proto.md#statechangerequest).
