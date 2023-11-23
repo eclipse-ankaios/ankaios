@@ -81,38 +81,33 @@ def remove_hash_from_workload_name(wn_hash_an_string):
         return f"{items[0]}.{items[2]}.{items[3]}"
     return items[0]
 
-def get_workload_names_from_podman(timeout_secs=1, next_try_in_sec=1):
-    start_time = time.time()
-    workload_names = list()
-    while (time.time() - start_time) < timeout_secs:
-        res = run_command('podman ps -a --format "{{.Names}}"')
-        raw = res.stdout.strip()
-        raw_wln = raw.split('\n')
-        workload_names = list(map(remove_hash_from_workload_name, raw_wln))
-        logger.trace(workload_names)
-        time.sleep(next_try_in_sec)
+def get_time_secs():
+    return time.time()
+
+def get_workload_names_from_podman():
+    res = run_command('podman ps -a --format "{{.Names}}"')
+    raw = res.stdout.strip()
+    raw_wln = raw.split('\n')
+    workload_names = list(map(remove_hash_from_workload_name, raw_wln))
+    logger.trace(workload_names)
     return workload_names
 
-def get_volume_names_from_podman(timeout_secs=1, next_try_in_sec=1):
-    start_time = time.time()
-    vol_names = list()
-    while (time.time() - start_time) < timeout_secs:
-        res = run_command('podman volume ls --format "{{.Name}}"')
-        raw = res.stdout.strip()
-        raw_vols = raw.split('\n')
-        vol_names = list(map(remove_hash_from_workload_name, raw_vols))
-        logger.trace(vol_names)
-        time.sleep(next_try_in_sec)
+def get_volume_names_from_podman():
+    res = run_command('podman volume ls --format "{{.Name}}"')
+    raw = res.stdout.strip()
+    raw_vols = raw.split('\n')
+    vol_names = list(map(remove_hash_from_workload_name, raw_vols))
+    logger.trace(vol_names)
     return vol_names
 
 def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_in_sec=1):
-        start_time = time.time()
+        start_time = get_time_secs()
         logger.trace(run_command("ps aux | grep ank").stdout)
         logger.trace(run_command("podman ps -a").stdout)
         res = run_command(command)
         table = table_to_list(res.stdout if res else "")
         logger.trace(table)
-        while (time.time() - start_time) < timeout:
+        while (get_time_secs() - start_time) < timeout:
             if table and all([len(row["EXECUTION STATE"].strip()) > 0 for row in filter(lambda r: r["AGENT"] == agent_name, table)]):
                 return table
 
@@ -125,11 +120,11 @@ def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_i
         return list()
 
 def wait_for_execution_state(command, workload_name, expected_state, timeout=10, next_try_in_sec=1):
-        start_time = time.time()
+        start_time = get_time_secs()
         res = run_command(command)
         table = table_to_list(res.stdout if res else "")
         logger.trace(table)
-        while (time.time() - start_time) < timeout:
+        while (get_time_secs() - start_time) < timeout:
             if table and any([row["EXECUTION STATE"].strip() == expected_state for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name, table)]):
                 return table
 
