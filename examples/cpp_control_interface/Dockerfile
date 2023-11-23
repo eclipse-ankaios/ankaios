@@ -1,23 +1,22 @@
-FROM docker.io/ubuntu:latest as dev
+FROM docker.io/alpine:3.18.4 as compile
 
-RUN apt-get update && apt-get -y install \
+RUN apk update && apk add --update-cache \
     # Development tools
-    protobuf-compiler \
-    protobuf-compiler-grpc \
-    build-essential \
+    protobuf \
+    protobuf-dev \
+    protoc \
+    build-base \
     cmake \
-    && \
-    rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/cache/apk/*
 
-FROM dev as compile
 COPY api/proto/ankaios.proto /usr/local/lib/ankaios/ankaios.proto
 COPY examples/cpp_control_interface /workspaces/app
 RUN cd /workspaces/app && mkdir build && cd build && cmake .. && make
 
 # prod stage
-FROM docker.io/library/ubuntu:22.04
+FROM docker.io/library/alpine:3.18.4
+RUN apk update && apk add --update-cache protobuf-dev
 COPY --from=compile /workspaces/app/build/main /usr/local/bin/control_interface_example
-COPY --from=compile /lib/x86_64-linux-gnu/libprotobuf.so.23 /usr/lib
-RUN chmod +x /usr/local/bin/control_interface_example && chmod +x /usr/lib/libprotobuf.so.23
+RUN chmod +x /usr/local/bin/control_interface_example
 
 ENTRYPOINT ["/usr/local/bin/control_interface_example"]

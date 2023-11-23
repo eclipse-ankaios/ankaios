@@ -1,24 +1,24 @@
-FROM docker.io/ubuntu:latest as dev
-
-ENV PYTHONPATH="${PYTHONPATH}:/usr/local/lib/ankaios"
-
-RUN apt-get update && apt-get -y install \
+FROM docker.io/alpine:3.18.4 as base
+RUN apk update && apk add --update-cache \
     # Development tools
-    protobuf-compiler \
-    protobuf-compiler-grpc \
     python3 \
-    python3-pip \
-    && \
-    rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/cache/apk/* \
+    && python3 -m ensurepip && pip3 install protobuf==3.20.2
+
+
+FROM base as dev
+
+RUN apk update && apk add --update-cache \
+    # Development tools
+    protoc \
+    && rm -rf /var/cache/apk/*
 
 COPY api/proto/ankaios.proto /usr/local/lib/ankaios/ankaios.proto
-RUN pip3 install protobuf==3.20.2 \
-    && protoc --python_out=/usr/local/lib/ankaios/ --proto_path=/usr/local/lib/ankaios/ ankaios.proto && touch /usr/local/lib/ankaios/__init__.py
+RUN protoc --python_out=/usr/local/lib/ankaios/ --proto_path=/usr/local/lib/ankaios/ ankaios.proto && touch /usr/local/lib/ankaios/__init__.py
 
 # prod stage
-FROM docker.io/library/python:3.12-slim-bullseye
+FROM base
 ENV PYTHONPATH="${PYTHONPATH}:/usr/local/lib/ankaios"
-RUN pip3 install protobuf==3.20.2
 COPY --from=dev /usr/local/lib/ankaios /usr/local/lib/ankaios
 COPY examples/python_control_interface /ankaios
 

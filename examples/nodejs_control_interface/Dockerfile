@@ -1,20 +1,15 @@
-FROM docker.io/ubuntu:latest as dev
+FROM docker.io/alpine:3.18.4
 
-RUN apt-get update && apt-get -y install \
+RUN apk update && apk add --update-cache \
     # Development tools
-    protobuf-compiler \
-    protobuf-compiler-grpc \
     nodejs \
     npm \
-    && \
-    rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/cache/apk/*
 
-# prod stage
-FROM docker.io/library/node:21-alpine3.17
-# copy ankaios.proto
 COPY api/proto/ankaios.proto /usr/local/lib/ankaios/ankaios.proto
 COPY examples/nodejs_control_interface /workspaces/app
 WORKDIR /workspaces/app
+
 RUN npm install
 
 ENTRYPOINT ["node", "/workspaces/app/src/main.js"]
