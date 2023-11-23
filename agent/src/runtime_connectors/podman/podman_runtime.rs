@@ -45,6 +45,8 @@ impl RuntimeStateGetter<PodmanWorkloadId> for PodmanStateGetter {
         log::trace!("Getting the state for the workload '{}'", workload_id.id);
 
         // [impl->swdd~podman-state-getter-returns-unknown-state~1]
+        // [impl->swdd~podman-state-getter-uses-podmancli~1]
+        // [impl->swdd~podman-state-getter-returns-removed-state~1]
         let exec_state = match PodmanCli::list_states_by_id(workload_id.id.as_str()).await {
             Ok(state) => {
                 if let Some(state) = state {
@@ -158,6 +160,9 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         workload_spec: WorkloadSpec,
         update_state_tx: StateChangeSender,
     ) -> Result<GenericPollingStateChecker, RuntimeError> {
+        // [impl->swdd~podman-state-getter-reset-cache~1]
+        PodmanCli::reset_ps_cache().await;
+
         log::debug!(
             "Starting the checker for the workload '{}' with id '{}'",
             workload_spec.name,
@@ -199,6 +204,8 @@ mod tests {
         state_change_interface::StateChangeCommand,
         test_utils::generate_test_workload_spec_with_param,
     };
+    use futures_util::task::Spawn;
+    use mockall::Sequence;
 
     use super::PodmanCli;
     use super::PodmanRuntime;
@@ -289,8 +296,11 @@ mod tests {
     async fn utest_create_workload_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let context = PodmanCli::podman_run_context();
-        context.expect().return_const(Ok("test_id".into()));
+        let run_context = PodmanCli::podman_run_context();
+        run_context.expect().return_const(Ok("test_id".into()));
+
+        let resest_cache_context = PodmanCli::reset_ps_cache_context();
+        resest_cache_context.expect().return_const(());
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -309,6 +319,68 @@ mod tests {
 
         // [utest->swdd~podman-create-workload-returns-workload-id~1]
         assert_eq!(workload_id.id, "test_id".to_string());
+    }
+
+    // [utest->swdd~podman-state-getter-reset-cache~1]
+    #[tokio::test]
+    async fn utest_state_getter_resets_cache() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        let run_context = PodmanCli::podman_run_context();
+        run_context.expect().return_const(Ok("test_id".into()));
+
+        let mut seq = Sequence::new();
+
+        let resest_cache_context = PodmanCli::reset_ps_cache_context();
+        resest_cache_context
+            .expect()
+            .once()
+            .return_const(())
+            .in_sequence(&mut seq);
+
+        let list_states_context = PodmanCli::list_states_by_id_context();
+        list_states_context
+            .expect()
+            .once()
+            .return_const(Ok(Some(ExecutionState::ExecRunning)))
+            .in_sequence(&mut seq);
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            PODMAN_RUNTIME_NAME.to_string(),
+        );
+        let (to_server, mut from_agent) =
+            tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
+
+        let podman_runtime = PodmanRuntime {};
+        let res = podman_runtime
+            .create_workload(workload_spec, Some(PathBuf::from("run_folder")), to_server)
+            .await;
+
+        let (_workload_id, _checker) = res.unwrap();
+
+        from_agent.recv().await;
+    }
+
+    // [utest->swdd~podman-state-getter-uses-podmancli~1]
+    #[tokio::test]
+    async fn utest_state_getter_uses_podman_cli() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        let list_states_context = PodmanCli::list_states_by_id_context();
+        list_states_context
+            .expect()
+            .return_const(Ok(Some(ExecutionState::ExecRunning)));
+
+        let state_getter = PodmanStateGetter {};
+        let execution_state = state_getter
+            .get_state(&PodmanWorkloadId {
+                id: "test_workload_id".into(),
+            })
+            .await;
+
+        assert_eq!(execution_state, ExecutionState::ExecRunning);
     }
 
     #[tokio::test]
@@ -419,6 +491,7 @@ mod tests {
         assert_eq!(res, Err(RuntimeError::List("simulated error".to_owned())))
     }
 
+    // [utest->podman-state-getter-uses-podmancli~1]
     #[tokio::test]
     async fn utest_get_state_returns_state() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;

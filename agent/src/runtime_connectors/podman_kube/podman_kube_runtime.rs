@@ -218,6 +218,8 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         workload_spec: WorkloadSpec,
         update_state_tx: StateChangeSender,
     ) -> Result<GenericPollingStateChecker, RuntimeError> {
+        // [impl->swdd~podman-kube-state-getter-reset-cache~1]
+        PodmanCli::reset_ps_cache().await;
         log::debug!(
             "Starting the checker for the workload '{}' with workload execution instance name '{}'",
             workload_spec.name,
@@ -344,6 +346,7 @@ impl From<OrderedExecutionState> for ExecutionState {
 #[cfg(test)]
 mod tests {
     use common::test_utils::generate_test_workload_spec_with_param;
+    use mockall::Sequence;
 
     use std::fmt::Display;
 
@@ -493,6 +496,8 @@ mod tests {
             )
             .returns(Ok(()));
 
+        mock_context.reset_ps_cache.expect().return_const(());
+
         let runtime = PodmanKubeRuntime {};
 
         let mut workload_spec = generate_test_workload_spec_with_param(
@@ -540,6 +545,8 @@ mod tests {
             )
             .returns(Ok(()));
 
+        mock_context.reset_ps_cache.expect().return_const(());
+
         let runtime = PodmanKubeRuntime {};
 
         let mut workload_spec = generate_test_workload_spec_with_param(
@@ -585,6 +592,8 @@ mod tests {
             )
             .returns(Err(SAMPLE_ERROR.into()));
 
+        mock_context.reset_ps_cache.expect().return_const(());
+
         let runtime = PodmanKubeRuntime {};
 
         let mut workload_spec = generate_test_workload_spec_with_param(
@@ -602,6 +611,65 @@ mod tests {
                 workload_id.manifest == SAMPLE_KUBE_CONFIG &&
                 workload_id.pods == Some(SAMPLE_POD_LIST.clone()) &&
                 workload_id.down_options == *SAMPLE_DOWN_OPTIONS));
+    }
+
+    // [utest->swdd~podman-kube-state-getter-reset-cache~1]
+    #[tokio::test]
+    async fn utest_state_getter_resets_cache() {
+        let mock_context = MockContext::new().await;
+
+        mock_context
+            .store_data(
+                WORKLOAD_INSTANCE_NAME.as_config_volume(),
+                SAMPLE_RUNTIME_CONFIG,
+            )
+            .returns(Ok(()));
+
+        mock_context
+            .play_kube(
+                &*SAMPLE_GENERAL_OPTIONS,
+                &*SAMPLE_PLAY_OPTIONS,
+                SAMPLE_KUBE_CONFIG,
+            )
+            .returns(Ok(SAMPLE_POD_LIST.clone()));
+
+        mock_context
+            .store_data(
+                WORKLOAD_INSTANCE_NAME.as_pods_volume(),
+                r#"["pod1","pod2"]"#,
+            )
+            .returns(Err(SAMPLE_ERROR.into()));
+
+        let mut seq = Sequence::new();
+
+        mock_context
+            .reset_ps_cache
+            .expect()
+            .once()
+            .return_const(())
+            .in_sequence(&mut seq);
+        mock_context
+            .list_states_from_pods
+            .expect()
+            .once()
+            .with(eq(SAMPLE_POD_LIST.clone()))
+            .return_const(Ok(vec![ContainerState::Running]))
+            .in_sequence(&mut seq);
+
+        let runtime = PodmanKubeRuntime {};
+
+        let mut workload_spec = generate_test_workload_spec_with_param(
+            SAMPLE_AGENT.to_string(),
+            SAMPLE_WORKLOAD_1.to_string(),
+            PODMAN_KUBE_RUNTIME_NAME.to_string(),
+        );
+
+        workload_spec.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
+
+        let (sender, mut receiver) = tokio::sync::mpsc::channel(1);
+        let _workload = runtime.create_workload(workload_spec, None, sender).await;
+
+        receiver.recv().await;
     }
 
     #[tokio::test]
@@ -967,6 +1035,7 @@ mod tests {
         down_kube: podman_cli_mock::__down_kube::Context,
         remove_volume: podman_cli_mock::__remove_volume::Context,
         list_states_from_pods: podman_cli_mock::__list_states_from_pods::Context,
+        reset_ps_cache: podman_cli_mock::__reset_ps_cache::Context,
         _guard: tokio::sync::MutexGuard<'a, ()>, // The guard shall be dropped last
     }
 
@@ -980,6 +1049,7 @@ mod tests {
                 down_kube: PodmanCli::down_kube_context(),
                 remove_volume: PodmanCli::remove_volume_context(),
                 list_states_from_pods: PodmanCli::list_states_from_pods_context(),
+                reset_ps_cache: PodmanCli::reset_ps_cache_context(),
                 _guard: MOCKALL_CONTEXT_SYNC.get_lock_async().await,
             }
         }
