@@ -218,6 +218,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         workload_spec: WorkloadSpec,
         update_state_tx: StateChangeSender,
     ) -> Result<GenericPollingStateChecker, RuntimeError> {
+        // [impl->swdd~podman-kube-state-getter-reset-cache~1]
         PodmanCli::reset_ps_cache().await;
         log::debug!(
             "Starting the checker for the workload '{}' with workload execution instance name '{}'",
@@ -345,6 +346,7 @@ impl From<OrderedExecutionState> for ExecutionState {
 #[cfg(test)]
 mod tests {
     use common::test_utils::generate_test_workload_spec_with_param;
+    use mockall::Sequence;
 
     use std::fmt::Display;
 
@@ -494,7 +496,7 @@ mod tests {
             )
             .returns(Ok(()));
 
-        mock_context.reset_ps_cache.expect().once().return_const(());
+        mock_context.reset_ps_cache.expect().return_const(());
 
         let runtime = PodmanKubeRuntime {};
 
@@ -543,7 +545,7 @@ mod tests {
             )
             .returns(Ok(()));
 
-        mock_context.reset_ps_cache.expect().once().return_const(());
+        mock_context.reset_ps_cache.expect().return_const(());
 
         let runtime = PodmanKubeRuntime {};
 
@@ -590,7 +592,7 @@ mod tests {
             )
             .returns(Err(SAMPLE_ERROR.into()));
 
-        mock_context.reset_ps_cache.expect().once().return_const(());
+        mock_context.reset_ps_cache.expect().return_const(());
 
         let runtime = PodmanKubeRuntime {};
 
@@ -609,6 +611,65 @@ mod tests {
                 workload_id.manifest == SAMPLE_KUBE_CONFIG &&
                 workload_id.pods == Some(SAMPLE_POD_LIST.clone()) &&
                 workload_id.down_options == *SAMPLE_DOWN_OPTIONS));
+    }
+
+    // [utest->swdd~podman-kube-state-getter-reset-cache~1]
+    #[tokio::test]
+    async fn utest_state_getter_resets_cache() {
+        let mock_context = MockContext::new().await;
+
+        mock_context
+            .store_data(
+                WORKLOAD_INSTANCE_NAME.as_config_volume(),
+                SAMPLE_RUNTIME_CONFIG,
+            )
+            .returns(Ok(()));
+
+        mock_context
+            .play_kube(
+                &*SAMPLE_GENERAL_OPTIONS,
+                &*SAMPLE_PLAY_OPTIONS,
+                SAMPLE_KUBE_CONFIG,
+            )
+            .returns(Ok(SAMPLE_POD_LIST.clone()));
+
+        mock_context
+            .store_data(
+                WORKLOAD_INSTANCE_NAME.as_pods_volume(),
+                r#"["pod1","pod2"]"#,
+            )
+            .returns(Err(SAMPLE_ERROR.into()));
+
+        let mut seq = Sequence::new();
+
+        mock_context
+            .reset_ps_cache
+            .expect()
+            .once()
+            .return_const(())
+            .in_sequence(&mut seq);
+        mock_context
+            .list_states_from_pods
+            .expect()
+            .once()
+            .with(eq(SAMPLE_POD_LIST.clone()))
+            .return_const(Ok(vec![ContainerState::Running]))
+            .in_sequence(&mut seq);
+
+        let runtime = PodmanKubeRuntime {};
+
+        let mut workload_spec = generate_test_workload_spec_with_param(
+            SAMPLE_AGENT.to_string(),
+            SAMPLE_WORKLOAD_1.to_string(),
+            PODMAN_KUBE_RUNTIME_NAME.to_string(),
+        );
+
+        workload_spec.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
+
+        let (sender, mut receiver) = tokio::sync::mpsc::channel(1);
+        let _workload = runtime.create_workload(workload_spec, None, sender).await;
+
+        receiver.recv().await;
     }
 
     #[tokio::test]
