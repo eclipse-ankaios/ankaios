@@ -72,7 +72,7 @@ the command "${cli_command}" finished with exit code "${exit_code}" within "${ti
         ${run_result}=    Run in foreground    ${cli_command}
         Log    ${run_result.stdout}
         ${exit_code_int}=    Convert To Integer    ${exit_code}
-        IF    ${exit_code_int}==${exit_code}
+        IF    ${run_result.rc}==${exit_code_int}
             Should Be Equal    ${run_result.rc}    ${exit_code_int}
             BREAK
         END
