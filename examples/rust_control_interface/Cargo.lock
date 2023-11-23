@@ -42,19 +42,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "ankaios_api"
-version = "0.1.0"
+name = "anyhow"
+version = "1.0.75"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
+
+[[package]]
+name = "api"
+version = "0.2.0"
 dependencies = [
  "prost",
  "tonic",
  "tonic-build",
 ]
-
-[[package]]
-name = "anyhow"
-version = "1.0.75"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4668cab20f66d8d020e1fbc0ebe47217433c1b6c8f2040faf858554e394ace6"
 
 [[package]]
 name = "async-trait"
@@ -196,7 +196,7 @@ dependencies = [
 name = "control_interface_example"
 version = "0.1.0"
 dependencies = [
- "ankaios_api",
+ "api",
  "chrono",
  "prost",
  "tokio",
