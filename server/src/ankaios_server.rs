@@ -261,6 +261,12 @@ impl AnkaiosServer {
                     // TODO: handle the call
                     break;
                 }
+                unknown_message => {
+                    log::warn!(
+                        "Received an unknown message from communications server: '{:?}'",
+                        unknown_message
+                    );
+                }
             }
         }
     }

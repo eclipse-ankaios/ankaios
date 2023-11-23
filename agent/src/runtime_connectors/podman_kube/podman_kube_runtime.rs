@@ -218,6 +218,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         workload_spec: WorkloadSpec,
         update_state_tx: StateChangeSender,
     ) -> Result<GenericPollingStateChecker, RuntimeError> {
+        PodmanCli::reset_ps_cache().await;
         log::debug!(
             "Starting the checker for the workload '{}' with workload execution instance name '{}'",
             workload_spec.name,
@@ -493,6 +494,8 @@ mod tests {
             )
             .returns(Ok(()));
 
+        mock_context.reset_ps_cache.expect().once().return_const(());
+
         let runtime = PodmanKubeRuntime {};
 
         let mut workload_spec = generate_test_workload_spec_with_param(
@@ -540,6 +543,8 @@ mod tests {
             )
             .returns(Ok(()));
 
+        mock_context.reset_ps_cache.expect().once().return_const(());
+
         let runtime = PodmanKubeRuntime {};
 
         let mut workload_spec = generate_test_workload_spec_with_param(
@@ -584,6 +589,8 @@ mod tests {
                 r#"["pod1","pod2"]"#,
             )
             .returns(Err(SAMPLE_ERROR.into()));
+
+        mock_context.reset_ps_cache.expect().once().return_const(());
 
         let runtime = PodmanKubeRuntime {};
 
@@ -967,6 +974,7 @@ mod tests {
         down_kube: podman_cli_mock::__down_kube::Context,
         remove_volume: podman_cli_mock::__remove_volume::Context,
         list_states_from_pods: podman_cli_mock::__list_states_from_pods::Context,
+        reset_ps_cache: podman_cli_mock::__reset_ps_cache::Context,
         _guard: tokio::sync::MutexGuard<'a, ()>, // The guard shall be dropped last
     }
 
@@ -980,6 +988,7 @@ mod tests {
                 down_kube: PodmanCli::down_kube_context(),
                 remove_volume: PodmanCli::remove_volume_context(),
                 list_states_from_pods: PodmanCli::list_states_from_pods_context(),
+                reset_ps_cache: PodmanCli::reset_ps_cache_context(),
                 _guard: MOCKALL_CONTEXT_SYNC.get_lock_async().await,
             }
         }

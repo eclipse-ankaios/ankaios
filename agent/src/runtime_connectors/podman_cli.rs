@@ -69,6 +69,10 @@ struct PodmanPsCache {
 struct TimedPodmanPsResult(Mutex<Option<PodmanPsCache>>);
 
 impl TimedPodmanPsResult {
+    async fn reset(&self) {
+        *self.lock().await = None;
+    }
+
     async fn get(&self) -> Arc<PodmanPsResult> {
         let mut guard = self.lock().await;
 
@@ -141,6 +145,10 @@ pub struct PodmanCli {}
 
 #[cfg_attr(test, automock)]
 impl PodmanCli {
+    pub async fn reset_ps_cache() {
+        LAST_PS_RESULT.reset().await;
+    }
+
     pub async fn play_kube(
         general_options: &[String],
         play_options: &[String],

@@ -158,6 +158,8 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         workload_spec: WorkloadSpec,
         update_state_tx: StateChangeSender,
     ) -> Result<GenericPollingStateChecker, RuntimeError> {
+        PodmanCli::reset_ps_cache().await;
+
         log::debug!(
             "Starting the checker for the workload '{}' with id '{}'",
             workload_spec.name,
@@ -289,8 +291,11 @@ mod tests {
     async fn utest_create_workload_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let context = PodmanCli::podman_run_context();
-        context.expect().return_const(Ok("test_id".into()));
+        let run_context = PodmanCli::podman_run_context();
+        run_context.expect().return_const(Ok("test_id".into()));
+
+        let resest_cache_context = PodmanCli::reset_ps_cache_context();
+        resest_cache_context.expect().once().return_const(());
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),

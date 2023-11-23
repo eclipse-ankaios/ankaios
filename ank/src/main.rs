@@ -35,6 +35,13 @@ async fn main() {
         cli_name,
         args
     );
+
+    let mut cmd = CliCommands::init(
+        args.response_timeout_ms,
+        cli_name.to_string(),
+        args.server_url,
+    );
+
     match args.command {
         cli::Commands::Get(get_args) => match get_args.command {
             // [impl->swdd~cli-provides-get-current-state~1]
@@ -43,11 +50,6 @@ async fn main() {
                 object_field_mask,
                 output_format,
             }) => {
-                let mut cmd = CliCommands::init(
-                    args.response_timeout_ms,
-                    cli_name.to_string(),
-                    args.server_url,
-                );
                 // [impl -> swdd~cli-provides-get-current-state~1]
                 // [impl -> swdd~cli-blocks-until-ankaios-server-responds-get-current-state~1]
                 if let Some(out_text) = cmd.get_state(object_field_mask, output_format).await {
@@ -69,11 +71,6 @@ async fn main() {
                     agent_name,
                     state,
                 );
-                let mut cmd = CliCommands::init(
-                    args.response_timeout_ms,
-                    cli_name.to_string(),
-                    args.server_url,
-                );
                 match cmd.get_workloads(agent_name, state, workload_name).await {
                     Ok(out_text) => output_and_exit!("{}", out_text),
                     Err(error) => output_and_error!("Failed to get workloads: '{}'", error),
@@ -92,19 +89,9 @@ async fn main() {
                     object_field_mask,
                     state_object_file
                 );
-                let mut cmd = CliCommands::init(
-                    args.response_timeout_ms,
-                    cli_name.to_string(),
-                    args.server_url,
-                );
                 // [impl -> swdd~cli-provides-set-current-state~1]
                 // [impl -> swdd~cli-blocks-until-ankaios-server-responds-set-current-state~1]
-                cmd.set_state(
-                    object_field_mask,
-                    state_object_file,
-                    args.response_timeout_ms,
-                )
-                .await;
+                cmd.set_state(object_field_mask, state_object_file).await;
             }
             None => unreachable!("Unreachable code."),
         },
@@ -113,11 +100,6 @@ async fn main() {
                 output_debug!(
                     "Received delete workload with workload_name = '{:?}'",
                     workload_name
-                );
-                let mut cmd = CliCommands::init(
-                    args.response_timeout_ms,
-                    cli_name.to_string(),
-                    args.server_url,
                 );
                 if let Err(error) = cmd.delete_workloads(workload_name).await {
                     output_and_error!("Failed to delete workloads: '{}'", error);
@@ -141,11 +123,6 @@ async fn main() {
                     agent_name,
                     tags,
                 );
-                let mut cmd = CliCommands::init(
-                    args.response_timeout_ms,
-                    cli_name.to_string(),
-                    args.server_url,
-                );
                 if let Err(error) = cmd
                     .run_workload(
                         workload_name,
@@ -162,4 +139,6 @@ async fn main() {
             None => unreachable!("Unreachable code."),
         },
     }
+
+    cmd.shut_down().await;
 }
