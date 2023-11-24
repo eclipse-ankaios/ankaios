@@ -6,9 +6,9 @@ already come with Podman pre-installed.
 
 ## Setup
 
-In order to use these virtual machines, Vagrant needs to be installed and also
-VirtualBox, which is used by Vagrant to create the VMs. Vagrant should be
-installed on the same host OS as VirtualBox, eg. on Windows.
+In order to use these virtual machines, Vagrant and VirtualBox need to be installed. 
+VirtualBox is used by Vagrant to create the VMs. Please note that Vagrant should be
+installed on the same host machine as VirtualBox, e.g. on Windows.
 
 For Vagrant installation see <https://developer.hashicorp.com/vagrant/install>.
 
@@ -25,7 +25,7 @@ vagrant up
 
 When called for the first time, this might take some time as the base box (i.e. base VM) needs to be downloaded.
 
-Login with:
+Login with the following command and `vagrant` as password if required:
 
 ```
 vagrant ssh
