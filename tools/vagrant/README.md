@@ -25,7 +25,7 @@ vagrant up
 
 When called for the first time, this might take some time as the base box (i.e. base VM) needs to be downloaded.
 
-Login with:
+Login with the following command and `vagrant` as password if required:
 
 ```
 vagrant ssh
