@@ -61,8 +61,23 @@ flowchart TD
 
 In order to enable the communication between a workload and the Ankaios system, the workload needs to make use of the control interface by sending and processing serialized messages defined in `ankaios.proto` via writing to and reading from the provided FIFO files `output` and `input` found in the mount point `/run/ankaios/control_interface/`. By using the [protobuf compiler (protoc)](https://protobuf.dev/reference/) code in any programming language supported by the protobuf compiler can be generated. The generated code contains functions for serializing and deserializing the messages to and from the Protocol Buffers binary format.
 
-## Sending request message from a workload to Ankaios server
-To send out a request message from the workload to the Ankaios Server the request message needs to be serialized using the generated serializing function, then encoded using [length-delimited wire type format](https://protobuf.dev/programming-guides/encoding/#length-types) and then written directly into the `output` FIFO file. The type of request message is [StateChangeRequest](_ankaios.proto.md#statechangerequest).
+## Length-delimited protobuf message layout
+
+The messages are encoded using the [length-delimited wire type format](https://protobuf.dev/programming-guides/encoding/#length-types) and layout inside the FIFO file according to the following visualization:
+
+![Length-delimited protobuf message layout inside the file](../assets/length-delimited-protobuf-layout.png)
+
+Every protobuf message is prefixed with its byte length telling the reader how much bytes to read to consume the protobuf message.
+The byte length has a dynamic length and is encoded as [VARINT](https://protobuf.dev/programming-guides/encoding/#length-types). 
+
+## Control interface examples
+
+The subfolder `examples` inside the [Ankaios repository](https://github.com/eclipse-ankaios/ankaios) contains example workload applications in various programming languages that are using the control interface. They demonstrate how to easily use the control interface in self-developed workloads. All examples share the same behavior regardless of the programming language and are simplified to focus on the usage of the control interface. Please note that the examples are not are not optimized for production usage.
+
+The following sections showcase in Rust some important parts of the communication with the Ankaios cluster using the control interface. The same concepts are also used in all of the example workload applications.
+
+### Sending request message from a workload to Ankaios server
+To send out a request message from the workload to the Ankaios Server the request message needs to be serialized using the generated serializing function, then encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) and then written directly into the `output` FIFO file. The type of request message is [StateChangeRequest](_ankaios.proto.md#statechangerequest).
 
 ```mermaid
 ---
@@ -86,49 +101,76 @@ flowchart TD
 Code snippet in [Rust](https://www.rust-lang.org/) for sending request message via control interface:
 ```rust
 use api::proto;
-
 use prost::Message;
+use std::{collections::HashMap, path::Path};
 use tokio::{
     fs::File,
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::AsyncWriteExt,
 };
 
-#[tokio::main]
-async fn main() {
-    let control_interface_mount_point = Path::new("/run/ankaios/control_interface");
-    let out_fifo_location = control_interface_mount_point.join("output");
-    let mut out_fifo = File::create(&out_fifo_location).await.unwrap();
+const ANKAIOS_CONTROL_INTERFACE_BASE_PATH: &str = "/run/ankaios/control_interface";
 
-    // Fill StateChangeRequest message
-    let request_msg_update_state = proto::StateChangeRequest {
-            state_change_request_enum: Some(
-                proto::state_change_request::StateChangeRequestEnum::UpdateState(
-                    proto::UpdateStateRequest {
-                        new_state: Some(proto::CompleteState {
-                            ..Default::default()
+fn create_update_workload_request() -> proto::StateChangeRequest {
+    let new_workloads = HashMap::from([(
+        "dynamic_nginx".to_string(),
+        proto::Workload {
+            runtime: "podman".to_string(),
+            agent: "agent_A".to_string(),
+            restart: false,
+            update_strategy: proto::UpdateStrategy::AtMostOnce.into(),
+            access_rights: None,
+            tags: vec![proto::Tag {
+                key: "owner".to_string(),
+                value: "Ankaios team".to_string(),
+            }],
+            runtime_config: "image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]"
+                .to_string(),
+            dependencies: HashMap::new(),
+        },
+    )]);
+
+    proto::StateChangeRequest {
+        state_change_request_enum: Some(
+            proto::state_change_request::StateChangeRequestEnum::UpdateState(
+                proto::UpdateStateRequest {
+                    new_state: Some(proto::CompleteState {
+                        current_state: Some(proto::State {
+                            workloads: new_workloads,
+                            configs: HashMap::default(),
+                            cronjobs: HashMap::default(),
                         }),
-                        update_mask: vec![
-                            "currentState.workloads.api_sample".to_string(),
-                        ],
-                    },
-                ),
+                        ..Default::default()
+                    }),
+                    update_mask: vec!["currentState.workloads.dynamic_nginx".to_string()],
+                },
             ),
-        };
+        ),
+    }
+}
 
-    // Serialize StateChangeRequest message using the generated serializing function
-    // and encode as length-delimited varint
-    // using encode_length_delimited_to_vec() function provided by prost through code generation
-    let out_bytes = request_msg_update_state.encode_length_delimited_to_vec();
+async fn write_to_control_interface() {
+    let pipes_location = Path::new(ANKAIOS_CONTROL_INTERFACE_BASE_PATH);
+    let sc_req_fifo = pipes_location.join("output");
 
-    // Write encoded bytes to /run/ankaios/control_interface/output
-    out_fifo
-        .write_all(&out_bytes)
+    let mut sc_req = File::create(&sc_req_fifo).await.unwrap();
+
+    let protobuf_update_workload_request = create_update_workload_request();
+
+    println!("{}", &format!("Sending StateChangeRequest containing details for adding the dynamic workload \"dynamic_nginx\": {:#?}", protobuf_update_workload_request));
+
+    sc_req
+        .write_all(&protobuf_update_workload_request.encode_length_delimited_to_vec())
         .await
         .unwrap();
 }
+
+#[tokio::main]
+async fn main() {
+    write_to_control_interface().await;
+}
 ```
-## Processing response message from Ankaios server
-To process a response message from the Ankaios Server the workload needs to read out the bytes from the `input` FIFO file. As the bytes are encoded in [length-delimited wire type format](https://protobuf.dev/programming-guides/encoding/#length-types) with a variable length the length needs to be decoded and extracted first. Then the length can be used to decode and deserialize the read bytes to a response message object for further processing. The type of the response message is [ExecutionRequest](_ankaios.proto.md#executionrequest).
+### Processing response message from Ankaios server
+To process a response message from the Ankaios Server the workload needs to read out the bytes from the `input` FIFO file. As the bytes are encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) with a variable length, the length needs to be decoded and extracted first. Then the length can be used to decode and deserialize the read bytes to a response message object for further processing. The type of the response message is [ExecutionRequest](_ankaios.proto.md#executionrequest).
 
 ```mermaid
 ---
@@ -156,8 +198,24 @@ use api::proto;
 use prost::Message;
 use tokio::{
     fs::File,
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::AsyncReadExt,
 };
+use std::{io, path::Path};
+
+const ANKAIOS_CONTROL_INTERFACE_BASE_PATH: &str = "/run/ankaios/control_interface";
+const MAX_VARINT_SIZE: usize = 19;
+
+async fn read_varint_data(file: &mut File) -> Result<[u8; MAX_VARINT_SIZE], io::Error> {
+    let mut res = [0u8; MAX_VARINT_SIZE];
+    for item in res.iter_mut() {
+        *item = file.read_u8().await?;
+        // check if most significant bit is set to 0 if so it is the last byte to be read
+        if *item & 0b10000000 == 0 {
+            break;
+        }
+    }
+    Ok(res)
+}
 
 async fn read_protobuf_data(file: &mut File) -> Result<Box<[u8]>, io::Error> {
     let varint_data = read_varint_data(file).await?;
@@ -171,37 +229,25 @@ async fn read_protobuf_data(file: &mut File) -> Result<Box<[u8]>, io::Error> {
     Ok(buf.into_boxed_slice())
 }
 
-async fn read_varint_data(file: &mut File) -> Result<[u8; MAX_VARINT_SIZE], io::Error> {
-    let mut res = [0u8; MAX_VARINT_SIZE];
-    for item in res.iter_mut() {
-        *item = file.read_u8().await?;
-        // check if signature bit is set to 0 if so it is the last byte to be read
-        if *item & 0b10000000 == 0 {
-            break;
+async fn read_from_control_interface() {
+    let pipes_location = Path::new(ANKAIOS_CONTROL_INTERFACE_BASE_PATH);
+    let ex_req_fifo = pipes_location.join("input");
+
+    let mut ex_req = File::open(&ex_req_fifo).await.unwrap();
+
+    loop {
+        if let Ok(binary) = read_protobuf_data(&mut ex_req).await {
+            let proto = proto::ExecutionRequest::decode(&mut Box::new(binary.as_ref()));
+
+            println!("{}", &format!("Receiving ExecutionRequest containing the workload states of the current state: {:#?}", proto));
         }
     }
-    Ok(res)
 }
 
 #[tokio::main]
 async fn main() {
-    let control_interface_mount_point = Path::new("/run/ankaios/control_interface");
-    let in_fifo_location = control_interface_mount_point.join("input");    
-    let mut in_fifo = File::open(&in_fifo_location).await.unwrap();
-
-    tokio::spawn(async move {
-        println!("listen to ExecutionRequest ...");
-        loop {
-            if let Ok(binary) = read_protobuf_data(&mut in_fifo).await {
-                let proto = proto::ExecutionRequest::decode(&mut Box::new(binary.as_ref()));
-
-                println!("Got ExecutionRequest: {:#?}", proto);
-
-                // process received ExecutionRequest response message here ...
-            }
-        }
-    });
+    read_from_control_interface().await;
 }
 
-
 ```
+

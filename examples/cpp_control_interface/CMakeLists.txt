@@ -1,0 +1,12 @@
+PROJECT(rpc)
+CMAKE_MINIMUM_REQUIRED (VERSION 3.0.0)
+SET(CMAKE_CXX_FLAGS "-g -Wall -Werror -Wpedantic -Wextra -std=c++17 -O2")
+
+find_package(Protobuf REQUIRED)
+
+ADD_SUBDIRECTORY(src/proto)
+
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
+INCLUDE_DIRECTORIES(${Protobuf_INCLUDE_DIRS})
+ADD_EXECUTABLE(main src/main.cpp)
+TARGET_LINK_LIBRARIES(main proto ${Protobuf_LIBRARIES})
