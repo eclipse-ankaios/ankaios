@@ -15,3 +15,6 @@ dist
 
 # ignore python data
 __pycache__
+
+# Vgarant
+**/.vagrant
