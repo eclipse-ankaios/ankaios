@@ -13,8 +13,6 @@ jobs:
   documentation_changes:
     name: Check if documentation has changed
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
     outputs:
       documentation: ${{ steps.filter.outputs.documentation }}
     steps:
