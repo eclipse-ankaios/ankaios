@@ -14,7 +14,7 @@ jobs:
     name: Check if documentation has changed
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
+      pull-requests: read
     outputs:
       documentation: ${{ steps.filter.outputs.documentation }}
     steps:
