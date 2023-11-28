@@ -204,7 +204,6 @@ mod tests {
         state_change_interface::StateChangeCommand,
         test_utils::generate_test_workload_spec_with_param,
     };
-    use futures_util::task::Spawn;
     use mockall::Sequence;
 
     use super::PodmanCli;

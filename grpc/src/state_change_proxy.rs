@@ -220,7 +220,7 @@ mod tests {
         state_change_interface::{StateChangeCommand, StateChangeInterface},
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
     };
-    use tokio::{join, sync::mpsc};
+    use tokio::sync::mpsc;
 
     use api::proto::{
         state_change_request::StateChangeRequestEnum, StateChangeRequest, UpdateStateRequest,
