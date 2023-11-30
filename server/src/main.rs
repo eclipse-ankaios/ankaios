@@ -55,7 +55,7 @@ async fn main() -> Result<(), BoxedStdError> {
     );
 
     let (to_server, server_receiver) = create_state_change_channels(common::CHANNEL_CAPACITY);
-    let (to_agents, mut agents_receiver) = create_execution_channels(common::CHANNEL_CAPACITY);
+    let (to_agents, agents_receiver) = create_execution_channels(common::CHANNEL_CAPACITY);
 
     let mut server = AnkaiosServer::new(server_receiver, to_agents.clone());
     let mut communications_server = GRPCCommunicationsServer::new(to_server.clone());
@@ -64,9 +64,9 @@ async fn main() -> Result<(), BoxedStdError> {
     // [impl->swdd~server-default-communication-grpc~1]
     let communications_task = tokio::spawn(async move {
         communications_server
-            .start(&mut agents_receiver, args.addr)
+            .start(agents_receiver, args.addr)
             .await
-            .unwrap_or_illegal_state();
+            .unwrap_or_exit("Startup error");
     });
 
     // This simulates the state handling.
