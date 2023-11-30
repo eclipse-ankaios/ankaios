@@ -24,6 +24,7 @@ use std::net::SocketAddr;
 
 use crate::agent_senders_map::AgentSendersMap;
 use crate::grpc_cli_connection::GRPCCliConnection;
+use crate::grpc_middleware_error::GrpcMiddlewareError;
 use api::proto::agent_connection_server::AgentConnectionServer;
 
 use crate::execution_command_proxy;
@@ -66,7 +67,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                 .add_service(CliConnectionServer::new(my_cli_connection))
                 .serve(addr) => {
                     result.map_err(|err| {
-                        CommunicationMiddlewareError(format!(
+                        GrpcMiddlewareError::StartError(format!(
                             "Could not start the gRPC service: '{:?}'",
                             err
                         ))
@@ -77,7 +78,9 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                 &agent_senders_clone,
                 &mut receiver,
             ) => {
-                Err(CommunicationMiddlewareError("Connection between Ankaios server and the communication middleware dropped.".into()))?
+                Err(GrpcMiddlewareError::ConnectionInterrupted(
+                    "Connection between Ankaios server and the communication middleware dropped.".into())
+                )?
             }
 
         }

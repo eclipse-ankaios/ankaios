@@ -12,11 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::fmt;
-
 use crate::execution_command_proxy;
 use crate::execution_command_proxy::GRPCExecutionRequestStreaming;
-use crate::proxy_error::GrpcProxyError;
+use crate::grpc_middleware_error::GrpcMiddlewareError;
 use crate::state_change_proxy;
 use api::proto;
 use api::proto::agent_connection_client::AgentConnectionClient;
@@ -31,7 +29,6 @@ use common::execution_interface::ExecutionCommand;
 use common::state_change_interface::StateChangeReceiver;
 
 use tokio::select;
-use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -92,12 +89,12 @@ impl CommunicationsClient for GRPCCommunicationsClient {
                 ConnectionType::Cli => {
                     match result {
                         // [impl->swdd~grpc-client-outputs-error-server-unavailability-for-cli-connection~1]
-                        Err(GrpcConnectionError::ServerNotAvailable(err)) => {
+                        Err(GrpcMiddlewareError::ServerNotAvailable(err)) => {
                             log::debug!("No connection to the server: '{err}'");
                             return Err(CommunicationMiddlewareError("No connection to the server! Make sure that Ankaios Server is running.".to_string()));
                         }
                         // [impl->swdd~grpc-client-outputs-error-server-connection-loss-for-cli-connection~1]
-                        Err(GrpcConnectionError::ConnectionInterrupted(err)) => {
+                        Err(GrpcMiddlewareError::ConnectionInterrupted(err)) => {
                             log::debug!(
                                 "The connection to the Ankaios Server was interrupted: '{err}'"
                             );
@@ -116,53 +113,6 @@ impl CommunicationsClient for GRPCCommunicationsClient {
     }
 }
 
-#[derive(Debug, Clone)]
-enum GrpcConnectionError {
-    ServerNotAvailable(String),
-    // We will defer to the parse error implementation for their error.
-    // Supplying extra info requires adding more data to the type.
-    ConnectionInterrupted(String),
-}
-
-impl fmt::Display for GrpcConnectionError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            GrpcConnectionError::ServerNotAvailable(message) => {
-                write!(f, "Could not connect to the server: '{message}'")
-            }
-            GrpcConnectionError::ConnectionInterrupted(message) => {
-                write!(f, "Connection interrupted: '{message}'")
-            }
-        }
-    }
-}
-
-impl From<SendError<proto::StateChangeRequest>> for GrpcConnectionError {
-    fn from(err: SendError<proto::StateChangeRequest>) -> Self {
-        GrpcConnectionError::ConnectionInterrupted(err.to_string())
-    }
-}
-
-impl From<tonic::Status> for GrpcConnectionError {
-    fn from(err: tonic::Status) -> Self {
-        GrpcConnectionError::ConnectionInterrupted(err.to_string())
-    }
-}
-
-impl From<GrpcProxyError> for GrpcConnectionError {
-    fn from(err: GrpcProxyError) -> Self {
-        GrpcConnectionError::ConnectionInterrupted(err.to_string())
-    }
-}
-
-impl From<tonic::transport::Error> for GrpcConnectionError {
-    fn from(err: tonic::transport::Error) -> Self {
-        GrpcConnectionError::ServerNotAvailable(err.to_string())
-    }
-}
-
-impl std::error::Error for GrpcConnectionError {}
-
 impl GRPCCommunicationsClient {
     /// This functions establishes the connection to the gRPC server and starts listening and forwarding messages
     /// on the two communications channels. The method returns only if the connection could not be established or
@@ -171,7 +121,7 @@ impl GRPCCommunicationsClient {
         &self,
         server_rx: &mut StateChangeReceiver,
         agent_tx: &Sender<ExecutionCommand>,
-    ) -> Result<(), GrpcConnectionError> {
+    ) -> Result<(), GrpcMiddlewareError> {
         // [impl->swdd~grpc-client-creates-state-change-channel~1]
         let (grpc_tx, grpc_rx) =
             tokio::sync::mpsc::channel::<proto::StateChangeRequest>(common::CHANNEL_CAPACITY);
@@ -217,7 +167,7 @@ impl GRPCCommunicationsClient {
     async fn connect_to_server(
         &self,
         grpc_rx: Receiver<proto::StateChangeRequest>,
-    ) -> Result<tonic::Streaming<proto::ExecutionRequest>, GrpcConnectionError> {
+    ) -> Result<tonic::Streaming<proto::ExecutionRequest>, GrpcMiddlewareError> {
         match self.connection_type {
             ConnectionType::Agent => {
                 let mut client =
