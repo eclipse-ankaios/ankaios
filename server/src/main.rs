@@ -66,7 +66,7 @@ async fn main() -> Result<(), BoxedStdError> {
         communications_server
             .start(agents_receiver, args.addr)
             .await
-            .unwrap_or_exit("Startup error");
+            .unwrap_or_exit("Server startup error");
     });
 
     // This simulates the state handling.

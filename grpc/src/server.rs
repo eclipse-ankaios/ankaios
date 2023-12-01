@@ -67,10 +67,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                 .add_service(CliConnectionServer::new(my_cli_connection))
                 .serve(addr) => {
                     result.map_err(|err| {
-                        GrpcMiddlewareError::StartError(format!(
-                            "Could not start the gRPC service: '{:?}'",
-                            err
-                        ))
+                        GrpcMiddlewareError::StartError(format!("{err:?}"))
                     })?
             }
             // [impl->swdd~grpc-server-forwards-commands-to-grpc-client~1]
