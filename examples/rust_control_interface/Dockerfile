@@ -14,10 +14,11 @@ RUN apk update && apk add --update-cache \
 COPY api /workspaces/build/api
 COPY examples/rust_control_interface /workspaces/build
 WORKDIR /workspaces/build
-RUN cargo build --release
+RUN --mount=type=cache,target=./target/release cargo build --release \
+    && cp ./target/release/control_interface_example /usr/local/bin/
 
 # stage prod
 FROM docker.io/alpine:3.18.4
-COPY --from=compile /workspaces/build/target/release/control_interface_example /usr/local/bin/control_interface_example
+COPY --from=compile /usr/local/bin/control_interface_example /usr/local/bin/control_interface_example
 RUN chmod +x /usr/local/bin/control_interface_example
 ENTRYPOINT ["/usr/local/bin/control_interface_example"]
