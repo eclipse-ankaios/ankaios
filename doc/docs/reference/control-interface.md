@@ -102,11 +102,7 @@ Code snippet in [Rust](https://www.rust-lang.org/) for sending request message v
 ```rust
 use api::proto;
 use prost::Message;
-use std::{collections::HashMap, path::Path};
-use tokio::{
-    fs::File,
-    io::AsyncWriteExt,
-};
+use std::{collections::HashMap, fs::File, io::Write, path::Path};
 
 const ANKAIOS_CONTROL_INTERFACE_BASE_PATH: &str = "/run/ankaios/control_interface";
 
@@ -148,11 +144,11 @@ fn create_update_workload_request() -> proto::StateChangeRequest {
     }
 }
 
-async fn write_to_control_interface() {
+fn write_to_control_interface() {
     let pipes_location = Path::new(ANKAIOS_CONTROL_INTERFACE_BASE_PATH);
     let sc_req_fifo = pipes_location.join("output");
 
-    let mut sc_req = File::create(&sc_req_fifo).await.unwrap();
+    let mut sc_req = File::create(&sc_req_fifo).unwrap();
 
     let protobuf_update_workload_request = create_update_workload_request();
 
@@ -160,14 +156,13 @@ async fn write_to_control_interface() {
 
     sc_req
         .write_all(&protobuf_update_workload_request.encode_length_delimited_to_vec())
-        .await
         .unwrap();
 }
 
-#[tokio::main]
-async fn main() {
-    write_to_control_interface().await;
+fn main() {
+    write_to_control_interface();
 }
+
 ```
 ### Processing response message from Ankaios server
 To process a response message from the Ankaios Server the workload needs to read out the bytes from the `input` FIFO file. As the bytes are encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) with a variable length, the length needs to be decoded and extracted first. Then the length can be used to decode and deserialize the read bytes to a response message object for further processing. The type of the response message is [ExecutionRequest](_ankaios.proto.md#executionrequest).
@@ -194,21 +189,18 @@ flowchart TD
 Code Snippet in [Rust](https://www.rust-lang.org/) for reading response message via control interface:
 ```rust
 use api::proto;
-
 use prost::Message;
-use tokio::{
-    fs::File,
-    io::AsyncReadExt,
-};
-use std::{io, path::Path};
+use std::{fs::File, io, io::Read, path::Path};
 
 const ANKAIOS_CONTROL_INTERFACE_BASE_PATH: &str = "/run/ankaios/control_interface";
 const MAX_VARINT_SIZE: usize = 19;
 
-async fn read_varint_data(file: &mut File) -> Result<[u8; MAX_VARINT_SIZE], io::Error> {
+fn read_varint_data(file: &mut File) -> Result<[u8; MAX_VARINT_SIZE], io::Error> {
     let mut res = [0u8; MAX_VARINT_SIZE];
+    let mut one_byte_buffer = [0u8; 1];
     for item in res.iter_mut() {
-        *item = file.read_u8().await?;
+        file.read_exact(&mut one_byte_buffer)?;
+        *item = one_byte_buffer[0];
         // check if most significant bit is set to 0 if so it is the last byte to be read
         if *item & 0b10000000 == 0 {
             break;
@@ -217,26 +209,26 @@ async fn read_varint_data(file: &mut File) -> Result<[u8; MAX_VARINT_SIZE], io::
     Ok(res)
 }
 
-async fn read_protobuf_data(file: &mut File) -> Result<Box<[u8]>, io::Error> {
-    let varint_data = read_varint_data(file).await?;
+fn read_protobuf_data(file: &mut File) -> Result<Box<[u8]>, io::Error> {
+    let varint_data = read_varint_data(file)?;
     let mut varint_data = Box::new(&varint_data[..]);
 
     // determine the exact size for exact reading of the bytes later by decoding the varint data
     let size = prost::encoding::decode_varint(&mut varint_data)? as usize;
 
     let mut buf = vec![0; size];
-    file.read_exact(&mut buf[..]).await?; // read exact bytes from file
+    file.read_exact(&mut buf[..])?; // read exact bytes from file
     Ok(buf.into_boxed_slice())
 }
 
-async fn read_from_control_interface() {
+fn read_from_control_interface() {
     let pipes_location = Path::new(ANKAIOS_CONTROL_INTERFACE_BASE_PATH);
     let ex_req_fifo = pipes_location.join("input");
 
-    let mut ex_req = File::open(&ex_req_fifo).await.unwrap();
+    let mut ex_req = File::open(&ex_req_fifo).unwrap();
 
     loop {
-        if let Ok(binary) = read_protobuf_data(&mut ex_req).await {
+        if let Ok(binary) = read_protobuf_data(&mut ex_req) {
             let proto = proto::ExecutionRequest::decode(&mut Box::new(binary.as_ref()));
 
             println!("{}", &format!("Receiving ExecutionRequest containing the workload states of the current state: {:#?}", proto));
@@ -244,9 +236,8 @@ async fn read_from_control_interface() {
     }
 }
 
-#[tokio::main]
-async fn main() {
-    read_from_control_interface().await;
+fn main() {
+    read_from_control_interface();
 }
 
 ```
