@@ -10,8 +10,9 @@ RUN apk update && apk add --update-cache \
     protobuf-dev \
     protoc \
     build-base \
-    && curl --proto '=https' --tlsv1.2 -sS https://sh.rustup.rs | sh -s -- -y > /dev/null \
     && rm -rf /var/cache/apk/*
+
+RUN curl --proto '=https' --tlsv1.2 -sS https://sh.rustup.rs | sh -s -- -y > /dev/null
 
 COPY api ${WORKSPACE_DIR}/api
 COPY examples/rust_control_interface ${WORKSPACE_DIR}
