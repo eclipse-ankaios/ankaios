@@ -11,12 +11,3 @@ api = { package = "api", version = "0", path = "api" }
 chrono = "0.4"
 # required for encoding/decoding of probuf varint format
 prost = "0.11"
-# required for async/await
-tokio = { version = "1.28", features = [
-    "macros",
-    "rt-multi-thread",
-    "fs",
-    "io-util",
-    "process",
-    "signal"
-] }
