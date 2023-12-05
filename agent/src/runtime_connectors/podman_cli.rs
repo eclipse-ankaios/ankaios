@@ -91,9 +91,15 @@ impl TimedPodmanPsResult {
     }
 
     async fn new_inner() -> PodmanPsCache {
+        let mut res = PodmanCli::list_states_internal().await;
+        if res.is_err() {
+            // This is a workaround for the known issue in podman (podman ps sometimes fails).
+            log::trace!("'podman ps' has returned error - let's retry it.");
+            res = PodmanCli::list_states_internal().await;
+        }
         PodmanPsCache {
             last_update: Instant::now(),
-            cache: Arc::new(PodmanCli::list_states_internal().await.into()),
+            cache: Arc::new(res.into()),
         }
     }
 }
@@ -1081,16 +1087,18 @@ mod tests {
         super::CliCommand::reset();
         *super::LAST_PS_RESULT.lock().await = None;
 
-        super::CliCommand::new_expect(
-            "podman",
-            super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--format=json"])
-                .exec_returns(Err("simulated error".to_string())),
-        );
+        let mock_cli_command = super::CliCommand::default()
+            .expect_args(&["ps", "--all", "--format=json"])
+            .exec_returns(Err("simulated error".to_string()));
+        // PodmanCli retries the command when the command fails -> we have to mock the command twice.
+        super::CliCommand::new_expect("podman", mock_cli_command.clone());
+        super::CliCommand::new_expect("podman", mock_cli_command);
 
         let res = PodmanCli::list_states_by_id("test_id").await;
         assert_eq!(res, Err("simulated error".to_string()));
     }
+
+    // TODO: a test for the workaround
 
     // [utest->podmancli-uses-container-state-cache~1]
     #[tokio::test]
@@ -1152,16 +1160,18 @@ mod tests {
         super::CliCommand::reset();
         *super::LAST_PS_RESULT.lock().await = None;
 
-        super::CliCommand::new_expect(
-            "podman",
-            super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--format=json"])
-                .exec_returns(Ok("non-json response from podman".to_string())),
-        );
+        let mock_cli_command = super::CliCommand::default()
+            .expect_args(&["ps", "--all", "--format=json"])
+            .exec_returns(Ok("non-json response from podman".to_string()));
+        // PodmanCli retries the command when the command fails -> we have to mock the command twice.
+        super::CliCommand::new_expect("podman", mock_cli_command.clone());
+        super::CliCommand::new_expect("podman", mock_cli_command);
 
         let res = PodmanCli::list_states_by_id("test_id").await;
         assert!(matches!(res, Err(msg) if msg.starts_with("Could not parse podman output") ));
     }
+
+    // TODO: a test for the workaround
 
     #[tokio::test]
     async fn utest_list_states_from_pods_success() {
@@ -1248,12 +1258,12 @@ mod tests {
         super::CliCommand::reset();
         *super::LAST_PS_RESULT.lock().await = None;
 
-        super::CliCommand::new_expect(
-            "podman",
-            super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--format=json"])
-                .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
-        );
+        let mock_cli_command = super::CliCommand::default()
+            .expect_args(&["ps", "--all", "--format=json"])
+            .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into()));
+        // PodmanCli retries the command when the command fails -> we have to mock the command twice.
+        super::CliCommand::new_expect("podman", mock_cli_command.clone());
+        super::CliCommand::new_expect("podman", mock_cli_command);
 
         let res =
             PodmanCli::list_states_from_pods(&["pod1".into(), "pod2".into(), "pod3".into()]).await;
@@ -1261,24 +1271,28 @@ mod tests {
         assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE ));
     }
 
+    // TODO: a test for the workaround
+
     #[tokio::test]
     async fn utest_list_states_from_pods_result_not_json() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
         *super::LAST_PS_RESULT.lock().await = None;
 
-        super::CliCommand::new_expect(
-            "podman",
-            super::CliCommand::default()
-                .expect_args(&["ps", "--all", "--format=json"])
-                .exec_returns(Ok("non-json response from podman".into())),
-        );
+        let mock_cli_command = super::CliCommand::default()
+            .expect_args(&["ps", "--all", "--format=json"])
+            .exec_returns(Ok("non-json response from podman".into()));
+        // PodmanCli retries the command when the command fails -> we have to mock the command twice.
+        super::CliCommand::new_expect("podman", mock_cli_command.clone());
+        super::CliCommand::new_expect("podman", mock_cli_command);
 
         let res =
             PodmanCli::list_states_from_pods(&["pod1".into(), "pod2".into(), "pod3".into()]).await;
 
         assert!(matches!(res, Err(msg) if msg.starts_with("Could not parse podman output:") ));
     }
+
+    // TODO: a test for the workaround
 
     #[tokio::test]
     async fn utest_list_states_from_pods_empty_input() {
