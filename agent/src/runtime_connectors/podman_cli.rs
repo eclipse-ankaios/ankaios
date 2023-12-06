@@ -38,12 +38,19 @@ pub struct PodmanRunConfig {
 
 impl From<PodmanContainerInfo> for ContainerState {
     fn from(value: PodmanContainerInfo) -> Self {
-        match value.state {
-            PodmanContainerState::Created => ContainerState::Created,
-            PodmanContainerState::Exited => ContainerState::Exited(value.exit_code),
-            PodmanContainerState::Paused => ContainerState::Paused,
-            PodmanContainerState::Running => ContainerState::Running,
-            PodmanContainerState::Unknown => ContainerState::Unknown,
+        match value.state.to_lowercase().as_str() {
+            "created" => ContainerState::Created,
+            "exited" => ContainerState::Exited(value.exit_code),
+            "paused" => ContainerState::Paused,
+            "running" => ContainerState::Running,
+            "unknown" => ContainerState::Unknown,
+            state => {
+                log::trace!(
+                    "Mapping the container state '{}' to the container state 'Unknown'",
+                    state
+                );
+                ContainerState::Unknown
+            }
         }
     }
 }
@@ -51,12 +58,19 @@ impl From<PodmanContainerInfo> for ContainerState {
 // [impl->swdd~podman-state-getter-maps-state~1]
 impl From<PodmanContainerInfo> for ExecutionState {
     fn from(value: PodmanContainerInfo) -> Self {
-        match value.state {
-            PodmanContainerState::Created => ExecutionState::ExecPending,
-            PodmanContainerState::Exited if value.exit_code == 0 => ExecutionState::ExecSucceeded,
-            PodmanContainerState::Exited if value.exit_code != 0 => ExecutionState::ExecFailed,
-            PodmanContainerState::Running => ExecutionState::ExecRunning,
-            _ => ExecutionState::ExecUnknown,
+        match value.state.to_lowercase().as_str() {
+            "created" => ExecutionState::ExecPending,
+            "exited" if value.exit_code == 0 => ExecutionState::ExecSucceeded,
+            "exited" if value.exit_code != 0 => ExecutionState::ExecFailed,
+            "running" => ExecutionState::ExecRunning,
+            "unknown" => ExecutionState::ExecUnknown,
+            state => {
+                log::trace!(
+                    "Mapping the container state '{}' to the execution state 'ExecUnknown'",
+                    state
+                );
+                ExecutionState::ExecUnknown
+            }
         }
     }
 }
@@ -441,7 +455,7 @@ struct DataLabel {
 #[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 struct PodmanContainerInfo {
-    state: PodmanContainerState,
+    state: String,
     exit_code: u8,
     #[serde(deserialize_with = "nullable_labels")]
     labels: HashMap<String, String>,
@@ -460,16 +474,6 @@ where
     Ok(opt.unwrap_or_default())
 }
 
-#[derive(Deserialize, Serialize, Clone)]
-#[serde(rename_all = "lowercase")]
-enum PodmanContainerState {
-    Created,
-    Exited,
-    Paused,
-    Running,
-    #[serde(other)]
-    Unknown,
-}
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -481,7 +485,7 @@ enum PodmanContainerState {
 // [utest->swdd~podman-kube-uses-podman-cli~1]
 #[cfg(test)]
 mod tests {
-    use super::{ContainerState, PodmanCli, PodmanContainerState, PodmanPsCache};
+    use super::{ContainerState, PodmanCli, PodmanPsCache};
 
     use super::PodmanContainerInfo;
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
@@ -496,7 +500,7 @@ mod tests {
     #[test]
     fn utest_container_state_from_podman_container_info_created() {
         let container_state: ContainerState = PodmanContainerInfo {
-            state: PodmanContainerState::Created,
+            state: "Created".to_string(),
             exit_code: 0,
             labels: Default::default(),
             pod: "".into(),
@@ -510,7 +514,7 @@ mod tests {
     #[test]
     fn utest_container_state_from_podman_container_info_exited() {
         let container_state: ContainerState = PodmanContainerInfo {
-            state: PodmanContainerState::Exited,
+            state: "Exited".to_string(),
             exit_code: 23,
             labels: Default::default(),
             pod: "".into(),
@@ -524,7 +528,7 @@ mod tests {
     #[test]
     fn utest_container_state_from_podman_container_info_paused() {
         let container_state: ContainerState = PodmanContainerInfo {
-            state: PodmanContainerState::Paused,
+            state: "Paused".to_string(),
             exit_code: 0,
             labels: Default::default(),
             pod: "".into(),
@@ -538,7 +542,7 @@ mod tests {
     #[test]
     fn utest_container_state_from_podman_container_info_running() {
         let container_state: ContainerState = PodmanContainerInfo {
-            state: PodmanContainerState::Running,
+            state: "Running".to_string(),
             exit_code: 0,
             labels: Default::default(),
             pod: "".into(),
@@ -552,7 +556,7 @@ mod tests {
     #[test]
     fn utest_container_state_from_podman_container_info_unknown() {
         let container_state: ContainerState = PodmanContainerInfo {
-            state: PodmanContainerState::Unknown,
+            state: "Unknown".to_string(),
             exit_code: 0,
             labels: Default::default(),
             pod: "".into(),
