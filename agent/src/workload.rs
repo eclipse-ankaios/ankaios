@@ -11,6 +11,7 @@ use common::{
     std_extensions::IllegalStateResult,
 };
 
+use crate::workload_channel::WorkloadChannel;
 #[cfg(test)]
 use mockall::automock;
 use tokio::sync::mpsc;
@@ -47,28 +48,15 @@ pub enum WorkloadCommand {
 // #[derive(Debug)]
 pub struct Workload {
     name: String,
-    channel: mpsc::Sender<WorkloadCommand>,
+    channel: WorkloadChannel,
     control_interface: Option<PipesChannelContext>,
-}
-
-async fn restart(
-    command_sender: &mpsc::Sender<WorkloadCommand>,
-    workload_spec: WorkloadSpec,
-    control_interface_path: Option<PathBuf>,
-) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
-    command_sender
-        .send(WorkloadCommand::Restart(
-            Box::new(workload_spec),
-            control_interface_path,
-        ))
-        .await
 }
 
 #[cfg_attr(test, automock)]
 impl Workload {
     pub fn new(
         name: String,
-        channel: mpsc::Sender<WorkloadCommand>,
+        channel: WorkloadChannel,
         control_interface: Option<PipesChannelContext>,
     ) -> Self {
         Workload {
@@ -98,20 +86,7 @@ impl Workload {
 
         log::debug!("############### update(..)  enqueue WorkloadCommand::Update.");
         self.channel
-            .send(WorkloadCommand::Update(
-                Box::new(spec),
-                control_interface_path,
-            ))
-            .await
-            .map_err(|err| WorkloadError::Communication(err.to_string()))
-    }
-
-    pub async fn restart(
-        &self,
-        workload_spec: WorkloadSpec,
-        control_interface_path: Option<PathBuf>,
-    ) -> Result<(), WorkloadError> {
-        restart(&self.channel, workload_spec, control_interface_path)
+            .update(spec, control_interface_path)
             .await
             .map_err(|err| WorkloadError::Communication(err.to_string()))
     }
@@ -125,7 +100,7 @@ impl Workload {
         }
 
         self.channel
-            .send(WorkloadCommand::Delete)
+            .delete()
             .await
             .map_err(|err| WorkloadError::Communication(err.to_string()))
     }
@@ -138,7 +113,7 @@ impl Workload {
         update_state_tx: StateChangeSender,
         runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>,
         mut command_receiver: mpsc::Receiver<WorkloadCommand>,
-        command_sender: mpsc::Sender<WorkloadCommand>,
+        workload_channel: WorkloadChannel,
     ) where
         WorkloadId: Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
@@ -260,10 +235,15 @@ impl Workload {
                                 "#### Enqueue restart workload command, quit_retry = {quit_retry}."
                             );
 
-                            let sender = command_sender.clone();
+                            let sender = workload_channel.clone();
                             retry_counter += 1;
                             tokio::task::spawn(async move {
-                                restart(&sender, *runtime_workload_config, control_interface_path)
+                                tokio::time::sleep(tokio::time::Duration::from_millis(
+                                    RETRY_WAITING_TIME_MS,
+                                ))
+                                .await;
+                                sender
+                                    .restart(*runtime_workload_config, control_interface_path)
                                     .await
                                     .unwrap_or_else(|err| {
                                         log::warn!(
@@ -271,11 +251,6 @@ impl Workload {
                                             err
                                         )
                                     });
-                                // retry_counter += 1;
-                                tokio::time::sleep(tokio::time::Duration::from_millis(
-                                    RETRY_WAITING_TIME_MS,
-                                ))
-                                .await;
                             });
                         }
                     }

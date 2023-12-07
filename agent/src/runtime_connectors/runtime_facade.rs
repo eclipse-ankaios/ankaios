@@ -5,7 +5,6 @@ use common::{
 };
 #[cfg(test)]
 use mockall::automock;
-use tokio::sync::mpsc;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::PipesChannelContext;
@@ -14,11 +13,7 @@ use crate::runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
-
-//use tokio::time::{sleep, Duration};
-
-static COMMAND_BUFFER_SIZE: usize = 5;
-//const MAX_RETRIES: usize = 10;
+use crate::workload_channel::WorkloadChannel;
 
 #[async_trait]
 #[cfg_attr(test, automock)]
@@ -70,30 +65,6 @@ where
     }
 }
 
-// use std::future::Future;
-// async fn retry_async<ActionFn, StopFn, Fut, FutBool>(
-//     action_fn: ActionFn,
-//     stop_fn: StopFn,
-//     retry_ms: u64,
-//     max_retries: Option<usize>,
-// ) where
-//     Fut: Future<Output = ()>,
-//     FutBool: Future<Output = bool>,
-//     ActionFn: Fn(usize) -> Fut + Send + Sync + 'static,
-//     StopFn: Fn(usize) -> FutBool + Send + Sync + 'static,
-// {
-//     let max_retries = max_retries.unwrap_or(MAX_RETRIES);
-//     for retry in 0..max_retries {
-//         if stop_fn(retry).await {
-//             break;
-//         }
-
-//         action_fn(retry).await;
-
-//         sleep(Duration::from_millis(retry_ms)).await;
-//     }
-// }
-
 #[async_trait]
 impl<
         WorkloadId: Send + Sync + 'static,
@@ -120,9 +91,6 @@ impl<
         control_interface: Option<PipesChannelContext>,
         update_state_tx: &StateChangeSender,
     ) -> Workload {
-        let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
-        let tmp_command_sender = command_sender.clone();
-        let workload_command_sender = command_sender.clone();
         let workload_name = workload_spec.name.clone();
         let agent_name = workload_spec.agent.clone();
         let runtime = self.runtime.to_owned();
@@ -137,7 +105,8 @@ impl<
             workload_name,
             agent_name
         );
-
+        let (workload_channel, command_receiver) = WorkloadChannel::new();
+        let workload_channel_retry = workload_channel.clone();
         tokio::spawn(async move {
             let workload_name = workload_spec.name.clone();
             let create_result = runtime
@@ -156,8 +125,7 @@ impl<
                     workload_name,
                     create_result.err().unwrap()
                 );
-                let workload = Workload::new(workload_name.clone(), tmp_command_sender, None);
-                workload
+                workload_channel_retry
                     .restart(workload_spec, control_interface_path)
                     .await
                     .unwrap_or_else(|err| {
@@ -174,12 +142,12 @@ impl<
                 update_state_tx,
                 runtime,
                 command_receiver,
-                command_sender,
+                workload_channel_retry,
             )
             .await;
         });
 
-        Workload::new(workload_name, workload_command_sender, control_interface)
+        Workload::new(workload_name, workload_channel, control_interface)
     }
 
     // [impl->swdd~agent-replace-workload~1]
@@ -190,9 +158,6 @@ impl<
         control_interface: Option<PipesChannelContext>,
         update_state_tx: &StateChangeSender,
     ) -> Workload {
-        let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
-        let workload_command_sender = command_sender.clone();
-        let tmp_command_sender = command_sender.clone();
         let workload_name = new_workload_spec.name.clone();
         let agent_name = new_workload_spec.agent.clone();
         let runtime = self.runtime.to_owned();
@@ -208,6 +173,8 @@ impl<
             agent_name
         );
 
+        let (workload_channel, command_receiver) = WorkloadChannel::new();
+        let workload_channel_retry = workload_channel.clone();
         tokio::spawn(async move {
             let workload_name = new_workload_spec.name.clone();
             match runtime.get_workload_id(&old_instance_name).await {
@@ -244,8 +211,7 @@ impl<
                     workload_name,
                     create_result.err().unwrap()
                 );
-                let workload = Workload::new(workload_name.clone(), tmp_command_sender, None);
-                workload
+                workload_channel_retry
                     .restart(new_workload_spec, control_interface_path)
                     .await
                     .unwrap_or_else(|err| {
@@ -263,12 +229,12 @@ impl<
                 update_state_tx,
                 runtime,
                 command_receiver,
-                command_sender,
+                workload_channel_retry,
             )
             .await;
         });
 
-        Workload::new(workload_name, workload_command_sender, control_interface)
+        Workload::new(workload_name, workload_channel, control_interface)
     }
 
     // [impl->swdd~agent-resume-workload~1]
@@ -278,8 +244,6 @@ impl<
         control_interface: Option<PipesChannelContext>,
         update_state_tx: &StateChangeSender,
     ) -> Workload {
-        let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
-        let workload_command_sender = command_sender.clone();
         let workload_name = workload_spec.name.clone();
         let agent_name = workload_spec.agent.clone();
         let runtime = self.runtime.to_owned();
@@ -292,6 +256,8 @@ impl<
             agent_name
         );
 
+        let (workload_channel, command_receiver) = WorkloadChannel::new();
+        let workload_channel_retry = workload_channel.clone();
         tokio::spawn(async move {
             let workload_name = workload_spec.name.clone();
             let workload_id = runtime
@@ -329,12 +295,12 @@ impl<
                 update_state_tx,
                 runtime,
                 command_receiver,
-                command_sender,
+                workload_channel_retry,
             )
             .await;
         });
 
-        Workload::new(workload_name, workload_command_sender, control_interface)
+        Workload::new(workload_name, workload_channel, control_interface)
     }
 
     // [impl->swdd~agent-delete-old-workload~1]
