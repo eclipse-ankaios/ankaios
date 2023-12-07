@@ -13,7 +13,8 @@ use crate::runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
-use crate::workload_channel::WorkloadChannel;
+use crate::workload::WorkloadChannel;
+use crate::workload::WorkloadLoop;
 
 #[async_trait]
 #[cfg_attr(test, automock)]
@@ -134,7 +135,7 @@ impl<
                 (None, None)
             };
 
-            Workload::await_new_command(
+            let mut workload_loop: WorkloadLoop<WorkloadId, StChecker> = WorkloadLoop::new(
                 workload_name,
                 agent_name,
                 workload_id,
@@ -143,8 +144,8 @@ impl<
                 runtime,
                 command_receiver,
                 workload_channel_retry,
-            )
-            .await;
+            );
+            workload_loop.await_new_command().await;
         });
 
         Workload::new(workload_name, workload_channel, control_interface)
@@ -221,7 +222,7 @@ impl<
             };
 
             // replace workload_id and state_checker through Option directly and pass in None if create_workload fails
-            Workload::await_new_command(
+            let mut workload_loop: WorkloadLoop<WorkloadId, StChecker> = WorkloadLoop::new(
                 workload_name,
                 agent_name,
                 workload_id,
@@ -230,8 +231,8 @@ impl<
                 runtime,
                 command_receiver,
                 workload_channel_retry,
-            )
-            .await;
+            );
+            workload_loop.await_new_command().await;
         });
 
         Workload::new(workload_name, workload_channel, control_interface)
@@ -287,7 +288,7 @@ impl<
                 }
             };
 
-            Workload::await_new_command(
+            let mut workload_loop: WorkloadLoop<WorkloadId, StChecker> = WorkloadLoop::new(
                 workload_name,
                 agent_name,
                 workload_id.ok(),
@@ -296,8 +297,8 @@ impl<
                 runtime,
                 command_receiver,
                 workload_channel_retry,
-            )
-            .await;
+            );
+            workload_loop.await_new_command().await;
         });
 
         Workload::new(workload_name, workload_channel, control_interface)

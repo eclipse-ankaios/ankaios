@@ -2,22 +2,13 @@ use std::{fmt::Display, path::PathBuf};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::PipesChannelContext;
-use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use common::{
-    commands::CompleteState,
-    execution_interface::ExecutionCommand,
-    objects::{ExecutionState, WorkloadSpec},
-    state_change_interface::{StateChangeInterface, StateChangeSender},
-    std_extensions::IllegalStateResult,
+    commands::CompleteState, execution_interface::ExecutionCommand, objects::WorkloadSpec,
 };
 
-use crate::workload_channel::WorkloadChannel;
+use crate::workload::WorkloadChannel;
 #[cfg(test)]
 use mockall::automock;
-use tokio::sync::mpsc;
-
-const MAX_RETIRES: usize = 20;
-const RETRY_WAITING_TIME_MS: u64 = 1000;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum WorkloadError {
@@ -103,167 +94,6 @@ impl Workload {
             .delete()
             .await
             .map_err(|err| WorkloadError::Communication(err.to_string()))
-    }
-
-    pub async fn await_new_command<WorkloadId, StChecker>(
-        workload_name: String,
-        agent_name: String,
-        mut workload_id: Option<WorkloadId>,
-        mut state_checker: Option<StChecker>,
-        update_state_tx: StateChangeSender,
-        runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>,
-        mut command_receiver: mpsc::Receiver<WorkloadCommand>,
-        workload_channel: WorkloadChannel,
-    ) where
-        WorkloadId: Send + Sync + 'static,
-        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
-    {
-        let mut retry_counter: usize = 1;
-        let mut quit_retry = false;
-        loop {
-            match command_receiver.recv().await {
-                // [impl->swdd~agent-workload-tasks-executes-delete~1]
-                Some(WorkloadCommand::Delete) => {
-                    quit_retry = true;
-                    if let Some(old_id) = workload_id.take() {
-                        if let Err(err) = runtime.delete_workload(&old_id).await {
-                            // [impl->swdd~agent-workload-task-delete-failed-allows-retry~1]
-                            log::warn!("Could not stop workload '{}': '{}'", workload_name, err);
-                            workload_id = Some(old_id);
-                            continue;
-                        } else {
-                            if let Some(old_checker) = state_checker.take() {
-                                old_checker.stop_checker().await;
-                            }
-                            log::debug!("############## Stop workload complete");
-                        }
-                    } else {
-                        // [impl->swdd~agent-workload-task-delete-broken-allowed~1]
-                        log::debug!("############### Workload '{}' already gone.", workload_name);
-                    }
-
-                    // Successfully stopped the workload and the state checker. Send a removed on the channel
-                    update_state_tx
-                        .update_workload_state(vec![common::objects::WorkloadState {
-                            agent_name,
-                            workload_name,
-                            execution_state: ExecutionState::ExecRemoved,
-                        }])
-                        .await
-                        .unwrap_or_illegal_state();
-
-                    return;
-                }
-                // [impl->swdd~agent-workload-task-executes-update~1]
-                Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
-                    quit_retry = true;
-                    log::debug!("###################### Setting quit_retry = true");
-                    if let Some(old_id) = workload_id.take() {
-                        if let Err(err) = runtime.delete_workload(&old_id).await {
-                            // [impl->swdd~agent-workload-task-update-delete-failed-allows-retry~1]
-                            log::warn!("Could not update workload '{}': '{}'", workload_name, err);
-                            workload_id = Some(old_id);
-                            continue;
-                        } else if let Some(old_checker) = state_checker.take() {
-                            old_checker.stop_checker().await;
-                        }
-                    } else {
-                        // [impl->swdd~agent-workload-task-update-broken-allowed~1]
-                        log::debug!("Workload '{}' already gone.", workload_name);
-                    }
-
-                    match runtime
-                        .create_workload(
-                            *runtime_workload_config,
-                            control_interface_path,
-                            update_state_tx.clone(),
-                        )
-                        .await
-                    {
-                        Ok((new_workload_id, new_state_checker)) => {
-                            workload_id = Some(new_workload_id);
-                            state_checker = Some(new_state_checker);
-                        }
-                        Err(err) => {
-                            // [impl->swdd~agent-workload-task-update-create-failed-allows-retry~1]
-                            log::warn!(
-                                "Could not start updated workload '{}': '{}'",
-                                workload_name,
-                                err
-                            )
-                        }
-                    }
-
-                    log::debug!("Update workload complete");
-                }
-                Some(WorkloadCommand::Restart(runtime_workload_config, control_interface_path)) => {
-                    if retry_counter > MAX_RETIRES {
-                        log::warn!(
-                            "Abort retry: maximum amount of retries ('{}') reached.",
-                            MAX_RETIRES
-                        );
-                        continue;
-                    }
-
-                    if quit_retry {
-                        log::debug!("Skip restart workload, quit_retry = '{}'", quit_retry);
-                        continue;
-                    }
-
-                    match runtime
-                        .create_workload(
-                            *runtime_workload_config.clone(),
-                            control_interface_path.clone(),
-                            update_state_tx.clone(),
-                        )
-                        .await
-                    {
-                        Ok((new_workload_id, new_state_checker)) => {
-                            workload_id = Some(new_workload_id);
-                            state_checker = Some(new_state_checker);
-                        }
-                        Err(err) => {
-                            log::warn!(
-                                "Retry '{}' out of '{}': Failed to create workload: '{}': '{}'",
-                                retry_counter,
-                                MAX_RETIRES,
-                                workload_name,
-                                err
-                            );
-
-                            log::debug!(
-                                "#### Enqueue restart workload command, quit_retry = {quit_retry}."
-                            );
-
-                            let sender = workload_channel.clone();
-                            retry_counter += 1;
-                            tokio::task::spawn(async move {
-                                tokio::time::sleep(tokio::time::Duration::from_millis(
-                                    RETRY_WAITING_TIME_MS,
-                                ))
-                                .await;
-                                sender
-                                    .restart(*runtime_workload_config, control_interface_path)
-                                    .await
-                                    .unwrap_or_else(|err| {
-                                        log::warn!(
-                                            "Could not send restart workload command: '{}'",
-                                            err
-                                        )
-                                    });
-                            });
-                        }
-                    }
-                }
-                _ => {
-                    log::warn!(
-                        "Could not wait for internal stop command for workload '{}'.",
-                        workload_name,
-                    );
-                    return;
-                }
-            }
-        }
     }
 
     // [impl->swdd~agent-forward-responses-to-control-interface-pipe~1]
