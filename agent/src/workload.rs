@@ -13,8 +13,10 @@ use common::{
 
 #[cfg(test)]
 use mockall::automock;
-
 use tokio::sync::mpsc;
+
+const MAX_RETIRES: usize = 20;
+const RETRY_WAITING_TIME_MS: u64 = 1000;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum WorkloadError {
@@ -39,6 +41,7 @@ impl Display for WorkloadError {
 pub enum WorkloadCommand {
     Delete,
     Update(Box<WorkloadSpec>, Option<PathBuf>),
+    Restart(Box<WorkloadSpec>, Option<PathBuf>),
 }
 
 // #[derive(Debug)]
@@ -46,6 +49,19 @@ pub struct Workload {
     name: String,
     channel: mpsc::Sender<WorkloadCommand>,
     control_interface: Option<PipesChannelContext>,
+}
+
+async fn restart(
+    command_sender: &mpsc::Sender<WorkloadCommand>,
+    workload_spec: WorkloadSpec,
+    control_interface_path: Option<PathBuf>,
+) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
+    command_sender
+        .send(WorkloadCommand::Restart(
+            Box::new(workload_spec),
+            control_interface_path,
+        ))
+        .await
 }
 
 #[cfg_attr(test, automock)]
@@ -80,11 +96,22 @@ impl Workload {
             .as_ref()
             .map(|control_interface| control_interface.get_api_location());
 
+        log::debug!("############### update(..)  enqueue WorkloadCommand::Update.");
         self.channel
             .send(WorkloadCommand::Update(
                 Box::new(spec),
                 control_interface_path,
             ))
+            .await
+            .map_err(|err| WorkloadError::Communication(err.to_string()))
+    }
+
+    pub async fn restart(
+        &self,
+        workload_spec: WorkloadSpec,
+        control_interface_path: Option<PathBuf>,
+    ) -> Result<(), WorkloadError> {
+        restart(&self.channel, workload_spec, control_interface_path)
             .await
             .map_err(|err| WorkloadError::Communication(err.to_string()))
     }
@@ -111,14 +138,18 @@ impl Workload {
         update_state_tx: StateChangeSender,
         runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>,
         mut command_receiver: mpsc::Receiver<WorkloadCommand>,
+        command_sender: mpsc::Sender<WorkloadCommand>,
     ) where
         WorkloadId: Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
+        let mut retry_counter: usize = 1;
+        let mut quit_retry = false;
         loop {
             match command_receiver.recv().await {
                 // [impl->swdd~agent-workload-tasks-executes-delete~1]
                 Some(WorkloadCommand::Delete) => {
+                    quit_retry = true;
                     if let Some(old_id) = workload_id.take() {
                         if let Err(err) = runtime.delete_workload(&old_id).await {
                             // [impl->swdd~agent-workload-task-delete-failed-allows-retry~1]
@@ -129,11 +160,11 @@ impl Workload {
                             if let Some(old_checker) = state_checker.take() {
                                 old_checker.stop_checker().await;
                             }
-                            log::debug!("Stop workload complete");
+                            log::debug!("############## Stop workload complete");
                         }
                     } else {
                         // [impl->swdd~agent-workload-task-delete-broken-allowed~1]
-                        log::debug!("Workload '{}' already gone.", workload_name);
+                        log::debug!("############### Workload '{}' already gone.", workload_name);
                     }
 
                     // Successfully stopped the workload and the state checker. Send a removed on the channel
@@ -150,6 +181,8 @@ impl Workload {
                 }
                 // [impl->swdd~agent-workload-task-executes-update~1]
                 Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
+                    quit_retry = true;
+                    log::debug!("###################### Setting quit_retry = true");
                     if let Some(old_id) = workload_id.take() {
                         if let Err(err) = runtime.delete_workload(&old_id).await {
                             // [impl->swdd~agent-workload-task-update-delete-failed-allows-retry~1]
@@ -187,6 +220,65 @@ impl Workload {
                     }
 
                     log::debug!("Update workload complete");
+                }
+                Some(WorkloadCommand::Restart(runtime_workload_config, control_interface_path)) => {
+                    if retry_counter > MAX_RETIRES {
+                        log::warn!(
+                            "Abort retry: maximum amount of retries ('{}') reached.",
+                            MAX_RETIRES
+                        );
+                        continue;
+                    }
+
+                    if quit_retry {
+                        log::debug!("Skip restart workload, quit_retry = '{}'", quit_retry);
+                        continue;
+                    }
+
+                    match runtime
+                        .create_workload(
+                            *runtime_workload_config.clone(),
+                            control_interface_path.clone(),
+                            update_state_tx.clone(),
+                        )
+                        .await
+                    {
+                        Ok((new_workload_id, new_state_checker)) => {
+                            workload_id = Some(new_workload_id);
+                            state_checker = Some(new_state_checker);
+                        }
+                        Err(err) => {
+                            log::warn!(
+                                "Retry '{}' out of '{}': Failed to create workload: '{}': '{}'",
+                                retry_counter,
+                                MAX_RETIRES,
+                                workload_name,
+                                err
+                            );
+
+                            log::debug!(
+                                "#### Enqueue restart workload command, quit_retry = {quit_retry}."
+                            );
+
+                            let sender = command_sender.clone();
+                            retry_counter += 1;
+                            tokio::task::spawn(async move {
+                                restart(&sender, *runtime_workload_config, control_interface_path)
+                                    .await
+                                    .unwrap_or_else(|err| {
+                                        log::warn!(
+                                            "Could not send restart workload command: '{}'",
+                                            err
+                                        )
+                                    });
+                                // retry_counter += 1;
+                                tokio::time::sleep(tokio::time::Duration::from_millis(
+                                    RETRY_WAITING_TIME_MS,
+                                ))
+                                .await;
+                            });
+                        }
+                    }
                 }
                 _ => {
                     log::warn!(

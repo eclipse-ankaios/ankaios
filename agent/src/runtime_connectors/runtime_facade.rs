@@ -15,7 +15,10 @@ use crate::runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker};
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
 
+//use tokio::time::{sleep, Duration};
+
 static COMMAND_BUFFER_SIZE: usize = 5;
+//const MAX_RETRIES: usize = 10;
 
 #[async_trait]
 #[cfg_attr(test, automock)]
@@ -67,6 +70,30 @@ where
     }
 }
 
+// use std::future::Future;
+// async fn retry_async<ActionFn, StopFn, Fut, FutBool>(
+//     action_fn: ActionFn,
+//     stop_fn: StopFn,
+//     retry_ms: u64,
+//     max_retries: Option<usize>,
+// ) where
+//     Fut: Future<Output = ()>,
+//     FutBool: Future<Output = bool>,
+//     ActionFn: Fn(usize) -> Fut + Send + Sync + 'static,
+//     StopFn: Fn(usize) -> FutBool + Send + Sync + 'static,
+// {
+//     let max_retries = max_retries.unwrap_or(MAX_RETRIES);
+//     for retry in 0..max_retries {
+//         if stop_fn(retry).await {
+//             break;
+//         }
+
+//         action_fn(retry).await;
+
+//         sleep(Duration::from_millis(retry_ms)).await;
+//     }
+// }
+
 #[async_trait]
 impl<
         WorkloadId: Send + Sync + 'static,
@@ -94,7 +121,8 @@ impl<
         update_state_tx: &StateChangeSender,
     ) -> Workload {
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
-
+        let tmp_command_sender = command_sender.clone();
+        let workload_command_sender = command_sender.clone();
         let workload_name = workload_spec.name.clone();
         let agent_name = workload_spec.agent.clone();
         let runtime = self.runtime.to_owned();
@@ -112,20 +140,31 @@ impl<
 
         tokio::spawn(async move {
             let workload_name = workload_spec.name.clone();
-            let (workload_id, state_checker) = runtime
+            let create_result = runtime
                 .create_workload(
-                    workload_spec,
-                    control_interface_path,
+                    workload_spec.clone(),
+                    control_interface_path.clone(),
                     update_state_tx.clone(),
                 )
-                .await
-                .map_or_else(
-                    |err| {
-                        log::warn!("Failed to create workload: '{}': '{}'", workload_name, err);
-                        (None, None)
-                    },
-                    |(workload_id, state_checker)| (Some(workload_id), Some(state_checker)),
+                .await;
+
+            let (workload_id, state_checker) = if let Ok((id, checker)) = create_result {
+                (Some(id), Some(checker))
+            } else {
+                log::warn!(
+                    "Failed to create workload: '{}': '{}'",
+                    workload_name,
+                    create_result.err().unwrap()
                 );
+                let workload = Workload::new(workload_name.clone(), tmp_command_sender, None);
+                workload
+                    .restart(workload_spec, control_interface_path)
+                    .await
+                    .unwrap_or_else(|err| {
+                        log::warn!("Failed to send restart workload command: '{}'", err);
+                    });
+                (None, None)
+            };
 
             Workload::await_new_command(
                 workload_name,
@@ -135,11 +174,12 @@ impl<
                 update_state_tx,
                 runtime,
                 command_receiver,
+                command_sender,
             )
             .await;
         });
 
-        Workload::new(workload_name, command_sender, control_interface)
+        Workload::new(workload_name, workload_command_sender, control_interface)
     }
 
     // [impl->swdd~agent-replace-workload~1]
@@ -151,7 +191,8 @@ impl<
         update_state_tx: &StateChangeSender,
     ) -> Workload {
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
-
+        let workload_command_sender = command_sender.clone();
+        let tmp_command_sender = command_sender.clone();
         let workload_name = new_workload_spec.name.clone();
         let agent_name = new_workload_spec.agent.clone();
         let runtime = self.runtime.to_owned();
@@ -187,24 +228,31 @@ impl<
                 ),
             }
 
-            let (workload_id, state_checker) = runtime
+            let create_result = runtime
                 .create_workload(
-                    new_workload_spec,
-                    control_interface_path,
+                    new_workload_spec.clone(),
+                    control_interface_path.clone(),
                     update_state_tx.clone(),
                 )
-                .await
-                .map_or_else(
-                    |err| {
-                        log::warn!(
-                            "Failed to create workload when replacing workload '{}': '{}'",
-                            workload_name,
-                            err
-                        );
-                        (None, None)
-                    },
-                    |(workload_id, state_checker)| (Some(workload_id), Some(state_checker)),
+                .await;
+
+            let (workload_id, state_checker) = if let Ok((id, checker)) = create_result {
+                (Some(id), Some(checker))
+            } else {
+                log::warn!(
+                    "Failed to create workload: '{}': '{}'",
+                    workload_name,
+                    create_result.err().unwrap()
                 );
+                let workload = Workload::new(workload_name.clone(), tmp_command_sender, None);
+                workload
+                    .restart(new_workload_spec, control_interface_path)
+                    .await
+                    .unwrap_or_else(|err| {
+                        log::warn!("Failed to send restart workload command: '{}'", err);
+                    });
+                (None, None)
+            };
 
             // replace workload_id and state_checker through Option directly and pass in None if create_workload fails
             Workload::await_new_command(
@@ -215,11 +263,12 @@ impl<
                 update_state_tx,
                 runtime,
                 command_receiver,
+                command_sender,
             )
             .await;
         });
 
-        Workload::new(workload_name, command_sender, control_interface)
+        Workload::new(workload_name, workload_command_sender, control_interface)
     }
 
     // [impl->swdd~agent-resume-workload~1]
@@ -230,7 +279,7 @@ impl<
         update_state_tx: &StateChangeSender,
     ) -> Workload {
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
-
+        let workload_command_sender = command_sender.clone();
         let workload_name = workload_spec.name.clone();
         let agent_name = workload_spec.agent.clone();
         let runtime = self.runtime.to_owned();
@@ -280,11 +329,12 @@ impl<
                 update_state_tx,
                 runtime,
                 command_receiver,
+                command_sender,
             )
             .await;
         });
 
-        Workload::new(workload_name, command_sender, control_interface)
+        Workload::new(workload_name, workload_command_sender, control_interface)
     }
 
     // [impl->swdd~agent-delete-old-workload~1]
