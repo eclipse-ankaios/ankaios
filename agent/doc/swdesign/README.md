@@ -1361,16 +1361,17 @@ Needs:
 - impl
 
 #### Allowed workload states
-`swdd~allowed-workload-states~1`
+`swdd~allowed-workload-states~2`
 
 The state getter interface shall return one of following workload states:
 
-* pending
+* starting
 * running
 * succeeded
 * failed
 * unknown
 * removed
+* stopping
 
 Tags: 
 - RuntimeConnectorInterfaces
