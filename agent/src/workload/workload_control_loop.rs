@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use crate::workload::WorkloadCommand;
-use crate::workload_queue::WorkloadCommandChannel;
+use crate::workload::WorkloadCommandChannel;
 use common::{
     objects::ExecutionState,
     state_change_interface::{StateChangeInterface, StateChangeSender},
@@ -27,7 +27,7 @@ use mockall::automock;
 const MAX_RETIRES: usize = 20;
 const RETRY_WAITING_TIME_MS: u64 = 1000;
 
-pub struct WorkloadCommandQueue<WorkloadId, StChecker>
+pub struct WorkloadControlLoop<WorkloadId, StChecker>
 where
     WorkloadId: Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
@@ -43,7 +43,7 @@ where
 }
 
 #[cfg_attr(test, automock)]
-impl<WorkloadId, StChecker> WorkloadCommandQueue<WorkloadId, StChecker>
+impl<WorkloadId, StChecker> WorkloadControlLoop<WorkloadId, StChecker>
 where
     WorkloadId: Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
@@ -58,7 +58,7 @@ where
         command_receiver: mpsc::Receiver<WorkloadCommand>,
         workload_channel: WorkloadCommandChannel,
     ) -> Self {
-        WorkloadCommandQueue {
+        WorkloadControlLoop {
             workload_name,
             agent_name,
             workload_id,

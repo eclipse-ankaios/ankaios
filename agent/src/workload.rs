@@ -1,3 +1,25 @@
+// Copyright (c) 2023 Elektrobit Automotive GmbH
+//
+// This program and the accompanying materials are made available under the
+// terms of the Apache License, Version 2.0 which is available at
+// https://www.apache.org/licenses/LICENSE-2.0.
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+// mod exports
+pub mod workload_command_channel;
+pub mod workload_control_loop;
+
+// public api exports
+pub use workload_command_channel::WorkloadCommandChannel;
+pub use workload_control_loop::WorkloadControlLoop;
+
 use std::{fmt::Display, path::PathBuf};
 
 #[cfg_attr(test, mockall_double::double)]
@@ -6,7 +28,6 @@ use common::{
     commands::CompleteState, execution_interface::ExecutionCommand, objects::WorkloadSpec,
 };
 
-use crate::workload_queue::WorkloadCommandChannel;
 #[cfg(test)]
 use mockall::automock;
 
@@ -142,7 +163,7 @@ mod tests {
         control_interface::MockPipesChannelContext,
         runtime_connectors::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
         workload::{Workload, WorkloadCommand, WorkloadError},
-        workload_queue::{WorkloadCommandChannel, WorkloadCommandQueue},
+        workload::{WorkloadCommandChannel, WorkloadControlLoop},
     };
 
     const RUNTIME_NAME: &str = "runtime1";
@@ -362,7 +383,7 @@ mod tests {
         // Send also a delete command so that we can properly get out of the loop
         workload_command_sender.clone().delete().await.unwrap();
 
-        let mut workload_command_queue = WorkloadCommandQueue::new(
+        let mut workload_control_loop = WorkloadControlLoop::new(
             WORKLOAD_1_NAME.to_string(),
             AGENT_NAME.to_string(),
             Some(OLD_WORKLOAD_ID.to_string()),
@@ -375,7 +396,7 @@ mod tests {
 
         assert!(timeout(
             Duration::from_millis(200),
-            workload_command_queue.await_new_command()
+            workload_control_loop.await_new_command()
         )
         .await
         .is_ok());
@@ -440,7 +461,7 @@ mod tests {
         // Send also a delete command so that we can properly get out of the loop
         workload_command_sender.clone().delete().await.unwrap();
 
-        let mut workload_command_queue = WorkloadCommandQueue::new(
+        let mut workload_control_loop = WorkloadControlLoop::new(
             WORKLOAD_1_NAME.to_string(),
             AGENT_NAME.to_string(),
             None,
@@ -453,7 +474,7 @@ mod tests {
 
         assert!(timeout(
             Duration::from_millis(200),
-            workload_command_queue.await_new_command()
+            workload_control_loop.await_new_command()
         )
         .await
         .is_ok());
@@ -516,7 +537,7 @@ mod tests {
         // Send also a delete command so that we can properly get out of the loop
         workload_command_sender.clone().delete().await.unwrap();
 
-        let mut workload_command_queue = WorkloadCommandQueue::new(
+        let mut workload_control_loop = WorkloadControlLoop::new(
             WORKLOAD_1_NAME.to_string(),
             AGENT_NAME.to_string(),
             Some(OLD_WORKLOAD_ID.to_string()),
@@ -529,7 +550,7 @@ mod tests {
 
         assert!(timeout(
             Duration::from_millis(200),
-            workload_command_queue.await_new_command()
+            workload_control_loop.await_new_command()
         )
         .await
         .is_ok());
@@ -594,7 +615,7 @@ mod tests {
         // Send also a delete command so that we can properly get out of the loop
         workload_command_sender.clone().delete().await.unwrap();
 
-        let mut workload_command_queue = WorkloadCommandQueue::new(
+        let mut workload_control_loop = WorkloadControlLoop::new(
             WORKLOAD_1_NAME.to_string(),
             AGENT_NAME.to_string(),
             Some(OLD_WORKLOAD_ID.to_string()),
@@ -607,7 +628,7 @@ mod tests {
 
         assert!(timeout(
             Duration::from_millis(200),
-            workload_command_queue.await_new_command()
+            workload_control_loop.await_new_command()
         )
         .await
         .is_ok());
@@ -652,7 +673,7 @@ mod tests {
         // Send the delete command now. It will be buffered until the await receives it.
         workload_command_sender.clone().delete().await.unwrap();
 
-        let mut workload_command_queue = WorkloadCommandQueue::new(
+        let mut workload_control_loop = WorkloadControlLoop::new(
             WORKLOAD_1_NAME.to_string(),
             AGENT_NAME.to_string(),
             Some(OLD_WORKLOAD_ID.to_string()),
@@ -665,7 +686,7 @@ mod tests {
 
         assert!(timeout(
             Duration::from_millis(200),
-            workload_command_queue.await_new_command()
+            workload_control_loop.await_new_command()
         )
         .await
         .is_ok());
@@ -717,7 +738,7 @@ mod tests {
         workload_command_sender.clone().delete().await.unwrap();
         workload_command_sender.clone().delete().await.unwrap();
 
-        let mut workload_command_queue = WorkloadCommandQueue::new(
+        let mut workload_control_loop = WorkloadControlLoop::new(
             WORKLOAD_1_NAME.to_string(),
             AGENT_NAME.to_string(),
             Some(OLD_WORKLOAD_ID.to_string()),
@@ -730,7 +751,7 @@ mod tests {
 
         assert!(timeout(
             Duration::from_millis(200),
-            workload_command_queue.await_new_command()
+            workload_control_loop.await_new_command()
         )
         .await
         .is_ok());
@@ -766,7 +787,7 @@ mod tests {
         // Send the delete command now. It will be buffered until the await receives it.
         workload_command_sender.clone().delete().await.unwrap();
 
-        let mut workload_command_queue = WorkloadCommandQueue::new(
+        let mut workload_control_loop = WorkloadControlLoop::new(
             WORKLOAD_1_NAME.to_string(),
             AGENT_NAME.to_string(),
             None,
@@ -779,7 +800,7 @@ mod tests {
 
         assert!(timeout(
             Duration::from_millis(200),
-            workload_command_queue.await_new_command()
+            workload_control_loop.await_new_command()
         )
         .await
         .is_ok());

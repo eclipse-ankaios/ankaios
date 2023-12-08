@@ -12,10 +12,10 @@ use crate::control_interface::PipesChannelContext;
 use crate::runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker};
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::workload::Workload;
+use crate::workload::workload_control_loop::WorkloadControlLoop;
 #[cfg_attr(test, mockall_double::double)]
-use crate::workload_queue::workload_command_queue::WorkloadCommandQueue;
-use crate::workload_queue::WorkloadCommandChannel;
+use crate::workload::Workload;
+use crate::workload::WorkloadCommandChannel;
 
 #[async_trait]
 #[cfg_attr(test, automock)]
@@ -136,8 +136,8 @@ impl<
                 (None, None)
             };
 
-            let mut workload_loop: WorkloadCommandQueue<WorkloadId, StChecker> =
-                WorkloadCommandQueue::new(
+            let mut workload_loop: WorkloadControlLoop<WorkloadId, StChecker> =
+                WorkloadControlLoop::new(
                     workload_name,
                     agent_name,
                     workload_id,
@@ -224,8 +224,8 @@ impl<
             };
 
             // replace workload_id and state_checker through Option directly and pass in None if create_workload fails
-            let mut workload_loop: WorkloadCommandQueue<WorkloadId, StChecker> =
-                WorkloadCommandQueue::new(
+            let mut workload_loop: WorkloadControlLoop<WorkloadId, StChecker> =
+                WorkloadControlLoop::new(
                     workload_name,
                     agent_name,
                     workload_id,
@@ -291,8 +291,8 @@ impl<
                 }
             };
 
-            let mut workload_loop: WorkloadCommandQueue<WorkloadId, StChecker> =
-                WorkloadCommandQueue::new(
+            let mut workload_loop: WorkloadControlLoop<WorkloadId, StChecker> =
+                WorkloadControlLoop::new(
                     workload_name,
                     agent_name,
                     workload_id.ok(),
@@ -353,8 +353,8 @@ mod tests {
             OwnableRuntime,
         },
         runtime_connectors::{GenericRuntimeFacade, RuntimeFacade},
+        workload::workload_control_loop::MockWorkloadControlLoop,
         workload::MockWorkload,
-        workload_queue::workload_command_queue::MockWorkloadCommandQueue,
     };
 
     const RUNTIME_NAME: &str = "runtime1";
@@ -429,12 +429,10 @@ mod tests {
 
         let to_server_clone = to_server.clone();
 
-        let mut workload_command_queue_mock = MockWorkloadCommandQueue::default();
-        workload_command_queue_mock
-            .expect_await_new_command()
-            .once();
-        let workload_command_queue_new_context = MockWorkloadCommandQueue::new_context();
-        workload_command_queue_new_context
+        let mut workload_control_loop_mock = MockWorkloadControlLoop::default();
+        workload_control_loop_mock.expect_await_new_command().once();
+        let workload_control_loop_new_context = MockWorkloadControlLoop::new_context();
+        workload_control_loop_new_context
             .expect()
             .once()
             .with(
@@ -451,7 +449,7 @@ mod tests {
             )
             .return_once(
                 |_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _, _| {
-                    workload_command_queue_mock
+                    workload_control_loop_mock
                 },
             );
 
@@ -509,12 +507,10 @@ mod tests {
 
         let to_server_clone = to_server.clone();
 
-        let mut workload_command_queue_mock = MockWorkloadCommandQueue::default();
-        workload_command_queue_mock
-            .expect_await_new_command()
-            .once();
-        let workload_command_queue_new_context = MockWorkloadCommandQueue::new_context();
-        workload_command_queue_new_context
+        let mut workload_control_loop_mock = MockWorkloadControlLoop::default();
+        workload_control_loop_mock.expect_await_new_command().once();
+        let workload_control_loop_new_context = MockWorkloadControlLoop::new_context();
+        workload_control_loop_new_context
             .expect()
             .once()
             .with(
@@ -531,7 +527,7 @@ mod tests {
             )
             .return_once(
                 |_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _, _| {
-                    workload_command_queue_mock
+                    workload_control_loop_mock
                 },
             );
 
@@ -599,12 +595,10 @@ mod tests {
 
         let to_server_clone = to_server.clone();
 
-        let mut workload_command_queue_mock = MockWorkloadCommandQueue::default();
-        workload_command_queue_mock
-            .expect_await_new_command()
-            .once();
-        let workload_command_queue_new_context = MockWorkloadCommandQueue::new_context();
-        workload_command_queue_new_context
+        let mut workload_control_loop_mock = MockWorkloadControlLoop::default();
+        workload_control_loop_mock.expect_await_new_command().once();
+        let workload_control_loop_new_context = MockWorkloadControlLoop::new_context();
+        workload_control_loop_new_context
             .expect()
             .once()
             .with(
@@ -621,7 +615,7 @@ mod tests {
             )
             .return_once(
                 |_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _, _| {
-                    workload_command_queue_mock
+                    workload_control_loop_mock
                 },
             );
         let old_workload_instance_name = WorkloadExecutionInstanceName::builder()
@@ -695,12 +689,10 @@ mod tests {
 
         let to_server_clone = to_server.clone();
 
-        let mut workload_command_queue_mock = MockWorkloadCommandQueue::default();
-        workload_command_queue_mock
-            .expect_await_new_command()
-            .once();
-        let workload_command_queue_new_context = MockWorkloadCommandQueue::new_context();
-        workload_command_queue_new_context
+        let mut workload_control_loop_mock = MockWorkloadControlLoop::default();
+        workload_control_loop_mock.expect_await_new_command().once();
+        let workload_control_loop_new_context = MockWorkloadControlLoop::new_context();
+        workload_control_loop_new_context
             .expect()
             .once()
             .with(
@@ -717,7 +709,7 @@ mod tests {
             )
             .return_once(
                 |_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _, _| {
-                    workload_command_queue_mock
+                    workload_control_loop_mock
                 },
             );
 
@@ -794,12 +786,10 @@ mod tests {
 
         let to_server_clone = to_server.clone();
 
-        let mut workload_command_queue_mock = MockWorkloadCommandQueue::default();
-        workload_command_queue_mock
-            .expect_await_new_command()
-            .once();
-        let workload_command_queue_new_context = MockWorkloadCommandQueue::new_context();
-        workload_command_queue_new_context
+        let mut workload_control_loop_mock = MockWorkloadControlLoop::default();
+        workload_control_loop_mock.expect_await_new_command().once();
+        let workload_control_loop_new_context = MockWorkloadControlLoop::new_context();
+        workload_control_loop_new_context
             .expect()
             .once()
             .with(
@@ -816,7 +806,7 @@ mod tests {
             )
             .return_once(
                 |_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _, _| {
-                    workload_command_queue_mock
+                    workload_control_loop_mock
                 },
             );
 
