@@ -6,7 +6,7 @@ use common::{
     commands::CompleteState, execution_interface::ExecutionCommand, objects::WorkloadSpec,
 };
 
-use crate::workload::WorkloadChannel;
+use crate::workload::WorkloadCommandChannel;
 #[cfg(test)]
 use mockall::automock;
 
@@ -29,7 +29,7 @@ impl Display for WorkloadError {
     }
 }
 
-#[derive(Debug)]
+//#[derive(Debug)]
 pub enum WorkloadCommand {
     Delete,
     Update(Box<WorkloadSpec>, Option<PathBuf>),
@@ -39,7 +39,7 @@ pub enum WorkloadCommand {
 // #[derive(Debug)]
 pub struct Workload {
     name: String,
-    channel: WorkloadChannel,
+    channel: WorkloadCommandChannel,
     control_interface: Option<PipesChannelContext>,
 }
 
@@ -47,7 +47,7 @@ pub struct Workload {
 impl Workload {
     pub fn new(
         name: String,
-        channel: WorkloadChannel,
+        channel: WorkloadCommandChannel,
         control_interface: Option<PipesChannelContext>,
     ) -> Self {
         Workload {

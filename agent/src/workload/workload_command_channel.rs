@@ -18,16 +18,19 @@ use tokio::sync::mpsc;
 
 static COMMAND_BUFFER_SIZE: usize = 5;
 
+pub type WorkloadCommandSender = mpsc::Sender<WorkloadCommand>;
+pub type WorkloadCommandReceiver = mpsc::Receiver<WorkloadCommand>;
+
 #[derive(Clone)]
-pub struct WorkloadChannel {
-    sender: mpsc::Sender<WorkloadCommand>,
+pub struct WorkloadCommandChannel {
+    sender: WorkloadCommandSender,
 }
 
-impl WorkloadChannel {
-    pub fn new() -> (Self, mpsc::Receiver<WorkloadCommand>) {
+impl WorkloadCommandChannel {
+    pub fn new() -> (Self, WorkloadCommandReceiver) {
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
         (
-            WorkloadChannel {
+            WorkloadCommandChannel {
                 sender: command_sender,
             },
             command_receiver,

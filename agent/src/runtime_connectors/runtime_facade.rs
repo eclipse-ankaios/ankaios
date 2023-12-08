@@ -13,8 +13,8 @@ use crate::runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
-use crate::workload::WorkloadChannel;
-use crate::workload::WorkloadLoop;
+use crate::workload::WorkloadCommandChannel;
+use crate::workload::WorkloadCommandQueue;
 
 #[async_trait]
 #[cfg_attr(test, automock)]
@@ -106,7 +106,7 @@ impl<
             workload_name,
             agent_name
         );
-        let (workload_channel, command_receiver) = WorkloadChannel::new();
+        let (workload_channel, command_receiver) = WorkloadCommandChannel::new();
         let workload_channel_retry = workload_channel.clone();
         tokio::spawn(async move {
             let workload_name = workload_spec.name.clone();
@@ -135,16 +135,17 @@ impl<
                 (None, None)
             };
 
-            let mut workload_loop: WorkloadLoop<WorkloadId, StChecker> = WorkloadLoop::new(
-                workload_name,
-                agent_name,
-                workload_id,
-                state_checker,
-                update_state_tx,
-                runtime,
-                command_receiver,
-                workload_channel_retry,
-            );
+            let mut workload_loop: WorkloadCommandQueue<WorkloadId, StChecker> =
+                WorkloadCommandQueue::new(
+                    workload_name,
+                    agent_name,
+                    workload_id,
+                    state_checker,
+                    update_state_tx,
+                    runtime,
+                    command_receiver,
+                    workload_channel_retry,
+                );
             workload_loop.await_new_command().await;
         });
 
@@ -174,7 +175,7 @@ impl<
             agent_name
         );
 
-        let (workload_channel, command_receiver) = WorkloadChannel::new();
+        let (workload_channel, command_receiver) = WorkloadCommandChannel::new();
         let workload_channel_retry = workload_channel.clone();
         tokio::spawn(async move {
             let workload_name = new_workload_spec.name.clone();
@@ -222,16 +223,17 @@ impl<
             };
 
             // replace workload_id and state_checker through Option directly and pass in None if create_workload fails
-            let mut workload_loop: WorkloadLoop<WorkloadId, StChecker> = WorkloadLoop::new(
-                workload_name,
-                agent_name,
-                workload_id,
-                state_checker,
-                update_state_tx,
-                runtime,
-                command_receiver,
-                workload_channel_retry,
-            );
+            let mut workload_loop: WorkloadCommandQueue<WorkloadId, StChecker> =
+                WorkloadCommandQueue::new(
+                    workload_name,
+                    agent_name,
+                    workload_id,
+                    state_checker,
+                    update_state_tx,
+                    runtime,
+                    command_receiver,
+                    workload_channel_retry,
+                );
             workload_loop.await_new_command().await;
         });
 
@@ -257,7 +259,7 @@ impl<
             agent_name
         );
 
-        let (workload_channel, command_receiver) = WorkloadChannel::new();
+        let (workload_channel, command_receiver) = WorkloadCommandChannel::new();
         let workload_channel_retry = workload_channel.clone();
         tokio::spawn(async move {
             let workload_name = workload_spec.name.clone();
@@ -288,16 +290,17 @@ impl<
                 }
             };
 
-            let mut workload_loop: WorkloadLoop<WorkloadId, StChecker> = WorkloadLoop::new(
-                workload_name,
-                agent_name,
-                workload_id.ok(),
-                state_checker,
-                update_state_tx,
-                runtime,
-                command_receiver,
-                workload_channel_retry,
-            );
+            let mut workload_loop: WorkloadCommandQueue<WorkloadId, StChecker> =
+                WorkloadCommandQueue::new(
+                    workload_name,
+                    agent_name,
+                    workload_id.ok(),
+                    state_checker,
+                    update_state_tx,
+                    runtime,
+                    command_receiver,
+                    workload_channel_retry,
+                );
             workload_loop.await_new_command().await;
         });
 

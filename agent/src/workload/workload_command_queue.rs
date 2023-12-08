@@ -12,8 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 use crate::runtime_connectors::{RuntimeConnector, StateChecker};
-use crate::workload::WorkloadChannel;
 use crate::workload::WorkloadCommand;
+use crate::workload::WorkloadCommandChannel;
 use common::{
     objects::ExecutionState,
     state_change_interface::{StateChangeInterface, StateChangeSender},
@@ -24,7 +24,7 @@ use tokio::sync::mpsc;
 const MAX_RETIRES: usize = 20;
 const RETRY_WAITING_TIME_MS: u64 = 1000;
 
-pub struct WorkloadLoop<WorkloadId, StChecker>
+pub struct WorkloadCommandQueue<WorkloadId, StChecker>
 where
     WorkloadId: Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
@@ -36,10 +36,10 @@ where
     update_state_tx: StateChangeSender,
     runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>,
     command_receiver: mpsc::Receiver<WorkloadCommand>,
-    workload_channel: WorkloadChannel,
+    workload_channel: WorkloadCommandChannel,
 }
 
-impl<WorkloadId, StChecker> WorkloadLoop<WorkloadId, StChecker>
+impl<WorkloadId, StChecker> WorkloadCommandQueue<WorkloadId, StChecker>
 where
     WorkloadId: Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
@@ -52,9 +52,9 @@ where
         update_state_tx: StateChangeSender,
         runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>,
         command_receiver: mpsc::Receiver<WorkloadCommand>,
-        workload_channel: WorkloadChannel,
+        workload_channel: WorkloadCommandChannel,
     ) -> Self {
-        WorkloadLoop {
+        WorkloadCommandQueue {
             workload_name,
             agent_name,
             workload_id,
@@ -88,14 +88,11 @@ where
                             if let Some(old_checker) = self.state_checker.take() {
                                 old_checker.stop_checker().await;
                             }
-                            log::debug!("############## Stop workload complete");
+                            log::debug!("Stop workload complete");
                         }
                     } else {
                         // [impl->swdd~agent-workload-task-delete-broken-allowed~1]
-                        log::debug!(
-                            "############### Workload '{}' already gone.",
-                            self.workload_name
-                        );
+                        log::debug!("Workload '{}' already gone.", self.workload_name);
                     }
 
                     // Successfully stopped the workload and the state checker. Send a removed on the channel
@@ -114,6 +111,7 @@ where
                 Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
                     quit_retry = true;
                     log::debug!("###################### Setting quit_retry = true");
+
                     if let Some(old_id) = self.workload_id.take() {
                         if let Err(err) = self.runtime.delete_workload(&old_id).await {
                             // [impl->swdd~agent-workload-task-update-delete-failed-allows-retry~1]
