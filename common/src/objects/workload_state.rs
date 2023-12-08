@@ -20,23 +20,25 @@ use api::proto;
 
 #[derive(Debug, Default, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum ExecutionState {
-    ExecPending = 0,
+    ExecStarting = 0,
     ExecRunning = 1,
     ExecSucceeded = 2,
     ExecFailed = 3,
     #[default]
     ExecUnknown = 4,
     ExecRemoved = 5,
+    ExecStopping = 6,
 }
 
 impl From<i32> for ExecutionState {
     fn from(x: i32) -> Self {
         match x {
-            x if x == ExecutionState::ExecPending as i32 => ExecutionState::ExecPending,
+            x if x == ExecutionState::ExecStarting as i32 => ExecutionState::ExecStarting,
             x if x == ExecutionState::ExecRunning as i32 => ExecutionState::ExecRunning,
             x if x == ExecutionState::ExecSucceeded as i32 => ExecutionState::ExecSucceeded,
             x if x == ExecutionState::ExecFailed as i32 => ExecutionState::ExecFailed,
             x if x == ExecutionState::ExecRemoved as i32 => ExecutionState::ExecRemoved,
+            x if x == ExecutionState::ExecStopping as i32 => ExecutionState::ExecStopping,
             _ => ExecutionState::ExecUnknown,
         }
     }
@@ -47,12 +49,13 @@ impl std::str::FromStr for ExecutionState {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s.to_lowercase().as_str() {
-            "created" => ExecutionState::ExecPending,
-            "pending" => ExecutionState::ExecPending,
+            "created" => ExecutionState::ExecStarting,
+            "pending" => ExecutionState::ExecStarting,
             "running" => ExecutionState::ExecRunning,
             "succeeded" => ExecutionState::ExecSucceeded,
             "failed" => ExecutionState::ExecFailed,
             "removed" => ExecutionState::ExecRemoved,
+            "stopping" => ExecutionState::ExecStopping,
             _ => ExecutionState::ExecUnknown,
         })
     }
@@ -61,12 +64,13 @@ impl std::str::FromStr for ExecutionState {
 impl Display for ExecutionState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ExecutionState::ExecPending => write!(f, "Pending"),
+            ExecutionState::ExecStarting => write!(f, "Starting"),
             ExecutionState::ExecRunning => write!(f, "Running"),
             ExecutionState::ExecSucceeded => write!(f, "Succeeded"),
             ExecutionState::ExecFailed => write!(f, "Failed"),
             ExecutionState::ExecUnknown => write!(f, "Unknown"),
             ExecutionState::ExecRemoved => write!(f, "Removed"),
+            ExecutionState::ExecStopping => write!(f, "Stopping"),
         }
     }
 }
@@ -153,20 +157,21 @@ mod tests {
 
     #[test]
     fn utest_execution_state_from_int_mapping() {
-        assert_eq!(ExecutionState::ExecPending, ExecutionState::from(0));
+        assert_eq!(ExecutionState::ExecStarting, ExecutionState::from(0));
         assert_eq!(ExecutionState::ExecRunning, ExecutionState::from(1));
         assert_eq!(ExecutionState::ExecSucceeded, ExecutionState::from(2));
         assert_eq!(ExecutionState::ExecFailed, ExecutionState::from(3));
         assert_eq!(ExecutionState::ExecUnknown, ExecutionState::from(4));
         assert_eq!(ExecutionState::ExecRemoved, ExecutionState::from(5));
+        assert_eq!(ExecutionState::ExecStopping, ExecutionState::from(6));
         assert_eq!(ExecutionState::ExecUnknown, ExecutionState::from(100));
     }
 
     #[test]
     fn utest_execution_state_from_string_basic_mapping() {
         assert_eq!(
-            ExecutionState::ExecPending,
-            ExecutionState::from_str("Pending").unwrap()
+            ExecutionState::ExecStarting,
+            ExecutionState::from_str("Created").unwrap()
         );
         assert_eq!(
             ExecutionState::ExecRunning,
@@ -185,6 +190,10 @@ mod tests {
             ExecutionState::from_str("Removed").unwrap()
         );
         assert_eq!(
+            ExecutionState::ExecStopping,
+            ExecutionState::from_str("Stopping").unwrap()
+        );
+        assert_eq!(
             ExecutionState::ExecUnknown,
             ExecutionState::from_str("Unsupported").unwrap()
         );
@@ -193,8 +202,8 @@ mod tests {
     #[test]
     fn utest_execution_state_to_string_basic_mapping() {
         assert_eq!(
-            ExecutionState::ExecPending.to_string(),
-            String::from("Pending")
+            ExecutionState::ExecStarting.to_string(),
+            String::from("Starting")
         );
         assert_eq!(
             ExecutionState::ExecRunning.to_string(),
@@ -211,6 +220,10 @@ mod tests {
         assert_eq!(
             ExecutionState::ExecRemoved.to_string(),
             String::from("Removed")
+        );
+        assert_eq!(
+            ExecutionState::ExecStopping.to_string(),
+            String::from("Stopping")
         );
         assert_eq!(
             ExecutionState::ExecUnknown.to_string(),
