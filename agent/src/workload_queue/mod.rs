@@ -12,10 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub mod workload;
 pub mod workload_command_channel;
 pub mod workload_command_queue;
 
-pub use workload::{Workload, WorkloadCommand, WorkloadError};
 pub use workload_command_channel::WorkloadCommandChannel;
 pub use workload_command_queue::WorkloadCommandQueue;

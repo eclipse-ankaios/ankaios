@@ -6,7 +6,7 @@ use common::{
     commands::CompleteState, execution_interface::ExecutionCommand, objects::WorkloadSpec,
 };
 
-use crate::workload::WorkloadCommandChannel;
+use crate::workload_queue::WorkloadCommandChannel;
 #[cfg(test)]
 use mockall::automock;
 
@@ -142,6 +142,7 @@ mod tests {
         control_interface::MockPipesChannelContext,
         runtime_connectors::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
         workload::{Workload, WorkloadCommand, WorkloadError},
+        workload_queue::{WorkloadCommandChannel, WorkloadCommandQueue},
     };
 
     const RUNTIME_NAME: &str = "runtime1";
@@ -162,8 +163,8 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_tx, mut workload_command_rx) =
-            mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender, mut workload_command_receiver) =
+            WorkloadCommandChannel::new();
 
         let mut old_control_interface_mock = MockPipesChannelContext::default();
         old_control_interface_mock
@@ -185,7 +186,7 @@ mod tests {
 
         let mut test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
-            workload_command_tx,
+            workload_command_sender,
             Some(old_control_interface_mock),
         );
 
@@ -198,7 +199,7 @@ mod tests {
         let expected_pipes_path_buf = PathBuf::from(PIPES_LOCATION);
 
         assert!(matches!(
-            timeout(Duration::from_millis(200), workload_command_rx.recv()).await,
+            timeout(Duration::from_millis(200), workload_command_receiver.recv()).await,
             Ok(Some(WorkloadCommand::Update(
                 boxed_workload_spec,
                 Some(pipes_path_buf)
@@ -213,10 +214,10 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
 
         // drop the receiver so that the send command fails
-        drop(workload_command_rx);
+        drop(workload_command_receiver);
 
         let mut old_control_interface_mock = MockPipesChannelContext::default();
         old_control_interface_mock
@@ -238,7 +239,7 @@ mod tests {
 
         let mut test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
-            workload_command_tx,
+            workload_command_sender,
             Some(old_control_interface_mock),
         );
 
@@ -257,8 +258,8 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_tx, mut workload_command_rx) =
-            mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender, mut workload_command_receiver) =
+            WorkloadCommandChannel::new();
 
         let mut old_control_interface_mock = MockPipesChannelContext::default();
         old_control_interface_mock
@@ -268,14 +269,14 @@ mod tests {
 
         let test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
-            workload_command_tx,
+            workload_command_sender,
             Some(old_control_interface_mock),
         );
 
         test_workload.delete().await.unwrap();
 
         assert!(matches!(
-            timeout(Duration::from_millis(200), workload_command_rx.recv()).await,
+            timeout(Duration::from_millis(200), workload_command_receiver.recv()).await,
             Ok(Some(WorkloadCommand::Delete))
         ));
     }
@@ -287,10 +288,10 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
 
         // drop the receiver so that the send command fails
-        drop(workload_command_rx);
+        drop(workload_command_receiver);
 
         let mut old_control_interface_mock = MockPipesChannelContext::default();
         old_control_interface_mock
@@ -300,7 +301,7 @@ mod tests {
 
         let test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
-            workload_command_tx,
+            workload_command_sender,
             Some(old_control_interface_mock),
         );
 
@@ -320,7 +321,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
         let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut old_mock_state_checker = StubStateChecker::new();
@@ -354,30 +355,27 @@ mod tests {
             .await;
 
         // Send the update command now. It will be buffered until the await receives it.
-        workload_command_tx
-            .send(WorkloadCommand::Update(
-                Box::new(workload_spec.clone()),
-                Some(PIPES_LOCATION.into()),
-            ))
+        workload_command_sender
+            .update(workload_spec.clone(), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
-        workload_command_tx
-            .send(WorkloadCommand::Delete)
-            .await
-            .unwrap();
+        workload_command_sender.clone().delete().await.unwrap();
+
+        let mut workload_command_queue = WorkloadCommandQueue::new(
+            WORKLOAD_1_NAME.to_string(),
+            AGENT_NAME.to_string(),
+            Some(OLD_WORKLOAD_ID.to_string()),
+            Some(old_mock_state_checker),
+            state_change_tx.clone(),
+            Box::new(runtime_mock.clone()),
+            workload_command_receiver,
+            workload_command_sender,
+        );
 
         assert!(timeout(
             Duration::from_millis(200),
-            Workload::await_new_command(
-                WORKLOAD_1_NAME.to_string(),
-                AGENT_NAME.to_string(),
-                Some(OLD_WORKLOAD_ID.to_string()),
-                Some(old_mock_state_checker),
-                state_change_tx.clone(),
-                Box::new(runtime_mock.clone()),
-                workload_command_rx,
-            )
+            workload_command_queue.await_new_command()
         )
         .await
         .is_ok());
@@ -405,7 +403,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
         let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         // Since we also send a delete command to exit the control loop properly, the new state
@@ -435,30 +433,27 @@ mod tests {
             .await;
 
         // Send the update command now. It will be buffered until the await receives it.
-        workload_command_tx
-            .send(WorkloadCommand::Update(
-                Box::new(workload_spec.clone()),
-                Some(PIPES_LOCATION.into()),
-            ))
+        workload_command_sender
+            .update(workload_spec.clone(), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
-        workload_command_tx
-            .send(WorkloadCommand::Delete)
-            .await
-            .unwrap();
+        workload_command_sender.clone().delete().await.unwrap();
+
+        let mut workload_command_queue = WorkloadCommandQueue::new(
+            WORKLOAD_1_NAME.to_string(),
+            AGENT_NAME.to_string(),
+            None,
+            None,
+            state_change_tx.clone(),
+            Box::new(runtime_mock.clone()),
+            workload_command_receiver,
+            workload_command_sender,
+        );
 
         assert!(timeout(
             Duration::from_millis(200),
-            Workload::await_new_command(
-                WORKLOAD_1_NAME.to_string(),
-                AGENT_NAME.to_string(),
-                None,
-                None,
-                state_change_tx.clone(),
-                Box::new(runtime_mock.clone()),
-                workload_command_rx,
-            )
+            workload_command_queue.await_new_command()
         )
         .await
         .is_ok());
@@ -486,7 +481,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
         let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut old_mock_state_checker = StubStateChecker::new();
@@ -514,30 +509,27 @@ mod tests {
             .await;
 
         // Send the update command now. It will be buffered until the await receives it.
-        workload_command_tx
-            .send(WorkloadCommand::Update(
-                Box::new(workload_spec.clone()),
-                Some(PIPES_LOCATION.into()),
-            ))
+        workload_command_sender
+            .update(workload_spec.clone(), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
-        workload_command_tx
-            .send(WorkloadCommand::Delete)
-            .await
-            .unwrap();
+        workload_command_sender.clone().delete().await.unwrap();
+
+        let mut workload_command_queue = WorkloadCommandQueue::new(
+            WORKLOAD_1_NAME.to_string(),
+            AGENT_NAME.to_string(),
+            Some(OLD_WORKLOAD_ID.to_string()),
+            Some(old_mock_state_checker),
+            state_change_tx.clone(),
+            Box::new(runtime_mock.clone()),
+            workload_command_receiver,
+            workload_command_sender,
+        );
 
         assert!(timeout(
             Duration::from_millis(200),
-            Workload::await_new_command(
-                WORKLOAD_1_NAME.to_string(),
-                AGENT_NAME.to_string(),
-                Some(OLD_WORKLOAD_ID.to_string()),
-                Some(old_mock_state_checker),
-                state_change_tx.clone(),
-                Box::new(runtime_mock.clone()),
-                workload_command_rx,
-            )
+            workload_command_queue.await_new_command()
         )
         .await
         .is_ok());
@@ -565,7 +557,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
         let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut old_mock_state_checker = StubStateChecker::new();
@@ -595,30 +587,27 @@ mod tests {
             .await;
 
         // Send the update command now. It will be buffered until the await receives it.
-        workload_command_tx
-            .send(WorkloadCommand::Update(
-                Box::new(workload_spec.clone()),
-                Some(PIPES_LOCATION.into()),
-            ))
+        workload_command_sender
+            .update(workload_spec.clone(), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
-        workload_command_tx
-            .send(WorkloadCommand::Delete)
-            .await
-            .unwrap();
+        workload_command_sender.clone().delete().await.unwrap();
+
+        let mut workload_command_queue = WorkloadCommandQueue::new(
+            WORKLOAD_1_NAME.to_string(),
+            AGENT_NAME.to_string(),
+            Some(OLD_WORKLOAD_ID.to_string()),
+            Some(old_mock_state_checker),
+            state_change_tx.clone(),
+            Box::new(runtime_mock.clone()),
+            workload_command_receiver,
+            workload_command_sender,
+        );
 
         assert!(timeout(
             Duration::from_millis(200),
-            Workload::await_new_command(
-                WORKLOAD_1_NAME.to_string(),
-                AGENT_NAME.to_string(),
-                Some(OLD_WORKLOAD_ID.to_string()),
-                Some(old_mock_state_checker),
-                state_change_tx.clone(),
-                Box::new(runtime_mock.clone()),
-                workload_command_rx,
-            )
+            workload_command_queue.await_new_command()
         )
         .await
         .is_ok());
@@ -646,7 +635,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
         let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut mock_state_checker = StubStateChecker::new();
@@ -661,22 +650,22 @@ mod tests {
             .await;
 
         // Send the delete command now. It will be buffered until the await receives it.
-        workload_command_tx
-            .send(WorkloadCommand::Delete)
-            .await
-            .unwrap();
+        workload_command_sender.clone().delete().await.unwrap();
+
+        let mut workload_command_queue = WorkloadCommandQueue::new(
+            WORKLOAD_1_NAME.to_string(),
+            AGENT_NAME.to_string(),
+            Some(OLD_WORKLOAD_ID.to_string()),
+            Some(mock_state_checker),
+            state_change_tx.clone(),
+            Box::new(runtime_mock.clone()),
+            workload_command_receiver,
+            workload_command_sender,
+        );
 
         assert!(timeout(
             Duration::from_millis(200),
-            Workload::await_new_command(
-                WORKLOAD_1_NAME.to_string(),
-                AGENT_NAME.to_string(),
-                Some(OLD_WORKLOAD_ID.to_string()),
-                Some(mock_state_checker),
-                state_change_tx.clone(),
-                Box::new(runtime_mock.clone()),
-                workload_command_rx,
-            )
+            workload_command_queue.await_new_command()
         )
         .await
         .is_ok());
@@ -704,7 +693,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
         let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut mock_state_checker = StubStateChecker::new();
@@ -725,26 +714,23 @@ mod tests {
             .await;
 
         // Send the delete command now. It will be buffered until the await receives it.
-        workload_command_tx
-            .send(WorkloadCommand::Delete)
-            .await
-            .unwrap();
-        workload_command_tx
-            .send(WorkloadCommand::Delete)
-            .await
-            .unwrap();
+        workload_command_sender.clone().delete().await.unwrap();
+        workload_command_sender.clone().delete().await.unwrap();
+
+        let mut workload_command_queue = WorkloadCommandQueue::new(
+            WORKLOAD_1_NAME.to_string(),
+            AGENT_NAME.to_string(),
+            Some(OLD_WORKLOAD_ID.to_string()),
+            Some(mock_state_checker),
+            state_change_tx.clone(),
+            Box::new(runtime_mock.clone()),
+            workload_command_receiver,
+            workload_command_sender,
+        );
 
         assert!(timeout(
             Duration::from_millis(200),
-            Workload::await_new_command(
-                WORKLOAD_1_NAME.to_string(),
-                AGENT_NAME.to_string(),
-                Some(OLD_WORKLOAD_ID.to_string()),
-                Some(mock_state_checker),
-                state_change_tx.clone(),
-                Box::new(runtime_mock.clone()),
-                workload_command_rx,
-            )
+            workload_command_queue.await_new_command()
         )
         .await
         .is_ok());
@@ -772,28 +758,28 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let runtime_mock = MockRuntimeConnector::new();
 
         // Send the delete command now. It will be buffered until the await receives it.
-        workload_command_tx
-            .send(WorkloadCommand::Delete)
-            .await
-            .unwrap();
+        workload_command_sender.clone().delete().await.unwrap();
+
+        let mut workload_command_queue = WorkloadCommandQueue::new(
+            WORKLOAD_1_NAME.to_string(),
+            AGENT_NAME.to_string(),
+            None,
+            None,
+            state_change_tx.clone(),
+            Box::new(runtime_mock.clone()),
+            workload_command_receiver,
+            workload_command_sender,
+        );
 
         assert!(timeout(
             Duration::from_millis(200),
-            Workload::await_new_command(
-                WORKLOAD_1_NAME.to_string(),
-                AGENT_NAME.to_string(),
-                None,
-                None,
-                state_change_tx.clone(),
-                Box::new(runtime_mock.clone()),
-                workload_command_rx,
-            )
+            workload_command_queue.await_new_command()
         )
         .await
         .is_ok());
@@ -808,8 +794,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_tx, _workload_command_rx) =
-            mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender, _) = WorkloadCommandChannel::new();
         let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut control_interface_mock = MockPipesChannelContext::default();
@@ -820,7 +805,7 @@ mod tests {
 
         let mut test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
-            workload_command_tx,
+            workload_command_sender,
             Some(control_interface_mock),
         );
         let complete_state = generate_test_complete_state(
@@ -852,8 +837,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_tx, _workload_command_rx) =
-            mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender, _) = WorkloadCommandChannel::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
 
         drop(state_change_rx);
@@ -866,7 +850,7 @@ mod tests {
 
         let mut test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
-            workload_command_tx,
+            workload_command_sender,
             Some(control_interface_mock),
         );
         let complete_state = CompleteState::default();
@@ -884,11 +868,10 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_tx, _workload_command_rx) =
-            mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender, _) = WorkloadCommandChannel::new();
 
         let mut test_workload =
-            Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_tx, None);
+            Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_sender, None);
         let complete_state = CompleteState::default();
 
         assert!(matches!(

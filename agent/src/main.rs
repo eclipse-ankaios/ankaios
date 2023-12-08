@@ -30,6 +30,7 @@ pub mod test_helper;
 mod generic_polling_state_checker;
 mod runtime_manager;
 mod workload;
+mod workload_queue;
 
 use common::execution_interface::ExecutionCommand;
 use common::std_extensions::{GracefulExitResult, IllegalStateResult, UnreachableResult};

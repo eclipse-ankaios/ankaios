@@ -13,13 +13,16 @@
 // SPDX-License-Identifier: Apache-2.0
 use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use crate::workload::WorkloadCommand;
-use crate::workload::WorkloadCommandChannel;
+use crate::workload_queue::WorkloadCommandChannel;
 use common::{
     objects::ExecutionState,
     state_change_interface::{StateChangeInterface, StateChangeSender},
     std_extensions::IllegalStateResult,
 };
 use tokio::sync::mpsc;
+
+#[cfg(test)]
+use mockall::automock;
 
 const MAX_RETIRES: usize = 20;
 const RETRY_WAITING_TIME_MS: u64 = 1000;
@@ -39,6 +42,7 @@ where
     workload_channel: WorkloadCommandChannel,
 }
 
+#[cfg_attr(test, automock)]
 impl<WorkloadId, StChecker> WorkloadCommandQueue<WorkloadId, StChecker>
 where
     WorkloadId: Send + Sync + 'static,

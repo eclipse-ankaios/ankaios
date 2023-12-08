@@ -13,8 +13,9 @@ use crate::runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
-use crate::workload::WorkloadCommandChannel;
-use crate::workload::WorkloadCommandQueue;
+#[cfg_attr(test, mockall_double::double)]
+use crate::workload_queue::workload_command_queue::WorkloadCommandQueue;
+use crate::workload_queue::WorkloadCommandChannel;
 
 #[async_trait]
 #[cfg_attr(test, automock)]
@@ -353,6 +354,7 @@ mod tests {
         },
         runtime_connectors::{GenericRuntimeFacade, RuntimeFacade},
         workload::MockWorkload,
+        workload_queue::workload_command_queue::MockWorkloadCommandQueue,
     };
 
     const RUNTIME_NAME: &str = "runtime1";
@@ -426,8 +428,13 @@ mod tests {
             .return_once(|_, _, _| mock_workload);
 
         let to_server_clone = to_server.clone();
-        let await_command_context = MockWorkload::await_new_command_context();
-        await_command_context
+
+        let mut workload_command_queue_mock = MockWorkloadCommandQueue::default();
+        workload_command_queue_mock
+            .expect_await_new_command()
+            .once();
+        let workload_command_queue_new_context = MockWorkloadCommandQueue::new_context();
+        workload_command_queue_new_context
             .expect()
             .once()
             .with(
@@ -440,8 +447,13 @@ mod tests {
                 }),
                 predicate::always(),
                 predicate::always(),
+                predicate::always(),
             )
-            .return_once(|_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _| {});
+            .return_once(
+                |_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _, _| {
+                    workload_command_queue_mock
+                },
+            );
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
@@ -496,8 +508,13 @@ mod tests {
             .return_once(|_, _, _| mock_workload);
 
         let to_server_clone = to_server.clone();
-        let await_command_context = MockWorkload::await_new_command_context();
-        await_command_context
+
+        let mut workload_command_queue_mock = MockWorkloadCommandQueue::default();
+        workload_command_queue_mock
+            .expect_await_new_command()
+            .once();
+        let workload_command_queue_new_context = MockWorkloadCommandQueue::new_context();
+        workload_command_queue_new_context
             .expect()
             .once()
             .with(
@@ -510,8 +527,13 @@ mod tests {
                 }),
                 predicate::always(),
                 predicate::always(),
+                predicate::always(),
             )
-            .return_once(|_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _| {});
+            .return_once(
+                |_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _, _| {
+                    workload_command_queue_mock
+                },
+            );
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
@@ -576,8 +598,13 @@ mod tests {
             .return_once(|_, _, _| mock_workload);
 
         let to_server_clone = to_server.clone();
-        let await_command_context = MockWorkload::await_new_command_context();
-        await_command_context
+
+        let mut workload_command_queue_mock = MockWorkloadCommandQueue::default();
+        workload_command_queue_mock
+            .expect_await_new_command()
+            .once();
+        let workload_command_queue_new_context = MockWorkloadCommandQueue::new_context();
+        workload_command_queue_new_context
             .expect()
             .once()
             .with(
@@ -590,9 +617,13 @@ mod tests {
                 }),
                 predicate::always(),
                 predicate::always(),
+                predicate::always(),
             )
-            .return_once(|_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _| {});
-
+            .return_once(
+                |_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _, _| {
+                    workload_command_queue_mock
+                },
+            );
         let old_workload_instance_name = WorkloadExecutionInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME)
             .config(&"config".to_string())
@@ -663,8 +694,13 @@ mod tests {
             .return_once(|_, _, _| mock_workload);
 
         let to_server_clone = to_server.clone();
-        let await_command_context = MockWorkload::await_new_command_context();
-        await_command_context
+
+        let mut workload_command_queue_mock = MockWorkloadCommandQueue::default();
+        workload_command_queue_mock
+            .expect_await_new_command()
+            .once();
+        let workload_command_queue_new_context = MockWorkloadCommandQueue::new_context();
+        workload_command_queue_new_context
             .expect()
             .once()
             .with(
@@ -677,8 +713,13 @@ mod tests {
                 }),
                 predicate::always(),
                 predicate::always(),
+                predicate::always(),
             )
-            .return_once(|_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _| {});
+            .return_once(
+                |_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _, _| {
+                    workload_command_queue_mock
+                },
+            );
 
         let old_workload_instance_name = WorkloadExecutionInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME)
@@ -752,8 +793,13 @@ mod tests {
             .return_once(|_, _, _| mock_workload);
 
         let to_server_clone = to_server.clone();
-        let await_command_context = MockWorkload::await_new_command_context();
-        await_command_context
+
+        let mut workload_command_queue_mock = MockWorkloadCommandQueue::default();
+        workload_command_queue_mock
+            .expect_await_new_command()
+            .once();
+        let workload_command_queue_new_context = MockWorkloadCommandQueue::new_context();
+        workload_command_queue_new_context
             .expect()
             .once()
             .with(
@@ -766,8 +812,13 @@ mod tests {
                 }),
                 predicate::always(),
                 predicate::always(),
+                predicate::always(),
             )
-            .return_once(|_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _| {});
+            .return_once(
+                |_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _, _| {
+                    workload_command_queue_mock
+                },
+            );
 
         let old_workload_instance_name = WorkloadExecutionInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME)
