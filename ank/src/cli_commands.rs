@@ -224,8 +224,8 @@ impl CliCommands {
         let _ = self.task.await;
     }
 
-    async fn wait_for_complete_state(&mut self, object_field_mask: &Vec<String>) -> Result<Box<CompleteState>, CliError> {
-        output_debug!("wait_for_complete_state: object_field_mask={:?} ", object_field_mask);
+    async fn wait_for_complete_state(&mut self, object_field_mask: &Vec<String>, timeout_ms: u128) -> Result<Box<CompleteState>, CliError> {
+        output_debug!("wait_for_complete_state: object_field_mask={:?} timeout={timeout_ms} ", object_field_mask);
 
         // send complete state request to server
         self.to_server
@@ -241,7 +241,7 @@ impl CliCommands {
                 return Ok(res);
             }
             match now.elapsed() {
-                Ok(elapsed) if elapsed.as_millis() == WAIT_TIME_MS => return Err(CliError::ExecutionError(format!("Failed to get complete state in time (timeout={WAIT_TIME_MS})."))),
+                Ok(elapsed) if elapsed.as_millis() == timeout_ms => return Err(CliError::ExecutionError(format!("Failed to get complete state in time (timeout = {timeout_ms}ms)."))),
                 Err(err) => return Err(CliError::ExecutionError(format!("Failed to get elapsed time for timeout calculation.\nErr:{err}"))),
                 _ => continue
             }
@@ -259,7 +259,7 @@ impl CliCommands {
             output_format
         );
 
-        let res_complete_state = self.wait_for_complete_state(&object_field_mask).await?;
+        let res_complete_state = self.wait_for_complete_state(&object_field_mask, WAIT_TIME_MS).await?;
         // [impl->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
         match generate_compact_state_output(&res_complete_state, object_field_mask, output_format) {
             Ok(res) => Ok(res),
@@ -316,7 +316,7 @@ impl CliCommands {
         workload_name: Vec<String>,
     ) -> Result<String, CliError> {
         // [impl->swdd~cli-returns-list-of-workloads-from-server~1]
-        let res_complete_state = self.wait_for_complete_state(&Vec::new()).await?;
+        let res_complete_state = self.wait_for_complete_state(&Vec::new(), WAIT_TIME_MS).await?;
 
         let mut workload_infos: Vec<WorkloadInfo> = res_complete_state
             .current_state
@@ -373,7 +373,7 @@ impl CliCommands {
     // [impl->swdd~cli-provides-delete-workload~1]
     // [impl->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~1]
     pub async fn delete_workloads(&mut self, workload_names: Vec<String>) -> Result<(), CliError> {
-        let complete_state = self.wait_for_complete_state(&Vec::new()).await?;
+        let complete_state = self.wait_for_complete_state(&Vec::new(), WAIT_TIME_MS).await?;
 
         output_debug!("Got current state: {:?}", complete_state);
         let mut new_state = *complete_state.clone();
@@ -431,7 +431,7 @@ impl CliCommands {
         };
         output_debug!("Request to run new workload: {:?}", new_workload);
 
-        let res_complete_state = self.wait_for_complete_state(&Vec::new()).await?;
+        let res_complete_state = self.wait_for_complete_state(&Vec::new(), WAIT_TIME_MS).await?;
         output_debug!("Got current state: {:?}", res_complete_state);
         let mut new_state = *res_complete_state.clone();
         new_state
