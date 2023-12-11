@@ -26,10 +26,10 @@ jobs:
       - name: Build DevContainer Base
         uses: docker/build-push-action@v4
         with:
-          context: .devcontainer
-          file: .devcontainer/Dockerfile.base
+          context: '.devcontainer/'
+          file: '.devcontainer/Dockerfile.base'
       - name: Build DevContainer
         uses: docker/build-push-action@v4
         with:
-          context: .devcontainer
+          context: '.devcontainer/'
           push: false
