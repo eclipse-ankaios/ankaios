@@ -13,6 +13,7 @@ use crate::runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::workload_control_loop::WorkloadControlLoop;
+use crate::workload::ControlLoopState;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
 use crate::workload::WorkloadCommandChannel;
@@ -123,7 +124,7 @@ impl<
                 (Some(id), Some(checker))
             } else {
                 log::warn!(
-                    "Failed to create workload: '{}': '{}'",
+                    "Failed to create workload: '{}': '{:#?}'",
                     workload_name,
                     create_result.err().unwrap()
                 );
@@ -136,18 +137,18 @@ impl<
                 (None, None)
             };
 
-            let mut workload_loop: WorkloadControlLoop<WorkloadId, StChecker> =
-                WorkloadControlLoop::new(
-                    workload_name,
-                    agent_name,
-                    workload_id,
-                    state_checker,
-                    update_state_tx,
-                    runtime,
-                    command_receiver,
-                    workload_channel_retry,
-                );
-            workload_loop.await_new_command().await;
+            let control_loop_state = ControlLoopState {
+                workload_name,
+                agent_name,
+                workload_id,
+                state_checker,
+                update_state_tx,
+                runtime,
+                command_receiver,
+                workload_channel: workload_channel_retry,
+            };
+
+            WorkloadControlLoop::await_new_command(control_loop_state).await;
         });
 
         Workload::new(workload_name, workload_channel, control_interface)
@@ -224,18 +225,18 @@ impl<
             };
 
             // replace workload_id and state_checker through Option directly and pass in None if create_workload fails
-            let mut workload_loop: WorkloadControlLoop<WorkloadId, StChecker> =
-                WorkloadControlLoop::new(
-                    workload_name,
-                    agent_name,
-                    workload_id,
-                    state_checker,
-                    update_state_tx,
-                    runtime,
-                    command_receiver,
-                    workload_channel_retry,
-                );
-            workload_loop.await_new_command().await;
+            let control_loop_state = ControlLoopState {
+                workload_name,
+                agent_name,
+                workload_id,
+                state_checker,
+                update_state_tx,
+                runtime,
+                command_receiver,
+                workload_channel: workload_channel_retry,
+            };
+
+            WorkloadControlLoop::await_new_command(control_loop_state).await;
         });
 
         Workload::new(workload_name, workload_channel, control_interface)
@@ -291,18 +292,18 @@ impl<
                 }
             };
 
-            let mut workload_loop: WorkloadControlLoop<WorkloadId, StChecker> =
-                WorkloadControlLoop::new(
-                    workload_name,
-                    agent_name,
-                    workload_id.ok(),
-                    state_checker,
-                    update_state_tx,
-                    runtime,
-                    command_receiver,
-                    workload_channel_retry,
-                );
-            workload_loop.await_new_command().await;
+            let control_loop_state = ControlLoopState {
+                workload_name,
+                agent_name,
+                workload_id: workload_id.ok(),
+                state_checker,
+                update_state_tx,
+                runtime,
+                command_receiver,
+                workload_channel: workload_channel_retry,
+            };
+
+            WorkloadControlLoop::await_new_command(control_loop_state).await;
         });
 
         Workload::new(workload_name, workload_channel, control_interface)
@@ -344,7 +345,6 @@ mod tests {
         test_utils::generate_test_workload_spec_with_param,
     };
     use mockall::predicate;
-    use tokio::sync::mpsc::Sender;
 
     use crate::{
         control_interface::MockPipesChannelContext,
@@ -353,7 +353,7 @@ mod tests {
             OwnableRuntime,
         },
         runtime_connectors::{GenericRuntimeFacade, RuntimeFacade},
-        workload::workload_control_loop::MockWorkloadControlLoop,
+        workload::workload_control_loop::{ControlLoopState, MockWorkloadControlLoop},
         workload::MockWorkload,
     };
 
@@ -429,29 +429,21 @@ mod tests {
 
         let to_server_clone = to_server.clone();
 
-        let mut workload_control_loop_mock = MockWorkloadControlLoop::default();
-        workload_control_loop_mock.expect_await_new_command().once();
-        let workload_control_loop_new_context = MockWorkloadControlLoop::new_context();
-        workload_control_loop_new_context
+        let workload_control_loop_context = MockWorkloadControlLoop::await_new_command_context();
+        workload_control_loop_context
             .expect()
             .once()
-            .with(
-                predicate::eq(WORKLOAD_1_NAME.to_string()),
-                predicate::eq(AGENT_NAME.to_string()),
-                predicate::eq(Some(WORKLOAD_ID.to_string())),
-                predicate::always(),
-                predicate::function(move |sender: &Sender<StateChangeCommand>| {
-                    sender.same_channel(&to_server_clone)
-                }),
-                predicate::always(),
-                predicate::always(),
-                predicate::always(),
-            )
-            .return_once(
-                |_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _, _| {
-                    workload_control_loop_mock
+            .with(predicate::function(
+                move |control_loop_state: &ControlLoopState<String, StubStateChecker>| {
+                    control_loop_state.workload_name == WORKLOAD_1_NAME
+                        && control_loop_state.agent_name == AGENT_NAME
+                        && control_loop_state.workload_id == Some(WORKLOAD_ID.to_string())
+                        && control_loop_state
+                            .update_state_tx
+                            .same_channel(&to_server_clone)
                 },
-            );
+            ))
+            .return_once(|_| {});
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
@@ -507,29 +499,21 @@ mod tests {
 
         let to_server_clone = to_server.clone();
 
-        let mut workload_control_loop_mock = MockWorkloadControlLoop::default();
-        workload_control_loop_mock.expect_await_new_command().once();
-        let workload_control_loop_new_context = MockWorkloadControlLoop::new_context();
-        workload_control_loop_new_context
+        let workload_control_loop_context = MockWorkloadControlLoop::await_new_command_context();
+        workload_control_loop_context
             .expect()
             .once()
-            .with(
-                predicate::eq(WORKLOAD_1_NAME.to_string()),
-                predicate::eq(AGENT_NAME.to_string()),
-                predicate::eq(Some(WORKLOAD_ID.to_string())),
-                predicate::always(),
-                predicate::function(move |sender: &Sender<StateChangeCommand>| {
-                    sender.same_channel(&to_server_clone)
-                }),
-                predicate::always(),
-                predicate::always(),
-                predicate::always(),
-            )
-            .return_once(
-                |_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _, _| {
-                    workload_control_loop_mock
+            .with(predicate::function(
+                move |control_loop_state: &ControlLoopState<String, StubStateChecker>| {
+                    control_loop_state.workload_name == WORKLOAD_1_NAME
+                        && control_loop_state.agent_name == AGENT_NAME
+                        && control_loop_state.workload_id == Some(WORKLOAD_ID.to_string())
+                        && control_loop_state
+                            .update_state_tx
+                            .same_channel(&to_server_clone)
                 },
-            );
+            ))
+            .return_once(|_| {});
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
@@ -595,29 +579,22 @@ mod tests {
 
         let to_server_clone = to_server.clone();
 
-        let mut workload_control_loop_mock = MockWorkloadControlLoop::default();
-        workload_control_loop_mock.expect_await_new_command().once();
-        let workload_control_loop_new_context = MockWorkloadControlLoop::new_context();
-        workload_control_loop_new_context
+        let workload_control_loop_context = MockWorkloadControlLoop::await_new_command_context();
+        workload_control_loop_context
             .expect()
             .once()
-            .with(
-                predicate::eq(WORKLOAD_1_NAME.to_string()),
-                predicate::eq(AGENT_NAME.to_string()),
-                predicate::eq(Some(WORKLOAD_ID.to_string())),
-                predicate::always(),
-                predicate::function(move |sender: &Sender<StateChangeCommand>| {
-                    sender.same_channel(&to_server_clone)
-                }),
-                predicate::always(),
-                predicate::always(),
-                predicate::always(),
-            )
-            .return_once(
-                |_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _, _| {
-                    workload_control_loop_mock
+            .with(predicate::function(
+                move |control_loop_state: &ControlLoopState<String, StubStateChecker>| {
+                    control_loop_state.workload_name == WORKLOAD_1_NAME
+                        && control_loop_state.agent_name == AGENT_NAME
+                        && control_loop_state.workload_id == Some(WORKLOAD_ID.to_string())
+                        && control_loop_state
+                            .update_state_tx
+                            .same_channel(&to_server_clone)
                 },
-            );
+            ))
+            .return_once(|_| {});
+
         let old_workload_instance_name = WorkloadExecutionInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME)
             .config(&"config".to_string())
@@ -689,29 +666,21 @@ mod tests {
 
         let to_server_clone = to_server.clone();
 
-        let mut workload_control_loop_mock = MockWorkloadControlLoop::default();
-        workload_control_loop_mock.expect_await_new_command().once();
-        let workload_control_loop_new_context = MockWorkloadControlLoop::new_context();
-        workload_control_loop_new_context
+        let workload_control_loop_context = MockWorkloadControlLoop::await_new_command_context();
+        workload_control_loop_context
             .expect()
             .once()
-            .with(
-                predicate::eq(WORKLOAD_1_NAME.to_string()),
-                predicate::eq(AGENT_NAME.to_string()),
-                predicate::eq(Some(WORKLOAD_ID.to_string())),
-                predicate::always(),
-                predicate::function(move |sender: &Sender<StateChangeCommand>| {
-                    sender.same_channel(&to_server_clone)
-                }),
-                predicate::always(),
-                predicate::always(),
-                predicate::always(),
-            )
-            .return_once(
-                |_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _, _| {
-                    workload_control_loop_mock
+            .with(predicate::function(
+                move |control_loop_state: &ControlLoopState<String, StubStateChecker>| {
+                    control_loop_state.workload_name == WORKLOAD_1_NAME
+                        && control_loop_state.agent_name == AGENT_NAME
+                        && control_loop_state.workload_id == Some(WORKLOAD_ID.to_string())
+                        && control_loop_state
+                            .update_state_tx
+                            .same_channel(&to_server_clone)
                 },
-            );
+            ))
+            .return_once(|_| {});
 
         let old_workload_instance_name = WorkloadExecutionInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME)
@@ -786,29 +755,21 @@ mod tests {
 
         let to_server_clone = to_server.clone();
 
-        let mut workload_control_loop_mock = MockWorkloadControlLoop::default();
-        workload_control_loop_mock.expect_await_new_command().once();
-        let workload_control_loop_new_context = MockWorkloadControlLoop::new_context();
-        workload_control_loop_new_context
+        let workload_control_loop_context = MockWorkloadControlLoop::await_new_command_context();
+        workload_control_loop_context
             .expect()
             .once()
-            .with(
-                predicate::eq(WORKLOAD_1_NAME.to_string()),
-                predicate::eq(AGENT_NAME.to_string()),
-                predicate::eq(Some(WORKLOAD_ID.to_string())),
-                predicate::always(),
-                predicate::function(move |sender: &Sender<StateChangeCommand>| {
-                    sender.same_channel(&to_server_clone)
-                }),
-                predicate::always(),
-                predicate::always(),
-                predicate::always(),
-            )
-            .return_once(
-                |_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _, _| {
-                    workload_control_loop_mock
+            .with(predicate::function(
+                move |control_loop_state: &ControlLoopState<String, StubStateChecker>| {
+                    control_loop_state.workload_name == WORKLOAD_1_NAME
+                        && control_loop_state.agent_name == AGENT_NAME
+                        && control_loop_state.workload_id == Some(WORKLOAD_ID.to_string())
+                        && control_loop_state
+                            .update_state_tx
+                            .same_channel(&to_server_clone)
                 },
-            );
+            ))
+            .return_once(|_| {});
 
         let old_workload_instance_name = WorkloadExecutionInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME)

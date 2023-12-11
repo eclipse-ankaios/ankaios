@@ -18,7 +18,7 @@ pub mod workload_control_loop;
 
 // public api exports
 pub use workload_command_channel::WorkloadCommandChannel;
-pub use workload_control_loop::WorkloadControlLoop;
+pub use workload_control_loop::{ControlLoopState, WorkloadControlLoop};
 
 use std::{fmt::Display, path::PathBuf};
 
@@ -162,8 +162,8 @@ mod tests {
     use crate::{
         control_interface::MockPipesChannelContext,
         runtime_connectors::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
+        workload::{ControlLoopState, WorkloadCommandChannel, WorkloadControlLoop},
         workload::{Workload, WorkloadCommand, WorkloadError},
-        workload::{WorkloadCommandChannel, WorkloadControlLoop},
     };
 
     const RUNTIME_NAME: &str = "runtime1";
@@ -383,20 +383,20 @@ mod tests {
         // Send also a delete command so that we can properly get out of the loop
         workload_command_sender.clone().delete().await.unwrap();
 
-        let mut workload_control_loop = WorkloadControlLoop::new(
-            WORKLOAD_1_NAME.to_string(),
-            AGENT_NAME.to_string(),
-            Some(OLD_WORKLOAD_ID.to_string()),
-            Some(old_mock_state_checker),
-            state_change_tx.clone(),
-            Box::new(runtime_mock.clone()),
-            workload_command_receiver,
-            workload_command_sender,
-        );
+        let control_loop_state = ControlLoopState {
+            workload_name: WORKLOAD_1_NAME.to_string(),
+            agent_name: AGENT_NAME.to_string(),
+            workload_id: Some(OLD_WORKLOAD_ID.to_string()),
+            state_checker: Some(old_mock_state_checker),
+            update_state_tx: state_change_tx.clone(),
+            runtime: Box::new(runtime_mock.clone()),
+            command_receiver: workload_command_receiver,
+            workload_channel: workload_command_sender,
+        };
 
         assert!(timeout(
             Duration::from_millis(200),
-            workload_control_loop.await_new_command()
+            WorkloadControlLoop::await_new_command(control_loop_state)
         )
         .await
         .is_ok());
@@ -461,20 +461,20 @@ mod tests {
         // Send also a delete command so that we can properly get out of the loop
         workload_command_sender.clone().delete().await.unwrap();
 
-        let mut workload_control_loop = WorkloadControlLoop::new(
-            WORKLOAD_1_NAME.to_string(),
-            AGENT_NAME.to_string(),
-            None,
-            None,
-            state_change_tx.clone(),
-            Box::new(runtime_mock.clone()),
-            workload_command_receiver,
-            workload_command_sender,
-        );
+        let control_loop_state = ControlLoopState {
+            workload_name: WORKLOAD_1_NAME.to_string(),
+            agent_name: AGENT_NAME.to_string(),
+            workload_id: None,
+            state_checker: None,
+            update_state_tx: state_change_tx.clone(),
+            runtime: Box::new(runtime_mock.clone()),
+            command_receiver: workload_command_receiver,
+            workload_channel: workload_command_sender,
+        };
 
         assert!(timeout(
             Duration::from_millis(200),
-            workload_control_loop.await_new_command()
+            WorkloadControlLoop::await_new_command(control_loop_state)
         )
         .await
         .is_ok());
@@ -537,20 +537,20 @@ mod tests {
         // Send also a delete command so that we can properly get out of the loop
         workload_command_sender.clone().delete().await.unwrap();
 
-        let mut workload_control_loop = WorkloadControlLoop::new(
-            WORKLOAD_1_NAME.to_string(),
-            AGENT_NAME.to_string(),
-            Some(OLD_WORKLOAD_ID.to_string()),
-            Some(old_mock_state_checker),
-            state_change_tx.clone(),
-            Box::new(runtime_mock.clone()),
-            workload_command_receiver,
-            workload_command_sender,
-        );
+        let control_loop_state = ControlLoopState {
+            workload_name: WORKLOAD_1_NAME.to_string(),
+            agent_name: AGENT_NAME.to_string(),
+            workload_id: Some(OLD_WORKLOAD_ID.to_string()),
+            state_checker: Some(old_mock_state_checker),
+            update_state_tx: state_change_tx.clone(),
+            runtime: Box::new(runtime_mock.clone()),
+            command_receiver: workload_command_receiver,
+            workload_channel: workload_command_sender,
+        };
 
         assert!(timeout(
             Duration::from_millis(200),
-            workload_control_loop.await_new_command()
+            WorkloadControlLoop::await_new_command(control_loop_state)
         )
         .await
         .is_ok());
@@ -615,20 +615,20 @@ mod tests {
         // Send also a delete command so that we can properly get out of the loop
         workload_command_sender.clone().delete().await.unwrap();
 
-        let mut workload_control_loop = WorkloadControlLoop::new(
-            WORKLOAD_1_NAME.to_string(),
-            AGENT_NAME.to_string(),
-            Some(OLD_WORKLOAD_ID.to_string()),
-            Some(old_mock_state_checker),
-            state_change_tx.clone(),
-            Box::new(runtime_mock.clone()),
-            workload_command_receiver,
-            workload_command_sender,
-        );
+        let control_loop_state = ControlLoopState {
+            workload_name: WORKLOAD_1_NAME.to_string(),
+            agent_name: AGENT_NAME.to_string(),
+            workload_id: Some(OLD_WORKLOAD_ID.to_string()),
+            state_checker: Some(old_mock_state_checker),
+            update_state_tx: state_change_tx.clone(),
+            runtime: Box::new(runtime_mock.clone()),
+            command_receiver: workload_command_receiver,
+            workload_channel: workload_command_sender,
+        };
 
         assert!(timeout(
             Duration::from_millis(200),
-            workload_control_loop.await_new_command()
+            WorkloadControlLoop::await_new_command(control_loop_state)
         )
         .await
         .is_ok());
@@ -673,20 +673,20 @@ mod tests {
         // Send the delete command now. It will be buffered until the await receives it.
         workload_command_sender.clone().delete().await.unwrap();
 
-        let mut workload_control_loop = WorkloadControlLoop::new(
-            WORKLOAD_1_NAME.to_string(),
-            AGENT_NAME.to_string(),
-            Some(OLD_WORKLOAD_ID.to_string()),
-            Some(mock_state_checker),
-            state_change_tx.clone(),
-            Box::new(runtime_mock.clone()),
-            workload_command_receiver,
-            workload_command_sender,
-        );
+        let control_loop_state = ControlLoopState {
+            workload_name: WORKLOAD_1_NAME.to_string(),
+            agent_name: AGENT_NAME.to_string(),
+            workload_id: Some(OLD_WORKLOAD_ID.to_string()),
+            state_checker: Some(mock_state_checker),
+            update_state_tx: state_change_tx.clone(),
+            runtime: Box::new(runtime_mock.clone()),
+            command_receiver: workload_command_receiver,
+            workload_channel: workload_command_sender,
+        };
 
         assert!(timeout(
             Duration::from_millis(200),
-            workload_control_loop.await_new_command()
+            WorkloadControlLoop::await_new_command(control_loop_state)
         )
         .await
         .is_ok());
@@ -738,20 +738,20 @@ mod tests {
         workload_command_sender.clone().delete().await.unwrap();
         workload_command_sender.clone().delete().await.unwrap();
 
-        let mut workload_control_loop = WorkloadControlLoop::new(
-            WORKLOAD_1_NAME.to_string(),
-            AGENT_NAME.to_string(),
-            Some(OLD_WORKLOAD_ID.to_string()),
-            Some(mock_state_checker),
-            state_change_tx.clone(),
-            Box::new(runtime_mock.clone()),
-            workload_command_receiver,
-            workload_command_sender,
-        );
+        let control_loop_state = ControlLoopState {
+            workload_name: WORKLOAD_1_NAME.to_string(),
+            agent_name: AGENT_NAME.to_string(),
+            workload_id: Some(OLD_WORKLOAD_ID.to_string()),
+            state_checker: Some(mock_state_checker),
+            update_state_tx: state_change_tx.clone(),
+            runtime: Box::new(runtime_mock.clone()),
+            command_receiver: workload_command_receiver,
+            workload_channel: workload_command_sender,
+        };
 
         assert!(timeout(
             Duration::from_millis(200),
-            workload_control_loop.await_new_command()
+            WorkloadControlLoop::await_new_command(control_loop_state)
         )
         .await
         .is_ok());
@@ -787,20 +787,20 @@ mod tests {
         // Send the delete command now. It will be buffered until the await receives it.
         workload_command_sender.clone().delete().await.unwrap();
 
-        let mut workload_control_loop = WorkloadControlLoop::new(
-            WORKLOAD_1_NAME.to_string(),
-            AGENT_NAME.to_string(),
-            None,
-            None,
-            state_change_tx.clone(),
-            Box::new(runtime_mock.clone()),
-            workload_command_receiver,
-            workload_command_sender,
-        );
+        let control_loop_state = ControlLoopState {
+            workload_name: WORKLOAD_1_NAME.to_string(),
+            agent_name: AGENT_NAME.to_string(),
+            workload_id: None,
+            state_checker: None,
+            update_state_tx: state_change_tx.clone(),
+            runtime: Box::new(runtime_mock.clone()),
+            command_receiver: workload_command_receiver,
+            workload_channel: workload_command_sender,
+        };
 
         assert!(timeout(
             Duration::from_millis(200),
-            workload_control_loop.await_new_command()
+            WorkloadControlLoop::await_new_command(control_loop_state)
         )
         .await
         .is_ok());
