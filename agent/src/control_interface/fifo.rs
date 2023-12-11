@@ -97,7 +97,7 @@ mod tests {
             .return_once(|_| Ok(()));
         mock.expect().return_once(|| file_system_mock);
 
-        assert!(matches!(Fifo::new(test_path_buffer), Ok(_)));
+        assert!(Fifo::new(test_path_buffer).is_ok());
     }
 
     #[test]
@@ -124,7 +124,7 @@ mod tests {
             .return_once(|_| Ok(()));
         mock.expect().return_once(|| file_system_mock);
 
-        assert!(matches!(Fifo::new(test_path_buffer), Ok(_)));
+        assert!(Fifo::new(test_path_buffer).is_ok());
     }
 
     #[test]
@@ -186,8 +186,7 @@ mod tests {
             });
         mock.expect().return_once(|| file_system_mock);
 
-        let fifo = Fifo::new(test_path_buffer);
-        assert!(matches!(fifo, Ok(_)));
+        assert!(Fifo::new(test_path_buffer).is_ok());
     }
 
     #[test]
@@ -215,7 +214,7 @@ mod tests {
         mock.expect().return_once(|| file_system_mock);
 
         let fifo = Fifo::new(test_path_buffer);
-        assert!(matches!(fifo, Ok(_)));
+        assert!(fifo.is_ok());
         assert_eq!(
             &Path::new("test_fifo").to_path_buf(),
             fifo.unwrap().get_path()
