@@ -8,7 +8,7 @@ This document describes the Software Design for the gRPC Communication Middlewar
 
 ![Context](drawio/context_view.drawio.svg)
 
-The gRPC Communication Middleware is a specific implementation of the Ankaios Communication Middleware. It is responsible for handling the communication between an instance of the Ankaios Server and the Agents connected to it including the initial connection of an Agent. 
+The gRPC Communication Middleware is a specific implementation of the Ankaios Communication Middleware. It is responsible for handling the communication between an instance of the Ankaios Server and the Agents connected to it including the initial connection of an Agent.
 
 The Ankaios Communication Middleware is specified by two interfaces defined by the Common Library. The gRPC Communication Middleware implements these interfaces.
 
@@ -33,7 +33,6 @@ Rationale:
 
 The tonic crate provides all functionality needed to handle the gRPC communication and thus reduces the implementation and integration effort.
 
-
 Needs:
 - impl
 
@@ -44,7 +43,7 @@ No assumptions were taken.
 Considered alternatives:
 
 * implementing the gRPC protocol completely inside the middleware
-* using an http library and a protobuf converter 
+* using an http library and a protobuf converter
 
 ## Structural view
 
@@ -54,18 +53,18 @@ Considered alternatives:
 
 The gRPC Client handles two types of communication. The first type is for the Ankaios Agent. The second one is for the Anakaios CLI.
 Upon startup, the gRPC Client establishes the connection to the server. In case of the Ankaios Agent type of communication the server sends the "Agent Hello".
-Where in case of the Ankaios CLI type of communication the server does not send the "Agent Hello". 
+Where in case of the Ankaios CLI type of communication the server does not send the "Agent Hello".
 Once the connection is there, it forwards messages from and to the Ankaios Agent or to the Ankaios CLI depending on the connection type.
 
 ### gRPC Server
 
-The gRPC Server handles the communication for the Ankaios Server. 
-It spawns a green thread that accepts connections from Ankaios Agents and creates a gRPC Agent Connection for each Agent. 
+The gRPC Server handles the communication for the Ankaios Server.
+It spawns a green thread that accepts connections from Ankaios Agents and creates a gRPC Agent Connection for each Agent.
 The gRPC Server also forwards messages from the Ankaios Server to the Agents.
 
 ### Agent Senders Map
 
-The Agent Senders Map holds the sink ends of the channels to the Ankaios Agents. 
+The Agent Senders Map holds the sink ends of the channels to the Ankaios Agents.
 It also allows concurrent access to the sinks by internal locking.
 
 ### Execution Command Proxy
@@ -191,7 +190,6 @@ Needs:
 - impl
 - itest
 
-
 #### gRPC Client outputs error on server connection loss for gRPC CLI Connection
 `swdd~grpc-client-outputs-error-server-connection-loss-for-cli-connection~1`
 
@@ -205,7 +203,6 @@ Tags:
 Needs:
 - impl
 - itest
-
 
 #### gRPC Client creates state change channel
 `swdd~grpc-client-creates-state-change-channel~1`
@@ -387,7 +384,6 @@ When receiving State Change Commands from the gRPC Client, the gRPC Agent Connec
 Comment:
 The gRPC Agent Connection must also convert the commands from protobuf in order to forward them to the Ankaios Server.
 
-
 Tags:
 - gRPC_Agent_Connection
 
@@ -437,6 +433,8 @@ The gRPC Communication Middleware is compiled with the Ankaios Server and Agent 
 
 ## Glossary
 
-* gRPC: Google Remote Procedure Call - https://grpc.io/
-* XDP: eXpress Data Path https://en.wikipedia.org/wiki/Express_Data_Path
-* eBPF: https://ebpf.io/
+* gRPC: Google Remote Procedure Call - <https://grpc.io/>
+* XDP: eXpress Data Path <https://en.wikipedia.org/wiki/Express_Data_Path>
+* eBPF: <https://ebpf.io/>
+
+<!-- markdownlint-disable-file MD004 MD022 MD032 -->

@@ -39,8 +39,10 @@
            "redhat.vscode-yaml",
            "bierner.markdown-mermaid",
            "d-biehl.robotcode",
-           "bianxianyang.htmlplay"
-            ]
+           "bianxianyang.htmlplay",
+           "DavidAnson.vscode-markdownlint",
+           "EditorConfig.EditorConfig"
+           ]
        }
    },
    "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/ankaios/,type=bind",

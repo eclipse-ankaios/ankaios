@@ -5,7 +5,6 @@ RUN apk update && apk add --update-cache \
     && rm -rf /var/cache/apk/* \
     && python3 -m ensurepip && pip3 install protobuf==3.20.2
 
-
 FROM base as dev
 
 RUN apk update && apk add --update-cache \

@@ -55,7 +55,7 @@ ank get state
 
 which creates:
 
-```
+```yaml
 requestId: ank-cli
 startupState:
   workloads: {}
@@ -95,9 +95,9 @@ ank get workloads
 
 which results in:
 
-```
- WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE 
- nginx           agent_A   podman    Running         
+```text
+ WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE
+ nginx           agent_A   podman    Running
 ```
 
 Ankaios also supports adding and removing workloads dynamically.
@@ -117,7 +117,7 @@ We can check the state again with `ank get state` and see, that the workload
 `helloworld` has been added to `currentState.workloads` and the execution
 state is available in `workloadStates`.
 
-As the workload had a one time job its state is `ExecSucceeded` and we can 
+As the workload had a one time job its state is `ExecSucceeded` and we can
 delete it from the state again with:
 
 ```shell
@@ -125,6 +125,6 @@ ank delete workload helloworld
 ```
 
 For next steps see the reference documentation for the
-[startup configuration](../reference/startup-configuration.md) including the 
+[startup configuration](../reference/startup-configuration.md) including the
 `podman-kube` runtime and also working with the
 [complete state data structure](../reference/complete-state.md).
