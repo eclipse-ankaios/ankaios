@@ -67,3 +67,72 @@ impl WorkloadCommandChannel {
         self.sender.send(WorkloadCommand::Delete).await
     }
 }
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use common::test_utils::generate_test_workload_spec;
+    const PIPES_LOCATION: &str = "/some/path";
+
+    use mockall::lazy_static;
+
+    lazy_static! {
+        pub static ref WORKLOAD_SPEC: WorkloadSpec = generate_test_workload_spec();
+        pub static ref CONTROL_INTERFACE_PATH: Option<PathBuf> =
+            Some(PathBuf::from(PIPES_LOCATION));
+    }
+
+    #[tokio::test]
+    async fn utest_send_restart() {
+        let (workload_command_sender, mut workload_command_receiver) =
+            WorkloadCommandChannel::new();
+
+        workload_command_sender
+            .restart(WORKLOAD_SPEC.clone(), CONTROL_INTERFACE_PATH.clone())
+            .await
+            .unwrap();
+
+        let workload_command = workload_command_receiver.recv().await.unwrap();
+
+        assert!(
+            matches!(workload_command, WorkloadCommand::Restart(workload_spec, control_interface_path) if workload_spec.name == WORKLOAD_SPEC.name && control_interface_path == *CONTROL_INTERFACE_PATH)
+        );
+    }
+
+    #[tokio::test]
+    async fn utest_send_update() {
+        let (workload_command_sender, mut workload_command_receiver) =
+            WorkloadCommandChannel::new();
+
+        workload_command_sender
+            .update(WORKLOAD_SPEC.clone(), CONTROL_INTERFACE_PATH.clone())
+            .await
+            .unwrap();
+
+        let workload_command = workload_command_receiver.recv().await.unwrap();
+
+        assert!(
+            matches!(workload_command, WorkloadCommand::Update(workload_spec, control_interface_path) if workload_spec.name == WORKLOAD_SPEC.name && control_interface_path == *CONTROL_INTERFACE_PATH)
+        );
+    }
+
+    #[tokio::test]
+    async fn utest_send_delete() {
+        let (workload_command_sender, mut workload_command_receiver) =
+            WorkloadCommandChannel::new();
+
+        workload_command_sender.delete().await.unwrap();
+
+        let workload_command = workload_command_receiver.recv().await.unwrap();
+
+        assert!(matches!(workload_command, WorkloadCommand::Delete));
+    }
+}
