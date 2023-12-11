@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{fmt, time::{Instant, Duration}};
+use std::{fmt, time::Duration};
 
 #[cfg(not(test))]
 async fn read_file_to_string(file: String) -> std::io::Result<String> {
@@ -224,8 +224,8 @@ impl CliCommands {
         let _ = self.task.await;
     }
 
-    async fn wait_for_complete_state(&mut self, object_field_mask: &Vec<String>, timeout_ms: u128) -> Result<Box<CompleteState>, CliError> {
-        output_debug!("wait_for_complete_state: object_field_mask={:?} timeout={timeout_ms} ", object_field_mask);
+    async fn get_complete_state(&mut self, object_field_mask: &Vec<String>) -> Result<Box<CompleteState>, CliError> {
+        output_debug!("get_complete_state: object_field_mask={:?} ", object_field_mask);
 
         // send complete state request to server
         self.to_server
@@ -235,14 +235,17 @@ impl CliCommands {
             })
             .await.map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
-        let request_instant= Instant::now();
-        loop {
-            if let Some(ExecutionCommand::CompleteState(res)) = self.from_server.recv().await {
-                return Ok(res);
+        let poll_complete_state_response = async {
+            loop {
+                match self.from_server.recv().await {
+                    Some(ExecutionCommand::CompleteState(res)) => return res,
+                    Some(_) | None => (),
+                }
             }
-            if request_instant.elapsed() > WAIT_TIME_MS{
-                return Err(CliError::ExecutionError(format!("Failed to get complete state in time (timeout={WAIT_TIME_MS:?}).")));
-            }
+        };
+        match tokio::time::timeout(WAIT_TIME_MS, poll_complete_state_response).await {
+            Ok(res) => Ok(res),
+            Err(_) => Err(CliError::ExecutionError(format!("Failed to get complete state in time (timeout={WAIT_TIME_MS:?}).")))
         }
     }
 
@@ -257,7 +260,7 @@ impl CliCommands {
             output_format
         );
 
-        let res_complete_state = self.wait_for_complete_state(&object_field_mask, WAIT_TIME_MS).await?;
+        let res_complete_state = self.get_complete_state(&object_field_mask).await?;
         // [impl->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
         match generate_compact_state_output(&res_complete_state, object_field_mask, output_format) {
             Ok(res) => Ok(res),
@@ -314,7 +317,7 @@ impl CliCommands {
         workload_name: Vec<String>,
     ) -> Result<String, CliError> {
         // [impl->swdd~cli-returns-list-of-workloads-from-server~1]
-        let res_complete_state = self.wait_for_complete_state(&Vec::new(), WAIT_TIME_MS).await?;
+        let res_complete_state = self.get_complete_state(&Vec::new()).await?;
 
         let mut workload_infos: Vec<WorkloadInfo> = res_complete_state
             .current_state
@@ -371,7 +374,7 @@ impl CliCommands {
     // [impl->swdd~cli-provides-delete-workload~1]
     // [impl->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~1]
     pub async fn delete_workloads(&mut self, workload_names: Vec<String>) -> Result<(), CliError> {
-        let complete_state = self.wait_for_complete_state(&Vec::new(), WAIT_TIME_MS).await?;
+        let complete_state = self.get_complete_state(&Vec::new()).await?;
 
         output_debug!("Got current state: {:?}", complete_state);
         let mut new_state = *complete_state.clone();
@@ -429,7 +432,7 @@ impl CliCommands {
         };
         output_debug!("Request to run new workload: {:?}", new_workload);
 
-        let res_complete_state = self.wait_for_complete_state(&Vec::new(), WAIT_TIME_MS).await?;
+        let res_complete_state = self.get_complete_state(&Vec::new()).await?;
         output_debug!("Got current state: {:?}", res_complete_state);
         let mut new_state = *res_complete_state.clone();
         new_state
