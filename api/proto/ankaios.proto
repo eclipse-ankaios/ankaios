@@ -118,12 +118,13 @@ enum  ExpectedState {
 * An enum type describing the workload execution state.
 */
 enum ExecutionState {
-    EXEC_PENDING = 0; /// The workload is pending.
+    EXEC_STARTING = 0; /// The workload is starting.
     EXEC_RUNNING = 1; /// The workload is running.
     EXEC_SUCCEEDED = 2; /// The workload has run successfully and is stopped.
     EXEC_FAILED = 3; /// The workload has failed.
     EXEC_UNKNOWN = 4; /// The workload is in unknown state. This is the case if the owning agent is disconnected from the Ankaios server.
     EXEC_REMOVED = 5; /// The workload has been deleted.
+    EXEC_STOPPING = 6; /// The workload is stopping.
 }
 
 /**

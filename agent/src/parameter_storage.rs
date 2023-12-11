@@ -153,7 +153,7 @@ mod tests {
         let test_update4 = WorkloadState {
             workload_name: workload_name_2.clone(),
             agent_name: agent_name_b.clone(),
-            execution_state: ExecutionState::ExecPending,
+            execution_state: ExecutionState::ExecStarting,
         };
         storage.update_workload_state(test_update4);
 
@@ -175,6 +175,6 @@ mod tests {
         assert_eq!(storage_record_3.to_owned(), ExecutionState::ExecSucceeded);
 
         let storage_record_4 = agent_b_workloads.get(&workload_name_2).unwrap();
-        assert_eq!(storage_record_4.to_owned(), ExecutionState::ExecPending);
+        assert_eq!(storage_record_4.to_owned(), ExecutionState::ExecStarting);
     }
 }
