@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{fmt, time::SystemTime};
+use std::{fmt, time::{Instant, Duration}};
 
 #[cfg(not(test))]
 async fn read_file_to_string(file: String) -> std::io::Result<String> {
@@ -42,7 +42,7 @@ use url::Url;
 use crate::{cli::OutputFormat, output_and_error, output_debug};
 
 const BUFFER_SIZE: usize = 20;
-const WAIT_TIME_MS: u128 = 3000;
+const WAIT_TIME_MS: Duration = Duration::from_millis(3000);
 
 #[derive(Debug, Clone)]
 pub enum CliError {
@@ -235,15 +235,13 @@ impl CliCommands {
             })
             .await.map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
-        let now = SystemTime::now();
+        let request_instant= Instant::now();
         loop {
             if let Some(ExecutionCommand::CompleteState(res)) = self.from_server.recv().await {
                 return Ok(res);
             }
-            match now.elapsed() {
-                Ok(elapsed) if elapsed.as_millis() == timeout_ms => return Err(CliError::ExecutionError(format!("Failed to get complete state in time (timeout = {timeout_ms}ms)."))),
-                Err(err) => return Err(CliError::ExecutionError(format!("Failed to get elapsed time for timeout calculation.\nErr:{err}"))),
-                _ => continue
+            if request_instant.elapsed() > WAIT_TIME_MS{
+                return Err(CliError::ExecutionError(format!("Failed to get complete state in time (timeout={WAIT_TIME_MS:?}).")));
             }
         }
     }
