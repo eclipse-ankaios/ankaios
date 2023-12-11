@@ -6,11 +6,13 @@ on:
       - main
     paths:
       - '.devcontainer/**'
+      - .github/workflows/check-dev-containers.yml
   pull_request:
     branches:
       - main
     paths:
       - '.devcontainer/**'
+      - .github/workflows/check-dev-containers.yml
   workflow_dispatch:
 
 concurrency:
