@@ -49,8 +49,7 @@ impl std::str::FromStr for ExecutionState {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s.to_lowercase().as_str() {
-            "created" => ExecutionState::ExecStarting,
-            "pending" => ExecutionState::ExecStarting,
+            "starting" => ExecutionState::ExecStarting,
             "running" => ExecutionState::ExecRunning,
             "succeeded" => ExecutionState::ExecSucceeded,
             "failed" => ExecutionState::ExecFailed,
@@ -171,7 +170,7 @@ mod tests {
     fn utest_execution_state_from_string_basic_mapping() {
         assert_eq!(
             ExecutionState::ExecStarting,
-            ExecutionState::from_str("Created").unwrap()
+            ExecutionState::from_str("Starting").unwrap()
         );
         assert_eq!(
             ExecutionState::ExecRunning,
