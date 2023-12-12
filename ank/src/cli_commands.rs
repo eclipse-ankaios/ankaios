@@ -238,13 +238,15 @@ impl CliCommands {
         let poll_complete_state_response = async {
             loop {
                 match self.from_server.recv().await {
-                    Some(ExecutionCommand::CompleteState(res)) => return res,
-                    Some(_) | None => (),
+                    Some(ExecutionCommand::CompleteState(res)) => return Ok(res),
+                    None => return Err("Channel preliminary closed."),
+                    Some(_) => (),
                 }
             }
         };
         match tokio::time::timeout(WAIT_TIME_MS, poll_complete_state_response).await {
-            Ok(res) => Ok(res),
+            Ok(Ok(res)) => Ok(res),
+            Ok(Err(err)) => Err(CliError::ExecutionError(format!("Failed to get complete state.\nError: {err}"))),
             Err(_) => Err(CliError::ExecutionError(format!("Failed to get complete state in time (timeout={WAIT_TIME_MS:?}).")))
         }
     }
