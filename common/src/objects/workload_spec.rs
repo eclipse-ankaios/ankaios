@@ -549,11 +549,10 @@ mod tests {
         assert_eq!(ExpectedState::try_from(0).unwrap(), ExpectedState::Stopped);
         assert_eq!(ExpectedState::try_from(1).unwrap(), ExpectedState::Running);
         assert_eq!(
-            ExpectedState::try_from(100).unwrap_err(),
+            ExpectedState::try_from(100),
             Err::<ExpectedState, String>(
                 "Received an unknown value '100' as ExpectedState.".to_string()
             )
-            .unwrap_err()
         );
     }
 
@@ -572,11 +571,10 @@ mod tests {
             UpdateStrategy::AtMostOnce
         );
         assert_eq!(
-            UpdateStrategy::try_from(100).unwrap_err(),
+            UpdateStrategy::try_from(100),
             Err::<UpdateStrategy, String>(
                 "Received an unknown value '100' as UpdateStrategy.".to_string()
             )
-            .unwrap_err()
         );
     }
 

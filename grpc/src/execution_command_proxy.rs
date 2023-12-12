@@ -14,7 +14,7 @@
 
 use crate::agent_senders_map::AgentSendersMap;
 use crate::ankaios_streaming::GRPCStreaming;
-use crate::proxy_error::GrpcProxyError;
+use crate::grpc_middleware_error::GrpcMiddlewareError;
 use api::proto;
 use api::proto::execution_request::ExecutionRequestEnum;
 
@@ -51,15 +51,16 @@ pub async fn forward_from_proto_to_ankaios(
     agent_name: &str,
     grpc_streaming: &mut impl GRPCStreaming<proto::ExecutionRequest>,
     agent_tx: &Sender<ExecutionCommand>,
-) -> Result<(), GrpcProxyError> {
+) -> Result<(), GrpcMiddlewareError> {
     while let Some(value) = grpc_streaming.message().await? {
         log::trace!("RESPONSE={:?}", value);
 
         let try_block = async {
             match value
                 .execution_request_enum
-                .ok_or(GrpcProxyError::Receive("Missing AgentReply.".to_string()))?
-            {
+                .ok_or(GrpcMiddlewareError::ReceiveError(
+                    "Missing AgentReply.".to_string(),
+                ))? {
                 ExecutionRequestEnum::UpdateWorkload(obj) => {
                     agent_tx
                         .update_workload(
@@ -67,12 +68,12 @@ pub async fn forward_from_proto_to_ankaios(
                                 .into_iter()
                                 .map(|x| (agent_name.to_string(), x).try_into())
                                 .collect::<Result<Vec<WorkloadSpec>, _>>()
-                                .map_err(GrpcProxyError::Conversion)?,
+                                .map_err(GrpcMiddlewareError::ConversionError)?,
                             obj.deleted_workloads
                                 .into_iter()
                                 .map(|x| (agent_name.to_string(), x).try_into())
                                 .collect::<Result<Vec<DeletedWorkload>, _>>()
-                                .map_err(GrpcProxyError::Conversion)?,
+                                .map_err(GrpcMiddlewareError::ConversionError)?,
                         )
                         .await?;
                 }
@@ -88,16 +89,16 @@ pub async fn forward_from_proto_to_ankaios(
                         .complete_state(
                             complete_state
                                 .try_into()
-                                .map_err(GrpcProxyError::Conversion)?,
+                                .map_err(GrpcMiddlewareError::ConversionError)?,
                         )
                         .await?;
                 }
             }
-            Ok(()) as Result<(), GrpcProxyError>
+            Ok(()) as Result<(), GrpcMiddlewareError>
         }
         .await;
 
-        if let Err::<(), GrpcProxyError>(error) = try_block {
+        if let Err::<(), GrpcMiddlewareError>(error) = try_block {
             log::debug!("Could not forward execution request: {}", error);
         }
     }

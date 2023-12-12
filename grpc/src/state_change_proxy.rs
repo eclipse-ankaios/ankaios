@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ankaios_streaming::GRPCStreaming;
-use crate::proxy_error::GrpcProxyError;
+use crate::grpc_middleware_error::GrpcMiddlewareError;
 use api::proto;
 use api::proto::state_change_request::StateChangeRequestEnum;
 use api::proto::UpdateStateRequest;
@@ -50,13 +50,13 @@ pub async fn forward_from_proto_to_ankaios(
     agent_name: String,
     grpc_streaming: &mut impl GRPCStreaming<proto::StateChangeRequest>,
     sink: Sender<StateChangeCommand>,
-) -> Result<(), GrpcProxyError> {
+) -> Result<(), GrpcMiddlewareError> {
     while let Some(message) = grpc_streaming.message().await? {
         log::trace!("REQUEST={:?}", message);
 
         match message
             .state_change_request_enum
-            .ok_or(GrpcProxyError::Receive(
+            .ok_or(GrpcMiddlewareError::ReceiveError(
                 "Missing state_change_request".to_string(),
             ))? {
             StateChangeRequestEnum::UpdateState(UpdateStateRequest {
@@ -69,7 +69,7 @@ pub async fn forward_from_proto_to_ankaios(
                         sink.update_state(new_state, update_mask).await?;
                     }
                     Err(error) => {
-                        return Err(GrpcProxyError::Conversion(format!(
+                        return Err(GrpcMiddlewareError::ConversionError(format!(
                             "Could not convert UpdateStateRequest for forwarding: {}",
                             error
                         )));
@@ -123,7 +123,7 @@ pub async fn forward_from_proto_to_ankaios(
 pub async fn forward_from_ankaios_to_proto(
     grpc_tx: Sender<proto::StateChangeRequest>,
     server_rx: &mut StateChangeReceiver,
-) -> Result<(), GrpcProxyError> {
+) -> Result<(), GrpcMiddlewareError> {
     while let Some(x) = server_rx.recv().await {
         match x {
             StateChangeCommand::UpdateState(method_obj) => {
@@ -340,7 +340,7 @@ mod tests {
         )
         .await;
         assert!(forward_result.is_err());
-        assert_eq!(forward_result.unwrap_err().to_string(), String::from("StreamingError: 'status: Unknown, message: \"test\", details: [], metadata: MetadataMap { headers: {} }'"));
+        assert_eq!(forward_result.unwrap_err().to_string(), String::from("Connection interrupted: 'status: Unknown, message: \"test\", details: [], metadata: MetadataMap { headers: {} }'"));
 
         // pick received execution command
         let result = server_rx.recv().await;

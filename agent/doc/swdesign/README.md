@@ -1361,16 +1361,17 @@ Needs:
 - impl
 
 #### Allowed workload states
-`swdd~allowed-workload-states~1`
+`swdd~allowed-workload-states~2`
 
 The state getter interface shall return one of following workload states:
 
-* pending
+* starting
 * running
 * succeeded
 * failed
 * unknown
 * removed
+* stopping
 
 Tags: 
 - RuntimeConnectorInterfaces
@@ -1482,7 +1483,7 @@ Needs:
 - impl
 
 ##### PodmanStateGetter maps workload state
-`swdd~podman-state-getter-maps-state~1`
+`swdd~podman-state-getter-maps-state~2`
 
 Status: approved
 
@@ -1490,11 +1491,12 @@ The `PodmanStateGetter` shall map the workload state returned by the Podman into
 
 | Podman Container State | Container ExitCode | Workload State |
 | ---------------------- | :----------------: | :------------: |
-| Created                |         -          |    Pending     |
+| Created                |         -          |    Starting    |
 | Paused                 |         -          |    Unknown     |
 | Running                |         -          |    Running     |
 | Exited                 |        == 0        |   Succeeded    |
 | Exited                 |        != 0        |     Failed     |
+| Stopping               |         -          |    Stopping    |
 | (anything else)        |         -          |    Unknown     |
 
 Comment:
@@ -1652,7 +1654,7 @@ Needs:
 - utest
 
 ##### PodmanKubeStateGetter maps workload state
-`swdd~podman-kube-state-getter-maps-state~1`
+`swdd~podman-kube-state-getter-maps-state~2`
 
 Status: approved
 
@@ -1660,11 +1662,12 @@ The `PodmanKubeStateGetter` shall map pod state returned by Podman into workload
 
 | Podman Container State | Container ExitCode | Workload State |
 | ---------------------- | :----------------: | :------------: |
-| Created                |         -          |    Pending     |
+| Created                |         -          |    Starting    |
 | Paused                 |         -          |    Unknown     |
 | Running                |         -          |    Running     |
 | Exited                 |        == 0        |   Succeeded    |
 | Exited                 |        != 0        |     Failed     |
+| Stopping               |         -          |    Stopping    |
 | (anything else)        |         -          |    Unknown     |
 
 Tags:
@@ -1675,7 +1678,7 @@ Needs:
 - utest
 
 ##### PodmanKubeStateGetter combines pod states from containers
-`swdd~podman-kube-state-getter-combines-states~1`
+`swdd~podman-kube-state-getter-combines-states~2`
 
 Status: approved
 
@@ -1686,10 +1689,11 @@ The priority of the workload state is given in the table below:
 | Workload State | Priority |
 | -------------- | -------: |
 | Failed         |        0 |
-| Pending        |        1 |
+| Starting       |        1 |
 | Unknown        |        2 |
 | Running        |        3 |
-| Succeeded      |        4 |
+| Stopping       |        4 |
+| Succeeded      |        5 |
 
 Tags:
 - PodmanKubeRuntimeConnector

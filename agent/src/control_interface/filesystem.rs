@@ -273,8 +273,8 @@ mod tests {
                 Path::new("test_dir").to_path_buf(),
                 Ok(()),
             ));
-        let fs = FileSystem::new();
-        assert!(matches!(fs.make_dir(Path::new("test_dir")), Ok(_)));
+        let fs: FileSystem = FileSystem::new();
+        assert!(fs.make_dir(Path::new("test_dir")).is_ok());
     }
     #[test]
     fn utest_filesystem_make_dir_failed() {
@@ -304,7 +304,7 @@ mod tests {
             Ok(()),
         ));
         let fs = FileSystem::new();
-        assert!(matches!(fs.make_fifo(Path::new("test_fifo")), Ok(_)));
+        assert!(fs.make_fifo(Path::new("test_fifo")).is_ok());
     }
     #[test]
     fn utest_filesystem_make_fifo_failed() {
@@ -361,7 +361,7 @@ mod tests {
                 Ok(()),
             ));
         let fs = FileSystem::new();
-        assert!(matches!(fs.remove_dir(Path::new("test_dir")), Ok(_)));
+        assert!(fs.remove_dir(Path::new("test_dir")).is_ok());
     }
     #[test]
     fn utest_filesystem_remove_dir_failed() {
@@ -390,7 +390,7 @@ mod tests {
                 Ok(()),
             ));
         let fs = FileSystem::new();
-        assert!(matches!(fs.remove_fifo(Path::new("test_file")), Ok(_)));
+        assert!(fs.remove_fifo(Path::new("test_file")).is_ok());
     }
     #[test]
     fn utest_filesystem_remove_fifo_failed() {

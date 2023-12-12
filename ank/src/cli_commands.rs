@@ -118,8 +118,8 @@ fn get_filtered_value<'a>(
     map: &'a serde_yaml::Value,
     mask: &[&str],
 ) -> Option<&'a serde_yaml::Value> {
-    mask.iter().fold(Some(map), |current_level, mask_part| {
-        current_level?.get(mask_part)
+    mask.iter().try_fold(map, |current_level, mask_part| {
+        current_level.get(mask_part)
     })
 }
 
@@ -285,11 +285,12 @@ impl CliCommands {
         );
         let mut complete_state_input = CompleteState::default();
         if let Some(state_object_file) = state_object_file {
-            let state_object_data = read_file_to_string(state_object_file)
-                .await
-                .unwrap_or_else(|error| {
-                    panic!("Could not read the state object file.\nError: {error}")
-                });
+            let state_object_data =
+                read_file_to_string(state_object_file)
+                    .await
+                    .unwrap_or_else(|error| {
+                        panic!("Could not read the state object file.\nError: {error}")
+                    });
             // [impl -> swdd~cli-supports-yaml-to-set-current-state~1]
             complete_state_input =
                 serde_yaml::from_str(&state_object_data).unwrap_or_else(|error| {

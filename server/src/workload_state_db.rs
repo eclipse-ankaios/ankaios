@@ -138,7 +138,7 @@ mod tests {
         let mut wls_db = WorkloadStateDB::new();
         let mut wls = HashMap::new();
         wls.insert("workload1".to_owned(), ExecutionState::ExecSucceeded);
-        wls.insert("workload2".to_owned(), ExecutionState::ExecPending);
+        wls.insert("workload2".to_owned(), ExecutionState::ExecStarting);
         wls_db.stored_states.insert(agent_name.to_string(), wls);
         wls_db
     }
@@ -148,7 +148,7 @@ mod tests {
 
         let mut wls = HashMap::new();
         wls.insert("workload1".to_owned(), ExecutionState::ExecSucceeded);
-        wls.insert("workload2".to_owned(), ExecutionState::ExecPending);
+        wls.insert("workload2".to_owned(), ExecutionState::ExecStarting);
         wls_db.stored_states.insert(agent_name_1.to_string(), wls);
 
         let mut wls_2 = HashMap::new();
@@ -178,7 +178,7 @@ mod tests {
                 WorkloadState {
                     agent_name: agent_name_1.to_string(),
                     workload_name: "workload2".to_string(),
-                    execution_state: ExecutionState::ExecPending
+                    execution_state: ExecutionState::ExecStarting
                 },
                 WorkloadState {
                     agent_name: agent_name_2.to_string(),
@@ -209,7 +209,7 @@ mod tests {
                 WorkloadState {
                     agent_name: agent_name_1.to_string(),
                     workload_name: "workload2".to_string(),
-                    execution_state: ExecutionState::ExecPending
+                    execution_state: ExecutionState::ExecStarting
                 },
                 WorkloadState {
                     agent_name: agent_name_2.to_string(),
@@ -264,7 +264,7 @@ mod tests {
                 WorkloadState {
                     agent_name: agent_name.to_string(),
                     workload_name: "workload2".to_string(),
-                    execution_state: ExecutionState::ExecPending
+                    execution_state: ExecutionState::ExecStarting
                 }
             ]
         )
