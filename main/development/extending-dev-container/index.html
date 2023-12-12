@@ -803,7 +803,7 @@
         
   
   <span class="md-ellipsis">
-    cargo-nextest
+    Unit tests with cargo-nextest
   </span>
   
 
@@ -1051,7 +1051,7 @@
 
 
 <h1 id="extending-the-dev-container">Extending the dev container<a class="headerlink" href="#extending-the-dev-container" title="Permanent link">&para;</a></h1>
-<p>The dev container is relatively large so we have split a base container which is available from <code>ghcr.io/eclipse-ankaios/devcontainer</code>.</p>
+<p>The dev container is relatively large. Thus, we have split a base container which is available from <code>ghcr.io/eclipse-ankaios/devcontainer</code>.</p>
 <p>If there is a need to include additional items in the dev container, please note that it is split into two parts due to its size:</p>
 <ul>
 <li>
@@ -1077,7 +1077,7 @@
 <p>a docker container which derives from the base image mentioned above is specified in <code>.devcontainer/Dockerfile</code> (so don't forget to reference your new version there once you build one).</p>
 </li>
 </ul>
-<p>If you want to add some additional tools, you can initially do it in <code>.devcontainer/Dockerfile</code>, but later on they need to be pulled in the the base image at some point in order to speed up the initial dev container build.</p>
+<p>If you want to add some additional tools, you can initially do it in <code>.devcontainer/Dockerfile</code>, but later on they need to be pulled in the base image at some point in order to speed up the initial dev container build.</p>
 
 
 

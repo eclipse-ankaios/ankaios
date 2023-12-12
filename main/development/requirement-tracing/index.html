@@ -803,7 +803,7 @@
         
   
   <span class="md-ellipsis">
-    cargo-nextest
+    Unit tests with cargo-nextest
   </span>
   
 
@@ -1132,13 +1132,13 @@
 <p>Afterwards the HTML report is available under <code>build/req/req_tracing_report.html</code> and shows the current coverage state.</p>
 <p>For details on the OpenFastTrace tool, please consult <a href="https://github.com/itsallcode/openfasttrace/blob/main/doc/user_guide.md">OFT's user documentation</a> or execute <code>oft help</code>.</p>
 <h2 id="adding-requirements">Adding requirements<a class="headerlink" href="#adding-requirements" title="Permanent link">&para;</a></h2>
-<p>Eclipse Ankaios traces requirements between </p>
+<p>Eclipse Ankaios traces requirements between</p>
 <ul>
 <li>Design (<code>**/doc/README.md</code>)</li>
 <li>Implementations (<code>**/src/**</code>)</li>
 <li>Tests (<code>**/src/**</code>, <code>tests/**</code>)</li>
 </ul>
-<p>So for new features </p>
+<p>Thus, for new features:</p>
 <ul>
 <li>New requirements need to be added in the design or existing requirements need to be modified (type <code>swdd</code>)</li>
 <li>Mark the parts in the source code that actually implement the design requirement using the type <code>impl</code>, e.g., <code>// [impl-&gt;swdd~this-is-a-requirement~1]</code></li>

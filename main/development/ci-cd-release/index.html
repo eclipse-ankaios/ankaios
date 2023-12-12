@@ -803,7 +803,7 @@
         
   
   <span class="md-ellipsis">
-    cargo-nextest
+    Unit tests with cargo-nextest
   </span>
   
 
@@ -1179,14 +1179,14 @@
 
 
 <h1 id="cicd-release">CI/CD - Release<a class="headerlink" href="#cicd-release" title="Permanent link">&para;</a></h1>
-<p>A release shall be built directly using the CI/CD environment Github Actions.
+<p>A release shall be built directly using the CI/CD environment GitHub Actions.
 The release build creates and uploads all necessary artifacts that are required for a release.</p>
 <h2 id="release-workflow">Release workflow<a class="headerlink" href="#release-workflow" title="Permanent link">&para;</a></h2>
 <p>For building a release a separate workflow exists inside <code>.github/workflows/release.yml</code>.
 The release workflow reuses the complete build workflow from <code>.github/workflows/build.yml</code> and its artifacts.</p>
-<p>This allows to avoid having to duplicate the steps of the build workflow into the release workflow 
+<p>This allows to avoid having to duplicate the steps of the build workflow into the release workflow
 and thus have a single point of change for the build workflow.</p>
-<p>The release workflow executes the build workflow, exports the build artifacts into an archive for each supported platform and uploads it to the Github release.</p>
+<p>The release workflow executes the build workflow, exports the build artifacts into an archive for each supported platform and uploads it to the GitHub release.</p>
 <p>As an example the following release artifacts are created for linux-amd64:</p>
 <ul>
 <li>ankaios-linux-amd64.tar.gz</li>
@@ -1229,8 +1229,9 @@ Reports and shared artifacts are placed into the <code>dist</code> folder direct
 <ol>
 <li>If not already done, add a build job for the new platform in <code>.github/workflows/build.yml</code> and configure the upload of the artifacts, see <a href="../ci-cd/">CI/CD</a> section.</li>
 <li>Configure the release workflow under <code>.github/workflows/release.yml</code> to download the new artifacts.
-   Under <code>jobs.release.steps</code> add a new step after the existing download steps and replace the parameters <code>&lt;os&gt;-&lt;platform&gt;</code> with the correct text (e.g. linux-amd64):
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a> jobs:
+   Under <code>jobs.release.steps</code> add a new step after the existing download steps and replace the parameters <code>&lt;os&gt;-&lt;platform&gt;</code> with the correct text (e.g. linux-amd64):</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a> jobs:
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>   ...
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>   release:
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>     steps:
@@ -1242,35 +1243,34 @@ Reports and shared artifacts are placed into the <code>dist</code> folder direct
 <a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>         path: dist/&lt;os&gt;-&lt;platform&gt;/bin
 <a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>     ...
 </code></pre></div>
-   The name <code>ankaios-&lt;os&gt;-&lt;platform&gt;-bin</code> must match the used name in the upload artifact action defined inside the build workflow (<code>.github/workflows/build.yml</code>).</li>
-<li>
-<p>Inside <code>tools/create_release.sh</code> script add a new call to the script <code>tools/create_artifacts.sh</code> like the following:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>...
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a> &quot;${SCRIPT_DIR}&quot;/create_artifacts.sh -p &lt;os&gt;-&lt;platform&gt;
+<p>The name <code>ankaios-&lt;os&gt;-&lt;platform&gt;-bin</code> must match the used name in the upload artifact action defined inside the build workflow (<code>.github/workflows/build.yml</code>).
+3. Inside <code>tools/create_release.sh</code> script add a new call to the script <code>tools/create_artifacts.sh</code> like the following:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>...
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">SCRIPT_DIR</span><span class="si">}</span><span class="s2">&quot;</span>/create_artifacts.sh<span class="w"> </span>-p<span class="w"> </span>&lt;os&gt;-&lt;platform&gt;
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>...
 </code></pre></div>
-   The <code>&lt;os&gt;-&lt;platform&gt;</code> string must match the name of the sub-folder inside the dist folder. The called script expects the pre-built binaries inside <code>&lt;os&gt;-&lt;platform&gt;/bin</code>.</p>
-</li>
-<li>
-<p>Configure the upload of the new release artifact in the release workflow inside <code>.github/workflows/release.yml</code>.
-   Inside the step that uploads the release artifacts add the new artifact(s) to the github upload command:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>...
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>run: |
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>  gh release upload ${{ github.ref_name }}
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>   ...
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>   &lt;os&gt;-&lt;platform&gt;/ankaios-&lt;os&gt;-&lt;platform&gt;.tar.gz \
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>   &lt;os&gt;-&lt;platform&gt;/ankaios-&lt;os&gt;-&lt;platform&gt;.tar.gz.sha512sum.txt
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>   ...
-</code></pre></div></p>
-</li>
+<p>The <code>&lt;os&gt;-&lt;platform&gt;</code> string must match the name of the sub-folder inside the dist folder. The called script expects the pre-built binaries inside <code>&lt;os&gt;-&lt;platform&gt;/bin</code>.</p>
+<ol>
+<li>Configure the upload of the new release artifact in the release workflow inside <code>.github/workflows/release.yml</code>.
+   Inside the step that uploads the release artifacts add the new artifact(s) to the github upload command:</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>...
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>run:<span class="w"> </span><span class="p">|</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span>gh<span class="w"> </span>release<span class="w"> </span>upload<span class="w"> </span><span class="si">${</span><span class="p">{ github.ref_name </span><span class="si">}</span><span class="o">}</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">   </span>...
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">   </span>&lt;os&gt;-&lt;platform&gt;/ankaios-&lt;os&gt;-&lt;platform&gt;.tar.gz<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">   </span>&lt;os&gt;-&lt;platform&gt;/ankaios-&lt;os&gt;-&lt;platform&gt;.tar.gz.sha512sum.txt
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">   </span>...
+</code></pre></div>
+<ol>
 <li>Test and run the release workflow and check if the new artifact is uploaded correctly.</li>
 <li>Validate if the platform auto-detect mechanism of the installation script is supporting the new platform <code>tools/install.sh</code> and update the script if needed.</li>
 </ol>
 <h2 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h2>
-<p>The release notes are generated automatically if a release is created via the Github web frontend by clicking on the <code>Generate release notes</code> button.</p>
+<p>The release notes are generated automatically if a release is created via the GitHub web frontend by clicking on the <code>Generate release notes</code> button.</p>
 <p>The procedure uses the filters for pull request labels configured inside <code>.github/release.yml</code>.</p>
 <h2 id="building-a-release">Building a release<a class="headerlink" href="#building-a-release" title="Permanent link">&para;</a></h2>
-<p>The release shall be created directly via the Github web frontend.</p>
+<p>The release shall be created directly via the GitHub web frontend.</p>
 <p>When creating a release a tag with the following naming convention must be provided: <code>vX.Y.Z</code> (e.g. v0.1.0).</p>
 <ol>
 <li>Go to the release section inside the repository and click on <code>Draft a new release</code>.</li>
@@ -1279,13 +1279,13 @@ Reports and shared artifacts are placed into the <code>dist</code> folder direct
 <li>Click on the button <code>Generate release notes</code> to generate the release notes automatically based on the filter settings for pull requests inside <code>.github/release.yml</code> configuration. In case of unwanted pull requests are listed, label the pull requests correctly, delete the description field and generate the release notes again (The correction of the labels and the regeneration of the release notes can also be done after the release build.).</li>
 <li>Make sure that the check box <code>Set as the latest release</code> is enabled. This setting is important otherwise the provided link for the installation script in <a href="../../usage/installation/">chapter installation</a> is still pointing to the previous release marked as latest.</li>
 <li>Click on <code>Publish release</code>.</li>
-<li>Go to Github Actions section and wait until the release workflow has finished.</li>
+<li>Go to GitHub Actions section and wait until the release workflow has finished.</li>
 <li>If the release build finished successfully, go to the release section again and validate that all required artifacts are uploaded to the new release.</li>
-<li>If the release workflow fails, delete the release and the tag manually via the Github web frontend. Next, check the logs of the release workflow and fix the issues. Repeat the steps starting at step 1.</li>
+<li>If the release workflow fails, delete the release and the tag manually via the GitHub web frontend. Next, check the logs of the release workflow and fix the issues. Repeat the steps starting at step 1.</li>
 </ol>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>There is a Github Action available to automatically rollback the created release and tag. This action is not used to have a better control over the cleanup procedure before a next release build is triggered. For instance, without auto-rollback a manually entered release description is still available after a failing release build.</p>
+<p>There is a GitHub Action available to automatically rollback the created release and tag. This action is not used to have a better control over the cleanup procedure before a next release build is triggered. For instance, without auto-rollback a manually entered release description is still available after a failing release build.</p>
 </div>
 
 

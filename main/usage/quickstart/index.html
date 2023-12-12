@@ -813,7 +813,7 @@
         
   
   <span class="md-ellipsis">
-    cargo-nextest
+    Unit tests with cargo-nextest
   </span>
   
 
@@ -1088,42 +1088,42 @@ use the Ankaios CLI to check the current state:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>ank<span class="w"> </span>get<span class="w"> </span>state
 </code></pre></div>
 <p>which creates:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>requestId: ank-cli
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>startupState:
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>  workloads: {}
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>  configs: {}
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>  cronJobs: {}
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>currentState:
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>  workloads:
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    nginx:
-<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>      agent: agent_A
-<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>      name: nginx
-<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>      tags:
-<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>      - key: owner
-<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>        value: Ankaios team
-<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>      dependencies: {}
-<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>      updateStrategy: AT_MOST_ONCE
-<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>      restart: true
-<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>      accessRights:
-<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>        allow: []
-<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>        deny: []
-<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>      runtime: podman
-<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>      runtimeConfig: |
-<a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a>        image: docker.io/nginx:latest
-<a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a>        commandOptions: [&quot;-p&quot;, &quot;8081:80&quot;]
-<a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a>  configs: {}
-<a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a>  cronJobs: {}
-<a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a>workloadStates:
-<a id="__codelineno-5-27" name="__codelineno-5-27" href="#__codelineno-5-27"></a>- workloadName: nginx
-<a id="__codelineno-5-28" name="__codelineno-5-28" href="#__codelineno-5-28"></a>  agentName: agent_A
-<a id="__codelineno-5-29" name="__codelineno-5-29" href="#__codelineno-5-29"></a>  executionState: ExecRunning
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">requestId</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ank-cli</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nt">startupState</span><span class="p">:</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span><span class="nt">workloads</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="nt">configs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="nt">cronJobs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="nt">currentState</span><span class="p">:</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="nt">workloads</span><span class="p">:</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="nt">nginx</span><span class="p">:</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">      </span><span class="nt">agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent_A</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">      </span><span class="nt">tags</span><span class="p">:</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">owner</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">        </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Ankaios team</span>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="w">      </span><span class="nt">dependencies</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="w">      </span><span class="nt">updateStrategy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">AT_MOST_ONCE</span>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="w">      </span><span class="nt">restart</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="w">      </span><span class="nt">accessRights</span><span class="p">:</span>
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="w">        </span><span class="nt">allow</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span>
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="w">        </span><span class="nt">deny</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[]</span>
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="w">      </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a><span class="w">      </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a><span class="w">        </span><span class="no">image: docker.io/nginx:latest</span>
+<a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a><span class="w">        </span><span class="no">commandOptions: [&quot;-p&quot;, &quot;8081:80&quot;]</span>
+<a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a><span class="w">  </span><span class="nt">configs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a><span class="w">  </span><span class="nt">cronJobs</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+<a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a><span class="nt">workloadStates</span><span class="p">:</span>
+<a id="__codelineno-5-27" name="__codelineno-5-27" href="#__codelineno-5-27"></a><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">workloadName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nginx</span>
+<a id="__codelineno-5-28" name="__codelineno-5-28" href="#__codelineno-5-28"></a><span class="w">  </span><span class="nt">agentName</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent_A</span>
+<a id="__codelineno-5-29" name="__codelineno-5-29" href="#__codelineno-5-29"></a><span class="w">  </span><span class="nt">executionState</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ExecRunning</span>
 </code></pre></div>
 <p>or</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>ank<span class="w"> </span>get<span class="w"> </span>workloads
 </code></pre></div>
 <p>which results in:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a> WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE 
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a> nginx           agent_A   podman    Running         
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a> WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a> nginx           agent_A   podman    Running
 </code></pre></div>
 <p>Ankaios also supports adding and removing workloads dynamically.
 To add another workload call:</p>
@@ -1138,12 +1138,12 @@ To add another workload call:</p>
 <p>We can check the state again with <code>ank get state</code> and see, that the workload
 <code>helloworld</code> has been added to <code>currentState.workloads</code> and the execution
 state is available in <code>workloadStates</code>.</p>
-<p>As the workload had a one time job its state is <code>ExecSucceeded</code> and we can 
+<p>As the workload had a one time job its state is <code>ExecSucceeded</code> and we can
 delete it from the state again with:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>ank<span class="w"> </span>delete<span class="w"> </span>workload<span class="w"> </span>helloworld
 </code></pre></div>
 <p>For next steps see the reference documentation for the
-<a href="../../reference/startup-configuration/">startup configuration</a> including the 
+<a href="../../reference/startup-configuration/">startup configuration</a> including the
 <code>podman-kube</code> runtime and also working with the
 <a href="../../reference/complete-state/">complete state data structure</a>.</p>
 

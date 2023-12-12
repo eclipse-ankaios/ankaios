@@ -803,7 +803,7 @@
         
   
   <span class="md-ellipsis">
-    cargo-nextest
+    Unit tests with cargo-nextest
   </span>
   
 
@@ -965,7 +965,7 @@
         <li class="md-nav__item">
   <a href="#adding-a-new-github-action" class="md-nav__link">
     <span class="md-ellipsis">
-      Adding a new Github action
+      Adding a new GitHub action
     </span>
   </a>
   
@@ -974,7 +974,7 @@
         <li class="md-nav__item">
   <a href="#adding-github-action-jobs" class="md-nav__link">
     <span class="md-ellipsis">
-      Adding Github action jobs
+      Adding GitHub action jobs
     </span>
   </a>
   
@@ -1122,7 +1122,7 @@
         <li class="md-nav__item">
   <a href="#adding-a-new-github-action" class="md-nav__link">
     <span class="md-ellipsis">
-      Adding a new Github action
+      Adding a new GitHub action
     </span>
   </a>
   
@@ -1131,7 +1131,7 @@
         <li class="md-nav__item">
   <a href="#adding-github-action-jobs" class="md-nav__link">
     <span class="md-ellipsis">
-      Adding Github action jobs
+      Adding GitHub action jobs
     </span>
   </a>
   
@@ -1161,9 +1161,9 @@
 
 
 <h1 id="cicd">CI/CD<a class="headerlink" href="#cicd" title="Permanent link">&para;</a></h1>
-<p>As CI/CD environment Github Actions is used.
+<p>As CI/CD environment GitHub Actions is used.
 Merge verifications in case of opening a pull request and release builds are fully covered
-into Github Action workflows. For information about release builds, see <a href="../ci-cd-release/">CI/CD - Release</a> section.</p>
+into GitHub Action workflows. For information about release builds, see <a href="../ci-cd-release/">CI/CD - Release</a> section.</p>
 <h2 id="merge-verification">Merge verification<a class="headerlink" href="#merge-verification" title="Permanent link">&para;</a></h2>
 <p>When a pull request is opened, the following pipeline jobs run:</p>
 <ul>
@@ -1175,48 +1175,48 @@ into Github Action workflows. For information about release builds, see <a href=
 <p>After a pull request was merged into the main branch, the jobs listed above
 are executed again to validate stable branch behavior.</p>
 <p>The steps for the build workflow are defined inside <code>.github/workflows/build.yml</code>.</p>
-<p>The produced artifacts of the build workflow are uploaded and 
-can be downloaded from Github for debugging or testing purposes.</p>
+<p>The produced artifacts of the build workflow are uploaded and
+can be downloaded from GitHub for debugging or testing purposes.</p>
 <h2 id="adding-a-new-merge-verification-job">Adding a new merge verification job<a class="headerlink" href="#adding-a-new-merge-verification-job" title="Permanent link">&para;</a></h2>
 <p>To add a new merge verification job adjust the workflow defined inside <code>.github/workflows/build.yml</code>.</p>
-<p>Select a Github runner image matching your purposes or in case of adding a cross-build first make sure that
+<p>Select a GitHub runner image matching your purposes or in case of adding a cross-build first make sure that
 the build works locally within the dev container.</p>
 <ol>
 <li>Add a new build job under the <code>jobs</code> jobs section and define a job name.</li>
 <li>Add the necessary steps to the job to build the artifact(s).</li>
-<li>Append a use clause to the build steps to upload the artifacts to Github. If a new platform build is added name the artifact according to the naming convention <code>ankaios-&lt;os&gt;-&lt;platform&gt;-bin</code> (e.g. ankaios-linux-amd64-bin) otherwise define a custom name. If the artifact is needed inside a release the artifact is referenced with this name inside the release workflow.
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a> ...
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  - uses: actions/upload-artifact@v3.1.2
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    with:
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>      name: ankaios-&lt;os&gt;-&lt;platform&gt;-bin
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>      path: dist/
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a> ...
-</code></pre></div></li>
+<li>Append a use clause to the build steps to upload the artifacts to GitHub. If a new platform build is added name the artifact according to the naming convention <code>ankaios-&lt;os&gt;-&lt;platform&gt;-bin</code> (e.g. ankaios-linux-amd64-bin) otherwise define a custom name. If the artifact is needed inside a release the artifact is referenced with this name inside the release workflow.</li>
 </ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="l l-Scalar l-Scalar-Plain">- uses</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/upload-artifact@v3.1.2</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="l l-Scalar l-Scalar-Plain">with</span><span class="p p-Indicator">:</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ankaios-&lt;os&gt;-&lt;platform&gt;-bin</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">      </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dist/</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">...</span>
+</code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Github Actions only runs workflow definitions from main (default) branch.
+<p>GitHub Actions only runs workflow definitions from main (default) branch.
 That means when a workflow has been changed and a PR has been created for that, the
 change will not become effective before the PR is merged in main branch.
 For local testing the <a href="https://github.com/nektos/act">act</a> tool can be
 used.</p>
 </div>
-<h2 id="adding-a-new-github-action">Adding a new Github action<a class="headerlink" href="#adding-a-new-github-action" title="Permanent link">&para;</a></h2>
-<p>When introducing a new github action, do not use a generic major version tag (e.g. <code>vX</code>).
+<h2 id="adding-a-new-github-action">Adding a new GitHub action<a class="headerlink" href="#adding-a-new-github-action" title="Permanent link">&para;</a></h2>
+<p>When introducing a new GitHub action, do not use a generic major version tag (e.g. <code>vX</code>).
 Specify a specific release tag (e.g. <code>vX.Y.Z</code>) instead. Using the generic tag might lead to an unstable CI/CD environment,
-whenever the authors of the Github action update the generic tag to point to a newer version that contains bugs or incompatibilities with the Ankaios project.</p>
+whenever the authors of the GitHub action update the generic tag to point to a newer version that contains bugs or incompatibilities with the Ankaios project.</p>
 <p>Example:</p>
-<p>Bad:
+<p>Bad:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nn">...</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v3</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nn">...</span>
-</code></pre></div></p>
-<p>Good:
+</code></pre></div>
+<p>Good:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nn">...</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">uses</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">actions/checkout@v3.5.3</span>
 <a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="nn">...</span>
-</code></pre></div></p>
-<h2 id="adding-github-action-jobs">Adding Github action jobs<a class="headerlink" href="#adding-github-action-jobs" title="Permanent link">&para;</a></h2>
+</code></pre></div>
+<h2 id="adding-github-action-jobs">Adding GitHub action jobs<a class="headerlink" href="#adding-github-action-jobs" title="Permanent link">&para;</a></h2>
 <p>When creating a new job inside a workflow, specify a job name for each job.</p>
 <p>Example:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nn">...</span>

@@ -22,7 +22,7 @@
     
     
       
-        <title>cargo-nextest - Eclipse Ankaios</title>
+        <title>Unit tests with cargo-nextest - Eclipse Ankaios</title>
       
     
     
@@ -57,7 +57,7 @@
       
         <meta  property="og:type"  content="website" >
       
-        <meta  property="og:title"  content="cargo-nextest - Eclipse Ankaios" >
+        <meta  property="og:title"  content="Unit tests with cargo-nextest - Eclipse Ankaios" >
       
         <meta  property="og:description"  content="None" >
       
@@ -73,7 +73,7 @@
       
         <meta  name="twitter:card"  content="summary_large_image" >
       
-        <meta  name="twitter:title"  content="cargo-nextest - Eclipse Ankaios" >
+        <meta  name="twitter:title"  content="Unit tests with cargo-nextest - Eclipse Ankaios" >
       
         <meta  name="twitter:description"  content="None" >
       
@@ -103,7 +103,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#cargo-nextest" class="md-skip">
+        <a href="#unit-tests-with-cargo-nextest" class="md-skip">
           Skip to content
         </a>
       
@@ -152,7 +152,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              cargo-nextest
+              Unit tests with cargo-nextest
             
           </span>
         </div>
@@ -808,15 +808,54 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Unit tests with cargo-nextest
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
-    cargo-nextest
+    Unit tests with cargo-nextest
   </span>
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#run-unit-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run unit tests
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1029,6 +1068,23 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#run-unit-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run unit tests
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1050,12 +1106,14 @@
   
 
 
-<h1 id="cargo-nextest">cargo-nextest<a class="headerlink" href="#cargo-nextest" title="Permanent link">&para;</a></h1>
-<p>We use test runner <a href="https://nexte.st/index.html">cargo-nextest</a> because of the following reasons:
-1. It runs tests faster than <code>cargo test</code>.
-2. It presents the test results concisely so you can see which tests passed and failed at a glance.
-3. If debug logs are activated, it prints the debug logs only when a test has failed, so that it is clear the debug logs belong that failed test.</p>
-<h1 id="run-unit-tests">Run unit tests<a class="headerlink" href="#run-unit-tests" title="Permanent link">&para;</a></h1>
+<h1 id="unit-tests-with-cargo-nextest">Unit tests with cargo-nextest<a class="headerlink" href="#unit-tests-with-cargo-nextest" title="Permanent link">&para;</a></h1>
+<p>We use test runner <a href="https://nexte.st/index.html">cargo-nextest</a> because of the following reasons:</p>
+<ol>
+<li>It runs tests faster than <code>cargo test</code>.</li>
+<li>It presents the test results concisely so you can see which tests passed and failed at a glance.</li>
+<li>If debug logs are activated, it prints the debug logs only when a test has failed, so that it is clear the debug logs belong that failed test.</li>
+</ol>
+<h2 id="run-unit-tests">Run unit tests<a class="headerlink" href="#run-unit-tests" title="Permanent link">&para;</a></h2>
 <p>If you want to run all unit tests <strong>without</strong> traces, call in the root of the project:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cargo<span class="w"> </span>nextest<span class="w"> </span>run
 </code></pre></div>
