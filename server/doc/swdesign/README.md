@@ -2,7 +2,7 @@
 
 ## About this document
 
-This document describes the Software Design for the Ankaios Server. 
+This document describes the Software Design for the Ankaios Server.
 
 Ankaios is a Workload orchestrator supporting a subset of the Kubernetes configurations and is targeted at the automotive use case.
 
@@ -11,12 +11,12 @@ The Ankaios Server is the main component of the Ankaios orchestrator and is resp
 ## Context View
 
 An Ankaios Server is connected to multiple Agents that are deployed on the same or on different nodes. The Server communicates with the Agents to:
+
 * send the Agents lists of Workloads scheduled for them
 * forward Workload State between Agents
 * receive execution requests from Workloads running on an Agent
 
 The following diagram shows a high level view of an Ankaios Server in its context:
-
 
 ![Context View](drawio/context_view.drawio.svg)
 
@@ -43,9 +43,10 @@ The StartupStateLoader loads the initial startup state, parses it and pushes it 
 ### Communication Middleware
 
 The Communication Middleware is responsible for:
- * establishing the connections to multiple Ankaios Agents.
- * forwarding the ExecutionRequests and ExecutionStateUpdates from AnkaiosServer to the proper Ankaios Agents through the ExecutionCommandChannel.
- * forwarding the StateChangeRequests from connected Agents to the AnkaiosServer. 
+
+* establishing the connections to multiple Ankaios Agents.
+* forwarding the ExecutionRequests and ExecutionStateUpdates from AnkaiosServer to the proper Ankaios Agents through the xecutionCommandChannel.
+* forwarding the StateChangeRequests from connected Agents to the AnkaiosServer.
 
 ### WorkloadStateDB
 
@@ -123,7 +124,6 @@ Needs:
 Status: approved
 
 All communication with the Ankaios Agents shall go through the Communication Middleware.
-
 
 Tags:
 - AnkaiosServer
@@ -390,7 +390,7 @@ The behavioral diagram of the updating current state is shown in the chapter "Up
 #### Server detects new workload
 `swdd~server-detects-new-workload~1`
 
-When the Ankaios Server gets the `StateChangeCommand` `UpdateState` and detects a change of the state where a workload is present only in the New State, 
+When the Ankaios Server gets the `StateChangeCommand` `UpdateState` and detects a change of the state where a workload is present only in the New State,
 the Ankaios Server shall send `ExecutionCommand` to the corresponding Ankaios Agent to add the workload.
 
 Tags:
@@ -404,7 +404,7 @@ Needs:
 #### Server detects deleted workload
 `swdd~server-detects-deleted-workload~1`
 
-When the Ankaios Server gets the `StateChangeCommand` `UpdateState` and detects a change of the state where a workload is present only in the Current State, 
+When the Ankaios Server gets the `StateChangeCommand` `UpdateState` and detects a change of the state where a workload is present only in the Current State,
 the Ankaios Server shall send `ExecutionCommand` to the corresponding Ankaios Agent to delete the workload.
 
 Tags:
@@ -418,7 +418,7 @@ Needs:
 #### Server detects changed workload
 `swdd~server-detects-changed-workload~1`
 
-When the Ankaios Server gets the `StateChangeCommand` `UpdateState` and detects a change of the state where a workload is present in both states 
+When the Ankaios Server gets the `StateChangeCommand` `UpdateState` and detects a change of the state where a workload is present in both states
 and at least one field of the workload is different,
 the Ankaios Server shall send `ExecutionCommand` to the corresponding Ankaios Agents to delete and add the workload.
 
@@ -442,3 +442,5 @@ Needs:
 
 * gRPC - [Google Remote Procedure Call](https://grpc.io/)
 * SOME/IP - [Scalable service-Oriented MiddlewarE over IP](https://some-ip.com/)
+
+<!-- markdownlint-disable-file MD004 MD022 MD032 -->

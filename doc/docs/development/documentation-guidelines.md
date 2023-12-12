@@ -10,7 +10,6 @@ As 'Ankaios' is a [proper noun](https://en.wikipedia.org/wiki/Proper_noun) it sh
 words which are not proper nouns shall be in lower case when they are not the
 first word in a sentence.
 
-
 Examples:
 
 Correct | Incorrect
@@ -23,9 +22,3 @@ control interface | Control Interface
 
 The same rule also applies to headlines, i.e. only the first word of a headline
 is in upper case.
-
-
-
-
-
-

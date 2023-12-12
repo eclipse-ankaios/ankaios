@@ -9,6 +9,11 @@ on:
 
 permissions:
   contents: write
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.head_ref || github.ref }}"
+  cancel-in-progress: true
+
 jobs:
   documentation_changes:
     name: Check if documentation has changed
@@ -59,3 +64,19 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         run: |
             tools/generate_docs.sh build
+  lint:
+    name: Lint documentation
+    needs: documentation_changes
+    if: ${{ needs.documentation_changes.outputs.documentation == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: git checkout
+        uses: actions/checkout@v4
+        with:
+          show-progress: ''
+      - name: markdownlint-cli2-action
+        uses: DavidAnson/markdownlint-cli2-action@v9
+        with:
+          globs: |
+            **/*.md
+            !.github/PULL_REQUEST_TEMPLATE.md

@@ -14,13 +14,13 @@ For details on the OpenFastTrace tool, please consult [OFT's user documentation]
 
 ## Adding requirements
 
-Eclipse Ankaios traces requirements between 
+Eclipse Ankaios traces requirements between
 
 * Design (`**/doc/README.md`)
 * Implementations (`**/src/**`)
 * Tests (`**/src/**`, `tests/**`)
 
-So for new features 
+Thus, for new features:
 
 * New requirements need to be added in the design or existing requirements need to be modified (type `swdd`)
 * Mark the parts in the source code that actually implement the design requirement using the type `impl`, e.g., `// [impl->swdd~this-is-a-requirement~1]`

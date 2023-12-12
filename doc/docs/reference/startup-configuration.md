@@ -1,7 +1,9 @@
 # Startup configuration
+
 In the Ankaios system it is mandatory to specify all the [nodes](./glossary.md#node) and [workloads](./glossary.md#workload) that are going to be ran. Currently the startup configuration is provided as a file which is in YAML file format and can be passed to the Ankaios server through a command line argument. Depending on the demands towards Ankaios, the startup configuration can later be provided in a different way.
 
 ## Configuration structure
+
 The startup configuration is composed of a list of workload specifications within the `workloads` object.
 A workload specification must contain the following information:
 
@@ -10,14 +12,15 @@ A workload specification must contain the following information:
 * `agent`, specify the name of the owning agent which is going to execute the workload.
 * `restart`, specify if the workload shall be restarted when it exits (not implemented yet).
 * `updateStrategy`, specify the update strategy (not implemented yet) which can be one of the following values:
-    * `UNSPECIFIED`
-    * `AT_LEAST_ONCE`
-    * `AT_MOST_ONCE`
+  * `UNSPECIFIED`
+  * `AT_LEAST_ONCE`
+  * `AT_MOST_ONCE`
 * `accessRights`, specify lists of access rules for `allow` and `deny` (not implemented yet; shall be set to empty list for both).
 * `tags`, specify a list of `key` `value`  pairs.
 * `runtimeConfig`, specify as a _string_ the configuration for the [runtime](./glossary.md#runtime) whose configuration structure is specific for each runtime, e.g., for `podman` runtime the [PodmanRuntimeConfig](#podmanruntimeconfig) is used.
 
 Example `startup-config.yaml` file:
+
 ```yaml
 workloads:
   nginx: # this is used as the workload name which is 'nginx'
@@ -50,6 +53,7 @@ workloads:
 ```
 
 ### PodmanRuntimeConfig
+
 The runtime configuration for the `podman` runtime is specified as follows:
 
 ```yaml
@@ -75,6 +79,7 @@ commandArgs: ["echo", "Hello!"]
 ```
 
 ### PodmanKubeRuntimeConfig
+
 The runtime configuration for the `podman-kube` runtime is specified as follows:
 
 ```yaml
