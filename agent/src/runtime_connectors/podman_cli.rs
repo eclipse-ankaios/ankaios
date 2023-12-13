@@ -61,7 +61,7 @@ impl From<PodmanContainerInfo> for ContainerState {
     }
 }
 
-// [impl->swdd~podman-state-getter-maps-state~2]
+// [impl->swdd~podman-state-getter-maps-state~3]
 impl From<PodmanContainerInfo> for ExecutionState {
     fn from(value: PodmanContainerInfo) -> Self {
         match value.state.to_lowercase().as_str() {
@@ -1058,7 +1058,7 @@ mod tests {
         assert_eq!(res, Ok("test_id".to_string()));
     }
 
-    // [utest->swdd~podman-state-getter-maps-state~2]
+    // [utest->swdd~podman-state-getter-maps-state~3]
     // [utest->swdd~podmancli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_created() {
@@ -1082,7 +1082,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::ExecStarting)));
     }
 
-    // [utest->swdd~podman-state-getter-maps-state~2]
+    // [utest->swdd~podman-state-getter-maps-state~3]
     // [utest->swdd~podmancli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_configured() {
@@ -1106,7 +1106,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::ExecStarting)));
     }
 
-    // [utest->swdd~podman-state-getter-maps-state~2]
+    // [utest->swdd~podman-state-getter-maps-state~3]
     // [utest->swdd~podmancli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_initialized() {
@@ -1130,7 +1130,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::ExecStarting)));
     }
 
-    // [utest->swdd~podman-state-getter-maps-state~2]
+    // [utest->swdd~podman-state-getter-maps-state~3]
     // [utest->swdd~podmancli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_succeeded() {
@@ -1155,7 +1155,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::ExecSucceeded)));
     }
 
-    // [utest->swdd~podman-state-getter-maps-state~2]
+    // [utest->swdd~podman-state-getter-maps-state~3]
     // [utest->swdd~podmancli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_failed() {
@@ -1180,7 +1180,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::ExecFailed)));
     }
 
-    // [utest->swdd~podman-state-getter-maps-state~2]
+    // [utest->swdd~podman-state-getter-maps-state~3]
     // [utest->swdd~podmancli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_running() {
@@ -1204,7 +1204,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::ExecRunning)));
     }
 
-    // [utest->swdd~podman-state-getter-maps-state~2]
+    // [utest->swdd~podman-state-getter-maps-state~3]
     // [utest->swdd~podmancli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_stopping() {
@@ -1228,7 +1228,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::ExecStopping)));
     }
 
-    // [utest->swdd~podman-state-getter-maps-state~2]
+    // [utest->swdd~podman-state-getter-maps-state~3]
     // [utest->swdd~podmancli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_stopped() {
@@ -1252,7 +1252,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::ExecStopping)));
     }
 
-    // [utest->swdd~podman-state-getter-maps-state~2]
+    // [utest->swdd~podman-state-getter-maps-state~3]
     // [utest->swdd~podmancli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_removing() {
@@ -1276,7 +1276,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::ExecStopping)));
     }
 
-    // [utest->swdd~podman-state-getter-maps-state~2]
+    // [utest->swdd~podman-state-getter-maps-state~3]
     // [utest->swdd~podmancli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_unknown() {
@@ -1300,7 +1300,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::ExecUnknown)));
     }
 
-    // [utest->swdd~podman-state-getter-maps-state~2]
+    // [utest->swdd~podman-state-getter-maps-state~3]
     // [utest->swdd~podmancli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_undefined() {
