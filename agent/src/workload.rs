@@ -808,6 +808,80 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
+    #[tokio::test]
+    async fn utest_workload_obj_await_new_command_restart_workload_creation() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
+        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let mut new_mock_state_checker = StubStateChecker::new();
+        new_mock_state_checker.panic_if_not_stopped();
+
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock
+            .expect(vec![
+                RuntimeCall::CreateWorkload(
+                    workload_spec.clone(),
+                    Some(PIPES_LOCATION.into()),
+                    state_change_tx.clone(),
+                    Err(crate::runtime_connectors::RuntimeError::Create(
+                        "some delete error".to_string(),
+                    )),
+                ),
+                RuntimeCall::CreateWorkload(
+                    workload_spec.clone(),
+                    Some(PIPES_LOCATION.into()),
+                    state_change_tx.clone(),
+                    Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
+                ),
+                // Since we also send a delete command to exit the control loop properly, the new workload
+                // will also we deleted. This also tests if the new workload id was properly stored.
+                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
+            ])
+            .await;
+
+        workload_command_sender
+            .clone()
+            .restart(workload_spec, Some(PIPES_LOCATION.into()))
+            .await
+            .unwrap();
+
+        let workload_command_sender_clone = workload_command_sender.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(tokio::time::Duration::from_millis(1200)).await;
+            workload_command_sender_clone.delete().await.unwrap();
+        });
+
+        let control_loop_state = ControlLoopState {
+            workload_name: WORKLOAD_1_NAME.to_string(),
+            agent_name: AGENT_NAME.to_string(),
+            workload_id: None,
+            state_checker: None,
+            update_state_tx: state_change_tx.clone(),
+            runtime: Box::new(runtime_mock.clone()),
+            command_receiver: workload_command_receiver,
+            workload_channel: workload_command_sender,
+        };
+
+        assert!(timeout(
+            Duration::from_millis(1500),
+            WorkloadControlLoop::await_new_command(control_loop_state)
+        )
+        .await
+        .is_ok());
+
+        runtime_mock.assert_all_expectations().await;
+    }
+
     // [utest->swdd~agent-forward-responses-to-control-interface-pipe~1]
     #[tokio::test]
     async fn utest_workload_obj_send_complete_state_success() {

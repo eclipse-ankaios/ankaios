@@ -124,7 +124,7 @@ impl<
                 (Some(id), Some(checker))
             } else {
                 log::warn!(
-                    "Failed to create workload: '{}': '{:#?}'",
+                    "Failed to create workload: '{}': '{:?}'",
                     workload_name,
                     create_result.err().unwrap()
                 );
