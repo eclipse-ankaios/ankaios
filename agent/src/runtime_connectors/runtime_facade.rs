@@ -148,7 +148,7 @@ impl<
                 workload_channel: workload_channel_retry,
             };
 
-            WorkloadControlLoop::await_new_command(control_loop_state).await;
+            WorkloadControlLoop::run(control_loop_state).await;
         });
 
         Workload::new(workload_name, workload_channel, control_interface)
@@ -236,7 +236,7 @@ impl<
                 workload_channel: workload_channel_retry,
             };
 
-            WorkloadControlLoop::await_new_command(control_loop_state).await;
+            WorkloadControlLoop::run(control_loop_state).await;
         });
 
         Workload::new(workload_name, workload_channel, control_interface)
@@ -303,7 +303,7 @@ impl<
                 workload_channel: workload_channel_retry,
             };
 
-            WorkloadControlLoop::await_new_command(control_loop_state).await;
+            WorkloadControlLoop::run(control_loop_state).await;
         });
 
         Workload::new(workload_name, workload_channel, control_interface)
@@ -429,7 +429,7 @@ mod tests {
 
         let to_server_clone = to_server.clone();
 
-        let workload_control_loop_context = MockWorkloadControlLoop::await_new_command_context();
+        let workload_control_loop_context = MockWorkloadControlLoop::run_context();
         workload_control_loop_context
             .expect()
             .once()
@@ -499,7 +499,7 @@ mod tests {
 
         let to_server_clone = to_server.clone();
 
-        let workload_control_loop_context = MockWorkloadControlLoop::await_new_command_context();
+        let workload_control_loop_context = MockWorkloadControlLoop::run_context();
         workload_control_loop_context
             .expect()
             .once()
@@ -579,7 +579,7 @@ mod tests {
 
         let to_server_clone = to_server.clone();
 
-        let workload_control_loop_context = MockWorkloadControlLoop::await_new_command_context();
+        let workload_control_loop_context = MockWorkloadControlLoop::run_context();
         workload_control_loop_context
             .expect()
             .once()
@@ -666,7 +666,7 @@ mod tests {
 
         let to_server_clone = to_server.clone();
 
-        let workload_control_loop_context = MockWorkloadControlLoop::await_new_command_context();
+        let workload_control_loop_context = MockWorkloadControlLoop::run_context();
         workload_control_loop_context
             .expect()
             .once()
@@ -755,7 +755,7 @@ mod tests {
 
         let to_server_clone = to_server.clone();
 
-        let workload_control_loop_context = MockWorkloadControlLoop::await_new_command_context();
+        let workload_control_loop_context = MockWorkloadControlLoop::run_context();
         workload_control_loop_context
             .expect()
             .once()
