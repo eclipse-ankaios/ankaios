@@ -2,7 +2,7 @@
 
 ## About this document
 
-This document describes the Software Design for the Ankaios Agent. 
+This document describes the Software Design for the Ankaios Agent.
 
 Ankaios is a workload orchestrator supporting a subset of the Kubernetes configurations and is targeted at the automotive use case.
 
@@ -89,7 +89,6 @@ The Middleware is responsible for the connection to the Ankaios Server.
 The channels are defined in the `common` library.
 They are used to connect modules in the Ankaios Agent, more precisely they connect task in which modules run.
 
-
 ## Behavioral view
 
 This chapter defines the runtime behavior of the Ankaios Agent in details. The following chapters show essential parts of the behavior and describe the requirements towards the Ankaios Agent.
@@ -116,7 +115,6 @@ Needs:
 - impl
 - itest
 
-
 #### Agent sends hello
 `swdd~agent-sends-hello~1`
 
@@ -130,7 +128,6 @@ Tags:
 Needs:
 - impl
 - itest
-
 
 #### AgentManager shall listen for request from the Server
 `swdd~agent-manager-listens-requests-from-server~1`
@@ -192,8 +189,6 @@ Needs:
 - impl
 - utest
 
-
-
 #### Agent supports multiple runtime connectors
 `swdd~agent-supports-multiple-runtime-connectors~1`
 
@@ -201,13 +196,12 @@ Status: approved
 
 The Ankaios agent shall support multiple runtime connectors.
 
-Tags: 
+Tags:
 - RuntimeManager
 
 Needs:
 - impl
 - utest
-
 
 #### Agent uses specified runtime connector
 `swdd~agent-uses-specified-runtime~1`
@@ -247,7 +241,7 @@ The Agent shall support Podman for creating Kubernetes resources as a build-in r
 Rationale:
 Supporting Kubernetes resources as a separate runtime allows differentiating between plain containers and pods started via Kubernetes manifests.
 
-Tags: 
+Tags:
 - PodmanKubeRuntime
 
 Needs:
@@ -282,8 +276,8 @@ Status: approved
 
 Each new ControlInterface instance shall create two FIFO files :
 
-- a FIFO file for the workload to send requests to the Control Interface (called output pipe in the following) 
-- a FIFO file for the workload to request responses to the Control Interface (called input pipe in the following) 
+- a FIFO file for the workload to send requests to the Control Interface (called output pipe in the following)
+- a FIFO file for the workload to request responses to the Control Interface (called input pipe in the following)
 
 Tags:
 - ControlInterface
@@ -291,7 +285,6 @@ Tags:
 Needs:
 - impl
 - utest
-
 
 #### Control Interface pipes at predefined path
 `swdd~agent-control-interface-pipes-path-naming~1`
@@ -305,7 +298,7 @@ The Control Interface Instance shall create the Control Interface pipes at the f
 Rationale:
 The Ankaios Agent needs a unique, reproducible name to be able to make the mapping between a workload execution instance and a control interface pipes instance.
 
-Tags: 
+Tags:
 - ControlInterface
 
 Needs:
@@ -350,7 +343,6 @@ Needs:
 
 The following diagram and the subsequent requirements show the steps the Ankaios Agent takes when receiving the first UpdateWorkload command sent by Server. The first UpdateWorkload contains the complete initial list of workloads the Agent shall manage.
 
-
 ![Handling initial UpdateWorkload](plantuml/seq_update_workload_initial.svg)
 
 ##### RuntimeManager initial list of workloads handles existing workloads
@@ -363,7 +355,7 @@ After receiving the complete list of added workloads from the Ankaios Sever at t
 Comment:
 In case the Agent was already running, the RuntimeManager can take care of Workloads that were started in an earlier execution. Some of these workloads can be reused, some have to be updated and some stopped.
 
-Tags: 
+Tags:
 - RuntimeManager
 
 Needs:
@@ -380,7 +372,7 @@ When handling existing workloads, the RuntimeManager shall call each RuntimeFaca
 Comment:
 A 'machine runtime window' is the time between the start and shutdown of the machine. Finding existing workloads needs to be done before stating new workloads in order to avoid conflicts. If this call fails, the agent currently ignores the failure assumes that no workloads are running. It must be confirmed that this behavior is correct.
 
-Tags: 
+Tags:
 - RuntimeManager
 
 Needs:
@@ -397,7 +389,7 @@ When receiving a call to list all reusable workloads, the RuntimeFacade shall fo
 Comment:
 No decoupling is done here and we wait for the list to be built in order to prevent race conditions with calls from the server.
 
-Tags: 
+Tags:
 - RuntimeFacade
 
 Needs:
@@ -430,14 +422,14 @@ When the RuntimeFacade gets a requests to create a workload, the RuntimeFacade s
 * request the wrapped runtime to create the workload (incl. starting the state checker monitoring it)
 * start the workload task waiting for stop or update commands for that workload
 * return a new workload object allowing the communication with the task handling the stop or update commands
- 
+
 Comment:
 The state checker doesn't need to be started as an additional step here as the runtime starts it when creating the workload.
 
 Rationale:
 The task handling stop and update commands is needed to ensure maintaining the order of the commands for a workload while not blocking Ankaios to wait until one command is complete.
 
-Tags: 
+Tags:
 - RuntimeFacade
 
 Needs:
@@ -467,14 +459,14 @@ When requested, the RuntimeFacade resumes a workload by:
 * request the wrapped runtime to start the state checker for that workload
 * start the workload task waiting for stop or update commands for that workload
 * return a new workload object allowing the communication with the task handling the stop or update commands
- 
+
 Comment:
 If a workload is running, there is no need to create it again via the specific runtime. The state checker must be started as an additional step here as the runtime does not create a new workload.
 
 Rationale:
 The task handling stop and update commands is needed to ensure maintaining the order of the commands for a workload while not blocking Ankaios to wait until one command is complete.
 
-Tags: 
+Tags:
 - RuntimeFacade
 
 Needs:
@@ -491,9 +483,9 @@ When handling existing workloads, for each found existing workload which is requ
 Comment:
 The RuntimeManager can check if the specified workload is already running, but was updated by comparing the new workload execution instance name with that of the running instance.
 
-Tags: 
+Tags:
 - RuntimeManager
-- 
+-
 Needs:
 - impl
 - utest
@@ -581,7 +573,7 @@ Updated Workloads can be handled before everything is deleted as in the normal c
 Rationale:
 Deleting Workloads first ensures that the machine which executes the workloads has enough resources to start the new ones.
 
-Tags: 
+Tags:
 - RuntimeManager
 
 Needs:
@@ -598,7 +590,7 @@ The RuntimeManager shall request an update of a workload if the workload is in b
 Rationale:
 This is needed to ensure the order of the commands.
 
-Tags: 
+Tags:
 - RuntimeManager
 
 Needs:
@@ -708,7 +700,7 @@ Status: approved
 When the Ankaios Agent gets an `UpdateWorkload` message that indicates an update of a workload and the workload cannot be found, the RuntimeManager shall trigger adding of the workload.
 
 Comment:
-This situation cannot actually occur, but if a workload is requested to be added it shall also be added instead of just tracing an error/warning. 
+This situation cannot actually occur, but if a workload is requested to be added it shall also be added instead of just tracing an error/warning.
 
 Tags:
 - RuntimeManager
@@ -763,10 +755,10 @@ For details on the runtime connector specific actions, e.g., delete, see the spe
 
 Rationale:
 The workload task allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
-As the state checker for the workload is stopped, we cannot be sure that the removed workload state is correctly sent to the server before the state checker is stopped. 
+As the state checker for the workload is stopped, we cannot be sure that the removed workload state is correctly sent to the server before the state checker is stopped.
 For that reason the removed state is explicitly sent, even if it could be sent twice this way.
 
-Tags: 
+Tags:
 - WorkloadObject
 
 Needs:
@@ -860,7 +852,7 @@ The runtime connector trait shall require the implementation of the following fu
 * delete workload
 
 Comment:
-The function "create workload" shall also start the workload and start the state checker. 
+The function "create workload" shall also start the workload and start the state checker.
 Next subchapters describe features of these functions specific for each runtime connector.
 
 Rationale:
@@ -927,7 +919,7 @@ Needs:
 
 Status: approved
 
-When the podman runtime connector is called to return list of existing workloads, 
+When the podman runtime connector is called to return list of existing workloads,
 the podman runtime connector shall use the label `agent` stored in the workloads.
 
 Tags:
@@ -962,7 +954,7 @@ Needs:
 
 Status: approved
 
-When the podman runtime connector is called to create workload and the action is successfully processed by the Podman runtime connector, 
+When the podman runtime connector is called to create workload and the action is successfully processed by the Podman runtime connector,
 the podman runtime connector shall return workload id.
 
 Tags:
@@ -1026,7 +1018,7 @@ Needs:
 
 Status: approved
 
-When the podman runtime connector is called to get workload id, 
+When the podman runtime connector is called to get workload id,
 the podman runtime connector shall use the label `name` stored in the workload.
 
 Tags:
@@ -1323,7 +1315,7 @@ Needs:
 
 This section describes how workload states are sampled inside the Ankaios agent and how they get forwarded to the Ankaios server.
 
-It is required that each runtime connector delivers a state checker when a workload is created. Additionally, the runtime connector provides an extra method for starting a checker for workloads that are resumed by the WorkloadFacade. 
+It is required that each runtime connector delivers a state checker when a workload is created. Additionally, the runtime connector provides an extra method for starting a checker for workloads that are resumed by the WorkloadFacade.
 
 How the state checker is implemented is up to the specific runtime connector, given that the state checker trait is implemented. The state checker trait requires a state getter object to be provided. The object must implement the runtime state getter trait and is specific to the runtime connector. The provided state getter object is called inside the state checker.
 The extra complexity introduced by having two traits is needed in order to provide common state checker implementations that can be reused among runtime connectors. One of these checkers is the `GenericPollingStateChecker`.
@@ -1333,15 +1325,15 @@ The extra complexity introduced by having two traits is needed in order to provi
 
 Status: approved
 
-The state checker interface returned by the runtime connectors shall: 
-* accept a specific runtime state getter object 
+The state checker interface returned by the runtime connectors shall:
+* accept a specific runtime state getter object
 * support a stop action
 
 Rationale:
 The specific runtime state getter allows the implementation of common state checkers.
 The stop action is needed in order to stop the state checker when a workload is deleted.
 
-Tags: 
+Tags:
 - RuntimeConnectorInterfaces
 
 Needs:
@@ -1354,25 +1346,26 @@ Status: approved
 
 The state getter interface shall allow getting the current state of a workload for a given Id.
 
-Tags: 
+Tags:
 - RuntimeConnectorInterfaces
 
 Needs:
 - impl
 
 #### Allowed workload states
-`swdd~allowed-workload-states~1`
+`swdd~allowed-workload-states~2`
 
 The state getter interface shall return one of following workload states:
 
-* pending
+* starting
 * running
 * succeeded
 * failed
 * unknown
 * removed
+* stopping
 
-Tags: 
+Tags:
 - RuntimeConnectorInterfaces
 
 Needs:
@@ -1464,7 +1457,7 @@ Needs:
 
 #### Podman runtime connector specific state getter
 
-###### Podman runtime implements the runtime state getter trait
+##### Podman runtime implements the runtime state getter trait
 `swdd~podman-implements-runtime-state-getter~1`
 
 Status: approved
@@ -1482,7 +1475,7 @@ Needs:
 - impl
 
 ##### PodmanStateGetter maps workload state
-`swdd~podman-state-getter-maps-state~1`
+`swdd~podman-state-getter-maps-state~2`
 
 Status: approved
 
@@ -1490,11 +1483,12 @@ The `PodmanStateGetter` shall map the workload state returned by the Podman into
 
 | Podman Container State | Container ExitCode | Workload State |
 | ---------------------- | :----------------: | :------------: |
-| Created                |         -          |    Pending     |
+| Created                |         -          |    Starting    |
 | Paused                 |         -          |    Unknown     |
 | Running                |         -          |    Running     |
 | Exited                 |        == 0        |   Succeeded    |
 | Exited                 |        != 0        |     Failed     |
+| Stopping               |         -          |    Stopping    |
 | (anything else)        |         -          |    Unknown     |
 
 Comment:
@@ -1506,7 +1500,6 @@ Tags:
 Needs:
 - impl
 - utest
-
 
 ##### PodmanStateGetter uses PodmanCli
 `swdd~podman-state-getter-uses-podmancli~1`
@@ -1583,7 +1576,7 @@ Needs:
 
 #### Podman-kube runtime connector specific state getter
 
-###### Podman-kube runtime connector implements the runtime state getter trait
+##### Podman-kube runtime connector implements the runtime state getter trait
 `swdd~podman-kube-implements-runtime-state-getter~1`
 
 Status: approved
@@ -1652,7 +1645,7 @@ Needs:
 - utest
 
 ##### PodmanKubeStateGetter maps workload state
-`swdd~podman-kube-state-getter-maps-state~1`
+`swdd~podman-kube-state-getter-maps-state~2`
 
 Status: approved
 
@@ -1660,11 +1653,12 @@ The `PodmanKubeStateGetter` shall map pod state returned by Podman into workload
 
 | Podman Container State | Container ExitCode | Workload State |
 | ---------------------- | :----------------: | :------------: |
-| Created                |         -          |    Pending     |
+| Created                |         -          |    Starting    |
 | Paused                 |         -          |    Unknown     |
 | Running                |         -          |    Running     |
 | Exited                 |        == 0        |   Succeeded    |
 | Exited                 |        != 0        |     Failed     |
+| Stopping               |         -          |    Stopping    |
 | (anything else)        |         -          |    Unknown     |
 
 Tags:
@@ -1675,7 +1669,7 @@ Needs:
 - utest
 
 ##### PodmanKubeStateGetter combines pod states from containers
-`swdd~podman-kube-state-getter-combines-states~1`
+`swdd~podman-kube-state-getter-combines-states~2`
 
 Status: approved
 
@@ -1686,10 +1680,11 @@ The priority of the workload state is given in the table below:
 | Workload State | Priority |
 | -------------- | -------: |
 | Failed         |        0 |
-| Pending        |        1 |
+| Starting       |        1 |
 | Unknown        |        2 |
 | Running        |        3 |
-| Succeeded      |        4 |
+| Stopping       |        4 |
+| Succeeded      |        5 |
 
 Tags:
 - PodmanKubeRuntimeConnector
@@ -1702,7 +1697,6 @@ Needs:
 `swdd~podman-kube-state-getter-treats-missing-pods-as-unknown~1`
 
 Status: approved
-
 
 When the `PodmanKubeStateGetter` is called to get the current state of a workload and a pod of this workload is missing,
 the `PodmanKubeStateGetter` shall treat this pod, as if it contains one container with the state `unknown`.
@@ -1751,7 +1745,7 @@ Status: approved
 
 When sending or receiving message via the Control Interface pipes, Ankaios Agent uses length delimited protobuf encoding.
 
-Comment: 
+Comment:
 A length delimited protobuf message, is the protobuf encoded message preceded by the size of the message in bytes encoded as protobuf varint.
 This size excludes the size prefix.
 
@@ -1909,3 +1903,5 @@ Needs:
 
 * gRPC - [Google Remote Procedure Call](https://grpc.io/)
 * SOME/IP - [Scalable service-Oriented MiddlewarE over IP](https://some-ip.com/)
+
+<!-- markdownlint-disable-file MD004 MD022 MD032 -->

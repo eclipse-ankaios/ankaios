@@ -268,7 +268,7 @@ impl RuntimeStateGetter<PodmanKubeWorkloadId> for PodmanKubeRuntime {
             // [impl->swdd~podman-kube-state-getter-uses-container-states~1]
             match PodmanCli::list_states_from_pods(pods).await {
                 // [impl->swdd~podman-kube-state-getter-removed-if-no-container~1]
-                // [impl->swdd~podman-kube-state-getter-combines-states~1]
+                // [impl->swdd~podman-kube-state-getter-combines-states~2]
                 Ok(container_states) => {
                     log::trace!(
                         "Received following states for workload '{}': '{:?}'",
@@ -299,35 +299,38 @@ impl RuntimeStateGetter<PodmanKubeWorkloadId> for PodmanKubeRuntime {
 // [impl->swdd~podman-kube-state-getter-removed-if-no-container~1]
 enum OrderedExecutionState {
     Failed,
-    Pending,
+    Starting,
     Unknown,
     Running,
+    Stopping,
     Succeeded,
     Removed,
 }
 
-// [impl->swdd~podman-kube-state-getter-maps-state~1]
+// [impl->swdd~podman-kube-state-getter-maps-state~2]
 impl From<podman_cli::ContainerState> for OrderedExecutionState {
     fn from(value: podman_cli::ContainerState) -> Self {
         match value {
-            podman_cli::ContainerState::Created => OrderedExecutionState::Pending,
+            podman_cli::ContainerState::Starting => OrderedExecutionState::Starting,
             podman_cli::ContainerState::Exited(0) => OrderedExecutionState::Succeeded,
             podman_cli::ContainerState::Exited(_) => OrderedExecutionState::Failed,
             podman_cli::ContainerState::Paused => OrderedExecutionState::Unknown,
             podman_cli::ContainerState::Running => OrderedExecutionState::Running,
+            podman_cli::ContainerState::Stopping => OrderedExecutionState::Stopping,
             podman_cli::ContainerState::Unknown => OrderedExecutionState::Unknown,
         }
     }
 }
 
-// [impl->swdd~podman-kube-state-getter-maps-state~1]
+// [impl->swdd~podman-kube-state-getter-maps-state~2]
 impl From<OrderedExecutionState> for ExecutionState {
     fn from(value: OrderedExecutionState) -> Self {
         match value {
             OrderedExecutionState::Failed => ExecutionState::ExecFailed,
-            OrderedExecutionState::Pending => ExecutionState::ExecPending,
+            OrderedExecutionState::Starting => ExecutionState::ExecStarting,
             OrderedExecutionState::Unknown => ExecutionState::ExecUnknown,
             OrderedExecutionState::Running => ExecutionState::ExecRunning,
+            OrderedExecutionState::Stopping => ExecutionState::ExecStopping,
             OrderedExecutionState::Succeeded => ExecutionState::ExecSucceeded,
             OrderedExecutionState::Removed => ExecutionState::ExecRemoved,
         }
@@ -859,8 +862,8 @@ mod tests {
         assert!(matches!(workload, Err(..)));
     }
 
-    // [utest->swdd~podman-kube-state-getter-maps-state~1]
-    // [utest->swdd~podman-kube-state-getter-combines-states~1]
+    // [utest->swdd~podman-kube-state-getter-maps-state~2]
+    // [utest->swdd~podman-kube-state-getter-combines-states~2]
     #[tokio::test]
     async fn utest_get_state_failed() {
         let mock_context = MockContext::new().await;
@@ -869,12 +872,13 @@ mod tests {
         mock_context
             .list_states_from_pods(&*SAMPLE_POD_LIST)
             .returns(Ok(vec![
-                ContainerState::Created,
+                ContainerState::Starting,
                 ContainerState::Exited(1),
                 ContainerState::Exited(0),
                 ContainerState::Paused,
                 ContainerState::Running,
                 ContainerState::Unknown,
+                ContainerState::Stopping,
             ]));
 
         let runtime = PodmanKubeRuntime {};
@@ -883,33 +887,34 @@ mod tests {
         assert_eq!(execution_state, ExecutionState::ExecFailed);
     }
 
-    // [utest->swdd~podman-kube-state-getter-maps-state~1]
-    // [utest->swdd~podman-kube-state-getter-combines-states~1]
+    // [utest->swdd~podman-kube-state-getter-maps-state~2]
+    // [utest->swdd~podman-kube-state-getter-combines-states~2]
     #[tokio::test]
-    async fn utest_get_state_pending() {
+    async fn utest_get_state_starting() {
         let mock_context = MockContext::new().await;
 
         // [utest->swdd~podman-kube-state-getter-uses-container-states~1]
         mock_context
             .list_states_from_pods(&*SAMPLE_POD_LIST)
             .returns(Ok(vec![
-                ContainerState::Created,
+                ContainerState::Starting,
                 ContainerState::Exited(0),
                 ContainerState::Paused,
                 ContainerState::Running,
                 ContainerState::Unknown,
+                ContainerState::Stopping,
             ]));
 
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::ExecPending);
+        assert_eq!(execution_state, ExecutionState::ExecStarting);
     }
 
-    // [utest->swdd~podman-kube-state-getter-maps-state~1]
-    // [utest->swdd~podman-kube-state-getter-combines-states~1]
+    // [utest->swdd~podman-kube-state-getter-maps-state~2]
+    // [utest->swdd~podman-kube-state-getter-combines-states~2]
     #[tokio::test]
-    async fn utest_get_state_unkown() {
+    async fn utest_get_state_unknown() {
         let mock_context = MockContext::new().await;
 
         // [utest->swdd~podman-kube-state-getter-uses-container-states~1]
@@ -928,10 +933,10 @@ mod tests {
         assert_eq!(execution_state, ExecutionState::ExecUnknown);
     }
 
-    // [utest->swdd~podman-kube-state-getter-maps-state~1]
-    // [utest->swdd~podman-kube-state-getter-combines-states~1]
+    // [utest->swdd~podman-kube-state-getter-maps-state~2]
+    // [utest->swdd~podman-kube-state-getter-combines-states~2]
     #[tokio::test]
-    async fn utest_get_state_unkown_from_paused() {
+    async fn utest_get_state_unknown_from_paused() {
         let mock_context = MockContext::new().await;
 
         // [utest->swdd~podman-kube-state-getter-uses-container-states~1]
@@ -949,8 +954,8 @@ mod tests {
         assert_eq!(execution_state, ExecutionState::ExecUnknown);
     }
 
-    // [utest->swdd~podman-kube-state-getter-maps-state~1]
-    // [utest->swdd~podman-kube-state-getter-combines-states~1]
+    // [utest->swdd~podman-kube-state-getter-maps-state~2]
+    // [utest->swdd~podman-kube-state-getter-combines-states~2]
     #[tokio::test]
     async fn utest_get_state_running() {
         let mock_context = MockContext::new().await;
@@ -966,8 +971,8 @@ mod tests {
         assert_eq!(execution_state, ExecutionState::ExecRunning);
     }
 
-    // [utest->swdd~podman-kube-state-getter-maps-state~1]
-    // [utest->swdd~podman-kube-state-getter-combines-states~1]
+    // [utest->swdd~podman-kube-state-getter-maps-state~2]
+    // [utest->swdd~podman-kube-state-getter-combines-states~2]
     #[tokio::test]
     async fn utest_get_state_succeeded() {
         let mock_context = MockContext::new().await;
@@ -984,7 +989,7 @@ mod tests {
     }
 
     // [utest->swdd~podman-kube-state-getter-removed-if-no-container~1]
-    // [utest->swdd~podman-kube-state-getter-combines-states~1]
+    // [utest->swdd~podman-kube-state-getter-combines-states~2]
     #[tokio::test]
     async fn utest_get_state_removed() {
         let mock_context = MockContext::new().await;

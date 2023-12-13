@@ -521,11 +521,10 @@ mod tests {
         assert_eq!(PatchOperation::try_from(1).unwrap(), PatchOperation::Add);
         assert_eq!(PatchOperation::try_from(2).unwrap(), PatchOperation::Remove);
         assert_eq!(
-            PatchOperation::try_from(100).unwrap_err(),
+            PatchOperation::try_from(100),
             Err::<PatchOperation, String>(
                 "Received an unknown value '100' as PatchOperation.".to_string()
             )
-            .unwrap_err()
         );
     }
 }

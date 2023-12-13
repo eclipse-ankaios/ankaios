@@ -20,28 +20,34 @@ Every subfolder represents an example for a specific programming language. Feel 
 ## How to run the examples?
 
 1. Install the latest release [here](https://eclipse-ankaios.github.io/ankaios/main/usage/installation/) or build Ankaios inside the [devcontainer](../.devcontainer/Dockerfile).
-2. Build and run an example workload: 
-```shell
-./run_example.sh <example_subfolder>
-```
-If the Ankaios executables are not inside the default path mentioned in the [Installation instructions](https://eclipse-ankaios.github.io/ankaios/main/usage/installation/), you can specify an alternative Ankaios executable path like the following:
-```shell
-ANK_BIN_DIR=/absolute/path/to/ankaios/executables ./run_example.sh <example_subfolder>
-```
-3. Open an additional terminal in the dev container and run the following shell command to see the logs of the example workload: 
-```shell
-podman logs -f $(podman ps -a | grep control_interface | awk '{print $1}')
-```
+2. Build and run an example workload:
+
+   ```shell
+   ./run_example.sh <example_subfolder>
+   ```
+
+   If the Ankaios executables are not inside the default path mentioned in the [Installation instructions](https://eclipse-ankaios.github.io/ankaios/main/usage/installation/), you can specify an alternative Ankaios executable path like the following:
+
+   ```shell
+   ANK_BIN_DIR=/absolute/path/to/ankaios/executables ./run_example.sh <example_subfolder>
+   ```
+
+3. Open an additional terminal in the dev container and run the following shell command to see the logs of the example workload:
+
+   ```shell
+   podman logs -f $(podman ps -a | grep control_interface | awk '{print $1}')
+   ```
 
 ## Ankaios logs
 
-Run the following command to see the Ankaios server logs: 
-```shell
-tail -f /tmp/ankaios-server.log
-```
+Run the following command to see the Ankaios server logs:
 
-Run the following command to see the Ankaios agent logs: 
-```shell
-tail -f /tmp/ankaios-agent_A.log
-```
+   ```shell
+   tail -f /tmp/ankaios-server.log
+   ```
 
+Run the following command to see the Ankaios agent logs:
+
+   ```shell
+   tail -f /tmp/ankaios-agent_A.log
+   ```
