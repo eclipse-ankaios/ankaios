@@ -31,11 +31,12 @@ jobs:
             - .github/workflows/check-dev-containers.yml
   container_base:
     needs: changes
-    if: ${{ needs.changes.outputs.devcontainer }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4.1.1
+        if: ${{ needs.changes.outputs.devcontainer }}
       - name: Build DevContainer Base
+        if: ${{ needs.changes.outputs.devcontainer }}
         uses: docker/build-push-action@v5.1.0
         with:
           context: '.devcontainer/'
@@ -43,11 +44,12 @@ jobs:
           push: false
   container:
     needs: changes
-    if: ${{ needs.changes.outputs.devcontainer }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4.1.1
+        if: ${{ needs.changes.outputs.devcontainer }}
       - name: Build DevContainer
+        if: ${{ needs.changes.outputs.devcontainer }}
         uses: docker/build-push-action@v5.1.0
         with:
           context: '.devcontainer/'
