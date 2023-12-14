@@ -1001,6 +1001,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#preparing-a-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      Preparing a release
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#building-a-release" class="md-nav__link">
     <span class="md-ellipsis">
       Building a release
@@ -1147,6 +1156,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#preparing-a-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      Preparing a release
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#building-a-release" class="md-nav__link">
     <span class="md-ellipsis">
       Building a release
@@ -1269,7 +1287,20 @@ Reports and shared artifacts are placed into the <code>dist</code> folder direct
 <h2 id="release-notes">Release notes<a class="headerlink" href="#release-notes" title="Permanent link">&para;</a></h2>
 <p>The release notes are generated automatically if a release is created via the GitHub web frontend by clicking on the <code>Generate release notes</code> button.</p>
 <p>The procedure uses the filters for pull request labels configured inside <code>.github/release.yml</code>.</p>
+<h2 id="preparing-a-release">Preparing a release<a class="headerlink" href="#preparing-a-release" title="Permanent link">&para;</a></h2>
+<p>The following steps shall be done before the actual release build is triggered.</p>
+<ol>
+<li>Create an isssue containing tasks for getting the main branch ready:<ol>
+<li>Update the versions in the project packages (Cargo.toml files) to the new version.</li>
+<li>Execute tests on the supported targets.</li>
+<li>Make sure there are no security warnings of Github dependabot.</li>
+</ol>
+</li>
+<li>Finish all tasks inside the issue.</li>
+<li>Build the release according to the steps described <a href="#building-a-release">here</a>.</li>
+</ol>
 <h2 id="building-a-release">Building a release<a class="headerlink" href="#building-a-release" title="Permanent link">&para;</a></h2>
+<p>Before building the release, all <a href="#preparing-a-release">preparation steps</a> shall be finished before.</p>
 <p>The release shall be created directly via the GitHub web frontend.</p>
 <p>When creating a release a tag with the following naming convention must be provided: <code>vX.Y.Z</code> (e.g. v0.1.0).</p>
 <ol>
