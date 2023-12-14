@@ -39,20 +39,29 @@ async fn main() -> Result<(), BoxedStdError> {
     let args = cli::parse();
 
     log::debug!(
-        "Starting the Ankaios server with \n\tserver address: {}, \n\tstartup config path: {}",
+        "Starting the Ankaios server with \n\tserver address: '{}', \n\tstartup config path: '{}'",
         args.addr,
-        args.path,
+        args.path
+            .clone()
+            .unwrap_or("[no config file provided]".to_string()),
     );
 
-    let data = fs::read_to_string(args.path).unwrap_or_exit("Could not read the startup config");
-    // [impl->swdd~server-state-in-memory~1]
-    // [impl->swdd~server-loads-startup-state-file~1]
-    let state: State =
-        state_parser::parse(data).unwrap_or_exit("Parsing start config failed with error");
-    log::trace!(
-        "The state is initialized with the following workloads: {:?}",
-        state.workloads
-    );
+    let state = match args.path {
+        Some(config_path) => {
+            let data =
+                fs::read_to_string(config_path).unwrap_or_exit("Could not read the startup config");
+            // [impl->swdd~server-state-in-memory~1]
+            // [impl->swdd~server-loads-startup-state-file~1]
+            let state: State =
+                state_parser::parse(data).unwrap_or_exit("Parsing start config failed with error");
+            log::trace!(
+                "The state is initialized with the following workloads: {:?}",
+                state.workloads
+            );
+            Some(state)
+        }
+        _ => None,
+    };
 
     let (to_server, server_receiver) = create_state_change_channels(common::CHANNEL_CAPACITY);
     let (to_agents, agents_receiver) = create_execution_channels(common::CHANNEL_CAPACITY);
@@ -72,18 +81,22 @@ async fn main() -> Result<(), BoxedStdError> {
     // This simulates the state handling.
     // Once the StartupStateLoader is there, it will be started by the main here and it will send the startup state
     let initial_state_task = tokio::spawn(async move {
-        to_server
-            .update_state(
-                common::commands::CompleteState {
-                    request_id: "".to_owned(),
-                    startup_state: State::default(),
-                    current_state: state,
-                    workload_states: vec![],
-                },
-                vec![],
-            )
-            .await
-            .unwrap_or_illegal_state();
+        if let Some(state) = state {
+            to_server
+                .update_state(
+                    common::commands::CompleteState {
+                        request_id: "".to_owned(),
+                        startup_state: State::default(),
+                        current_state: state,
+                        workload_states: vec![],
+                    },
+                    vec![],
+                )
+                .await
+                .unwrap_or_illegal_state();
+        } else {
+            log::info!("No startup state provided -> waiting for new workloads from the CLI");
+        }
     });
 
     try_join!(communications_task, server_task, initial_state_task).unwrap_or_illegal_state();
