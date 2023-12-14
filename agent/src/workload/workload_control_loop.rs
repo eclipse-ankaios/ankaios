@@ -788,7 +788,6 @@ mod tests {
             .await;
 
         workload_command_sender
-            .clone()
             .restart(workload_spec, Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
@@ -854,7 +853,6 @@ mod tests {
         runtime_mock.expect(runtime_expectations).await;
 
         workload_command_sender
-            .clone()
             .restart(workload_spec, Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
@@ -931,13 +929,12 @@ mod tests {
             .await;
 
         workload_command_sender
-            .clone()
             .restart(workload_spec.clone(), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
 
         workload_command_sender
-            .update(workload_spec.clone(), Some(PIPES_LOCATION.into()))
+            .update(workload_spec, Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
 
