@@ -27,8 +27,8 @@ jobs:
       with:
         filters: |
           devcontainer:
-             - '.devcontainer/**'
-              - .github/workflows/check-dev-containers.yml
+            - '.devcontainer/**'
+            - .github/workflows/check-dev-containers.yml
   containers:
     needs: changes
     if: ${{ needs.changes.outputs.devcontainer }}
