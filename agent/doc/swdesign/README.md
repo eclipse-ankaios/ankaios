@@ -1507,7 +1507,8 @@ Comment:
 The Podman also supports "pod states". This table shows the container states only.
 The container states `Stopped` and `Removing` are mapped to the workload state `Stopping`,
 because they are considered as transition states from the state `Succeeded` or `Running` into `Removed`.
-It is not desired to map them into `Unknown`. It would have meant that the Ankaios would have reported the state `Unknown` during workload deletion.
+Mapping the state `Stopped` to a value different than `Stopping` would result in Ankaios reporting shortly some other state during workload deletion.
+We are assuming that Ankaios workloads are not managed by an entity different than Ankaios and the container state `Stopped` is only transitionary.
 
 Tags:
 - PodmanRuntimeConnector
