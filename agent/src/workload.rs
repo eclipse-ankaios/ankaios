@@ -96,7 +96,7 @@ impl Workload {
             .as_ref()
             .map(|control_interface| control_interface.get_api_location());
 
-        log::debug!("############### update(..)  enqueue WorkloadCommand::Update.");
+        log::debug!("Send WorkloadCommand::Update.");
         self.channel
             .update(spec, control_interface_path)
             .await

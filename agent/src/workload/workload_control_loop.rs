@@ -25,13 +25,17 @@ use mockall::automock;
 
 use super::workload_command_channel::WorkloadCommandReceiver;
 
+#[cfg(not(test))]
+const MAX_RESTARTS: usize = 20;
+
 #[cfg(test)]
-const MAX_RETIRES: usize = 2;
+const MAX_RESTARTS: usize = 2;
 
 #[cfg(not(test))]
-const MAX_RETIRES: usize = 20;
-
 const RETRY_WAITING_TIME_MS: u64 = 1000;
+
+#[cfg(test)]
+const RETRY_WAITING_TIME_MS: u64 = 200;
 
 pub struct ControlLoopState<WorkloadId, StChecker>
 where
@@ -58,13 +62,15 @@ impl WorkloadControlLoop {
         WorkloadId: Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
-        let mut retry_counter: usize = 1;
-        let mut quit_retry = false;
+        let mut restart_counter: usize = 1;
+        let mut quit_restart = false;
         loop {
             match control_loop_state.command_receiver.recv().await {
                 // [impl->swdd~agent-workload-tasks-executes-delete~1]
                 Some(WorkloadCommand::Delete) => {
-                    quit_retry = true;
+                    quit_restart = true;
+                    log::debug!("Received WorkloadCommand::Delete, setting quit_restart = true");
+
                     if let Some(old_id) = control_loop_state.workload_id.take() {
                         if let Err(err) = control_loop_state.runtime.delete_workload(&old_id).await
                         {
@@ -105,8 +111,8 @@ impl WorkloadControlLoop {
                 }
                 // [impl->swdd~agent-workload-task-executes-update~1]
                 Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
-                    quit_retry = true;
-                    log::debug!("###################### Setting quit_retry = true");
+                    quit_restart = true;
+                    log::debug!("Received WorkloadCommand::Update, setting quit_restart = true");
 
                     if let Some(old_id) = control_loop_state.workload_id.take() {
                         if let Err(err) = control_loop_state.runtime.delete_workload(&old_id).await
@@ -156,8 +162,11 @@ impl WorkloadControlLoop {
                     log::debug!("Update workload complete");
                 }
                 Some(WorkloadCommand::Restart(runtime_workload_config, control_interface_path)) => {
-                    if quit_retry {
-                        log::debug!("Skip restart workload, quit_retry = '{}'", quit_retry);
+                    if quit_restart {
+                        log::debug!(
+                            "Skip restart workload caused by quit_restart = '{}'",
+                            quit_restart
+                        );
                         continue;
                     }
 
@@ -176,39 +185,37 @@ impl WorkloadControlLoop {
                         }
                         Err(err) => {
                             log::warn!(
-                                "Retry '{}' out of '{}': Failed to create workload: '{}': '{}'",
-                                retry_counter,
-                                MAX_RETIRES,
+                                "Restart '{}' out of '{}': Failed to create workload: '{}': '{}'",
+                                restart_counter,
+                                MAX_RESTARTS,
                                 control_loop_state.workload_name,
                                 err
                             );
 
-                            if retry_counter >= MAX_RETIRES {
+                            if restart_counter >= MAX_RESTARTS {
                                 log::warn!(
-                                    "Abort retry: maximum amount of retries ('{}') reached.",
-                                    MAX_RETIRES
+                                    "Abort restarts: maximum amount of restarts ('{}') reached.",
+                                    MAX_RESTARTS
                                 );
-                                quit_retry = true;
+                                quit_restart = true;
                                 continue;
                             }
 
-                            retry_counter += 1;
+                            restart_counter += 1;
                             let sender = control_loop_state.workload_channel.clone();
                             tokio::task::spawn(async move {
                                 tokio::time::sleep(tokio::time::Duration::from_millis(
                                     RETRY_WAITING_TIME_MS,
                                 ))
                                 .await;
-                                log::debug!(
-                                    "Send restart workload command, quit_retry = {quit_retry}."
-                                );
+                                log::debug!("Send WorkloadCommand::Restart.");
 
                                 sender
                                     .restart(*runtime_workload_config, control_interface_path)
                                     .await
                                     .unwrap_or_else(|err| {
                                         log::warn!(
-                                            "Could not send restart workload command: '{}'",
+                                            "Could not send WorkloadCommand::Restart: '{}'",
                                             err
                                         )
                                     });
@@ -739,7 +746,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_workload_obj_run_restart_after_create_fails_workload_creation() {
+    async fn utest_workload_obj_run_restart_successful_after_create_fails() {
         let _ = env_logger::builder().is_test(true).try_init();
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
@@ -788,7 +795,7 @@ mod tests {
 
         let workload_command_sender_clone = workload_command_sender.clone();
         tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_millis(1200)).await;
+            tokio::time::sleep(tokio::time::Duration::from_millis(400)).await;
             workload_command_sender_clone.delete().await.unwrap();
         });
 
@@ -804,7 +811,7 @@ mod tests {
         };
 
         assert!(timeout(
-            Duration::from_millis(1500),
+            Duration::from_millis(700),
             WorkloadControlLoop::run(control_loop_state)
         )
         .await
@@ -832,7 +839,7 @@ mod tests {
         let mut runtime_expectations = vec![];
 
         // instead of short vector initialization a for loop is used because RuntimeCall with its submembers shall not be clonable.
-        for _ in 0..super::MAX_RETIRES {
+        for _ in 0..super::MAX_RESTARTS {
             runtime_expectations.push(RuntimeCall::CreateWorkload(
                 workload_spec.clone(),
                 Some(PIPES_LOCATION.into()),
@@ -842,8 +849,7 @@ mod tests {
                 )),
             ));
         }
-        // We also send a delete command, but as no new workload was generated, there is also no
-        // new ID so no call to the runtime is expected to happen here.
+
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock.expect(runtime_expectations).await;
 
@@ -853,15 +859,11 @@ mod tests {
             .await
             .unwrap();
 
-        /*
-            since the workload has been never created and the maximum amount of restarts are exceeded,
-            a delete is send to exit the internal workload control loop without expecting
-            a RuntimeCall::Delete, because a delete is never executed due to the fact that
-            a workload id does not exist if the workload is never started.
-        */
+        // We also send a delete command, but as no new workload was generated, there is also no
+        // new ID so no call to the runtime is expected to happen here.
         let workload_command_sender_clone = workload_command_sender.clone();
         tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_millis(1200)).await;
+            tokio::time::sleep(tokio::time::Duration::from_millis(400)).await;
             workload_command_sender_clone.delete().await.unwrap();
         });
 
@@ -877,7 +879,7 @@ mod tests {
         };
 
         assert!(timeout(
-            Duration::from_millis(1500),
+            Duration::from_millis(700),
             WorkloadControlLoop::run(control_loop_state)
         )
         .await
@@ -887,7 +889,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_workload_obj_run_restart_stop_restart_commands_on_success_creation() {
+    async fn utest_workload_obj_run_restart_stop_restart_commands_on_update_command() {
         let _ = env_logger::builder().is_test(true).try_init();
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
@@ -916,6 +918,12 @@ mod tests {
                         "some create error".to_string(),
                     )),
                 ),
+                RuntimeCall::CreateWorkload(
+                    workload_spec.clone(),
+                    Some(PIPES_LOCATION.into()),
+                    state_change_tx.clone(),
+                    Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
+                ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
                 // will also be deleted. This also tests if the new workload id was properly stored.
                 RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
@@ -924,13 +932,18 @@ mod tests {
 
         workload_command_sender
             .clone()
-            .restart(workload_spec, Some(PIPES_LOCATION.into()))
+            .restart(workload_spec.clone(), Some(PIPES_LOCATION.into()))
+            .await
+            .unwrap();
+
+        workload_command_sender
+            .update(workload_spec.clone(), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
 
         let workload_command_sender_clone = workload_command_sender.clone();
         tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+            tokio::time::sleep(tokio::time::Duration::from_millis(400)).await;
             workload_command_sender_clone.delete().await.unwrap();
         });
 
@@ -946,7 +959,7 @@ mod tests {
         };
 
         assert!(timeout(
-            Duration::from_millis(500),
+            Duration::from_millis(700),
             WorkloadControlLoop::run(control_loop_state)
         )
         .await
