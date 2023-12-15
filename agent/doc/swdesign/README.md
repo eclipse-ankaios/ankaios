@@ -1475,7 +1475,7 @@ Needs:
 - impl
 
 ##### PodmanStateGetter maps workload state
-`swdd~podman-state-getter-maps-state~2`
+`swdd~podman-state-getter-maps-state~3`
 
 Status: approved
 
@@ -1484,15 +1484,23 @@ The `PodmanStateGetter` shall map the workload state returned by the Podman into
 | Podman Container State | Container ExitCode | Workload State |
 | ---------------------- | :----------------: | :------------: |
 | Created                |         -          |    Starting    |
+| Configured             |         -          |    Starting    |
+| Initialized            |         -          |    Starting    |
 | Paused                 |         -          |    Unknown     |
 | Running                |         -          |    Running     |
 | Exited                 |        == 0        |   Succeeded    |
 | Exited                 |        != 0        |     Failed     |
 | Stopping               |         -          |    Stopping    |
+| Stopped                |         -          |    Stopping    |
+| Removing               |         -          |    Stopping    |
 | (anything else)        |         -          |    Unknown     |
 
 Comment:
 The Podman also supports "pod states". This table shows the container states only.
+The container states `Stopped` and `Removing` are mapped to the workload state `Stopping`,
+because they are considered as transition states from the state `Succeeded` or `Running` into `Removed`.
+Mapping the state `Stopped` to a value different than `Stopping` would result in Ankaios reporting shortly some other state during workload deletion.
+We are assuming that Ankaios workloads are not managed by an entity different than Ankaios and the container state `Stopped` is only transitionary.
 
 Tags:
 - PodmanRuntimeConnector
