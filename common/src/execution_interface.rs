@@ -19,35 +19,35 @@ use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
 #[derive(Debug)]
-pub struct ExecutionCommandError(String);
+pub struct AgentInterfaceError(String);
 
-impl fmt::Display for ExecutionCommandError {
+impl fmt::Display for AgentInterfaceError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ExecutionCommandError: '{}'", self.0)
+        write!(f, "AgentInterfaceError: '{}'", self.0)
     }
 }
 
-impl From<SendError<ExecutionCommand>> for ExecutionCommandError {
-    fn from(error: SendError<ExecutionCommand>) -> Self {
-        ExecutionCommandError(error.to_string())
+impl From<SendError<FromServer>> for AgentInterfaceError {
+    fn from(error: SendError<FromServer>) -> Self {
+        AgentInterfaceError(error.to_string())
     }
 }
 
 // [impl->swdd~execution-command-channel~1]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ExecutionCommand {
+pub enum FromServer {
     UpdateWorkload(commands::UpdateWorkload),
     UpdateWorkloadState(commands::UpdateWorkloadState),
     CompleteState(Box<commands::CompleteState>), // Boxed to avoid clippy warning "large size difference between variants"
     Stop(commands::Stop),
 }
 
-impl TryFrom<ExecutionCommand> for proto::FromServer {
+impl TryFrom<FromServer> for proto::FromServer {
     type Error = &'static str;
 
-    fn try_from(item: ExecutionCommand) -> Result<Self, Self::Error> {
+    fn try_from(item: FromServer) -> Result<Self, Self::Error> {
         match item {
-            ExecutionCommand::UpdateWorkload(ankaios) => Ok(proto::FromServer {
+            FromServer::UpdateWorkload(ankaios) => Ok(proto::FromServer {
                 from_server_enum: Some(proto::from_server::FromServerEnum::UpdateWorkload(
                     proto::UpdateWorkload {
                         added_workloads: ankaios
@@ -63,7 +63,7 @@ impl TryFrom<ExecutionCommand> for proto::FromServer {
                     },
                 )),
             }),
-            ExecutionCommand::UpdateWorkloadState(ankaios) => Ok(proto::FromServer {
+            FromServer::UpdateWorkloadState(ankaios) => Ok(proto::FromServer {
                 from_server_enum: Some(proto::from_server::FromServerEnum::UpdateWorkloadState(
                     proto::UpdateWorkloadState {
                         workload_states: ankaios
@@ -74,7 +74,7 @@ impl TryFrom<ExecutionCommand> for proto::FromServer {
                     },
                 )),
             }),
-            ExecutionCommand::CompleteState(ankaios) => Ok(proto::FromServer {
+            FromServer::CompleteState(ankaios) => Ok(proto::FromServer {
                 from_server_enum: Some(proto::from_server::FromServerEnum::CompleteState(
                     proto::CompleteState {
                         request_id: ankaios.request_id,
@@ -88,41 +88,41 @@ impl TryFrom<ExecutionCommand> for proto::FromServer {
                     },
                 )),
             }),
-            ExecutionCommand::Stop(_) => Err("Stop command not implemented in proto"),
+            FromServer::Stop(_) => Err("Stop command not implemented in proto"),
         }
     }
 }
 
 #[async_trait]
-pub trait ExecutionInterface {
+pub trait AgentInterface {
     async fn update_workload(
         &self,
         added_workloads: Vec<WorkloadSpec>,
         deleted_workloads: Vec<DeletedWorkload>,
-    ) -> Result<(), ExecutionCommandError>;
+    ) -> Result<(), AgentInterfaceError>;
     async fn update_workload_state(
         &self,
         workload_running: Vec<WorkloadState>,
-    ) -> Result<(), ExecutionCommandError>;
+    ) -> Result<(), AgentInterfaceError>;
     async fn complete_state(
         &self,
         complete_state: commands::CompleteState,
-    ) -> Result<(), ExecutionCommandError>;
-    async fn stop(&self) -> Result<(), ExecutionCommandError>;
+    ) -> Result<(), AgentInterfaceError>;
+    async fn stop(&self) -> Result<(), AgentInterfaceError>;
 }
 
-pub type ExecutionSender = tokio::sync::mpsc::Sender<ExecutionCommand>;
-pub type ExecutionReceiver = tokio::sync::mpsc::Receiver<ExecutionCommand>;
+pub type FromServerSender = tokio::sync::mpsc::Sender<FromServer>;
+pub type FromServerReceiver = tokio::sync::mpsc::Receiver<FromServer>;
 
 #[async_trait]
-impl ExecutionInterface for ExecutionSender {
+impl AgentInterface for FromServerSender {
     async fn update_workload(
         &self,
         added_workloads: Vec<WorkloadSpec>,
         deleted_workloads: Vec<DeletedWorkload>,
-    ) -> Result<(), ExecutionCommandError> {
+    ) -> Result<(), AgentInterfaceError> {
         Ok(self
-            .send(ExecutionCommand::UpdateWorkload(commands::UpdateWorkload {
+            .send(FromServer::UpdateWorkload(commands::UpdateWorkload {
                 added_workloads,
                 deleted_workloads,
             }))
@@ -132,9 +132,9 @@ impl ExecutionInterface for ExecutionSender {
     async fn update_workload_state(
         &self,
         workload_states: Vec<WorkloadState>,
-    ) -> Result<(), ExecutionCommandError> {
+    ) -> Result<(), AgentInterfaceError> {
         Ok(self
-            .send(ExecutionCommand::UpdateWorkloadState(
+            .send(FromServer::UpdateWorkloadState(
                 commands::UpdateWorkloadState { workload_states },
             ))
             .await?)
@@ -143,14 +143,14 @@ impl ExecutionInterface for ExecutionSender {
     async fn complete_state(
         &self,
         complete_state: commands::CompleteState,
-    ) -> Result<(), ExecutionCommandError> {
+    ) -> Result<(), AgentInterfaceError> {
         Ok(self
-            .send(ExecutionCommand::CompleteState(Box::new(complete_state)))
+            .send(FromServer::CompleteState(Box::new(complete_state)))
             .await?)
     }
 
-    async fn stop(&self) -> Result<(), ExecutionCommandError> {
-        Ok(self.send(ExecutionCommand::Stop(commands::Stop {})).await?)
+    async fn stop(&self) -> Result<(), AgentInterfaceError> {
+        Ok(self.send(FromServer::Stop(commands::Stop {})).await?)
     }
 }
 
@@ -166,16 +166,16 @@ impl ExecutionInterface for ExecutionSender {
 mod tests {
     use crate::{
         commands,
-        execution_interface::ExecutionCommand,
+        execution_interface::FromServer,
         objects::{ExecutionState, WorkloadSpec, WorkloadState},
         test_utils::{generate_test_deleted_workload, generate_test_proto_deleted_workload},
     };
 
-    use api::proto::{self, from_server::FromServerEnum, AddedWorkload, FromServer};
+    use api::proto::{self, from_server::FromServerEnum, AddedWorkload};
 
     #[test]
-    fn utest_convert_execution_command_to_proto_update_workload() {
-        let test_ex_com = ExecutionCommand::UpdateWorkload(commands::UpdateWorkload {
+    fn utest_convert_from_server_to_proto_update_workload() {
+        let test_ex_com = FromServer::UpdateWorkload(commands::UpdateWorkload {
             added_workloads: vec![WorkloadSpec {
                 name: "test_workload".to_owned(),
                 runtime: "tes_runtime".to_owned(),
@@ -186,7 +186,7 @@ mod tests {
                 "workload X".to_string(),
             )],
         });
-        let expected_ex_com = Ok(FromServer {
+        let expected_ex_com = Ok(proto::FromServer {
             from_server_enum: Some(FromServerEnum::UpdateWorkload(proto::UpdateWorkload {
                 added_workloads: vec![AddedWorkload {
                     name: "test_workload".to_owned(),
@@ -201,15 +201,15 @@ mod tests {
     }
 
     #[test]
-    fn utest_convert_execution_command_to_proto_update_workload_state() {
-        let test_ex_com = ExecutionCommand::UpdateWorkloadState(commands::UpdateWorkloadState {
+    fn utest_convert_from_server_to_proto_update_workload_state() {
+        let test_ex_com = FromServer::UpdateWorkloadState(commands::UpdateWorkloadState {
             workload_states: vec![WorkloadState {
                 agent_name: "test_agent".to_owned(),
                 workload_name: "test_workload".to_owned(),
                 execution_state: ExecutionState::ExecRunning,
             }],
         });
-        let expected_ex_com = Ok(FromServer {
+        let expected_ex_com = Ok(proto::FromServer {
             from_server_enum: Some(FromServerEnum::UpdateWorkloadState(
                 proto::UpdateWorkloadState {
                     workload_states: vec![api::proto::WorkloadState {
@@ -225,12 +225,12 @@ mod tests {
     }
 
     #[test]
-    fn utest_convert_execution_command_to_proto_complete_state() {
-        let test_ex_com = ExecutionCommand::CompleteState(Box::new(commands::CompleteState {
+    fn utest_convert_from_server_to_proto_complete_state() {
+        let test_ex_com = FromServer::CompleteState(Box::new(commands::CompleteState {
             request_id: "req_id".to_owned(),
             ..Default::default()
         }));
-        let expected_ex_com = Ok(FromServer {
+        let expected_ex_com = Ok(proto::FromServer {
             from_server_enum: Some(FromServerEnum::CompleteState(proto::CompleteState {
                 request_id: "req_id".to_owned(),
                 current_state: Some(api::proto::State::default()),

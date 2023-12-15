@@ -23,7 +23,7 @@ pub mod ankaios_streaming {
 
 mod agent_senders_map;
 pub mod client;
-mod execution_command_proxy;
+mod from_server_proxy;
 mod grpc_agent_connection;
 mod grpc_cli_connection;
 pub mod proxy_error;

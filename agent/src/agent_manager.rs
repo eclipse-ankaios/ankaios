@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use common::{
-    execution_interface::{ExecutionCommand, ExecutionReceiver},
+    execution_interface::{FromServer, FromServerReceiver},
     state_change_interface::StateChangeSender,
 };
 
@@ -26,7 +26,7 @@ pub struct AgentManager {
     agent_name: String,
     runtime_manager: RuntimeManager,
     // [impl->swdd~communication-to-from-agent-middleware~1]
-    receiver: ExecutionReceiver,
+    receiver: FromServerReceiver,
     _to_server: StateChangeSender,
     parameter_storage: ParameterStorage,
 }
@@ -34,7 +34,7 @@ pub struct AgentManager {
 impl AgentManager {
     pub fn new(
         agent_name: String,
-        receiver: ExecutionReceiver,
+        receiver: FromServerReceiver,
         runtime_manager: RuntimeManager,
         _to_server: StateChangeSender,
     ) -> AgentManager {
@@ -57,7 +57,7 @@ impl AgentManager {
         log::debug!("Start listening to server.");
         while let Some(x) = self.receiver.recv().await {
             match x {
-                ExecutionCommand::UpdateWorkload(method_obj) => {
+                FromServer::UpdateWorkload(method_obj) => {
                     log::debug!("Agent '{}' received UpdateWorkload:\n\tAdded workloads: {:?}\n\tDeleted workloads: {:?}",
                     self.agent_name,
                     method_obj.added_workloads,
@@ -70,7 +70,7 @@ impl AgentManager {
                         )
                         .await;
                 }
-                ExecutionCommand::UpdateWorkloadState(method_obj) => {
+                FromServer::UpdateWorkloadState(method_obj) => {
                     log::debug!(
                         "Agent '{}' received UpdateWorkloadState: {:?}",
                         self.agent_name,
@@ -87,7 +87,7 @@ impl AgentManager {
                             self.parameter_storage.update_workload_state(workload_state)
                         });
                 }
-                ExecutionCommand::CompleteState(method_obj) => {
+                FromServer::CompleteState(method_obj) => {
                     log::debug!(
                         "Agent '{}' received CompleteState: {:?}",
                         self.agent_name,
@@ -99,7 +99,7 @@ impl AgentManager {
                         .forward_complete_state(*method_obj)
                         .await;
                 }
-                ExecutionCommand::Stop(_method_obj) => {
+                FromServer::Stop(_method_obj) => {
                     log::debug!("Agent '{}' received Stop from server", self.agent_name);
 
                     break;
@@ -123,7 +123,7 @@ mod tests {
     use crate::agent_manager::AgentManager;
     use common::{
         commands::CompleteState,
-        execution_interface::ExecutionInterface,
+        execution_interface::AgentInterface,
         objects::{ExecutionState, WorkloadState},
         test_utils::generate_test_workload_spec_with_param,
     };

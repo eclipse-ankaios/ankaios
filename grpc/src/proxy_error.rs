@@ -15,7 +15,7 @@ use std::fmt;
 
 use api::proto::{FromServer, ToServer};
 use common::{
-    communications_error::CommunicationMiddlewareError, execution_interface::ExecutionCommandError,
+    communications_error::CommunicationMiddlewareError, execution_interface::AgentInterfaceError,
     state_change_interface::StateChangeCommandError,
 };
 use tokio::sync::mpsc::error::SendError;
@@ -40,8 +40,8 @@ impl From<tonic::Status> for GrpcProxyError {
     }
 }
 
-impl From<ExecutionCommandError> for GrpcProxyError {
-    fn from(error: ExecutionCommandError) -> Self {
+impl From<AgentInterfaceError> for GrpcProxyError {
+    fn from(error: AgentInterfaceError) -> Self {
         GrpcProxyError::Send(error.to_string())
     }
 }

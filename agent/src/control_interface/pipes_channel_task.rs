@@ -16,7 +16,7 @@
 use super::ReopenFile;
 use api::proto;
 use common::{
-    execution_interface::{ExecutionCommand, ExecutionReceiver},
+    execution_interface::{FromServer, FromServerReceiver},
     state_change_interface::{StateChangeCommand, StateChangeSender},
 };
 
@@ -34,7 +34,7 @@ fn decode_state_change_request(
 pub struct PipesChannelTask {
     output_stream: ReopenFile,
     input_stream: ReopenFile,
-    input_pipe_receiver: ExecutionReceiver,
+    input_pipe_receiver: FromServerReceiver,
     output_pipe_channel: StateChangeSender,
     request_id_prefix: String,
 }
@@ -44,7 +44,7 @@ impl PipesChannelTask {
     pub fn new(
         output_stream: ReopenFile,
         input_stream: ReopenFile,
-        input_pipe_receiver: ExecutionReceiver,
+        input_pipe_receiver: FromServerReceiver,
         output_pipe_channel: StateChangeSender,
         request_id_prefix: String,
     ) -> Self {
@@ -60,9 +60,9 @@ impl PipesChannelTask {
         loop {
             select! {
                 // [impl->swdd~agent-ensures-control-interface-output-pipe-read~1]
-                execution_command = self.input_pipe_receiver.recv() => {
-                    if let Some(execution_command) = execution_command {
-                        let _ = self.forward_execution_command(execution_command).await;
+                from_server = self.input_pipe_receiver.recv() => {
+                    if let Some(from_server) = from_server {
+                        let _ = self.forward_from_server(from_server).await;
                     }
                 }
                 // [impl->swdd~agent-listens-for-requests-from-pipe~1]
@@ -90,7 +90,7 @@ impl PipesChannelTask {
         tokio::spawn(self.run())
     }
 
-    async fn forward_execution_command(&mut self, command: ExecutionCommand) -> io::Result<()> {
+    async fn forward_from_server(&mut self, command: FromServer) -> io::Result<()> {
         if let Ok(proto) = proto::FromServer::try_from(command) {
             // [impl->swdd~agent-uses-length-delimited-protobuf-for-pipes~1]
             let binary = proto.encode_length_delimited_to_vec();
@@ -133,16 +133,15 @@ mod tests {
     use crate::control_interface::MockReopenFile;
 
     #[tokio::test]
-    async fn utest_pipes_channel_task_forward_execution_command() {
+    async fn utest_pipes_channel_task_forward_from_server() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
 
-        let test_command =
-            ExecutionCommand::CompleteState(Box::new(common::commands::CompleteState {
-                request_id: "req_id".to_owned(),
-                ..Default::default()
-            }));
+        let test_command = FromServer::CompleteState(Box::new(common::commands::CompleteState {
+            request_id: "req_id".to_owned(),
+            ..Default::default()
+        }));
 
         let test_command_binary = proto::FromServer::try_from(test_command.clone())
             .unwrap()
@@ -169,7 +168,7 @@ mod tests {
         );
 
         assert!(pipes_channel_task
-            .forward_execution_command(test_command)
+            .forward_from_server(test_command)
             .await
             .is_ok());
     }
@@ -202,7 +201,7 @@ mod tests {
             .returning(move || Ok(Box::new(x)));
 
         let test_input_command =
-            ExecutionCommand::CompleteState(Box::new(common::commands::CompleteState {
+            FromServer::CompleteState(Box::new(common::commands::CompleteState {
                 request_id: "req_id".to_owned(),
                 ..Default::default()
             }));

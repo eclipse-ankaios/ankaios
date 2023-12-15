@@ -14,8 +14,8 @@
 
 use std::fmt;
 
-use crate::execution_command_proxy;
-use crate::execution_command_proxy::GRPCExecutionRequestStreaming;
+use crate::from_server_proxy;
+use crate::from_server_proxy::GRPCExecutionRequestStreaming;
 use crate::proxy_error::GrpcProxyError;
 use crate::state_change_proxy;
 use api::proto;
@@ -26,7 +26,7 @@ use api::proto::AgentHello;
 
 use common::communications_client::CommunicationsClient;
 use common::communications_error::CommunicationMiddlewareError;
-use common::execution_interface::ExecutionCommand;
+use common::execution_interface::FromServer;
 
 use common::state_change_interface::StateChangeReceiver;
 
@@ -74,7 +74,7 @@ impl CommunicationsClient for GRPCCommunicationsClient {
     async fn run(
         &mut self,
         mut server_rx: StateChangeReceiver,
-        agent_tx: Sender<ExecutionCommand>,
+        agent_tx: Sender<FromServer>,
     ) -> Result<(), CommunicationMiddlewareError> {
         log::debug!("gRPC Communication Client starts.");
 
@@ -170,7 +170,7 @@ impl GRPCCommunicationsClient {
     async fn run_internal(
         &self,
         server_rx: &mut StateChangeReceiver,
-        agent_tx: &Sender<ExecutionCommand>,
+        agent_tx: &Sender<FromServer>,
     ) -> Result<(), GrpcConnectionError> {
         // [impl->swdd~grpc-client-creates-state-change-channel~1]
         let (grpc_tx, grpc_rx) =
@@ -190,13 +190,13 @@ impl GRPCCommunicationsClient {
         }
 
         // [impl->swdd~grpc-client-connects-with-agent-hello~1]
-        let mut grpc_execution_request_streaming =
+        let mut grpc_to_server_streaming =
             GRPCExecutionRequestStreaming::new(self.connect_to_server(grpc_rx).await?);
 
         // [impl->swdd~grpc-client-forwards-commands-to-agent~1]
-        let forward_exec_from_proto_task = execution_command_proxy::forward_from_proto_to_ankaios(
+        let forward_exec_from_proto_task = from_server_proxy::forward_from_proto_to_ankaios(
             self.name.as_str(),
-            &mut grpc_execution_request_streaming,
+            &mut grpc_to_server_streaming,
             agent_tx,
         );
 

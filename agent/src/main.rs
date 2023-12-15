@@ -31,7 +31,7 @@ mod generic_polling_state_checker;
 mod runtime_manager;
 mod workload;
 
-use common::execution_interface::ExecutionCommand;
+use common::execution_interface::FromServer;
 use common::std_extensions::{GracefulExitResult, IllegalStateResult, UnreachableResult};
 use grpc::client::GRPCCommunicationsClient;
 
@@ -61,8 +61,7 @@ async fn main() {
     );
 
     // [impl->swdd~agent-uses-async-channels~1]
-    let (to_manager, manager_receiver) =
-        tokio::sync::mpsc::channel::<ExecutionCommand>(BUFFER_SIZE);
+    let (to_manager, manager_receiver) = tokio::sync::mpsc::channel::<FromServer>(BUFFER_SIZE);
     let (to_server, server_receiver) =
         tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
 

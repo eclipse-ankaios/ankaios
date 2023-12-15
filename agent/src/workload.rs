@@ -5,7 +5,7 @@ use crate::control_interface::PipesChannelContext;
 use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use common::{
     commands::CompleteState,
-    execution_interface::ExecutionCommand,
+    execution_interface::FromServer,
     objects::{ExecutionState, WorkloadSpec},
     state_change_interface::{StateChangeInterface, StateChangeSender},
     std_extensions::IllegalStateResult,
@@ -212,7 +212,7 @@ impl Workload {
                 ))?;
         control_interface
             .get_input_pipe_sender()
-            .send(ExecutionCommand::CompleteState(Box::new(complete_state)))
+            .send(FromServer::CompleteState(Box::new(complete_state)))
             .await
             .map_err(|err| WorkloadError::CompleteState(err.to_string()))
     }
@@ -234,7 +234,7 @@ mod tests {
 
     use common::{
         commands::{CompleteState, UpdateWorkloadState},
-        execution_interface::ExecutionCommand,
+        execution_interface::FromServer,
         objects::{ExecutionState, WorkloadState},
         state_change_interface::StateChangeCommand,
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
@@ -944,7 +944,7 @@ mod tests {
 
         assert!(matches!(
             timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(ExecutionCommand::CompleteState(complete_state_box)))
+            Ok(Some(FromServer::CompleteState(complete_state_box)))
         if expected_complete_state_box == complete_state_box));
     }
 

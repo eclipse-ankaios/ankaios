@@ -21,9 +21,9 @@ use tests::update_state_mock as update_state;
 use update_state::update_state;
 
 use common::commands::{CompleteState, RequestCompleteState};
-use common::execution_interface::ExecutionCommand;
+use common::execution_interface::FromServer;
 use common::objects::State;
-use common::{execution_interface::ExecutionInterface, state_change_interface::StateChangeCommand};
+use common::{execution_interface::AgentInterface, state_change_interface::StateChangeCommand};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 use crate::ankaios_server::update_state::prepare_update_workload;
@@ -31,29 +31,26 @@ use crate::state_manipulation::Object;
 use crate::workload_state_db::WorkloadStateDB;
 
 pub type StateChangeChannels = (Sender<StateChangeCommand>, Receiver<StateChangeCommand>);
-pub type ExecutionChannels = (Sender<ExecutionCommand>, Receiver<ExecutionCommand>);
+pub type ExecutionChannels = (Sender<FromServer>, Receiver<FromServer>);
 
 pub fn create_state_change_channels(capacity: usize) -> StateChangeChannels {
     channel::<StateChangeCommand>(capacity)
 }
 pub fn create_execution_channels(capacity: usize) -> ExecutionChannels {
-    channel::<ExecutionCommand>(capacity)
+    channel::<FromServer>(capacity)
 }
 
 pub struct AnkaiosServer {
     // [impl->swdd~server-uses-async-channels~1]
     receiver: Receiver<StateChangeCommand>,
     // [impl->swdd~communication-to-from-server-middleware~1]
-    to_agents: Sender<ExecutionCommand>,
+    to_agents: Sender<FromServer>,
     current_complete_state: CompleteState,
     workload_state_db: WorkloadStateDB,
 }
 
 impl AnkaiosServer {
-    pub fn new(
-        receiver: Receiver<StateChangeCommand>,
-        to_agents: Sender<ExecutionCommand>,
-    ) -> Self {
+    pub fn new(receiver: Receiver<StateChangeCommand>, to_agents: Sender<FromServer>) -> Self {
         AnkaiosServer {
             receiver,
             to_agents,
@@ -295,7 +292,7 @@ mod tests {
     use common::test_utils::generate_test_workload_spec_with_param;
     use common::{
         commands::CompleteState,
-        execution_interface::ExecutionCommand,
+        execution_interface::FromServer,
         state_change_interface::{StateChangeCommand, StateChangeInterface},
     };
     use tokio::join;
@@ -311,8 +308,8 @@ mod tests {
             tokio::task::JoinHandle<()>,
             tokio::task::JoinHandle<()>,
         ), // ( server instance, communication mapper task, fake agent 1 task, fake agent 2 task)
-        (Sender<StateChangeCommand>, Sender<ExecutionCommand>), // (state change sender channel to ankaios server, execution sender channel to communication mapper)
-        Receiver<TestResult>,                                   // test result receiver channel
+        (Sender<StateChangeCommand>, Sender<FromServer>), // (state change sender channel to ankaios server, execution sender channel to communication mapper)
+        Receiver<TestResult>,                             // test result receiver channel
     );
 
     const RUNTIME_NAME: &str = "fake_runtime";
@@ -324,32 +321,32 @@ mod tests {
 
     #[derive(Debug)]
     struct CommunicationMapper {
-        fake_agents: HashMap<String, Sender<ExecutionCommand>>,
-        ex_receiver: Receiver<ExecutionCommand>,
+        fake_agents: HashMap<String, Sender<FromServer>>,
+        ex_receiver: Receiver<FromServer>,
     }
 
     impl CommunicationMapper {
-        fn new(ex_receiver: Receiver<ExecutionCommand>) -> Self {
+        fn new(ex_receiver: Receiver<FromServer>) -> Self {
             CommunicationMapper {
                 fake_agents: HashMap::new(),
                 ex_receiver,
             }
         }
-        fn insert(&mut self, agent_name: String, to_agent: Sender<ExecutionCommand>) {
+        fn insert(&mut self, agent_name: String, to_agent: Sender<FromServer>) {
             self.fake_agents.insert(agent_name, to_agent);
         }
 
         async fn start(&mut self) {
             while let Some(ex_command) = self.ex_receiver.recv().await {
                 match ex_command {
-                    ExecutionCommand::UpdateWorkload(update_workload) => {
+                    FromServer::UpdateWorkload(update_workload) => {
                         let agent_names: Vec<String> = update_workload
                             .added_workloads
                             .iter()
                             .map(|wl| wl.agent.clone())
                             .collect();
 
-                        let relevant_agents: Vec<(String, Sender<ExecutionCommand>)> = self
+                        let relevant_agents: Vec<(String, Sender<FromServer>)> = self
                             .fake_agents
                             .clone()
                             .into_iter()
@@ -358,19 +355,19 @@ mod tests {
 
                         for (_, agent_sender) in relevant_agents.into_iter() {
                             agent_sender
-                                .send(ExecutionCommand::UpdateWorkload(update_workload.clone()))
+                                .send(FromServer::UpdateWorkload(update_workload.clone()))
                                 .await
                                 .unwrap();
                         }
                     }
-                    ExecutionCommand::UpdateWorkloadState(update_workload_state) => {
+                    FromServer::UpdateWorkloadState(update_workload_state) => {
                         let agent_names: Vec<String> = update_workload_state
                             .workload_states
                             .iter()
                             .map(|wls| wls.agent_name.clone())
                             .collect();
 
-                        let relevant_agents: Vec<(String, Sender<ExecutionCommand>)> = self
+                        let relevant_agents: Vec<(String, Sender<FromServer>)> = self
                             .fake_agents
                             .clone()
                             .into_iter()
@@ -379,21 +376,21 @@ mod tests {
 
                         for (_, agent_sender) in relevant_agents.into_iter() {
                             agent_sender
-                                .send(ExecutionCommand::UpdateWorkloadState(
+                                .send(FromServer::UpdateWorkloadState(
                                     update_workload_state.clone(),
                                 ))
                                 .await
                                 .unwrap();
                         }
                     }
-                    ExecutionCommand::CompleteState(mut boxed_complete_state) => {
+                    FromServer::CompleteState(mut boxed_complete_state) => {
                         let mut splitted = boxed_complete_state.request_id.split('@');
                         let agent_name = splitted.next().unwrap();
                         let request_id = splitted.next().unwrap();
                         let agent_sender = self.fake_agents.get(agent_name).unwrap();
                         boxed_complete_state.request_id = request_id.to_owned();
                         agent_sender
-                            .send(ExecutionCommand::CompleteState(boxed_complete_state))
+                            .send(FromServer::CompleteState(boxed_complete_state))
                             .await
                             .unwrap();
                     }
@@ -404,12 +401,12 @@ mod tests {
     }
 
     struct FakeAgent {
-        ex_receiver: Receiver<ExecutionCommand>,
+        ex_receiver: Receiver<FromServer>,
         tc_sender: Sender<TestResult>,
     }
 
     impl FakeAgent {
-        fn new(ex_receiver: Receiver<ExecutionCommand>, tc_sender: Sender<TestResult>) -> Self {
+        fn new(ex_receiver: Receiver<FromServer>, tc_sender: Sender<TestResult>) -> Self {
             FakeAgent {
                 ex_receiver,
                 tc_sender,
@@ -418,7 +415,7 @@ mod tests {
 
         async fn start<F, Fut>(&mut self, handler: F)
         where
-            F: Fn(Sender<TestResult>, ExecutionCommand) -> Fut,
+            F: Fn(Sender<TestResult>, FromServer) -> Fut,
             Fut: Future<Output = ()>,
         {
             while let Some(ex_command) = self.ex_receiver.recv().await {
@@ -461,14 +458,14 @@ mod tests {
 
         let agent_ex_command_handler = |tcs: Sender<TestResult>, ex_command| async move {
             match ex_command {
-                ExecutionCommand::UpdateWorkload(update_workload) => {
+                FromServer::UpdateWorkload(update_workload) => {
                     tcs.send(TestResult::Result(
                         serde_json::to_string(&update_workload).unwrap().to_owned(),
                     ))
                     .await
                     .unwrap();
                 }
-                ExecutionCommand::UpdateWorkloadState(update_workload_state) => tcs
+                FromServer::UpdateWorkloadState(update_workload_state) => tcs
                     .send(TestResult::Result(
                         serde_json::to_string(&update_workload_state)
                             .unwrap()
@@ -477,7 +474,7 @@ mod tests {
                     .await
                     .unwrap(),
 
-                ExecutionCommand::CompleteState(boxed_complete_state) => tcs
+                FromServer::CompleteState(boxed_complete_state) => tcs
                     .send(TestResult::Result(
                         serde_json::to_string(&boxed_complete_state)
                             .unwrap()
@@ -1100,7 +1097,7 @@ mod tests {
         const BUFFER_SIZE: usize = 20;
         let fake_agent_names = ["fake_agent_1", "fake_agent_2"];
 
-        let (to_agents, mut agents_receiver) = mpsc::channel::<ExecutionCommand>(BUFFER_SIZE);
+        let (to_agents, mut agents_receiver) = mpsc::channel::<FromServer>(BUFFER_SIZE);
         let (to_server, server_receiver) = mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
@@ -1203,7 +1200,7 @@ mod tests {
         let agent_message = agents_receiver.try_recv();
         assert!(agent_message.is_ok());
         match agent_message.unwrap() {
-            ExecutionCommand::UpdateWorkload(wl) => {
+            FromServer::UpdateWorkload(wl) => {
                 check_update_workload(
                     Some(wl),
                     "fake_agent_1".to_string(),
@@ -1217,7 +1214,7 @@ mod tests {
         let agent_message = agents_receiver.try_recv();
         assert!(agent_message.is_ok());
         match agent_message.unwrap() {
-            ExecutionCommand::UpdateWorkload(wl) => {
+            FromServer::UpdateWorkload(wl) => {
                 check_update_workload(
                     Some(wl),
                     "fake_agent_2".to_string(),
@@ -1231,7 +1228,7 @@ mod tests {
         let agent_message = agents_receiver.try_recv();
         assert!(agent_message.is_ok());
         match agent_message.unwrap() {
-            ExecutionCommand::UpdateWorkloadState(wls) => {
+            FromServer::UpdateWorkloadState(wls) => {
                 check_update_workload_state(
                     Some(wls),
                     "fake_agent_1".to_string(),
@@ -1257,7 +1254,7 @@ mod tests {
         let agent_message = agents_receiver.try_recv();
         assert!(agent_message.is_ok());
         match agent_message.unwrap() {
-            ExecutionCommand::UpdateWorkloadState(wls) => {
+            FromServer::UpdateWorkloadState(wls) => {
                 check_update_workload_state(
                     Some(wls),
                     "fake_agent_1".to_string(),
@@ -1290,7 +1287,7 @@ mod tests {
         const BUFFER_SIZE: usize = 20;
         let fake_agent_names = ["fake_agent_1", "fake_agent_2"];
 
-        let (to_agents, mut agents_receiver) = mpsc::channel::<ExecutionCommand>(BUFFER_SIZE);
+        let (to_agents, mut agents_receiver) = mpsc::channel::<FromServer>(BUFFER_SIZE);
         let (to_server, server_receiver) = mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
@@ -1381,7 +1378,7 @@ mod tests {
         let agent_message = agents_receiver.try_recv();
         assert!(agent_message.is_ok());
         match agent_message.unwrap() {
-            ExecutionCommand::UpdateWorkload(wl) => {
+            FromServer::UpdateWorkload(wl) => {
                 assert_eq!(wl.added_workloads.len(), 2);
                 assert_eq!(wl.deleted_workloads.len(), 0);
                 check_update_workload(
@@ -1397,7 +1394,7 @@ mod tests {
         let agent_message = agents_receiver.try_recv();
         assert!(agent_message.is_ok());
         match agent_message.unwrap() {
-            ExecutionCommand::UpdateWorkload(wl) => {
+            FromServer::UpdateWorkload(wl) => {
                 assert_eq!(wl.added_workloads.len(), 1);
                 assert_eq!(wl.deleted_workloads.len(), 0);
                 check_update_workload(
@@ -1413,7 +1410,7 @@ mod tests {
         let agent_message = agents_receiver.try_recv();
         assert!(agent_message.is_ok());
         match agent_message.unwrap() {
-            ExecutionCommand::UpdateWorkload(wl) => {
+            FromServer::UpdateWorkload(wl) => {
                 assert_eq!(wl.added_workloads.len(), 1);
                 assert_eq!(wl.deleted_workloads.len(), 2);
                 // TODO: this check shall be part of the "check_update_workload" function

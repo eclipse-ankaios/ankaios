@@ -16,7 +16,7 @@ use async_trait::async_trait;
 use tokio::sync::mpsc::Sender;
 
 use crate::{
-    communications_error::CommunicationMiddlewareError, execution_interface::ExecutionCommand,
+    communications_error::CommunicationMiddlewareError, execution_interface::FromServer,
     state_change_interface::StateChangeReceiver,
 };
 
@@ -26,6 +26,6 @@ pub trait CommunicationsClient {
     async fn run(
         &mut self,
         &mut receiver: StateChangeReceiver,
-        manager_interface: Sender<ExecutionCommand>,
+        manager_interface: Sender<FromServer>,
     ) -> Result<(), CommunicationMiddlewareError>;
 }

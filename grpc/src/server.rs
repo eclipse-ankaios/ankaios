@@ -26,10 +26,10 @@ use crate::agent_senders_map::AgentSendersMap;
 use crate::grpc_cli_connection::GRPCCliConnection;
 use api::proto::agent_connection_server::AgentConnectionServer;
 
-use crate::execution_command_proxy;
+use crate::from_server_proxy;
 use crate::grpc_agent_connection::GRPCAgentConnection;
 
-use common::execution_interface::ExecutionCommand;
+use common::execution_interface::FromServer;
 use common::state_change_interface::StateChangeCommand;
 
 use async_trait::async_trait;
@@ -44,7 +44,7 @@ pub struct GRPCCommunicationsServer {
 impl CommunicationsServer for GRPCCommunicationsServer {
     async fn start(
         &mut self,
-        receiver: &mut Receiver<ExecutionCommand>,
+        receiver: &mut Receiver<FromServer>,
         addr: SocketAddr,
     ) -> Result<(), CommunicationMiddlewareError> {
         // [impl->swdd~grpc-server-creates-agent-connection~1]
@@ -75,7 +75,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
 
         // TODO these two awaits one after the other do not seem correct ...
         // [impl->swdd~grpc-server-forwards-commands-to-grpc-client~1]
-        execution_command_proxy::forward_from_ankaios_to_proto(&self.agent_senders, receiver).await;
+        from_server_proxy::forward_from_ankaios_to_proto(&self.agent_senders, receiver).await;
 
         grpc_task.await??;
         Ok(())

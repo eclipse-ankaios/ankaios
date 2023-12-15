@@ -17,7 +17,7 @@ use std::fmt::Display;
 use crate::state_manipulation::{Object, Path};
 use common::{commands::CompleteState, commands::UpdateStateRequest, commands::UpdateWorkload};
 use common::{
-    execution_interface::ExecutionCommand,
+    execution_interface::FromServer,
     objects::{DeletedWorkload, State, WorkloadSpec},
 };
 
@@ -61,7 +61,7 @@ pub fn update_state(
 pub fn prepare_update_workload(
     current_state: &State,
     new_state: &State,
-) -> Option<common::execution_interface::ExecutionCommand> {
+) -> Option<common::execution_interface::FromServer> {
     let mut added_workloads: Vec<WorkloadSpec> = Vec::new();
     let mut deleted_workloads: Vec<DeletedWorkload> = Vec::new();
 
@@ -109,7 +109,7 @@ pub fn prepare_update_workload(
         deleted_workloads.len()
     );
 
-    Some(ExecutionCommand::UpdateWorkload(UpdateWorkload {
+    Some(FromServer::UpdateWorkload(UpdateWorkload {
         added_workloads,
         deleted_workloads,
     }))
@@ -311,7 +311,7 @@ mod tests {
         let update_cmd = prepare_update_workload(&current_state, &new_state.current_state);
 
         let expected_cmd =
-            common::execution_interface::ExecutionCommand::UpdateWorkload(UpdateWorkload {
+            common::execution_interface::FromServer::UpdateWorkload(UpdateWorkload {
                 added_workloads: new_state.current_state.workloads.into_values().collect(),
                 deleted_workloads: Vec::new(),
             });
@@ -334,7 +334,7 @@ mod tests {
         let update_cmd = prepare_update_workload(&current_complete_state.current_state, &new_state);
 
         let expected_cmd =
-            common::execution_interface::ExecutionCommand::UpdateWorkload(UpdateWorkload {
+            common::execution_interface::FromServer::UpdateWorkload(UpdateWorkload {
                 added_workloads: Vec::new(),
                 deleted_workloads: current_complete_state
                     .current_state
@@ -377,7 +377,7 @@ mod tests {
         let update_cmd = prepare_update_workload(&current_complete_state.current_state, &new_state);
 
         let expected_cmd =
-            common::execution_interface::ExecutionCommand::UpdateWorkload(UpdateWorkload {
+            common::execution_interface::FromServer::UpdateWorkload(UpdateWorkload {
                 added_workloads: vec![wls_update],
                 deleted_workloads: vec![DeletedWorkload {
                     agent: wls_to_update.agent.clone(),

@@ -24,8 +24,8 @@ use super::pipes_channel_task::PipesChannelTask;
 #[cfg_attr(test, mockall_double::double)]
 use super::reopen_file::ReopenFile;
 #[cfg_attr(test, mockall_double::double)]
-use super::ExecutionCommandChannels;
-use common::{execution_interface::ExecutionSender, state_change_interface::StateChangeSender};
+use super::FromServerChannels;
+use common::{execution_interface::FromServerSender, state_change_interface::StateChangeSender};
 use std::{
     fmt::{self, Display},
     path::{Path, PathBuf},
@@ -51,7 +51,7 @@ impl Display for PipesChannelContextError {
 // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
 pub struct PipesChannelContext {
     pipes: InputOutput,
-    input_pipe_sender: ExecutionSender,
+    input_pipe_sender: FromServerSender,
     task_handle: JoinHandle<()>,
 }
 
@@ -68,7 +68,7 @@ impl PipesChannelContext {
                 let input_stream = ReopenFile::open(pipes.get_output().get_path());
                 let output_stream = ReopenFile::create(pipes.get_input().get_path());
                 let request_id_prefix = [execution_instance_name.workload_name(), ""].join("@");
-                let input_pipe_channels = ExecutionCommandChannels::new(1024);
+                let input_pipe_channels = FromServerChannels::new(1024);
 
                 Ok(PipesChannelContext {
                     pipes,
@@ -92,7 +92,7 @@ impl PipesChannelContext {
     pub fn get_api_location(&self) -> PathBuf {
         self.pipes.get_location()
     }
-    pub fn get_input_pipe_sender(&self) -> ExecutionSender {
+    pub fn get_input_pipe_sender(&self) -> FromServerSender {
         self.input_pipe_sender.clone()
     }
 
@@ -119,14 +119,14 @@ impl Drop for PipesChannelContext {
 mod tests {
     use std::path::Path;
 
-    use common::execution_interface::ExecutionCommand;
+    use common::execution_interface::FromServer;
     use tokio::sync::mpsc;
 
     const CONFIG: &str = "config";
 
     use crate::control_interface::{
         generate_test_input_output_mock, generate_test_pipes_channel_task_mock,
-        MockExecutionCommandChannels, MockReopenFile, PipesChannelContext,
+        MockFromServerChannels, MockReopenFile, PipesChannelContext,
     };
     use common::objects::WorkloadExecutionInstanceName;
 
@@ -149,10 +149,10 @@ mod tests {
 
         let _input_output_mock = generate_test_input_output_mock();
 
-        let ex_com_ch_mock_context = MockExecutionCommandChannels::new_context();
+        let ex_com_ch_mock_context = MockFromServerChannels::new_context();
         let (sender, receiver) = mpsc::channel(1);
         ex_com_ch_mock_context.expect().return_once(move |_| {
-            let mut mock = MockExecutionCommandChannels::default();
+            let mut mock = MockFromServerChannels::default();
             mock.expect_get_sender().return_const(sender);
             mock.expect_move_receiver().return_once(|| receiver);
             mock
@@ -197,10 +197,10 @@ mod tests {
 
         let _input_output_mock = generate_test_input_output_mock();
 
-        let ex_com_ch_mock_context = MockExecutionCommandChannels::new_context();
+        let ex_com_ch_mock_context = MockFromServerChannels::new_context();
         let (sender, mut receiver) = mpsc::channel(1024);
         ex_com_ch_mock_context.expect().return_once(move |_| {
-            let mut mock = MockExecutionCommandChannels::default();
+            let mut mock = MockFromServerChannels::default();
             mock.expect_get_sender().return_const(sender);
             mock.expect_move_receiver()
                 .return_once(|| mpsc::channel(1).1); //return fake receiver
@@ -221,7 +221,7 @@ mod tests {
 
         let _ = pipes_channel_context
             .get_input_pipe_sender()
-            .send(ExecutionCommand::UpdateWorkload(
+            .send(FromServer::UpdateWorkload(
                 common::commands::UpdateWorkload {
                     added_workloads: vec![],
                     deleted_workloads: vec![],
@@ -230,7 +230,7 @@ mod tests {
             .await;
 
         assert_eq!(
-            Some(ExecutionCommand::UpdateWorkload(
+            Some(FromServer::UpdateWorkload(
                 common::commands::UpdateWorkload {
                     added_workloads: vec![],
                     deleted_workloads: vec![],

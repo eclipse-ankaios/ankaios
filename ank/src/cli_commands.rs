@@ -23,7 +23,7 @@ use tests::read_to_string_mock as read_file_to_string;
 
 use common::{
     commands::{CompleteState, RequestCompleteState},
-    execution_interface::ExecutionCommand,
+    execution_interface::FromServer,
     objects::{Tag, WorkloadSpec},
     state_change_interface::{StateChangeCommand, StateChangeInterface},
 };
@@ -163,13 +163,13 @@ fn setup_cli_communication(
 ) -> (
     tokio::task::JoinHandle<()>,
     tokio::sync::mpsc::Sender<StateChangeCommand>,
-    tokio::sync::mpsc::Receiver<ExecutionCommand>,
+    tokio::sync::mpsc::Receiver<FromServer>,
 ) // (task,sender,receiver)
 {
     let mut grpc_communications_client =
         GRPCCommunicationsClient::new_cli_communication(cli_name.to_owned(), server_url);
 
-    let (to_cli, cli_receiver) = tokio::sync::mpsc::channel::<ExecutionCommand>(BUFFER_SIZE);
+    let (to_cli, cli_receiver) = tokio::sync::mpsc::channel::<FromServer>(BUFFER_SIZE);
     let (to_server, server_receiver) =
         tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
 
@@ -201,7 +201,7 @@ pub struct CliCommands {
     cli_name: String,
     task: tokio::task::JoinHandle<()>,
     to_server: tokio::sync::mpsc::Sender<StateChangeCommand>,
-    from_server: tokio::sync::mpsc::Receiver<ExecutionCommand>,
+    from_server: tokio::sync::mpsc::Receiver<FromServer>,
 }
 
 impl CliCommands {
@@ -244,7 +244,7 @@ impl CliCommands {
             .await
             .ok()?;
 
-        if let Some(ExecutionCommand::CompleteState(res)) = self.from_server.recv().await {
+        if let Some(FromServer::CompleteState(res)) = self.from_server.recv().await {
             out_command_text =
                 // [impl->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
                 match generate_compact_state_output(&res, object_field_mask, output_format) {
@@ -313,7 +313,7 @@ impl CliCommands {
             .await
             .map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
-        if let Some(ExecutionCommand::CompleteState(res)) = self.from_server.recv().await {
+        if let Some(FromServer::CompleteState(res)) = self.from_server.recv().await {
             let mut workload_infos: Vec<WorkloadInfo> = res
                 .current_state
                 .workloads
@@ -391,7 +391,7 @@ impl CliCommands {
                 "Failed to get execution command from server".to_string(),
             ))?;
 
-        let complete_state = if let ExecutionCommand::CompleteState(res) = res {
+        let complete_state = if let FromServer::CompleteState(res) = res {
             res
         } else {
             return Err(CliError::ExecutionError(
@@ -464,7 +464,7 @@ impl CliCommands {
             .await
             .map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
-        if let Some(ExecutionCommand::CompleteState(res)) = self.from_server.recv().await {
+        if let Some(FromServer::CompleteState(res)) = self.from_server.recv().await {
             output_debug!("Got current state: {:?}", res);
             let mut new_state = *res.clone();
             new_state
@@ -501,7 +501,7 @@ mod tests {
 
     use common::{
         commands,
-        execution_interface::ExecutionCommand,
+        execution_interface::FromServer,
         objects::{Tag, WorkloadSpec},
         state_change_interface::{StateChangeCommand, StateChangeReceiver},
         test_utils::{self, generate_test_complete_state},
@@ -556,14 +556,14 @@ mod tests {
             pub async fn run(
                 &mut self,
                 mut server_rx: StateChangeReceiver,
-                agent_tx: Sender<ExecutionCommand>,
+                agent_tx: Sender<FromServer>,
             ) -> Result<(), String>;
         }
     }
 
     fn prepare_server_response(
-        complete_states: Vec<ExecutionCommand>,
-        to_cli: Sender<ExecutionCommand>,
+        complete_states: Vec<FromServer>,
+        to_cli: Sender<FromServer>,
     ) -> Result<(), String> {
         let sync_code = thread::spawn(move || {
             complete_states.into_iter().for_each(|cs| {
@@ -581,7 +581,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let empty_complete_state = vec![ExecutionCommand::CompleteState(Box::new(
+        let empty_complete_state = vec![FromServer::CompleteState(Box::new(
             test_utils::generate_test_complete_state("request_id".to_owned(), Vec::new()),
         ))];
 
@@ -622,7 +622,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let complete_state = vec![ExecutionCommand::CompleteState(Box::new(
+        let complete_state = vec![FromServer::CompleteState(Box::new(
             test_utils::generate_test_complete_state(
                 "request_id".to_owned(),
                 vec![
@@ -694,7 +694,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let complete_state = vec![ExecutionCommand::CompleteState(Box::new(
+        let complete_state = vec![FromServer::CompleteState(Box::new(
             test_utils::generate_test_complete_state(
                 "request_id".to_owned(),
                 vec![
@@ -754,7 +754,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let complete_state = vec![ExecutionCommand::CompleteState(Box::new(
+        let complete_state = vec![FromServer::CompleteState(Box::new(
             test_utils::generate_test_complete_state(
                 "request_id".to_owned(),
                 vec![
@@ -822,7 +822,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let complete_state = vec![ExecutionCommand::CompleteState(Box::new(
+        let complete_state = vec![FromServer::CompleteState(Box::new(
             test_utils::generate_test_complete_state(
                 "request_id".to_owned(),
                 vec![
@@ -907,8 +907,8 @@ mod tests {
             )],
         );
         let complete_states = vec![
-            ExecutionCommand::CompleteState(Box::new(startup_state)),
-            ExecutionCommand::CompleteState(Box::new(updated_state.clone())),
+            FromServer::CompleteState(Box::new(startup_state)),
+            FromServer::CompleteState(Box::new(updated_state.clone())),
         ];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
@@ -985,8 +985,8 @@ mod tests {
         );
         let updated_state = startup_state.clone();
         let complete_states = vec![
-            ExecutionCommand::CompleteState(Box::new(startup_state)),
-            ExecutionCommand::CompleteState(Box::new(updated_state.clone())),
+            FromServer::CompleteState(Box::new(startup_state)),
+            FromServer::CompleteState(Box::new(updated_state.clone())),
         ];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
@@ -1054,7 +1054,7 @@ mod tests {
             ],
         );
 
-        let complete_state = vec![ExecutionCommand::CompleteState(Box::new(test_data.clone()))];
+        let complete_state = vec![FromServer::CompleteState(Box::new(test_data.clone()))];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
         mock_client
@@ -1106,7 +1106,7 @@ mod tests {
             ],
         );
 
-        let complete_state = vec![ExecutionCommand::CompleteState(Box::new(test_data.clone()))];
+        let complete_state = vec![FromServer::CompleteState(Box::new(test_data.clone()))];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
         mock_client
@@ -1158,7 +1158,7 @@ mod tests {
             ],
         );
 
-        let complete_state = vec![ExecutionCommand::CompleteState(Box::new(test_data.clone()))];
+        let complete_state = vec![FromServer::CompleteState(Box::new(test_data.clone()))];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
         mock_client
@@ -1222,7 +1222,7 @@ mod tests {
             ],
         );
 
-        let complete_state = vec![ExecutionCommand::CompleteState(Box::new(test_data.clone()))];
+        let complete_state = vec![FromServer::CompleteState(Box::new(test_data.clone()))];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
         mock_client
@@ -1273,9 +1273,7 @@ mod tests {
             },
         );
 
-        let complete_states = vec![ExecutionCommand::CompleteState(Box::new(
-            updated_state.clone(),
-        ))];
+        let complete_states = vec![FromServer::CompleteState(Box::new(updated_state.clone()))];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
         mock_client
@@ -1385,8 +1383,8 @@ mod tests {
             .workloads
             .insert(test_workload_name.clone(), new_workload);
         let complete_states = vec![
-            ExecutionCommand::CompleteState(Box::new(startup_state)),
-            ExecutionCommand::CompleteState(Box::new(updated_state.clone())),
+            FromServer::CompleteState(Box::new(startup_state)),
+            FromServer::CompleteState(Box::new(updated_state.clone())),
         ];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
