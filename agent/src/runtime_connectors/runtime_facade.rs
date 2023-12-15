@@ -13,10 +13,10 @@ use crate::runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::workload_control_loop::WorkloadControlLoop;
-use crate::workload::ControlLoopState;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
 use crate::workload::WorkloadCommandChannel;
+use crate::workload::{ControlLoopState, RestartState};
 
 #[async_trait]
 #[cfg_attr(test, automock)]
@@ -146,6 +146,7 @@ impl<
                 runtime,
                 command_receiver,
                 workload_channel: workload_channel_retry,
+                restart_state: RestartState::new(),
             };
 
             WorkloadControlLoop::run(control_loop_state).await;
@@ -234,6 +235,7 @@ impl<
                 runtime,
                 command_receiver,
                 workload_channel: workload_channel_retry,
+                restart_state: RestartState::new(),
             };
 
             WorkloadControlLoop::run(control_loop_state).await;
@@ -301,6 +303,7 @@ impl<
                 runtime,
                 command_receiver,
                 workload_channel: workload_channel_retry,
+                restart_state: RestartState::new(),
             };
 
             WorkloadControlLoop::run(control_loop_state).await;
