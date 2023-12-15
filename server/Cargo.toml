@@ -9,8 +9,8 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
-common = { package = "common", path = "../common" }
-grpc = { package = "grpc", path = "../grpc" }
+common = { path = "../common" }
+grpc = { path = "../grpc" }
 log = "0.4"
 env_logger = "0.10"
 async-trait = "0.1"
@@ -30,5 +30,5 @@ serde_yaml = "0.9"
 clap = { version = "4.0", features = ["derive"] }
 
 [dev-dependencies]
-common = { package = "common", path = "../common", features = ["test_utils"] }
+common = { path = "../common", features = ["test_utils"] }
 serde_json = "1.0"
