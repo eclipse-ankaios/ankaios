@@ -24,8 +24,8 @@ use crate::agent_senders_map::AgentSendersMap;
 use crate::state_change_proxy::{forward_from_proto_to_ankaios, GRPCStateChangeRequestStreaming};
 use api::proto::agent_connection_server::AgentConnection;
 
-use api::proto::state_change_request::StateChangeRequestEnum;
-use api::proto::{AgentHello, ExecutionRequest, StateChangeRequest};
+use api::proto::to_server::ToServerEnum;
+use api::proto::{AgentHello, FromServer, ToServer};
 
 use common::state_change_interface::{StateChangeCommand, StateChangeInterface};
 
@@ -50,18 +50,18 @@ impl GRPCAgentConnection {
 #[tonic::async_trait]
 impl AgentConnection for GRPCAgentConnection {
     type ConnectAgentStream =
-        Pin<Box<dyn Stream<Item = Result<ExecutionRequest, Status>> + Send + 'static>>;
+        Pin<Box<dyn Stream<Item = Result<FromServer, Status>> + Send + 'static>>;
 
     // [impl->swdd~grpc-client-connects-with-agent-hello~1]
     async fn connect_agent(
         &self,
-        request: Request<tonic::Streaming<StateChangeRequest>>,
+        request: Request<tonic::Streaming<ToServer>>,
     ) -> Result<Response<Self::ConnectAgentStream>, Status> {
         let mut stream = request.into_inner();
 
         // [impl->swdd~grpc-agent-connection-creates-execution-command-channel~1]
         let (new_agent_sender, new_agent_receiver) = tokio::sync::mpsc::channel::<
-            Result<ExecutionRequest, tonic::Status>,
+            Result<FromServer, tonic::Status>,
         >(common::CHANNEL_CAPACITY);
 
         let ankaios_tx = self.to_ankaios_server.clone();
@@ -72,10 +72,10 @@ impl AgentConnection for GRPCAgentConnection {
             .message()
             .await?
             .ok_or_else(invalid_argument_empty)?
-            .state_change_request_enum
+            .to_server_enum
             .ok_or_else(invalid_argument_empty)?
         {
-            StateChangeRequestEnum::AgentHello(AgentHello { agent_name }) => {
+            ToServerEnum::AgentHello(AgentHello { agent_name }) => {
                 log::trace!("Received a hello from '{}'", agent_name);
 
                 // [impl->swdd~grpc-agent-connection-stores-execution-channel-tx~1]

@@ -32,18 +32,18 @@ syntax = "proto3";
 package ankaios;
  
 service AgentConnection {
-  rpc ConnectAgent (stream StateChangeRequest) returns (stream ExecutionRequest);
+  rpc ConnectAgent (stream ToServer) returns (stream FromServer);
 }
 
 service CliConnection {
-  rpc ConnectCli (stream StateChangeRequest) returns (stream ExecutionRequest);
+  rpc ConnectCli (stream ToServer) returns (stream FromServer);
 }
 
 /**
 * Messages to the Ankaios server.
 */
-message StateChangeRequest {
-  oneof stateChangeRequestEnum {
+message ToServer {
+  oneof toServerEnum {
     AgentHello agentHello = 1; /// This message is for internal usage only!
     UpdateWorkloadState updateWorkloadState = 2; /// A message to Ankaios server to update the execution state of a workload.
     UpdateStateRequest updateState = 3; /// A message to Ankaios server to update the State of one or more agent(s).
@@ -55,8 +55,8 @@ message StateChangeRequest {
 /**
 * Messages to the Ankaios server.
 */
-message ExecutionRequest {
-  oneof executionRequestEnum {
+message FromServer {
+  oneof fromServerEnum {
     UpdateWorkload updateWorkload = 1; /// A message containing lists of workloads to be added or deleted.
     UpdateWorkloadState updateWorkloadState = 2; /// A message containing list of workload execution states.
     CompleteState completeState = 3; /// A message containing the complete state (startup state, current state, workload states) of the Anakios system.

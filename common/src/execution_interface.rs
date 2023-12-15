@@ -42,57 +42,51 @@ pub enum ExecutionCommand {
     Stop(commands::Stop),
 }
 
-impl TryFrom<ExecutionCommand> for proto::ExecutionRequest {
+impl TryFrom<ExecutionCommand> for proto::FromServer {
     type Error = &'static str;
 
     fn try_from(item: ExecutionCommand) -> Result<Self, Self::Error> {
         match item {
-            ExecutionCommand::UpdateWorkload(ankaios) => Ok(proto::ExecutionRequest {
-                execution_request_enum: Some(
-                    proto::execution_request::ExecutionRequestEnum::UpdateWorkload(
-                        proto::UpdateWorkload {
-                            added_workloads: ankaios
-                                .added_workloads
-                                .into_iter()
-                                .map(|x| x.into())
-                                .collect(),
-                            deleted_workloads: ankaios
-                                .deleted_workloads
-                                .into_iter()
-                                .map(|x| x.into())
-                                .collect(),
-                        },
-                    ),
-                ),
+            ExecutionCommand::UpdateWorkload(ankaios) => Ok(proto::FromServer {
+                from_server_enum: Some(proto::from_server::FromServerEnum::UpdateWorkload(
+                    proto::UpdateWorkload {
+                        added_workloads: ankaios
+                            .added_workloads
+                            .into_iter()
+                            .map(|x| x.into())
+                            .collect(),
+                        deleted_workloads: ankaios
+                            .deleted_workloads
+                            .into_iter()
+                            .map(|x| x.into())
+                            .collect(),
+                    },
+                )),
             }),
-            ExecutionCommand::UpdateWorkloadState(ankaios) => Ok(proto::ExecutionRequest {
-                execution_request_enum: Some(
-                    proto::execution_request::ExecutionRequestEnum::UpdateWorkloadState(
-                        proto::UpdateWorkloadState {
-                            workload_states: ankaios
-                                .workload_states
-                                .iter()
-                                .map(|x| x.to_owned().into())
-                                .collect(),
-                        },
-                    ),
-                ),
+            ExecutionCommand::UpdateWorkloadState(ankaios) => Ok(proto::FromServer {
+                from_server_enum: Some(proto::from_server::FromServerEnum::UpdateWorkloadState(
+                    proto::UpdateWorkloadState {
+                        workload_states: ankaios
+                            .workload_states
+                            .iter()
+                            .map(|x| x.to_owned().into())
+                            .collect(),
+                    },
+                )),
             }),
-            ExecutionCommand::CompleteState(ankaios) => Ok(proto::ExecutionRequest {
-                execution_request_enum: Some(
-                    proto::execution_request::ExecutionRequestEnum::CompleteState(
-                        proto::CompleteState {
-                            request_id: ankaios.request_id,
-                            startup_state: Some(ankaios.startup_state.into()),
-                            current_state: Some(ankaios.current_state.into()),
-                            workload_states: ankaios
-                                .workload_states
-                                .iter()
-                                .map(|x| x.to_owned().into())
-                                .collect(),
-                        },
-                    ),
-                ),
+            ExecutionCommand::CompleteState(ankaios) => Ok(proto::FromServer {
+                from_server_enum: Some(proto::from_server::FromServerEnum::CompleteState(
+                    proto::CompleteState {
+                        request_id: ankaios.request_id,
+                        startup_state: Some(ankaios.startup_state.into()),
+                        current_state: Some(ankaios.current_state.into()),
+                        workload_states: ankaios
+                            .workload_states
+                            .iter()
+                            .map(|x| x.to_owned().into())
+                            .collect(),
+                    },
+                )),
             }),
             ExecutionCommand::Stop(_) => Err("Stop command not implemented in proto"),
         }
@@ -177,9 +171,7 @@ mod tests {
         test_utils::{generate_test_deleted_workload, generate_test_proto_deleted_workload},
     };
 
-    use api::proto::{
-        self, execution_request::ExecutionRequestEnum, AddedWorkload, ExecutionRequest,
-    };
+    use api::proto::{self, from_server::FromServerEnum, AddedWorkload, FromServer};
 
     #[test]
     fn utest_convert_execution_command_to_proto_update_workload() {
@@ -194,23 +186,18 @@ mod tests {
                 "workload X".to_string(),
             )],
         });
-        let expected_ex_com = Ok(ExecutionRequest {
-            execution_request_enum: Some(ExecutionRequestEnum::UpdateWorkload(
-                proto::UpdateWorkload {
-                    added_workloads: vec![AddedWorkload {
-                        name: "test_workload".to_owned(),
-                        runtime: "tes_runtime".to_owned(),
-                        ..Default::default()
-                    }],
-                    deleted_workloads: vec![generate_test_proto_deleted_workload()],
-                },
-            )),
+        let expected_ex_com = Ok(FromServer {
+            from_server_enum: Some(FromServerEnum::UpdateWorkload(proto::UpdateWorkload {
+                added_workloads: vec![AddedWorkload {
+                    name: "test_workload".to_owned(),
+                    runtime: "tes_runtime".to_owned(),
+                    ..Default::default()
+                }],
+                deleted_workloads: vec![generate_test_proto_deleted_workload()],
+            })),
         });
 
-        assert_eq!(
-            proto::ExecutionRequest::try_from(test_ex_com),
-            expected_ex_com
-        );
+        assert_eq!(proto::FromServer::try_from(test_ex_com), expected_ex_com);
     }
 
     #[test]
@@ -222,8 +209,8 @@ mod tests {
                 execution_state: ExecutionState::ExecRunning,
             }],
         });
-        let expected_ex_com = Ok(ExecutionRequest {
-            execution_request_enum: Some(ExecutionRequestEnum::UpdateWorkloadState(
+        let expected_ex_com = Ok(FromServer {
+            from_server_enum: Some(FromServerEnum::UpdateWorkloadState(
                 proto::UpdateWorkloadState {
                     workload_states: vec![api::proto::WorkloadState {
                         agent_name: "test_agent".to_owned(),
@@ -234,10 +221,7 @@ mod tests {
             )),
         });
 
-        assert_eq!(
-            proto::ExecutionRequest::try_from(test_ex_com),
-            expected_ex_com
-        );
+        assert_eq!(proto::FromServer::try_from(test_ex_com), expected_ex_com);
     }
 
     #[test]
@@ -246,20 +230,15 @@ mod tests {
             request_id: "req_id".to_owned(),
             ..Default::default()
         }));
-        let expected_ex_com = Ok(ExecutionRequest {
-            execution_request_enum: Some(ExecutionRequestEnum::CompleteState(
-                proto::CompleteState {
-                    request_id: "req_id".to_owned(),
-                    current_state: Some(api::proto::State::default()),
-                    startup_state: Some(api::proto::State::default()),
-                    workload_states: vec![],
-                },
-            )),
+        let expected_ex_com = Ok(FromServer {
+            from_server_enum: Some(FromServerEnum::CompleteState(proto::CompleteState {
+                request_id: "req_id".to_owned(),
+                current_state: Some(api::proto::State::default()),
+                startup_state: Some(api::proto::State::default()),
+                workload_states: vec![],
+            })),
         });
 
-        assert_eq!(
-            proto::ExecutionRequest::try_from(test_ex_com),
-            expected_ex_com
-        );
+        assert_eq!(proto::FromServer::try_from(test_ex_com), expected_ex_com);
     }
 }

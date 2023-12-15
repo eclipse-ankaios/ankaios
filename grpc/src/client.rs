@@ -21,7 +21,7 @@ use crate::state_change_proxy;
 use api::proto;
 use api::proto::agent_connection_client::AgentConnectionClient;
 use api::proto::cli_connection_client::CliConnectionClient;
-use api::proto::state_change_request::StateChangeRequestEnum;
+use api::proto::to_server::ToServerEnum;
 use api::proto::AgentHello;
 
 use common::communications_client::CommunicationsClient;
@@ -137,8 +137,8 @@ impl fmt::Display for GrpcConnectionError {
     }
 }
 
-impl From<SendError<proto::StateChangeRequest>> for GrpcConnectionError {
-    fn from(err: SendError<proto::StateChangeRequest>) -> Self {
+impl From<SendError<proto::ToServer>> for GrpcConnectionError {
+    fn from(err: SendError<proto::ToServer>) -> Self {
         GrpcConnectionError::ConnectionInterrupted(err.to_string())
     }
 }
@@ -174,17 +174,15 @@ impl GRPCCommunicationsClient {
     ) -> Result<(), GrpcConnectionError> {
         // [impl->swdd~grpc-client-creates-state-change-channel~1]
         let (grpc_tx, grpc_rx) =
-            tokio::sync::mpsc::channel::<proto::StateChangeRequest>(common::CHANNEL_CAPACITY);
+            tokio::sync::mpsc::channel::<proto::ToServer>(common::CHANNEL_CAPACITY);
 
         match self.connection_type {
             ConnectionType::Agent => {
                 grpc_tx
-                    .send(proto::StateChangeRequest {
-                        state_change_request_enum: Some(StateChangeRequestEnum::AgentHello(
-                            AgentHello {
-                                agent_name: self.name.to_owned(),
-                            },
-                        )),
+                    .send(proto::ToServer {
+                        to_server_enum: Some(ToServerEnum::AgentHello(AgentHello {
+                            agent_name: self.name.to_owned(),
+                        })),
                     })
                     .await?;
             }
@@ -216,8 +214,8 @@ impl GRPCCommunicationsClient {
 
     async fn connect_to_server(
         &self,
-        grpc_rx: Receiver<proto::StateChangeRequest>,
-    ) -> Result<tonic::Streaming<proto::ExecutionRequest>, GrpcConnectionError> {
+        grpc_rx: Receiver<proto::ToServer>,
+    ) -> Result<tonic::Streaming<proto::FromServer>, GrpcConnectionError> {
         match self.connection_type {
             ConnectionType::Agent => {
                 let mut client =

@@ -16,7 +16,7 @@ use crate::agent_senders_map::AgentSendersMap;
 use crate::ankaios_streaming::GRPCStreaming;
 use crate::proxy_error::GrpcProxyError;
 use api::proto;
-use api::proto::execution_request::ExecutionRequestEnum;
+use api::proto::from_server::FromServerEnum;
 
 use async_trait::async_trait;
 use common::execution_interface::{ExecutionCommand, ExecutionInterface};
@@ -30,18 +30,18 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tonic::Streaming;
 
 pub struct GRPCExecutionRequestStreaming {
-    inner: Streaming<proto::ExecutionRequest>,
+    inner: Streaming<proto::FromServer>,
 }
 
 impl GRPCExecutionRequestStreaming {
-    pub fn new(inner: Streaming<proto::ExecutionRequest>) -> Self {
+    pub fn new(inner: Streaming<proto::FromServer>) -> Self {
         Self { inner }
     }
 }
 
 #[async_trait]
-impl GRPCStreaming<proto::ExecutionRequest> for GRPCExecutionRequestStreaming {
-    async fn message(&mut self) -> Result<Option<proto::ExecutionRequest>, tonic::Status> {
+impl GRPCStreaming<proto::FromServer> for GRPCExecutionRequestStreaming {
+    async fn message(&mut self) -> Result<Option<proto::FromServer>, tonic::Status> {
         self.inner.message().await
     }
 }
@@ -49,7 +49,7 @@ impl GRPCStreaming<proto::ExecutionRequest> for GRPCExecutionRequestStreaming {
 // [impl->swdd~grpc-client-forwards-commands-to-agent~1]
 pub async fn forward_from_proto_to_ankaios(
     agent_name: &str,
-    grpc_streaming: &mut impl GRPCStreaming<proto::ExecutionRequest>,
+    grpc_streaming: &mut impl GRPCStreaming<proto::FromServer>,
     agent_tx: &Sender<ExecutionCommand>,
 ) -> Result<(), GrpcProxyError> {
     while let Some(value) = grpc_streaming.message().await? {
@@ -57,10 +57,10 @@ pub async fn forward_from_proto_to_ankaios(
 
         let try_block = async {
             match value
-                .execution_request_enum
+                .from_server_enum
                 .ok_or(GrpcProxyError::Receive("Missing AgentReply.".to_string()))?
             {
-                ExecutionRequestEnum::UpdateWorkload(obj) => {
+                FromServerEnum::UpdateWorkload(obj) => {
                     agent_tx
                         .update_workload(
                             obj.added_workloads
@@ -76,14 +76,14 @@ pub async fn forward_from_proto_to_ankaios(
                         )
                         .await?;
                 }
-                ExecutionRequestEnum::UpdateWorkloadState(obj) => {
+                FromServerEnum::UpdateWorkloadState(obj) => {
                     agent_tx
                         .update_workload_state(
                             obj.workload_states.into_iter().map(|x| x.into()).collect(),
                         )
                         .await?;
                 }
-                ExecutionRequestEnum::CompleteState(complete_state) => {
+                FromServerEnum::CompleteState(complete_state) => {
                     agent_tx
                         .complete_state(
                             complete_state
@@ -151,10 +151,8 @@ pub async fn forward_from_ankaios_to_proto(
                     );
 
                     let result = sender
-                        .send(Ok(proto::ExecutionRequest {
-                            execution_request_enum: Some(ExecutionRequestEnum::CompleteState(
-                                complete_state,
-                            )),
+                        .send(Ok(proto::FromServer {
+                            from_server_enum: Some(FromServerEnum::CompleteState(complete_state)),
                         }))
                         .await;
                     if result.is_err() {
@@ -202,8 +200,8 @@ async fn distribute_workload_states_to_agents(
                 filtered_workload_states
             );
             let result = sender
-                .send(Ok(proto::ExecutionRequest {
-                    execution_request_enum: Some(ExecutionRequestEnum::UpdateWorkloadState(
+                .send(Ok(proto::FromServer {
+                    from_server_enum: Some(FromServerEnum::UpdateWorkloadState(
                         proto::UpdateWorkloadState {
                             workload_states: filtered_workload_states,
                         },
@@ -233,19 +231,17 @@ async fn distribute_workloads_to_agents(
             log::trace!("Sending added and deleted workloads to agent '{}'.\n\tAdded workloads: {:?}.\n\tDeleted workloads: {:?}.", 
                 agent_name, added_workload_vector, deleted_workload_vector);
             let result = sender
-                .send(Ok(proto::ExecutionRequest {
-                    execution_request_enum: Some(ExecutionRequestEnum::UpdateWorkload(
-                        proto::UpdateWorkload {
-                            added_workloads: added_workload_vector
-                                .into_iter()
-                                .map(|x| x.into())
-                                .collect(),
-                            deleted_workloads: deleted_workload_vector
-                                .into_iter()
-                                .map(|x| x.into())
-                                .collect(),
-                        },
-                    )),
+                .send(Ok(proto::FromServer {
+                    from_server_enum: Some(FromServerEnum::UpdateWorkload(proto::UpdateWorkload {
+                        added_workloads: added_workload_vector
+                            .into_iter()
+                            .map(|x| x.into())
+                            .collect(),
+                        deleted_workloads: deleted_workload_vector
+                            .into_iter()
+                            .map(|x| x.into())
+                            .collect(),
+                    })),
                 }))
                 .await;
             if result.is_err() {
@@ -280,9 +276,7 @@ mod tests {
 
     use super::{forward_from_ankaios_to_proto, forward_from_proto_to_ankaios};
     use crate::{agent_senders_map::AgentSendersMap, execution_command_proxy::GRPCStreaming};
-    use api::proto::{
-        self, execution_request::ExecutionRequestEnum, ExecutionRequest, UpdateWorkload,
-    };
+    use api::proto::{self, from_server::FromServerEnum, FromServer, UpdateWorkload};
     use async_trait::async_trait;
     use common::commands::CompleteState;
     use common::execution_interface::{ExecutionCommand, ExecutionInterface};
@@ -297,8 +291,8 @@ mod tests {
     type TestSetup = (
         Sender<ExecutionCommand>,
         Receiver<ExecutionCommand>,
-        Sender<Result<ExecutionRequest, tonic::Status>>,
-        Receiver<Result<ExecutionRequest, tonic::Status>>,
+        Sender<Result<FromServer, tonic::Status>>,
+        Receiver<Result<FromServer, tonic::Status>>,
         AgentSendersMap,
     );
 
@@ -307,9 +301,9 @@ mod tests {
     fn create_test_setup(agent_name: &str) -> TestSetup {
         let (to_manager, manager_receiver) =
             mpsc::channel::<ExecutionCommand>(common::CHANNEL_CAPACITY);
-        let (agent_tx, agent_rx) = tokio::sync::mpsc::channel::<
-            Result<ExecutionRequest, tonic::Status>,
-        >(common::CHANNEL_CAPACITY);
+        let (agent_tx, agent_rx) = tokio::sync::mpsc::channel::<Result<FromServer, tonic::Status>>(
+            common::CHANNEL_CAPACITY,
+        );
 
         let agent_senders_map = AgentSendersMap::new();
 
@@ -326,16 +320,16 @@ mod tests {
 
     #[derive(Default, Clone)]
     struct MockGRPCExecutionRequestStreaming {
-        msgs: LinkedList<Option<proto::ExecutionRequest>>,
+        msgs: LinkedList<Option<proto::FromServer>>,
     }
     impl MockGRPCExecutionRequestStreaming {
-        fn new(msgs: LinkedList<Option<proto::ExecutionRequest>>) -> Self {
+        fn new(msgs: LinkedList<Option<proto::FromServer>>) -> Self {
             MockGRPCExecutionRequestStreaming { msgs }
         }
     }
     #[async_trait]
-    impl GRPCStreaming<proto::ExecutionRequest> for MockGRPCExecutionRequestStreaming {
-        async fn message(&mut self) -> Result<Option<proto::ExecutionRequest>, tonic::Status> {
+    impl GRPCStreaming<proto::FromServer> for MockGRPCExecutionRequestStreaming {
+        async fn message(&mut self) -> Result<Option<proto::FromServer>, tonic::Status> {
             if let Some(msg) = self.msgs.pop_front() {
                 Ok(msg)
             } else {
@@ -376,9 +370,9 @@ mod tests {
         let result = agent_rx.recv().await.unwrap().unwrap();
 
         assert!(matches!(
-            result.execution_request_enum,
+            result.from_server_enum,
             // We don't need to check teh exact object, this will be checked in the test for distribute_workloads_to_agents
-            Some(ExecutionRequestEnum::UpdateWorkload(_))
+            Some(FromServerEnum::UpdateWorkload(_))
         ))
     }
 
@@ -406,9 +400,9 @@ mod tests {
         let result = agent_rx.recv().await.unwrap().unwrap();
 
         assert!(matches!(
-            result.execution_request_enum,
+            result.from_server_enum,
             // We don't need to check teh exact object, this will be checked in the test for distribute_workloads_to_agents
-            Some(ExecutionRequestEnum::UpdateWorkloadState(_))
+            Some(FromServerEnum::UpdateWorkloadState(_))
         ))
     }
 
@@ -422,8 +416,8 @@ mod tests {
         // simulate the reception of an update workload grpc execution request
         let mut mock_grpc_ex_request_streaming =
             MockGRPCExecutionRequestStreaming::new(LinkedList::from([
-                Some(ExecutionRequest {
-                    execution_request_enum: None,
+                Some(FromServer {
+                    from_server_enum: None,
                 }),
                 None,
             ]));
@@ -466,13 +460,11 @@ mod tests {
         // simulate the reception of an update workload grpc execution request
         let mut mock_grpc_ex_request_streaming =
             MockGRPCExecutionRequestStreaming::new(LinkedList::from([
-                Some(ExecutionRequest {
-                    execution_request_enum: Some(ExecutionRequestEnum::UpdateWorkload(
-                        UpdateWorkload {
-                            added_workloads: vec![workload],
-                            deleted_workloads: vec![],
-                        },
-                    )),
+                Some(FromServer {
+                    from_server_enum: Some(FromServerEnum::UpdateWorkload(UpdateWorkload {
+                        added_workloads: vec![workload],
+                        deleted_workloads: vec![],
+                    })),
                 }),
                 None,
             ]));
@@ -511,13 +503,11 @@ mod tests {
         // simulate the reception of an update workload grpc execution request
         let mut mock_grpc_ex_request_streaming =
             MockGRPCExecutionRequestStreaming::new(LinkedList::from([
-                Some(ExecutionRequest {
-                    execution_request_enum: Some(ExecutionRequestEnum::UpdateWorkload(
-                        UpdateWorkload {
-                            added_workloads: vec![],
-                            deleted_workloads: vec![workload],
-                        },
-                    )),
+                Some(FromServer {
+                    from_server_enum: Some(FromServerEnum::UpdateWorkload(UpdateWorkload {
+                        added_workloads: vec![],
+                        deleted_workloads: vec![workload],
+                    })),
                 }),
                 None,
             ]));
@@ -550,8 +540,8 @@ mod tests {
         // simulate the reception of an update workload grpc execution request
         let mut mock_grpc_ex_request_streaming =
             MockGRPCExecutionRequestStreaming::new(LinkedList::from([
-                Some(ExecutionRequest {
-                    execution_request_enum: Some(ExecutionRequestEnum::UpdateWorkload(
+                Some(FromServer {
+                    from_server_enum: Some(FromServerEnum::UpdateWorkload(
                         UpdateWorkload::default(),
                     )),
                 }),
@@ -590,8 +580,8 @@ mod tests {
         // simulate the reception of an update workload state grpc execution request
         let mut mock_grpc_ex_request_streaming =
             MockGRPCExecutionRequestStreaming::new(LinkedList::from([
-                Some(ExecutionRequest {
-                    execution_request_enum: Some(ExecutionRequestEnum::UpdateWorkloadState(
+                Some(FromServer {
+                    from_server_enum: Some(FromServerEnum::UpdateWorkloadState(
                         proto::UpdateWorkloadState::default(),
                     )),
                 }),
@@ -640,8 +630,8 @@ mod tests {
 
         // shall receive update workload execution request
         assert!(matches!(
-            result.execution_request_enum,
-            Some(ExecutionRequestEnum::UpdateWorkload(_))
+            result.from_server_enum,
+            Some(FromServerEnum::UpdateWorkload(_))
         ))
     }
 
@@ -686,8 +676,8 @@ mod tests {
 
         // shall receive update workload execution request
         assert!(matches!(
-            result.execution_request_enum,
-            Some(ExecutionRequestEnum::UpdateWorkloadState(_))
+            result.from_server_enum,
+            Some(FromServerEnum::UpdateWorkloadState(_))
         ))
     }
 
@@ -744,8 +734,8 @@ mod tests {
         let result = agent_rx.recv().await.unwrap().unwrap();
 
         assert!(matches!(
-            result.execution_request_enum,
-            Some(ExecutionRequestEnum::CompleteState(proto::CompleteState {
+            result.from_server_enum,
+            Some(FromServerEnum::CompleteState(proto::CompleteState {
                 request_id,
                 current_state,
                 startup_state,
@@ -786,10 +776,8 @@ mod tests {
         // simulate the reception of an update workload state grpc execution request
         let mut mock_grpc_ex_request_streaming =
             MockGRPCExecutionRequestStreaming::new(LinkedList::from([
-                Some(ExecutionRequest {
-                    execution_request_enum: Some(ExecutionRequestEnum::CompleteState(
-                        proto_complete_state,
-                    )),
+                Some(FromServer {
+                    from_server_enum: Some(FromServerEnum::CompleteState(proto_complete_state)),
                 }),
                 None,
             ]));
@@ -847,10 +835,8 @@ mod tests {
         // simulate the reception of an update workload state grpc execution request
         let mut mock_grpc_ex_request_streaming =
             MockGRPCExecutionRequestStreaming::new(LinkedList::from([
-                Some(ExecutionRequest {
-                    execution_request_enum: Some(ExecutionRequestEnum::CompleteState(
-                        proto_complete_state,
-                    )),
+                Some(FromServer {
+                    from_server_enum: Some(FromServerEnum::CompleteState(proto_complete_state)),
                 }),
                 None,
             ]));

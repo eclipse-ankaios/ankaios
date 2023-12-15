@@ -15,7 +15,7 @@
 use crate::ankaios_streaming::GRPCStreaming;
 use crate::proxy_error::GrpcProxyError;
 use api::proto;
-use api::proto::state_change_request::StateChangeRequestEnum;
+use api::proto::to_server::ToServerEnum;
 use api::proto::UpdateStateRequest;
 
 use common::request_id_prepending::prepend_request_id;
@@ -29,18 +29,18 @@ use tonic::Streaming;
 use async_trait::async_trait;
 
 pub struct GRPCStateChangeRequestStreaming {
-    inner: Streaming<proto::StateChangeRequest>,
+    inner: Streaming<proto::ToServer>,
 }
 
 impl GRPCStateChangeRequestStreaming {
-    pub fn new(inner: Streaming<proto::StateChangeRequest>) -> Self {
+    pub fn new(inner: Streaming<proto::ToServer>) -> Self {
         GRPCStateChangeRequestStreaming { inner }
     }
 }
 
 #[async_trait]
-impl GRPCStreaming<proto::StateChangeRequest> for GRPCStateChangeRequestStreaming {
-    async fn message(&mut self) -> Result<Option<proto::StateChangeRequest>, tonic::Status> {
+impl GRPCStreaming<proto::ToServer> for GRPCStateChangeRequestStreaming {
+    async fn message(&mut self) -> Result<Option<proto::ToServer>, tonic::Status> {
         self.inner.message().await
     }
 }
@@ -48,18 +48,16 @@ impl GRPCStreaming<proto::StateChangeRequest> for GRPCStateChangeRequestStreamin
 // [impl->swdd~grpc-agent-connection-forwards-commands-to-server~1]
 pub async fn forward_from_proto_to_ankaios(
     agent_name: String,
-    grpc_streaming: &mut impl GRPCStreaming<proto::StateChangeRequest>,
+    grpc_streaming: &mut impl GRPCStreaming<proto::ToServer>,
     sink: Sender<StateChangeCommand>,
 ) -> Result<(), GrpcProxyError> {
     while let Some(message) = grpc_streaming.message().await? {
         log::trace!("REQUEST={:?}", message);
 
-        match message
-            .state_change_request_enum
-            .ok_or(GrpcProxyError::Receive(
-                "Missing state_change_request".to_string(),
-            ))? {
-            StateChangeRequestEnum::UpdateState(UpdateStateRequest {
+        match message.to_server_enum.ok_or(GrpcProxyError::Receive(
+            "Missing state_change_request".to_string(),
+        ))? {
+            ToServerEnum::UpdateState(UpdateStateRequest {
                 new_state,
                 update_mask,
             }) => {
@@ -76,7 +74,7 @@ pub async fn forward_from_proto_to_ankaios(
                     }
                 }
             }
-            StateChangeRequestEnum::UpdateWorkloadState(update_workload_state) => {
+            ToServerEnum::UpdateWorkloadState(update_workload_state) => {
                 log::trace!("Received UpdateWorkloadState from {}", agent_name);
 
                 sink.update_workload_state(
@@ -88,7 +86,7 @@ pub async fn forward_from_proto_to_ankaios(
                 )
                 .await?;
             }
-            StateChangeRequestEnum::RequestCompleteState(request_complete_state) => {
+            ToServerEnum::RequestCompleteState(request_complete_state) => {
                 log::trace!("Received RequestCompleteState from {}", agent_name);
 
                 // [impl->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
@@ -104,7 +102,7 @@ pub async fn forward_from_proto_to_ankaios(
                 )
                 .await?;
             }
-            StateChangeRequestEnum::Goodbye(_goodbye) => {
+            ToServerEnum::Goodbye(_goodbye) => {
                 log::trace!(
                     "Received Goodbye from {}. Stopping the control loop.",
                     agent_name
@@ -121,7 +119,7 @@ pub async fn forward_from_proto_to_ankaios(
 
 // [impl->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
 pub async fn forward_from_ankaios_to_proto(
-    grpc_tx: Sender<proto::StateChangeRequest>,
+    grpc_tx: Sender<proto::ToServer>,
     server_rx: &mut StateChangeReceiver,
 ) -> Result<(), GrpcProxyError> {
     while let Some(x) = server_rx.recv().await {
@@ -130,15 +128,13 @@ pub async fn forward_from_ankaios_to_proto(
                 log::trace!("Received UpdateWorkload from agent");
 
                 grpc_tx
-                    .send(proto::StateChangeRequest {
-                        state_change_request_enum: Some(
-                            proto::state_change_request::StateChangeRequestEnum::UpdateState(
-                                proto::UpdateStateRequest {
-                                    new_state: Some(method_obj.state.into()),
-                                    update_mask: method_obj.update_mask,
-                                },
-                            ),
-                        ),
+                    .send(proto::ToServer {
+                        to_server_enum: Some(proto::to_server::ToServerEnum::UpdateState(
+                            proto::UpdateStateRequest {
+                                new_state: Some(method_obj.state.into()),
+                                update_mask: method_obj.update_mask,
+                            },
+                        )),
                     })
                     .await?;
             }
@@ -146,12 +142,13 @@ pub async fn forward_from_ankaios_to_proto(
                 log::trace!("Received UpdateWorkloadState from agent");
 
                 grpc_tx
-                    .send(proto::StateChangeRequest {
-                        state_change_request_enum: Some(
-                            proto::state_change_request::StateChangeRequestEnum::UpdateWorkloadState(common::commands::UpdateWorkloadState {
+                    .send(proto::ToServer {
+                        to_server_enum: Some(proto::to_server::ToServerEnum::UpdateWorkloadState(
+                            common::commands::UpdateWorkloadState {
                                 workload_states: method_obj.workload_states,
-                            }.into()),
-                        ),
+                            }
+                            .into(),
+                        )),
                     })
                     .await?;
             }
@@ -159,13 +156,14 @@ pub async fn forward_from_ankaios_to_proto(
                 log::trace!("Received RequestCompleteState from agent");
 
                 grpc_tx
-                    .send(proto::StateChangeRequest {
-                        state_change_request_enum: Some(
-                            proto::state_change_request::StateChangeRequestEnum::RequestCompleteState(common::commands::RequestCompleteState {
+                    .send(proto::ToServer {
+                        to_server_enum: Some(proto::to_server::ToServerEnum::RequestCompleteState(
+                            common::commands::RequestCompleteState {
                                 request_id: method_obj.request_id,
-                                field_mask: method_obj.field_mask
-                            }.into()),
-                        ),
+                                field_mask: method_obj.field_mask,
+                            }
+                            .into(),
+                        )),
                     })
                     .await?;
             }
@@ -187,12 +185,10 @@ pub async fn forward_from_ankaios_to_proto(
     }
 
     grpc_tx
-        .send(proto::StateChangeRequest {
-            state_change_request_enum: Some(
-                proto::state_change_request::StateChangeRequestEnum::Goodbye(
-                    api::proto::Goodbye {},
-                ),
-            ),
+        .send(proto::ToServer {
+            to_server_enum: Some(proto::to_server::ToServerEnum::Goodbye(
+                api::proto::Goodbye {},
+            )),
         })
         .await?;
     grpc_tx.closed().await;
@@ -222,22 +218,20 @@ mod tests {
     };
     use tokio::sync::mpsc;
 
-    use api::proto::{
-        state_change_request::StateChangeRequestEnum, StateChangeRequest, UpdateStateRequest,
-    };
+    use api::proto::{to_server::ToServerEnum, ToServer, UpdateStateRequest};
 
     #[derive(Default, Clone)]
     struct MockGRPCStateChangeRequestStreaming {
-        msgs: LinkedList<Option<proto::StateChangeRequest>>,
+        msgs: LinkedList<Option<proto::ToServer>>,
     }
     impl MockGRPCStateChangeRequestStreaming {
-        fn new(msgs: LinkedList<Option<proto::StateChangeRequest>>) -> Self {
+        fn new(msgs: LinkedList<Option<proto::ToServer>>) -> Self {
             MockGRPCStateChangeRequestStreaming { msgs }
         }
     }
     #[async_trait]
-    impl GRPCStreaming<proto::StateChangeRequest> for MockGRPCStateChangeRequestStreaming {
-        async fn message(&mut self) -> Result<Option<proto::StateChangeRequest>, tonic::Status> {
+    impl GRPCStreaming<proto::ToServer> for MockGRPCStateChangeRequestStreaming {
+        async fn message(&mut self) -> Result<Option<proto::ToServer>, tonic::Status> {
             if let Some(msg) = self.msgs.pop_front() {
                 Ok(msg)
             } else {
@@ -251,7 +245,7 @@ mod tests {
     async fn utest_state_change_command_forward_from_ankaios_to_proto_update_workload() {
         let (server_tx, mut server_rx) =
             mpsc::channel::<StateChangeCommand>(common::CHANNEL_CAPACITY);
-        let (grpc_tx, mut grpc_rx) = mpsc::channel::<StateChangeRequest>(common::CHANNEL_CAPACITY);
+        let (grpc_tx, mut grpc_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
         let input_state = generate_test_complete_state(
             "request_id".to_owned(),
@@ -281,8 +275,8 @@ mod tests {
         let proto_state = input_state.into();
 
         assert!(matches!(
-            result.state_change_request_enum,
-            Some(StateChangeRequestEnum::UpdateState(UpdateStateRequest{new_state, update_mask}))
+            result.to_server_enum,
+            Some(ToServerEnum::UpdateState(UpdateStateRequest{new_state, update_mask}))
             if new_state == Some(proto_state) && update_mask == update_mask));
     }
 
@@ -291,7 +285,7 @@ mod tests {
     async fn utest_state_change_command_forward_from_ankaios_to_proto_update_workload_state() {
         let (server_tx, mut server_rx) =
             mpsc::channel::<StateChangeCommand>(common::CHANNEL_CAPACITY);
-        let (grpc_tx, mut grpc_rx) = mpsc::channel::<StateChangeRequest>(common::CHANNEL_CAPACITY);
+        let (grpc_tx, mut grpc_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
         let wl_state = common::objects::WorkloadState {
             agent_name: "other_agent".into(),
@@ -316,8 +310,8 @@ mod tests {
         let proto_workload_state = wl_state.into();
 
         assert!(matches!(
-            result.state_change_request_enum,
-            Some(StateChangeRequestEnum::UpdateWorkloadState(proto::UpdateWorkloadState{workload_states}))
+            result.to_server_enum,
+            Some(ToServerEnum::UpdateWorkloadState(proto::UpdateWorkloadState{workload_states}))
             if workload_states == vec!(proto_workload_state)));
     }
 
@@ -359,8 +353,8 @@ mod tests {
         // simulate the reception of an update workload state grpc execution request
         let mut mock_grpc_ex_request_streaming =
             MockGRPCStateChangeRequestStreaming::new(LinkedList::from([
-                Some(StateChangeRequest {
-                    state_change_request_enum: None,
+                Some(ToServer {
+                    to_server_enum: None,
                 }),
                 None,
             ]));
@@ -414,13 +408,11 @@ mod tests {
         // simulate the reception of an update workload state grpc execution request
         let mut mock_grpc_ex_request_streaming =
             MockGRPCStateChangeRequestStreaming::new(LinkedList::from([
-                Some(StateChangeRequest {
-                    state_change_request_enum: Some(StateChangeRequestEnum::UpdateState(
-                        proto::UpdateStateRequest {
-                            new_state: Some(ankaios_state),
-                            update_mask: ankaios_update_mask.clone(),
-                        },
-                    )),
+                Some(ToServer {
+                    to_server_enum: Some(ToServerEnum::UpdateState(proto::UpdateStateRequest {
+                        new_state: Some(ankaios_state),
+                        update_mask: ankaios_update_mask.clone(),
+                    })),
                 }),
                 None,
             ]));
@@ -456,13 +448,11 @@ mod tests {
         // simulate the reception of an update workload state grpc execution request
         let mut mock_grpc_ex_request_streaming =
             MockGRPCStateChangeRequestStreaming::new(LinkedList::from([
-                Some(StateChangeRequest {
-                    state_change_request_enum: Some(StateChangeRequestEnum::UpdateState(
-                        proto::UpdateStateRequest {
-                            new_state: Some(ankaios_state.clone().into()),
-                            update_mask: ankaios_update_mask.clone(),
-                        },
-                    )),
+                Some(ToServer {
+                    to_server_enum: Some(ToServerEnum::UpdateState(proto::UpdateStateRequest {
+                        new_state: Some(ankaios_state.clone().into()),
+                        update_mask: ankaios_update_mask.clone(),
+                    })),
                 }),
                 None,
             ]));
@@ -502,8 +492,8 @@ mod tests {
         // simulate the reception of an update workload state grpc execution request
         let mut mock_grpc_ex_request_streaming =
             MockGRPCStateChangeRequestStreaming::new(LinkedList::from([
-                Some(StateChangeRequest {
-                    state_change_request_enum: Some(StateChangeRequestEnum::UpdateWorkloadState(
+                Some(ToServer {
+                    to_server_enum: Some(ToServerEnum::UpdateWorkloadState(
                         proto::UpdateWorkloadState {
                             workload_states: vec![proto_wl_state.clone()],
                         },
@@ -542,8 +532,8 @@ mod tests {
         // simulate the reception of an update workload state grpc execution request
         let mut mock_grpc_ex_request_streaming =
             MockGRPCStateChangeRequestStreaming::new(LinkedList::from([
-                Some(StateChangeRequest {
-                    state_change_request_enum: Some(StateChangeRequestEnum::RequestCompleteState(
+                Some(ToServer {
+                    to_server_enum: Some(ToServerEnum::RequestCompleteState(
                         proto::RequestCompleteState {
                             request_id: String::from("my_request_id"),
                             field_mask: vec![],
@@ -579,7 +569,7 @@ mod tests {
     async fn utest_state_change_command_forward_from_ankaios_to_proto_request_complete_state() {
         let (server_tx, mut server_rx) =
             mpsc::channel::<StateChangeCommand>(common::CHANNEL_CAPACITY);
-        let (grpc_tx, mut grpc_rx) = mpsc::channel::<StateChangeRequest>(common::CHANNEL_CAPACITY);
+        let (grpc_tx, mut grpc_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
         let request_complete_state = common::commands::RequestCompleteState {
             request_id: "my_request_id".to_owned(),
@@ -604,8 +594,8 @@ mod tests {
             request_complete_state.into();
 
         assert!(matches!(
-        result.state_change_request_enum,
-        Some(StateChangeRequestEnum::RequestCompleteState(proto::RequestCompleteState{request_id, field_mask}))
+        result.to_server_enum,
+        Some(ToServerEnum::RequestCompleteState(proto::RequestCompleteState{request_id, field_mask}))
         if request_id == proto_request_complete_state.request_id && field_mask == proto_request_complete_state.field_mask));
     }
 }

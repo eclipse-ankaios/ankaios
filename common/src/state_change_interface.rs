@@ -31,29 +31,27 @@ pub enum StateChangeCommand {
     Goodbye(commands::Goodbye),
 }
 
-impl TryFrom<proto::StateChangeRequest> for StateChangeCommand {
+impl TryFrom<proto::ToServer> for StateChangeCommand {
     type Error = String;
 
-    fn try_from(item: proto::StateChangeRequest) -> Result<Self, Self::Error> {
-        use proto::state_change_request::StateChangeRequestEnum;
+    fn try_from(item: proto::ToServer) -> Result<Self, Self::Error> {
+        use proto::to_server::ToServerEnum;
         let state_change_request = item
-            .state_change_request_enum
+            .to_server_enum
             .ok_or("StateChangeRequest is None.".to_string())?;
 
         Ok(match state_change_request {
-            StateChangeRequestEnum::AgentHello(protobuf) => {
-                StateChangeCommand::AgentHello(protobuf.into())
-            }
-            StateChangeRequestEnum::UpdateWorkloadState(protobuf) => {
+            ToServerEnum::AgentHello(protobuf) => StateChangeCommand::AgentHello(protobuf.into()),
+            ToServerEnum::UpdateWorkloadState(protobuf) => {
                 StateChangeCommand::UpdateWorkloadState(protobuf.into())
             }
-            StateChangeRequestEnum::UpdateState(protobuf) => {
+            ToServerEnum::UpdateState(protobuf) => {
                 StateChangeCommand::UpdateState(protobuf.try_into()?)
             }
-            StateChangeRequestEnum::RequestCompleteState(protobuf) => {
+            ToServerEnum::RequestCompleteState(protobuf) => {
                 StateChangeCommand::RequestCompleteState(protobuf.into())
             }
-            StateChangeRequestEnum::Goodbye(_) => StateChangeCommand::Goodbye(commands::Goodbye {}),
+            ToServerEnum::Goodbye(_) => StateChangeCommand::Goodbye(commands::Goodbye {}),
         })
     }
 }
@@ -185,7 +183,7 @@ pub fn generate_test_failed_update_workload_state(
 mod tests {
     use std::collections::HashMap;
 
-    use api::proto::{self, state_change_request::StateChangeRequestEnum};
+    use api::proto::{self, to_server::ToServerEnum};
 
     use crate::{
         commands::{AgentHello, RequestCompleteState},
@@ -196,12 +194,10 @@ mod tests {
     fn utest_convert_proto_state_change_request_agent_hello() {
         let agent_name = "agent_A".to_string();
 
-        let proto_request = proto::StateChangeRequest {
-            state_change_request_enum: Some(StateChangeRequestEnum::AgentHello(
-                proto::AgentHello {
-                    agent_name: agent_name.clone(),
-                },
-            )),
+        let proto_request = proto::ToServer {
+            to_server_enum: Some(ToServerEnum::AgentHello(proto::AgentHello {
+                agent_name: agent_name.clone(),
+            })),
         };
 
         let ankaios_command = StateChangeCommand::AgentHello(AgentHello { agent_name });
@@ -214,8 +210,8 @@ mod tests {
 
     #[test]
     fn utest_convert_proto_state_change_request_update_workload_state() {
-        let proto_request = proto::StateChangeRequest {
-            state_change_request_enum: Some(StateChangeRequestEnum::UpdateWorkloadState(
+        let proto_request = proto::ToServer {
+            to_server_enum: Some(ToServerEnum::UpdateWorkloadState(
                 proto::UpdateWorkloadState {
                     workload_states: vec![],
                 },
@@ -235,25 +231,23 @@ mod tests {
 
     #[test]
     fn utest_convert_proto_state_change_request_update_state() {
-        let proto_request = proto::StateChangeRequest {
-            state_change_request_enum: Some(StateChangeRequestEnum::UpdateState(
-                proto::UpdateStateRequest {
-                    update_mask: vec!["test_update_mask_field".to_owned()],
-                    new_state: Some(proto::CompleteState {
-                        current_state: Some(proto::State {
-                            workloads: HashMap::from([(
-                                "test_workload".to_owned(),
-                                proto::Workload {
-                                    agent: "test_agent".to_owned(),
-                                    ..Default::default()
-                                },
-                            )]),
-                            ..Default::default()
-                        }),
+        let proto_request = proto::ToServer {
+            to_server_enum: Some(ToServerEnum::UpdateState(proto::UpdateStateRequest {
+                update_mask: vec!["test_update_mask_field".to_owned()],
+                new_state: Some(proto::CompleteState {
+                    current_state: Some(proto::State {
+                        workloads: HashMap::from([(
+                            "test_workload".to_owned(),
+                            proto::Workload {
+                                agent: "test_agent".to_owned(),
+                                ..Default::default()
+                            },
+                        )]),
                         ..Default::default()
                     }),
-                },
-            )),
+                    ..Default::default()
+                }),
+            })),
         };
 
         let ankaios_command =
@@ -283,28 +277,26 @@ mod tests {
 
     #[test]
     fn utest_convert_proto_state_change_request_update_state_fails() {
-        let proto_request = proto::StateChangeRequest {
-            state_change_request_enum: Some(StateChangeRequestEnum::UpdateState(
-                proto::UpdateStateRequest {
-                    update_mask: vec!["test_update_mask_field".to_owned()],
-                    new_state: Some(proto::CompleteState {
-                        current_state: Some(proto::State {
-                            workloads: HashMap::from([(
-                                "test_workload".to_owned(),
-                                proto::Workload {
-                                    agent: "test_agent".to_owned(),
-                                    dependencies: vec![("other_workload".into(), -1)]
-                                        .into_iter()
-                                        .collect(),
-                                    ..Default::default()
-                                },
-                            )]),
-                            ..Default::default()
-                        }),
+        let proto_request = proto::ToServer {
+            to_server_enum: Some(ToServerEnum::UpdateState(proto::UpdateStateRequest {
+                update_mask: vec!["test_update_mask_field".to_owned()],
+                new_state: Some(proto::CompleteState {
+                    current_state: Some(proto::State {
+                        workloads: HashMap::from([(
+                            "test_workload".to_owned(),
+                            proto::Workload {
+                                agent: "test_agent".to_owned(),
+                                dependencies: vec![("other_workload".into(), -1)]
+                                    .into_iter()
+                                    .collect(),
+                                ..Default::default()
+                            },
+                        )]),
                         ..Default::default()
                     }),
-                },
-            )),
+                    ..Default::default()
+                }),
+            })),
         };
 
         assert!(StateChangeCommand::try_from(proto_request).is_err(),);
@@ -315,8 +307,8 @@ mod tests {
         let request_id = "42".to_string();
         let field_mask = vec!["1".to_string()];
 
-        let proto_request = proto::StateChangeRequest {
-            state_change_request_enum: Some(StateChangeRequestEnum::RequestCompleteState(
+        let proto_request = proto::ToServer {
+            to_server_enum: Some(ToServerEnum::RequestCompleteState(
                 proto::RequestCompleteState {
                     request_id: request_id.clone(),
                     field_mask: field_mask.clone(),

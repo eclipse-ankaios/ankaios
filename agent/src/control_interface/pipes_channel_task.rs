@@ -25,8 +25,8 @@ use tokio::{io, select, task::JoinHandle};
 
 fn decode_state_change_request(
     protobuf_data: io::Result<Box<[u8]>>,
-) -> io::Result<proto::StateChangeRequest> {
-    Ok(proto::StateChangeRequest::decode(&mut Box::new(
+) -> io::Result<proto::ToServer> {
+    Ok(proto::ToServer::decode(&mut Box::new(
         protobuf_data?.as_ref(),
     ))?)
 }
@@ -91,7 +91,7 @@ impl PipesChannelTask {
     }
 
     async fn forward_execution_command(&mut self, command: ExecutionCommand) -> io::Result<()> {
-        if let Ok(proto) = proto::ExecutionRequest::try_from(command) {
+        if let Ok(proto) = proto::FromServer::try_from(command) {
             // [impl->swdd~agent-uses-length-delimited-protobuf-for-pipes~1]
             let binary = proto.encode_length_delimited_to_vec();
             self.output_stream.write_all(&binary).await?;
@@ -144,7 +144,7 @@ mod tests {
                 ..Default::default()
             }));
 
-        let test_command_binary = proto::ExecutionRequest::try_from(test_command.clone())
+        let test_command_binary = proto::FromServer::try_from(test_command.clone())
             .unwrap()
             .encode_length_delimited_to_vec();
 
@@ -183,15 +183,13 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let test_output_request = proto::StateChangeRequest {
-            state_change_request_enum: Some(
-                proto::state_change_request::StateChangeRequestEnum::RequestCompleteState(
-                    proto::RequestCompleteState {
-                        request_id: "req_id".to_owned(),
-                        field_mask: vec![],
-                    },
-                ),
-            ),
+        let test_output_request = proto::ToServer {
+            to_server_enum: Some(proto::to_server::ToServerEnum::RequestCompleteState(
+                proto::RequestCompleteState {
+                    request_id: "req_id".to_owned(),
+                    field_mask: vec![],
+                },
+            )),
         };
 
         let test_output_request_binary = test_output_request.encode_to_vec();
@@ -209,10 +207,9 @@ mod tests {
                 ..Default::default()
             }));
 
-        let test_input_command_binary =
-            proto::ExecutionRequest::try_from(test_input_command.clone())
-                .unwrap()
-                .encode_length_delimited_to_vec();
+        let test_input_command_binary = proto::FromServer::try_from(test_input_command.clone())
+            .unwrap()
+            .encode_length_delimited_to_vec();
 
         let mut output_stream_mock = MockReopenFile::default();
         output_stream_mock

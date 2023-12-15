@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use std::fmt;
 
-use api::proto::{ExecutionRequest, StateChangeRequest};
+use api::proto::{FromServer, ToServer};
 use common::{
     communications_error::CommunicationMiddlewareError, execution_interface::ExecutionCommandError,
     state_change_interface::StateChangeCommandError,
@@ -52,14 +52,14 @@ impl From<StateChangeCommandError> for GrpcProxyError {
     }
 }
 
-impl From<SendError<StateChangeRequest>> for GrpcProxyError {
-    fn from(error: SendError<StateChangeRequest>) -> Self {
+impl From<SendError<ToServer>> for GrpcProxyError {
+    fn from(error: SendError<ToServer>) -> Self {
         GrpcProxyError::Send(error.to_string())
     }
 }
 
-impl From<SendError<Result<ExecutionRequest, tonic::Status>>> for GrpcProxyError {
-    fn from(error: SendError<Result<ExecutionRequest, tonic::Status>>) -> Self {
+impl From<SendError<Result<FromServer, tonic::Status>>> for GrpcProxyError {
+    fn from(error: SendError<Result<FromServer, tonic::Status>>) -> Self {
         GrpcProxyError::Send(error.to_string())
     }
 }
