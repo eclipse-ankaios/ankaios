@@ -9,8 +9,8 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
-common = { package = "common", version = "0.2", path = "../common" }
-grpc = { package = "grpc", version = "0.2", path = "../grpc" }
+common = { package = "common", path = "../common" }
+grpc = { package = "grpc", path = "../grpc" }
 log = "0.4"
 env_logger = "0.10"
 async-trait = "0.1"

@@ -9,7 +9,7 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
-api = { package = "api", version = "0", path = "../api" }
+api = { package = "api", path = "../api" }
 async-trait = "0.1"
 tokio = { version = "1.28", features = [
     "macros",
