@@ -48,7 +48,7 @@ impl RestartState {
     pub fn new() -> Self {
         RestartState {
             quit_restart: false,
-            restart_counter: 0,
+            restart_counter: 1,
         }
     }
 
@@ -58,15 +58,15 @@ impl RestartState {
 
     pub fn reset(&mut self) {
         self.quit_restart = false;
-        self.restart_counter = 0;
+        self.restart_counter = 1;
     }
 
     pub fn restart_allowed(&self) -> bool {
-        !self.quit_restart && self.restart_counter < MAX_RESTARTS
+        !self.quit_restart && self.restart_counter <= MAX_RESTARTS
     }
 
     pub fn count_restart(&mut self) {
-        if self.restart_counter < MAX_RESTARTS {
+        if self.restart_counter <= MAX_RESTARTS {
             self.restart_counter += 1;
         }
     }
@@ -184,7 +184,6 @@ impl WorkloadControlLoop {
             Ok((new_workload_id, new_state_checker)) => {
                 control_loop_state.workload_id = Some(new_workload_id);
                 control_loop_state.state_checker = Some(new_state_checker);
-                control_loop_state.restart_state.reset();
             }
             Err(err) => {
                 // [impl->swdd~agent-workload-task-update-create-failed-allows-retry~1]
