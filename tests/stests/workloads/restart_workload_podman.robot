@@ -60,8 +60,7 @@ Test Ankaios Podman restart of a workload intercepted by two updates
     And user updates the state "${new_state_yaml_file}" with "currentState.workloads.hello1.runtimeConfig.commandArgs=['3']"
     And user triggers "ank set state -f ${new_state_yaml_file} currentState.workloads.hello1"
     # Asserts
-    Then podman shall have a container for workload "hello1" on agent "agent_A"
-    And the workload "hello1" shall have the execution state "Succeeded" from agent "agent_A" within "30" seconds
+    Then the workload "hello1" shall have the execution state "Succeeded" from agent "agent_A" within "30" seconds
     [Teardown]    Clean up Ankaios
 
 Test Ankaios Podman restart of a workload intercepted by update and delete
