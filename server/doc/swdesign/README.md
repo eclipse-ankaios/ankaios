@@ -102,6 +102,7 @@ Tags:
 
 Needs:
 - impl
+- stest
 
 #### StartupStateLoader parses yaml with Startup State
 `swdd~stored-workload-spec-parses-yaml~1`
