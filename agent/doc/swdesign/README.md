@@ -43,11 +43,19 @@ The RuntimeManager holds a list of RuntimeFacades (more precisely a list of runt
 
 ### RuntimeFacade
 
-The RuntimeFacade wraps some common actions shared between all runtime connectors, s.t. they don't need to be implemented multiple times. The RuntimeFacade is responsible for creating, resuming and replacing a WorkloadObject including the start of the workload control task. Furthermore, The RuntimeFacade is responsible for providing functionality for deleting workloads that do not have an internal WorkloadObject (found unneeded workloads started in a previous execution of the Ankaios agent).
+The RuntimeFacade wraps some common actions shared between all runtime connectors, s.t. they don't need to be implemented multiple times. The RuntimeFacade is responsible for creating, resuming and replacing a WorkloadObject including the start of the WorkloadControlLoop. Furthermore, The RuntimeFacade is responsible for providing functionality for deleting workloads that do not have an internal WorkloadObject (found unneeded workloads started in a previous execution of the Ankaios agent).
+
+### WorkloadControlLoop
+
+The WorkloadControlLoop is started for each workload with the creation of that workload and is running until its deletion. The WorkloadControlLoop receives the workload commands Update, Restart or Delete via the WorkloadCommandChannel and triggers the corresponding operation on the runtime connector.
+
+### WorkloadCommandChannel
+
+The WorkloadCommandChannel is a communication channel and responsible for sending and receiving workload commands to the WorkloadControlLoop e.g. Update, Restart or Delete.
 
 ### WorkloadObject
 
-A WorkloadObject represents a workload inside the Ankaios agent. It holds the control interface and the sender for the communication channel with the workload control task. The WorkloadObject is also responsible for managing the workload control task.
+A WorkloadObject represents a workload inside the Ankaios agent. It holds the control interface and the sender of the WorkloadCommandChannel to send workload commands to the WorkloadControlLoop.
 
 ### ParameterStorage
 
@@ -420,8 +428,8 @@ Status: approved
 
 When the RuntimeFacade gets a requests to create a workload, the RuntimeFacade shall:
 * request the wrapped runtime to create the workload (incl. starting the state checker monitoring it)
-* start the workload task waiting for stop or update commands for that workload
-* return a new workload object allowing the communication with the task handling the stop or update commands
+* start the WorkloadControlLoop waiting for stop or update commands for that workload
+* return a new workload object containing a WorkloadCommandChannel to communicate with the WorkloadControlLoop
 
 Comment:
 The state checker doesn't need to be started as an additional step here as the runtime starts it when creating the workload.
@@ -435,6 +443,27 @@ Tags:
 Needs:
 - impl
 - utest
+
+#### RuntimeFacade restarts a workload on create failures
+`swdd~agent-restart-workload-on-create-failure~1`
+
+Status: approved
+
+When the RuntimeFacade creates a workload and the operation fails, the RuntimeFacade shall restart the creation of a workload by sending the workload command Restart to the WorkloadControlLoop of the workload.
+
+Comment:
+Depending on the runtime a create of a workload might fail if the workload is added again immediately after a delete operation of that workload was triggered and the Runtime is still busy deleting the old workload.
+
+Rationale:
+The restart behavior for unsuccessful creation of a workload makes the system more robust against runtime specific delays on delete operations.
+
+Tags:
+- RuntimeFacade
+
+Needs:
+- impl
+- utest
+- stest
 
 ##### RuntimeManager handles existing workloads resumes existing workloads
 `swdd~agent-existing-workloads-resume-existing~1`
@@ -457,8 +486,8 @@ Status: approved
 
 When requested, the RuntimeFacade resumes a workload by:
 * request the wrapped runtime to start the state checker for that workload
-* start the workload task waiting for stop or update commands for that workload
-* return a new workload object allowing the communication with the task handling the stop or update commands
+* start the WorkloadControlLoop waiting for stop or update commands for that workload
+* return a new workload object containing a WorkloadCommandChannel to communicate with the WorkloadControlLoop
 
 Comment:
 If a workload is running, there is no need to create it again via the specific runtime. The state checker must be started as an additional step here as the runtime does not create a new workload.
@@ -498,8 +527,8 @@ Status: approved
 When requested, the RuntimeFacade replaces a workload by:
 * request the wrapped runtime to delete the old workload
 * request the wrapped runtime to create a workload with the new config(incl. starting the state checker monitoring it)
-* start the workload task waiting for stop or update commands for that workload
-* return a new workload object allowing the communication with the task handling the stop or update commands
+* start the WorkloadControlLoop waiting for stop or update commands for that workload
+* return a new workload object containing a WorkloadCommandChannel to communicate with the WorkloadControlLoop
 
 Comment:
 No need to specifically ask for starting the state checker at that point as runtimes are expected to always create a state checker when creating a workload.
@@ -605,7 +634,7 @@ Status: approved
 When the WorkloadObject receives a trigger to update the workload, it:
 * stops the old control interface
 * stores the new control interface
-* sends a command on the command channel to the workload task to update the workload
+* sends a command via the WorkloadCommandChannel to the WorkloadControlLoop to update the workload
 
 Tags:
 - WorkloadObject
@@ -619,20 +648,20 @@ Needs:
 
 Status: approved
 
-When the control task started during the creation of the workload object receives an update command, the workload task shall:
+When the WorkloadControlLoop started during the creation of the workload object receives an update command, the WorkloadControlLoop shall:
 * delete the old workload via the corresponding runtime connector
 * stop the state checker for the workload
 * create a new workload via the corresponding runtime connector (which creates and starts a state checker)
-* store the new Id and reference to the state checker inside the workload control task
+* store the new Id and reference to the state checker inside the WorkloadControlLoop
 
 Comment:
 For details on the runtime connector specific actions, e.g., delete, see the specific runtime connector workflows.
 
 Rationale:
-The workload task allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
+The WorkloadControlLoop allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
 
 Tags:
-- WorkloadObject
+- WorkloadControlLoop
 
 Needs:
 - impl
@@ -643,7 +672,7 @@ Needs:
 
 Status: approved
 
-When the workload control task has no old workload to delete during the update of a workload, the control task shall continue with the update.
+When the WorkloadControlLoop has no old workload to delete during the update of a workload, the WorkloadControlLoop shall continue with the update.
 
 Comment:
 The assumption here is that the old workload is not running anymore.
@@ -652,7 +681,7 @@ Rationale:
 This allows to bring the system into a working state.
 
 Tags:
-- WorkloadObject
+- WorkloadControlLoop
 
 Needs:
 - impl
@@ -663,13 +692,13 @@ Needs:
 
 Status: approved
 
-When the workload control task encounters a failure while deleting the old workload during the update of a workload, the control task shall continue allowing a subsequent update or delete attempt.
+When the WorkloadControlLoop encounters a failure while deleting the old workload during the update of a workload, the WorkloadControlLoop shall continue allowing a subsequent update or delete attempt.
 
 Rationale:
 This allows to try the update again instead of going in an undefined state.
 
 Tags:
-- WorkloadObject
+- WorkloadControlLoop
 
 Needs:
 - impl
@@ -680,17 +709,77 @@ Needs:
 
 Status: approved
 
-When the workload control task encounters a failure while creating a new workload during the update of a workload, the control task shall continue allowing a subsequent update or delete attempt.
+When the WorkloadControlLoop encounters a failure while creating a new workload during the update of a workload, the WorkloadControlLoop shall continue allowing a subsequent update or delete attempt.
 
 Rationale:
 This allows to try the update again instead of going in an undefined state.
 
 Tags:
-- WorkloadObject
+- WorkloadControlLoop
 
 Needs:
 - impl
 - utest
+
+#### Workload task restarts a workload when runtime fails to create workload
+`swdd~agent-prevent-restarts-on-other-workload-commands~1`
+
+Status: approved
+
+When the runtime connector fails to create a workload, the WorkloadControlLoop shall restart the creation of the workload within a 1 sec time interval.
+
+Comment:
+The creation of a workload can fail temporarily, for example if a Runtime is still busy deleting and the workload is to be recreated.
+
+Rationale:
+The restart behavior for unsuccessful creation of a workload makes the system more robust against runtime specific delays on delete operations.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Workload task stops restarts after the defined maximum amount of restart attempts
+`swdd~agent-prevent-restarts-on-other-workload-commands~1`
+
+Status: approved
+
+The WorkloadControlLoop shall execute a maximum of 20 restart attempts.
+
+Rationale:
+Limiting the restart attempts prevents pointless attempts if the workload cannot be started due to a general configuration conflict that the runtime rejects in general.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Workload task prevents restarts after receiving other workload commands
+`swdd~agent-prevent-restarts-on-other-workload-commands~1`
+
+Status: approved
+
+The WorkloadControlLoop shall stop triggering restart attempts of workloads when another workload command besides the restart command is received from the WorkloadCommandChannel.
+
+Comment:
+When executing the restart attempts the WorkloadControlLoop might receive other workload commands like Update or Delete making the restart attempts with the previous workload configuration obsolete.
+
+Rationale:
+This prevents the continuation of unnecessary restart attempts of a workload when receiving a workload command Update or Delete.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
 
 ##### Agent adds on update missing workload
 `swdd~agent-add-on-update-missing-workload~1`
@@ -730,7 +819,7 @@ Status: approved
 
 When the WorkloadObject receives a trigger to delete the workload, it:
 * stops the control interface
-* sends a command on the command channel to the workload task to delete the workload
+* sends a command via the WorkloadCommandChannel to the WorkloadControlLoop to delete the workload
 
 Tags:
 - WorkloadObject
@@ -744,22 +833,22 @@ Needs:
 
 Status: approved
 
-When the control task started during the creation of the workload object receives a delete command, the workload task shall:
+When the WorkloadControlLoop started during the creation of the workload object receives a delete command, the WorkloadControlLoop shall:
 * delete the old workload via the corresponding runtime connector
 * stop the state checker for the workload
 * send a removed workload state for that workload
-* stop the workload control task
+* stop the WorkloadControlLoop
 
 Comment:
 For details on the runtime connector specific actions, e.g., delete, see the specific runtime connector workflows.
 
 Rationale:
-The workload task allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
+The WorkloadControlLoop allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
 As the state checker for the workload is stopped, we cannot be sure that the removed workload state is correctly sent to the server before the state checker is stopped.
 For that reason the removed state is explicitly sent, even if it could be sent twice this way.
 
 Tags:
-- WorkloadObject
+- WorkloadControlLoop
 
 Needs:
 - impl
@@ -770,7 +859,7 @@ Needs:
 
 Status: approved
 
-When the workload control task has no old workload to delete during the deletion of a workload, the control task shall exit.
+When the WorkloadControlLoop has no old workload to delete during the deletion of a workload, the WorkloadControlLoop shall exit.
 
 Comment:
 The assumption here is that the old workload is not running anymore and the job is done.
@@ -779,7 +868,7 @@ Rationale:
 This allows to bring the system into a working state.
 
 Tags:
-- WorkloadObject
+- WorkloadControlLoop
 
 Needs:
 - impl
@@ -790,13 +879,13 @@ Needs:
 
 Status: approved
 
-When the workload control task encounters a failure while deleting the workload, the control task shall continue allowing a subsequent update or delete attempt.
+When the WorkloadControlLoop encounters a failure while deleting the workload, the WorkloadControlLoop shall continue allowing a subsequent update or delete attempt.
 
 Rationale:
 This allows to try the delete again instead of going in an undefined state.
 
 Tags:
-- WorkloadObject
+- WorkloadControlLoop
 
 Needs:
 - impl
