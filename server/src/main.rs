@@ -51,7 +51,7 @@ async fn main() -> Result<(), BoxedStdError> {
             let data =
                 fs::read_to_string(config_path).unwrap_or_exit("Could not read the startup config");
             // [impl->swdd~server-state-in-memory~1]
-            // [impl->swdd~server-loads-startup-state-file~1]
+            // [impl->swdd~server-loads-startup-state-file~2]
             let state: State =
                 state_parser::parse(data).unwrap_or_exit("Parsing start config failed with error");
             log::trace!(
@@ -60,6 +60,7 @@ async fn main() -> Result<(), BoxedStdError> {
             );
             Some(state)
         }
+        // [impl->swdd~server-starts-without-startup-config~1]
         _ => None,
     };
 
@@ -95,6 +96,7 @@ async fn main() -> Result<(), BoxedStdError> {
                 .await
                 .unwrap_or_illegal_state();
         } else {
+            // [impl->swdd~server-starts-without-startup-config~1]
             log::info!("No startup state provided -> waiting for new workloads from the CLI");
         }
     });

@@ -74,16 +74,31 @@ Needs:
 - impl
 
 #### Server loads Startup State from a file
-`swdd~server-loads-startup-state-file~1`
+`swdd~server-loads-startup-state-file~2`
 
 Status: approved
 
-When the Ankaios Server starts up, it shall load the Startup State from a file as Current State.
+When the Ankaios Server starts up and the startup configuration is provided via command-line parameter,
+it shall load the Startup State from a file as Current State.
 
 Note: This requirement describes only current intermediate state. The final implementation may work differently.
 
 Tags:
 - AnkaiosServer
+
+Needs:
+- impl
+
+### Server starts without startup config
+`swdd~server-starts-without-startup-config~1`
+
+The Ankaios Server shall be able to start without startup configuration file.
+
+Rationale:
+The Ankaios Server can also start in the "empty startup state" and get the configuration subsequently from the CLI.
+
+Tags:
+- StartupStateLoader
 
 Needs:
 - impl
