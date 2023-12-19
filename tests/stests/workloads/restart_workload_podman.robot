@@ -25,17 +25,18 @@ ${new_state_yaml_file}
 
 Test Ankaios Podman restart of a workload intercepted by update
     [Setup]    Run Keywords    Setup Ankaios
-    ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_delete_workload_long_time_podman_new_state.yaml
+    ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_restart_workload.yaml
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/delete_workload_long_time_podman.yaml"
+    And Ankaios server is started with config "${CONFIGS_DIR}/restart_workload.yaml"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
     When user triggers "ank get state > ${new_state_yaml_file}"
     And user triggers "ank delete workload hello1"
     And the workload "hello1" shall not exist
+    And the user waits "1" seconds
     And podman shall have a container for workload "hello1" on agent "agent_A"
     And user triggers "ank set state -f ${new_state_yaml_file} currentState.workloads.hello1"
     # Asserts
@@ -44,17 +45,18 @@ Test Ankaios Podman restart of a workload intercepted by update
 
 Test Ankaios Podman restart of a workload intercepted by two updates
     [Setup]    Run Keywords    Setup Ankaios
-    ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_delete_workload_long_time_podman_new_state.yaml
+    ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_restart_workload.yaml
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/delete_workload_long_time_podman.yaml"
+    And Ankaios server is started with config "${CONFIGS_DIR}/restart_workload.yaml"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
     When user triggers "ank get state > ${new_state_yaml_file}"
     And user triggers "ank delete workload hello1"
     And the workload "hello1" shall not exist
+    And the user waits "1" seconds
     And podman shall have a container for workload "hello1" on agent "agent_A"
     And user triggers "ank set state -f ${new_state_yaml_file} currentState.workloads.hello1"
     And user updates the state "${new_state_yaml_file}" with "currentState.workloads.hello1.runtimeConfig.commandArgs=['3']"
@@ -65,11 +67,11 @@ Test Ankaios Podman restart of a workload intercepted by two updates
 
 Test Ankaios Podman restart of a workload intercepted by update and delete
     [Setup]    Run Keywords    Setup Ankaios
-    ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_delete_workload_long_time_podman_new_state.yaml
+    ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_restart_workload.yaml
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/delete_workload_long_time_podman.yaml"
+    And Ankaios server is started with config "${CONFIGS_DIR}/restart_workload.yaml"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
@@ -78,8 +80,23 @@ Test Ankaios Podman restart of a workload intercepted by update and delete
     And the workload "hello1" shall not exist
     And podman shall have a container for workload "hello1" on agent "agent_A"
     And user triggers "ank set state -f ${new_state_yaml_file} currentState.workloads.hello1"
+    And the user waits "1" seconds
     And user triggers "ank delete workload hello1"
     # Asserts
     Then the workload "hello1" shall not exist
     podman shall not have a container for workload "hello1" on agent "agent_A" within "10" seconds
+    [Teardown]    Clean up Ankaios
+
+Test Ankaios Podman stop restarts after reaching the restart limit
+    [Setup]    Run Keywords    Setup Ankaios
+    ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_restart_workload_reach_limit.yaml
+    # Preconditions
+    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    And Ankaios server is started with config "${CONFIGS_DIR}/restart_workload_reach_limit.yaml"
+    And Ankaios agent is started with name "agent_A"
+    # Actions
+    When the user waits "22" seconds
+    # Asserts
+    Then the workload "hello1" shall have the execution state "" on agent "agent_A"
     [Teardown]    Clean up Ankaios

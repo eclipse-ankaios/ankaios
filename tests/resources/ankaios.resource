@@ -108,6 +108,9 @@ user triggers "${cli_command}"
     Log    ${CURRENT_RESULT.stdout}
     Set Global Variable    ${CURRENT_RESULT}
 
+the user waits "${seconds_to_wait}" seconds
+    Run Process    sleep    ${seconds_to_wait}
+
 user updates the state "${new_state_yaml_file}" with "${field_value}"
     @{key_val}=    Split String    ${field_value}    separator==
     ${yaml_data}=    Get File    ${new_state_yaml_file}
@@ -126,10 +129,11 @@ the workload "${workload_name}" shall have the execution state "${expected_execu
     END
     Should Not Be Empty    ${list_result}    msg=Timeout: Workload '${workload_name}' on agent '${expected_agent_name}' does not have the execution state '${expected_execution_state}'!
 
-the workload "${workload_name}" shall not exist within "${timeout}" seconds
-    @{list_result}=    table to list    ${CURRENT_RESULT.stdout}
-    &{dict_result}=    table to dict    ${list_result}    WORKLOAD NAME
-    Dictionary Should Not Contain Key    ${dict_result}    ${workload_name}
+the workload "${workload_name}" shall not exist
+    ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get workloads
+    @{list_result}=    table to list    ${command_result.stdout}
+    &{workload_table}=    table to dict    ${list_result}    WORKLOAD NAME
+    Dictionary Should Not Contain Key    ${workload_table}    ${workload_name}
 
 user executes system app "${cli_command}"
     ${cmd}=    Split Command Line    ${cli_command}    escaping=True
@@ -236,9 +240,6 @@ the workload "${workload_name}" shall have the execution state "${expected_execu
 
 the workload "${workload_name}" shall have the execution state "${execution_state}" on agent "${expected_agent_name}"
     the workload "${workload_name}" shall have the execution state "${execution_state}" on agent "${expected_agent_name}" within "5" seconds
-
-the workload "${workload_name}" shall not exist
-    the workload "${workload_name}" shall not exist within "1" seconds
 
 volumes for "${workload_name}" shall exist on "${agent_name}"
     volumes for "${workload_name}" shall exist on "${agent_name}" within "1" seconds

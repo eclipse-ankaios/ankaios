@@ -96,6 +96,67 @@ pub struct WorkloadControlLoop;
 
 #[cfg_attr(test, automock)]
 impl WorkloadControlLoop {
+    async fn restart_create_on_failure<WorkloadId, StChecker>(
+        mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
+        runtime_workload_config: WorkloadSpec,
+        control_interface_path: Option<PathBuf>,
+    ) -> ControlLoopState<WorkloadId, StChecker>
+    where
+        WorkloadId: Send + Sync + 'static,
+        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
+    {
+        let restart_state: &mut RestartState = &mut control_loop_state.restart_state;
+        match control_loop_state
+            .runtime
+            .create_workload(
+                runtime_workload_config.clone(),
+                control_interface_path.clone(),
+                control_loop_state.update_state_tx.clone(),
+            )
+            .await
+        {
+            Ok((new_workload_id, new_state_checker)) => {
+                control_loop_state.workload_id = Some(new_workload_id);
+                control_loop_state.state_checker = Some(new_state_checker);
+            }
+            Err(err) => {
+                log::warn!(
+                    "Restart '{}' out of '{}': Failed to create workload: '{}': '{}'",
+                    restart_state.current_restart(),
+                    MAX_RESTARTS,
+                    control_loop_state.workload_name,
+                    err
+                );
+
+                restart_state.count_restart();
+
+                if !restart_state.restart_allowed() {
+                    log::warn!(
+                        "Abort restarts: maximum amount of restarts ('{}') reached.",
+                        MAX_RESTARTS
+                    );
+                    restart_state.disable_restarts();
+                    return control_loop_state;
+                }
+
+                let sender = control_loop_state.workload_channel.clone();
+                tokio::task::spawn(async move {
+                    tokio::time::sleep(tokio::time::Duration::from_millis(RETRY_WAITING_TIME_MS))
+                        .await;
+                    log::debug!("Send WorkloadCommand::Restart.");
+
+                    sender
+                        .restart(runtime_workload_config, control_interface_path)
+                        .await
+                        .unwrap_or_else(|err| {
+                            log::warn!("Could not send WorkloadCommand::Restart: '{}'", err)
+                        });
+                });
+            }
+        }
+        control_loop_state
+    }
+
     async fn do_delete<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
     ) -> Option<ControlLoopState<WorkloadId, StChecker>>
@@ -172,30 +233,13 @@ impl WorkloadControlLoop {
             );
         }
 
-        match control_loop_state
-            .runtime
-            .create_workload(
-                runtime_workload_config,
-                control_interface_path,
-                control_loop_state.update_state_tx.clone(),
-            )
-            .await
-        {
-            Ok((new_workload_id, new_state_checker)) => {
-                control_loop_state.workload_id = Some(new_workload_id);
-                control_loop_state.state_checker = Some(new_state_checker);
-            }
-            Err(err) => {
-                // [impl->swdd~agent-workload-task-update-create-failed-allows-retry~1]
-                log::warn!(
-                    "Could not start updated workload '{}': '{}'",
-                    control_loop_state.workload_name,
-                    err
-                )
-            }
-        }
-
-        control_loop_state
+        // [impl->swdd~agent-workload-task-update-create-failed-allows-retry~1]
+        Self::restart_create_on_failure(
+            control_loop_state,
+            runtime_workload_config,
+            control_interface_path,
+        )
+        .await
     }
 
     async fn do_restart<WorkloadId, StChecker>(
@@ -213,55 +257,12 @@ impl WorkloadControlLoop {
             return control_loop_state;
         }
 
-        match control_loop_state
-            .runtime
-            .create_workload(
-                runtime_workload_config.clone(),
-                control_interface_path.clone(),
-                control_loop_state.update_state_tx.clone(),
-            )
-            .await
-        {
-            Ok((new_workload_id, new_state_checker)) => {
-                control_loop_state.workload_id = Some(new_workload_id);
-                control_loop_state.state_checker = Some(new_state_checker);
-            }
-            Err(err) => {
-                log::warn!(
-                    "Restart '{}' out of '{}': Failed to create workload: '{}': '{}'",
-                    restart_state.current_restart(),
-                    MAX_RESTARTS,
-                    control_loop_state.workload_name,
-                    err
-                );
-
-                if !restart_state.restart_allowed() {
-                    log::warn!(
-                        "Abort restarts: maximum amount of restarts ('{}') reached.",
-                        MAX_RESTARTS
-                    );
-                    restart_state.disable_restarts();
-                    return control_loop_state;
-                }
-
-                restart_state.count_restart();
-                let sender = control_loop_state.workload_channel.clone();
-                tokio::task::spawn(async move {
-                    tokio::time::sleep(tokio::time::Duration::from_millis(RETRY_WAITING_TIME_MS))
-                        .await;
-                    log::debug!("Send WorkloadCommand::Restart.");
-
-                    sender
-                        .restart(runtime_workload_config, control_interface_path)
-                        .await
-                        .unwrap_or_else(|err| {
-                            log::warn!("Could not send WorkloadCommand::Restart: '{}'", err)
-                        });
-                });
-            }
-        }
-
-        control_loop_state
+        Self::restart_create_on_failure(
+            control_loop_state,
+            runtime_workload_config,
+            control_interface_path,
+        )
+        .await
     }
 
     pub async fn run<WorkloadId, StChecker>(
