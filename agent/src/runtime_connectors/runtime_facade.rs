@@ -16,7 +16,7 @@ use crate::workload::workload_control_loop::WorkloadControlLoop;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
 use crate::workload::WorkloadCommandChannel;
-use crate::workload::{ControlLoopState, RestartState};
+use crate::workload::{ControlLoopState, RestartCounter};
 
 #[async_trait]
 #[cfg_attr(test, automock)]
@@ -95,7 +95,6 @@ impl<
         update_state_tx: &StateChangeSender,
     ) -> Workload {
         let workload_name = workload_spec.name.clone();
-        let agent_name = workload_spec.agent.clone();
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
         let control_interface_path = control_interface
@@ -106,12 +105,12 @@ impl<
             "Creating '{}' workload '{}' on agent '{}'",
             runtime.name(),
             workload_name,
-            agent_name
+            workload_spec.agent
         );
         let (workload_channel, command_receiver) = WorkloadCommandChannel::new();
         let workload_channel_retry = workload_channel.clone();
         tokio::spawn(async move {
-            let workload_name = workload_spec.name.clone();
+            let instance_name = workload_spec.instance_name();
             let create_result = runtime
                 .create_workload(
                     workload_spec.clone(),
@@ -125,7 +124,7 @@ impl<
             } else {
                 log::warn!(
                     "Failed to create workload: '{}': '{:?}'",
-                    workload_name,
+                    instance_name.workload_name(),
                     create_result.err().unwrap()
                 );
                 workload_channel_retry
@@ -138,15 +137,14 @@ impl<
             };
 
             let control_loop_state = ControlLoopState {
-                workload_name,
-                agent_name,
+                instance_name,
                 workload_id,
                 state_checker,
                 update_state_tx,
                 runtime,
                 command_receiver,
                 workload_channel: workload_channel_retry,
-                restart_state: RestartState::new(),
+                restart_counter: RestartCounter::new(),
             };
 
             WorkloadControlLoop::run(control_loop_state).await;
@@ -164,7 +162,6 @@ impl<
         update_state_tx: &StateChangeSender,
     ) -> Workload {
         let workload_name = new_workload_spec.name.clone();
-        let agent_name = new_workload_spec.agent.clone();
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
         let control_interface_path = control_interface
@@ -175,13 +172,14 @@ impl<
             "Replacing '{}' workload '{}' on agent '{}'",
             runtime.name(),
             workload_name,
-            agent_name
+            new_workload_spec.agent
         );
 
         let (workload_channel, command_receiver) = WorkloadCommandChannel::new();
         let workload_channel_retry = workload_channel.clone();
         tokio::spawn(async move {
-            let workload_name = new_workload_spec.name.clone();
+            let instance_name = new_workload_spec.instance_name();
+            let workload_name = instance_name.workload_name();
             match runtime.get_workload_id(&old_instance_name).await {
                 Ok(old_id) => runtime
                     .delete_workload(&old_id)
@@ -227,15 +225,14 @@ impl<
 
             // replace workload_id and state_checker through Option directly and pass in None if create_workload fails
             let control_loop_state = ControlLoopState {
-                workload_name,
-                agent_name,
+                instance_name,
                 workload_id,
                 state_checker,
                 update_state_tx,
                 runtime,
                 command_receiver,
                 workload_channel: workload_channel_retry,
-                restart_state: RestartState::new(),
+                restart_counter: RestartCounter::new(),
             };
 
             WorkloadControlLoop::run(control_loop_state).await;
@@ -252,7 +249,6 @@ impl<
         update_state_tx: &StateChangeSender,
     ) -> Workload {
         let workload_name = workload_spec.name.clone();
-        let agent_name = workload_spec.agent.clone();
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
 
@@ -260,13 +256,14 @@ impl<
             "Resuming '{}' workload '{}' on agent '{}'",
             runtime.name(),
             workload_name,
-            agent_name
+            workload_spec.agent
         );
 
         let (workload_channel, command_receiver) = WorkloadCommandChannel::new();
         let workload_channel_retry = workload_channel.clone();
         tokio::spawn(async move {
-            let workload_name = workload_spec.name.clone();
+            let instance_name = workload_spec.instance_name();
+            let workload_name = instance_name.workload_name();
             let workload_id = runtime
                 .get_workload_id(&workload_spec.instance_name())
                 .await;
@@ -295,15 +292,14 @@ impl<
             };
 
             let control_loop_state = ControlLoopState {
-                workload_name,
-                agent_name,
+                instance_name,
                 workload_id: workload_id.ok(),
                 state_checker,
                 update_state_tx,
                 runtime,
                 command_receiver,
                 workload_channel: workload_channel_retry,
-                restart_state: RestartState::new(),
+                restart_counter: RestartCounter::new(),
             };
 
             WorkloadControlLoop::run(control_loop_state).await;
@@ -438,8 +434,8 @@ mod tests {
             .once()
             .with(predicate::function(
                 move |control_loop_state: &ControlLoopState<String, StubStateChecker>| {
-                    control_loop_state.workload_name == WORKLOAD_1_NAME
-                        && control_loop_state.agent_name == AGENT_NAME
+                    control_loop_state.instance_name.workload_name() == WORKLOAD_1_NAME
+                        && control_loop_state.instance_name.agent_name() == AGENT_NAME
                         && control_loop_state.workload_id == Some(WORKLOAD_ID.to_string())
                         && control_loop_state
                             .update_state_tx
@@ -508,8 +504,8 @@ mod tests {
             .once()
             .with(predicate::function(
                 move |control_loop_state: &ControlLoopState<String, StubStateChecker>| {
-                    control_loop_state.workload_name == WORKLOAD_1_NAME
-                        && control_loop_state.agent_name == AGENT_NAME
+                    control_loop_state.instance_name.workload_name() == WORKLOAD_1_NAME
+                        && control_loop_state.instance_name.agent_name() == AGENT_NAME
                         && control_loop_state.workload_id == Some(WORKLOAD_ID.to_string())
                         && control_loop_state
                             .update_state_tx
@@ -588,8 +584,8 @@ mod tests {
             .once()
             .with(predicate::function(
                 move |control_loop_state: &ControlLoopState<String, StubStateChecker>| {
-                    control_loop_state.workload_name == WORKLOAD_1_NAME
-                        && control_loop_state.agent_name == AGENT_NAME
+                    control_loop_state.instance_name.workload_name() == WORKLOAD_1_NAME
+                        && control_loop_state.instance_name.agent_name() == AGENT_NAME
                         && control_loop_state.workload_id == Some(WORKLOAD_ID.to_string())
                         && control_loop_state
                             .update_state_tx
@@ -675,8 +671,8 @@ mod tests {
             .once()
             .with(predicate::function(
                 move |control_loop_state: &ControlLoopState<String, StubStateChecker>| {
-                    control_loop_state.workload_name == WORKLOAD_1_NAME
-                        && control_loop_state.agent_name == AGENT_NAME
+                    control_loop_state.instance_name.workload_name() == WORKLOAD_1_NAME
+                        && control_loop_state.instance_name.agent_name() == AGENT_NAME
                         && control_loop_state.workload_id == Some(WORKLOAD_ID.to_string())
                         && control_loop_state
                             .update_state_tx
@@ -764,8 +760,8 @@ mod tests {
             .once()
             .with(predicate::function(
                 move |control_loop_state: &ControlLoopState<String, StubStateChecker>| {
-                    control_loop_state.workload_name == WORKLOAD_1_NAME
-                        && control_loop_state.agent_name == AGENT_NAME
+                    control_loop_state.instance_name.workload_name() == WORKLOAD_1_NAME
+                        && control_loop_state.instance_name.agent_name() == AGENT_NAME
                         && control_loop_state.workload_id == Some(WORKLOAD_ID.to_string())
                         && control_loop_state
                             .update_state_tx

@@ -12,8 +12,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 *** Settings ***
-Documentation    Tests to verify that ank cli updates workloads correctly
-...              by adapting the portmapping from the host port 8081 to host port 8082.
+Documentation    Tests to verify that restart behavior works correctly
 Resource    ../../resources/ankaios.resource
 Resource    ../../resources/variables.resource
 
