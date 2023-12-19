@@ -120,7 +120,7 @@ impl WorkloadControlLoop {
                 control_loop_state.state_checker = Some(new_state_checker);
             }
             Err(err) => {
-                log::warn!(
+                log::info!(
                     "Restart '{}' out of '{}': Failed to create workload: '{}': '{}'",
                     restart_state.current_restart(),
                     MAX_RESTARTS,
@@ -131,7 +131,7 @@ impl WorkloadControlLoop {
                 restart_state.count_restart();
 
                 if !restart_state.restart_allowed() {
-                    log::warn!(
+                    log::info!(
                         "Abort restarts: maximum amount of restarts ('{}') reached.",
                         MAX_RESTARTS
                     );
@@ -149,7 +149,7 @@ impl WorkloadControlLoop {
                         .restart(runtime_workload_config, control_interface_path)
                         .await
                         .unwrap_or_else(|err| {
-                            log::warn!("Could not send WorkloadCommand::Restart: '{}'", err)
+                            log::info!("Could not send WorkloadCommand::Restart: '{}'", err)
                         });
                 });
             }
