@@ -12,7 +12,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 *** Settings ***
-Documentation    Tests to verify that restart behavior works correctly
+Documentation    Tests to verify that restart behavior on failing create of workload works correctly
 Resource    ../../resources/ankaios.resource
 Resource    ../../resources/variables.resource
 
