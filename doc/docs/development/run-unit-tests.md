@@ -1,11 +1,12 @@
-# cargo-nextest
+# Unit tests with cargo-nextest
 
 We use test runner [cargo-nextest](https://nexte.st/index.html) because of the following reasons:
+
 1. It runs tests faster than `cargo test`.
 2. It presents the test results concisely so you can see which tests passed and failed at a glance.
 3. If debug logs are activated, it prints the debug logs only when a test has failed, so that it is clear the debug logs belong that failed test.
 
-# Run unit tests
+## Run unit tests
 
 If you want to run all unit tests **without** traces, call in the root of the project:
 

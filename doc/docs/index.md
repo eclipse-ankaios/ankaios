@@ -13,7 +13,7 @@ description: Eclipse Ankaios provides workload and container orchestration for a
 
 <figure markdown>
   <a href="https://www.youtube.com/watch?v=GUaMxwh5jdU" target="_blank">
-    ![](assets/youtube_ankaios_introduction.png)
+    ![Youtube introduction video](assets/youtube_ankaios_introduction.png)
   </a>
   <figcaption>Watch Eclipse Ankaios presentation at Eclipse SDV community day on July 6, 2023 on Youtube</figcaption>
 </figure>
@@ -21,7 +21,7 @@ description: Eclipse Ankaios provides workload and container orchestration for a
 ## Scope
 
 Eclipse Ankaios provides workload and container orchestration for automotive
-High Performance Computing (HPC) software . While it can be used for various
+High Performance Computing (HPC) software. While it can be used for various
 fields of applications, it is developed from scratch for automotive use cases
 and provides a slim yet powerful solution to manage containerized applications.
 It supports various container runtimes with Podman as the first one, but other
@@ -42,7 +42,6 @@ connects to one or more runtimes that are running the workloads.
 * An overview how Ankaios works is given on the [architecture](architecture.md) page.
 * The API is described in the [reference](reference/control-interface.md) section.
 * For contributions have a look at the [development](development/build.md) pages.
-
 
 ## Background
 
@@ -70,3 +69,5 @@ applications.
 In order to support the Automotive SPICE process, Eclipse Ankaios comes with
 requirements tracing supported by
 [OpenFastTrace](https://github.com/itsallcode/openfasttrace).
+
+<!-- markdownlint-disable-file MD025 MD033 -->

@@ -3,6 +3,7 @@
 To generate the test coverage report, run the following commands in `ankaios` workspace which is `/home/vscode/workspaces/ankaios/`:
 
 To print out directly into the console:
+
 ```shell
 cov test
 ```
@@ -12,7 +13,9 @@ Or to produce a report in html:
 ```shell
 cov test --html
 ```
+
 The script outputs where to find the report html:
+
 ```shell
 ...
 Finished report saved to /workspaces/ankaios/target/llvm-cov/html

@@ -15,7 +15,7 @@ The following diagram shows a high level overview of the Common library and its 
 
 ![Context View](drawio/context_view.drawio.svg)
 
-The diagram does not show all dependencies between the Common library and other components of Ankaios as anybody can use the Common library. 
+The diagram does not show all dependencies between the Common library and other components of Ankaios as anybody can use the Common library.
 On the other hand the Common library is not allowed to use other component of Ankaios.
 
 ## Constraints, risks and decisions
@@ -37,7 +37,7 @@ For this reason it is useless to draw a structural diagram for this library.
 
 ### ExecutionCommandChannel
 
-Simplifies sending and receiving `ExecutionCommand`s. Internally uses a multi-producer, single-consumer channel from Tokio. 
+Simplifies sending and receiving `ExecutionCommand`s. Internally uses a multi-producer, single-consumer channel from Tokio.
 
 #### Provide `ExecutionCommandChannel`
 `swdd~execution-command-channel~1`
@@ -75,7 +75,7 @@ Needs:
 
 ### Objects
 
-Definitions of objects which are needed in all other components of Ankaios. 
+Definitions of objects which are needed in all other components of Ankaios.
 These objects especially include objects which needs to be sent through for the `ExecutionCommandChannel` and `StateChangeCommandChannel`.
 
 #### Provide common object representation
@@ -124,7 +124,7 @@ Where the hash of the workload runtime config is calculated from the complete ru
 Rationale:
 A unique, consistent and reproducible naming that allows detecting changes in the workload configuration is needed to be able to check if a workload specification differs from the workload execution instance. Such a configuration drift could occur during windows in which an Ankaios Agent was unresponsive or down.
 
-Tags: 
+Tags:
 - Objects
 
 Needs:
@@ -193,3 +193,4 @@ Needs:
 
 ## Glossary
 
+<!-- markdownlint-disable-file MD004 MD022 MD032 -->

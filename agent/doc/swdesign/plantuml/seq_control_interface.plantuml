@@ -8,12 +8,10 @@ box "Ankaios Agent"
     participant "Output Pipe" as output
     participant "<<task>>\nHandle Pipe\nCommunication" as pipes_task
 
-
     participant "Listen to Ankaios\nServer task" as listen_to_server
     participant "Listen to Agent \nManager task" as listen_to_manager
 
     participant "AgentManager" as manager
-
 
     participant "Listen to Ankaios\nServer task" as listen_to_server
     participant "Listen to Agent \nManager task" as listen_to_manager
@@ -24,14 +22,11 @@ box "Ankaios Server"
     participant "Ankaios Server" as server
 end box
 
-
 activate workload
 activate listen_to_server
 activate listen_to_manager
 
 ...
-
-
 
 loop
 pipes_task -> output++: read
@@ -48,6 +43,6 @@ manager ->> input--: write response
 workload <<-- input--
 end
 
-... 
+...
 
 @enduml
