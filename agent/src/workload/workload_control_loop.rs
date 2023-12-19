@@ -127,7 +127,7 @@ impl WorkloadControlLoop {
 
                 if restart_counter.limit_exceeded() {
                     log::info!(
-                        "Abort restarts: maximum amount of restarts ('{}') reached.",
+                        "Abort restarts: reached maximum amount of restarts ('{}')",
                         restart_counter.limit()
                     );
                     return control_loop_state;
