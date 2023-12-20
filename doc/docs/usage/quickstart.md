@@ -4,7 +4,9 @@ If you have not installed Ankaios, please follow the instructions
 [here](installation.md). The following examples assumes that the
 installation script has been used with default options.
 
-Ankaios needs a startup configuration that contains all the workloads and their
+You can start workloads in Ankaios in several ways.
+For example you may define a file with the startup configuration and start Ankaios with systemd.
+The startup configuration contains all the workloads and their
 configuration which should be started when Ankaios starts up.
 
 Let's modify the default config which is stored in `/etc/ankaios/state.yaml`:
