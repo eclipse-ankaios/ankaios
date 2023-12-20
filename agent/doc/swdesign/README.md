@@ -444,7 +444,7 @@ Needs:
 - impl
 - utest
 
-#### RuntimeFacade restarts a workload on create failures
+##### RuntimeFacade restarts a workload on create failures
 `swdd~agent-restart-workload-on-create-failure~1`
 
 Status: approved
@@ -721,7 +721,7 @@ Needs:
 - impl
 - utest
 
-#### WorkloadControlLoop requests restarts of a workload when runtime fails to create workload
+##### WorkloadControlLoop requests restarts of a workload when runtime fails to create workload
 `swdd~agent-workload-control-loop-request-restarts~1`
 
 Status: approved
@@ -742,7 +742,7 @@ Needs:
 - utest
 - stest
 
-#### WorkloadControlLoop restarts a workload
+##### WorkloadControlLoop restarts a workload
 `swdd~agent-workload-control-loop-restart-workload~1`
 
 Status: approved
@@ -759,7 +759,7 @@ Needs:
 - utest
 - stest
 
-#### WorkloadControlLoop stops restarts after the defined maximum amount of restart attempts
+##### WorkloadControlLoop stops restarts after the defined maximum amount of restart attempts
 `swdd~agent-workload-control-limit-restart-attempts~1`
 
 Status: approved
@@ -777,7 +777,7 @@ Needs:
 - utest
 - stest
 
-#### WorkloadControlLoop prevents restarts when receiving other workload commands
+##### WorkloadControlLoop prevents restarts when receiving other workload commands
 `swdd~agent-prevent-restarts-on-other-workload-commands~1`
 
 Status: approved
