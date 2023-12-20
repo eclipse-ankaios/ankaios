@@ -894,7 +894,7 @@ Needs:
 - stest
 
 ##### WorkloadControlLoop restarts a workload
-`swdd~agent-workload-control-loop-restart-workload~1`
+`swdd~agent-workload-control-loop-executes-restart~1`
 
 Status: approved
 
@@ -911,7 +911,7 @@ Needs:
 - stest
 
 ##### WorkloadControlLoop stops restarts after the defined maximum amount of restart attempts
-`swdd~agent-workload-control-limit-restart-attempts~1`
+`swdd~agent-workload-control-loop-limit-restart-attempts~1`
 
 Status: approved
 
@@ -929,11 +929,11 @@ Needs:
 - stest
 
 ##### WorkloadControlLoop prevents restarts when receiving other workload commands
-`swdd~agent-prevent-restarts-on-other-workload-commands~1`
+`swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1`
 
 Status: approved
 
-The WorkloadControlLoop shall stop triggering restart attempts of workloads when a workload command update or delete is received from the WorkloadCommandChannel.
+When the WorkloadControlLoop receives an update or delete from the WorkloadCommandChannel, the WorkloadControlLoop shall stop triggering restart attempts.
 
 Comment:
 When executing the restart attempts the WorkloadControlLoop might receive other workload commands like update or delete making the restart attempts with the previous workload configuration obsolete.
@@ -948,6 +948,26 @@ Needs:
 - impl
 - utest
 - stest
+
+##### WorkloadControlLoop resets restart attempts when receiving an update
+`swdd~agent-workload-control-loop-reset-restart-attempts-on-update~1`
+
+Status: approved
+
+When the WorkloadControlLoop receives an update from the WorkloadCommandChannel, the WorkloadControlLoop shall reset the restart counter.
+
+Comment:
+The restart counter might be already incremented when the workload that shall be updated was already failing a few times during its initial creation.
+
+Rationale:
+This enables new restart attempts for the new workload again.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
 
 #### Runtime connector workflows
 

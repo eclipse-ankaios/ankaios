@@ -125,6 +125,7 @@ impl WorkloadControlLoop {
 
                 restart_counter.count_restart();
 
+                // [impl->swdd~agent-workload-control-loop-limit-restart-attempts~1]
                 if restart_counter.limit_exceeded() {
                     log::info!(
                         "Abort restarts: reached maximum amount of restarts ('{}')",
@@ -135,6 +136,7 @@ impl WorkloadControlLoop {
 
                 let sender = control_loop_state.workload_channel.clone();
                 tokio::task::spawn(async move {
+                    // [impl->swdd~agent-workload-control-loop-request-restarts~1]
                     tokio::time::sleep(tokio::time::Duration::from_millis(RETRY_WAITING_TIME_MS))
                         .await;
                     log::debug!("Send WorkloadCommand::Restart.");
@@ -215,6 +217,7 @@ impl WorkloadControlLoop {
             log::debug!("Workload '{}' already gone.", workload_name);
         }
 
+        // [impl->swdd~agent-workload-control-loop-reset-restart-attempts-on-update~1]
         control_loop_state.restart_counter.reset();
 
         // [impl->swdd~agent-workload-control-loop-update-create-failed-allows-retry~1]
@@ -246,6 +249,7 @@ impl WorkloadControlLoop {
             )
             .await
         } else {
+            // [impl->swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1]
             log::debug!("Skip restart workload.");
             control_loop_state
         }
@@ -267,6 +271,7 @@ impl WorkloadControlLoop {
                     {
                         control_loop_state = new_control_loop_state;
                     } else {
+                        // [impl->swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1]
                         return;
                     }
                 }
@@ -284,6 +289,7 @@ impl WorkloadControlLoop {
 
                     log::debug!("Update workload complete");
                 }
+                // [impl->swdd~agent-workload-control-loop-executes-restart~1]
                 Some(WorkloadCommand::Restart(runtime_workload_config, control_interface_path)) => {
                     control_loop_state = Self::do_restart(
                         control_loop_state,
@@ -842,6 +848,8 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
+    // [utest->swdd~agent-workload-control-loop-executes-restart~1]
+    // [utest->swdd~agent-workload-control-loop-request-restarts~1]
     #[tokio::test]
     async fn utest_workload_obj_run_restart_successful_after_create_fails() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -918,6 +926,9 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
+    // [utest->swdd~agent-workload-control-loop-executes-restart~1]
+    // [utest->swdd~agent-workload-control-loop-request-restarts~1]
+    // [utest->swdd~agent-workload-control-loop-limit-restart-attempts~1]
     #[tokio::test]
     async fn utest_workload_obj_run_restart_exceeded_workload_creation() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -987,6 +998,9 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
+    // [utest->swdd~agent-workload-control-loop-executes-restart~1]
+    // [utest->swdd~agent-workload-control-loop-request-restarts~1]
+    // [utest->swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1]
     #[tokio::test]
     async fn utest_workload_obj_run_restart_stop_restart_commands_on_update_command() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1070,6 +1084,9 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
+    // [utest->swdd~agent-workload-control-loop-executes-restart~1]
+    // [utest->swdd~agent-workload-control-loop-request-restarts~1]
+    // [utest->swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1]
     #[tokio::test]
     async fn utest_workload_obj_run_restart_on_update_with_create_failure() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1155,6 +1172,10 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
+    // [utest->swdd~agent-workload-control-loop-executes-restart~1]
+    // [utest->swdd~agent-workload-control-loop-request-restarts~1]
+    // [utest->swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1]
+    // [utest->swdd~agent-workload-control-loop-reset-restart-attempts-on-update~1]
     #[tokio::test]
     async fn utest_workload_obj_run_restart_reset_restart_counter_on_update() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1246,6 +1267,9 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
+    // [utest->swdd~agent-workload-control-loop-executes-restart~1]
+    // [utest->swdd~agent-workload-control-loop-request-restarts~1]
+    // [utest->swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1]
     #[tokio::test]
     async fn utest_workload_obj_run_restart_create_correct_workload_on_two_updates() {
         let _ = env_logger::builder().is_test(true).try_init();

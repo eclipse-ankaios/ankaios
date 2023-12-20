@@ -22,7 +22,9 @@ ${new_state_yaml_file}
 
 *** Test Cases ***
 
-Test Ankaios Podman restart of a workload intercepted by update
+# [itest->swdd~agent-workload-control-loop-executes-restart~1]
+# [itest->swdd~agent-workload-control-loop-request-restarts~1]
+Test Ankaios Podman restart of a workload on creation failure
     [Setup]    Run Keywords    Setup Ankaios
     ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_restart_workload.yaml
     # Preconditions
@@ -42,7 +44,10 @@ Test Ankaios Podman restart of a workload intercepted by update
     Then the workload "hello1" shall have the execution state "Running" from agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
-Test Ankaios Podman restart of a workload intercepted by two updates
+# [itest->swdd~agent-workload-control-loop-executes-restart~1]
+# [itest->swdd~agent-workload-control-loop-request-restarts~1]
+# [itest->swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1]
+Test Ankaios Podman restart of a workload on creation failure intercepted by update
     [Setup]    Run Keywords    Setup Ankaios
     ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_restart_workload.yaml
     # Preconditions
@@ -64,7 +69,10 @@ Test Ankaios Podman restart of a workload intercepted by two updates
     Then the workload "hello1" shall have the execution state "Succeeded" from agent "agent_A" within "30" seconds
     [Teardown]    Clean up Ankaios
 
-Test Ankaios Podman restart of a workload intercepted by update and delete
+# [itest->swdd~agent-workload-control-loop-executes-restart~1]
+# [itest->swdd~agent-workload-control-loop-request-restarts~1]
+# [itest->swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1]
+Test Ankaios Podman restart of a workload on creation failure intercepted by delete
     [Setup]    Run Keywords    Setup Ankaios
     ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_restart_workload.yaml
     # Preconditions
@@ -86,7 +94,10 @@ Test Ankaios Podman restart of a workload intercepted by update and delete
     podman shall not have a container for workload "hello1" on agent "agent_A" within "10" seconds
     [Teardown]    Clean up Ankaios
 
-Test Ankaios Podman stop restarts after reaching the restart limit
+# [itest->swdd~agent-workload-control-loop-executes-restart~1]
+# [itest->swdd~agent-workload-control-loop-request-restarts~1]
+# [itest->swdd~agent-workload-control-loop-limit-restart-attempts~1]
+Test Ankaios Podman stop restarts after reaching the restart attempt limit
     [Setup]    Run Keywords    Setup Ankaios
     ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_restart_workload_reach_limit.yaml
     # Preconditions
