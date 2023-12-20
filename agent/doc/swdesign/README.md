@@ -47,11 +47,11 @@ The RuntimeFacade wraps some common actions shared between all runtime connector
 
 ### WorkloadControlLoop
 
-The WorkloadControlLoop is started for each workload with the creation of that workload and is running until its deletion. The WorkloadControlLoop receives the workload commands Update, Restart or Delete via the WorkloadCommandChannel and triggers the corresponding operation on the runtime connector.
+The WorkloadControlLoop is started for each workload with the creation of that workload and is running until its deletion. The WorkloadControlLoop receives the workload commands update, restart or delete via the WorkloadCommandChannel and triggers the corresponding operation on the runtime connector.
 
 ### WorkloadCommandChannel
 
-The WorkloadCommandChannel is a communication channel and responsible for sending and receiving workload commands to the WorkloadControlLoop e.g. Update, Restart or Delete.
+The WorkloadCommandChannel is a communication channel and responsible for sending and receiving workload commands to the WorkloadControlLoop e.g. update, restart or delete.
 
 ### WorkloadObject
 
@@ -428,7 +428,8 @@ Status: approved
 
 When the RuntimeFacade gets a requests to create a workload, the RuntimeFacade shall:
 * request the wrapped runtime to create the workload (incl. starting the state checker monitoring it)
-* start the WorkloadControlLoop waiting for stop or update commands for that workload
+* start the WorkloadControlLoop waiting for delete, update or restart commands for that workload
+* request the WorkloadControlLoop via the WorkloadCommandChannel to restart the workload if the create fails for that workload
 * return a new workload object containing a WorkloadCommandChannel to communicate with the WorkloadControlLoop
 
 Comment:
@@ -486,7 +487,7 @@ Status: approved
 
 When requested, the RuntimeFacade resumes a workload by:
 * request the wrapped runtime to start the state checker for that workload
-* start the WorkloadControlLoop waiting for stop or update commands for that workload
+* start the WorkloadControlLoop waiting for delete, update or restart commands for that workload
 * return a new workload object containing a WorkloadCommandChannel to communicate with the WorkloadControlLoop
 
 Comment:
@@ -527,7 +528,8 @@ Status: approved
 When requested, the RuntimeFacade replaces a workload by:
 * request the wrapped runtime to delete the old workload
 * request the wrapped runtime to create a workload with the new config(incl. starting the state checker monitoring it)
-* start the WorkloadControlLoop waiting for stop or update commands for that workload
+* request the WorkloadControlLoop via the WorkloadCommandChannel to restart the workload if the create fails for that workload
+* start the WorkloadControlLoop waiting for delete, update or restart commands for that workload
 * return a new workload object containing a WorkloadCommandChannel to communicate with the WorkloadControlLoop
 
 Comment:
@@ -652,6 +654,7 @@ When the WorkloadControlLoop started during the creation of the workload object 
 * delete the old workload via the corresponding runtime connector
 * stop the state checker for the workload
 * create a new workload via the corresponding runtime connector (which creates and starts a state checker)
+* restart the workload in compliance with the limit of the defined restart attempts if a create of that workload fails
 * store the new Id and reference to the state checker inside the WorkloadControlLoop
 
 Comment:
@@ -760,18 +763,18 @@ Needs:
 - utest
 - stest
 
-#### Workload task prevents restarts after receiving other workload commands
+#### Workload task prevents restarts when receiving other workload commands
 `swdd~agent-prevent-restarts-on-other-workload-commands~1`
 
 Status: approved
 
-The WorkloadControlLoop shall stop triggering restart attempts of workloads when another workload command besides the restart command is received from the WorkloadCommandChannel.
+The WorkloadControlLoop shall stop triggering restart attempts of workloads when a workload command update or delete is received from the WorkloadCommandChannel.
 
 Comment:
-When executing the restart attempts the WorkloadControlLoop might receive other workload commands like Update or Delete making the restart attempts with the previous workload configuration obsolete.
+When executing the restart attempts the WorkloadControlLoop might receive other workload commands like update or delete making the restart attempts with the previous workload configuration obsolete.
 
 Rationale:
-This prevents the continuation of unnecessary restart attempts of a workload when receiving a workload command Update or Delete.
+This prevents the continuation of unnecessary restart attempts of a workload when receiving a workload command update or delete.
 
 Tags:
 - WorkloadControlLoop
