@@ -258,7 +258,7 @@ impl WorkloadControlLoop {
     {
         loop {
             match control_loop_state.command_receiver.recv().await {
-                // [impl->swdd~agent-workload-tasks-executes-delete~1]
+                // [impl->swdd~agent-workload-control-loop-executes-delete~1]
                 Some(WorkloadCommand::Delete) => {
                     log::debug!("Received WorkloadCommand::Delete.");
 
@@ -662,7 +662,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-tasks-executes-delete~1]
+    // [utest->swdd~agent-workload-control-loop-executes-delete~1]
     #[tokio::test]
     async fn utest_workload_obj_run_delete_success() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
