@@ -28,11 +28,9 @@ else subsequent update workload call
             alt workload object found
                 runtime_manager -> workload ++: update (new config)
                 workload ->> workload_command ++: update (new config)
-                workload_command -->> workload
                 workload -->> runtime_manager--
                 deactivate workload
-                workload_command -> workload_control_loop ++: update (new config)
-                workload_control_loop -->> workload_command
+                workload_command ->> workload_control_loop ++: update (new config)
                 deactivate workload_command
                 workload_control_loop -> runtime ++: perform update actions
                 runtime -->> workload_control_loop--
@@ -49,9 +47,7 @@ else subsequent update workload call
             runtime_manager -> runtime_manager ++--: remove workload from running workloads list
             runtime_manager -> workload ++: delete
             workload ->> workload_command ++: delete
-            workload_command -->> workload
-            workload_command -> workload_control_loop ++: delete
-            workload_control_loop -->> workload_command
+            workload_command ->> workload_control_loop ++: delete
             workload -->> runtime_manager
             destroy workload
             destroy workload_command

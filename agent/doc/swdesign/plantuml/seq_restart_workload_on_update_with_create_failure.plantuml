@@ -1,0 +1,32 @@
+@startuml seq_restart_workload_on_update_with_create_failure
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "Ankaios Agent"
+    participant "Workload" as workload
+    participant "WorkloadCommandChannel" as workload_command
+    participant "WorkloadControlLoop" as workload_control_loop
+
+    participant "Specific Runtime Connector\n e.g., PodmanRuntime" as runtime
+end box
+
+workload_control_loop ->> workload_control_loop ++: listen for commands
+
+workload ->> workload_command ++: update
+workload_command ->> workload_control_loop ++: update
+workload_control_loop ->> runtime ++: delete
+note right
+    see delete digram for details on update
+endnote
+runtime -->> workload_control_loop--
+
+loop restart_counter < limit
+    workload_control_loop ->> runtime ++: create workload
+    runtime -->> workload_control_loop--
+
+    break create workload successful
+    end
+
+    workload_control_loop ->> workload_command ++: restart
+    workload_command ->> workload_control_loop ++: restart
+end
+@enduml

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentScriptType="application/ecmascript" contentStyleType="text/css" height="442px" preserveAspectRatio="none" style="width:780px;height:442px;" version="1.1" viewBox="0 0 780 442" width="780px" zoomAndPan="magnify"><defs/><g><rect fill="#EEEEEE" height="420.0547" style="stroke: #D3D3D3; stroke-width: 1.0;" width="734" x="19" y="4"/><text fill="#777777" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="107" x="332.5" y="16.0669">Ankaios Agent</text><rect fill="#FFFFFF" height="331.3281" style="stroke: #383838; stroke-width: 1.0;" width="10" x="79" y="80.7266"/><rect fill="#FFFFFF" height="251.9297" style="stroke: #383838; stroke-width: 1.0;" width="10" x="253" y="169.125"/><rect fill="#FFFFFF" height="66.1328" style="stroke: #383838; stroke-width: 1.0;" width="10" x="258" y="354.9219"/><rect fill="#FFFFFF" height="222.7969" style="stroke: #383838; stroke-width: 1.0;" width="10" x="447" y="198.2578"/><rect fill="#FFFFFF" height="193.6641" style="stroke: #383838; stroke-width: 1.0;" width="10" x="452" y="227.3906"/><rect fill="#FFFFFF" height="28" style="stroke: #383838; stroke-width: 1.0;" width="10" x="457" y="384.0547"/><rect fill="#FFFFFF" height="14" style="stroke: #383838; stroke-width: 1.0;" width="10" x="641" y="101.8594"/><rect fill="#FFFFFF" height="14" style="stroke: #383838; stroke-width: 1.0;" width="10" x="641" y="280.6563"/><rect fill="#FFFFFF" height="268.1953" style="stroke: #000000; stroke-width: 2.0;" width="756" x="13" y="130.8594"/><rect fill="#FFFFFF" height="149.6641" style="stroke: #000000; stroke-width: 2.0;" width="736" x="23" y="242.3906"/><rect fill="#FFFFFF" height="17.1328" style="stroke: #000000; stroke-width: 2.0;" width="294" x="33" y="309.6563"/><line style="stroke: #383838; stroke-width: 1.0; stroke-dasharray: 5.0,5.0;" x1="84" x2="84" y1="70.7266" y2="430.0547"/><line style="stroke: #383838; stroke-width: 1.0; stroke-dasharray: 5.0,5.0;" x1="258" x2="258" y1="70.7266" y2="430.0547"/><line style="stroke: #383838; stroke-width: 1.0; stroke-dasharray: 5.0,5.0;" x1="452" x2="452" y1="70.7266" y2="430.0547"/><line style="stroke: #383838; stroke-width: 1.0; stroke-dasharray: 5.0,5.0;" x1="646" x2="646" y1="70.7266" y2="430.0547"/><rect fill="#F8F8F8" height="30.2969" style="stroke: #383838; stroke-width: 1.5;" width="122" x="23" y="39.4297"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="108" x="30" y="59.4248">RuntimeFacade</text><rect fill="#F8F8F8" height="30.2969" style="stroke: #383838; stroke-width: 1.5;" width="206" x="155" y="39.4297"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="192" x="162" y="59.4248">WorkloadCommandChannel</text><rect fill="#F8F8F8" height="30.2969" style="stroke: #383838; stroke-width: 1.5;" width="162" x="371" y="39.4297"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="148" x="378" y="59.4248">WorkloadControlLoop</text><rect fill="#F8F8F8" height="46.5938" style="stroke: #383838; stroke-width: 1.5;" width="206" x="543" y="23.1328"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="192" x="550" y="43.1279">Specific Runtime Connector</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacingAndGlyphs" textLength="149" x="573.5" y="59.4248">e.g., PodmanRuntime</text><rect fill="#FFFFFF" height="331.3281" style="stroke: #383838; stroke-width: 1.0;" width="10" x="79" y="80.7266"/><rect fill="#FFFFFF" height="251.9297" style="stroke: #383838; stroke-width: 1.0;" width="10" x="253" y="169.125"/><rect fill="#FFFFFF" height="66.1328" style="stroke: #383838; stroke-width: 1.0;" width="10" x="258" y="354.9219"/><rect fill="#FFFFFF" height="222.7969" style="stroke: #383838; stroke-width: 1.0;" width="10" x="447" y="198.2578"/><rect fill="#FFFFFF" height="193.6641" style="stroke: #383838; stroke-width: 1.0;" width="10" x="452" y="227.3906"/><rect fill="#FFFFFF" height="28" style="stroke: #383838; stroke-width: 1.0;" width="10" x="457" y="384.0547"/><rect fill="#FFFFFF" height="14" style="stroke: #383838; stroke-width: 1.0;" width="10" x="641" y="101.8594"/><rect fill="#FFFFFF" height="14" style="stroke: #383838; stroke-width: 1.0;" width="10" x="641" y="280.6563"/><line style="stroke: #383838; stroke-width: 1.0;" x1="639" x2="629" y1="101.8594" y2="97.8594"/><line style="stroke: #383838; stroke-width: 1.0;" x1="639" x2="629" y1="101.8594" y2="105.8594"/><line style="stroke: #383838; stroke-width: 1.0;" x1="89" x2="640" y1="101.8594" y2="101.8594"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="101" x="96" y="96.7935">create workload</text><line style="stroke: #383838; stroke-width: 1.0;" x1="89" x2="99" y1="115.8594" y2="111.8594"/><line style="stroke: #383838; stroke-width: 1.0;" x1="89" x2="99" y1="115.8594" y2="119.8594"/><line style="stroke: #383838; stroke-width: 1.0; stroke-dasharray: 2.0,2.0;" x1="89" x2="645" y1="115.8594" y2="115.8594"/><path d="M13,130.8594 L83,130.8594 L83,137.8594 L73,147.8594 L13,147.8594 L13,130.8594 " fill="#EEEEEE" style="stroke: #000000; stroke-width: 1.0;"/><rect fill="none" height="268.1953" style="stroke: #000000; stroke-width: 2.0;" width="756" x="13" y="130.8594"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="25" x="28" y="143.9263">opt</text><text fill="#000000" font-family="sans-serif" font-size="11" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="146" x="98" y="143.0698">[create workload fails]</text><line style="stroke: #383838; stroke-width: 1.0;" x1="251" x2="241" y1="169.125" y2="165.125"/><line style="stroke: #383838; stroke-width: 1.0;" x1="251" x2="241" y1="169.125" y2="173.125"/><line style="stroke: #383838; stroke-width: 1.0;" x1="89" x2="252" y1="169.125" y2="169.125"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="43" x="96" y="164.0591">restart</text><line style="stroke: #383838; stroke-width: 1.0;" x1="445" x2="435" y1="198.2578" y2="194.2578"/><line style="stroke: #383838; stroke-width: 1.0;" x1="445" x2="435" y1="198.2578" y2="202.2578"/><line style="stroke: #383838; stroke-width: 1.0;" x1="89" x2="446" y1="198.2578" y2="198.2578"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="131" x="96" y="193.1919">listen for commands</text><line style="stroke: #383838; stroke-width: 1.0;" x1="450" x2="440" y1="227.3906" y2="223.3906"/><line style="stroke: #383838; stroke-width: 1.0;" x1="450" x2="440" y1="227.3906" y2="231.3906"/><line style="stroke: #383838; stroke-width: 1.0;" x1="263" x2="451" y1="227.3906" y2="227.3906"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="43" x="270" y="222.3247">restart</text><path d="M23,242.3906 L100,242.3906 L100,249.3906 L90,259.3906 L23,259.3906 L23,242.3906 " fill="#EEEEEE" style="stroke: #000000; stroke-width: 1.0;"/><rect fill="none" height="149.6641" style="stroke: #000000; stroke-width: 2.0;" width="736" x="23" y="242.3906"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="32" x="38" y="255.4575">loop</text><text fill="#000000" font-family="sans-serif" font-size="11" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="153" x="115" y="254.6011">[restart_counter &lt; limit]</text><line style="stroke: #383838; stroke-width: 1.0;" x1="639" x2="629" y1="280.6563" y2="276.6563"/><line style="stroke: #383838; stroke-width: 1.0;" x1="639" x2="629" y1="280.6563" y2="284.6563"/><line style="stroke: #383838; stroke-width: 1.0;" x1="462" x2="640" y1="280.6563" y2="280.6563"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="101" x="469" y="275.5903">create workload</text><line style="stroke: #383838; stroke-width: 1.0;" x1="462" x2="472" y1="294.6563" y2="290.6563"/><line style="stroke: #383838; stroke-width: 1.0;" x1="462" x2="472" y1="294.6563" y2="298.6563"/><line style="stroke: #383838; stroke-width: 1.0; stroke-dasharray: 2.0,2.0;" x1="462" x2="645" y1="294.6563" y2="294.6563"/><path d="M33,309.6563 L121,309.6563 L121,316.6563 L111,326.6563 L33,326.6563 L33,309.6563 " fill="#EEEEEE" style="stroke: #000000; stroke-width: 1.0;"/><rect fill="none" height="17.1328" style="stroke: #000000; stroke-width: 2.0;" width="294" x="33" y="309.6563"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="43" x="48" y="322.7231">break</text><text fill="#000000" font-family="sans-serif" font-size="11" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="186" x="136" y="321.8667">[create workload successful]</text><line style="stroke: #383838; stroke-width: 1.0;" x1="268" x2="278" y1="354.9219" y2="350.9219"/><line style="stroke: #383838; stroke-width: 1.0;" x1="268" x2="278" y1="354.9219" y2="358.9219"/><line style="stroke: #383838; stroke-width: 1.0;" x1="268" x2="451" y1="354.9219" y2="354.9219"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="43" x="285" y="349.856">restart</text><line style="stroke: #383838; stroke-width: 1.0;" x1="455" x2="445" y1="384.0547" y2="380.0547"/><line style="stroke: #383838; stroke-width: 1.0;" x1="455" x2="445" y1="384.0547" y2="388.0547"/><line style="stroke: #383838; stroke-width: 1.0;" x1="268" x2="456" y1="384.0547" y2="384.0547"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="43" x="275" y="378.9888">restart</text><line style="stroke: #383838; stroke-width: 1.0;" x1="84" x2="94" y1="412.0547" y2="408.0547"/><line style="stroke: #383838; stroke-width: 1.0;" x1="84" x2="94" y1="412.0547" y2="416.0547"/><line style="stroke: #383838; stroke-width: 1.0; stroke-dasharray: 2.0,2.0;" x1="84" x2="451" y1="412.0547" y2="412.0547"/><!--MD5=[e7d12a92cfb28748b19b594e98359e6f]
+@startuml seq_restart_workload_on_create_failure
+skinparam monochrome true
+skinparam guillemet true
+skinparam style strictuml
+hide empty members
+hide empty methods
+
+skinparam class {
+    BorderColor<<logical entity>> grey
+    FontColor<<logical entity>> grey
+    StereotypeFontColor<<logical entity>> grey
+}
+
+skinparam sequenceBox {
+    BorderColor #LightGrey
+    BackgroundColor #EEEEEE
+    FontColor #777777
+}
+
+skinparam BoxPadding 10
+
+skinparam note {
+    BackgroundColor #FFFFFF
+}
+
+skinparam nodesep 30
+skinparam ranksep 30
+
+box "Ankaios Agent"
+    participant "RuntimeFacade" as runtime_facade
+    participant "WorkloadCommandChannel" as workload_command
+    participant "WorkloadControlLoop" as workload_control_loop
+
+    participant "Specific Runtime Connector\n e.g., PodmanRuntime" as runtime
+end box
+
+activate runtime_facade
+runtime_facade ->> runtime ++: create workload
+runtime - ->> runtime_facade- -
+opt create workload fails
+    runtime_facade ->> workload_command ++: restart
+    runtime_facade ->> workload_control_loop ++: listen for commands
+    workload_command ->> workload_control_loop ++: restart
+    loop restart_counter < limit
+        workload_control_loop ->> runtime ++: create workload
+        runtime - ->> workload_control_loop- -
+        break create workload successful
+        end
+        workload_control_loop ->> workload_command ++: restart
+        workload_command ->> workload_control_loop ++: restart
+    end
+end
+workload_control_loop - ->> runtime_facade- -
+deactivate runtime_facade
+@enduml
+
+PlantUML version 1.2020.02(Sun Mar 01 10:22:07 UTC 2020)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Java Version: 17.0.9+9-Debian-1deb12u1
+Operating System: Linux
+Default Encoding: UTF-8
+Language: en
+Country: US
+--></g></svg>

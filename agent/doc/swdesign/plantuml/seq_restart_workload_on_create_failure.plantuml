@@ -1,0 +1,30 @@
+@startuml seq_restart_workload_on_create_failure
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "Ankaios Agent"
+    participant "RuntimeFacade" as runtime_facade
+    participant "WorkloadCommandChannel" as workload_command
+    participant "WorkloadControlLoop" as workload_control_loop
+
+    participant "Specific Runtime Connector\n e.g., PodmanRuntime" as runtime
+end box
+
+activate runtime_facade
+runtime_facade ->> runtime ++: create workload
+runtime -->> runtime_facade--
+opt create workload fails
+    runtime_facade ->> workload_command ++: restart
+    runtime_facade ->> workload_control_loop ++: listen for commands
+    workload_command ->> workload_control_loop ++: restart
+    loop restart_counter < limit
+        workload_control_loop ->> runtime ++: create workload
+        runtime -->> workload_control_loop--
+        break create workload successful
+        end
+        workload_control_loop ->> workload_command ++: restart
+        workload_command ->> workload_control_loop ++: restart
+    end
+end
+workload_control_loop -->> runtime_facade--
+deactivate runtime_facade
+@enduml

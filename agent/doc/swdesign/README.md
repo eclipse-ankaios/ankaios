@@ -318,7 +318,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Agent gets an add Workload command with the `UpdateWorklaod` message and the runtime of the Workload is unknown, the RuntimeManager shall skip this Workload.
+When the Ankaios Agent gets an add Workload command with the `Updateworkload` message and the runtime of the Workload is unknown, the RuntimeManager shall skip this Workload.
 
 Tags:
 - RuntimeManager
@@ -692,7 +692,7 @@ Needs:
 
 Status: approved
 
-When the WorkloadControlLoop encounters a failure while deleting the old workload during the update of a workload, the WorkloadControlLoop shall continue allowing a subsequent update or delete attempt.
+When the WorkloadControlLoop encounters a failure while deleting the old workload during the update of a workload, the WorkloadControlLoop shall continue allowing subsequent workload commands attempt.
 
 Rationale:
 This allows to try the update again instead of going in an undefined state.
@@ -709,7 +709,7 @@ Needs:
 
 Status: approved
 
-When the WorkloadControlLoop encounters a failure while creating a new workload during the update of a workload, the WorkloadControlLoop shall continue allowing a subsequent update or delete attempt.
+When the WorkloadControlLoop encounters a failure while creating a new workload during the update of a workload, the WorkloadControlLoop shall continue allowing subsequent workload commands attempt.
 
 Rationale:
 This allows to try the update again instead of going in an undefined state.
@@ -720,6 +720,14 @@ Tags:
 Needs:
 - impl
 - utest
+
+The following diagram describes the restart behavior when a workload is created initially and the create fails:
+
+![Restart Workload On Create Failure](plantuml/seq_restart_workload_on_create_failure.svg)
+
+The following diagram describes the restart behavior when an update command is received within the WorkloadControlLoop and the create of the new workload fails:
+
+![Restart Workload On Update With Create Failure](plantuml/seq_restart_workload_on_update_with_create_failure.svg)
 
 ##### WorkloadControlLoop requests restarts of a workload when runtime fails to create workload
 `swdd~agent-workload-control-loop-request-restarts~1`
@@ -896,7 +904,7 @@ Needs:
 
 Status: approved
 
-When the WorkloadControlLoop encounters a failure while deleting the workload, the WorkloadControlLoop shall continue allowing a subsequent update or delete attempt.
+When the WorkloadControlLoop encounters a failure while deleting the workload, the WorkloadControlLoop shall continue allowing subsequent workload command attempts.
 
 Rationale:
 This allows to try the delete again instead of going in an undefined state.
