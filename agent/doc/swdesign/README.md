@@ -721,91 +721,6 @@ Needs:
 - impl
 - utest
 
-The following diagram describes the restart behavior when a workload is created initially and the create fails:
-
-![Restart Workload On Create Failure](plantuml/seq_restart_workload_on_create_failure.svg)
-
-The following diagram describes the restart behavior when an update command is received within the WorkloadControlLoop and the create of the new workload fails:
-
-![Restart Workload On Update With Create Failure](plantuml/seq_restart_workload_on_update_with_create_failure.svg)
-
-##### WorkloadControlLoop requests restarts of a workload when runtime fails to create workload
-`swdd~agent-workload-control-loop-request-restarts~1`
-
-Status: approved
-
-When the runtime connector fails to create a workload, the WorkloadControlLoop shall request a restart of the creation of the workload within a 1 sec time interval.
-
-Comment:
-The creation of a workload can fail temporarily, for example if a Runtime is still busy deleting and the workload is to be recreated. The WorkloadControlLoop uses the WorkloadCommandChannel to send the workload command restart.
-
-Rationale:
-The restart behavior for unsuccessful creation of a workload makes the system more robust against runtime specific delays on delete operations.
-
-Tags:
-- WorkloadControlLoop
-
-Needs:
-- impl
-- utest
-- stest
-
-##### WorkloadControlLoop restarts a workload
-`swdd~agent-workload-control-loop-restart-workload~1`
-
-Status: approved
-
-When the WorkloadControlLoop receives a restart command, the WorkloadControlLoop shall:
-* create a new workload via the corresponding runtime connector (which creates and starts a state checker)
-* store the new Id and reference to the state checker inside the WorkloadControlLoop
-
-Tags:
-- WorkloadControlLoop
-
-Needs:
-- impl
-- utest
-- stest
-
-##### WorkloadControlLoop stops restarts after the defined maximum amount of restart attempts
-`swdd~agent-workload-control-limit-restart-attempts~1`
-
-Status: approved
-
-The WorkloadControlLoop shall execute a maximum of 20 restart attempts.
-
-Rationale:
-Limiting the restart attempts prevents pointless attempts if the workload cannot be started due to a general configuration conflict that the runtime rejects in general.
-
-Tags:
-- WorkloadControlLoop
-
-Needs:
-- impl
-- utest
-- stest
-
-##### WorkloadControlLoop prevents restarts when receiving other workload commands
-`swdd~agent-prevent-restarts-on-other-workload-commands~1`
-
-Status: approved
-
-The WorkloadControlLoop shall stop triggering restart attempts of workloads when a workload command update or delete is received from the WorkloadCommandChannel.
-
-Comment:
-When executing the restart attempts the WorkloadControlLoop might receive other workload commands like update or delete making the restart attempts with the previous workload configuration obsolete.
-
-Rationale:
-This prevents the continuation of unnecessary restart attempts of a workload when receiving a workload command update or delete.
-
-Tags:
-- WorkloadControlLoop
-
-Needs:
-- impl
-- utest
-- stest
-
 ##### Agent adds on update missing workload
 `swdd~agent-add-on-update-missing-workload~1`
 
@@ -946,6 +861,93 @@ Tags:
 Needs:
 - impl
 - utest
+
+#### Restart of workloads
+
+The following diagram describes the restart behavior when a workload is created and the create fails:
+
+![Restart Workload On Create Failure](plantuml/seq_restart_workload_on_create_failure.svg)
+
+The following diagram describes the restart behavior when an update command is received within the WorkloadControlLoop and the create of the new workload fails:
+
+![Restart Workload On Update With Create Failure](plantuml/seq_restart_workload_on_update_with_create_failure.svg)
+
+##### WorkloadControlLoop requests restarts of a workload when runtime fails to create workload
+`swdd~agent-workload-control-loop-request-restarts~1`
+
+Status: approved
+
+When the runtime connector fails to create a workload, the WorkloadControlLoop shall request a restart of the creation of the workload within a 1 sec time interval.
+
+Comment:
+The creation of a workload can fail temporarily, for example if a Runtime is still busy deleting and the workload is to be recreated. The WorkloadControlLoop uses the WorkloadCommandChannel to send the workload command restart.
+
+Rationale:
+The restart behavior for unsuccessful creation of a workload makes the system more robust against runtime specific delays on delete operations.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
+
+##### WorkloadControlLoop restarts a workload
+`swdd~agent-workload-control-loop-restart-workload~1`
+
+Status: approved
+
+When the WorkloadControlLoop receives a restart command, the WorkloadControlLoop shall:
+* create a new workload via the corresponding runtime connector (which creates and starts a state checker)
+* store the new Id and reference to the state checker inside the WorkloadControlLoop
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
+
+##### WorkloadControlLoop stops restarts after the defined maximum amount of restart attempts
+`swdd~agent-workload-control-limit-restart-attempts~1`
+
+Status: approved
+
+The WorkloadControlLoop shall execute a maximum of 20 restart attempts.
+
+Rationale:
+Limiting the restart attempts prevents pointless attempts if the workload cannot be started due to a general configuration conflict that the runtime rejects in general.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
+
+##### WorkloadControlLoop prevents restarts when receiving other workload commands
+`swdd~agent-prevent-restarts-on-other-workload-commands~1`
+
+Status: approved
+
+The WorkloadControlLoop shall stop triggering restart attempts of workloads when a workload command update or delete is received from the WorkloadCommandChannel.
+
+Comment:
+When executing the restart attempts the WorkloadControlLoop might receive other workload commands like update or delete making the restart attempts with the previous workload configuration obsolete.
+
+Rationale:
+This prevents the continuation of unnecessary restart attempts of a workload when receiving a workload command update or delete.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
 
 #### Runtime connector workflows
 
