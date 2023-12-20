@@ -652,7 +652,6 @@ When the WorkloadControlLoop started during the creation of the workload object 
 * delete the old workload via the corresponding runtime connector
 * stop the state checker for the workload
 * create a new workload via the corresponding runtime connector (which creates and starts a state checker)
-* request a restart of the workload in compliance with the limit of the defined restart attempts if a create of that workload fails
 * store the new Id and reference to the state checker inside the WorkloadControlLoop
 
 Comment:
@@ -847,7 +846,7 @@ Needs:
 - utest
 
 ##### WorkloadControlLoop executes delete command
-`swdd~agent-workload-tasks-executes-delete~1`
+`swdd~agent-workload-control-loop-executes-delete~1`
 
 Status: approved
 
