@@ -429,7 +429,6 @@ Status: approved
 When the RuntimeFacade gets a requests to create a workload, the RuntimeFacade shall:
 * request the wrapped runtime to create the workload (incl. starting the state checker monitoring it)
 * start the WorkloadControlLoop waiting for delete, update or restart commands for that workload
-* request the WorkloadControlLoop via the WorkloadCommandChannel to restart the workload if the create fails for that workload
 * return a new workload object containing a WorkloadCommandChannel to communicate with the WorkloadControlLoop
 
 Comment:
@@ -528,7 +527,6 @@ Status: approved
 When requested, the RuntimeFacade replaces a workload by:
 * request the wrapped runtime to delete the old workload
 * request the wrapped runtime to create a workload with the new config(incl. starting the state checker monitoring it)
-* request the WorkloadControlLoop via the WorkloadCommandChannel to restart the workload if the create fails for that workload
 * start the WorkloadControlLoop waiting for delete, update or restart commands for that workload
 * return a new workload object containing a WorkloadCommandChannel to communicate with the WorkloadControlLoop
 
