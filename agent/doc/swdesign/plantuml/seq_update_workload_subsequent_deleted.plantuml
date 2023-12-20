@@ -5,6 +5,8 @@ box "Ankaios Agent"
     participant "AgentManager" as manager
     participant "RuntimeManager" as runtime_manager
     participant "Workload" as workload
+    participant "WorkloadCommandChannel" as workload_command
+    participant "WorkloadControlLoop" as workload_control_loop
 
     participant "Specific Runtime Connector\n e.g., PodmanRuntime" as runtime
 end box
@@ -25,11 +27,16 @@ else subsequent update workload call
             runtime_manager -> runtime_manager ++--: find workload in running workloads
             alt workload object found
                 runtime_manager -> workload ++: update (new config)
-                workload ->> workload ++: decopule the specific actions
-                workload -> runtime++: perform update actions
-                runtime -->> workload--
+                workload ->> workload_command ++: update (new config)
+                workload_command -->> workload
+                workload -->> runtime_manager--
                 deactivate workload
-                workload -->> runtime_manager --:
+                workload_command -> workload_control_loop ++: update (new config)
+                workload_control_loop -->> workload_command
+                deactivate workload_command
+                workload_control_loop -> runtime ++: perform update actions
+                runtime -->> workload_control_loop--
+                deactivate workload_control_loop
                 deactivate runtime_manager
             else no workload object found -> nothing to update
                 runtime_manager -> runtime_manager++--:add workload
@@ -41,12 +48,16 @@ else subsequent update workload call
             runtime_manager -> runtime_manager++: delete workload
             runtime_manager -> runtime_manager ++--: remove workload from running workloads list
             runtime_manager -> workload ++: delete
-            workload ->> workload ++: decopule the specific actions
-            workload -> runtime++: perform delete actions
-            runtime -->> workload--
-            deactivate workload
-            workload -->> runtime_manager --:
+            workload ->> workload_command ++: delete
+            workload_command -->> workload
+            workload_command -> workload_control_loop ++: delete
+            workload_control_loop -->> workload_command
+            workload -->> runtime_manager
             destroy workload
+            destroy workload_command
+            workload_control_loop -> runtime++: perform delete actions
+            runtime -->> workload_control_loop--
+            destroy workload_control_loop
             deactivate runtime_manager
         end
     end
