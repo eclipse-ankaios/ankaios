@@ -645,8 +645,8 @@ Needs:
 - impl
 - utest
 
-##### Workload task executes update command
-`swdd~agent-workload-task-executes-update~1`
+##### WorkloadControlLoop executes update command
+`swdd~agent-workload-control-loop-executes-update~1`
 
 Status: approved
 
@@ -654,7 +654,7 @@ When the WorkloadControlLoop started during the creation of the workload object 
 * delete the old workload via the corresponding runtime connector
 * stop the state checker for the workload
 * create a new workload via the corresponding runtime connector (which creates and starts a state checker)
-* restart the workload in compliance with the limit of the defined restart attempts if a create of that workload fails
+* request a restart of the workload in compliance with the limit of the defined restart attempts if a create of that workload fails
 * store the new Id and reference to the state checker inside the WorkloadControlLoop
 
 Comment:
@@ -670,8 +670,8 @@ Needs:
 - impl
 - utest
 
-##### Workload task update broken allowed
-`swdd~agent-workload-task-update-broken-allowed~1`
+##### WorkloadControlLoop update broken allowed
+`swdd~agent-workload-control-loop-update-broken-allowed~1`
 
 Status: approved
 
@@ -690,8 +690,8 @@ Needs:
 - impl
 - utest
 
-##### Workload task update delete failed allows retry
-`swdd~agent-workload-task-update-delete-failed-allows-retry~1`
+##### WorkloadControlLoop update delete failed allows retry
+`swdd~agent-workload-control-loop-update-delete-failed-allows-retry~1`
 
 Status: approved
 
@@ -707,8 +707,8 @@ Needs:
 - impl
 - utest
 
-##### Workload task update create failed allows retry
-`swdd~agent-workload-task-update-create-failed-allows-retry~1`
+##### WorkloadControlLoop update create failed allows retry
+`swdd~agent-workload-control-loop-update-create-failed-allows-retry~1`
 
 Status: approved
 
@@ -724,15 +724,15 @@ Needs:
 - impl
 - utest
 
-#### Workload task restarts a workload when runtime fails to create workload
-`swdd~agent-prevent-restarts-on-other-workload-commands~1`
+#### WorkloadControlLoop requests restarts of a workload when runtime fails to create workload
+`swdd~agent-workload-control-loop-request-restarts~1`
 
 Status: approved
 
-When the runtime connector fails to create a workload, the WorkloadControlLoop shall restart the creation of the workload within a 1 sec time interval.
+When the runtime connector fails to create a workload, the WorkloadControlLoop shall request a restart of the creation of the workload within a 1 sec time interval.
 
 Comment:
-The creation of a workload can fail temporarily, for example if a Runtime is still busy deleting and the workload is to be recreated.
+The creation of a workload can fail temporarily, for example if a Runtime is still busy deleting and the workload is to be recreated. The WorkloadControlLoop uses the WorkloadCommandChannel to send the workload command restart.
 
 Rationale:
 The restart behavior for unsuccessful creation of a workload makes the system more robust against runtime specific delays on delete operations.
@@ -745,8 +745,25 @@ Needs:
 - utest
 - stest
 
-#### Workload task stops restarts after the defined maximum amount of restart attempts
-`swdd~agent-prevent-restarts-on-other-workload-commands~1`
+#### WorkloadControlLoop restarts a workload
+`swdd~agent-workload-control-loop-restart-workload~1`
+
+Status: approved
+
+When the WorkloadControlLoop receives a restart command, the WorkloadControlLoop shall:
+* create a new workload via the corresponding runtime connector (which creates and starts a state checker)
+* store the new Id and reference to the state checker inside the WorkloadControlLoop
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
+
+#### WorkloadControlLoop stops restarts after the defined maximum amount of restart attempts
+`swdd~agent-workload-control-limit-restart-attempts~1`
 
 Status: approved
 
@@ -763,7 +780,7 @@ Needs:
 - utest
 - stest
 
-#### Workload task prevents restarts when receiving other workload commands
+#### WorkloadControlLoop prevents restarts when receiving other workload commands
 `swdd~agent-prevent-restarts-on-other-workload-commands~1`
 
 Status: approved
@@ -831,7 +848,7 @@ Needs:
 - impl
 - utest
 
-##### Workload task executes delete command
+##### WorkloadControlLoop executes delete command
 `swdd~agent-workload-tasks-executes-delete~1`
 
 Status: approved
@@ -857,8 +874,8 @@ Needs:
 - impl
 - utest
 
-##### Workload task delete broken allowed
-`swdd~agent-workload-task-delete-broken-allowed~1`
+##### WorkloadControlLoop delete broken allowed
+`swdd~agent-workload-control-loop-delete-broken-allowed~1`
 
 Status: approved
 
@@ -877,8 +894,8 @@ Needs:
 - impl
 - utest
 
-##### Workload task delete failed allows retry
-`swdd~agent-workload-task-delete-failed-allows-retry~1`
+##### WorkloadControlLoop delete failed allows retry
+`swdd~agent-workload-control-loop-delete-failed-allows-retry~1`
 
 Status: approved
 

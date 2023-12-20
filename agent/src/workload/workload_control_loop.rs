@@ -161,7 +161,7 @@ impl WorkloadControlLoop {
         let workload_name = control_loop_state.instance_name.workload_name();
         if let Some(old_id) = control_loop_state.workload_id.take() {
             if let Err(err) = control_loop_state.runtime.delete_workload(&old_id).await {
-                // [impl->swdd~agent-workload-task-delete-failed-allows-retry~1]
+                // [impl->swdd~agent-workload-control-loop-delete-failed-allows-retry~1]
                 log::warn!("Could not stop workload '{}': '{}'", workload_name, err);
                 control_loop_state.workload_id = Some(old_id);
 
@@ -173,7 +173,7 @@ impl WorkloadControlLoop {
                 log::debug!("Stop workload complete");
             }
         } else {
-            // [impl->swdd~agent-workload-task-delete-broken-allowed~1]
+            // [impl->swdd~agent-workload-control-loop-delete-broken-allowed~1]
             log::debug!("Workload '{}' already gone.", workload_name);
         }
 
@@ -203,7 +203,7 @@ impl WorkloadControlLoop {
         let workload_name = control_loop_state.instance_name.workload_name();
         if let Some(old_id) = control_loop_state.workload_id.take() {
             if let Err(err) = control_loop_state.runtime.delete_workload(&old_id).await {
-                // [impl->swdd~agent-workload-task-update-delete-failed-allows-retry~1]
+                // [impl->swdd~agent-workload-control-loop-update-delete-failed-allows-retry~1]
                 log::warn!("Could not update workload '{}': '{}'", workload_name, err);
                 control_loop_state.workload_id = Some(old_id);
                 return control_loop_state;
@@ -211,13 +211,13 @@ impl WorkloadControlLoop {
                 old_checker.stop_checker().await;
             }
         } else {
-            // [impl->swdd~agent-workload-task-update-broken-allowed~1]
+            // [impl->swdd~agent-workload-control-loop-update-broken-allowed~1]
             log::debug!("Workload '{}' already gone.", workload_name);
         }
 
         control_loop_state.restart_counter.reset();
 
-        // [impl->swdd~agent-workload-task-update-create-failed-allows-retry~1]
+        // [impl->swdd~agent-workload-control-loop-update-create-failed-allows-retry~1]
         Self::restart_create_on_failure(
             control_loop_state,
             runtime_workload_config,
@@ -269,7 +269,7 @@ impl WorkloadControlLoop {
                         return;
                     }
                 }
-                // [impl->swdd~agent-workload-task-executes-update~1]
+                // [impl->swdd~agent-workload-control-loop-executes-update~1]
                 Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
                     control_loop_state.instance_name = runtime_workload_config.instance_name();
                     log::debug!("Received WorkloadCommand::Update.");
@@ -340,7 +340,7 @@ mod tests {
     // Unfortunately this test also executes a delete of the newly updated workload.
     // We could not avoid this as it is the only possibility to check the internal variables
     // and to properly stop the control loop in the await new command method
-    // [utest->swdd~agent-workload-task-executes-update~1]
+    // [utest->swdd~agent-workload-control-loop-executes-update~1]
     #[tokio::test]
     async fn utest_workload_obj_run_update_success() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -424,7 +424,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-task-update-broken-allowed~1]
+    // [utest->swdd~agent-workload-control-loop-update-broken-allowed~1]
     #[tokio::test]
     async fn utest_workload_obj_run_update_broken_allowed() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -504,7 +504,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-task-update-delete-failed-allows-retry~1]
+    // [utest->swdd~agent-workload-control-loop-update-delete-failed-allows-retry~1]
     #[tokio::test]
     async fn utest_workload_obj_run_update_delete_failed_allows_retry() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -582,7 +582,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-task-update-create-failed-allows-retry~1]
+    // [utest->swdd~agent-workload-control-loop-update-create-failed-allows-retry~1]
     #[tokio::test]
     async fn utest_workload_obj_run_update_create_failed_allows_retry() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -726,7 +726,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-task-delete-failed-allows-retry~1]
+    // [utest->swdd~agent-workload-control-loop-delete-failed-allows-retry~1]
     #[tokio::test]
     async fn utest_workload_obj_run_delete_failed_allows_retry() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -797,7 +797,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-task-delete-broken-allowed~1]
+    // [utest->swdd~agent-workload-control-loop-delete-broken-allowed~1]
     #[tokio::test]
     async fn utest_workload_obj_run_delete_already_gone() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
