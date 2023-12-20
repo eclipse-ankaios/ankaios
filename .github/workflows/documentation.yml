@@ -66,8 +66,7 @@ jobs:
             tools/generate_docs.sh build
   lint:
     name: Lint documentation
-    needs: documentation_changes
-    if: ${{ needs.documentation_changes.outputs.documentation == 'true' }}
+    # No dependencies as we have markdown files in a lot of places
     runs-on: ubuntu-latest
     steps:
       - name: git checkout
