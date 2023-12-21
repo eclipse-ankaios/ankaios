@@ -92,6 +92,75 @@ Needs:
 - impl
 - utest
 
+#### Ankaios supported workload states
+`swdd~common-supported-workload-states~1`
+
+Status: approved
+
+Ankaios shall support the following execution states for a workload:
+
+- pending
+- waiting_to_start
+- starting
+- running
+- succeeded
+- failed
+- waiting_to_stop
+- stopping
+- removed
+- unknown
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+
+The Following diagram shows all Ankaios workload states and the possible transitions between them:
+
+![Workload states](plantuml/state_workload_execution_states.svg)
+
+
+#### Workload add conditions for dependencies
+`swdd~workload-add-conditions-for-dependencies~1`
+
+Status: approved
+
+Ankaios shall support the following add conditions for a workload dependency:
+* `running` - the workload is operational
+* `succeeded` - the workload has successfully exited 
+* `failed` - the workload has exited with an error or could not be started
+
+Rationale:
+Some workloads may need another service to be running before they can be started, others may need preparatory tasks which have been successfully finished. Dependencies on failure of workloads allows the execution of mitigation or recording actions.
+
+Tags: 
+- Objects
+
+Needs:
+- impl
+- utest
+
+#### Workload delete conditions for dependencies
+`swdd~workload-delete-conditions-for-dependencies~1`
+
+Status: approved
+
+Ankaios shall support the following delete conditions for a workload dependency:
+* `running` - the workload is operational
+* `not pending nor running` - the workload is not running nor it is going to be started soon
+
+Rationale:
+Delete conditions are needed to be able to stop a workload on which others depend and for the update strategy `at least once` when the workload is shifted from one agent to another.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+
 #### Provide deterministic object serialization
 `swdd~common-object-serialization~1`
 
