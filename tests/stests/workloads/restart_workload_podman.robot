@@ -22,6 +22,7 @@ ${new_state_yaml_file}
 
 *** Test Cases ***
 
+# [itest->swdd~agent-restart-workload-on-create-failure~1]
 # [itest->swdd~agent-workload-control-loop-executes-restart~1]
 # [itest->swdd~agent-workload-control-loop-request-restarts~1]
 Test Ankaios Podman restart of a workload on creation failure
@@ -44,6 +45,7 @@ Test Ankaios Podman restart of a workload on creation failure
     Then the workload "hello1" shall have the execution state "Running" from agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
+# [itest->swdd~agent-restart-workload-on-create-failure~1]
 # [itest->swdd~agent-workload-control-loop-executes-restart~1]
 # [itest->swdd~agent-workload-control-loop-request-restarts~1]
 # [itest->swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1]
@@ -69,6 +71,7 @@ Test Ankaios Podman restart of a workload on creation failure intercepted by upd
     Then the workload "hello1" shall have the execution state "Succeeded" from agent "agent_A" within "30" seconds
     [Teardown]    Clean up Ankaios
 
+# [itest->swdd~agent-restart-workload-on-create-failure~1]
 # [itest->swdd~agent-workload-control-loop-executes-restart~1]
 # [itest->swdd~agent-workload-control-loop-request-restarts~1]
 # [itest->swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1]
@@ -94,6 +97,7 @@ Test Ankaios Podman restart of a workload on creation failure intercepted by del
     podman shall not have a container for workload "hello1" on agent "agent_A" within "10" seconds
     [Teardown]    Clean up Ankaios
 
+# [itest->swdd~agent-restart-workload-on-create-failure~1]
 # [itest->swdd~agent-workload-control-loop-executes-restart~1]
 # [itest->swdd~agent-workload-control-loop-request-restarts~1]
 # [itest->swdd~agent-workload-control-loop-limit-restart-attempts~1]
