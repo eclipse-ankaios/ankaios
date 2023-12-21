@@ -928,6 +928,24 @@ Needs:
 - utest
 - stest
 
+##### WorkloadControlLoop sets execution state of workload to failed after reaching the restart limit
+`swdd~agent-workload-control-loop-restart-limit-set-execution-state~1`
+
+Status: approved
+
+When the WorkloadControlLoop receives a restart command and the maximum amount of restart attempts is reached, the WorkloadControlLoop shall set the execution state of the workload to `ExecFailed`.
+
+Rationale:
+The workload has a well defined state after reaching the restart attempt limit indicating that the create of the workload has failed.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
+
 ##### WorkloadControlLoop prevents restarts when receiving other workload commands
 `swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1`
 

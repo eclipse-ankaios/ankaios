@@ -101,6 +101,7 @@ Test Ankaios Podman restart of a workload on creation failure intercepted by del
 # [stest->swdd~agent-workload-control-loop-executes-restart~1]
 # [stest->swdd~agent-workload-control-loop-request-restarts~1]
 # [stest->swdd~agent-workload-control-loop-limit-restart-attempts~1]
+# [stest->swdd~agent-workload-control-loop-restart-limit-set-execution-state~1]
 Test Ankaios Podman stop restarts after reaching the restart attempt limit
     [Setup]    Run Keywords    Setup Ankaios
     ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_restart_workload_reach_limit.yaml
@@ -112,5 +113,5 @@ Test Ankaios Podman stop restarts after reaching the restart attempt limit
     # Actions
     When the user waits "22" seconds
     # Asserts
-    Then the workload "hello1" shall have the execution state "" on agent "agent_A"
+    Then the workload "hello1" shall have the execution state "Failed" on agent "agent_A"
     [Teardown]    Clean up Ankaios

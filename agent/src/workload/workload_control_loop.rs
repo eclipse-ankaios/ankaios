@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 // Copyright (c) 2023 Elektrobit Automotive GmbH
 //
 // This program and the accompanying materials are made available under the
@@ -22,6 +20,7 @@ use common::{
     state_change_interface::{StateChangeInterface, StateChangeSender},
     std_extensions::IllegalStateResult,
 };
+use std::path::PathBuf;
 
 #[cfg(test)]
 use mockall::automock;
@@ -131,6 +130,23 @@ impl WorkloadControlLoop {
                         "Abort restarts: reached maximum amount of restarts ('{}')",
                         restart_counter.limit()
                     );
+
+                    // [impl->swdd~agent-workload-control-loop-restart-limit-set-execution-state~1]
+                    control_loop_state
+                        .update_state_tx
+                        .update_workload_state(vec![common::objects::WorkloadState {
+                            agent_name: control_loop_state.instance_name.agent_name().into(),
+                            workload_name: control_loop_state.instance_name.workload_name().into(),
+                            execution_state: ExecutionState::ExecFailed,
+                        }])
+                        .await
+                        .unwrap_or_else(|err| {
+                            log::error!(
+                                "Failed to update workload state of workload '{}': '{}'",
+                                control_loop_state.instance_name.workload_name(),
+                                err
+                            )
+                        });
                     return control_loop_state;
                 }
 
@@ -929,15 +945,16 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-executes-restart~1]
     // [utest->swdd~agent-workload-control-loop-request-restarts~1]
     // [utest->swdd~agent-workload-control-loop-limit-restart-attempts~1]
+    // [utest->swdd~agent-workload-control-loop-restart-limit-set-execution-state~1]
     #[tokio::test]
-    async fn utest_workload_obj_run_restart_exceeded_workload_creation() {
+    async fn utest_workload_obj_run_restart_attempts_exceeded_workload_creation() {
         let _ = env_logger::builder().is_test(true).try_init();
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -949,7 +966,7 @@ mod tests {
 
         let mut runtime_expectations = vec![];
 
-        // instead of short vector initialization a for loop is used because RuntimeCall with its submembers shall not be clonable.
+        // instead of short vector initialization a for loop is used because RuntimeCall with its submembers shall not be clone-able.
         for _ in 0..super::MAX_RESTARTS {
             runtime_expectations.push(RuntimeCall::CreateWorkload(
                 workload_spec.clone(),
@@ -994,6 +1011,18 @@ mod tests {
         )
         .await
         .is_ok());
+
+        let expected_state = UpdateWorkloadState {
+            workload_states: vec![WorkloadState {
+                workload_name: WORKLOAD_1_NAME.to_string(),
+                agent_name: AGENT_NAME.to_string(),
+                execution_state: ExecutionState::ExecFailed,
+            }],
+        };
+
+        assert!(matches!(state_change_rx.try_recv(),
+            Ok(StateChangeCommand::UpdateWorkloadState(workload_state))
+            if workload_state == expected_state));
 
         runtime_mock.assert_all_expectations().await;
     }
