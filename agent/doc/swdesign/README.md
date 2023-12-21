@@ -259,7 +259,7 @@ The following diagram show the general steps the Ankaios Agent takes when receiv
 
 Status: approved
 
-When the AgentManager gets an `UpdateWorkload` message, for each added Workload with a runtime that is known, the RuntimeManager shall create a Control Interface Instance for this Workload.
+When the RuntimeManager receives a call to handle an `UpdateWorkload` message, for each added Workload with a runtime that is known, the RuntimeManager shall create a Control Interface Instance for this Workload.
 
 Tags:
 - RuntimeManager
