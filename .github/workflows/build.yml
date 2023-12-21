@@ -19,11 +19,18 @@ jobs:
     name: Test and build Linux amd64
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.4
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.7.0
       options: --privileged
     steps:
       - uses: actions/checkout@v3.5.3
       - uses: Swatinem/rust-cache@v2.6.2
+
+        # If the next step fails, then a license used by a new dependency is currently
+        # not part of the whitelist in deny.toml. If the new license fits to the project
+        # then it should be added to the whitelist otherwise the dependency needs to be
+        # removed.
+      - name: Check licenses
+        run: cargo deny check
 
       - name: Run tests
         run: RUST_LOG=debug cargo nextest run
@@ -76,7 +83,7 @@ jobs:
     name: Build Linux arm64
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.4
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.7.0
       options: --user root
     steps:
       - uses: actions/checkout@v3.5.3
@@ -103,7 +110,7 @@ jobs:
     name: Build requirements tracing
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.4
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.7.0
       options: --user root
     steps:
       - uses: actions/checkout@v3.5.3
