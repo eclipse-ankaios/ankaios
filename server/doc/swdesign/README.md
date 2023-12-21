@@ -291,7 +291,7 @@ The Ankaios Server provides the Control Interface needed by the Agents.
 #### GetCompleteState interface
 The following diagram shows the sequence of GetCompleteState request from the agent:
 
-![Set Workload States to ExecUnknown and distribute sequence](plantuml/seq_get_complete_state.svg)
+![Get complete state sequence](plantuml/seq_get_complete_state.svg)
 
 ##### Server provides interface GetCompleteState
 `swdd~server-provides-interface-get-complete-state~1`
@@ -339,7 +339,7 @@ Needs:
 #### UpdateState interface
 The following diagram shows the sequence of UpdateState request from the agent:
 
-![Set Workload States to ExecUnknown and distribute sequence](plantuml/seq_update_state.svg)
+![Update state sequence](plantuml/seq_update_state.svg)
 
 ##### Server provides UpdateCurrentState interface
 `swdd~server-provides-update-current-state-interface~1`
