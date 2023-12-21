@@ -90,7 +90,7 @@ message UpdateWorkload {
 message AddedWorkload {
   string name = 1; /// The name of the workload.
   string runtime = 2; /// The name of the runtime, e.g., podman.
-  map<string, ExpectedState> dependencies = 3; /// A list of dependencies to other workloads with their corresponding, expected states. Can be used to enable a synchronized start of a workload.
+  map<string, AddCondition> dependencies = 3; /// A list of dependencies to other workloads with their corresponding, expected states. Can be used to enable a synchronized start of a workload.
   bool restart = 4; /// A flag indicating to restart the workload in case of an intentional or an unintentional stop of the workload.
   UpdateStrategy updateStrategy = 5; /// An enum to specify the update strategy.
   AccessRights accessRights = 6; /// Lists of authorizations of the workload.
@@ -103,28 +103,40 @@ message AddedWorkload {
 */
 message DeletedWorkload {
   string name = 1; /// The name of the workload.
-  map<string, ExpectedState> dependencies = 2; /// A list of dependencies to other workloads with their corresponding, expected states. Can be used to enable a synchronized stop of a workload.
+  map<string, DeleteCondition> dependencies = 2; /// A list of dependencies to other workloads with their corresponding, expected states. Can be used to enable a synchronized stop of a workload.
+}
+
+/**
+* An enum type describing the conditions for deleting a workload. Used for dependency management, and update strategies.
+*/
+enum DeleteCondition {
+    DEL_COND_RUNNING = 0; /// The workload is operational.
+    DEL_COND_NOT_PENDING_NOR_RUNNING = 1; /// The workload is not scheduled or running.    
 }
 
 /**
 * An enum type describing the expected workload state. Used for dependency management.
 */
-enum  ExpectedState {
-  STOPPED = 0; /// The workload is stopped.
-  RUNNING = 1; /// The workload is running.
+enum AddCondition {
+  ADD_COND_RUNNING = 0; /// The workload is operational.
+  ADD_COND_SUCCEEDED = 1; /// The workload has successfully exited.
+  ADD_COND_FAILED = 2; /// The workload has exited with an error or could not be started.
 }
 
 /**
 * An enum type describing the workload execution state.
 */
 enum ExecutionState {
-    EXEC_STARTING = 0; /// The workload is starting.
-    EXEC_RUNNING = 1; /// The workload is running.
-    EXEC_SUCCEEDED = 2; /// The workload has run successfully and is stopped.
-    EXEC_FAILED = 3; /// The workload has failed.
-    EXEC_UNKNOWN = 4; /// The workload is in unknown state. This is the case if the owning agent is disconnected from the Ankaios server.
-    EXEC_REMOVED = 5; /// The workload has been deleted.
-    EXEC_STOPPING = 6; /// The workload is stopping.
+    EXEC_UNKNOWN = 0; /// The exact state of the workload cannot be determined, e.g., because of a broken connection to the responsible agent.
+    EXEC_PENDING = 1; /// The workload has not being scheduled yet.
+    EXEC_WAITING_TO_START = 2; /// The start of the workload will be triggered once all its dependencies are met.
+    EXEC_STARTING = 3; /// Starting the workload was scheduled at the corresponding runtime.
+    EXEC_RUNNING = 4; /// The workload is operational.
+    EXEC_SUCCEEDED = 5; /// The workload has successfully finished operation.
+    EXEC_FAILED = 6; /// The workload has failed either during startup ot during operation
+    EXEC_WAITING_TO_STOP = 7; /// Thhe deletion of the workload will be triggered once no 'waiting to start', 'starting' or 'running' workload depending on it exists.
+    EXEC_STOPPING = 8; /// Stopping the workload was scheduled at the corresponding runtimeg.
+    EXEC_REMOVED = 10; /// The workload has been deleted.
 }
 
 /**
@@ -191,7 +203,7 @@ message State {
 message Workload {
   string agent = 1; /// The name of the owning Agent.
   bool restart = 2; /// A flag indicating to restart the workload in case of an intentional or an unintentional stop of the workload.
-  map<string, ExpectedState> dependencies = 3; /// A map of workload names and expected states to enable a synchronized start of the workload.
+  map<string, AddCondition> dependencies = 3; /// A map of workload names and expected states to enable a synchronized start of the workload.
   UpdateStrategy updateStrategy = 4; /// An enum to specify the update strategy.
   repeated Tag tags = 5; /// A list of tag names.
   AccessRights accessRights = 6; /// Lists of authorizations of the workload.

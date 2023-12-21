@@ -12,6 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::collections::HashMap;
 use std::fmt::Display;
 
 use crate::state_manipulation::{Object, Path};
@@ -75,7 +76,7 @@ pub fn prepare_update_workload(
                 deleted_workloads.push(DeletedWorkload {
                     agent: wls.agent.clone(),
                     name: wl_name.clone(),
-                    dependencies: wls.dependencies.clone(),
+                    dependencies: HashMap::new(), //wls.dependencies.clone(),
                 });
             }
         } else {
@@ -83,7 +84,7 @@ pub fn prepare_update_workload(
             deleted_workloads.push(DeletedWorkload {
                 agent: wls.agent.clone(),
                 name: wl_name.clone(),
-                dependencies: wls.dependencies.clone(),
+                dependencies: HashMap::new(), //wls.dependencies.clone(),
             });
         }
     });
@@ -343,7 +344,7 @@ mod tests {
                     .map(|(k, v)| DeletedWorkload {
                         agent: v.agent.clone(),
                         name: k.clone(),
-                        dependencies: v.dependencies.clone(),
+                        dependencies: HashMap::new(),
                     })
                     .collect(),
             });
@@ -382,7 +383,7 @@ mod tests {
                 deleted_workloads: vec![DeletedWorkload {
                     agent: wls_to_update.agent.clone(),
                     name: wl_name_to_update.to_string(),
-                    dependencies: wls_to_update.dependencies.clone(),
+                    dependencies: HashMap::new(),
                 }],
             });
         assert!(update_cmd.is_some());
