@@ -32,8 +32,8 @@ The CLI shall use its own proprietary tracing functions with following features:
 
 | message type     | output       | features                                                                                      |
 | ---------------- | ------------ | --------------------------------------------------------------------------------------------- |
-| error            | `io::stderr` | writes a message to the output and terminates the application with exit code `1`          |
-| command response | `io::stdout` | writes a message to the output and terminates the application with exit code `0`          |
+| error            | `io::stderr` | writes a message to the output and terminates the application with exit code `1`              |
+| command response | `io::stdout` | writes a message to the output and terminates the application with exit code `0`              |
 | debug            | `io::stdout` | writes a message to the output if the verbose mode is enabled (does not terminate the application) |
 
 Rationale:
