@@ -254,15 +254,15 @@ The following diagram show the general steps the Ankaios Agent takes when receiv
 
 ![Handling UpdateWorkload](plantuml/seq_update_workload.svg)
 
-#### Agent Manager creates Control Interface Instance for each workload
+#### RuntimeManager creates Control Interface Instance for each workload
 `swdd~agent-create-control-interface-pipes-per-workload~1`
 
 Status: approved
 
-When the Agent Manager gets an `UpdateWorkload` message, for each added Workload with a runtime that is known, the Agent Manager shall create a Control Interface Instance for this Workload.
+When the AgentManager gets an `UpdateWorkload` message, for each added Workload with a runtime that is known, the RuntimeManager shall create a Control Interface Instance for this Workload.
 
 Tags:
-- AgentManager
+- RuntimeManager
 - ControlInterface
 
 Needs:
@@ -552,7 +552,7 @@ Needs:
 
 The UpdateWorkload message contains two lists of workloads - deleted Workloads specified by name and added Workloads including their desired configuration. The Ankaios Agent goes through the deleted Workloads first in order to free resources before starting to allocate new ones.
 
-The following two diagrams show how deleted and added Workloads are handled by the Agent Manager. The first diagram shows how the deleted Workloads are handled:
+The following two diagrams show how deleted and added Workloads are handled by the AgentManager. The first diagram shows how the deleted Workloads are handled:
 
 ![Handling subsequent UpdateWorkload - deleted Workloads](plantuml/seq_update_workload_subsequent_deleted.svg)
 
@@ -1722,7 +1722,7 @@ After the Ankaios agent is started it receives an information about Workload Sta
 
 ![Storing a Workload State](plantuml/seq_store_workload_state.svg)
 
-#### Agent Manager stores all Workload States
+#### AgentManager stores all Workload States
 `swdd~agent-manager-stores-all-workload-states~1`
 
 Status: approved
