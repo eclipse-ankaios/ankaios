@@ -891,18 +891,27 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#executionstate" class="md-nav__link">
+  <a href="#addcondition" class="md-nav__link">
     <span class="md-ellipsis">
-      ExecutionState
+      AddCondition
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#expectedstate" class="md-nav__link">
+  <a href="#deletecondition" class="md-nav__link">
     <span class="md-ellipsis">
-      ExpectedState
+      DeleteCondition
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#executionstate" class="md-nav__link">
+    <span class="md-ellipsis">
+      ExecutionState
     </span>
   </a>
   
@@ -1648,18 +1657,27 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#executionstate" class="md-nav__link">
+  <a href="#addcondition" class="md-nav__link">
     <span class="md-ellipsis">
-      ExecutionState
+      AddCondition
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#expectedstate" class="md-nav__link">
+  <a href="#deletecondition" class="md-nav__link">
     <span class="md-ellipsis">
-      ExpectedState
+      DeleteCondition
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#executionstate" class="md-nav__link">
+    <span class="md-ellipsis">
+      ExecutionState
     </span>
   </a>
   
@@ -1773,9 +1791,10 @@
 <p><a href="#ankaios-WorkloadState">WorkloadState</a></p>
 </li>
 <li>
-<p><a href="#ankaios-ExecutionState">ExecutionState</a></p>
+<p><a href="#ankaios-AddCondition">AddCondition</a></p>
 </li>
-<li><a href="#ankaios-ExpectedState">ExpectedState</a></li>
+<li><a href="#ankaios-DeleteCondition">DeleteCondition</a></li>
+<li><a href="#ankaios-ExecutionState">ExecutionState</a></li>
 <li><a href="#ankaios-PatchOperation">PatchOperation</a></li>
 <li>
 <p><a href="#ankaios-UpdateStrategy">UpdateStrategy</a></p>
@@ -1958,7 +1977,7 @@
 </tr>
 <tr>
 <td>value</td>
-<td><a href="#ankaios-ExpectedState">ExpectedState</a></td>
+<td><a href="#ankaios-AddCondition">AddCondition</a></td>
 <td></td>
 <td></td>
 </tr>
@@ -2099,7 +2118,7 @@ This is a response to the <a href="#requestcompletestate">RequestCompletestate</
 </tr>
 <tr>
 <td>value</td>
-<td><a href="#ankaios-ExpectedState">ExpectedState</a></td>
+<td><a href="#ankaios-DeleteCondition">DeleteCondition</a></td>
 <td></td>
 <td></td>
 </tr>
@@ -2546,7 +2565,7 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 </tr>
 <tr>
 <td>value</td>
-<td><a href="#ankaios-ExpectedState">ExpectedState</a></td>
+<td><a href="#ankaios-AddCondition">AddCondition</a></td>
 <td></td>
 <td></td>
 </tr>
@@ -2585,6 +2604,59 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 </tr>
 </tbody>
 </table>
+<p><a name="ankaios-AddCondition"></a></p>
+<h3 id="addcondition">AddCondition<a class="headerlink" href="#addcondition" title="Permanent link">&para;</a></h3>
+<p>An enum type describing the expected workload state. Used for dependency management.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ADD_COND_RUNNING</td>
+<td>0</td>
+<td>The workload is operational.</td>
+</tr>
+<tr>
+<td>ADD_COND_SUCCEEDED</td>
+<td>1</td>
+<td>The workload has successfully exited.</td>
+</tr>
+<tr>
+<td>ADD_COND_FAILED</td>
+<td>2</td>
+<td>The workload has exited with an error or could not be started.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ankaios-DeleteCondition"></a></p>
+<h3 id="deletecondition">DeleteCondition<a class="headerlink" href="#deletecondition" title="Permanent link">&para;</a></h3>
+<p>An enum type describing the conditions for deleting a workload. Used for dependency management, and update strategies.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DEL_COND_RUNNING</td>
+<td>0</td>
+<td>The workload is operational.</td>
+</tr>
+<tr>
+<td>DEL_COND_NOT_PENDING_NOR_RUNNING</td>
+<td>1</td>
+<td>The workload is not scheduled or running.</td>
+</tr>
+</tbody>
+</table>
 <p><a name="ankaios-ExecutionState"></a></p>
 <h3 id="executionstate">ExecutionState<a class="headerlink" href="#executionstate" title="Permanent link">&para;</a></h3>
 <p>An enum type describing the workload execution state.</p>
@@ -2598,63 +2670,54 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 </thead>
 <tbody>
 <tr>
-<td>EXEC_STARTING</td>
+<td>EXEC_UNKNOWN</td>
 <td>0</td>
-<td>The workload is starting.</td>
+<td>The exact state of the workload cannot be determined, e.g., because of a broken connection to the responsible agent.</td>
+</tr>
+<tr>
+<td>EXEC_PENDING</td>
+<td>1</td>
+<td>The workload has not being scheduled yet.</td>
+</tr>
+<tr>
+<td>EXEC_WAITING_TO_START</td>
+<td>2</td>
+<td>The start of the workload will be triggered once all its dependencies are met.</td>
+</tr>
+<tr>
+<td>EXEC_STARTING</td>
+<td>3</td>
+<td>Starting the workload was scheduled at the corresponding runtime.</td>
 </tr>
 <tr>
 <td>EXEC_RUNNING</td>
-<td>1</td>
-<td>The workload is running.</td>
+<td>4</td>
+<td>The workload is operational.</td>
 </tr>
 <tr>
 <td>EXEC_SUCCEEDED</td>
-<td>2</td>
-<td>The workload has run successfully and is stopped.</td>
+<td>5</td>
+<td>The workload has successfully finished operation.</td>
 </tr>
 <tr>
 <td>EXEC_FAILED</td>
-<td>3</td>
-<td>The workload has failed.</td>
+<td>6</td>
+<td>The workload has failed either during startup ot during operation</td>
 </tr>
 <tr>
-<td>EXEC_UNKNOWN</td>
-<td>4</td>
-<td>The workload is in unknown state. This is the case if the owning agent is disconnected from the Ankaios server.</td>
-</tr>
-<tr>
-<td>EXEC_REMOVED</td>
-<td>5</td>
-<td>The workload has been deleted.</td>
+<td>EXEC_WAITING_TO_STOP</td>
+<td>7</td>
+<td>Thhe deletion of the workload will be triggered once no &#39;waiting to start&#39;, &#39;starting&#39; or &#39;running&#39; workload depending on it exists.</td>
 </tr>
 <tr>
 <td>EXEC_STOPPING</td>
-<td>6</td>
-<td>The workload is stopping.</td>
-</tr>
-</tbody>
-</table>
-<p><a name="ankaios-ExpectedState"></a></p>
-<h3 id="expectedstate">ExpectedState<a class="headerlink" href="#expectedstate" title="Permanent link">&para;</a></h3>
-<p>An enum type describing the expected workload state. Used for dependency management.</p>
-<table>
-<thead>
-<tr>
-<th>Name</th>
-<th>Number</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>STOPPED</td>
-<td>0</td>
-<td>The workload is stopped.</td>
+<td>8</td>
+<td>Stopping the workload was scheduled at the corresponding runtimeg.</td>
 </tr>
 <tr>
-<td>RUNNING</td>
-<td>1</td>
-<td>The workload is running.</td>
+<td>EXEC_REMOVED</td>
+<td>10</td>
+<td>The workload has been deleted.</td>
 </tr>
 </tbody>
 </table>
