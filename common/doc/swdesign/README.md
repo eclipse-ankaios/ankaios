@@ -121,7 +121,6 @@ The Following diagram shows all Ankaios workload states and the possible transit
 
 ![Workload states](plantuml/state_workload_execution_states.svg)
 
-
 #### Workload add conditions for dependencies
 `swdd~workload-add-conditions-for-dependencies~1`
 
@@ -129,13 +128,13 @@ Status: approved
 
 Ankaios shall support the following add conditions for a workload dependency:
 * `running` - the workload is operational
-* `succeeded` - the workload has successfully exited 
+* `succeeded` - the workload has successfully exited
 * `failed` - the workload has exited with an error or could not be started
 
 Rationale:
 Some workloads may need another service to be running before they can be started, others may need preparatory tasks which have been successfully finished. Dependencies on failure of workloads allows the execution of mitigation or recording actions.
 
-Tags: 
+Tags:
 - Objects
 
 Needs:
