@@ -1064,7 +1064,7 @@ mod tests {
     async fn utest_list_states_by_id_created() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
-        super::LAST_PS_RESULT.reset().await;
+        PodmanCli::reset_ps_cache().await;
 
         super::CliCommand::new_expect(
             "podman",
@@ -1088,7 +1088,7 @@ mod tests {
     async fn utest_list_states_by_id_configured() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
-        super::LAST_PS_RESULT.reset().await;
+        PodmanCli::reset_ps_cache().await;
 
         super::CliCommand::new_expect(
             "podman",
@@ -1112,7 +1112,7 @@ mod tests {
     async fn utest_list_states_by_id_initialized() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
-        super::LAST_PS_RESULT.reset().await;
+        PodmanCli::reset_ps_cache().await;
 
         super::CliCommand::new_expect(
             "podman",
@@ -1234,7 +1234,7 @@ mod tests {
     async fn utest_list_states_by_id_stopped() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
-        super::LAST_PS_RESULT.reset().await;
+        PodmanCli::reset_ps_cache().await;
 
         super::CliCommand::new_expect(
             "podman",
@@ -1258,7 +1258,7 @@ mod tests {
     async fn utest_list_states_by_id_removing() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
-        super::LAST_PS_RESULT.reset().await;
+        PodmanCli::reset_ps_cache().await;
 
         super::CliCommand::new_expect(
             "podman",
@@ -1306,7 +1306,7 @@ mod tests {
     async fn utest_list_states_by_id_undefined() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
-        super::LAST_PS_RESULT.reset().await;
+        PodmanCli::reset_ps_cache().await;
 
         super::CliCommand::new_expect(
             "podman",

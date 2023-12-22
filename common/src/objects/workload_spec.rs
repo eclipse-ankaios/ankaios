@@ -29,7 +29,7 @@ pub struct DeletedWorkload {
     pub agent: String,
     pub name: String,
     #[serde(serialize_with = "serialize_to_ordered_map")]
-    pub dependencies: HashMap<String, ExpectedState>,
+    pub dependencies: HashMap<String, DeleteCondition>,
 }
 
 impl TryFrom<(String, proto::DeletedWorkload)> for DeletedWorkload {
@@ -45,7 +45,7 @@ impl TryFrom<(String, proto::DeletedWorkload)> for DeletedWorkload {
                 .dependencies
                 .into_iter()
                 .map(|(k, v)| Ok((k, v.try_into()?)))
-                .collect::<Result<HashMap<String, ExpectedState>, String>>()?,
+                .collect::<Result<HashMap<String, DeleteCondition>, String>>()?,
         })
     }
 }
@@ -71,7 +71,7 @@ pub struct WorkloadSpec {
     pub name: String,
     pub tags: Vec<Tag>,
     #[serde(serialize_with = "serialize_to_ordered_map")]
-    pub dependencies: HashMap<String, ExpectedState>,
+    pub dependencies: HashMap<String, AddCondition>,
     pub update_strategy: UpdateStrategy,
     pub restart: bool,
     pub access_rights: AccessRights,
@@ -88,7 +88,7 @@ impl TryFrom<(String, proto::AddedWorkload)> for WorkloadSpec {
                 .dependencies
                 .into_iter()
                 .map(|(k, v)| Ok((k, v.try_into()?)))
-                .collect::<Result<HashMap<String, ExpectedState>, String>>()?,
+                .collect::<Result<HashMap<String, AddCondition>, String>>()?,
             update_strategy: workload.update_strategy.try_into()?,
             restart: workload.restart,
             access_rights: workload.access_rights.unwrap_or_default().try_into()?,
@@ -110,7 +110,7 @@ impl TryFrom<(String, proto::Workload)> for WorkloadSpec {
                 .dependencies
                 .into_iter()
                 .map(|(k, v)| Ok((k, v.try_into()?)))
-                .collect::<Result<HashMap<String, ExpectedState>, String>>()?,
+                .collect::<Result<HashMap<String, AddCondition>, String>>()?,
             update_strategy: workload.update_strategy.try_into()?,
             restart: workload.restart,
             access_rights: workload.access_rights.unwrap_or_default().try_into()?,
@@ -200,22 +200,49 @@ pub fn get_workloads_per_agent(
     agent_workloads
 }
 
+// [impl->swdd~workload-add-conditions-for-dependencies~1]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum ExpectedState {
-    Stopped = 0,
-    Running,
+pub enum AddCondition {
+    AddCondRunning = 0,
+    AddCondSucceeded = 1,
+    AddCondFailed = 2,
 }
 
-impl TryFrom<i32> for ExpectedState {
+impl TryFrom<i32> for AddCondition {
     type Error = String;
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         match value {
-            x if x == ExpectedState::Stopped as i32 => Ok(ExpectedState::Stopped),
-            x if x == ExpectedState::Running as i32 => Ok(ExpectedState::Running),
+            x if x == AddCondition::AddCondRunning as i32 => Ok(AddCondition::AddCondRunning),
+            x if x == AddCondition::AddCondSucceeded as i32 => Ok(AddCondition::AddCondSucceeded),
+            x if x == AddCondition::AddCondFailed as i32 => Ok(AddCondition::AddCondFailed),
             _ => Err(format!(
-                "Received an unknown value '{value}' as ExpectedState."
+                "Received an unknown value '{value}' as AddCondition."
+            )),
+        }
+    }
+}
+
+// [impl->swdd~workload-delete-conditions-for-dependencies~1]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum DeleteCondition {
+    DelCondRunning = 0,
+    DelCondNotPendingNorRunning = 1,
+}
+
+impl TryFrom<i32> for DeleteCondition {
+    type Error = String;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            x if x == DeleteCondition::DelCondRunning as i32 => Ok(DeleteCondition::DelCondRunning),
+            x if x == DeleteCondition::DelCondNotPendingNorRunning as i32 => {
+                Ok(DeleteCondition::DelCondNotPendingNorRunning)
+            }
+            _ => Err(format!(
+                "Received an unknown value '{value}' as DeleteCondition."
             )),
         }
     }
@@ -305,11 +332,11 @@ mod tests {
             dependencies: HashMap::from([
                 (
                     String::from("workload A"),
-                    proto::ExpectedState::Running.into(),
+                    proto::AddCondition::AddCondRunning.into(),
                 ),
                 (
                     String::from("workload C"),
-                    proto::ExpectedState::Stopped.into(),
+                    proto::AddCondition::AddCondSucceeded.into(),
                 ),
             ]),
             restart: true,
@@ -339,8 +366,8 @@ mod tests {
     fn utest_converts_to_ankaios_workload() {
         let workload = WorkloadSpec {
             dependencies: HashMap::from([
-                (String::from("workload A"), ExpectedState::Running),
-                (String::from("workload C"), ExpectedState::Stopped),
+                (String::from("workload A"), AddCondition::AddCondRunning),
+                (String::from("workload C"), AddCondition::AddCondSucceeded),
             ]),
             update_strategy: UpdateStrategy::Unspecified,
             restart: true,
@@ -360,11 +387,11 @@ mod tests {
             dependencies: HashMap::from([
                 (
                     String::from("workload A"),
-                    proto::ExpectedState::Running.into(),
+                    proto::AddCondition::AddCondRunning.into(),
                 ),
                 (
                     String::from("workload C"),
-                    proto::ExpectedState::Stopped.into(),
+                    proto::AddCondition::AddCondSucceeded.into(),
                 ),
             ]),
             restart: true,
@@ -388,12 +415,12 @@ mod tests {
             dependencies: HashMap::from([
                 (
                     String::from("workload A"),
-                    proto::ExpectedState::Running.into(),
+                    proto::AddCondition::AddCondRunning.into(),
                 ),
                 (String::from("workload B"), -1),
                 (
                     String::from("workload C"),
-                    proto::ExpectedState::Stopped.into(),
+                    proto::AddCondition::AddCondSucceeded.into(),
                 ),
             ]),
             restart: true,
@@ -411,8 +438,8 @@ mod tests {
     fn utest_converts_to_ankaios_added_workload() {
         let workload = WorkloadSpec {
             dependencies: HashMap::from([
-                (String::from("workload A"), ExpectedState::Running),
-                (String::from("workload C"), ExpectedState::Stopped),
+                (String::from("workload A"), AddCondition::AddCondRunning),
+                (String::from("workload C"), AddCondition::AddCondSucceeded),
             ]),
             update_strategy: UpdateStrategy::Unspecified,
             restart: true,
@@ -432,11 +459,11 @@ mod tests {
             dependencies: HashMap::from([
                 (
                     String::from("workload A"),
-                    proto::ExpectedState::Running.into(),
+                    proto::AddCondition::AddCondRunning.into(),
                 ),
                 (
                     String::from("workload C"),
-                    proto::ExpectedState::Stopped.into(),
+                    proto::AddCondition::AddCondSucceeded.into(),
                 ),
             ]),
             restart: true,
@@ -460,12 +487,12 @@ mod tests {
             dependencies: HashMap::from([
                 (
                     String::from("workload A"),
-                    proto::ExpectedState::Running.into(),
+                    proto::AddCondition::AddCondRunning.into(),
                 ),
                 (String::from("workload B"), -1),
                 (
                     String::from("workload C"),
-                    proto::ExpectedState::Stopped.into(),
+                    proto::AddCondition::AddCondSucceeded.into(),
                 ),
             ]),
             restart: true,
@@ -544,14 +571,44 @@ mod tests {
         assert_eq!(workload3.name, "workload 9");
     }
 
+    // [utest->swdd~workload-add-conditions-for-dependencies~1]
     #[test]
-    fn utest_expected_state_from_int() {
-        assert_eq!(ExpectedState::try_from(0).unwrap(), ExpectedState::Stopped);
-        assert_eq!(ExpectedState::try_from(1).unwrap(), ExpectedState::Running);
+    fn utest_add_condition_from_int() {
         assert_eq!(
-            ExpectedState::try_from(100),
-            Err::<ExpectedState, String>(
-                "Received an unknown value '100' as ExpectedState.".to_string()
+            AddCondition::try_from(0).unwrap(),
+            AddCondition::AddCondRunning
+        );
+        assert_eq!(
+            AddCondition::try_from(1).unwrap(),
+            AddCondition::AddCondSucceeded
+        );
+        assert_eq!(
+            AddCondition::try_from(2).unwrap(),
+            AddCondition::AddCondFailed
+        );
+        assert_eq!(
+            AddCondition::try_from(100),
+            Err::<AddCondition, String>(
+                "Received an unknown value '100' as AddCondition.".to_string()
+            )
+        );
+    }
+
+    // [utest->swdd~workload-delete-conditions-for-dependencies~1]
+    #[test]
+    fn utest_delete_condition_from_int() {
+        assert_eq!(
+            DeleteCondition::try_from(0).unwrap(),
+            DeleteCondition::DelCondRunning
+        );
+        assert_eq!(
+            DeleteCondition::try_from(1).unwrap(),
+            DeleteCondition::DelCondNotPendingNorRunning
+        );
+        assert_eq!(
+            DeleteCondition::try_from(100),
+            Err::<DeleteCondition, String>(
+                "Received an unknown value '100' as DeleteCondition.".to_string()
             )
         );
     }
@@ -580,8 +637,13 @@ mod tests {
 
     #[test]
     fn utest_serialize_deleted_workload_into_ordered_output() {
-        let deleted_workload =
+        let mut deleted_workload =
             generate_test_deleted_workload("agent X".to_string(), "workload X".to_string());
+
+        deleted_workload.dependencies.insert(
+            "workload C".to_string(),
+            DeleteCondition::DelCondNotPendingNorRunning,
+        );
 
         let serialized_deleted_workload = serde_yaml::to_string(&deleted_workload).unwrap();
         let indices = [
