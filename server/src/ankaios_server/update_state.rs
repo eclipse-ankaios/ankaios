@@ -76,7 +76,7 @@ pub fn prepare_update_workload(
                 deleted_workloads.push(DeletedWorkload {
                     agent: wls.agent.clone(),
                     name: wl_name.clone(),
-                    dependencies: HashMap::new(), //wls.dependencies.clone(),
+                    dependencies: HashMap::new(),
                 });
             }
         } else {
@@ -84,7 +84,7 @@ pub fn prepare_update_workload(
             deleted_workloads.push(DeletedWorkload {
                 agent: wls.agent.clone(),
                 name: wl_name.clone(),
-                dependencies: HashMap::new(), //wls.dependencies.clone(),
+                dependencies: HashMap::new(),
             });
         }
     });
