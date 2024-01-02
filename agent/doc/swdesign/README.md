@@ -486,7 +486,7 @@ Status: approved
 
 When requested, the RuntimeFacade resumes a workload by:
 * request the wrapped runtime to start the state checker for that workload
-* start the WorkloadControlLoop waiting for delete, update or restart commands for that workload
+* start the WorkloadControlLoop waiting for commands for that workload
 * return a new workload object containing a WorkloadCommandChannel to communicate with the WorkloadControlLoop
 
 Comment:
