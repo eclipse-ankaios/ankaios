@@ -452,7 +452,7 @@ Status: approved
 When the RuntimeFacade creates a workload and the operation fails, the RuntimeFacade shall restart the creation of a workload by sending the workload command Restart to the WorkloadControlLoop of the workload.
 
 Comment:
-Depending on the runtime a create of a workload might fail if the workload is added again immediately after a delete operation of that workload was triggered and the Runtime is still busy deleting the old workload.
+Depending on the runtime, a create of a workload might fail if the workload is added again while a delete operation for a workload with the same config is still in progress.
 
 Rationale:
 The restart behavior for unsuccessful creation of a workload makes the system more robust against runtime specific delays on delete operations.
