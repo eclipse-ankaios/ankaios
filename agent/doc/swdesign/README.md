@@ -918,7 +918,7 @@ Status: approved
 The WorkloadControlLoop shall execute a maximum of 20 restart attempts.
 
 Rationale:
-Limiting the restart attempts prevents pointless attempts if the workload cannot be started due to a general configuration conflict that the runtime rejects in general.
+Limiting the restart attempts prevents pointless attempts if the workload cannot be started due to a configuration conflict that the runtime rejects in general.
 
 Tags:
 - WorkloadControlLoop
