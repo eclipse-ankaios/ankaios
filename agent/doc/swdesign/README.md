@@ -872,7 +872,7 @@ The following diagram describes the restart behavior when an update command is r
 
 ![Restart Workload On Update With Create Failure](plantuml/seq_restart_workload_on_update_with_create_failure.svg)
 
-##### WorkloadControlLoop requests restarts of a workload when runtime fails to create workload
+##### WorkloadControlLoop requests restart of a workload when runtime fails to create workload
 `swdd~agent-workload-control-loop-request-restarts~1`
 
 Status: approved
