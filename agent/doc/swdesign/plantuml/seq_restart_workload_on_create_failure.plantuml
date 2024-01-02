@@ -29,7 +29,7 @@ opt create workload fails
             workload_command -->> workload_control_loop--
         end
     end
-    workload_control_loop -> workload_command --: wait for command
 end
+workload_control_loop -> workload_command --: wait for command
 deactivate runtime_facade
 @enduml
