@@ -455,7 +455,7 @@ Comment:
 Depending on the runtime, a create of a workload might fail if the workload is added again while a delete operation for a workload with the same config is still in progress.
 
 Rationale:
-The restart behavior for unsuccessful creation of a workload makes the system more robust against runtime specific delays on delete operations.
+The restart behavior for unsuccessful creation of a workload makes the system more resilient against runtime specific failures.
 
 Tags:
 - RuntimeFacade
@@ -883,7 +883,7 @@ Comment:
 The creation of a workload can fail temporarily, for example if a Runtime is still busy deleting and the workload is to be recreated. The WorkloadControlLoop uses the WorkloadCommandChannel to send the workload command restart.
 
 Rationale:
-The restart behavior for unsuccessful creation of a workload makes the system more robust against runtime specific delays on delete operations.
+The restart behavior for unsuccessful creation of a workload makes the system more resilient against runtime specific failures.
 
 Tags:
 - WorkloadControlLoop
