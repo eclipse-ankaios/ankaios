@@ -37,6 +37,19 @@ impl WorkloadCommandChannel {
         )
     }
 
+    pub async fn create(
+        &self,
+        workload_spec: WorkloadSpec,
+        control_interface_path: Option<PathBuf>,
+    ) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
+        self.sender
+            .send(WorkloadCommand::Create(
+                Box::new(workload_spec),
+                control_interface_path,
+            ))
+            .await
+    }
+
     pub async fn restart(
         &self,
         workload_spec: WorkloadSpec,
@@ -88,6 +101,23 @@ mod tests {
         pub static ref WORKLOAD_SPEC: WorkloadSpec = generate_test_workload_spec();
         pub static ref CONTROL_INTERFACE_PATH: Option<PathBuf> =
             Some(PathBuf::from(PIPES_LOCATION));
+    }
+
+    #[tokio::test]
+    async fn utest_send_create() {
+        let (workload_command_sender, mut workload_command_receiver) =
+            WorkloadCommandChannel::new();
+
+        workload_command_sender
+            .create(WORKLOAD_SPEC.clone(), CONTROL_INTERFACE_PATH.clone())
+            .await
+            .unwrap();
+
+        let workload_command = workload_command_receiver.recv().await.unwrap();
+
+        assert!(
+            matches!(workload_command, WorkloadCommand::Create(workload_spec, control_interface_path) if workload_spec.name == WORKLOAD_SPEC.name && control_interface_path == *CONTROL_INTERFACE_PATH)
+        );
     }
 
     #[tokio::test]

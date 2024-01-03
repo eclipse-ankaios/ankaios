@@ -55,6 +55,7 @@ pub enum WorkloadCommand {
     Delete,
     Update(Box<WorkloadSpec>, Option<PathBuf>),
     Restart(Box<WorkloadSpec>, Option<PathBuf>),
+    Create(Box<WorkloadSpec>, Option<PathBuf>),
 }
 
 // #[derive(Debug)]

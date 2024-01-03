@@ -47,11 +47,11 @@ The RuntimeFacade wraps some common actions shared between all runtime connector
 
 ### WorkloadControlLoop
 
-The WorkloadControlLoop is started for each workload with the creation of that workload and is running until its deletion. The WorkloadControlLoop receives the workload commands update, restart or delete via the WorkloadCommandChannel and triggers the corresponding operation on the runtime connector.
+The WorkloadControlLoop is started for each workload with the creation of that workload and is running until its deletion. The WorkloadControlLoop receives the workload commands create, update, restart or delete via the WorkloadCommandChannel and triggers the corresponding operation on the runtime connector.
 
 ### WorkloadCommandChannel
 
-The WorkloadCommandChannel is a communication channel and responsible for sending and receiving workload commands to the WorkloadControlLoop e.g. update, restart or delete.
+The WorkloadCommandChannel is a communication channel and responsible for sending and receiving workload commands to the WorkloadControlLoop e.g. create, update, restart or delete.
 
 ### WorkloadObject
 
@@ -427,12 +427,9 @@ Needs:
 Status: approved
 
 When the RuntimeFacade gets a requests to create a workload, the RuntimeFacade shall:
-* request the wrapped runtime to create the workload (incl. starting the state checker monitoring it)
 * start the WorkloadControlLoop waiting for commands for that workload
+* request the create of the workload by sending a create command to the WorkloadControlLoop
 * return a new workload object containing a WorkloadCommandChannel to communicate with the WorkloadControlLoop
-
-Comment:
-The state checker doesn't need to be started as an additional step here as the runtime starts it when creating the workload.
 
 Rationale:
 The task handling stop and update commands is needed to ensure maintaining the order of the commands for a workload while not blocking Ankaios to wait until one command is complete.
@@ -443,27 +440,6 @@ Tags:
 Needs:
 - impl
 - utest
-
-##### RuntimeFacade restarts a workload on create failures
-`swdd~agent-restart-workload-on-create-failure~1`
-
-Status: approved
-
-When the RuntimeFacade creates a workload and the operation fails, the RuntimeFacade shall restart the creation of a workload by sending the workload command Restart to the WorkloadControlLoop of the workload.
-
-Comment:
-Depending on the runtime, a create of a workload might fail if the workload is added again while a delete operation for a workload with the same config is still in progress.
-
-Rationale:
-The restart behavior for unsuccessful creation of a workload makes the system more resilient against runtime specific failures.
-
-Tags:
-- RuntimeFacade
-
-Needs:
-- impl
-- utest
-- stest
 
 ##### RuntimeManager handles existing workloads resumes existing workloads
 `swdd~agent-existing-workloads-resume-existing~1`
@@ -526,8 +502,8 @@ Status: approved
 
 When requested, the RuntimeFacade replaces a workload by:
 * request the wrapped runtime to delete the old workload
-* request the wrapped runtime to create a workload with the new config(incl. starting the state checker monitoring it)
 * start the WorkloadControlLoop waiting for commands for that workload
+* request the create of the workload with the new config by sending a create command to the WorkloadControlLoop
 * return a new workload object containing a WorkloadCommandChannel to communicate with the WorkloadControlLoop
 
 Comment:
@@ -638,6 +614,28 @@ When the WorkloadObject receives a trigger to update the workload, it:
 
 Tags:
 - WorkloadObject
+
+Needs:
+- impl
+- utest
+
+##### WorkloadControlLoop executes create command
+`swdd~agent-workload-control-loop-executes-create~1`
+
+Status: approved
+
+When the WorkloadControlLoop receives an create command, the WorkloadControlLoop shall:
+* create a new workload via the corresponding runtime connector (which creates and starts a state checker)
+* store the Id and reference to the state checker for the created workload inside the WorkloadControlLoop
+
+Comment:
+For details on the runtime connector specific actions, e.g., create, see the specific runtime connector workflows.
+
+Rationale:
+The WorkloadControlLoop allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
+
+Tags:
+- WorkloadControlLoop
 
 Needs:
 - impl
@@ -872,12 +870,33 @@ The following diagram describes the restart behavior when an update command is r
 
 ![Restart Workload On Update With Create Failure](plantuml/seq_restart_workload_on_update_with_create_failure.svg)
 
-##### WorkloadControlLoop requests restart of a workload when runtime fails to create workload
-`swdd~agent-workload-control-loop-request-restarts~1`
+##### WorkloadControlLoop restarts a workload on failing create
+`swdd~agent-workload-control-loop-restart-workload-on-create-failure~1`
 
 Status: approved
 
-When the runtime connector fails to create a workload, the WorkloadControlLoop shall request a restart of the creation of the workload within a 1 sec time interval.
+When the WorkloadControlLoop creates a workload and the operation fails, the WorkloadControlLoop shall restart the creation of a workload by sending the workload command Restart to the WorkloadControlLoop of the workload.
+
+Comment:
+Depending on the runtime, a create of a workload might fail if the workload is added again while a delete operation for a workload with the same config is still in progress.
+
+Rationale:
+The restart behavior for unsuccessful creation of a workload makes the system more resilient against runtime specific failures.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
+
+##### WorkloadControlLoop requests restart of a workload on failing restart attempt
+`swdd~agent-workload-control-loop-request-restarts-on-failing-restart-attempt~1`
+
+Status: approved
+
+When the WorkloadControlLoop executes a restart of a workload and the runtime connector fails to create the workload, the WorkloadControlLoop shall request a restart of the creation of the workload within a 1 sec time interval.
 
 Comment:
 The creation of a workload can fail temporarily, for example if a Runtime is still busy deleting and the workload is to be recreated. The WorkloadControlLoop uses the WorkloadCommandChannel to send the workload command restart.
