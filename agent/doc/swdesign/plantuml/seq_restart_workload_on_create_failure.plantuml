@@ -3,24 +3,28 @@
 
 box "Ankaios Agent"
     participant "RuntimeFacade" as runtime_facade
-    participant "WorkloadCommandChannel" as workload_command
     participant "<<task>>\nWorkload Task" as create_workload_task
+    participant "WorkloadCommandChannel" as workload_command
     participant "WorkloadControlLoop" as workload_control_loop
     participant "Specific Runtime Connector\n e.g., PodmanRuntime" as runtime
 end box
 
 activate runtime_facade
-runtime_facade -> create_workload_task ++: spawn create workload
-create_workload_task -->> runtime_facade
-create_workload_task -> runtime ++: create workload
-runtime -->> create_workload_task--
+runtime_facade ->> create_workload_task ++: spawn create workload
+create_workload_task -> workload_command ++: send create
+workload_command -->> create_workload_task--
+create_workload_task -> workload_control_loop : run
+workload_control_loop -> workload_command: wait for command
+workload_command -->> workload_control_loop ++: receive create
+workload_control_loop -> runtime ++: create
+runtime -->> workload_control_loop--
 opt create workload fails
-    create_workload_task -> workload_command ++: send restart command
-    workload_command -->> create_workload_task
-    create_workload_task -> workload_control_loop : run
-    workload_control_loop -> workload_command: wait for command
-    workload_command -->> workload_control_loop --++: restart command
     opt restart_counter < limit
+    workload_control_loop -> workload_command ++: send restart command
+    workload_command -->> workload_control_loop--
+    deactivate workload_control_loop
+    workload_control_loop -> workload_command : wait for command
+    workload_command -->> workload_control_loop --++: restart command
         workload_control_loop -> runtime ++: create workload
         runtime -->> workload_control_loop--
         opt create workload fails

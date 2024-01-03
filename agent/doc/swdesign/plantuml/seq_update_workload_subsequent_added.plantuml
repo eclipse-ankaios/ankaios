@@ -7,7 +7,10 @@ box "Ankaios Agent"
     participant "RuntimeManager" as runtime_manager
     participant "RuntimeFacade" as rt_facade
 
+    participant "<<task>>\WorkloadTask" as create_workload_task
     participant "Workload" as workload
+    participant "WorkloadCommandChannel" as workload_command
+    participant "WorkloadControlLoop" as workload_control_loop
 
     participant "Specific Runtime Connector\n e.g., PodmanRuntime" as runtime
 
@@ -35,10 +38,17 @@ else subsequent update workload call
             runtime_manager -> runtime_manager++: add workload
             runtime_manager -> runtime_manager++--: create control interface
             runtime_manager -> rt_facade++: create workload
-        
-            rt_facade -->> runtime++: create runtime workload
+            rt_facade ->> create_workload_task ++: spawn create workload
+            create_workload_task -> workload_control_loop : run
+            workload_control_loop -> workload_command: wait for command
+            create_workload_task -> workload_command ++: send create
+            workload_command -->> workload_control_loop ++: receive create
+            workload_command -->> create_workload_task--
+            workload_control_loop -> runtime++: create runtime workload
+            runtime -->> workload_control_loop--
+            workload_control_loop -> workload_command --: wait for command
             deactivate runtime
-        
+
             rt_facade -> workload **: create WorkloadObject
             rt_facade -->> runtime_manager--
             runtime_manager -> runtime_manager++--: store new workload

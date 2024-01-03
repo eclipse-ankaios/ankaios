@@ -19,12 +19,10 @@ note right
     see delete digram for details on update
 endnote
 runtime -->> workload_control_loop--
-
-opt restart_counter < limit
-    workload_control_loop -> runtime ++: create workload
-    runtime -->> workload_control_loop--
-
-    opt create workload fails
+workload_control_loop -> runtime ++: create workload
+runtime -->> workload_control_loop--
+opt create workload fails
+    opt restart_counter < limit
         workload_control_loop ->> workload_control_loop ++: spawn restart
         workload_control_loop -> workload_command ++: send restart command
         workload_command -->> workload_control_loop--
