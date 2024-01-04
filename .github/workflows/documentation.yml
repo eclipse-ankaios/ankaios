@@ -38,7 +38,7 @@ jobs:
     if: ${{ needs.documentation_changes.outputs.documentation == 'true' || github.ref_name == 'main' || github.ref_type == 'tag' }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.4
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.7.0
     steps:
       - uses: actions/checkout@v3.5.3
       - name: Prepare commit to branch gh-pages
@@ -66,8 +66,7 @@ jobs:
             tools/generate_docs.sh build
   lint:
     name: Lint documentation
-    needs: documentation_changes
-    if: ${{ needs.documentation_changes.outputs.documentation == 'true' }}
+    # No dependencies as we have markdown files in a lot of places
     runs-on: ubuntu-latest
     steps:
       - name: git checkout

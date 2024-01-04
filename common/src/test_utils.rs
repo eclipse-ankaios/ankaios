@@ -19,8 +19,8 @@ use serde::{Serialize, Serializer};
 
 use crate::commands::CompleteState;
 use crate::objects::{
-    AccessRights, Cronjob, DeletedWorkload, ExpectedState, Interval, State, Tag, UpdateStrategy,
-    WorkloadSpec, WorkloadState,
+    AccessRights, AddCondition, Cronjob, DeleteCondition, DeletedWorkload, Interval, State, Tag,
+    UpdateStrategy, WorkloadSpec, WorkloadState,
 };
 
 #[cfg(feature = "test_utils")]
@@ -121,10 +121,10 @@ pub fn generate_test_proto_state() -> proto::State {
     }
 }
 
-fn generate_test_dependencies() -> HashMap<String, ExpectedState> {
+fn generate_test_dependencies() -> HashMap<String, AddCondition> {
     HashMap::from([
-        (String::from("workload A"), ExpectedState::Running),
-        (String::from("workload C"), ExpectedState::Stopped),
+        (String::from("workload A"), AddCondition::AddCondRunning),
+        (String::from("workload C"), AddCondition::AddCondSucceeded),
     ])
 }
 
@@ -132,12 +132,27 @@ fn generate_test_proto_dependencies() -> HashMap<String, i32> {
     HashMap::from([
         (
             String::from("workload A"),
-            proto::ExpectedState::Running.into(),
+            proto::AddCondition::AddCondRunning.into(),
         ),
         (
             String::from("workload C"),
-            proto::ExpectedState::Stopped.into(),
+            proto::AddCondition::AddCondSucceeded.into(),
         ),
+    ])
+}
+
+fn generate_test_delete_dependencies() -> HashMap<String, DeleteCondition> {
+    HashMap::from([
+        (String::from("workload A"), DeleteCondition::DelCondNotPendingNorRunning),
+    ])
+}
+
+fn generate_test_proto_delete_dependencies() -> HashMap<String, i32> {
+    HashMap::from([
+        (
+            String::from("workload A"),
+            proto::DeleteCondition::DelCondNotPendingNorRunning.into(),
+        )
     ])
 }
 
@@ -195,14 +210,14 @@ pub fn generate_test_deleted_workload(
     DeletedWorkload {
         agent,
         name,
-        dependencies: generate_test_dependencies(),
+        dependencies: generate_test_delete_dependencies(),
     }
 }
 
 pub fn generate_test_proto_deleted_workload() -> proto::DeletedWorkload {
     proto::DeletedWorkload {
         name: "workload X".to_string(),
-        dependencies: generate_test_proto_dependencies(),
+        dependencies: generate_test_proto_delete_dependencies(),
     }
 }
 

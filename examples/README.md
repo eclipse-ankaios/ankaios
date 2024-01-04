@@ -32,6 +32,13 @@ Every subfolder represents an example for a specific programming language. Feel 
    ANK_BIN_DIR=/absolute/path/to/ankaios/executables ./run_example.sh <example_subfolder>
    ```
 
+   In case you get errors like `DNS lookup error` your are probably within a VPN that restricts access to some DNS servers.
+   To workaround that [problem caused by buildah](https://github.com/containers/buildah/issues/3806) you need to specify a DNS server that should be used like:
+
+   ```shell
+   ./run_example.sh <example_subfolder> --dns=<IP address of DNS server>
+   ```
+
 3. Open an additional terminal in the dev container and run the following shell command to see the logs of the example workload:
 
    ```shell

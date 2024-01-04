@@ -1465,8 +1465,8 @@ mod tests {
                         }
                     ],
                     "dependencies": {
-                        "workload A": "RUNNING",
-                        "workload C": "STOPPED"
+                        "workload A": "ADD_COND_RUNNING",
+                        "workload C": "ADD_COND_SUCCEEDED"
                     },
                     "updateStrategy": "UNSPECIFIED",
                     "restart": true,
@@ -1529,8 +1529,8 @@ mod tests {
                             }
                         ],
                         "dependencies": {
-                            "workload A": "RUNNING",
-                            "workload C": "STOPPED"
+                            "workload A": "ADD_COND_RUNNING",
+                            "workload C": "ADD_COND_SUCCEEDED"
                         },
                         "updateStrategy": "UNSPECIFIED",
                         "restart": true,
