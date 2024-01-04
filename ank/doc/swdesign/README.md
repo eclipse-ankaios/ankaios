@@ -142,7 +142,6 @@ Tags:
 
 Needs:
 - impl
-- stest
 
 #### CLI prioritizes cli argument over environment variable
 `swdd~cli-prioritizes-cli-argument-over-environment-variable~1`
@@ -156,7 +155,7 @@ Tags:
 
 Needs:
 - impl
-- stest
+
 #### CLI is a standalone application
 `swdd~cli-standalone-application~1`
 
