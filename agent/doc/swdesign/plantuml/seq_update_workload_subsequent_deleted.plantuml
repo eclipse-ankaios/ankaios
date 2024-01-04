@@ -21,21 +21,30 @@ alt first update workload call for the current agent execution
 else subsequent update workload call
     loop for each deleted Worload
         workload_control_loop -> workload_command: wait for command
+        note right
+            WorkloadControlLoop is already waiting
+            for new workload commands for that workload
+        endnote
         alt if the workload is also in the added workloads list
             runtime_manager -> runtime_manager ++--: remove workload from \n added workloads list
             runtime_manager -> runtime_manager ++: update workload
             runtime_manager -> runtime_manager ++--: find workload in running workloads
             alt workload object found
-                runtime_manager -> workload ++: send update (new config)
+                runtime_manager -> workload ++: request update (new config)
                 workload -> workload_command ++: send update (new config)
-                workload_command -->> workload
+                workload_command -->> workload--
                 workload -->> runtime_manager--
+                deactivate runtime_manager
                 deactivate workload
                 workload_command -->> workload_control_loop --++: receive update (new config)
                 deactivate workload_command
                 workload_control_loop -> runtime ++: perform update actions
                 runtime -->> workload_control_loop--
                 workload_control_loop -> workload_command: wait for command
+                note right
+                    afterwards the WorkloadControlLoop
+                    waits again for incoming workload commands
+                endnote
                 deactivate workload_control_loop
                 deactivate runtime_manager
             else no workload object found -> nothing to update
@@ -47,12 +56,12 @@ else subsequent update workload call
         else this is only a delete
             runtime_manager -> runtime_manager++: delete workload
             runtime_manager -> runtime_manager ++--: remove workload from running workloads list
-            runtime_manager -> workload ++: send delete
+            runtime_manager -> workload ++: request delete
             workload -> workload_command ++: send delete
-            workload_command -->> workload
-            workload_command -->> workload_control_loop ++: receive delete
+            workload_command -->> workload--
             workload -->> runtime_manager
             destroy workload
+            workload_command -->> workload_control_loop ++: receive delete
             destroy workload_command
             workload_control_loop -> runtime++: perform delete actions
             runtime -->> workload_control_loop--

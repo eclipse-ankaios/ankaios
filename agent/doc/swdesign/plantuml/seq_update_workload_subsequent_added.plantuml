@@ -7,8 +7,8 @@ box "Ankaios Agent"
     participant "RuntimeManager" as runtime_manager
     participant "RuntimeFacade" as rt_facade
 
-    participant "<<task>>\WorkloadTask" as create_workload_task
     participant "Workload" as workload
+    participant "<<task>>\nWorkloadTask" as create_workload_task
     participant "WorkloadCommandChannel" as workload_command
     participant "WorkloadControlLoop" as workload_control_loop
 
@@ -37,8 +37,11 @@ else subsequent update workload call
         else no such workload found in list of running workloads \n normal behaviour
             runtime_manager -> runtime_manager++: add workload
             runtime_manager -> runtime_manager++--: create control interface
-            runtime_manager -> rt_facade++: create workload
+            runtime_manager -> rt_facade++: request create workload
             rt_facade ->> create_workload_task ++: spawn create workload
+            rt_facade -> workload **: create WorkloadObject
+            rt_facade -->> runtime_manager--
+            runtime_manager -> runtime_manager++--: store new workload
             create_workload_task -> workload_control_loop : run
             workload_control_loop -> workload_command: wait for command
             create_workload_task -> workload_command ++: send create
@@ -48,10 +51,6 @@ else subsequent update workload call
             runtime -->> workload_control_loop--
             workload_control_loop -> workload_command --: wait for command
             deactivate runtime
-
-            rt_facade -> workload **: create WorkloadObject
-            rt_facade -->> runtime_manager--
-            runtime_manager -> runtime_manager++--: store new workload
         end
     end
 end
