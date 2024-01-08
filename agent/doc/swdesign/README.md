@@ -45,17 +45,26 @@ The RuntimeManager holds a list of RuntimeFacades (more precisely a list of runt
 
 The RuntimeFacade wraps some common actions shared between all runtime connectors, s.t. they don't need to be implemented multiple times. The RuntimeFacade is responsible for creating, resuming and replacing a WorkloadObject including the start of the WorkloadControlLoop. Furthermore, The RuntimeFacade is responsible for providing functionality for deleting workloads that do not have an internal WorkloadObject (found unneeded workloads started in a previous execution of the Ankaios agent).
 
+### WorkloadCommand
+
+A WorkloadCommand is used to instruct the WorkloadControlLoop to do an action on a workload.
+Thus, the following WorkloadCommands exists:
+* `Create` for creating a workload
+* `Update` for updating a workload
+* `Restart` for restarting a workload
+* `Delete` for deleting a workload
+
 ### WorkloadControlLoop
 
-The WorkloadControlLoop is started for each workload with the creation of that workload and is running until its deletion. The WorkloadControlLoop receives the workload commands create, update, restart or delete via the WorkloadCommandChannel and triggers the corresponding operation on the runtime connector.
+The WorkloadControlLoop is started for each workload with the creation of that workload and is running until its deletion. The WorkloadControlLoop receives the WorkloadCommands via the WorkloadCommandChannel and triggers the corresponding operation on the runtime connector.
 
 ### WorkloadCommandChannel
 
-The WorkloadCommandChannel is a communication channel and responsible for sending and receiving workload commands to the WorkloadControlLoop e.g. create, update, restart or delete.
+The WorkloadCommandChannel is a communication channel and responsible for sending WorkloadCommands to the WorkloadControlLoop.
 
 ### WorkloadObject
 
-A WorkloadObject represents a workload inside the Ankaios agent. It holds the control interface and the sender of the WorkloadCommandChannel to send workload commands to the WorkloadControlLoop.
+A WorkloadObject represents a workload inside the Ankaios agent. It holds the control interface and the sender of the WorkloadCommandChannel to send WorkloadCommands to the WorkloadControlLoop.
 
 ### ParameterStorage
 
@@ -427,7 +436,7 @@ Needs:
 Status: approved
 
 When the RuntimeFacade gets a requests to create a workload, the RuntimeFacade shall:
-* start the WorkloadControlLoop waiting for commands for that workload
+* start the WorkloadControlLoop waiting for WorkloadCommands
 * request the create of the workload by sending a create command to the WorkloadControlLoop
 * return a new workload object containing a WorkloadCommandChannel to communicate with the WorkloadControlLoop
 
@@ -462,7 +471,7 @@ Status: approved
 
 When requested, the RuntimeFacade resumes a workload by:
 * request the wrapped runtime to start the state checker for that workload
-* start the WorkloadControlLoop waiting for commands for that workload
+* start the WorkloadControlLoop waiting for WorkloadCommands
 * return a new workload object containing a WorkloadCommandChannel to communicate with the WorkloadControlLoop
 
 Comment:
@@ -502,7 +511,7 @@ Status: approved
 
 When requested, the RuntimeFacade replaces a workload by:
 * request the wrapped runtime to delete the old workload
-* start the WorkloadControlLoop waiting for commands for that workload
+* start the WorkloadControlLoop waiting for WorkloadCommands
 * request the create of the workload with the new config by sending a create command to the WorkloadControlLoop
 * return a new workload object containing a WorkloadCommandChannel to communicate with the WorkloadControlLoop
 
@@ -690,7 +699,7 @@ Needs:
 
 Status: approved
 
-When the WorkloadControlLoop encounters a failure while deleting the old workload during the update of a workload, the WorkloadControlLoop shall continue allowing subsequent workload commands attempt.
+When the WorkloadControlLoop encounters a failure while deleting the old workload during the update of a workload, the WorkloadControlLoop shall continue allowing subsequent WorkloadCommands attempt.
 
 Rationale:
 This allows to try the update again instead of going in an undefined state.
@@ -707,7 +716,7 @@ Needs:
 
 Status: approved
 
-When the WorkloadControlLoop encounters a failure while creating a new workload during the update of a workload, the WorkloadControlLoop shall continue allowing subsequent workload commands attempt.
+When the WorkloadControlLoop encounters a failure while creating a new workload during the update of a workload, the WorkloadControlLoop shall continue allowing subsequent WorkloadCommands attempt.
 
 Rationale:
 This allows to try the update again instead of going in an undefined state.
@@ -875,7 +884,7 @@ The following diagram describes the restart behavior when an update command is r
 
 Status: approved
 
-When the WorkloadControlLoop creates a workload and the operation fails, the WorkloadControlLoop shall restart the creation of a workload by sending the workload command Restart to the WorkloadControlLoop of the workload.
+When the WorkloadControlLoop creates a workload and the operation fails, the WorkloadControlLoop shall restart the creation of a workload by sending the WorkloadCommand Restart to the WorkloadControlLoop of the workload.
 
 Comment:
 Depending on the runtime, a create of a workload might fail if the workload is added again while a delete operation for a workload with the same config is still in progress.
@@ -899,7 +908,7 @@ Status: approved
 When the WorkloadControlLoop executes a restart of a workload and the runtime connector fails to create the workload, the WorkloadControlLoop shall request a restart of the creation of the workload within a 1 sec time interval.
 
 Comment:
-The creation of a workload can fail temporarily, for example if a Runtime is still busy deleting and the workload is to be recreated. The WorkloadControlLoop uses the WorkloadCommandChannel to send the workload command restart.
+The creation of a workload can fail temporarily, for example if a Runtime is still busy deleting and the workload is to be recreated. The WorkloadControlLoop uses the WorkloadCommandChannel to send the WorkloadCommand restart.
 
 Rationale:
 The restart behavior for unsuccessful creation of a workload makes the system more resilient against runtime specific failures.
@@ -973,10 +982,10 @@ Status: approved
 When the WorkloadControlLoop receives an update or delete from the WorkloadCommandChannel, the WorkloadControlLoop shall stop triggering restart attempts.
 
 Comment:
-When executing the restart attempts the WorkloadControlLoop might receive other workload commands like update or delete making the restart attempts with the previous workload configuration obsolete.
+When executing the restart attempts the WorkloadControlLoop might receive other WorkloadCommands like update or delete making the restart attempts with the previous workload configuration obsolete.
 
 Rationale:
-This prevents the continuation of unnecessary restart attempts of a workload when receiving a workload command update or delete.
+This prevents the continuation of unnecessary restart attempts of a workload when receiving a WorkloadCommand update or delete.
 
 Tags:
 - WorkloadControlLoop
