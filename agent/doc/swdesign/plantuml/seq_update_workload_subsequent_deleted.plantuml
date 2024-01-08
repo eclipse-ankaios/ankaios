@@ -5,7 +5,7 @@ box "Ankaios Agent"
     participant "AgentManager" as manager
     participant "RuntimeManager" as runtime_manager
     participant "Workload" as workload
-    participant "WorkloadCommandSender" as workload_command
+    participant "WorkloadCommandChannel" as workload_command
     participant "<<task>>\nWorkloadControlLoop" as workload_control_loop
 
     participant "Specific Runtime Connector\n e.g., PodmanRuntime" as runtime
@@ -20,7 +20,7 @@ alt first update workload call for the current agent execution
 ... see dedicated digram for first call ...
 else subsequent update workload call
     loop for each deleted Worload
-        workload_control_loop -> workload_command: wait for command
+        workload_control_loop -> workload_command ++: wait for command
         note right
             WorkloadControlLoop is already waiting
             for new workload commands for that workload
@@ -40,7 +40,7 @@ else subsequent update workload call
                 deactivate workload_command
                 workload_control_loop -> runtime ++: perform update actions
                 runtime -->> workload_control_loop--
-                workload_control_loop -> workload_command: wait for command
+                workload_control_loop -> workload_command ++: wait for command
                 note right
                     afterwards the WorkloadControlLoop
                     waits again for incoming workload commands

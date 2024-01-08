@@ -8,8 +8,7 @@ box "Ankaios Agent"
     participant "RuntimeFacade" as rt_facade
 
     participant "Workload" as workload
-    participant "<<task>>\nWorkloadTask" as create_workload_task
-    participant "WorkloadCommandSender" as workload_command
+    participant "WorkloadCommandChannel" as workload_command
     participant "WorkloadControlLoop" as workload_control_loop
 
     participant "Specific Runtime Connector\n e.g., PodmanRuntime" as runtime
@@ -38,19 +37,25 @@ else subsequent update workload call
             runtime_manager -> runtime_manager++: add workload
             runtime_manager -> runtime_manager++--: create control interface
             runtime_manager -> rt_facade++: request create workload
-            rt_facade ->> create_workload_task ++: spawn create workload
-            rt_facade -> workload **: create WorkloadObject
-            rt_facade -->> runtime_manager--
+            rt_facade ->> rt_facade ++: spawn create workload
             runtime_manager -> runtime_manager++--: store new workload
-            create_workload_task -> workload_control_loop : run
-            workload_control_loop -> workload_command: wait for command
-            create_workload_task -> workload_command ++: send create
-            workload_command -->> workload_control_loop ++: receive create
-            workload_command -->> create_workload_task--
+
+            rt_facade -> workload_control_loop ++: run
+            workload_control_loop -> workload_command ++: wait for command
+            rt_facade -> workload_command ++: send create
+            workload_command -->> rt_facade--
+            deactivate rt_facade
+
+            rt_facade -> workload **: create WorkloadObject
+            rt_facade -->> runtime_manager --
+
+            workload_command -->> workload_control_loop --++: receive create
+
             workload_control_loop -> runtime++: create runtime workload
-            runtime -->> workload_control_loop--
-            workload_control_loop -> workload_command --: wait for command
-            deactivate runtime
+            runtime -->> workload_control_loop --
+            workload_control_loop -> workload_command ++: wait for command
+
+            ...
         end
     end
 end
