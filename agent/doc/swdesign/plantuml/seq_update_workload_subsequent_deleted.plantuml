@@ -5,7 +5,7 @@ box "Ankaios Agent"
     participant "AgentManager" as manager
     participant "RuntimeManager" as runtime_manager
     participant "Workload" as workload
-    participant "WorkloadCommandChannel" as workload_command
+    participant "WorkloadCommandSender" as workload_command
     participant "<<task>>\nWorkloadControlLoop" as workload_control_loop
 
     participant "Specific Runtime Connector\n e.g., PodmanRuntime" as runtime

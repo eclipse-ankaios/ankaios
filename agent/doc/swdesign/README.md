@@ -56,15 +56,15 @@ Thus, the following WorkloadCommands exists:
 
 ### WorkloadControlLoop
 
-The WorkloadControlLoop is started for each workload with the creation of that workload and is running until its deletion. The WorkloadControlLoop receives the WorkloadCommands via the WorkloadCommandChannel and triggers the corresponding operation on the runtime connector.
+The WorkloadControlLoop is started for each workload with the creation of that workload and is running until its deletion. The WorkloadControlLoop receives the WorkloadCommands via the WorkloadCommandSender and triggers the corresponding operation on the runtime connector.
 
-### WorkloadCommandChannel
+### WorkloadCommandSender
 
-The WorkloadCommandChannel is a communication channel and responsible for sending WorkloadCommands to the WorkloadControlLoop.
+The WorkloadCommandSender is a communication channel and responsible for sending WorkloadCommands to the WorkloadControlLoop.
 
 ### WorkloadObject
 
-A WorkloadObject represents a workload inside the Ankaios agent. It holds the control interface and the sender of the WorkloadCommandChannel to send WorkloadCommands to the WorkloadControlLoop.
+A WorkloadObject represents a workload inside the Ankaios agent. It holds the control interface and the sender of the WorkloadCommandSender to send WorkloadCommands to the WorkloadControlLoop.
 
 ### ParameterStorage
 
@@ -438,7 +438,7 @@ Status: approved
 When the RuntimeFacade gets a requests to create a workload, the RuntimeFacade shall:
 * start the WorkloadControlLoop waiting for WorkloadCommands
 * request the create of the workload by sending a create command to the WorkloadControlLoop
-* return a new workload object containing a WorkloadCommandChannel to communicate with the WorkloadControlLoop
+* return a new workload object containing a WorkloadCommandSender to communicate with the WorkloadControlLoop
 
 Rationale:
 The task handling stop and update commands is needed to ensure maintaining the order of the commands for a workload while not blocking Ankaios to wait until one command is complete.
@@ -472,7 +472,7 @@ Status: approved
 When requested, the RuntimeFacade resumes a workload by:
 * request the wrapped runtime to start the state checker for that workload
 * start the WorkloadControlLoop waiting for WorkloadCommands
-* return a new workload object containing a WorkloadCommandChannel to communicate with the WorkloadControlLoop
+* return a new workload object containing a WorkloadCommandSender to communicate with the WorkloadControlLoop
 
 Comment:
 If a workload is running, there is no need to create it again via the specific runtime. The state checker must be started as an additional step here as the runtime does not create a new workload.
@@ -513,7 +513,7 @@ When requested, the RuntimeFacade replaces a workload by:
 * request the wrapped runtime to delete the old workload
 * start the WorkloadControlLoop waiting for WorkloadCommands
 * request the create of the workload with the new config by sending a create command to the WorkloadControlLoop
-* return a new workload object containing a WorkloadCommandChannel to communicate with the WorkloadControlLoop
+* return a new workload object containing a WorkloadCommandSender to communicate with the WorkloadControlLoop
 
 Comment:
 No need to specifically ask for starting the state checker at that point as runtimes are expected to always create a state checker when creating a workload.
@@ -619,7 +619,7 @@ Status: approved
 When the WorkloadObject receives a trigger to update the workload, it:
 * stops the old control interface
 * stores the new control interface
-* sends a command via the WorkloadCommandChannel to the WorkloadControlLoop to update the workload
+* sends a command via the WorkloadCommandSender to the WorkloadControlLoop to update the workload
 
 Tags:
 - WorkloadObject
@@ -766,7 +766,7 @@ Status: approved
 
 When the WorkloadObject receives a trigger to delete the workload, it:
 * stops the control interface
-* sends a command via the WorkloadCommandChannel to the WorkloadControlLoop to delete the workload
+* sends a command via the WorkloadCommandSender to the WorkloadControlLoop to delete the workload
 
 Tags:
 - WorkloadObject
@@ -908,7 +908,7 @@ Status: approved
 When the WorkloadControlLoop executes a restart of a workload and the runtime connector fails to create the workload, the WorkloadControlLoop shall request a restart of the creation of the workload within a 1 sec time interval.
 
 Comment:
-The creation of a workload can fail temporarily, for example if a Runtime is still busy deleting and the workload is to be recreated. The WorkloadControlLoop uses the WorkloadCommandChannel to send the WorkloadCommand restart.
+The creation of a workload can fail temporarily, for example if a Runtime is still busy deleting and the workload is to be recreated. The WorkloadControlLoop uses the WorkloadCommandSender to send the WorkloadCommand restart.
 
 Rationale:
 The restart behavior for unsuccessful creation of a workload makes the system more resilient against runtime specific failures.
@@ -979,7 +979,7 @@ Needs:
 
 Status: approved
 
-When the WorkloadControlLoop receives an update or delete from the WorkloadCommandChannel, the WorkloadControlLoop shall stop triggering restart attempts.
+When the WorkloadControlLoop receives an update or delete from the WorkloadCommandSender, the WorkloadControlLoop shall stop triggering restart attempts.
 
 Comment:
 When executing the restart attempts the WorkloadControlLoop might receive other WorkloadCommands like update or delete making the restart attempts with the previous workload configuration obsolete.
@@ -1000,7 +1000,7 @@ Needs:
 
 Status: approved
 
-When the WorkloadControlLoop receives an update from the WorkloadCommandChannel, the WorkloadControlLoop shall reset the restart counter.
+When the WorkloadControlLoop receives an update from the WorkloadCommandSender, the WorkloadControlLoop shall reset the restart counter.
 
 Comment:
 The restart counter might be already incremented when the workload that shall be updated was already failing a few times during its initial creation.

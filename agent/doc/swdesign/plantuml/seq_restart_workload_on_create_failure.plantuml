@@ -4,7 +4,7 @@
 box "Ankaios Agent"
     participant "RuntimeFacade" as runtime_facade
     participant "<<task>>\nWorkload Task" as create_workload_task
-    participant "WorkloadCommandChannel" as workload_command
+    participant "WorkloadCommandSender" as workload_command
     participant "WorkloadControlLoop" as workload_control_loop
     participant "Specific Runtime Connector\n e.g., PodmanRuntime" as runtime
 end box

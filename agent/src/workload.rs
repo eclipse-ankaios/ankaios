@@ -17,7 +17,7 @@ pub mod workload_command_channel;
 pub mod workload_control_loop;
 
 // public api exports
-pub use workload_command_channel::WorkloadCommandChannel;
+pub use workload_command_channel::WorkloadCommandSender;
 pub use workload_control_loop::{ControlLoopState, RestartCounter, WorkloadControlLoop};
 
 use std::{fmt::Display, path::PathBuf};
@@ -61,7 +61,7 @@ pub enum WorkloadCommand {
 // #[derive(Debug)]
 pub struct Workload {
     name: String,
-    channel: WorkloadCommandChannel,
+    channel: WorkloadCommandSender,
     control_interface: Option<PipesChannelContext>,
 }
 
@@ -69,7 +69,7 @@ pub struct Workload {
 impl Workload {
     pub fn new(
         name: String,
-        channel: WorkloadCommandChannel,
+        channel: WorkloadCommandSender,
         control_interface: Option<PipesChannelContext>,
     ) -> Self {
         Workload {
@@ -160,7 +160,7 @@ mod tests {
 
     use crate::{
         control_interface::MockPipesChannelContext,
-        workload::WorkloadCommandChannel,
+        workload::WorkloadCommandSender,
         workload::{Workload, WorkloadCommand, WorkloadError},
     };
 
@@ -180,7 +180,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
 
         // drop the receiver so that the send command fails
         drop(workload_command_receiver);
@@ -210,8 +210,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, mut workload_command_receiver) =
-            WorkloadCommandChannel::new();
+        let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
         let mut old_control_interface_mock = MockPipesChannelContext::default();
         old_control_interface_mock
@@ -261,7 +260,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
 
         // drop the receiver so that the send command fails
         drop(workload_command_receiver);
@@ -305,8 +304,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, mut workload_command_receiver) =
-            WorkloadCommandChannel::new();
+        let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
         let mut old_control_interface_mock = MockPipesChannelContext::default();
         old_control_interface_mock
@@ -335,7 +333,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, _) = WorkloadCommandChannel::new();
+        let (workload_command_sender, _) = WorkloadCommandSender::new();
         let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut control_interface_mock = MockPipesChannelContext::default();
@@ -378,7 +376,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, _) = WorkloadCommandChannel::new();
+        let (workload_command_sender, _) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
 
         drop(state_change_rx);
@@ -409,7 +407,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, _) = WorkloadCommandChannel::new();
+        let (workload_command_sender, _) = WorkloadCommandSender::new();
 
         let mut test_workload =
             Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_sender, None);

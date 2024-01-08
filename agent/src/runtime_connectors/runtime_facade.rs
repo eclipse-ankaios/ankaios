@@ -14,7 +14,7 @@ use crate::runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker};
 use crate::workload::workload_control_loop::WorkloadControlLoop;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
-use crate::workload::WorkloadCommandChannel;
+use crate::workload::WorkloadCommandSender;
 use crate::workload::{ControlLoopState, RestartCounter};
 
 #[async_trait]
@@ -106,7 +106,7 @@ impl<
             workload_name,
             workload_spec.agent
         );
-        let (workload_channel_sender, command_receiver) = WorkloadCommandChannel::new();
+        let (workload_channel_sender, command_receiver) = WorkloadCommandSender::new();
         let workload_channel = workload_channel_sender.clone();
         tokio::spawn(async move {
             let instance_name = workload_spec.instance_name();
@@ -156,7 +156,7 @@ impl<
             new_workload_spec.agent
         );
 
-        let (workload_channel_sender, command_receiver) = WorkloadCommandChannel::new();
+        let (workload_channel_sender, command_receiver) = WorkloadCommandSender::new();
         let workload_channel = workload_channel_sender.clone();
         tokio::spawn(async move {
             let instance_name = new_workload_spec.instance_name();
@@ -222,7 +222,7 @@ impl<
             workload_spec.agent
         );
 
-        let (workload_channel, command_receiver) = WorkloadCommandChannel::new();
+        let (workload_channel, command_receiver) = WorkloadCommandSender::new();
         let workload_channel_retry = workload_channel.clone();
         tokio::spawn(async move {
             let instance_name = workload_spec.instance_name();

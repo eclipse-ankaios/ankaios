@@ -14,7 +14,7 @@
 use super::workload_command_channel::WorkloadCommandReceiver;
 use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use crate::workload::WorkloadCommand;
-use crate::workload::WorkloadCommandChannel;
+use crate::workload::WorkloadCommandSender;
 use common::objects::WorkloadExecutionInstanceName;
 use common::{
     objects::{ExecutionState, WorkloadInstanceName, WorkloadSpec},
@@ -79,7 +79,7 @@ where
     pub update_state_tx: StateChangeSender,
     pub runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>,
     pub command_receiver: WorkloadCommandReceiver,
-    pub workload_channel: WorkloadCommandChannel,
+    pub workload_channel: WorkloadCommandSender,
     pub restart_counter: RestartCounter,
 }
 
@@ -415,7 +415,7 @@ mod tests {
 
     use crate::{
         runtime_connectors::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
-        workload::{ControlLoopState, RestartCounter, WorkloadCommandChannel, WorkloadControlLoop},
+        workload::{ControlLoopState, RestartCounter, WorkloadCommandSender, WorkloadControlLoop},
     };
 
     const RUNTIME_NAME: &str = "runtime1";
@@ -439,7 +439,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut old_mock_state_checker = StubStateChecker::new();
@@ -523,7 +523,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         // Since we also send a delete command to exit the control loop properly, the new state
@@ -603,7 +603,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut old_mock_state_checker = StubStateChecker::new();
@@ -681,7 +681,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut old_mock_state_checker = StubStateChecker::new();
@@ -761,7 +761,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut mock_state_checker = StubStateChecker::new();
@@ -825,7 +825,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut mock_state_checker = StubStateChecker::new();
@@ -896,7 +896,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let runtime_mock = MockRuntimeConnector::new();
@@ -939,7 +939,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
@@ -1009,7 +1009,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
@@ -1087,8 +1087,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, mut workload_command_receiver) =
-            WorkloadCommandChannel::new();
+        let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
@@ -1151,7 +1150,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
@@ -1231,7 +1230,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
@@ -1315,7 +1314,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
@@ -1377,8 +1376,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, mut workload_command_receiver) =
-            WorkloadCommandChannel::new();
+        let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
@@ -1441,7 +1439,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
@@ -1527,7 +1525,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
@@ -1616,7 +1614,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
@@ -1710,7 +1708,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandChannel::new();
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(

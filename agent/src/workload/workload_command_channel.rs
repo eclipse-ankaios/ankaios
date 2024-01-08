@@ -18,19 +18,18 @@ use tokio::sync::mpsc;
 
 static COMMAND_BUFFER_SIZE: usize = 5;
 
-pub type WorkloadCommandSender = mpsc::Sender<WorkloadCommand>;
 pub type WorkloadCommandReceiver = mpsc::Receiver<WorkloadCommand>;
 
 #[derive(Clone)]
-pub struct WorkloadCommandChannel {
-    sender: WorkloadCommandSender,
+pub struct WorkloadCommandSender {
+    sender: mpsc::Sender<WorkloadCommand>,
 }
 
-impl WorkloadCommandChannel {
+impl WorkloadCommandSender {
     pub fn new() -> (Self, WorkloadCommandReceiver) {
         let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
         (
-            WorkloadCommandChannel {
+            WorkloadCommandSender {
                 sender: command_sender,
             },
             command_receiver,
@@ -105,8 +104,7 @@ mod tests {
 
     #[tokio::test]
     async fn utest_send_create() {
-        let (workload_command_sender, mut workload_command_receiver) =
-            WorkloadCommandChannel::new();
+        let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
         workload_command_sender
             .create(WORKLOAD_SPEC.clone(), CONTROL_INTERFACE_PATH.clone())
@@ -122,8 +120,7 @@ mod tests {
 
     #[tokio::test]
     async fn utest_send_restart() {
-        let (workload_command_sender, mut workload_command_receiver) =
-            WorkloadCommandChannel::new();
+        let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
         workload_command_sender
             .restart(WORKLOAD_SPEC.clone(), CONTROL_INTERFACE_PATH.clone())
@@ -139,8 +136,7 @@ mod tests {
 
     #[tokio::test]
     async fn utest_send_update() {
-        let (workload_command_sender, mut workload_command_receiver) =
-            WorkloadCommandChannel::new();
+        let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
         workload_command_sender
             .update(WORKLOAD_SPEC.clone(), CONTROL_INTERFACE_PATH.clone())
@@ -156,8 +152,7 @@ mod tests {
 
     #[tokio::test]
     async fn utest_send_delete() {
-        let (workload_command_sender, mut workload_command_receiver) =
-            WorkloadCommandChannel::new();
+        let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
         workload_command_sender.delete().await.unwrap();
 
