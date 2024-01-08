@@ -14,6 +14,7 @@
 
 mod ankaios_server;
 mod cli;
+mod server_state;
 mod state_manipulation;
 mod state_parser;
 mod workload_state_db;
