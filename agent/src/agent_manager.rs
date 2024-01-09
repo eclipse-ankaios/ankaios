@@ -77,7 +77,7 @@ impl AgentManager {
                         method_obj
                     );
 
-                    // [impl->swdd~agent-manager-stores-all-workload-states~1]
+                    // [impl->swdd~agent-stores-all-workload-states~1]
                     method_obj
                         .workload_states
                         .into_iter()
@@ -188,7 +188,7 @@ mod tests {
 
     // [utest->swdd~agent-manager-listens-requests-from-server~1]
     // [utest->swdd~agent-uses-async-channels~1]
-    // [utest->swdd~agent-manager-stores-all-workload-states~1]
+    // [utest->swdd~agent-stores-all-workload-states~1]
     #[tokio::test]
     async fn utest_agent_manager_update_workload_states() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
