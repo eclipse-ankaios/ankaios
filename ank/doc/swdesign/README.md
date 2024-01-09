@@ -505,22 +505,6 @@ Tags:
 Needs:
 - impl
 - utest
-![Delete workload](plantuml/seq_delete_workload.svg)
-
-#### CLI provides a function to delete workloads
-`swdd~cli-provides-delete-workload~1`
-
-Status: approved
-
-The Ankaios CLI shall provide a function to delete workloads.
-
-Tags:
-- DeleteWorkload
-
-Needs:
-- swdd
-- impl
-- utest
 
 ### `ank apply [-d] [--agent agent_name] <manifest.yaml> ...`
 
