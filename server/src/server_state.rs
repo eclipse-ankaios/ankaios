@@ -16,7 +16,7 @@ use common::{
     commands::CompleteState,
     objects::{DeleteCondition, State, WorkloadSpec},
 };
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet};
 
 type DeleteGraph = HashMap<String, HashMap<String, DeleteCondition>>;
 
@@ -31,49 +31,52 @@ enum Visited {
     Full,
 }
 
-fn find_cycles(
-    cycles: &mut Vec<Vec<String>>,
-    recursion_stack: &mut Vec<String>,
-    visited: &mut Vec<String>,
+fn dfs(
+    recursion_stack_counter: &mut usize,
+    recursion_stack: &mut HashMap<String, usize>,
+    visited: &mut HashSet<String>,
     state: &State,
     workload_spec: &WorkloadSpec,
-) -> bool {
-    visited.push(workload_spec.name.clone());
-    recursion_stack.push(workload_spec.name.clone());
+) -> Option<Vec<String>> {
+    visited.insert(workload_spec.name.clone());
+    *recursion_stack_counter += 1;
+    recursion_stack.insert(workload_spec.name.clone(), *recursion_stack_counter);
     log::info!("Find cycles for workload = '{}'", workload_spec.name);
     for (workload_name, _) in workload_spec.dependencies.iter() {
         if !visited.contains(workload_name) {
             log::info!("'{}' not visited", workload_name);
             if let Some(next_workload) = state.workloads.get(workload_name) {
                 log::info!("get next workload spec of dependency = '{}'", workload_name);
-                if find_cycles(cycles, recursion_stack, visited, state, next_workload) {
-                    return true;
+                if let Some(cycle) = dfs(
+                    recursion_stack_counter,
+                    recursion_stack,
+                    visited,
+                    state,
+                    next_workload,
+                ) {
+                    return Some(cycle);
                 }
             }
-        } else if recursion_stack.contains(workload_name) {
+        } else if recursion_stack.contains_key(workload_name) {
             log::info!("'{}' is in recursion stack => cylce!", workload_name);
-            let cycle_start = recursion_stack
+            let mut rec_stack: Vec<(&String, &usize)> = recursion_stack.iter().collect();
+            rec_stack
+                .sort_by(|(_, left_counter), (_, right_counter)| left_counter.cmp(right_counter));
+            let cycle_start = rec_stack
                 .iter()
-                .position(|n| n == workload_name)
+                .position(|(name, _)| name == &workload_name)
                 .unwrap_or(0);
-            let mut cycle = recursion_stack[cycle_start..].to_owned();
+            let mut cycle: Vec<String> = rec_stack[cycle_start..]
+                .iter()
+                .map(|(n, _)| n.to_owned().clone())
+                .collect();
             cycle.push(workload_name.clone());
-            cycles.push(cycle);
-            return true;
+            return Some(cycle);
         }
     }
+    recursion_stack.remove(&workload_spec.name);
 
-    if let Some(index) = recursion_stack
-        .iter()
-        .position(|n| n == &workload_spec.name)
-    {
-        log::info!(
-            "remove workload '{}' from recursion stack as there is no cycle for this workload",
-            workload_spec.name
-        );
-        recursion_stack.remove(index);
-    }
-    false
+    None
 }
 
 impl ServerState {
@@ -84,24 +87,24 @@ impl ServerState {
         }
     }
 
-    fn cyclic_dependencies(&self) -> Result<(), String> {
-        let mut cycles = Vec::new();
-        let mut visited = Vec::new();
+    fn has_cyclic_dependencies(&self) -> Result<(), String> {
+        let mut visited = HashSet::new();
         for (workload_name, workload_spec) in self.state.current_state.workloads.iter() {
             log::info!("searching for workload = '{}'", workload_name);
             if !visited.contains(workload_name) {
-                let mut recursion_stack = Vec::new();
-                if find_cycles(
-                    &mut cycles,
+                let mut recursion_stack_id: usize = 0;
+                let mut recursion_stack: HashMap<String, usize> = HashMap::new();
+                if let Some(cycle) = dfs(
+                    &mut recursion_stack_id,
                     &mut recursion_stack,
                     &mut visited,
                     &self.state.current_state,
                     workload_spec,
                 ) {
-                    log::info!("{:?}", cycles);
+                    log::info!("{:?}", cycle);
                     return Err(format!(
                         "dependencies are conatining a cycle: '{:?}'",
-                        cycles,
+                        cycle,
                     ));
                 }
             }
@@ -132,14 +135,6 @@ mod tests {
 
     #[test]
     fn utest_detect_cycle_in_dependencies_1() {
-        /*
-            Graph:
-            A -> B -> C
-            C -> A
-            B -> D
-            Cycle:
-            A -> B -> C -> A
-        */
         let _ = env_logger::builder().is_test(true).try_init();
 
         let mut workload_a = generate_test_workload_spec_with_param(
@@ -185,7 +180,7 @@ mod tests {
 
         log::info!("{:#?}", complete_state);
         let server_state = ServerState::new(complete_state, DeleteGraph::new());
-        let result = server_state.cyclic_dependencies();
+        let result = server_state.has_cyclic_dependencies();
         assert!(result.is_err());
     }
 
@@ -251,7 +246,7 @@ mod tests {
 
         log::info!("{:#?}", complete_state);
         let server_state = ServerState::new(complete_state, DeleteGraph::new());
-        let result = server_state.cyclic_dependencies();
+        let result = server_state.has_cyclic_dependencies();
         assert!(result.is_err());
     }
 
@@ -294,7 +289,7 @@ mod tests {
 
         log::info!("{:#?}", complete_state);
         let server_state = ServerState::new(complete_state, DeleteGraph::new());
-        let result = server_state.cyclic_dependencies();
+        let result = server_state.has_cyclic_dependencies();
         assert!(result.is_err());
     }
 }
