@@ -1912,8 +1912,8 @@ After the Ankaios agent is started it receives an information about Workload Sta
 
 ![Storing a Workload State](plantuml/seq_store_workload_state.svg)
 
-#### AgentManager stores all Workload States
-`swdd~agent-manager-stores-all-workload-states~1`
+#### Agent stores all Workload States
+`swdd~agent-stores-all-workload-states~1`
 
 Status: approved
 
@@ -1923,8 +1923,8 @@ Comment:
 The `UpdateWorkloadState` contains workload states of other workloads. The Workload State "removed" is the default and Node-Workload pairs of this type can be represented by not being stored.
 
 Tags:
-- AgentManager
-- ParameterStorage
+- WorkloadStateProxy
+- WorkloadStateDB
 
 Needs:
 - impl
