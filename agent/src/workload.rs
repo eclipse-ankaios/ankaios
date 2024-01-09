@@ -1,20 +1,35 @@
+// Copyright (c) 2023 Elektrobit Automotive GmbH
+//
+// This program and the accompanying materials are made available under the
+// terms of the Apache License, Version 2.0 which is available at
+// https://www.apache.org/licenses/LICENSE-2.0.
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+// mod exports
+pub mod workload_command_channel;
+pub mod workload_control_loop;
+
+// public api exports
+pub use workload_command_channel::WorkloadCommandSender;
+pub use workload_control_loop::{ControlLoopState, RestartCounter, WorkloadControlLoop};
+
 use std::{fmt::Display, path::PathBuf};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::PipesChannelContext;
-use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use common::{
-    commands::CompleteState,
-    execution_interface::ExecutionCommand,
-    objects::{ExecutionState, WorkloadSpec},
-    state_change_interface::{StateChangeInterface, StateChangeSender},
-    std_extensions::IllegalStateResult,
+    commands::CompleteState, execution_interface::ExecutionCommand, objects::WorkloadSpec,
 };
 
 #[cfg(test)]
 use mockall::automock;
-
-use tokio::sync::mpsc;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum WorkloadError {
@@ -35,16 +50,18 @@ impl Display for WorkloadError {
     }
 }
 
-#[derive(Debug)]
+//#[derive(Debug)]
 pub enum WorkloadCommand {
     Delete,
     Update(Box<WorkloadSpec>, Option<PathBuf>),
+    Restart(Box<WorkloadSpec>, Option<PathBuf>),
+    Create(Box<WorkloadSpec>, Option<PathBuf>),
 }
 
 // #[derive(Debug)]
 pub struct Workload {
     name: String,
-    channel: mpsc::Sender<WorkloadCommand>,
+    channel: WorkloadCommandSender,
     control_interface: Option<PipesChannelContext>,
 }
 
@@ -52,7 +69,7 @@ pub struct Workload {
 impl Workload {
     pub fn new(
         name: String,
-        channel: mpsc::Sender<WorkloadCommand>,
+        channel: WorkloadCommandSender,
         control_interface: Option<PipesChannelContext>,
     ) -> Self {
         Workload {
@@ -80,11 +97,9 @@ impl Workload {
             .as_ref()
             .map(|control_interface| control_interface.get_api_location());
 
+        log::debug!("Send WorkloadCommand::Update.");
         self.channel
-            .send(WorkloadCommand::Update(
-                Box::new(spec),
-                control_interface_path,
-            ))
+            .update(spec, control_interface_path)
             .await
             .map_err(|err| WorkloadError::Communication(err.to_string()))
     }
@@ -98,105 +113,9 @@ impl Workload {
         }
 
         self.channel
-            .send(WorkloadCommand::Delete)
+            .delete()
             .await
             .map_err(|err| WorkloadError::Communication(err.to_string()))
-    }
-
-    pub async fn await_new_command<WorkloadId, StChecker>(
-        workload_name: String,
-        agent_name: String,
-        mut workload_id: Option<WorkloadId>,
-        mut state_checker: Option<StChecker>,
-        update_state_tx: StateChangeSender,
-        runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>,
-        mut command_receiver: mpsc::Receiver<WorkloadCommand>,
-    ) where
-        WorkloadId: Send + Sync + 'static,
-        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
-    {
-        loop {
-            match command_receiver.recv().await {
-                // [impl->swdd~agent-workload-tasks-executes-delete~1]
-                Some(WorkloadCommand::Delete) => {
-                    if let Some(old_id) = workload_id.take() {
-                        if let Err(err) = runtime.delete_workload(&old_id).await {
-                            // [impl->swdd~agent-workload-task-delete-failed-allows-retry~1]
-                            log::warn!("Could not stop workload '{}': '{}'", workload_name, err);
-                            workload_id = Some(old_id);
-                            continue;
-                        } else {
-                            if let Some(old_checker) = state_checker.take() {
-                                old_checker.stop_checker().await;
-                            }
-                            log::debug!("Stop workload complete");
-                        }
-                    } else {
-                        // [impl->swdd~agent-workload-task-delete-broken-allowed~1]
-                        log::debug!("Workload '{}' already gone.", workload_name);
-                    }
-
-                    // Successfully stopped the workload and the state checker. Send a removed on the channel
-                    update_state_tx
-                        .update_workload_state(vec![common::objects::WorkloadState {
-                            agent_name,
-                            workload_name,
-                            execution_state: ExecutionState::ExecRemoved,
-                        }])
-                        .await
-                        .unwrap_or_illegal_state();
-
-                    return;
-                }
-                // [impl->swdd~agent-workload-task-executes-update~1]
-                Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
-                    if let Some(old_id) = workload_id.take() {
-                        if let Err(err) = runtime.delete_workload(&old_id).await {
-                            // [impl->swdd~agent-workload-task-update-delete-failed-allows-retry~1]
-                            log::warn!("Could not update workload '{}': '{}'", workload_name, err);
-                            workload_id = Some(old_id);
-                            continue;
-                        } else if let Some(old_checker) = state_checker.take() {
-                            old_checker.stop_checker().await;
-                        }
-                    } else {
-                        // [impl->swdd~agent-workload-task-update-broken-allowed~1]
-                        log::debug!("Workload '{}' already gone.", workload_name);
-                    }
-
-                    match runtime
-                        .create_workload(
-                            *runtime_workload_config,
-                            control_interface_path,
-                            update_state_tx.clone(),
-                        )
-                        .await
-                    {
-                        Ok((new_workload_id, new_state_checker)) => {
-                            workload_id = Some(new_workload_id);
-                            state_checker = Some(new_state_checker);
-                        }
-                        Err(err) => {
-                            // [impl->swdd~agent-workload-task-update-create-failed-allows-retry~1]
-                            log::warn!(
-                                "Could not start updated workload '{}': '{}'",
-                                workload_name,
-                                err
-                            )
-                        }
-                    }
-
-                    log::debug!("Update workload complete");
-                }
-                _ => {
-                    log::warn!(
-                        "Could not wait for internal stop command for workload '{}'.",
-                        workload_name,
-                    );
-                    return;
-                }
-            }
-        }
     }
 
     // [impl->swdd~agent-forward-responses-to-control-interface-pipe~1]
@@ -233,30 +152,56 @@ mod tests {
     use std::time::Duration;
 
     use common::{
-        commands::{CompleteState, UpdateWorkloadState},
+        commands::CompleteState,
         execution_interface::ExecutionCommand,
-        objects::{ExecutionState, WorkloadState},
-        state_change_interface::StateChangeCommand,
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
     };
     use tokio::{sync::mpsc, time::timeout};
 
     use crate::{
         control_interface::MockPipesChannelContext,
-        runtime_connectors::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
+        workload::WorkloadCommandSender,
         workload::{Workload, WorkloadCommand, WorkloadError},
     };
 
     const RUNTIME_NAME: &str = "runtime1";
     const AGENT_NAME: &str = "agent_x";
     const WORKLOAD_1_NAME: &str = "workload1";
-    const WORKLOAD_ID: &str = "workload_id_1";
     const PIPES_LOCATION: &str = "/some/path";
-    const OLD_WORKLOAD_ID: &str = "old_workload_id";
     const REQUEST_ID: &str = "request_id";
 
     const TEST_WL_COMMAND_BUFFER_SIZE: usize = 5;
     const TEST_EXEC_COMMAND_BUFFER_SIZE: usize = 5;
+
+    // [utest->swdd~agent-workload-obj-delete-command~1]
+    #[tokio::test]
+    async fn utest_workload_obj_delete_error() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+
+        // drop the receiver so that the send command fails
+        drop(workload_command_receiver);
+
+        let mut old_control_interface_mock = MockPipesChannelContext::default();
+        old_control_interface_mock
+            .expect_abort_pipes_channel_task()
+            .once()
+            .return_const(());
+
+        let test_workload = Workload::new(
+            WORKLOAD_1_NAME.to_string(),
+            workload_command_sender,
+            Some(old_control_interface_mock),
+        );
+
+        assert!(matches!(
+            test_workload.delete().await,
+            Err(WorkloadError::Communication(_))
+        ));
+    }
 
     // [utest->swdd~agent-workload-obj-update-command~1]
     #[tokio::test]
@@ -265,8 +210,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_tx, mut workload_command_rx) =
-            mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
         let mut old_control_interface_mock = MockPipesChannelContext::default();
         old_control_interface_mock
@@ -288,7 +232,7 @@ mod tests {
 
         let mut test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
-            workload_command_tx,
+            workload_command_sender,
             Some(old_control_interface_mock),
         );
 
@@ -301,7 +245,7 @@ mod tests {
         let expected_pipes_path_buf = PathBuf::from(PIPES_LOCATION);
 
         assert!(matches!(
-            timeout(Duration::from_millis(200), workload_command_rx.recv()).await,
+            timeout(Duration::from_millis(200), workload_command_receiver.recv()).await,
             Ok(Some(WorkloadCommand::Update(
                 boxed_workload_spec,
                 Some(pipes_path_buf)
@@ -316,10 +260,10 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
 
         // drop the receiver so that the send command fails
-        drop(workload_command_rx);
+        drop(workload_command_receiver);
 
         let mut old_control_interface_mock = MockPipesChannelContext::default();
         old_control_interface_mock
@@ -341,7 +285,7 @@ mod tests {
 
         let mut test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
-            workload_command_tx,
+            workload_command_sender,
             Some(old_control_interface_mock),
         );
 
@@ -360,8 +304,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_tx, mut workload_command_rx) =
-            mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
         let mut old_control_interface_mock = MockPipesChannelContext::default();
         old_control_interface_mock
@@ -371,537 +314,16 @@ mod tests {
 
         let test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
-            workload_command_tx,
+            workload_command_sender,
             Some(old_control_interface_mock),
         );
 
         test_workload.delete().await.unwrap();
 
         assert!(matches!(
-            timeout(Duration::from_millis(200), workload_command_rx.recv()).await,
+            timeout(Duration::from_millis(200), workload_command_receiver.recv()).await,
             Ok(Some(WorkloadCommand::Delete))
         ));
-    }
-
-    // [utest->swdd~agent-workload-obj-delete-command~1]
-    #[tokio::test]
-    async fn utest_workload_obj_delete_error() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
-
-        // drop the receiver so that the send command fails
-        drop(workload_command_rx);
-
-        let mut old_control_interface_mock = MockPipesChannelContext::default();
-        old_control_interface_mock
-            .expect_abort_pipes_channel_task()
-            .once()
-            .return_const(());
-
-        let test_workload = Workload::new(
-            WORKLOAD_1_NAME.to_string(),
-            workload_command_tx,
-            Some(old_control_interface_mock),
-        );
-
-        assert!(matches!(
-            test_workload.delete().await,
-            Err(WorkloadError::Communication(_))
-        ));
-    }
-
-    // Unfortunately this test also executes a delete of the newly updated workload.
-    // We could not avoid this as it is the only possibility to check the internal variables
-    // and to properly stop the control loop in the await new command method
-    // [utest->swdd~agent-workload-task-executes-update~1]
-    #[tokio::test]
-    async fn utest_workload_obj_await_new_command_update_success() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
-        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let mut old_mock_state_checker = StubStateChecker::new();
-        old_mock_state_checker.panic_if_not_stopped();
-
-        // Since we also send a delete command to exit the control loop properly, the new state
-        // checker will also we stopped. This also tests if the new state checker was properly stored.
-        let mut new_mock_state_checker = StubStateChecker::new();
-        new_mock_state_checker.panic_if_not_stopped();
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
-                RuntimeCall::CreateWorkload(
-                    workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
-                    Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
-                ),
-                // Since we also send a delete command to exit the control loop properly, the new workload
-                // will also we deleted. This also tests if the new workload id was properly stored.
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
-            ])
-            .await;
-
-        // Send the update command now. It will be buffered until the await receives it.
-        workload_command_tx
-            .send(WorkloadCommand::Update(
-                Box::new(workload_spec.clone()),
-                Some(PIPES_LOCATION.into()),
-            ))
-            .await
-            .unwrap();
-        // Send also a delete command so that we can properly get out of the loop
-        workload_command_tx
-            .send(WorkloadCommand::Delete)
-            .await
-            .unwrap();
-
-        assert!(timeout(
-            Duration::from_millis(200),
-            Workload::await_new_command(
-                WORKLOAD_1_NAME.to_string(),
-                AGENT_NAME.to_string(),
-                Some(OLD_WORKLOAD_ID.to_string()),
-                Some(old_mock_state_checker),
-                state_change_tx.clone(),
-                Box::new(runtime_mock.clone()),
-                workload_command_rx,
-            )
-        )
-        .await
-        .is_ok());
-
-        let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
-        };
-
-        assert!(matches!(
-            timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
-        if workload_state == expected_state));
-
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~agent-workload-task-update-broken-allowed~1]
-    #[tokio::test]
-    async fn utest_workload_obj_await_new_command_update_broken_allowed() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
-        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        // Since we also send a delete command to exit the control loop properly, the new state
-        // checker will also we stopped. This also tests if the new state checker was properly stored.
-        let mut new_mock_state_checker = StubStateChecker::new();
-        new_mock_state_checker.panic_if_not_stopped();
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::CreateWorkload(
-                    workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
-                    Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
-                ),
-                // Since we also send a delete command to exit the control loop properly, the new workload
-                // will also we deleted. This also tests if the new workload id was properly stored.
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
-            ])
-            .await;
-
-        // Send the update command now. It will be buffered until the await receives it.
-        workload_command_tx
-            .send(WorkloadCommand::Update(
-                Box::new(workload_spec.clone()),
-                Some(PIPES_LOCATION.into()),
-            ))
-            .await
-            .unwrap();
-        // Send also a delete command so that we can properly get out of the loop
-        workload_command_tx
-            .send(WorkloadCommand::Delete)
-            .await
-            .unwrap();
-
-        assert!(timeout(
-            Duration::from_millis(200),
-            Workload::await_new_command(
-                WORKLOAD_1_NAME.to_string(),
-                AGENT_NAME.to_string(),
-                None,
-                None,
-                state_change_tx.clone(),
-                Box::new(runtime_mock.clone()),
-                workload_command_rx,
-            )
-        )
-        .await
-        .is_ok());
-
-        let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
-        };
-
-        assert!(matches!(
-            timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
-        if workload_state == expected_state));
-
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~agent-workload-task-update-delete-failed-allows-retry~1]
-    #[tokio::test]
-    async fn utest_workload_obj_await_new_command_update_delete_failed_allows_retry() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
-        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let mut old_mock_state_checker = StubStateChecker::new();
-        old_mock_state_checker.panic_if_not_stopped();
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::DeleteWorkload(
-                    OLD_WORKLOAD_ID.to_string(),
-                    Err(crate::runtime_connectors::RuntimeError::Delete(
-                        "some delete error".to_string(),
-                    )),
-                ),
-                // Since we also send a delete command to exit the control loop properly, we need to delete the workload mow
-                // This also tests if the old workload id was properly stored.
-                RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
-            ])
-            .await;
-
-        // Send the update command now. It will be buffered until the await receives it.
-        workload_command_tx
-            .send(WorkloadCommand::Update(
-                Box::new(workload_spec.clone()),
-                Some(PIPES_LOCATION.into()),
-            ))
-            .await
-            .unwrap();
-        // Send also a delete command so that we can properly get out of the loop
-        workload_command_tx
-            .send(WorkloadCommand::Delete)
-            .await
-            .unwrap();
-
-        assert!(timeout(
-            Duration::from_millis(200),
-            Workload::await_new_command(
-                WORKLOAD_1_NAME.to_string(),
-                AGENT_NAME.to_string(),
-                Some(OLD_WORKLOAD_ID.to_string()),
-                Some(old_mock_state_checker),
-                state_change_tx.clone(),
-                Box::new(runtime_mock.clone()),
-                workload_command_rx,
-            )
-        )
-        .await
-        .is_ok());
-
-        let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
-        };
-
-        assert!(matches!(
-            timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
-        if workload_state == expected_state));
-
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~agent-workload-task-update-create-failed-allows-retry~1]
-    #[tokio::test]
-    async fn utest_workload_obj_await_new_command_update_create_failed_allows_retry() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
-        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let mut old_mock_state_checker = StubStateChecker::new();
-        old_mock_state_checker.panic_if_not_stopped();
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
-                RuntimeCall::CreateWorkload(
-                    workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
-                    Err(crate::runtime_connectors::RuntimeError::Create(
-                        "some delete error".to_string(),
-                    )),
-                ),
-                // We also send a delete command, but as no new workload was generated, there is also no
-                // new ID so no call to the runtime is expected to happen here.
-            ])
-            .await;
-
-        // Send the update command now. It will be buffered until the await receives it.
-        workload_command_tx
-            .send(WorkloadCommand::Update(
-                Box::new(workload_spec.clone()),
-                Some(PIPES_LOCATION.into()),
-            ))
-            .await
-            .unwrap();
-        // Send also a delete command so that we can properly get out of the loop
-        workload_command_tx
-            .send(WorkloadCommand::Delete)
-            .await
-            .unwrap();
-
-        assert!(timeout(
-            Duration::from_millis(200),
-            Workload::await_new_command(
-                WORKLOAD_1_NAME.to_string(),
-                AGENT_NAME.to_string(),
-                Some(OLD_WORKLOAD_ID.to_string()),
-                Some(old_mock_state_checker),
-                state_change_tx.clone(),
-                Box::new(runtime_mock.clone()),
-                workload_command_rx,
-            )
-        )
-        .await
-        .is_ok());
-
-        let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
-        };
-
-        assert!(matches!(
-            timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
-        if workload_state == expected_state));
-
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~agent-workload-tasks-executes-delete~1]
-    #[tokio::test]
-    async fn utest_workload_obj_await_new_command_delete_success() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
-        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let mut mock_state_checker = StubStateChecker::new();
-        mock_state_checker.panic_if_not_stopped();
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![RuntimeCall::DeleteWorkload(
-                OLD_WORKLOAD_ID.to_string(),
-                Ok(()),
-            )])
-            .await;
-
-        // Send the delete command now. It will be buffered until the await receives it.
-        workload_command_tx
-            .send(WorkloadCommand::Delete)
-            .await
-            .unwrap();
-
-        assert!(timeout(
-            Duration::from_millis(200),
-            Workload::await_new_command(
-                WORKLOAD_1_NAME.to_string(),
-                AGENT_NAME.to_string(),
-                Some(OLD_WORKLOAD_ID.to_string()),
-                Some(mock_state_checker),
-                state_change_tx.clone(),
-                Box::new(runtime_mock.clone()),
-                workload_command_rx,
-            )
-        )
-        .await
-        .is_ok());
-
-        let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
-        };
-
-        assert!(matches!(
-            timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
-        if workload_state == expected_state));
-
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~agent-workload-task-delete-failed-allows-retry~1]
-    #[tokio::test]
-    async fn utest_workload_obj_await_new_command_delete_failed_allows_retry() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
-        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let mut mock_state_checker = StubStateChecker::new();
-        mock_state_checker.panic_if_not_stopped();
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::DeleteWorkload(
-                    OLD_WORKLOAD_ID.to_string(),
-                    Err(crate::runtime_connectors::RuntimeError::Delete(
-                        "some delete error".to_string(),
-                    )),
-                ),
-                // First fail, now success
-                RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
-            ])
-            .await;
-
-        // Send the delete command now. It will be buffered until the await receives it.
-        workload_command_tx
-            .send(WorkloadCommand::Delete)
-            .await
-            .unwrap();
-        workload_command_tx
-            .send(WorkloadCommand::Delete)
-            .await
-            .unwrap();
-
-        assert!(timeout(
-            Duration::from_millis(200),
-            Workload::await_new_command(
-                WORKLOAD_1_NAME.to_string(),
-                AGENT_NAME.to_string(),
-                Some(OLD_WORKLOAD_ID.to_string()),
-                Some(mock_state_checker),
-                state_change_tx.clone(),
-                Box::new(runtime_mock.clone()),
-                workload_command_rx,
-            )
-        )
-        .await
-        .is_ok());
-
-        let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
-        };
-
-        assert!(matches!(
-            timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
-        if workload_state == expected_state));
-
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~agent-workload-task-delete-broken-allowed~1]
-    #[tokio::test]
-    async fn utest_workload_obj_await_new_command_delete_already_gone() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_tx, workload_command_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
-        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let runtime_mock = MockRuntimeConnector::new();
-
-        // Send the delete command now. It will be buffered until the await receives it.
-        workload_command_tx
-            .send(WorkloadCommand::Delete)
-            .await
-            .unwrap();
-
-        assert!(timeout(
-            Duration::from_millis(200),
-            Workload::await_new_command(
-                WORKLOAD_1_NAME.to_string(),
-                AGENT_NAME.to_string(),
-                None,
-                None,
-                state_change_tx.clone(),
-                Box::new(runtime_mock.clone()),
-                workload_command_rx,
-            )
-        )
-        .await
-        .is_ok());
-
-        runtime_mock.assert_all_expectations().await;
     }
 
     // [utest->swdd~agent-forward-responses-to-control-interface-pipe~1]
@@ -911,8 +333,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_tx, _workload_command_rx) =
-            mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender, _) = WorkloadCommandSender::new();
         let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut control_interface_mock = MockPipesChannelContext::default();
@@ -923,7 +344,7 @@ mod tests {
 
         let mut test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
-            workload_command_tx,
+            workload_command_sender,
             Some(control_interface_mock),
         );
         let complete_state = generate_test_complete_state(
@@ -955,8 +376,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_tx, _workload_command_rx) =
-            mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender, _) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
 
         drop(state_change_rx);
@@ -969,7 +389,7 @@ mod tests {
 
         let mut test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
-            workload_command_tx,
+            workload_command_sender,
             Some(control_interface_mock),
         );
         let complete_state = CompleteState::default();
@@ -987,11 +407,10 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let (workload_command_tx, _workload_command_rx) =
-            mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (workload_command_sender, _) = WorkloadCommandSender::new();
 
         let mut test_workload =
-            Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_tx, None);
+            Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_sender, None);
         let complete_state = CompleteState::default();
 
         assert!(matches!(
