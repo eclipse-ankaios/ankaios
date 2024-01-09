@@ -88,6 +88,7 @@ dependencies = [
  "grpc",
  "log",
  "nix",
+ "rand",
  "serde",
  "serde_json",
  "serde_yaml",
