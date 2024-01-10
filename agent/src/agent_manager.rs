@@ -28,7 +28,6 @@ pub struct AgentManager {
     runtime_manager: RuntimeManager,
     // [impl->swdd~communication-to-from-agent-middleware~1]
     receiver: ExecutionReceiver,
-    _to_server: StateChangeSender,
     workload_state_proxy: WorkloadStateProxy,
 }
 
@@ -38,13 +37,11 @@ impl AgentManager {
         receiver: ExecutionReceiver,
         runtime_manager: RuntimeManager,
         workload_state_proxy: WorkloadStateProxy,
-        _to_server: StateChangeSender,
     ) -> AgentManager {
         AgentManager {
             agent_name,
             runtime_manager,
             receiver,
-            _to_server,
             workload_state_proxy,
         }
     }
@@ -148,7 +145,7 @@ mod tests {
             .await;
 
         let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
-        let (to_server, _) = channel(BUFFER_SIZE);
+
         let mut mock_runtime_manager = RuntimeManager::default();
         mock_runtime_manager
             .expect_handle_update_workload()
@@ -162,7 +159,6 @@ mod tests {
             manager_receiver,
             mock_runtime_manager,
             mock_workload_state_proxy,
-            to_server,
         );
 
         let workload_spec_1 = generate_test_workload_spec_with_param(
@@ -201,7 +197,6 @@ mod tests {
             .await;
 
         let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
-        let (to_server, _) = channel(BUFFER_SIZE);
         let mut mock_runtime_manager = RuntimeManager::default();
         mock_runtime_manager.expect_handle_update_workload().never();
 
@@ -223,7 +218,6 @@ mod tests {
             manager_receiver,
             mock_runtime_manager,
             mock_workload_state_proxy,
-            to_server,
         );
 
         let workload_states = vec![workload_state];
@@ -246,7 +240,6 @@ mod tests {
             .await;
 
         let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
-        let (to_server, _) = channel(BUFFER_SIZE);
         let mut mock_runtime_manager = RuntimeManager::default();
         mock_runtime_manager.expect_handle_update_workload().never();
 
@@ -268,7 +261,6 @@ mod tests {
             manager_receiver,
             mock_runtime_manager,
             mock_workload_state_proxy,
-            to_server,
         );
 
         let initial_workload_states = vec![workload_state];
@@ -297,7 +289,6 @@ mod tests {
             .await;
 
         let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
-        let (to_server, _) = channel(BUFFER_SIZE);
 
         let complete_state = CompleteState {
             request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
@@ -318,7 +309,6 @@ mod tests {
             manager_receiver,
             mock_runtime_manager,
             mock_workload_state_proxy,
-            to_server,
         );
 
         let complete_state_result = to_manager.complete_state(complete_state).await;

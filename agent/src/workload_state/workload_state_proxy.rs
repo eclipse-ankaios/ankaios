@@ -20,6 +20,7 @@ use common::objects::WorkloadState;
 use mockall::automock;
 
 pub struct WorkloadStateProxy {
+    
     states_db: WorkloadStateDB,
 }
 

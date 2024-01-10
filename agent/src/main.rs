@@ -112,7 +112,6 @@ async fn main() {
         manager_receiver,
         runtime_manager,
         workload_state_proxy,
-        to_server,
     );
 
     let manager_task = tokio::spawn(async move { agent_manager.start().await });
