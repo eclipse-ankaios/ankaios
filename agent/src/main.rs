@@ -22,10 +22,10 @@ use tokio::try_join;
 mod agent_manager;
 mod cli;
 mod control_interface;
-mod parameter_storage;
 mod runtime_connectors;
 #[cfg(test)]
 pub mod test_helper;
+mod workload_state;
 
 mod generic_polling_state_checker;
 mod runtime_manager;
@@ -39,6 +39,8 @@ use agent_manager::AgentManager;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_manager::RuntimeManager;
+#[cfg_attr(test, mockall_double::double)]
+use crate::workload_state::WorkloadStateProxy;
 use runtime_connectors::{
     podman::{PodmanRuntime, PodmanWorkloadId},
     podman_kube::{PodmanKubeRuntime, PodmanKubeWorkloadId},
@@ -103,10 +105,13 @@ async fn main() {
     let mut grpc_communications_client =
         GRPCCommunicationsClient::new_agent_communication(args.agent_name.clone(), args.server_url);
 
+    let workload_state_proxy = WorkloadStateProxy::new();
+
     let mut agent_manager = AgentManager::new(
         args.agent_name,
         manager_receiver,
         runtime_manager,
+        workload_state_proxy,
         to_server,
     );
 
