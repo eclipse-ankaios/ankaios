@@ -21,7 +21,7 @@ use std::{
     fmt::Display,
 };
 
-type DeleteGraph = HashMap<String, HashMap<String, DeleteCondition>>;
+pub type DeleteGraph = HashMap<String, HashMap<String, DeleteCondition>>;
 
 pub struct ServerState {
     state: CompleteState,
@@ -57,22 +57,26 @@ fn dfs(
     visited.insert(workload_spec.name.clone());
     recursion_stack.insert(workload_spec.name.clone());
     let last_recursion_stack_element = &workload_spec.name;
-    // log::info!("Find cycles for workload = '{}'", workload_spec.name);
     for (workload_name, _) in workload_spec.dependencies.iter() {
         if !visited.contains(workload_name) {
-            // log::info!("'{}' not visited", workload_name);
+            log::debug!("'{}' not visited", workload_name);
             if let Some(next_workload) = state.workloads.get(workload_name) {
-                // log::info!(
-                //     "get next workload spec of dependency = '{}', path = '{:?}'",
-                //     workload_name,
-                //     recursion_stack
-                // );
+                log::debug!(
+                    "get next workload spec of dependency = '{}', path = '{:?}'",
+                    workload_name,
+                    recursion_stack
+                );
                 if let Some(cycle) = dfs(recursion_stack, visited, state, next_workload) {
                     return Some(cycle);
                 }
             }
         } else if recursion_stack.contains(workload_name) {
-            // log::info!("'{}' is in recursion stack => cylce!", workload_name);
+            log::debug!(
+                "cycle from '{}' -> ... -> {} -> {}",
+                workload_name,
+                last_recursion_stack_element,
+                workload_name
+            );
             return Some(BackEdge::new(
                 last_recursion_stack_element.clone(),
                 workload_name.to_string(),
@@ -80,22 +84,23 @@ fn dfs(
         }
     }
     recursion_stack.remove(&workload_spec.name);
+    log::debug!("remove '{}' from path.", workload_spec.name);
     None
 }
 
 impl ServerState {
-    fn new(state: CompleteState, delete_conditions: DeleteGraph) -> Self {
+    pub fn new(state: CompleteState, delete_conditions: DeleteGraph) -> Self {
         ServerState {
             state,
             delete_conditions,
         }
     }
 
-    fn has_cyclic_dependencies(&self) -> Result<(), String> {
+    pub fn has_cyclic_dependencies(&self) -> Result<(), String> {
         let mut visited = HashSet::new();
         for (workload_name, workload_spec) in self.state.current_state.workloads.iter() {
             if !visited.contains(workload_name) {
-                // log::info!("searching for workload = '{}'", workload_name);
+                log::debug!("searching for workload = '{}'", workload_name);
                 let mut recursion_stack = HashSet::new();
                 if let Some(back_edge) = dfs(
                     &mut recursion_stack,
@@ -103,7 +108,7 @@ impl ServerState {
                     &self.state.current_state,
                     workload_spec,
                 ) {
-                    // log::info!("cycle from '{}' -> ... -> {}", back_edge.to, back_edge,);
+                    // log::debug!("cycle from '{}' -> ... -> {}", back_edge.to, back_edge,);
                     return Err(format!(
                         "cycle from '{}' -> ... -> {}",
                         back_edge.to, back_edge,
@@ -115,51 +120,54 @@ impl ServerState {
         Ok(())
     }
 
-    fn has_cyclic_dependencies_iterative(&self) -> Result<(), String> {
-        let mut stack = VecDeque::new();
-        let mut visited: HashSet<String> = HashSet::new();
-        for (workload_name, workload_spec) in self.state.current_state.workloads.iter() {
-            let mut path: HashSet<String> = HashSet::new();
+    pub fn has_cyclic_dependencies_iterative(&self) -> Result<(), String> {
+        let mut stack: VecDeque<&String> = VecDeque::new();
+        let mut visited: HashSet<&String> = HashSet::new();
+        let mut path: VecDeque<&String> = VecDeque::new();
+        let mut data: Vec<&String> = self.state.current_state.workloads.keys().collect();
+        data.sort();
+
+        for workload_name in data {
             if visited.contains(workload_name) {
                 continue;
             }
-            // log::info!("searching for workload = '{}'", workload_name);
-            visited.insert(workload_name.clone());
-            path.insert(workload_name.clone());
-            let mut last_path_element = workload_name;
-            stack.push_back(workload_spec.dependencies.iter());
-            while !stack.is_empty() {
-                if let Some((next_dependency_name, _)) =
-                    stack.front_mut().and_then(|dep| dep.next())
-                {
-                    if !visited.contains(next_dependency_name) {
-                        // log::info!("'{}' not visited", next_dependency_name);
-                        visited.insert(next_dependency_name.clone());
-                        path.insert(next_dependency_name.clone());
-                        last_path_element = next_dependency_name;
-                        if let Some(workload_spec_of_dependency) =
-                            self.state.current_state.workloads.get(next_dependency_name)
-                        {
-                            // log::info!(
-                            //     "get next workload spec of dependency = '{}' and push dependencies on stack\npath = '{:?}'",
-                            //     next_dependency_name, path
-                            // );
-                            stack.push_back(workload_spec_of_dependency.dependencies.iter());
-                        }
-                    } else if path.contains(next_dependency_name) {
-                        let error_msg = format!(
-                            "cycle from '{}' -> ... -> {} -> {}",
-                            next_dependency_name, last_path_element, next_dependency_name
-                        );
-                        // log::info!("{}", error_msg);
-                        return Err(error_msg);
-                    }
+
+            log::debug!("searching for workload = '{}'", workload_name);
+            stack.push_front(workload_name);
+            while let Some(head) = stack.front() {
+                let dependencies = self
+                    .state
+                    .current_state
+                    .workloads
+                    .get(*head)
+                    .ok_or_else(|| format!("workload '{head}' not found."))?;
+
+                if !visited.contains(head) {
+                    log::debug!("visit '{}'", head);
+                    visited.insert(head);
+                    path.push_back(head);
                 } else {
-                    if let Some((w_name, _)) = stack.front_mut().and_then(|dep| dep.next()) {
-                        // log::info!("remove '{}' from path.", w_name);
-                        path.remove(w_name);
-                    }
+                    log::debug!("remove '{}' from path", head);
+                    path.pop_back();
                     stack.pop_front();
+                }
+
+                let mut dependencies: Vec<&String> = dependencies.dependencies.keys().collect();
+                dependencies.sort();
+
+                for dependency in dependencies {
+                    if !visited.contains(dependency) {
+                        stack.push_front(dependency);
+                    } else if path.contains(&dependency) {
+                        let error_msg = format!(
+                            "cycle found '{}' -> ... -> {} -> {}",
+                            dependency,
+                            path.pop_back().unwrap(),
+                            dependency
+                        );
+                        log::debug!("iterative {}", error_msg);
+                        return Err("cycle found.".to_string());
+                    }
                 }
             }
         }
@@ -190,51 +198,11 @@ mod tests {
     fn utest_detect_cycle_in_dependencies_1() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        // let mut workload_a = generate_test_workload_spec_with_param(
-        //     AGENT_NAME.to_string(),
-        //     "A".to_string(),
-        //     RUNTIME.to_string(),
-        // );
-
-        // workload_a.dependencies = HashMap::from([("B".into(), AddCondition::AddCondRunning)]);
-
-        // let mut workload_b = generate_test_workload_spec_with_param(
-        //     AGENT_NAME.to_string(),
-        //     "B".to_string(),
-        //     RUNTIME.to_string(),
-        // );
-
-        // workload_b.dependencies = HashMap::from([("C".into(), AddCondition::AddCondSucceeded)]);
-
-        // let mut workload_c = generate_test_workload_spec_with_param(
-        //     AGENT_NAME.to_string(),
-        //     "C".to_string(),
-        //     RUNTIME.to_string(),
-        // );
-
-        // workload_c.dependencies = HashMap::from([
-        //     ("D".into(), AddCondition::AddCondRunning),
-        //     ("A".into(), AddCondition::AddCondRunning),
-        // ]);
-
-        // let mut workload_d = generate_test_workload_spec_with_param(
-        //     AGENT_NAME.to_string(),
-        //     "D".to_string(),
-        //     RUNTIME.to_string(),
-        // );
-
-        // workload_d.dependencies.clear();
-
-        // let mut complete_state = generate_test_complete_state(
-        //     REQUEST_ID.to_string(),
-        //     vec![workload_a, workload_b, workload_c, workload_d],
-        // );
-        // complete_state.workload_states.clear();
         let complete_state = CompleteStateBuilder::default()
-            .workload_spec_with_params("A", AGENT_NAME, RUNTIME)
-            .workload_spec_with_params("B", AGENT_NAME, RUNTIME)
-            .workload_spec_with_params("C", AGENT_NAME, RUNTIME)
-            .workload_spec_with_params("D", AGENT_NAME, RUNTIME)
+            .workload_spec_with_params("A")
+            .workload_spec_with_params("B")
+            .workload_spec_with_params("C")
+            .workload_spec_with_params("D")
             .dependency_for_workload("A", "B", AddCondition::AddCondRunning)
             .dependency_for_workload("B", "C", AddCondition::AddCondRunning)
             .dependency_for_workload("C", "D", AddCondition::AddCondRunning)
@@ -244,6 +212,7 @@ mod tests {
         let server_state = ServerState::new(complete_state, DeleteGraph::new());
         let result = server_state.has_cyclic_dependencies_iterative();
         assert!(result.is_err());
+        log::info!("--------------- recursive ---------------");
         let result = server_state.has_cyclic_dependencies();
         assert!(result.is_err());
     }
@@ -252,68 +221,13 @@ mod tests {
     fn utest_detect_cycle_in_dependencies_2() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        // let mut workload_a = generate_test_workload_spec_with_param(
-        //     AGENT_NAME.to_string(),
-        //     "A".to_string(),
-        //     RUNTIME.to_string(),
-        // );
-
-        // workload_a.dependencies = HashMap::from([("B".into(), AddCondition::AddCondRunning)]);
-
-        // let mut workload_b = generate_test_workload_spec_with_param(
-        //     AGENT_NAME.to_string(),
-        //     "B".to_string(),
-        //     RUNTIME.to_string(),
-        // );
-
-        // workload_b.dependencies = HashMap::from([("C".into(), AddCondition::AddCondSucceeded)]);
-
-        // let mut workload_c = generate_test_workload_spec_with_param(
-        //     AGENT_NAME.to_string(),
-        //     "C".to_string(),
-        //     RUNTIME.to_string(),
-        // );
-
-        // workload_c.dependencies = HashMap::from([("F".into(), AddCondition::AddCondRunning)]);
-
-        // let mut workload_f = generate_test_workload_spec_with_param(
-        //     AGENT_NAME.to_string(),
-        //     "F".to_string(),
-        //     RUNTIME.to_string(),
-        // );
-
-        // workload_f.dependencies = HashMap::from([("E".into(), AddCondition::AddCondRunning)]);
-
-        // let mut workload_e = generate_test_workload_spec_with_param(
-        //     AGENT_NAME.to_string(),
-        //     "E".to_string(),
-        //     RUNTIME.to_string(),
-        // );
-
-        // workload_e.dependencies = HashMap::from([("D".into(), AddCondition::AddCondRunning)]);
-
-        // let mut workload_d = generate_test_workload_spec_with_param(
-        //     AGENT_NAME.to_string(),
-        //     "D".to_string(),
-        //     RUNTIME.to_string(),
-        // );
-
-        // workload_d.dependencies = HashMap::from([("A".into(), AddCondition::AddCondRunning)]);
-
-        // let mut complete_state = generate_test_complete_state(
-        //     REQUEST_ID.to_string(),
-        //     vec![
-        //         workload_a, workload_b, workload_c, workload_f, workload_e, workload_d,
-        //     ],
-        // );
-        // complete_state.workload_states.clear();
         let complete_state = CompleteStateBuilder::default()
-            .workload_spec_with_params("A", AGENT_NAME, RUNTIME)
-            .workload_spec_with_params("B", AGENT_NAME, RUNTIME)
-            .workload_spec_with_params("C", AGENT_NAME, RUNTIME)
-            .workload_spec_with_params("D", AGENT_NAME, RUNTIME)
-            .workload_spec_with_params("E", AGENT_NAME, RUNTIME)
-            .workload_spec_with_params("F", AGENT_NAME, RUNTIME)
+            .workload_spec_with_params("A")
+            .workload_spec_with_params("B")
+            .workload_spec_with_params("C")
+            .workload_spec_with_params("D")
+            .workload_spec_with_params("E")
+            .workload_spec_with_params("F")
             .dependency_for_workload("A", "B", AddCondition::AddCondRunning)
             .dependency_for_workload("B", "C", AddCondition::AddCondRunning)
             .dependency_for_workload("C", "F", AddCondition::AddCondRunning)
@@ -335,45 +249,42 @@ mod tests {
     fn utest_detect_cycle_in_dependencies_3() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        // let mut workload_a = generate_test_workload_spec_with_param(
-        //     AGENT_NAME.to_string(),
-        //     "A".to_string(),
-        //     RUNTIME.to_string(),
-        // );
-
-        // workload_a.dependencies = HashMap::from([("B".into(), AddCondition::AddCondRunning)]);
-
-        // let mut workload_b = generate_test_workload_spec_with_param(
-        //     AGENT_NAME.to_string(),
-        //     "B".to_string(),
-        //     RUNTIME.to_string(),
-        // );
-
-        // workload_b.dependencies = HashMap::from([
-        //     ("C".into(), AddCondition::AddCondSucceeded),
-        //     ("A".into(), AddCondition::AddCondSucceeded),
-        // ]);
-
-        // let mut workload_c = generate_test_workload_spec_with_param(
-        //     AGENT_NAME.to_string(),
-        //     "C".to_string(),
-        //     RUNTIME.to_string(),
-        // );
-
-        // workload_c.dependencies.clear();
-
-        // let mut complete_state = generate_test_complete_state(
-        //     REQUEST_ID.to_string(),
-        //     vec![workload_a, workload_b, workload_c],
-        // );
-        // complete_state.workload_states.clear();
         let complete_state = CompleteStateBuilder::default()
-            .workload_spec_with_params("A", AGENT_NAME, RUNTIME)
-            .workload_spec_with_params("B", AGENT_NAME, RUNTIME)
-            .workload_spec_with_params("C", AGENT_NAME, RUNTIME)
+            .workload_spec_with_params("A")
+            .workload_spec_with_params("B")
+            .workload_spec_with_params("C")
             .dependency_for_workload("A", "B", AddCondition::AddCondRunning)
             .dependency_for_workload("B", "C", AddCondition::AddCondSucceeded)
             .dependency_for_workload("B", "A", AddCondition::AddCondSucceeded)
+            .build();
+
+        let server_state = ServerState::new(complete_state, DeleteGraph::new());
+        let result = server_state.has_cyclic_dependencies();
+        assert!(result.is_err());
+        let result = server_state.has_cyclic_dependencies_iterative();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn utest_detect_self_cycle_in_dependencies() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let complete_state = CompleteStateBuilder::default()
+            .workload_spec_with_params("A")
+            .dependency_for_workload("A", "A", AddCondition::AddCondRunning)
+            .build();
+
+        let server_state = ServerState::new(complete_state, DeleteGraph::new());
+        let result = server_state.has_cyclic_dependencies();
+        assert!(result.is_err());
+        let result = server_state.has_cyclic_dependencies_iterative();
+        assert!(result.is_err());
+
+        let complete_state = CompleteStateBuilder::default()
+            .workload_spec_with_params("A")
+            .workload_spec_with_params("B")
+            .dependency_for_workload("A", "B", AddCondition::AddCondRunning)
+            .dependency_for_workload("B", "B", AddCondition::AddCondRunning)
             .build();
 
         let server_state = ServerState::new(complete_state, DeleteGraph::new());
@@ -447,31 +358,6 @@ mod tests {
         log::info!("time iterative cyclic dependency check: '{:?}'", duration);
     }
 
-    #[test]
-    fn utest_detect_self_cycle_in_dependencies() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        // let mut workload_a = generate_test_workload_spec_with_param(
-        //     AGENT_NAME.to_string(),
-        //     "A".to_string(),
-        //     RUNTIME.to_string(),
-        // );
-        // workload_a.dependencies = HashMap::from([("A".to_string(), AddCondition::AddCondRunning)]);
-        // let mut complete_state =
-        //     generate_test_complete_state(REQUEST_ID.to_string(), vec![workload_a]);
-        // complete_state.workload_states.clear();
-
-        let complete_state = CompleteStateBuilder::default()
-            .workload_spec_with_params("A", AGENT_NAME, RUNTIME)
-            .dependency_for_workload("A", "A", AddCondition::AddCondRunning)
-            .build();
-
-        let server_state = ServerState::new(complete_state, DeleteGraph::new());
-        let result = server_state.has_cyclic_dependencies();
-        assert!(result.is_err());
-        let result = server_state.has_cyclic_dependencies_iterative();
-        assert!(result.is_err());
-    }
-
     struct CompleteStateBuilder(CompleteState);
     impl CompleteStateBuilder {
         fn default() -> Self {
@@ -481,16 +367,11 @@ mod tests {
             CompleteStateBuilder(complete_state)
         }
 
-        fn workload_spec_with_params(
-            mut self,
-            workload_name: &str,
-            agent_name: &str,
-            runtime: &str,
-        ) -> Self {
+        fn workload_spec_with_params(mut self, workload_name: &str) -> Self {
             let mut test_workload_spec = generate_test_workload_spec_with_param(
-                agent_name.into(),
+                AGENT_NAME.into(),
                 workload_name.into(),
-                runtime.into(),
+                RUNTIME.into(),
             );
             test_workload_spec.dependencies.clear();
             self.0
