@@ -199,10 +199,10 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let complete_state = CompleteStateBuilder::default()
-            .workload_spec_with_params("A")
-            .workload_spec_with_params("B")
-            .workload_spec_with_params("C")
-            .workload_spec_with_params("D")
+            .workload_spec("A")
+            .workload_spec("B")
+            .workload_spec("C")
+            .workload_spec("D")
             .dependency_for_workload("A", "B", AddCondition::AddCondRunning)
             .dependency_for_workload("B", "C", AddCondition::AddCondRunning)
             .dependency_for_workload("C", "D", AddCondition::AddCondRunning)
@@ -222,12 +222,12 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let complete_state = CompleteStateBuilder::default()
-            .workload_spec_with_params("A")
-            .workload_spec_with_params("B")
-            .workload_spec_with_params("C")
-            .workload_spec_with_params("D")
-            .workload_spec_with_params("E")
-            .workload_spec_with_params("F")
+            .workload_spec("A")
+            .workload_spec("B")
+            .workload_spec("C")
+            .workload_spec("D")
+            .workload_spec("E")
+            .workload_spec("F")
             .dependency_for_workload("A", "B", AddCondition::AddCondRunning)
             .dependency_for_workload("B", "C", AddCondition::AddCondRunning)
             .dependency_for_workload("C", "F", AddCondition::AddCondRunning)
@@ -250,9 +250,9 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let complete_state = CompleteStateBuilder::default()
-            .workload_spec_with_params("A")
-            .workload_spec_with_params("B")
-            .workload_spec_with_params("C")
+            .workload_spec("A")
+            .workload_spec("B")
+            .workload_spec("C")
             .dependency_for_workload("A", "B", AddCondition::AddCondRunning)
             .dependency_for_workload("B", "C", AddCondition::AddCondSucceeded)
             .dependency_for_workload("B", "A", AddCondition::AddCondSucceeded)
@@ -270,7 +270,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let complete_state = CompleteStateBuilder::default()
-            .workload_spec_with_params("A")
+            .workload_spec("A")
             .dependency_for_workload("A", "A", AddCondition::AddCondRunning)
             .build();
 
@@ -281,8 +281,8 @@ mod tests {
         assert!(result.is_err());
 
         let complete_state = CompleteStateBuilder::default()
-            .workload_spec_with_params("A")
-            .workload_spec_with_params("B")
+            .workload_spec("A")
+            .workload_spec("B")
             .dependency_for_workload("A", "B", AddCondition::AddCondRunning)
             .dependency_for_workload("B", "B", AddCondition::AddCondRunning)
             .build();
@@ -367,7 +367,7 @@ mod tests {
             CompleteStateBuilder(complete_state)
         }
 
-        fn workload_spec_with_params(mut self, workload_name: &str) -> Self {
+        fn workload_spec(mut self, workload_name: &str) -> Self {
             let mut test_workload_spec = generate_test_workload_spec_with_param(
                 AGENT_NAME.into(),
                 workload_name.into(),
