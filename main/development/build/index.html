@@ -832,9 +832,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#build-for-arm64-target-on-x86-host" class="md-nav__link">
+  <a href="#build-for-arm64-target" class="md-nav__link">
     <span class="md-ellipsis">
-      Build for arm64 target on x86 host
+      Build for arm64 target
     </span>
   </a>
   
@@ -1167,9 +1167,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#build-for-arm64-target-on-x86-host" class="md-nav__link">
+  <a href="#build-for-arm64-target" class="md-nav__link">
     <span class="md-ellipsis">
-      Build for arm64 target on x86 host
+      Build for arm64 target
     </span>
   </a>
   
@@ -1207,6 +1207,8 @@
 <li>Microsoft's Visual Studio Code Extension <a href="https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers">Dev Containers</a></li>
 </ul>
 <h2 id="build-ankaios">Build Ankaios<a class="headerlink" href="#build-ankaios" title="Permanent link">&para;</a></h2>
+<p>The following steps assume an x86_64 host.
+For Mac with Apple silicon, see chapter <a href="#build-for-arm64-target">Build for arm64 target</a>.</p>
 <p>To build and test the Ankaios agent and server, run the following command inside the dev container:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cargo<span class="w"> </span>build
 </code></pre></div>
@@ -1214,10 +1216,16 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>cargo<span class="w"> </span>build<span class="w"> </span>--release
 </code></pre></div>
 <p>As Ankaios uses musl for static linking, the binaries will be located in <code>target/x86_64-unknown-linux-musl</code>.</p>
-<h2 id="build-for-arm64-target-on-x86-host">Build for arm64 target on x86 host<a class="headerlink" href="#build-for-arm64-target-on-x86-host" title="Permanent link">&para;</a></h2>
+<h2 id="build-for-arm64-target">Build for arm64 target<a class="headerlink" href="#build-for-arm64-target" title="Permanent link">&para;</a></h2>
 <p>The dev container adds required tools for <code>arm64</code> architecture. To build Ankaios for <code>arm64</code>, run the following command inside the dev container:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>cargo<span class="w"> </span>build<span class="w"> </span>--target<span class="w"> </span>aarch64-unknown-linux-musl<span class="w"> </span>--release
 </code></pre></div>
+<div class="admonition info">
+<p class="admonition-title">Info</p>
+<p>When using a dev container on Mac with Apple silicon and the build fails, change the file sharing implementation in Docker Desktop.
+Goto Docker Desktop and <code>Settings</code>, then <code>General</code> and change the file sharing implementation from <code>VirtioFS</code> to <code>gRPC FUSE</code>.
+See also <a href="https://github.com/eclipse-ankaios/ankaios/issues/147">eclipse-ankaios/ankaios#147</a>.</p>
+</div>
 
 
 
