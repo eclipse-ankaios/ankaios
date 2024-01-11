@@ -148,8 +148,7 @@ mod tests {
     #[test]
     fn utest_detect_cycle_in_dependencies_1() {
         let _ = env_logger::builder().is_test(true).try_init();
-
-        let complete_state = CompleteStateBuilder::default()
+        let builder = CompleteStateBuilder::default()
             .workload_spec("A")
             .workload_spec("B")
             .workload_spec("C")
@@ -157,22 +156,27 @@ mod tests {
             .dependency_for_workload("A", "B", AddCondition::AddCondRunning)
             .dependency_for_workload("B", "C", AddCondition::AddCondRunning)
             .dependency_for_workload("C", "D", AddCondition::AddCondRunning)
-            .dependency_for_workload("C", "A", AddCondition::AddCondRunning)
-            .build();
+            .dependency_for_workload("C", "A", AddCondition::AddCondRunning);
 
-        let server_state = ServerState::new(complete_state, DeleteGraph::new());
-        let result = server_state.has_cyclic_dependencies();
-        assert_eq!(
-            result,
-            Err(CyclicCheckResult::WorkloadPartOfCycle("A".to_string()))
-        );
+        let expected_nodes_part_of_a_cycle = ["A", "B", "C"];
+
+        for start_node in ["A", "B", "C", "D"] {
+            let builder = builder.clone();
+            let complete_state = builder.set_start_node(start_node).build();
+            let server_state = ServerState::new(complete_state, DeleteGraph::new());
+            let result = server_state.has_cyclic_dependencies();
+            assert!(matches!(
+                result,
+                Err(CyclicCheckResult::WorkloadPartOfCycle(w)) if expected_nodes_part_of_a_cycle.into_iter().any(|expected| w.contains(expected))
+            ));
+        }
     }
 
     #[test]
     fn utest_detect_cycle_in_dependencies_2() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let complete_state = CompleteStateBuilder::default()
+        let builder = CompleteStateBuilder::default()
             .workload_spec("A")
             .workload_spec("B")
             .workload_spec("C")
@@ -184,43 +188,51 @@ mod tests {
             .dependency_for_workload("C", "F", AddCondition::AddCondRunning)
             .dependency_for_workload("F", "E", AddCondition::AddCondRunning)
             .dependency_for_workload("E", "D", AddCondition::AddCondRunning)
-            .dependency_for_workload("D", "A", AddCondition::AddCondRunning)
-            .build();
+            .dependency_for_workload("D", "A", AddCondition::AddCondRunning);
 
-        let server_state = ServerState::new(complete_state, DeleteGraph::new());
-        let result = server_state.has_cyclic_dependencies();
-        assert_eq!(
-            result,
-            Err(CyclicCheckResult::WorkloadPartOfCycle("A".to_string()))
-        );
+        for start_node in ["A", "B", "C", "D", "E", "F"] {
+            let builder = builder.clone();
+            let complete_state = builder.set_start_node(start_node).build();
+            let server_state = ServerState::new(complete_state, DeleteGraph::new());
+            let result = server_state.has_cyclic_dependencies();
+            assert!(matches!(
+                result,
+                Err(CyclicCheckResult::WorkloadPartOfCycle(_))
+            ));
+        }
     }
 
     #[test]
     fn utest_detect_cycle_in_dependencies_3() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let complete_state = CompleteStateBuilder::default()
+        let builder = CompleteStateBuilder::default()
             .workload_spec("A")
             .workload_spec("B")
             .workload_spec("C")
             .dependency_for_workload("A", "B", AddCondition::AddCondRunning)
             .dependency_for_workload("B", "C", AddCondition::AddCondSucceeded)
-            .dependency_for_workload("B", "A", AddCondition::AddCondSucceeded)
-            .build();
+            .dependency_for_workload("B", "A", AddCondition::AddCondSucceeded);
 
-        let server_state = ServerState::new(complete_state, DeleteGraph::new());
-        let result = server_state.has_cyclic_dependencies();
-        assert_eq!(
-            result,
-            Err(CyclicCheckResult::WorkloadPartOfCycle("A".to_string()))
-        );
+        let expected_nodes_part_of_a_cycle = ["A", "B"];
+
+        for start_node in ["A", "B", "C"] {
+            let builder = builder.clone();
+            let complete_state = builder.set_start_node(start_node).build();
+            let server_state = ServerState::new(complete_state, DeleteGraph::new());
+            let result = server_state.has_cyclic_dependencies();
+            assert!(matches!(
+                result,
+                Err(CyclicCheckResult::WorkloadPartOfCycle(w)) if expected_nodes_part_of_a_cycle.into_iter().any(|expected| w.contains(expected))
+            ));
+        }
     }
 
     #[test]
     fn utest_detect_cycle_in_dependencies_4() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let complete_state = CompleteStateBuilder::default()
+        let builder = CompleteStateBuilder::default()
             .workload_spec("A")
             .workload_spec("B")
             .workload_spec("C")
@@ -240,22 +252,27 @@ mod tests {
             .dependency_for_workload("F", "E", AddCondition::AddCondSucceeded)
             .dependency_for_workload("H", "G", AddCondition::AddCondSucceeded)
             .dependency_for_workload("G", "F", AddCondition::AddCondSucceeded)
-            .dependency_for_workload("F", "D", AddCondition::AddCondSucceeded)
-            .build();
+            .dependency_for_workload("F", "D", AddCondition::AddCondSucceeded);
 
-        let server_state = ServerState::new(complete_state, DeleteGraph::new());
-        let result = server_state.has_cyclic_dependencies();
-        assert_eq!(
-            result,
-            Err(CyclicCheckResult::WorkloadPartOfCycle("D".to_string()))
-        );
+        let expected_nodes_part_of_a_cycle = ["B", "C", "H", "G", "F", "D"];
+
+        for start_node in ["A", "B", "C", "D", "E", "F", "G", "H"] {
+            let builder = builder.clone();
+            let complete_state = builder.set_start_node(start_node).build();
+            let server_state = ServerState::new(complete_state, DeleteGraph::new());
+            let result = server_state.has_cyclic_dependencies();
+            assert!(matches!(
+                result,
+                Err(CyclicCheckResult::WorkloadPartOfCycle(w)) if expected_nodes_part_of_a_cycle.into_iter().any(|expected| w.contains(expected))
+            ));
+        }
     }
 
     #[test]
     fn utest_detect_cycle_in_dependencies_5() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let complete_state = CompleteStateBuilder::default()
+        let builder = CompleteStateBuilder::default()
             .workload_spec("A")
             .workload_spec("B")
             .workload_spec("C")
@@ -275,22 +292,27 @@ mod tests {
             .dependency_for_workload("F", "E", AddCondition::AddCondSucceeded)
             .dependency_for_workload("H", "G", AddCondition::AddCondSucceeded)
             .dependency_for_workload("G", "F", AddCondition::AddCondSucceeded)
-            .dependency_for_workload("F", "A", AddCondition::AddCondSucceeded)
-            .build();
+            .dependency_for_workload("F", "A", AddCondition::AddCondSucceeded);
 
-        let server_state = ServerState::new(complete_state, DeleteGraph::new());
-        let result = server_state.has_cyclic_dependencies();
-        assert_eq!(
-            result,
-            Err(CyclicCheckResult::WorkloadPartOfCycle("A".to_string()))
-        );
+        let expected_nodes_part_of_a_cycle = ["A", "B", "C", "D", "H", "G", "F"];
+
+        for start_node in ["A", "B", "C", "D", "E", "F", "G", "H"] {
+            let builder = builder.clone();
+            let complete_state = builder.set_start_node(start_node).build();
+            let server_state = ServerState::new(complete_state, DeleteGraph::new());
+            let result = server_state.has_cyclic_dependencies();
+            assert!(matches!(
+                result,
+                Err(CyclicCheckResult::WorkloadPartOfCycle(w)) if expected_nodes_part_of_a_cycle.into_iter().any(|expected| w.contains(expected))
+            ));
+        }
     }
 
     #[test]
     fn utest_detect_no_cycle_in_dependencies_1() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let complete_state = CompleteStateBuilder::default()
+        let builder = CompleteStateBuilder::default()
             .workload_spec("A")
             .workload_spec("B")
             .workload_spec("C")
@@ -306,19 +328,22 @@ mod tests {
             .dependency_for_workload("C", "H", AddCondition::AddCondSucceeded)
             .dependency_for_workload("D", "F", AddCondition::AddCondSucceeded)
             .dependency_for_workload("D", "G", AddCondition::AddCondSucceeded)
-            .dependency_for_workload("D", "H", AddCondition::AddCondSucceeded)
-            .build();
+            .dependency_for_workload("D", "H", AddCondition::AddCondSucceeded);
 
-        let server_state = ServerState::new(complete_state, DeleteGraph::new());
-        let result = server_state.has_cyclic_dependencies();
-        assert!(result.is_ok());
+        for start_node in ["A", "B", "C", "D", "E", "F", "G", "H"] {
+            let builder = builder.clone();
+            let complete_state = builder.set_start_node(start_node).build();
+            let server_state = ServerState::new(complete_state, DeleteGraph::new());
+            let result = server_state.has_cyclic_dependencies();
+            assert!(result.is_ok());
+        }
     }
 
     #[test]
     fn utest_detect_no_cycle_in_dependencies_2() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let complete_state = CompleteStateBuilder::default()
+        let builder = CompleteStateBuilder::default()
             .workload_spec("A")
             .workload_spec("B")
             .workload_spec("C")
@@ -337,12 +362,15 @@ mod tests {
             .dependency_for_workload("D", "E", AddCondition::AddCondSucceeded)
             .dependency_for_workload("F", "E", AddCondition::AddCondSucceeded)
             .dependency_for_workload("H", "G", AddCondition::AddCondSucceeded)
-            .dependency_for_workload("G", "F", AddCondition::AddCondSucceeded)
-            .build();
+            .dependency_for_workload("G", "F", AddCondition::AddCondSucceeded);
 
-        let server_state = ServerState::new(complete_state, DeleteGraph::new());
-        let result = server_state.has_cyclic_dependencies();
-        assert!(result.is_ok());
+        for start_node in ["A", "B", "C", "D", "E", "F", "G", "H"] {
+            let builder = builder.clone();
+            let complete_state = builder.set_start_node(start_node).build();
+            let server_state = ServerState::new(complete_state, DeleteGraph::new());
+            let result = server_state.has_cyclic_dependencies();
+            assert!(result.is_ok());
+        }
     }
 
     #[test]
@@ -456,6 +484,7 @@ mod tests {
         assert!(duration.as_micros() < 3500);
     }
 
+    #[derive(Clone)]
     struct CompleteStateBuilder(CompleteState);
     impl CompleteStateBuilder {
         fn default() -> Self {
@@ -494,6 +523,24 @@ mod tests {
                         .dependencies
                         .insert(dependency_name.into(), add_condition)
                 });
+            self
+        }
+
+        fn set_start_node(mut self, start_node: &str) -> Self {
+            let new_name = format!("1_{start_node}");
+            let entry = self.0.current_state.workloads.remove(start_node).unwrap();
+            self.0
+                .current_state
+                .workloads
+                .insert(new_name.clone(), entry);
+
+            for workload_spec in self.0.current_state.workloads.values_mut() {
+                if let Some(dep_condition) = workload_spec.dependencies.remove(start_node) {
+                    workload_spec
+                        .dependencies
+                        .insert(new_name.clone(), dep_condition);
+                }
+            }
             self
         }
 
