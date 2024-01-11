@@ -30,13 +30,13 @@ use crate::from_server_proxy;
 use crate::grpc_agent_connection::GRPCAgentConnection;
 
 use common::execution_interface::FromServer;
-use common::state_change_interface::StateChangeCommand;
+use common::state_change_interface::ToServer;
 
 use async_trait::async_trait;
 
 #[derive(Debug)]
 pub struct GRPCCommunicationsServer {
-    sender: Sender<StateChangeCommand>,
+    sender: Sender<ToServer>,
     agent_senders: AgentSendersMap,
 }
 
@@ -83,7 +83,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
 }
 
 impl GRPCCommunicationsServer {
-    pub fn new(sender: Sender<StateChangeCommand>) -> Self {
+    pub fn new(sender: Sender<ToServer>) -> Self {
         GRPCCommunicationsServer {
             agent_senders: AgentSendersMap::new(),
             sender,

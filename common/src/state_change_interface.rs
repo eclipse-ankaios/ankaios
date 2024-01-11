@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands;
+use crate::commands::{self, RequestContent};
 use api::proto;
 use async_trait::async_trait;
 use std::fmt;
@@ -21,17 +21,16 @@ use tokio::sync::mpsc::error::SendError;
 // [impl->swdd~state-change-command-channel~1]
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum StateChangeCommand {
+pub enum ToServer {
     AgentHello(commands::AgentHello),
     AgentGone(commands::AgentGone),
-    UpdateState(commands::UpdateStateRequest),
+    Request(commands::Request),
     UpdateWorkloadState(commands::UpdateWorkloadState),
-    RequestCompleteState(commands::RequestCompleteState),
     Stop(commands::Stop),
     Goodbye(commands::Goodbye),
 }
 
-impl TryFrom<proto::ToServer> for StateChangeCommand {
+impl TryFrom<proto::ToServer> for ToServer {
     type Error = String;
 
     fn try_from(item: proto::ToServer) -> Result<Self, Self::Error> {
@@ -41,25 +40,20 @@ impl TryFrom<proto::ToServer> for StateChangeCommand {
             .ok_or("StateChangeRequest is None.".to_string())?;
 
         Ok(match state_change_request {
-            ToServerEnum::AgentHello(protobuf) => StateChangeCommand::AgentHello(protobuf.into()),
+            ToServerEnum::AgentHello(protobuf) => ToServer::AgentHello(protobuf.into()),
             ToServerEnum::UpdateWorkloadState(protobuf) => {
-                StateChangeCommand::UpdateWorkloadState(protobuf.into())
+                ToServer::UpdateWorkloadState(protobuf.into())
             }
-            ToServerEnum::UpdateState(protobuf) => {
-                StateChangeCommand::UpdateState(protobuf.try_into()?)
-            }
-            ToServerEnum::RequestCompleteState(protobuf) => {
-                StateChangeCommand::RequestCompleteState(protobuf.into())
-            }
-            ToServerEnum::Goodbye(_) => StateChangeCommand::Goodbye(commands::Goodbye {}),
+            ToServerEnum::Request(protobuf) => ToServer::Request(protobuf.try_into()?),
+            ToServerEnum::Goodbye(_) => ToServer::Goodbye(commands::Goodbye {}),
         })
     }
 }
 
 pub struct StateChangeCommandError(String);
 
-impl From<SendError<StateChangeCommand>> for StateChangeCommandError {
-    fn from(error: SendError<StateChangeCommand>) -> Self {
+impl From<SendError<ToServer>> for StateChangeCommandError {
+    fn from(error: SendError<ToServer>) -> Self {
         StateChangeCommandError(error.to_string())
     }
 }
@@ -76,6 +70,7 @@ pub trait StateChangeInterface {
     async fn agent_gone(&self, agent_name: String) -> Result<(), StateChangeCommandError>;
     async fn update_state(
         &self,
+        request_id: String,
         state: commands::CompleteState,
         update_mask: Vec<String>,
     ) -> Result<(), StateChangeCommandError>;
@@ -85,41 +80,42 @@ pub trait StateChangeInterface {
     ) -> Result<(), StateChangeCommandError>;
     async fn request_complete_state(
         &self,
+        request_id: String,
         request_complete_state: commands::RequestCompleteState,
     ) -> Result<(), StateChangeCommandError>;
     async fn stop(&self) -> Result<(), StateChangeCommandError>;
 }
 
-pub type StateChangeSender = tokio::sync::mpsc::Sender<StateChangeCommand>;
-pub type StateChangeReceiver = tokio::sync::mpsc::Receiver<StateChangeCommand>;
+pub type StateChangeSender = tokio::sync::mpsc::Sender<ToServer>;
+pub type StateChangeReceiver = tokio::sync::mpsc::Receiver<ToServer>;
 
 #[async_trait]
 impl StateChangeInterface for StateChangeSender {
     async fn agent_hello(&self, agent_name: String) -> Result<(), StateChangeCommandError> {
         Ok(self
-            .send(StateChangeCommand::AgentHello(commands::AgentHello {
-                agent_name,
-            }))
+            .send(ToServer::AgentHello(commands::AgentHello { agent_name }))
             .await?)
     }
 
     async fn agent_gone(&self, agent_name: String) -> Result<(), StateChangeCommandError> {
         Ok(self
-            .send(StateChangeCommand::AgentGone(commands::AgentGone {
-                agent_name,
-            }))
+            .send(ToServer::AgentGone(commands::AgentGone { agent_name }))
             .await?)
     }
 
     async fn update_state(
         &self,
+        request_id: String,
         state: commands::CompleteState,
         update_mask: Vec<String>,
     ) -> Result<(), StateChangeCommandError> {
         Ok(self
-            .send(StateChangeCommand::UpdateState(
-                commands::UpdateStateRequest { state, update_mask },
-            ))
+            .send(ToServer::Request(commands::Request {
+                request_id,
+                request_content: commands::RequestContent::UpdateStateRequest(Box::new(
+                    commands::UpdateStateRequest { state, update_mask },
+                )),
+            }))
             .await?)
     }
 
@@ -128,7 +124,7 @@ impl StateChangeInterface for StateChangeSender {
         workload_running: Vec<crate::objects::WorkloadState>,
     ) -> Result<(), StateChangeCommandError> {
         Ok(self
-            .send(StateChangeCommand::UpdateWorkloadState(
+            .send(ToServer::UpdateWorkloadState(
                 commands::UpdateWorkloadState {
                     workload_states: workload_running,
                 },
@@ -138,22 +134,23 @@ impl StateChangeInterface for StateChangeSender {
 
     async fn request_complete_state(
         &self,
+        request_id: String,
         request_complete_state: commands::RequestCompleteState,
     ) -> Result<(), StateChangeCommandError> {
         Ok(self
-            .send(StateChangeCommand::RequestCompleteState(
-                commands::RequestCompleteState {
-                    request_id: request_complete_state.request_id,
-                    field_mask: request_complete_state.field_mask,
-                },
-            ))
+            .send(ToServer::Request(commands::Request {
+                request_id,
+                request_content: RequestContent::RequestCompleteState(
+                    commands::RequestCompleteState {
+                        field_mask: request_complete_state.field_mask,
+                    },
+                ),
+            }))
             .await?)
     }
 
     async fn stop(&self) -> Result<(), StateChangeCommandError> {
-        Ok(self
-            .send(StateChangeCommand::Stop(commands::Stop {}))
-            .await?)
+        Ok(self.send(ToServer::Stop(commands::Stop {})).await?)
     }
 }
 
@@ -169,8 +166,8 @@ impl StateChangeInterface for StateChangeSender {
 pub fn generate_test_failed_update_workload_state(
     agent_name: &str,
     workload_name: &str,
-) -> StateChangeCommand {
-    StateChangeCommand::UpdateWorkloadState(commands::UpdateWorkloadState {
+) -> ToServer {
+    ToServer::UpdateWorkloadState(commands::UpdateWorkloadState {
         workload_states: vec![crate::objects::WorkloadState {
             workload_name: workload_name.to_string(),
             agent_name: agent_name.to_string(),
@@ -186,8 +183,8 @@ mod tests {
     use api::proto::{self, to_server::ToServerEnum};
 
     use crate::{
-        commands::{AgentHello, RequestCompleteState},
-        state_change_interface::StateChangeCommand,
+        commands::{AgentHello, Request, RequestCompleteState, RequestContent, UpdateStateRequest},
+        state_change_interface::ToServer,
     };
 
     #[test]
@@ -200,12 +197,9 @@ mod tests {
             })),
         };
 
-        let ankaios_command = StateChangeCommand::AgentHello(AgentHello { agent_name });
+        let ankaios_command = ToServer::AgentHello(AgentHello { agent_name });
 
-        assert_eq!(
-            StateChangeCommand::try_from(proto_request),
-            Ok(ankaios_command)
-        );
+        assert_eq!(ToServer::try_from(proto_request), Ok(ankaios_command));
     }
 
     #[test]
@@ -218,40 +212,42 @@ mod tests {
             )),
         };
 
-        let ankaios_command =
-            StateChangeCommand::UpdateWorkloadState(crate::commands::UpdateWorkloadState {
-                workload_states: vec![],
-            });
+        let ankaios_command = ToServer::UpdateWorkloadState(crate::commands::UpdateWorkloadState {
+            workload_states: vec![],
+        });
 
-        assert_eq!(
-            StateChangeCommand::try_from(proto_request),
-            Ok(ankaios_command)
-        );
+        assert_eq!(ToServer::try_from(proto_request), Ok(ankaios_command));
     }
 
     #[test]
     fn utest_convert_proto_state_change_request_update_state() {
         let proto_request = proto::ToServer {
-            to_server_enum: Some(ToServerEnum::UpdateState(proto::UpdateStateRequest {
-                update_mask: vec!["test_update_mask_field".to_owned()],
-                new_state: Some(proto::CompleteState {
-                    current_state: Some(proto::State {
-                        workloads: HashMap::from([(
-                            "test_workload".to_owned(),
-                            proto::Workload {
-                                agent: "test_agent".to_owned(),
+            to_server_enum: Some(ToServerEnum::Request(proto::Request {
+                request_id: "request_id".to_owned(),
+                request_content: Some(proto::request::RequestContent::UpdateState(
+                    proto::UpdateStateRequest {
+                        update_mask: vec!["test_update_mask_field".to_owned()],
+                        new_state: Some(proto::CompleteState {
+                            current_state: Some(proto::State {
+                                workloads: HashMap::from([(
+                                    "test_workload".to_owned(),
+                                    proto::Workload {
+                                        agent: "test_agent".to_owned(),
+                                        ..Default::default()
+                                    },
+                                )]),
                                 ..Default::default()
-                            },
-                        )]),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                }),
+                            }),
+                            ..Default::default()
+                        }),
+                    },
+                )),
             })),
         };
 
-        let ankaios_command =
-            StateChangeCommand::UpdateState(crate::commands::UpdateStateRequest {
+        let ankaios_command = ToServer::Request(Request {
+            request_id: "request_id".to_owned(),
+            request_content: RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 update_mask: vec!["test_update_mask_field".to_owned()],
                 state: crate::commands::CompleteState {
                     current_state: crate::objects::State {
@@ -267,39 +263,42 @@ mod tests {
                     },
                     ..Default::default()
                 },
-            });
+            })),
+        });
 
-        assert_eq!(
-            StateChangeCommand::try_from(proto_request),
-            Ok(ankaios_command)
-        );
+        assert_eq!(ToServer::try_from(proto_request), Ok(ankaios_command));
     }
 
     #[test]
     fn utest_convert_proto_state_change_request_update_state_fails() {
         let proto_request = proto::ToServer {
-            to_server_enum: Some(ToServerEnum::UpdateState(proto::UpdateStateRequest {
-                update_mask: vec!["test_update_mask_field".to_owned()],
-                new_state: Some(proto::CompleteState {
-                    current_state: Some(proto::State {
-                        workloads: HashMap::from([(
-                            "test_workload".to_owned(),
-                            proto::Workload {
-                                agent: "test_agent".to_owned(),
-                                dependencies: vec![("other_workload".into(), -1)]
-                                    .into_iter()
-                                    .collect(),
+            to_server_enum: Some(proto::to_server::ToServerEnum::Request(proto::Request {
+                request_id: "requeset_id".to_owned(),
+                request_content: Some(proto::request::RequestContent::UpdateState(
+                    proto::UpdateStateRequest {
+                        update_mask: vec!["test_update_mask_field".to_owned()],
+                        new_state: Some(proto::CompleteState {
+                            current_state: Some(proto::State {
+                                workloads: HashMap::from([(
+                                    "test_workload".to_owned(),
+                                    proto::Workload {
+                                        agent: "test_agent".to_owned(),
+                                        dependencies: vec![("other_workload".into(), -1)]
+                                            .into_iter()
+                                            .collect(),
+                                        ..Default::default()
+                                    },
+                                )]),
                                 ..Default::default()
-                            },
-                        )]),
-                        ..Default::default()
-                    }),
-                    ..Default::default()
-                }),
+                            }),
+                            ..Default::default()
+                        }),
+                    },
+                )),
             })),
         };
 
-        assert!(StateChangeCommand::try_from(proto_request).is_err(),);
+        assert!(ToServer::try_from(proto_request).is_err(),);
     }
 
     #[test]
@@ -308,22 +307,23 @@ mod tests {
         let field_mask = vec!["1".to_string()];
 
         let proto_request = proto::ToServer {
-            to_server_enum: Some(ToServerEnum::RequestCompleteState(
-                proto::RequestCompleteState {
-                    request_id: request_id.clone(),
-                    field_mask: field_mask.clone(),
-                },
-            )),
+            to_server_enum: Some(proto::to_server::ToServerEnum::Request(proto::Request {
+                request_id: request_id.clone(),
+                request_content: Some(proto::request::RequestContent::RequestCompleteState(
+                    proto::RequestCompleteState {
+                        field_mask: field_mask.clone(),
+                    },
+                )),
+            })),
         };
 
-        let ankaios_command = StateChangeCommand::RequestCompleteState(RequestCompleteState {
+        let ankaios_command = ToServer::Request(Request {
             request_id,
-            field_mask,
+            request_content: RequestContent::RequestCompleteState(RequestCompleteState {
+                field_mask,
+            }),
         });
 
-        assert_eq!(
-            StateChangeCommand::try_from(proto_request),
-            Ok(ankaios_command)
-        );
+        assert_eq!(ToServer::try_from(proto_request), Ok(ankaios_command));
     }
 }

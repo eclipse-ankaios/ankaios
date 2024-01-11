@@ -47,7 +47,6 @@ pub fn generate_test_complete_state(
             configs: HashMap::new(),
             cron_jobs: HashMap::new(),
         },
-        request_id,
         workload_states: workloads
             .into_iter()
             .map(|v| WorkloadState {

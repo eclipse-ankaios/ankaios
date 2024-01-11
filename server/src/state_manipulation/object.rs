@@ -194,7 +194,6 @@ mod tests {
     fn utest_object_from_complete_state() {
         let state = generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
         let complete_state = CompleteState {
-            request_id: "request_id".into(),
             startup_state: state.clone(),
             current_state: state,
             workload_states: vec![WorkloadState {
@@ -221,7 +220,6 @@ mod tests {
         let expected_state =
             generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
         let expected = CompleteState {
-            request_id: "request_id".into(),
             startup_state: expected_state.clone(),
             current_state: expected_state,
             workload_states: vec![WorkloadState {
@@ -499,7 +497,6 @@ mod tests {
 
         pub fn generate_test_complete_state() -> Mapping {
             Mapping::default()
-                .entry("requestId", "request_id")
                 .entry("startupState", generate_test_state())
                 .entry("currentState", generate_test_state())
                 .entry(

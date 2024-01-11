@@ -87,17 +87,15 @@ impl AgentManager {
                             self.parameter_storage.update_workload_state(workload_state)
                         });
                 }
-                FromServer::CompleteState(method_obj) => {
+                FromServer::Response(method_obj) => {
                     log::debug!(
-                        "Agent '{}' received CompleteState: {:?}",
+                        "Agent '{}' received Response: {:?}",
                         self.agent_name,
                         method_obj
                     );
 
                     // [impl->swdd~agent-forward-responses-to-control-interface-pipe~1]
-                    self.runtime_manager
-                        .forward_complete_state(*method_obj)
-                        .await;
+                    self.runtime_manager.forward_response(method_obj).await;
                 }
                 FromServer::Stop(_method_obj) => {
                     log::debug!("Agent '{}' received Stop from server", self.agent_name);
@@ -122,7 +120,7 @@ mod tests {
     use super::*;
     use crate::agent_manager::AgentManager;
     use common::{
-        commands::CompleteState,
+        commands::{self, CompleteState, Response, ResponseContent},
         execution_interface::AgentInterface,
         objects::{ExecutionState, WorkloadState},
         test_utils::generate_test_workload_spec_with_param,
@@ -292,15 +290,18 @@ mod tests {
         let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
         let (to_server, _) = channel(BUFFER_SIZE);
 
-        let complete_state = CompleteState {
-            request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-            ..Default::default()
+        let request_id = format!("{WORKLOAD_1_NAME}@{REQUEST_ID}");
+        let complete_state: commands::CompleteState = Default::default();
+
+        let response = Response {
+            request_id: request_id.clone(),
+            response_content: ResponseContent::CompleteState(complete_state.clone()),
         };
 
         let mut mock_runtime_manager = RuntimeManager::default();
         mock_runtime_manager
-            .expect_forward_complete_state()
-            .with(eq(complete_state.clone()))
+            .expect_forward_response()
+            .with(eq(response.clone()))
             .once()
             .return_const(());
 
@@ -311,7 +312,7 @@ mod tests {
             to_server,
         );
 
-        let complete_state_result = to_manager.complete_state(complete_state).await;
+        let complete_state_result = to_manager.complete_state(request_id, complete_state).await;
         assert!(complete_state_result.is_ok());
 
         let handle = agent_manager.start();

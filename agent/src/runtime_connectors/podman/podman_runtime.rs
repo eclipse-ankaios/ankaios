@@ -201,7 +201,7 @@ mod tests {
 
     use common::{
         objects::{AgentName, ExecutionState, WorkloadExecutionInstanceName},
-        state_change_interface::StateChangeCommand,
+        state_change_interface::ToServer,
         test_utils::generate_test_workload_spec_with_param,
     };
     use mockall::Sequence;
@@ -306,8 +306,7 @@ mod tests {
             WORKLOAD_1_NAME.to_string(),
             PODMAN_RUNTIME_NAME.to_string(),
         );
-        let (to_server, _from_agent) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
+        let (to_server, _from_agent) = tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
@@ -349,8 +348,7 @@ mod tests {
             WORKLOAD_1_NAME.to_string(),
             PODMAN_RUNTIME_NAME.to_string(),
         );
-        let (to_server, mut from_agent) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
+        let (to_server, mut from_agent) = tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
@@ -396,8 +394,7 @@ mod tests {
             WORKLOAD_1_NAME.to_string(),
             PODMAN_RUNTIME_NAME.to_string(),
         );
-        let (to_server, _from_agent) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
+        let (to_server, _from_agent) = tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
@@ -418,8 +415,7 @@ mod tests {
         );
         workload_spec.runtime_config = "broken runtime config".to_string();
 
-        let (to_server, _from_agent) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
+        let (to_server, _from_agent) = tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime

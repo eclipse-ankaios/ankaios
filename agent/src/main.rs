@@ -14,7 +14,7 @@
 
 use common::communications_client::CommunicationsClient;
 use common::objects::AgentName;
-use common::state_change_interface::StateChangeCommand;
+use common::state_change_interface::ToServer;
 use generic_polling_state_checker::GenericPollingStateChecker;
 use std::collections::HashMap;
 use tokio::try_join;
@@ -62,8 +62,7 @@ async fn main() {
 
     // [impl->swdd~agent-uses-async-channels~1]
     let (to_manager, manager_receiver) = tokio::sync::mpsc::channel::<FromServer>(BUFFER_SIZE);
-    let (to_server, server_receiver) =
-        tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
+    let (to_server, server_receiver) = tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
 
     let run_directory = args
         .get_run_directory()

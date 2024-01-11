@@ -14,6 +14,7 @@
 
 use std::pin::Pin;
 
+use common::state_change_interface;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -24,20 +25,18 @@ use crate::agent_senders_map::AgentSendersMap;
 use crate::state_change_proxy::{forward_from_proto_to_ankaios, GRPCStateChangeRequestStreaming};
 use api::proto::cli_connection_server::CliConnection;
 
-use api::proto::{FromServer, ToServer};
-
-use common::state_change_interface::StateChangeCommand;
+use api::proto;
 
 #[derive(Debug)]
 pub struct GRPCCliConnection {
     cli_senders: AgentSendersMap,
-    to_ankaios_server: Sender<StateChangeCommand>,
+    to_ankaios_server: Sender<state_change_interface::ToServer>,
 }
 
 impl GRPCCliConnection {
     pub fn new(
         cli_senders: AgentSendersMap,
-        to_ankaios_server: Sender<StateChangeCommand>,
+        to_ankaios_server: Sender<state_change_interface::ToServer>,
     ) -> Self {
         Self {
             cli_senders,
@@ -49,17 +48,17 @@ impl GRPCCliConnection {
 #[tonic::async_trait]
 impl CliConnection for GRPCCliConnection {
     type ConnectCliStream =
-        Pin<Box<dyn Stream<Item = Result<FromServer, Status>> + Send + 'static>>;
+        Pin<Box<dyn Stream<Item = Result<proto::FromServer, Status>> + Send + 'static>>;
 
     // [impl->swdd~grpc-client-connects-with-unique-cli-connection-name~1]
     async fn connect_cli(
         &self,
-        request: Request<tonic::Streaming<ToServer>>,
+        request: Request<tonic::Streaming<proto::ToServer>>,
     ) -> Result<Response<Self::ConnectCliStream>, Status> {
         let stream = request.into_inner();
 
         let (new_sender, new_receiver) = tokio::sync::mpsc::channel::<
-            Result<FromServer, tonic::Status>,
+            Result<proto::FromServer, tonic::Status>,
         >(common::CHANNEL_CAPACITY);
 
         let cli_connection_name = format!("cli-conn-{}", uuid::Uuid::new_v4());

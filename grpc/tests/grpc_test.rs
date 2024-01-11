@@ -4,12 +4,12 @@ mod grpc_tests {
     use std::time::Duration;
 
     use common::{
-        commands::{self, CompleteState, RequestCompleteState},
+        commands::{self, CompleteState, Request, RequestCompleteState, RequestContent},
         communications_client::CommunicationsClient,
         communications_error::CommunicationMiddlewareError,
         communications_server::CommunicationsServer,
         execution_interface::FromServer,
-        state_change_interface::{StateChangeCommand, StateChangeInterface},
+        state_change_interface::{StateChangeInterface, ToServer},
     };
     use grpc::{client::GRPCCommunicationsClient, server::GRPCCommunicationsServer};
 
@@ -30,11 +30,10 @@ mod grpc_tests {
         test_request_id: &str,
         to_grpc_server: Sender<FromServer>,
     ) -> (
-        Sender<StateChangeCommand>,
+        Sender<ToServer>,
         tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>,
     ) {
-        let (to_grpc_client, grpc_client_receiver) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(20);
+        let (to_grpc_client, grpc_client_receiver) = tokio::sync::mpsc::channel::<ToServer>(20);
         let url = Url::parse(&format!("http://{}", server_addr)).expect("error");
         let mut grpc_communications_client = match comm_type {
             CommunicationType::Cli => {
@@ -59,8 +58,8 @@ mod grpc_tests {
         comm_type: CommunicationType,
         test_request_id: &str,
     ) -> (
-        Sender<StateChangeCommand>,   // to_grpc_client
-        Receiver<StateChangeCommand>, // server_receiver
+        Sender<ToServer>,                                                  // to_grpc_client
+        Receiver<ToServer>,                                                // server_receiver
         tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>, // grpc_server_task
         tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>, // grpc_client_task
     ) {
@@ -76,7 +75,7 @@ mod grpc_tests {
         let server_addr = format!("0.0.0.0:{}", port);
         let (to_grpc_server, mut grpc_server_receiver) =
             tokio::sync::mpsc::channel::<FromServer>(20);
-        let (to_server, server_receiver) = tokio::sync::mpsc::channel::<StateChangeCommand>(20);
+        let (to_server, server_receiver) = tokio::sync::mpsc::channel::<ToServer>(20);
 
         // create communication server
         let mut communications_server = GRPCCommunicationsServer::new(to_server);
@@ -118,10 +117,10 @@ mod grpc_tests {
 
         // send request to grpc client
         let request_complete_state_result = to_grpc_client
-            .request_complete_state(RequestCompleteState {
-                request_id: test_request_id.to_owned(),
-                field_mask: vec![],
-            })
+            .request_complete_state(
+                test_request_id.to_owned(),
+                RequestCompleteState { field_mask: vec![] },
+            )
             .await;
         assert!(request_complete_state_result.is_ok());
 
@@ -130,10 +129,12 @@ mod grpc_tests {
 
         assert!(matches!(
             result,
-            Ok(Some(StateChangeCommand::RequestCompleteState(
-                RequestCompleteState {
+            Ok(Some(ToServer::Request(
+                Request{
                     request_id,
-                    field_mask
+                    request_content: RequestContent::RequestCompleteState(RequestCompleteState {
+                        field_mask
+                    })
                 }
             ))) if request_id.contains(test_request_id) && field_mask.is_empty()
         ));
@@ -151,8 +152,8 @@ mod grpc_tests {
         // send request to grpc client
         let update_state_result = to_grpc_client
             .update_state(
+                test_request_id.to_owned(),
                 CompleteState {
-                    request_id: test_request_id.to_owned(),
                     ..Default::default()
                 },
                 vec![],
@@ -165,8 +166,8 @@ mod grpc_tests {
 
         assert!(matches!(
             result,
-            Ok(Some(StateChangeCommand::UpdateState(update_state_request))
-            ) if update_state_request.state.request_id == test_request_id
+            Ok(Some(ToServer::Request(Request{request_id, request_content: _}))
+            ) if request_id.contains(test_request_id)
         ));
     }
 
@@ -184,7 +185,7 @@ mod grpc_tests {
 
         assert!(matches!(
             result,
-            Ok(Some(StateChangeCommand::AgentHello(commands::AgentHello { agent_name }))) if agent_name == test_agent_name
+            Ok(Some(ToServer::AgentHello(commands::AgentHello { agent_name }))) if agent_name == test_agent_name
         ));
     }
 }

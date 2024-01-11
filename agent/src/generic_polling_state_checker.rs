@@ -97,7 +97,7 @@ mod tests {
     use common::{
         commands,
         objects::{ExecutionState, WorkloadState},
-        state_change_interface::StateChangeCommand,
+        state_change_interface::ToServer,
         test_utils::generate_test_workload_spec_with_param,
     };
 
@@ -125,8 +125,7 @@ mod tests {
             .times(2)
             .returning(|_: &String| Box::pin(async { ExecutionState::ExecRunning }));
 
-        let (state_sender, mut state_receiver) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(20);
+        let (state_sender, mut state_receiver) = tokio::sync::mpsc::channel::<ToServer>(20);
 
         let generic_state_state_checker = GenericPollingStateChecker::start_checker(
             &generate_test_workload_spec_with_param(
@@ -156,7 +155,7 @@ mod tests {
         let state_update_1 = state_receiver.recv().await.unwrap();
         assert!(matches!(
             state_update_1,
-            StateChangeCommand::UpdateWorkloadState(commands::UpdateWorkloadState{workload_states})
+            ToServer::UpdateWorkloadState(commands::UpdateWorkloadState{workload_states})
             if workload_states == expected_state));
     }
 }

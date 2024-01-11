@@ -22,10 +22,10 @@ async fn read_file_to_string(file: String) -> std::io::Result<String> {
 use tests::read_to_string_mock as read_file_to_string;
 
 use common::{
-    commands::{CompleteState, RequestCompleteState},
+    commands::{CompleteState, RequestCompleteState, Response, ResponseContent},
     execution_interface::FromServer,
     objects::{Tag, WorkloadSpec},
-    state_change_interface::{StateChangeCommand, StateChangeInterface},
+    state_change_interface::{StateChangeInterface, ToServer},
 };
 
 #[cfg(not(test))]
@@ -162,7 +162,7 @@ fn setup_cli_communication(
     server_url: Url,
 ) -> (
     tokio::task::JoinHandle<()>,
-    tokio::sync::mpsc::Sender<StateChangeCommand>,
+    tokio::sync::mpsc::Sender<ToServer>,
     tokio::sync::mpsc::Receiver<FromServer>,
 ) // (task,sender,receiver)
 {
@@ -170,8 +170,7 @@ fn setup_cli_communication(
         GRPCCommunicationsClient::new_cli_communication(cli_name.to_owned(), server_url);
 
     let (to_cli, cli_receiver) = tokio::sync::mpsc::channel::<FromServer>(BUFFER_SIZE);
-    let (to_server, server_receiver) =
-        tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
+    let (to_server, server_receiver) = tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
 
     let communications_task = tokio::spawn(async move {
         if let Err(err) = grpc_communications_client
@@ -200,7 +199,7 @@ pub struct CliCommands {
     _response_timeout_ms: u64,
     cli_name: String,
     task: tokio::task::JoinHandle<()>,
-    to_server: tokio::sync::mpsc::Sender<StateChangeCommand>,
+    to_server: tokio::sync::mpsc::Sender<ToServer>,
     from_server: tokio::sync::mpsc::Receiver<FromServer>,
 }
 
@@ -237,14 +236,20 @@ impl CliCommands {
 
         // send request
         self.to_server
-            .request_complete_state(RequestCompleteState {
-                request_id: self.cli_name.to_owned(),
-                field_mask: object_field_mask.clone(),
-            })
+            .request_complete_state(
+                self.cli_name.to_owned(),
+                RequestCompleteState {
+                    field_mask: object_field_mask.clone(),
+                },
+            )
             .await
             .ok()?;
 
-        if let Some(FromServer::CompleteState(res)) = self.from_server.recv().await {
+        if let Some(FromServer::Response(Response {
+            request_id,
+            response_content: ResponseContent::CompleteState(res),
+        })) = self.from_server.recv().await
+        {
             out_command_text =
                 // [impl->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
                 match generate_compact_state_output(&res, object_field_mask, output_format) {
@@ -288,7 +293,11 @@ impl CliCommands {
         output_debug!("Send UpdateState request ...");
         // send update request
         self.to_server
-            .update_state(complete_state_input, object_field_mask)
+            .update_state(
+                self.cli_name.to_owned(),
+                complete_state_input,
+                object_field_mask,
+            )
             .await
             .unwrap_or_else(|err| {
                 output_and_error!("Update state failed: '{}'", err);
@@ -306,14 +315,20 @@ impl CliCommands {
     ) -> Result<String, CliError> {
         // send request
         self.to_server
-            .request_complete_state(RequestCompleteState {
-                request_id: self.cli_name.to_owned(),
-                field_mask: Vec::new(),
-            })
+            .request_complete_state(
+                self.cli_name.to_owned(),
+                RequestCompleteState {
+                    field_mask: Vec::new(),
+                },
+            )
             .await
             .map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
-        if let Some(FromServer::CompleteState(res)) = self.from_server.recv().await {
+        if let Some(FromServer::Response(Response {
+            request_id,
+            response_content: ResponseContent::CompleteState(res),
+        })) = self.from_server.recv().await
+        {
             let mut workload_infos: Vec<WorkloadInfo> = res
                 .current_state
                 .workloads
@@ -376,10 +391,12 @@ impl CliCommands {
     pub async fn delete_workloads(&mut self, workload_names: Vec<String>) -> Result<(), CliError> {
         // get current state
         self.to_server
-            .request_complete_state(RequestCompleteState {
-                request_id: self.cli_name.to_owned(),
-                field_mask: Vec::new(),
-            })
+            .request_complete_state(
+                self.cli_name.to_owned(),
+                RequestCompleteState {
+                    field_mask: Vec::new(),
+                },
+            )
             .await
             .map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
@@ -391,7 +408,11 @@ impl CliCommands {
                 "Failed to get execution command from server".to_string(),
             ))?;
 
-        let complete_state = if let FromServer::CompleteState(res) = res {
+        let complete_state = if let FromServer::Response(Response {
+            request_id,
+            response_content: ResponseContent::CompleteState(res),
+        }) = res
+        {
             res
         } else {
             return Err(CliError::ExecutionError(
@@ -400,7 +421,7 @@ impl CliCommands {
         };
 
         output_debug!("Got current state: {:?}", complete_state);
-        let mut new_state = *complete_state.clone();
+        let mut new_state = complete_state.clone();
         // Filter out workloads to be deleted.
         new_state
             .current_state
@@ -420,7 +441,7 @@ impl CliCommands {
         if new_state.current_state != complete_state.current_state {
             output_debug!("Sending the new state {:?}", new_state);
             self.to_server
-                .update_state(new_state, update_mask)
+                .update_state(self.cli_name.to_owned(), new_state, update_mask)
                 .await
                 .map_err(|err| CliError::ExecutionError(err.to_string()))?;
         } else {
@@ -457,16 +478,22 @@ impl CliCommands {
 
         // get current state
         self.to_server
-            .request_complete_state(RequestCompleteState {
-                request_id: self.cli_name.to_owned(),
-                field_mask: Vec::new(),
-            })
+            .request_complete_state(
+                self.cli_name.to_owned(),
+                RequestCompleteState {
+                    field_mask: Vec::new(),
+                },
+            )
             .await
             .map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
-        if let Some(FromServer::CompleteState(res)) = self.from_server.recv().await {
+        if let Some(FromServer::Response(Response {
+            request_id,
+            response_content: ResponseContent::CompleteState(res),
+        })) = self.from_server.recv().await
+        {
             output_debug!("Got current state: {:?}", res);
-            let mut new_state = *res.clone();
+            let mut new_state = res.clone();
             new_state
                 .current_state
                 .workloads
@@ -475,7 +502,7 @@ impl CliCommands {
             let update_mask = vec!["currentState".to_string()];
             output_debug!("Sending the new state {:?}", new_state);
             self.to_server
-                .update_state(new_state, update_mask)
+                .update_state(self.cli_name.to_owned(), new_state, update_mask)
                 .await
                 .map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
@@ -500,10 +527,10 @@ mod tests {
     use std::{io, thread};
 
     use common::{
-        commands,
+        commands::{self, Request, RequestContent, Response, ResponseContent},
         execution_interface::FromServer,
         objects::{Tag, WorkloadSpec},
-        state_change_interface::{StateChangeCommand, StateChangeReceiver},
+        state_change_interface::{StateChangeReceiver, ToServer},
         test_utils::{self, generate_test_complete_state},
     };
     use tabled::{settings::Style, Table};
@@ -581,9 +608,12 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let empty_complete_state = vec![FromServer::CompleteState(Box::new(
-            test_utils::generate_test_complete_state("request_id".to_owned(), Vec::new()),
-        ))];
+        let empty_complete_state = vec![FromServer::Response(Response {
+            request_id: "TestCli".to_owned(),
+            response_content: ResponseContent::CompleteState(
+                test_utils::generate_test_complete_state("TestCli".to_owned(), Vec::new()),
+            ),
+        })];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
         mock_client
@@ -622,28 +652,31 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let complete_state = vec![FromServer::CompleteState(Box::new(
-            test_utils::generate_test_complete_state(
-                "request_id".to_owned(),
-                vec![
-                    test_utils::generate_test_workload_spec_with_param(
-                        "agent_A".to_string(),
-                        "name1".to_string(),
-                        "runtime".to_string(),
-                    ),
-                    test_utils::generate_test_workload_spec_with_param(
-                        "agent_B".to_string(),
-                        "name2".to_string(),
-                        "runtime".to_string(),
-                    ),
-                    test_utils::generate_test_workload_spec_with_param(
-                        "agent_B".to_string(),
-                        "name3".to_string(),
-                        "runtime".to_string(),
-                    ),
-                ],
+        let complete_state = vec![FromServer::Response(Response {
+            request_id: "TestCli".to_owned(),
+            response_content: ResponseContent::CompleteState(
+                test_utils::generate_test_complete_state(
+                    "TestCli".to_owned(),
+                    vec![
+                        test_utils::generate_test_workload_spec_with_param(
+                            "agent_A".to_string(),
+                            "name1".to_string(),
+                            "runtime".to_string(),
+                        ),
+                        test_utils::generate_test_workload_spec_with_param(
+                            "agent_B".to_string(),
+                            "name2".to_string(),
+                            "runtime".to_string(),
+                        ),
+                        test_utils::generate_test_workload_spec_with_param(
+                            "agent_B".to_string(),
+                            "name3".to_string(),
+                            "runtime".to_string(),
+                        ),
+                    ],
+                ),
             ),
-        ))];
+        })];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
         mock_client
@@ -694,28 +727,31 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let complete_state = vec![FromServer::CompleteState(Box::new(
-            test_utils::generate_test_complete_state(
-                "request_id".to_owned(),
-                vec![
-                    test_utils::generate_test_workload_spec_with_param(
-                        "agent_A".to_string(),
-                        "name1".to_string(),
-                        "runtime".to_string(),
-                    ),
-                    test_utils::generate_test_workload_spec_with_param(
-                        "agent_B".to_string(),
-                        "name2".to_string(),
-                        "runtime".to_string(),
-                    ),
-                    test_utils::generate_test_workload_spec_with_param(
-                        "agent_B".to_string(),
-                        "name3".to_string(),
-                        "runtime".to_string(),
-                    ),
-                ],
+        let complete_state = vec![FromServer::Response(Response {
+            request_id: "TestCli".to_owned(),
+            response_content: ResponseContent::CompleteState(
+                test_utils::generate_test_complete_state(
+                    "TestCli".to_owned(),
+                    vec![
+                        test_utils::generate_test_workload_spec_with_param(
+                            "agent_A".to_string(),
+                            "name1".to_string(),
+                            "runtime".to_string(),
+                        ),
+                        test_utils::generate_test_workload_spec_with_param(
+                            "agent_B".to_string(),
+                            "name2".to_string(),
+                            "runtime".to_string(),
+                        ),
+                        test_utils::generate_test_workload_spec_with_param(
+                            "agent_B".to_string(),
+                            "name3".to_string(),
+                            "runtime".to_string(),
+                        ),
+                    ],
+                ),
             ),
-        ))];
+        })];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
         mock_client
@@ -754,28 +790,31 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let complete_state = vec![FromServer::CompleteState(Box::new(
-            test_utils::generate_test_complete_state(
-                "request_id".to_owned(),
-                vec![
-                    test_utils::generate_test_workload_spec_with_param(
-                        "agent_A".to_string(),
-                        "name1".to_string(),
-                        "runtime".to_string(),
-                    ),
-                    test_utils::generate_test_workload_spec_with_param(
-                        "agent_B".to_string(),
-                        "name2".to_string(),
-                        "runtime".to_string(),
-                    ),
-                    test_utils::generate_test_workload_spec_with_param(
-                        "agent_B".to_string(),
-                        "name3".to_string(),
-                        "runtime".to_string(),
-                    ),
-                ],
+        let complete_state = vec![FromServer::Response(Response {
+            request_id: "TestCli".to_owned(),
+            response_content: ResponseContent::CompleteState(
+                test_utils::generate_test_complete_state(
+                    "TestCli".to_owned(),
+                    vec![
+                        test_utils::generate_test_workload_spec_with_param(
+                            "agent_A".to_string(),
+                            "name1".to_string(),
+                            "runtime".to_string(),
+                        ),
+                        test_utils::generate_test_workload_spec_with_param(
+                            "agent_B".to_string(),
+                            "name2".to_string(),
+                            "runtime".to_string(),
+                        ),
+                        test_utils::generate_test_workload_spec_with_param(
+                            "agent_B".to_string(),
+                            "name3".to_string(),
+                            "runtime".to_string(),
+                        ),
+                    ],
+                ),
             ),
-        ))];
+        })];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
         mock_client
@@ -822,28 +861,31 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let complete_state = vec![FromServer::CompleteState(Box::new(
-            test_utils::generate_test_complete_state(
-                "request_id".to_owned(),
-                vec![
-                    test_utils::generate_test_workload_spec_with_param(
-                        "agent_A".to_string(),
-                        "name1".to_string(),
-                        "runtime".to_string(),
-                    ),
-                    test_utils::generate_test_workload_spec_with_param(
-                        "agent_B".to_string(),
-                        "name2".to_string(),
-                        "runtime".to_string(),
-                    ),
-                    test_utils::generate_test_workload_spec_with_param(
-                        "agent_B".to_string(),
-                        "name3".to_string(),
-                        "runtime".to_string(),
-                    ),
-                ],
+        let complete_state = vec![FromServer::Response(Response {
+            request_id: "TestCli".to_owned(),
+            response_content: ResponseContent::CompleteState(
+                test_utils::generate_test_complete_state(
+                    "TestCli".to_owned(),
+                    vec![
+                        test_utils::generate_test_workload_spec_with_param(
+                            "agent_A".to_string(),
+                            "name1".to_string(),
+                            "runtime".to_string(),
+                        ),
+                        test_utils::generate_test_workload_spec_with_param(
+                            "agent_B".to_string(),
+                            "name2".to_string(),
+                            "runtime".to_string(),
+                        ),
+                        test_utils::generate_test_workload_spec_with_param(
+                            "agent_B".to_string(),
+                            "name3".to_string(),
+                            "runtime".to_string(),
+                        ),
+                    ],
+                ),
             ),
-        ))];
+        })];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
         mock_client
@@ -879,7 +921,7 @@ mod tests {
             .await;
 
         let startup_state = test_utils::generate_test_complete_state(
-            "request_id".to_owned(),
+            "TestCli".to_owned(),
             vec![
                 test_utils::generate_test_workload_spec_with_param(
                     "agent_A".to_string(),
@@ -899,7 +941,7 @@ mod tests {
             ],
         );
         let updated_state = test_utils::generate_test_complete_state(
-            "request_id".to_owned(),
+            "TestCli".to_owned(),
             vec![test_utils::generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name3".to_string(),
@@ -907,8 +949,14 @@ mod tests {
             )],
         );
         let complete_states = vec![
-            FromServer::CompleteState(Box::new(startup_state)),
-            FromServer::CompleteState(Box::new(updated_state.clone())),
+            FromServer::Response(Response {
+                request_id: "TestCli".to_owned(),
+                response_content: ResponseContent::CompleteState(startup_state),
+            }),
+            FromServer::Response(Response {
+                request_id: "TestCli".to_owned(),
+                response_content: ResponseContent::CompleteState(updated_state.clone()),
+            }),
         ];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
@@ -929,7 +977,7 @@ mod tests {
 
         // replace the connection to the server with our own
         let (test_to_server, mut test_server_receiver) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
+            tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
         cmd.to_server = test_to_server;
 
         let delete_result = cmd
@@ -946,10 +994,15 @@ mod tests {
         assert!(message_to_server.is_ok());
         assert_eq!(
             message_to_server.unwrap(),
-            StateChangeCommand::UpdateState(commands::UpdateStateRequest {
-                state: updated_state,
-                update_mask: vec!["currentState".to_string()]
-            },)
+            ToServer::Request(Request {
+                request_id: "TestCli".to_owned(),
+                request_content: RequestContent::UpdateStateRequest(Box::new(
+                    commands::UpdateStateRequest {
+                        state: updated_state,
+                        update_mask: vec!["currentState".to_string()]
+                    }
+                ))
+            })
         );
 
         // Make sure that we have read all commands from the channel.
@@ -964,7 +1017,7 @@ mod tests {
             .await;
 
         let startup_state = test_utils::generate_test_complete_state(
-            "request_id".to_owned(),
+            "TestCli".to_owned(),
             vec![
                 test_utils::generate_test_workload_spec_with_param(
                     "agent_A".to_string(),
@@ -985,8 +1038,14 @@ mod tests {
         );
         let updated_state = startup_state.clone();
         let complete_states = vec![
-            FromServer::CompleteState(Box::new(startup_state)),
-            FromServer::CompleteState(Box::new(updated_state.clone())),
+            FromServer::Response(Response {
+                request_id: "TestCli".to_owned(),
+                response_content: ResponseContent::CompleteState(startup_state),
+            }),
+            FromServer::Response(Response {
+                request_id: "TestCli".to_owned(),
+                response_content: ResponseContent::CompleteState(updated_state.clone()),
+            }),
         ];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
@@ -1007,7 +1066,7 @@ mod tests {
 
         // replace the connection to the server with our own
         let (test_to_server, mut test_server_receiver) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
+            tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
         cmd.to_server = test_to_server;
 
         let delete_result = cmd
@@ -1034,7 +1093,7 @@ mod tests {
             .await;
 
         let test_data = test_utils::generate_test_complete_state(
-            "request_id".to_owned(),
+            "TestCli".to_owned(),
             vec![
                 test_utils::generate_test_workload_spec_with_param(
                     "agent_A".to_string(),
@@ -1054,7 +1113,10 @@ mod tests {
             ],
         );
 
-        let complete_state = vec![FromServer::CompleteState(Box::new(test_data.clone()))];
+        let complete_state = vec![FromServer::Response(Response {
+            request_id: "TestCli".to_owned(),
+            response_content: ResponseContent::CompleteState(test_data.clone()),
+        })];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
         mock_client
@@ -1086,7 +1148,7 @@ mod tests {
             .await;
 
         let test_data = test_utils::generate_test_complete_state(
-            "request_id".to_owned(),
+            "TestCli".to_owned(),
             vec![
                 test_utils::generate_test_workload_spec_with_param(
                     "agent_A".to_string(),
@@ -1106,7 +1168,10 @@ mod tests {
             ],
         );
 
-        let complete_state = vec![FromServer::CompleteState(Box::new(test_data.clone()))];
+        let complete_state = vec![FromServer::Response(Response {
+            request_id: "TestCli".to_owned(),
+            response_content: ResponseContent::CompleteState(test_data.clone()),
+        })];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
         mock_client
@@ -1158,7 +1223,10 @@ mod tests {
             ],
         );
 
-        let complete_state = vec![FromServer::CompleteState(Box::new(test_data.clone()))];
+        let complete_state = vec![FromServer::Response(Response {
+            request_id: "TestCli".to_owned(),
+            response_content: ResponseContent::CompleteState(test_data.clone()),
+        })];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
         mock_client
@@ -1222,7 +1290,10 @@ mod tests {
             ],
         );
 
-        let complete_state = vec![FromServer::CompleteState(Box::new(test_data.clone()))];
+        let complete_state = vec![FromServer::Response(Response {
+            request_id: "TestCli".to_owned(),
+            response_content: ResponseContent::CompleteState(test_data.clone()),
+        })];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
         mock_client
@@ -1250,7 +1321,7 @@ mod tests {
             )
             .await;
         assert!(cmd_text.is_some());
-        assert!(matches!(cmd_text, 
+        assert!(matches!(cmd_text,
             Some(txt) if txt == *"currentState:\n  workloads:\n    name1:\n      runtime: runtime\n    name2:\n      runtime: runtime\n" || 
             txt == *"currentState:\n  workloads:\n    name2:\n      runtime: runtime\n    name1:\n      runtime: runtime\n"));
     }
@@ -1273,7 +1344,10 @@ mod tests {
             },
         );
 
-        let complete_states = vec![FromServer::CompleteState(Box::new(updated_state.clone()))];
+        let complete_states = vec![FromServer::Response(Response {
+            request_id: "TestCli".to_owned(),
+            response_content: ResponseContent::CompleteState(updated_state.clone()),
+        })];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
         mock_client
@@ -1293,7 +1367,7 @@ mod tests {
 
         // replace the connection to the server with our own
         let (test_to_server, mut test_server_receiver) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
+            tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
         cmd.to_server = test_to_server;
 
         FAKE_READ_TO_STRING_MOCK_RESULT_LIST
@@ -1321,10 +1395,15 @@ mod tests {
         assert!(message_to_server.is_ok());
         assert_eq!(
             message_to_server.unwrap(),
-            StateChangeCommand::UpdateState(commands::UpdateStateRequest {
-                state: updated_state,
-                update_mask
-            },)
+            ToServer::Request(Request {
+                request_id: "TestCli".to_owned(),
+                request_content: RequestContent::UpdateStateRequest(Box::new(
+                    commands::UpdateStateRequest {
+                        state: updated_state,
+                        update_mask
+                    }
+                ))
+            })
         );
 
         // Make sure that we have read all commands from the channel.
@@ -1345,7 +1424,7 @@ mod tests {
             .await;
 
         let startup_state = test_utils::generate_test_complete_state(
-            "request_id".to_owned(),
+            "TestCli".to_owned(),
             vec![
                 test_utils::generate_test_workload_spec_with_param(
                     "agent_A".to_string(),
@@ -1383,8 +1462,14 @@ mod tests {
             .workloads
             .insert(test_workload_name.clone(), new_workload);
         let complete_states = vec![
-            FromServer::CompleteState(Box::new(startup_state)),
-            FromServer::CompleteState(Box::new(updated_state.clone())),
+            FromServer::Response(Response {
+                request_id: "TestCli".to_owned(),
+                response_content: ResponseContent::CompleteState(startup_state),
+            }),
+            FromServer::Response(Response {
+                request_id: "TestCli".to_owned(),
+                response_content: ResponseContent::CompleteState(updated_state.clone()),
+            }),
         ];
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
@@ -1405,7 +1490,7 @@ mod tests {
 
         // replace the connection to the server with our own
         let (test_to_server, mut test_server_receiver) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
+            tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
         cmd.to_server = test_to_server;
 
         let run_workload_result = cmd
@@ -1429,10 +1514,15 @@ mod tests {
 
         assert_eq!(
             message_to_server.unwrap(),
-            StateChangeCommand::UpdateState(commands::UpdateStateRequest {
-                state: updated_state,
-                update_mask: vec!["currentState".to_string()]
-            },)
+            ToServer::Request(Request {
+                request_id: "TestCli".to_owned(),
+                request_content: RequestContent::UpdateStateRequest(Box::new(
+                    commands::UpdateStateRequest {
+                        state: updated_state,
+                        update_mask: vec!["currentState".to_string()]
+                    }
+                ))
+            })
         );
 
         // Make sure that we have read all commands from the channel.
@@ -1442,7 +1532,7 @@ mod tests {
     #[test]
     fn utest_generate_compact_state_output_empty_filter_masks() {
         let input_state = generate_test_complete_state(
-            "request_id".to_owned(),
+            "TestCli".to_owned(),
             vec![
                 test_utils::generate_test_workload_spec_with_param(
                     "agent_A".to_string(),
@@ -1472,7 +1562,7 @@ mod tests {
     #[test]
     fn utest_generate_compact_state_output_single_filter_mask() {
         let input_state = generate_test_complete_state(
-            "request_id".to_owned(),
+            "TestCli".to_owned(),
             vec![
                 test_utils::generate_test_workload_spec_with_param(
                     "agent_A".to_string(),
@@ -1536,7 +1626,7 @@ mod tests {
     #[test]
     fn utest_generate_compact_state_output_multiple_filter_masks() {
         let input_state = generate_test_complete_state(
-            "request_id".to_owned(),
+            "TestCli".to_owned(),
             vec![
                 test_utils::generate_test_workload_spec_with_param(
                     "agent_A".to_string(),

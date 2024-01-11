@@ -319,7 +319,7 @@ mod tests {
 
     use common::{
         objects::{WorkloadExecutionInstanceName, WorkloadInstanceName},
-        state_change_interface::StateChangeCommand,
+        state_change_interface::ToServer,
         test_utils::generate_test_workload_spec_with_param,
     };
     use mockall::predicate;
@@ -396,7 +396,7 @@ mod tests {
         );
 
         let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
+            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -415,7 +415,7 @@ mod tests {
                 predicate::eq(AGENT_NAME.to_string()),
                 predicate::eq(Some(WORKLOAD_ID.to_string())),
                 predicate::always(),
-                predicate::function(move |sender: &Sender<StateChangeCommand>| {
+                predicate::function(move |sender: &Sender<ToServer>| {
                     sender.same_channel(&to_server_clone)
                 }),
                 predicate::always(),
@@ -466,7 +466,7 @@ mod tests {
         );
 
         let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
+            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -485,7 +485,7 @@ mod tests {
                 predicate::eq(AGENT_NAME.to_string()),
                 predicate::eq(Some(WORKLOAD_ID.to_string())),
                 predicate::always(),
-                predicate::function(move |sender: &Sender<StateChangeCommand>| {
+                predicate::function(move |sender: &Sender<ToServer>| {
                     sender.same_channel(&to_server_clone)
                 }),
                 predicate::always(),
@@ -546,7 +546,7 @@ mod tests {
         );
 
         let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
+            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -565,7 +565,7 @@ mod tests {
                 predicate::eq(AGENT_NAME.to_string()),
                 predicate::eq(Some(WORKLOAD_ID.to_string())),
                 predicate::always(),
-                predicate::function(move |sender: &Sender<StateChangeCommand>| {
+                predicate::function(move |sender: &Sender<ToServer>| {
                     sender.same_channel(&to_server_clone)
                 }),
                 predicate::always(),
@@ -633,7 +633,7 @@ mod tests {
         );
 
         let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
+            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -652,7 +652,7 @@ mod tests {
                 predicate::eq(AGENT_NAME.to_string()),
                 predicate::eq(Some(WORKLOAD_ID.to_string())),
                 predicate::always(),
-                predicate::function(move |sender: &Sender<StateChangeCommand>| {
+                predicate::function(move |sender: &Sender<ToServer>| {
                     sender.same_channel(&to_server_clone)
                 }),
                 predicate::always(),
@@ -722,7 +722,7 @@ mod tests {
         );
 
         let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
+            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -741,7 +741,7 @@ mod tests {
                 predicate::eq(AGENT_NAME.to_string()),
                 predicate::eq(Some(WORKLOAD_ID.to_string())),
                 predicate::always(),
-                predicate::function(move |sender: &Sender<StateChangeCommand>| {
+                predicate::function(move |sender: &Sender<ToServer>| {
                     sender.same_channel(&to_server_clone)
                 }),
                 predicate::always(),

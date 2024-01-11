@@ -74,8 +74,8 @@ async fn main() -> Result<(), BoxedStdError> {
     let initial_state_task = tokio::spawn(async move {
         to_server
             .update_state(
+                "".to_owned(),
                 common::commands::CompleteState {
-                    request_id: "".to_owned(),
                     startup_state: State::default(),
                     current_state: state,
                     workload_states: vec![],

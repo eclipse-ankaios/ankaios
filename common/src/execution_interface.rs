@@ -38,7 +38,7 @@ impl From<SendError<FromServer>> for AgentInterfaceError {
 pub enum FromServer {
     UpdateWorkload(commands::UpdateWorkload),
     UpdateWorkloadState(commands::UpdateWorkloadState),
-    CompleteState(Box<commands::CompleteState>), // Boxed to avoid clippy warning "large size difference between variants"
+    Response(commands::Response),
     Stop(commands::Stop),
 }
 
@@ -74,17 +74,11 @@ impl TryFrom<FromServer> for proto::FromServer {
                     },
                 )),
             }),
-            FromServer::CompleteState(ankaios) => Ok(proto::FromServer {
-                from_server_enum: Some(proto::from_server::FromServerEnum::CompleteState(
-                    proto::CompleteState {
+            FromServer::Response(ankaios) => Ok(proto::FromServer {
+                from_server_enum: Some(proto::from_server::FromServerEnum::Response(
+                    proto::Response {
                         request_id: ankaios.request_id,
-                        startup_state: Some(ankaios.startup_state.into()),
-                        current_state: Some(ankaios.current_state.into()),
-                        workload_states: ankaios
-                            .workload_states
-                            .iter()
-                            .map(|x| x.to_owned().into())
-                            .collect(),
+                        response_content: Some(ankaios.response_content.into()),
                     },
                 )),
             }),
@@ -106,7 +100,14 @@ pub trait AgentInterface {
     ) -> Result<(), AgentInterfaceError>;
     async fn complete_state(
         &self,
+        request_id: String,
         complete_state: commands::CompleteState,
+    ) -> Result<(), AgentInterfaceError>;
+    async fn success(&self, request_id: String) -> Result<(), AgentInterfaceError>;
+    async fn error(
+        &self,
+        request_id: String,
+        error: commands::Error,
     ) -> Result<(), AgentInterfaceError>;
     async fn stop(&self) -> Result<(), AgentInterfaceError>;
 }
@@ -142,10 +143,35 @@ impl AgentInterface for FromServerSender {
 
     async fn complete_state(
         &self,
+        request_id: String,
         complete_state: commands::CompleteState,
     ) -> Result<(), AgentInterfaceError> {
         Ok(self
-            .send(FromServer::CompleteState(Box::new(complete_state)))
+            .send(FromServer::Response(commands::Response {
+                request_id,
+                response_content: commands::ResponseContent::CompleteState(complete_state),
+            }))
+            .await?)
+    }
+
+    async fn success(&self, request_id: String) -> Result<(), AgentInterfaceError> {
+        Ok(self
+            .send(FromServer::Response(commands::Response {
+                request_id,
+                response_content: commands::ResponseContent::Success,
+            }))
+            .await?)
+    }
+    async fn error(
+        &self,
+        request_id: String,
+        error: commands::Error,
+    ) -> Result<(), AgentInterfaceError> {
+        Ok(self
+            .send(FromServer::Response(commands::Response {
+                request_id,
+                response_content: commands::ResponseContent::Error(error),
+            }))
             .await?)
     }
 
@@ -226,17 +252,26 @@ mod tests {
 
     #[test]
     fn utest_convert_from_server_to_proto_complete_state() {
-        let test_ex_com = FromServer::CompleteState(Box::new(commands::CompleteState {
+        let test_ex_com = FromServer::Response(commands::Response {
             request_id: "req_id".to_owned(),
-            ..Default::default()
-        }));
+            response_content: commands::ResponseContent::CompleteState(commands::CompleteState {
+                ..Default::default()
+            }),
+        });
+
         let expected_ex_com = Ok(proto::FromServer {
-            from_server_enum: Some(FromServerEnum::CompleteState(proto::CompleteState {
-                request_id: "req_id".to_owned(),
-                current_state: Some(api::proto::State::default()),
-                startup_state: Some(api::proto::State::default()),
-                workload_states: vec![],
-            })),
+            from_server_enum: Some(proto::from_server::FromServerEnum::Response(
+                proto::Response {
+                    request_id: "req_id".to_owned(),
+                    response_content: Some(proto::response::ResponseContent::CompleteState(
+                        proto::CompleteState {
+                            current_state: Some(api::proto::State::default()),
+                            startup_state: Some(api::proto::State::default()),
+                            workload_states: vec![],
+                        },
+                    )),
+                },
+            )),
         });
 
         assert_eq!(proto::FromServer::try_from(test_ex_com), expected_ex_com);

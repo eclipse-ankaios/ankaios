@@ -4,7 +4,7 @@ use std::{fmt::Display, path::PathBuf};
 use crate::control_interface::PipesChannelContext;
 use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use common::{
-    commands::CompleteState,
+    commands::{self, CompleteState, ResponseContent},
     execution_interface::FromServer,
     objects::{ExecutionState, WorkloadSpec},
     state_change_interface::{StateChangeInterface, StateChangeSender},
@@ -200,9 +200,10 @@ impl Workload {
     }
 
     // [impl->swdd~agent-forward-responses-to-control-interface-pipe~1]
-    pub async fn send_complete_state(
+    pub async fn forward_response(
         &mut self,
-        complete_state: CompleteState,
+        request_id: String,
+        response_content: ResponseContent,
     ) -> Result<(), WorkloadError> {
         let control_interface =
             self.control_interface
@@ -212,7 +213,10 @@ impl Workload {
                 ))?;
         control_interface
             .get_input_pipe_sender()
-            .send(FromServer::CompleteState(Box::new(complete_state)))
+            .send(FromServer::Response(commands::Response {
+                request_id,
+                response_content,
+            }))
             .await
             .map_err(|err| WorkloadError::CompleteState(err.to_string()))
     }
@@ -233,10 +237,10 @@ mod tests {
     use std::time::Duration;
 
     use common::{
-        commands::{CompleteState, UpdateWorkloadState},
+        commands::{CompleteState, Response, ResponseContent, UpdateWorkloadState},
         execution_interface::FromServer,
         objects::{ExecutionState, WorkloadState},
-        state_change_interface::StateChangeCommand,
+        state_change_interface::ToServer,
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
     };
     use tokio::{sync::mpsc, time::timeout};
@@ -495,7 +499,7 @@ mod tests {
 
         assert!(matches!(
             timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
+            Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
         if workload_state == expected_state));
 
         runtime_mock.assert_all_expectations().await;
@@ -576,7 +580,7 @@ mod tests {
 
         assert!(matches!(
             timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
+            Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
         if workload_state == expected_state));
 
         runtime_mock.assert_all_expectations().await;
@@ -655,7 +659,7 @@ mod tests {
 
         assert!(matches!(
             timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
+            Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
         if workload_state == expected_state));
 
         runtime_mock.assert_all_expectations().await;
@@ -736,7 +740,7 @@ mod tests {
 
         assert!(matches!(
             timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
+            Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
         if workload_state == expected_state));
 
         runtime_mock.assert_all_expectations().await;
@@ -794,7 +798,7 @@ mod tests {
 
         assert!(matches!(
             timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
+            Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
         if workload_state == expected_state));
 
         runtime_mock.assert_all_expectations().await;
@@ -862,7 +866,7 @@ mod tests {
 
         assert!(matches!(
             timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
+            Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
         if workload_state == expected_state));
 
         runtime_mock.assert_all_expectations().await;
@@ -936,16 +940,19 @@ mod tests {
         );
 
         test_workload
-            .send_complete_state(complete_state.clone())
+            .forward_response(
+                format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
+                common::commands::ResponseContent::CompleteState(complete_state.clone()),
+            )
             .await
             .unwrap();
 
-        let expected_complete_state_box = Box::new(complete_state);
+        let expected_complete_state = complete_state;
 
         assert!(matches!(
             timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(FromServer::CompleteState(complete_state_box)))
-        if expected_complete_state_box == complete_state_box));
+            Ok(Some(FromServer::Response(Response{request_id: _, response_content: ResponseContent::CompleteState(complete_state)})))
+        if expected_complete_state == complete_state));
     }
 
     // [utest->swdd~agent-forward-responses-to-control-interface-pipe~1]
@@ -975,7 +982,12 @@ mod tests {
         let complete_state = CompleteState::default();
 
         assert!(matches!(
-            test_workload.send_complete_state(complete_state).await,
+            test_workload
+                .forward_response(
+                    "".to_owned(),
+                    ResponseContent::CompleteState(complete_state)
+                )
+                .await,
             Err(WorkloadError::CompleteState(_))
         ));
     }
@@ -995,7 +1007,12 @@ mod tests {
         let complete_state = CompleteState::default();
 
         assert!(matches!(
-            test_workload.send_complete_state(complete_state).await,
+            test_workload
+                .forward_response(
+                    "".to_owned(),
+                    ResponseContent::CompleteState(complete_state)
+                )
+                .await,
             Err(WorkloadError::CompleteState(_))
         ));
     }

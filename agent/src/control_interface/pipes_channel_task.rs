@@ -17,7 +17,7 @@ use super::ReopenFile;
 use api::proto;
 use common::{
     execution_interface::{FromServer, FromServerReceiver},
-    state_change_interface::{StateChangeCommand, StateChangeSender},
+    state_change_interface::{StateChangeSender, ToServer},
 };
 
 use prost::Message;
@@ -70,9 +70,9 @@ impl PipesChannelTask {
                 state_change_request_binary = self.input_stream.read_protobuf_data() => {
                     if let Ok(state_change_request) = decode_state_change_request(state_change_request_binary) {
                         match state_change_request.try_into() {
-                            Ok(StateChangeCommand::RequestCompleteState(mut request_complete_state)) => {
-                                request_complete_state.prefix_request_id(&self.request_id_prefix);
-                                let _ = self.output_pipe_channel.send(StateChangeCommand::RequestCompleteState(request_complete_state)).await;
+                            Ok(ToServer::Request(mut request)) => {
+                                request.prefix_request_id(&self.request_id_prefix);
+                                let _ = self.output_pipe_channel.send(ToServer::Request(request)).await;
                             }
                             Ok(state_change_command) => {
                                 let _ = self.output_pipe_channel.send(state_change_command).await;
@@ -125,6 +125,7 @@ pub fn generate_test_pipes_channel_task_mock() -> __mock_MockPipesChannelTask::_
 
 #[cfg(test)]
 mod tests {
+    use common::commands;
     use mockall::predicate;
     use tokio::sync::mpsc;
 
@@ -138,10 +139,10 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let test_command = FromServer::CompleteState(Box::new(common::commands::CompleteState {
+        let test_command = FromServer::Response(commands::Response {
             request_id: "req_id".to_owned(),
-            ..Default::default()
-        }));
+            response_content: commands::ResponseContent::CompleteState(Default::default()),
+        });
 
         let test_command_binary = proto::FromServer::try_from(test_command.clone())
             .unwrap()
@@ -183,28 +184,27 @@ mod tests {
             .await;
 
         let test_output_request = proto::ToServer {
-            to_server_enum: Some(proto::to_server::ToServerEnum::RequestCompleteState(
-                proto::RequestCompleteState {
-                    request_id: "req_id".to_owned(),
-                    field_mask: vec![],
-                },
-            )),
+            to_server_enum: Some(proto::to_server::ToServerEnum::Request(proto::Request {
+                request_id: "req_id".to_owned(),
+                request_content: Some(proto::request::RequestContent::RequestCompleteState(
+                    proto::RequestCompleteState { field_mask: vec![] },
+                )),
+            })),
         };
 
         let test_output_request_binary = test_output_request.encode_to_vec();
 
         let mut input_stream_mock = MockReopenFile::default();
-        let mut x = [0; 10];
+        let mut x = [0; 12];
         x.clone_from_slice(&test_output_request_binary[..]);
         input_stream_mock
             .expect_read_protobuf_data()
             .returning(move || Ok(Box::new(x)));
 
-        let test_input_command =
-            FromServer::CompleteState(Box::new(common::commands::CompleteState {
-                request_id: "req_id".to_owned(),
-                ..Default::default()
-            }));
+        let test_input_command = FromServer::Response(commands::Response {
+            request_id: "req_id".to_owned(),
+            response_content: commands::ResponseContent::CompleteState(Default::default()),
+        });
 
         let test_input_command_binary = proto::FromServer::try_from(test_input_command.clone())
             .unwrap()
@@ -232,12 +232,12 @@ mod tests {
 
         assert!(input_pipe_sender.send(test_input_command).await.is_ok());
         assert_eq!(
-            Some(StateChangeCommand::RequestCompleteState(
-                common::commands::RequestCompleteState {
-                    request_id: "prefix@req_id".to_owned(),
-                    field_mask: vec![],
-                }
-            )),
+            Some(ToServer::Request(commands::Request {
+                request_id: "prefix@req_id".to_owned(),
+                request_content: commands::RequestContent::RequestCompleteState(
+                    commands::RequestCompleteState { field_mask: vec![] }
+                )
+            })),
             output_pipe_receiver.recv().await
         );
 
