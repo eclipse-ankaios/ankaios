@@ -42,7 +42,7 @@ tonic_server -> tonic_server ++--: start listening for state change requests
 grpc_server -> grpc_server ++--: start listening for execution requests /'evil laughter'/
 
 state_loader -> state_loader ++: load startup config
-note right: the startup config\nis provided either\nvia config file or the CLI
+note right: Empty state is loaded,\nif the startup config is empty.
 state_loader ->> server --++: send startup state
 
 server -> server ++: calculate execution request
