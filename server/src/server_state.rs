@@ -59,24 +59,24 @@ fn dfs(
     let last_recursion_stack_element = &workload_spec.name;
     for (workload_name, _) in workload_spec.dependencies.iter() {
         if !visited.contains(workload_name) {
-            log::debug!("'{}' not visited", workload_name);
+            //log::debug!("'{}' not visited", workload_name);
             if let Some(next_workload) = state.workloads.get(workload_name) {
-                log::debug!(
-                    "get next workload spec of dependency = '{}', path = '{:?}'",
-                    workload_name,
-                    recursion_stack
-                );
+                // log::debug!(
+                //     "get next workload spec of dependency = '{}', path = '{:?}'",
+                //     workload_name,
+                //     recursion_stack
+                // );
                 if let Some(cycle) = dfs(recursion_stack, visited, state, next_workload) {
                     return Some(cycle);
                 }
             }
         } else if recursion_stack.contains(workload_name) {
-            log::debug!(
-                "cycle from '{}' -> ... -> {} -> {}",
-                workload_name,
-                last_recursion_stack_element,
-                workload_name
-            );
+            // log::debug!(
+            //     "cycle from '{}' -> ... -> {} -> {}",
+            //     workload_name,
+            //     last_recursion_stack_element,
+            //     workload_name
+            // );
             return Some(BackEdge::new(
                 last_recursion_stack_element.clone(),
                 workload_name.to_string(),
@@ -84,7 +84,7 @@ fn dfs(
         }
     }
     recursion_stack.remove(&workload_spec.name);
-    log::debug!("remove '{}' from path.", workload_spec.name);
+    //log::debug!("remove '{}' from path.", workload_spec.name);
     None
 }
 
@@ -100,7 +100,7 @@ impl ServerState {
         let mut visited = HashSet::new();
         for (workload_name, workload_spec) in self.state.current_state.workloads.iter() {
             if !visited.contains(workload_name) {
-                log::debug!("searching for workload = '{}'", workload_name);
+                //log::debug!("searching for workload = '{}'", workload_name);
                 let mut recursion_stack = HashSet::new();
                 if let Some(back_edge) = dfs(
                     &mut recursion_stack,
@@ -122,8 +122,10 @@ impl ServerState {
 
     pub fn has_cyclic_dependencies_iterative(&self) -> Result<(), String> {
         let mut stack: VecDeque<&String> = VecDeque::new();
-        let mut visited: HashSet<&String> = HashSet::new();
-        let mut path: VecDeque<&String> = VecDeque::new();
+        let mut visited: HashSet<&String> =
+            HashSet::with_capacity(self.state.current_state.workloads.len());
+        let mut path: VecDeque<&String> =
+            VecDeque::with_capacity(self.state.current_state.workloads.len());
         let mut data: Vec<&String> = self.state.current_state.workloads.keys().collect();
         data.sort();
 
@@ -132,7 +134,7 @@ impl ServerState {
                 continue;
             }
 
-            log::debug!("searching for workload = '{}'", workload_name);
+            //log::debug!("searching for workload = '{}'", workload_name);
             stack.push_front(workload_name);
             while let Some(head) = stack.front() {
                 let dependencies = self
@@ -143,11 +145,11 @@ impl ServerState {
                     .ok_or_else(|| format!("workload '{head}' not found."))?;
 
                 if !visited.contains(head) {
-                    log::debug!("visit '{}'", head);
+                    //log::debug!("visit '{}'", head);
                     visited.insert(head);
                     path.push_back(head);
                 } else {
-                    log::debug!("remove '{}' from path", head);
+                    //log::debug!("remove '{}' from path", head);
                     path.pop_back();
                     stack.pop_front();
                 }
@@ -165,8 +167,8 @@ impl ServerState {
                             path.pop_back().unwrap(),
                             dependency
                         );
-                        log::debug!("iterative {}", error_msg);
-                        return Err("cycle found.".to_string());
+                        //log::debug!("iterative {}", error_msg);
+                        return Err(error_msg);
                     }
                 }
             }
