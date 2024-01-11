@@ -15,12 +15,10 @@ use super::workload_command_channel::WorkloadCommandReceiver;
 use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use crate::workload::WorkloadCommand;
 use crate::workload::WorkloadCommandSender;
+use crate::workload_state::{WorkloadStateMsgSender, WorkloadStateSenderInterface};
 use common::objects::WorkloadExecutionInstanceName;
-use common::{
-    objects::{ExecutionState, WorkloadInstanceName, WorkloadSpec},
-    state_change_interface::{StateChangeInterface, StateChangeSender},
-    std_extensions::IllegalStateResult,
-};
+use common::objects::{ExecutionState, WorkloadInstanceName, WorkloadSpec};
+use common::std_extensions::IllegalStateResult;
 use futures_util::Future;
 use std::path::PathBuf;
 
@@ -76,7 +74,7 @@ where
     pub instance_name: WorkloadExecutionInstanceName,
     pub workload_id: Option<WorkloadId>,
     pub state_checker: Option<StChecker>,
-    pub update_state_tx: StateChangeSender,
+    pub update_state_tx: WorkloadStateMsgSender,
     pub runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>,
     pub command_receiver: WorkloadCommandReceiver,
     pub workload_channel: WorkloadCommandSender,
@@ -147,11 +145,11 @@ impl WorkloadControlLoop {
             // [impl->swdd~agent-workload-control-loop-restart-limit-set-execution-state~1]
             control_loop_state
                 .update_state_tx
-                .update_workload_state(vec![common::objects::WorkloadState {
+                .report_local_workload_state(common::objects::WorkloadState {
                     agent_name: control_loop_state.instance_name.agent_name().into(),
                     workload_name: control_loop_state.instance_name.workload_name().into(),
                     execution_state: ExecutionState::ExecFailed,
-                }])
+                })
                 .await
                 .unwrap_or_else(|err| {
                     log::error!(
@@ -254,11 +252,11 @@ impl WorkloadControlLoop {
         // Successfully stopped the workload and the state checker. Send a removed on the channel
         control_loop_state
             .update_state_tx
-            .update_workload_state(vec![common::objects::WorkloadState {
+            .report_local_workload_state(common::objects::WorkloadState {
                 agent_name: control_loop_state.instance_name.agent_name().to_string(),
                 workload_name: control_loop_state.instance_name.workload_name().to_string(),
                 execution_state: ExecutionState::ExecRemoved,
-            }])
+            })
             .await
             .unwrap_or_illegal_state();
 
@@ -406,9 +404,7 @@ mod tests {
     use std::time::Duration;
 
     use common::{
-        commands::UpdateWorkloadState,
         objects::{ExecutionState, WorkloadInstanceName, WorkloadState},
-        state_change_interface::StateChangeCommand,
         test_utils::generate_test_workload_spec_with_param,
     };
     use tokio::{sync::mpsc, time::timeout};
@@ -416,6 +412,7 @@ mod tests {
     use crate::{
         runtime_connectors::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
         workload::{ControlLoopState, RestartCounter, WorkloadCommandSender, WorkloadControlLoop},
+        workload_state::WorkloadStateMessage,
     };
 
     const RUNTIME_NAME: &str = "runtime1";
@@ -500,17 +497,15 @@ mod tests {
         .await
         .is_ok());
 
-        let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
+        let expected_state = WorkloadState {
+            workload_name: WORKLOAD_1_NAME.to_string(),
+            agent_name: AGENT_NAME.to_string(),
+            execution_state: ExecutionState::ExecRemoved,
         };
 
         assert!(matches!(
             timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
+            Ok(Some(WorkloadStateMessage::FromChecker(workload_state)))
         if workload_state == expected_state));
 
         runtime_mock.assert_all_expectations().await;
@@ -580,17 +575,15 @@ mod tests {
         .await
         .is_ok());
 
-        let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
+        let expected_state = WorkloadState {
+            workload_name: WORKLOAD_1_NAME.to_string(),
+            agent_name: AGENT_NAME.to_string(),
+            execution_state: ExecutionState::ExecRemoved,
         };
 
         assert!(matches!(
             timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
+            Ok(Some(WorkloadStateMessage::FromChecker(workload_state)))
         if workload_state == expected_state));
 
         runtime_mock.assert_all_expectations().await;
@@ -658,17 +651,15 @@ mod tests {
         .await
         .is_ok());
 
-        let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
+        let expected_state = WorkloadState {
+            workload_name: WORKLOAD_1_NAME.to_string(),
+            agent_name: AGENT_NAME.to_string(),
+            execution_state: ExecutionState::ExecRemoved,
         };
 
         assert!(matches!(
             timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
+            Ok(Some(WorkloadStateMessage::FromChecker(workload_state)))
         if workload_state == expected_state));
 
         runtime_mock.assert_all_expectations().await;
@@ -738,17 +729,15 @@ mod tests {
         .await
         .is_ok());
 
-        let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
+        let expected_state = WorkloadState {
                 workload_name: WORKLOAD_1_NAME.to_string(),
                 agent_name: AGENT_NAME.to_string(),
                 execution_state: ExecutionState::ExecRemoved,
-            }],
         };
 
         assert!(matches!(
             timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
+            Ok(Some(WorkloadStateMessage::FromChecker(workload_state)))
         if workload_state == expected_state));
 
         runtime_mock.assert_all_expectations().await;
@@ -802,17 +791,15 @@ mod tests {
         .await
         .is_ok());
 
-        let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
+        let expected_state = WorkloadState {
                 workload_name: WORKLOAD_1_NAME.to_string(),
                 agent_name: AGENT_NAME.to_string(),
                 execution_state: ExecutionState::ExecRemoved,
-            }],
         };
 
         assert!(matches!(
             timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
+            Ok(Some(WorkloadStateMessage::FromChecker(workload_state)))
         if workload_state == expected_state));
 
         runtime_mock.assert_all_expectations().await;
@@ -873,17 +860,15 @@ mod tests {
         .await
         .is_ok());
 
-        let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
+        let expected_state = WorkloadState {
                 workload_name: WORKLOAD_1_NAME.to_string(),
                 agent_name: AGENT_NAME.to_string(),
                 execution_state: ExecutionState::ExecRemoved,
-            }],
         };
 
         assert!(matches!(
             timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(StateChangeCommand::UpdateWorkloadState(workload_state)))
+            Ok(Some(WorkloadStateMessage::FromChecker(workload_state)))
         if workload_state == expected_state));
 
         runtime_mock.assert_all_expectations().await;
@@ -1289,16 +1274,14 @@ mod tests {
         .await
         .is_ok());
 
-        let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecFailed,
-            }],
+        let expected_state = WorkloadState {
+            workload_name: WORKLOAD_1_NAME.to_string(),
+            agent_name: AGENT_NAME.to_string(),
+            execution_state: ExecutionState::ExecFailed,
         };
 
         assert!(matches!(state_change_rx.try_recv(),
-            Ok(StateChangeCommand::UpdateWorkloadState(workload_state))
+            Ok(WorkloadStateMessage::FromChecker(workload_state))
             if workload_state == expected_state));
 
         runtime_mock.assert_all_expectations().await;

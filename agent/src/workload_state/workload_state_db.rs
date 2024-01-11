@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use common::objects::{ExecutionState, WorkloadState};
-use std::{cell::Ref, collections::HashMap};
+use std::collections::HashMap;
 
 type WorkloadStateMap = HashMap<String, common::objects::ExecutionState>;
 

@@ -104,9 +104,9 @@ async fn main() {
     let runtime_manager = RuntimeManager::new(
         AgentName::from(args.agent_name.as_str()),
         run_directory.get_path(),
-        to_server.clone(),
-        runtime_facade_map,
         to_server,
+        runtime_facade_map,
+        workload_state_sender.clone(),
     );
 
     let mut grpc_communications_client =

@@ -16,34 +16,34 @@ use super::workload_state_db::WorkloadStateDB;
 
 use async_trait::async_trait;
 use common::{
-    objects::WorkloadState, state_change_interface::{StateChangeSender, StateChangeInterface},
+    objects::WorkloadState,
+    state_change_interface::{StateChangeInterface, StateChangeSender},
     std_extensions::IllegalStateResult,
 };
 
 #[cfg(test)]
 use mockall::automock;
-use serde_yaml::with::singleton_map_recursive;
 
 pub type WorkloadStateMsgReceiver = tokio::sync::mpsc::Receiver<WorkloadStateMessage>;
 pub type WorkloadStateMsgSender = tokio::sync::mpsc::Sender<WorkloadStateMessage>;
 
 #[async_trait]
 pub trait WorkloadStateSenderInterface {
-    async fn store_remote_workload_states(&self, states: Vec<WorkloadState>);
-    async fn report_local_workload_state(&self, state: WorkloadState);
+    async fn store_remote_workload_states(&self, states: Vec<WorkloadState>) -> Result<(), String>;
+    async fn report_local_workload_state(&self, state: WorkloadState) -> Result<(), String>;
 }
 
 #[async_trait]
 impl WorkloadStateSenderInterface for WorkloadStateMsgSender {
-    async fn store_remote_workload_states(&self, states: Vec<WorkloadState>) {
+    async fn store_remote_workload_states(&self, states: Vec<WorkloadState>) -> Result<(), String> {
         self.send(WorkloadStateMessage::FromServer(states))
             .await
-            .unwrap_or_illegal_state();
+            .map_err(|error| error.to_string())
     }
-    async fn report_local_workload_state(&self, state: WorkloadState) {
+    async fn report_local_workload_state(&self, state: WorkloadState) -> Result<(), String> {
         self.send(WorkloadStateMessage::FromChecker(state))
             .await
-            .unwrap_or_illegal_state();
+            .map_err(|error| error.to_string())
     }
 }
 

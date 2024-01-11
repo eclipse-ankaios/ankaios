@@ -2,10 +2,12 @@ use async_trait::async_trait;
 use std::time::Duration;
 use tokio::{task::JoinHandle, time};
 
-use crate::runtime_connectors::{RuntimeStateGetter, StateChecker};
+use crate::{
+    runtime_connectors::{RuntimeStateGetter, StateChecker},
+    workload_state::{WorkloadStateMsgSender, WorkloadStateSenderInterface},
+};
 use common::{
     objects::{ExecutionState, WorkloadSpec},
-    state_change_interface::{StateChangeInterface, StateChangeSender},
     std_extensions::IllegalStateResult,
 };
 
@@ -27,7 +29,7 @@ where
     fn start_checker(
         workload_spec: &WorkloadSpec,
         workload_id: WorkloadId,
-        manager_interface: StateChangeSender,
+        state_sink: WorkloadStateMsgSender,
         state_getter: impl RuntimeStateGetter<WorkloadId>,
     ) -> Self {
         let workload_spec = workload_spec.clone();
@@ -48,12 +50,12 @@ where
                     last_state = current_state.clone();
 
                     // [impl->swdd~generic-state-checker-sends-workload-state~1]
-                    manager_interface
-                        .update_workload_state(vec![common::objects::WorkloadState {
+                    state_sink
+                        .report_local_workload_state(common::objects::WorkloadState {
                             agent_name: workload_spec.agent.clone(),
                             workload_name: workload_spec.name.to_string(),
                             execution_state: current_state,
-                        }])
+                        })
                         .await
                         .unwrap_or_illegal_state();
 
@@ -95,15 +97,14 @@ mod tests {
     use std::time::Duration;
 
     use common::{
-        commands,
         objects::{ExecutionState, WorkloadState},
-        state_change_interface::StateChangeCommand,
         test_utils::generate_test_workload_spec_with_param,
     };
 
     use crate::{
         generic_polling_state_checker::GenericPollingStateChecker,
         runtime_connectors::{MockRuntimeStateGetter, StateChecker},
+        workload_state::WorkloadStateMessage,
     };
 
     const RUNTIME_NAME: &str = "runtime1";
@@ -126,7 +127,7 @@ mod tests {
             .returning(|_: &String| Box::pin(async { ExecutionState::ExecRunning }));
 
         let (state_sender, mut state_receiver) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(20);
+            tokio::sync::mpsc::channel::<WorkloadStateMessage>(20);
 
         let generic_state_state_checker = GenericPollingStateChecker::start_checker(
             &generate_test_workload_spec_with_param(
@@ -146,17 +147,17 @@ mod tests {
         )
         .await;
 
-        let expected_state = vec![WorkloadState {
+        let expected_state = WorkloadState {
             workload_name: WORKLOAD_1_NAME.to_string(),
             agent_name: AGENT_NAME.to_string(),
             execution_state: ExecutionState::ExecRunning,
-        }];
+        };
 
         // [utest->swdd~generic-state-checker-sends-workload-state~1]
         let state_update_1 = state_receiver.recv().await.unwrap();
         assert!(matches!(
             state_update_1,
-            StateChangeCommand::UpdateWorkloadState(commands::UpdateWorkloadState{workload_states})
+            WorkloadStateMessage::FromChecker(workload_states)
             if workload_states == expected_state));
     }
 }
