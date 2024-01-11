@@ -23,7 +23,7 @@ use api::proto;
 pub enum ExecutionState {
     #[default]
     ExecUnknown = 0,
-    ExecPending = 1,
+    ExecPending = 1, // this is the default initial state of Ankaios, it shall not be set or send by anybody else
     ExecWaitingToStart = 2,
     ExecStarting = 3,
     ExecRunning = 4,
@@ -32,6 +32,20 @@ pub enum ExecutionState {
     ExecWaitingToStop = 7,
     ExecStopping = 8,
     ExecRemoved = 10,
+}
+
+// [impl->swdd~common-workload-state-transitions~1]
+impl ExecutionState {
+    pub fn transition(self, incoming: ExecutionState) -> ExecutionState {
+        match (self, incoming) {
+            (ExecutionState::ExecStopping, ExecutionState::ExecRunning)
+            | (ExecutionState::ExecStopping, ExecutionState::ExecSucceeded)
+            | (ExecutionState::ExecStopping, ExecutionState::ExecFailed) => {
+                ExecutionState::ExecStopping
+            }
+            (_, incoming) => incoming,
+        }
+    }
 }
 
 impl From<i32> for ExecutionState {
@@ -206,6 +220,31 @@ mod tests {
         assert_eq!(
             ExecutionState::ExecUnknown.to_string(),
             String::from("Unknown")
+        );
+    }
+
+    // [utest->swdd~common-workload-state-transitions~1]
+    #[test]
+    fn utest_execution_state_transition_hysteresis() {
+        assert_eq!(
+            ExecutionState::ExecStopping.transition(ExecutionState::ExecRunning),
+            ExecutionState::ExecStopping
+        );
+        assert_eq!(
+            ExecutionState::ExecStopping.transition(ExecutionState::ExecSucceeded),
+            ExecutionState::ExecStopping
+        );
+        assert_eq!(
+            ExecutionState::ExecStopping.transition(ExecutionState::ExecFailed),
+            ExecutionState::ExecStopping
+        );
+        assert_eq!(
+            ExecutionState::ExecStopping.transition(ExecutionState::ExecStarting),
+            ExecutionState::ExecStarting
+        );
+        assert_eq!(
+            ExecutionState::ExecStarting.transition(ExecutionState::ExecRunning),
+            ExecutionState::ExecRunning
         );
     }
 }

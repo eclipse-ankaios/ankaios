@@ -39,6 +39,7 @@ use agent_manager::AgentManager;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_manager::RuntimeManager;
+use crate::workload_state::WorkloadStateMessage;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_state::WorkloadStateProxy;
 use runtime_connectors::{
@@ -65,6 +66,8 @@ async fn main() {
     // [impl->swdd~agent-uses-async-channels~1]
     let (to_manager, manager_receiver) =
         tokio::sync::mpsc::channel::<ExecutionCommand>(BUFFER_SIZE);
+    let (workload_state_sender, proxy_receiver) =
+        tokio::sync::mpsc::channel::<WorkloadStateMessage>(BUFFER_SIZE);
     let (to_server, server_receiver) =
         tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
 
@@ -91,6 +94,10 @@ async fn main() {
     >::new(podman_kube_runtime));
     runtime_facade_map.insert(podman_kube_runtime_name, podman_kube_facade);
 
+    let mut workload_state_proxy = WorkloadStateProxy::new(to_server.clone(), proxy_receiver);
+
+    let proxy_task = tokio::spawn(async move { workload_state_proxy.start().await });
+
     // The RuntimeManager currently directly gets the server StateChangeInterface, but it shall get the agent manager interface
     // This is needed to be able to filter/authorize the commands towards the Ankaios server
     // The pipe connecting the workload to Ankaios must be in the runtime adapter
@@ -99,19 +106,17 @@ async fn main() {
         run_directory.get_path(),
         to_server.clone(),
         runtime_facade_map,
-        to_server.clone(),
+        to_server,
     );
 
     let mut grpc_communications_client =
         GRPCCommunicationsClient::new_agent_communication(args.agent_name.clone(), args.server_url);
 
-    let workload_state_proxy = WorkloadStateProxy::new();
-
     let mut agent_manager = AgentManager::new(
         args.agent_name,
         manager_receiver,
         runtime_manager,
-        workload_state_proxy,
+        workload_state_sender,
     );
 
     let manager_task = tokio::spawn(async move { agent_manager.start().await });
@@ -123,8 +128,8 @@ async fn main() {
             .await
     });
 
-    let (_, communication_task_result) =
-        try_join!(manager_task, communications_task).unwrap_or_illegal_state();
+    let (_, communication_task_result, _) =
+        try_join!(manager_task, communications_task, proxy_task).unwrap_or_illegal_state();
 
     communication_task_result.unwrap_or_unreachable();
 }

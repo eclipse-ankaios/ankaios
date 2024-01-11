@@ -74,10 +74,6 @@ The WorkloadStateDB stores, as the name suggests, information on the states of t
 
 The WorkloadStateProxy is responsible for forwarding workload states both from and to the Ankaios server.
 
-### WorkloadStateRegulator
-
-The WorkloadStateRegulator is responsible to calculate the correct workload state out of the old and the new state. This activity is needed especially when a workload is scheduled for stopping, as the correct state from that point on is `stopping` and not `running` (`running` would be reported for some time by the workload state checker responsible for the workload).
-
 ### ControlInterface
 
 The ControlInterface is responsible for setting up the communication interface between a workload and the Ankaios agent. It translates between the provided to the workload pipes and the internal Ankaios communication channels.

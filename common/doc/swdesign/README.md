@@ -121,6 +121,24 @@ The Following diagram shows all Ankaios workload states and the possible transit
 
 ![Workload states](plantuml/state_workload_execution_states.svg)
 
+#### Workload state transitions
+`swdd~common-workload-state-transitions~1`
+
+status: approved
+
+A workload execution state transition from `stopping` state to `running`, `succeeded` or `failed` yields again a `stopping` state.
+
+Rationale:
+This hysteresis is especially needed if a workload has transitioned to a `stopping` state. It could be that the stopping is is progress, but the workload is still running and is reported to be running.
+To prevent flipping the state multiple times, the new value must be dependent on the old one and remain in `stopping`.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+
 #### Workload add conditions for dependencies
 `swdd~workload-add-conditions-for-dependencies~1`
 

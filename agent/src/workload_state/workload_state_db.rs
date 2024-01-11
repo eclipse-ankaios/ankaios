@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use common::objects::{ExecutionState, WorkloadState};
-use std::collections::HashMap;
+use std::{cell::Ref, collections::HashMap};
 
 type WorkloadStateMap = HashMap<String, common::objects::ExecutionState>;
 
@@ -35,6 +35,10 @@ impl WorkloadStateDB {
         } else {
             self.states_storage.remove(&workload_state.workload_name);
         }
+    }
+
+    pub fn get_state_of_workload(&self, workload_name: &str) -> Option<&ExecutionState> {
+        self.states_storage.get(workload_name)
     }
 }
 

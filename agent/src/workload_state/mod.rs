@@ -14,11 +14,12 @@
 
 mod workload_state_db;
 
-mod workload_state_regulator;
-
 mod workload_state_proxy;
 
 #[cfg(test)]
 pub use workload_state_proxy::MockWorkloadStateProxy;
 
-pub use workload_state_proxy::WorkloadStateProxy;
+pub use workload_state_proxy::{
+    WorkloadStateMessage, WorkloadStateMsgReceiver, WorkloadStateMsgSender, WorkloadStateProxy,
+    WorkloadStateSenderInterface,
+};
