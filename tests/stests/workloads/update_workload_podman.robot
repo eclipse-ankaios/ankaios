@@ -1,4 +1,3 @@
-*** Comments ***
 # Copyright (c) 2023 Elektrobit Automotive GmbH
 #
 # This program and the accompanying materials are made available under the
