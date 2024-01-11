@@ -14,78 +14,100 @@
 
 use common::{
     commands::CompleteState,
-    objects::{DeleteCondition, State, WorkloadSpec},
+    objects::{DeleteCondition, State},
 };
-use std::{
-    collections::{HashMap, HashSet, VecDeque},
-    fmt::Display,
-};
+use std::collections::HashMap;
+
+use self::cyclic_check::CyclicCheckResult;
+
+mod cyclic_check {
+    use super::State;
+    use core::fmt;
+    use std::collections::{HashSet, VecDeque};
+
+    #[derive(Debug, PartialEq, Eq)]
+    pub enum CyclicCheckResult {
+        WorkloadPartOfCycle(String),
+        InvalidStructure(String),
+    }
+
+    impl fmt::Display for CyclicCheckResult {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            match self {
+                CyclicCheckResult::InvalidStructure(err) => write!(f, "{err}"),
+                CyclicCheckResult::WorkloadPartOfCycle(workload) => {
+                    write!(f, "workload '{}' part of a cycle.", workload)
+                }
+            }
+        }
+    }
+
+    pub fn dfs(state: &State) -> Result<(), CyclicCheckResult> {
+        // stack is used to terminate the search properly
+        let mut stack: VecDeque<&String> = VecDeque::new();
+
+        // used to prevent visiting nodes repeatedly
+        let mut visited: HashSet<&String> = HashSet::with_capacity(state.workloads.len());
+
+        /* although the path container is used for lookups,
+        measurements have shown that it is faster than associative data structure within this code path */
+        let mut path: VecDeque<&String> = VecDeque::with_capacity(state.workloads.len());
+
+        /* sort the map to have an constant equal outcome
+        because the current data structure is randomly ordered because of HashMap's random seed */
+        let mut data: Vec<&String> = state.workloads.keys().collect();
+        data.sort();
+
+        // iterate through all the nodes if the they are not already visited
+        for workload_name in data {
+            if visited.contains(workload_name) {
+                continue;
+            }
+
+            log::debug!("searching for workload = '{}'", workload_name);
+            stack.push_front(workload_name);
+            while let Some(head) = stack.front() {
+                let workload_spec = state.workloads.get(*head).ok_or_else(|| {
+                    CyclicCheckResult::InvalidStructure(format!(
+                        "workload '{head}' is not part of the state."
+                    ))
+                })?;
+
+                if !visited.contains(head) {
+                    log::debug!("visit '{}'", head);
+                    visited.insert(head);
+                    path.push_back(head);
+                } else {
+                    log::debug!("remove '{}' from path", head);
+                    path.pop_back();
+                    stack.pop_front();
+                }
+
+                // sort the map to have an constant equal outcome
+                let mut dependencies: Vec<&String> = workload_spec.dependencies.keys().collect();
+                dependencies.sort();
+
+                for dependency in dependencies {
+                    if !visited.contains(dependency) {
+                        stack.push_front(dependency);
+                    } else if path.contains(&dependency) {
+                        log::debug!("workload '{dependency}' is part of a cycle.");
+                        return Err(CyclicCheckResult::WorkloadPartOfCycle(
+                            dependency.to_string(),
+                        ));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+}
 
 pub type DeleteGraph = HashMap<String, HashMap<String, DeleteCondition>>;
 
 pub struct ServerState {
     state: CompleteState,
     delete_conditions: DeleteGraph,
-}
-
-struct BackEdge<T> {
-    from: T,
-    to: T,
-}
-
-impl<T> BackEdge<T> {
-    fn new(from: T, to: T) -> Self {
-        BackEdge { from, to }
-    }
-}
-
-impl<T> std::fmt::Display for BackEdge<T>
-where
-    T: Display,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "'{}' -> '{}' (back edge)", self.from, self.to)
-    }
-}
-
-fn dfs(
-    recursion_stack: &mut HashSet<String>,
-    visited: &mut HashSet<String>,
-    state: &State,
-    workload_spec: &WorkloadSpec,
-) -> Option<BackEdge<String>> {
-    visited.insert(workload_spec.name.clone());
-    recursion_stack.insert(workload_spec.name.clone());
-    let last_recursion_stack_element = &workload_spec.name;
-    for (workload_name, _) in workload_spec.dependencies.iter() {
-        if !visited.contains(workload_name) {
-            //log::debug!("'{}' not visited", workload_name);
-            if let Some(next_workload) = state.workloads.get(workload_name) {
-                // log::debug!(
-                //     "get next workload spec of dependency = '{}', path = '{:?}'",
-                //     workload_name,
-                //     recursion_stack
-                // );
-                if let Some(cycle) = dfs(recursion_stack, visited, state, next_workload) {
-                    return Some(cycle);
-                }
-            }
-        } else if recursion_stack.contains(workload_name) {
-            // log::debug!(
-            //     "cycle from '{}' -> ... -> {} -> {}",
-            //     workload_name,
-            //     last_recursion_stack_element,
-            //     workload_name
-            // );
-            return Some(BackEdge::new(
-                last_recursion_stack_element.clone(),
-                workload_name.to_string(),
-            ));
-        }
-    }
-    recursion_stack.remove(&workload_spec.name);
-    //log::debug!("remove '{}' from path.", workload_spec.name);
-    None
 }
 
 impl ServerState {
@@ -96,84 +118,8 @@ impl ServerState {
         }
     }
 
-    pub fn has_cyclic_dependencies(&self) -> Result<(), String> {
-        let mut visited = HashSet::new();
-        for (workload_name, workload_spec) in self.state.current_state.workloads.iter() {
-            if !visited.contains(workload_name) {
-                //log::debug!("searching for workload = '{}'", workload_name);
-                let mut recursion_stack = HashSet::new();
-                if let Some(back_edge) = dfs(
-                    &mut recursion_stack,
-                    &mut visited,
-                    &self.state.current_state,
-                    workload_spec,
-                ) {
-                    // log::debug!("cycle from '{}' -> ... -> {}", back_edge.to, back_edge,);
-                    return Err(format!(
-                        "cycle from '{}' -> ... -> {}",
-                        back_edge.to, back_edge,
-                    ));
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    pub fn has_cyclic_dependencies_iterative(&self) -> Result<(), String> {
-        let mut stack: VecDeque<&String> = VecDeque::new();
-        let mut visited: HashSet<&String> =
-            HashSet::with_capacity(self.state.current_state.workloads.len());
-        let mut path: VecDeque<&String> =
-            VecDeque::with_capacity(self.state.current_state.workloads.len());
-        let mut data: Vec<&String> = self.state.current_state.workloads.keys().collect();
-        data.sort();
-
-        for workload_name in data {
-            if visited.contains(workload_name) {
-                continue;
-            }
-
-            //log::debug!("searching for workload = '{}'", workload_name);
-            stack.push_front(workload_name);
-            while let Some(head) = stack.front() {
-                let dependencies = self
-                    .state
-                    .current_state
-                    .workloads
-                    .get(*head)
-                    .ok_or_else(|| format!("workload '{head}' not found."))?;
-
-                if !visited.contains(head) {
-                    //log::debug!("visit '{}'", head);
-                    visited.insert(head);
-                    path.push_back(head);
-                } else {
-                    //log::debug!("remove '{}' from path", head);
-                    path.pop_back();
-                    stack.pop_front();
-                }
-
-                let mut dependencies: Vec<&String> = dependencies.dependencies.keys().collect();
-                dependencies.sort();
-
-                for dependency in dependencies {
-                    if !visited.contains(dependency) {
-                        stack.push_front(dependency);
-                    } else if path.contains(&dependency) {
-                        let error_msg = format!(
-                            "cycle found '{}' -> ... -> {} -> {}",
-                            dependency,
-                            path.pop_back().unwrap(),
-                            dependency
-                        );
-                        //log::debug!("iterative {}", error_msg);
-                        return Err(error_msg);
-                    }
-                }
-            }
-        }
-        Ok(())
+    pub fn has_cyclic_dependencies(&self) -> Result<(), CyclicCheckResult> {
+        cyclic_check::dfs(&self.state.current_state)
     }
 }
 
@@ -186,15 +132,18 @@ impl ServerState {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use common::{
         objects::AddCondition,
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
     };
+    use std::time::Instant;
 
     const AGENT_NAME: &str = "agent_A";
     const RUNTIME: &str = "runtime X";
     const REQUEST_ID: &str = "request@id";
+    const BENCHMARKING_NUMBER_OF_WORKLOADS: usize = 1000;
 
     #[test]
     fn utest_detect_cycle_in_dependencies_1() {
@@ -212,11 +161,11 @@ mod tests {
             .build();
 
         let server_state = ServerState::new(complete_state, DeleteGraph::new());
-        let result = server_state.has_cyclic_dependencies_iterative();
-        assert!(result.is_err());
-        log::info!("--------------- recursive ---------------");
         let result = server_state.has_cyclic_dependencies();
-        assert!(result.is_err());
+        assert_eq!(
+            result,
+            Err(CyclicCheckResult::WorkloadPartOfCycle("A".to_string()))
+        );
     }
 
     #[test]
@@ -239,12 +188,11 @@ mod tests {
             .build();
 
         let server_state = ServerState::new(complete_state, DeleteGraph::new());
-        let result = server_state.has_cyclic_dependencies_iterative();
-        assert!(result.is_err());
-        log::info!("{}", result.err().unwrap());
         let result = server_state.has_cyclic_dependencies();
-        assert!(result.is_err());
-        log::info!("{}", result.err().unwrap());
+        assert_eq!(
+            result,
+            Err(CyclicCheckResult::WorkloadPartOfCycle("A".to_string()))
+        );
     }
 
     #[test]
@@ -262,9 +210,139 @@ mod tests {
 
         let server_state = ServerState::new(complete_state, DeleteGraph::new());
         let result = server_state.has_cyclic_dependencies();
-        assert!(result.is_err());
-        let result = server_state.has_cyclic_dependencies_iterative();
-        assert!(result.is_err());
+        assert_eq!(
+            result,
+            Err(CyclicCheckResult::WorkloadPartOfCycle("A".to_string()))
+        );
+    }
+
+    #[test]
+    fn utest_detect_cycle_in_dependencies_4() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let complete_state = CompleteStateBuilder::default()
+            .workload_spec("A")
+            .workload_spec("B")
+            .workload_spec("C")
+            .workload_spec("D")
+            .workload_spec("E")
+            .workload_spec("F")
+            .workload_spec("G")
+            .workload_spec("H")
+            .dependency_for_workload("A", "B", AddCondition::AddCondRunning)
+            .dependency_for_workload("B", "C", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("B", "D", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("B", "E", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("C", "E", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("C", "H", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("D", "C", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("D", "E", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("F", "E", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("H", "G", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("G", "F", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("F", "D", AddCondition::AddCondSucceeded)
+            .build();
+
+        let server_state = ServerState::new(complete_state, DeleteGraph::new());
+        let result = server_state.has_cyclic_dependencies();
+        assert_eq!(
+            result,
+            Err(CyclicCheckResult::WorkloadPartOfCycle("D".to_string()))
+        );
+    }
+
+    #[test]
+    fn utest_detect_cycle_in_dependencies_5() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let complete_state = CompleteStateBuilder::default()
+            .workload_spec("A")
+            .workload_spec("B")
+            .workload_spec("C")
+            .workload_spec("D")
+            .workload_spec("E")
+            .workload_spec("F")
+            .workload_spec("G")
+            .workload_spec("H")
+            .dependency_for_workload("A", "B", AddCondition::AddCondRunning)
+            .dependency_for_workload("B", "C", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("B", "D", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("B", "E", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("C", "E", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("C", "H", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("D", "C", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("D", "E", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("F", "E", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("H", "G", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("G", "F", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("F", "A", AddCondition::AddCondSucceeded)
+            .build();
+
+        let server_state = ServerState::new(complete_state, DeleteGraph::new());
+        let result = server_state.has_cyclic_dependencies();
+        assert_eq!(
+            result,
+            Err(CyclicCheckResult::WorkloadPartOfCycle("A".to_string()))
+        );
+    }
+
+    #[test]
+    fn utest_detect_no_cycle_in_dependencies_1() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let complete_state = CompleteStateBuilder::default()
+            .workload_spec("A")
+            .workload_spec("B")
+            .workload_spec("C")
+            .workload_spec("D")
+            .workload_spec("E")
+            .workload_spec("F")
+            .workload_spec("G")
+            .workload_spec("H")
+            .dependency_for_workload("A", "D", AddCondition::AddCondRunning)
+            .dependency_for_workload("B", "D", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("B", "E", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("C", "E", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("C", "H", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("D", "F", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("D", "G", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("D", "H", AddCondition::AddCondSucceeded)
+            .build();
+
+        let server_state = ServerState::new(complete_state, DeleteGraph::new());
+        let result = server_state.has_cyclic_dependencies();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn utest_detect_no_cycle_in_dependencies_2() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let complete_state = CompleteStateBuilder::default()
+            .workload_spec("A")
+            .workload_spec("B")
+            .workload_spec("C")
+            .workload_spec("D")
+            .workload_spec("E")
+            .workload_spec("F")
+            .workload_spec("G")
+            .workload_spec("H")
+            .dependency_for_workload("A", "B", AddCondition::AddCondRunning)
+            .dependency_for_workload("B", "C", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("B", "E", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("C", "E", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("C", "H", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("D", "B", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("D", "C", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("D", "E", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("F", "E", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("H", "G", AddCondition::AddCondSucceeded)
+            .dependency_for_workload("G", "F", AddCondition::AddCondSucceeded)
+            .build();
+
+        let server_state = ServerState::new(complete_state, DeleteGraph::new());
+        let result = server_state.has_cyclic_dependencies();
+        assert!(result.is_ok());
     }
 
     #[test]
@@ -278,9 +356,10 @@ mod tests {
 
         let server_state = ServerState::new(complete_state, DeleteGraph::new());
         let result = server_state.has_cyclic_dependencies();
-        assert!(result.is_err());
-        let result = server_state.has_cyclic_dependencies_iterative();
-        assert!(result.is_err());
+        assert_eq!(
+            result,
+            Err(CyclicCheckResult::WorkloadPartOfCycle("A".to_string()))
+        );
 
         let complete_state = CompleteStateBuilder::default()
             .workload_spec("A")
@@ -291,15 +370,36 @@ mod tests {
 
         let server_state = ServerState::new(complete_state, DeleteGraph::new());
         let result = server_state.has_cyclic_dependencies();
-        assert!(result.is_err());
-        let result = server_state.has_cyclic_dependencies_iterative();
-        assert!(result.is_err());
+        assert_eq!(
+            result,
+            Err(CyclicCheckResult::WorkloadPartOfCycle("B".to_string()))
+        );
+    }
+
+    #[test]
+    fn utest_detect_non_existing_workload_in_dependencies() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let complete_state = CompleteStateBuilder::default()
+            .workload_spec("A")
+            .workload_spec("B")
+            .dependency_for_workload("A", "B", AddCondition::AddCondRunning)
+            .dependency_for_workload("B", "C", AddCondition::AddCondRunning)
+            .build();
+
+        let server_state = ServerState::new(complete_state, DeleteGraph::new());
+        let result = server_state.has_cyclic_dependencies();
+        assert_eq!(
+            result,
+            Err(CyclicCheckResult::InvalidStructure(
+                "workload 'C' is not part of the state.".to_string()
+            ))
+        );
     }
 
     #[test]
     fn utest_detect_cycle_in_dependencies_performance_1000_nodes() {
         let _ = env_logger::builder().is_test(true).try_init();
-        const AMOUNT_OF_WORKLOADS: usize = 1000;
         use rand::{thread_rng, Rng};
         let root_name: String = thread_rng()
             .sample_iter(&rand::distributions::Alphanumeric)
@@ -315,7 +415,7 @@ mod tests {
         workload_root.dependencies.clear();
 
         let mut dependencies = vec![workload_root];
-        for i in 1..AMOUNT_OF_WORKLOADS {
+        for i in 1..BENCHMARKING_NUMBER_OF_WORKLOADS {
             let random_workload_name: String = thread_rng()
                 .sample_iter(&rand::distributions::Alphanumeric)
                 .take(thread_rng().gen_range(10..30))
@@ -334,30 +434,26 @@ mod tests {
         }
 
         dependencies.last_mut().unwrap().dependencies =
-            HashMap::from([(root_name, AddCondition::AddCondRunning)]);
+            HashMap::from([(root_name.clone(), AddCondition::AddCondRunning)]);
 
         let mut complete_state = generate_test_complete_state(REQUEST_ID.to_string(), dependencies);
         complete_state.workload_states.clear();
         assert_eq!(
             complete_state.current_state.workloads.len(),
-            AMOUNT_OF_WORKLOADS
+            BENCHMARKING_NUMBER_OF_WORKLOADS
         );
 
         let server_state = ServerState::new(complete_state, DeleteGraph::new());
-        use std::time::Instant;
         let start = Instant::now();
         let result = server_state.has_cyclic_dependencies();
         let duration = start.elapsed();
         assert!(result.is_err());
         log::info!("{}", result.err().unwrap());
-        log::info!("time recursive cyclic dependency check: '{:?}'", duration);
-
-        let start = Instant::now();
-        let result = server_state.has_cyclic_dependencies_iterative();
-        let duration = start.elapsed();
-        assert!(result.is_err());
-        log::info!("{}", result.err().unwrap());
-        log::info!("time iterative cyclic dependency check: '{:?}'", duration);
+        log::info!(
+            "time iterative cyclic dependency check: '{:?}' micro sek.",
+            duration.as_micros()
+        );
+        assert!(duration.as_micros() < 3500);
     }
 
     struct CompleteStateBuilder(CompleteState);
