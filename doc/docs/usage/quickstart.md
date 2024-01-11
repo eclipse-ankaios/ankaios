@@ -6,7 +6,7 @@ installation script has been used with default options.
 
 You can start workloads in Ankaios in a number of ways.
 For example, you can define a file with the startup configuration and use systemd to start Ankaios.
-The startup configuration file contains all of the workloads and their configuration that you want to be started when Ankaios is started.
+The startup configuration file contains all of the workloads and their configuration that you want to be started by Ankaios.
 
 Let's modify the default config which is stored in `/etc/ankaios/state.yaml`:
 

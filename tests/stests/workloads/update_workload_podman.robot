@@ -49,7 +49,6 @@ Test Ankaios CLI update workload
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~server-starts-without-startup-config~1]
-
 Test Ankaios Podman update workload from empty state
     [Setup]    Run Keywords    Setup Ankaios
 
