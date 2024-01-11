@@ -81,27 +81,25 @@ async fn main() -> Result<(), BoxedStdError> {
 
     // This simulates the state handling.
     // Once the StartupStateLoader is there, it will be started by the main here and it will send the startup state
-    let initial_state_task = tokio::spawn(async move {
-        if let Some(state) = state {
-            to_server
-                .update_state(
-                    common::commands::CompleteState {
-                        request_id: "".to_owned(),
-                        startup_state: State::default(),
-                        current_state: state,
-                        workload_states: vec![],
-                    },
-                    vec![],
-                )
-                .await
-                .unwrap_or_illegal_state();
-        } else {
-            // [impl->swdd~server-starts-without-startup-config~1]
-            log::info!("No startup state provided -> waiting for new workloads from the CLI");
-        }
-    });
+    if let Some(state) = state {
+        to_server
+            .update_state(
+                common::commands::CompleteState {
+                    request_id: "".to_owned(),
+                    startup_state: State::default(),
+                    current_state: state,
+                    workload_states: vec![],
+                },
+                vec![],
+            )
+            .await
+            .unwrap_or_illegal_state();
+    } else {
+        // [impl->swdd~server-starts-without-startup-config~1]
+        log::info!("No startup state provided -> waiting for new workloads from the CLI");
+    }
 
-    try_join!(communications_task, server_task, initial_state_task).unwrap_or_illegal_state();
+    try_join!(communications_task, server_task).unwrap_or_illegal_state();
 
     Ok(())
 }
