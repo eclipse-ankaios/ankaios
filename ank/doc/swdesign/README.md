@@ -510,10 +510,10 @@ Needs:
 
 #### Ankaios manifest
 
-The Ankaios manifest is a YAML file composed of a list of workload specifications under the `workloads` keyword.
+The Ankaios manifest is a YAML (or a JSON) file composed of a list of workload specifications under the `workloads` keyword.
 
 ```yaml
-# Example of a list of two workload specification with the names 'nginx' and 'hello1'.
+# Example of a list of two workload specifications with the names 'nginx' and 'hello1'.
 workloads:
   nginx:
     agent: agent_A
@@ -531,13 +531,16 @@ workloads:
       image: docker.io/nginx:latest
       commandOptions: ["-p", "8081:80"]
   hello1:
-    runtime: podman
+    # For this workload the following are not set:
+    # - agent name
+    # - dependencies -> defaults to {}
+    tags: []
     restart: true
     updateStrategy: AT_MOST_ONCE
     accessRights:
       allow: []
       deny: []
-    tags: []
+    runtime: podman-kube
     runtimeConfig: |
       image: alpine:latest
       commandOptions: [ "--rm"]
@@ -551,12 +554,13 @@ A workload specification consists of the following properties:
 | Property | Description | Value | Is required? |
 |----------|:-----------:|:------|:----------:|
 | **workload name** (_as field key_) | It specifies an unique workload name to identify the workload in the Ankaios system. | A string of any characters (if properly quoted by either single quotes 'example' or double quotes "example"). | true |
-| **runtime** | It specifies the type of the runtime. | One of: `podman`, `podman-kube`. | true |
 | **agent** | It specifies the name of the owning agent which is going to execute the workload. | A string of any characters (if properly quoted by either single quotes 'example' or double quotes "example"). |   false |
-| **restart** | It specifies whether the workload shall be restarted when it exits | One of: `true`,`false` | true |
-| **updateStrategy** | It specifies the update strategy. | One of: `UNSPECIFIED`, `AT_LEAST_ONCE`, `AT_MOST_ONCE` | true |
-| **accessRights** | It specifies lists of access rules fpr `allow` and `deny`. | Not fully specified yet and shall be set to empty list for both. | true |
 | **tags** | It specifies a list use defined key/value objects. | A list of { `key`: some_string, `value`: some_string} or empty| true |
+| **dependencies** | It specifies inter workload dependencies. | Not specified yet and shall be set to empty.| false |
+| **updateStrategy** | It specifies the update strategy. | One of: `UNSPECIFIED`, `AT_LEAST_ONCE`, `AT_MOST_ONCE` | true |
+| **restart** | It specifies whether the workload shall be restarted when it exits | One of: `true`,`false` | true |
+| **accessRights** | It specifies lists of access rules fpr `allow` and `deny`. | Not fully specified yet and shall be set to empty list for both. | true |
+| **runtime** | It specifies the type of the runtime. | One of: `podman`, `podman-kube`. | true |
 | **runtimeConfig** | It specifies the configuration for the runtime whose configuration structure is specific for each runtime as a _string_ | As a _string_ from one of: [PodmanRuntimeConfig](#podmanruntimeconfig), [PodmanKubeRuntimeConfig](#podmankuberuntimeconfig),  | true |
 
 ###### PodmanRuntimeConfig
@@ -592,175 +596,129 @@ Tags:
 - AnkaiosManifest
 
 Needs:
-- swdd
+- impl
+- utest
+
+#### CLI provides a function to accept a list of Ankaios manifest files
+`swdd~cli-apply-accepts-list-of-ankaios-manifests~1`
+
+Status: approved
+
+**When** the user provides a list of Ankaios manifest files via the CLI command `ank apply [OPTIONS] manifest1.yaml manifest2.yaml ...`,
+
+**Then** the Ankaios CLI shall accept the content of all the given Ankaios manifest files.
+
+Needs:
 - impl
 - utest
 - stest
 
-#### CLI provides a function to apply the given manifest file
-`swdd~cli-provides-apply-ankaios-manifest~1`
+#### CLI provides a function to accept an Ankaios manifest content from `stdin`
+`swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1`
 
 Status: approved
 
-**When** the user provides a manifest file via the CLI command `ank apply manifest.yaml`
+**When** the user provides the manifest content via the CLI command `ank apply [OPTIONS] -` through `stdin`,
 
-**Then** the Ankaios CLI shall generate a state object for an update state request from the given manifest file
-
-**And** build a filter mask containing all workloads specified in the given manifest file
-
-**And** send an update state request to the Ankaios server containing the built state object and filter mask.
-
-Tags:
-- ApplyManifest
+**Then** the Ankaios CLI shall accept the given manifest content from `stdin`.
 
 Needs:
-- swdd
 - impl
 - utest
 - stest
 
-#### CLI provides a function to apply multiple manifest files
-`swdd~cli-provides-apply-multiple-ankaios-manifests~1`
+#### CLI provides a function to generate a state object from Ankaios manifests
+`swdd~cli-apply-generates-state-object-from-ankaios-manifests~1`
 
 Status: approved
 
-**When** the user provides multiple manifest files via the CLI command `ank apply manifest1.yaml manifest2.yaml ...`
+**Where** the user does not provide the optional argument `-d`,
 
-**Then** the Ankaios CLI shall generate a state object for an update state request from the given manifest files
+**When** the Ankaios CLI accepts the manifest content from file(s) or from `stdin`,
 
-**And** build a filter mask containing all workloads specified in the given manifest files
-
-**And** send an update state request to the Ankaios server containing the built state object and filter mask.
-
-Tags:
-- ApplyMultipleManifests
+**Then** the Ankaios CLI shall parse the manifest content into a state object.
 
 Needs:
-- swdd
 - impl
 - utest
 - stest
 
-#### CLI provides a function to apply the given manifest content through `stdin`
-`swdd~cli-provides-apply-ankaios-manifest-through-stdin~1`
+#### CLI provides a function to generate filter masks from Ankaios manifests
+`swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1`
 
 Status: approved
 
-**When** the user provides a manifest content via the CLI command `cat manifest.yaml | ank apply`
+**When** the Ankaios CLI accepts the manifest content from file(s) or from `stdin`,
 
-**Then** the Ankaios CLI shall generate a state object for an update state request from the given manifest content received from `stdin`
-
-**And** build a filter mask containing all workloads specified in the given manifest file
-
-**And** send an update state request to the Ankaios server containing the built state object and filter mask.
-
-Tags:
-- ApplyManifestThroughStdIn
+**Then** the Ankaios CLI shall parse the manifest content into a list of filter masks.
 
 Needs:
-- swdd
+- impl
+- utest
+- stest
+
+#### CLI provides a function to send update state request for `ank apply ...`
+`swdd~cli-apply-send-update-state~1`
+
+Status: approved
+
+**When** the Ankaios CLI parses the manifest content into a state object
+
+**And** the Ankaios CLI parses the manifest content into a list of filter masks,
+
+**Then** then Ankaios CLI shall send an update state request to the Ankaios server containing the built state object and filter mask.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI provides a function to send update state request for `ank apply -d ...`
+`swdd~cli-apply-send-update-state-for-deletion~1`
+
+Status: approved
+
+**Where** the user provides the optional argument `-d`,
+
+**When** the Ankaios CLI parses the manifest content into a list of filter masks,
+
+**Then** then Ankaios CLI shall send an update state request to the Ankaios server containing an empty state object and the filter mask.
+
+Needs:
 - impl
 - utest
 - stest
 
 #### CLI provides a function to overwrite the agent names
-`swdd~cli-provides-apply-ankaios-manifest-agent-name-overwrite~1`
+`swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1`
 
 Status: approved
 
-**When** the user provides an agent name via the optional argument `--agent` via one of the CLI commands: `ank apply --agent <agent_name> manifest.yaml`, `ank apply --agent <agent_name> manifest1.yaml manifest2.yaml ...`, `cat manifest.yaml | ank apply --agent <agent name>`
+**Where** the user provides the optional argument `--agent`,
 
-**Then** the Ankaios CLI shall generate a state object with overwritten agent field for each workload specification from the given manifest file(s) or the given manifest content received from `stdin`
+**When** the Ankaios CLI parses the manifest content into a state object,
 
-**And** build a filter mask containing all workloads specified in the given manifest file
-
-**And** send an update state request to the Ankaios server containing the built state object and filter mask.
-
-Tags:
-- ApplyManifestAgentNameOverwrite
+**Then** then Ankaios CLI shall overwrite the agent names in the state object, built as specified in the manifest content, with the one given by the argument.
 
 Needs:
-- swdd
 - impl
 - utest
 - stest
 
 #### CLI emits an error on absence of agent name
-`swdd~cli-provides-apply-ankaios-manifest-error-on-agent-name-absence~1`
+`swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1`
 
 Status: approved
 
-**When** the user provides no agent name via the optional argument `--agent` via one of the CLI commands: `ank apply manifest.yaml`, `ank apply manifest1.yaml manifest2.yaml ...`, `cat manifest.yaml | ank apply`
+**If** the agent name is not specified in a workload specification
 
-**And** no agent name exists in the given manifest file(s) or manifest content
+**And** the user does not provide the agent name via the optional argument `--agent`,
+
+**When** the user runs the CLI command `ank apply [OPTIONS] ...`,
 
 **Then** the Ankaios CLI shall emit an agent name not specified error.
 
-Tags:
-- ApplyManifestAgentNameOverwrite
-
 Needs:
-- swdd
-- impl
-- utest
-- stest
-
-#### CLI provides a function to delete workloads specified in the given manifest file
-`swdd~cli-provides-delete-workloads-via-ankaios-manifest~1`
-
-Status: approved
-
-**When** the user provides a manifest file via the CLI command `ank apply -d manifest.yaml`
-
-**Then** the Ankaios CLI shall build a list of workload names for a delete workloads request from the given manifest file
-
-**And** send a delete workloads request to the Ankaios server containing the built list of workload names.
-
-Tags:
-- DeleteWorkloadsViaManifest
-
-Needs:
-- swdd
-- impl
-- utest
-- stest
-
-#### CLI provides a function to delete workloads specified in the multiple manifest files
-`swdd~cli-provides-delete-workloads-via-multiple-ankaios-manifests~1`
-
-Status: approved
-
-**When** the user provides multiple manifest files via the CLI command `ank apply -d manifest1.yaml manifest2.yaml ...`
-
-**Then** the Ankaios CLI shall build a list of workload names for a delete workloads request from the given manifest files
-
-**And** send a delete workloads request to the Ankaios server containing the built list of workload names.
-
-Tags:
-- DeleteWorkloadsViaMultipleManifests
-
-Needs:
-- swdd
-- impl
-- utest
-- stest
-
-#### CLI provides a function to delete workloads specified in the given manifest content through `stdin`
-`swdd~cli-provides-delete-workloads-via-ankaios-manifest-through-stdin~1`
-
-Status: approved
-
-**When** the user provides a manifest content via the CLI command `cat manifest.yaml | ank apply -d`
-
-**Then** the Ankaios CLI shall build a list of workload names for a delete workloads request from the given manifest content received from `stdin`
-
-**And** send a delete workloads request to the Ankaios server containing the built list of workload names.
-
-Tags:
-- DeleteWorkloadsViaManifestThroughStdIn
-
-Needs:
-- swdd
 - impl
 - utest
 - stest
