@@ -24,6 +24,7 @@ use std::net::SocketAddr;
 
 use crate::agent_senders_map::AgentSendersMap;
 use crate::grpc_cli_connection::GRPCCliConnection;
+use crate::grpc_middleware_error::GrpcMiddlewareError;
 use api::proto::agent_connection_server::AgentConnectionServer;
 
 use crate::execution_command_proxy;
@@ -44,7 +45,7 @@ pub struct GRPCCommunicationsServer {
 impl CommunicationsServer for GRPCCommunicationsServer {
     async fn start(
         &mut self,
-        receiver: &mut Receiver<ExecutionCommand>,
+        mut receiver: Receiver<ExecutionCommand>,
         addr: SocketAddr,
     ) -> Result<(), CommunicationMiddlewareError> {
         // [impl->swdd~grpc-server-creates-agent-connection~1]
@@ -55,29 +56,31 @@ impl CommunicationsServer for GRPCCommunicationsServer {
         let my_cli_connection =
             GRPCCliConnection::new(self.agent_senders.clone(), self.sender.clone());
 
-        // [impl->swdd~grpc-server-spawns-tonic-service~1]
-        // [impl->swdd~grpc-delegate-workflow-to-external-library~1]
-        let grpc_task = tokio::spawn(async move {
-            Server::builder()
+        let agent_senders_clone = self.agent_senders.clone();
+
+        tokio::select! {
+            // [impl->swdd~grpc-server-spawns-tonic-service~1]
+            // [impl->swdd~grpc-delegate-workflow-to-external-library~1]
+            result = Server::builder()
                 .add_service(AgentConnectionServer::new(my_connection))
                 // [impl->swdd~grpc-server-provides-endpoint-for-cli-connection-handling~1]
                 .add_service(CliConnectionServer::new(my_cli_connection))
-                .serve(addr)
-                .await
-                .map_err(|err| {
-                    CommunicationMiddlewareError(format!(
-                        "Could not start the gRPC service: '{}'",
-                        err
-                    ))
-                })?;
-            Ok::<(), CommunicationMiddlewareError>(())
-        });
+                .serve(addr) => {
+                    result.map_err(|err| {
+                        GrpcMiddlewareError::StartError(format!("{err:?}"))
+                    })?
+            }
+            // [impl->swdd~grpc-server-forwards-commands-to-grpc-client~1]
+            _ = execution_command_proxy::forward_from_ankaios_to_proto(
+                &agent_senders_clone,
+                &mut receiver,
+            ) => {
+                Err(GrpcMiddlewareError::ConnectionInterrupted(
+                    "Connection between Ankaios server and the communication middleware dropped.".into())
+                )?
+            }
 
-        // TODO these two awaits one after the other do not seem correct ...
-        // [impl->swdd~grpc-server-forwards-commands-to-grpc-client~1]
-        execution_command_proxy::forward_from_ankaios_to_proto(&self.agent_senders, receiver).await;
-
-        grpc_task.await??;
+        }
         Ok(())
     }
 }

@@ -4,8 +4,9 @@ If you have not installed Ankaios, please follow the instructions
 [here](installation.md). The following examples assumes that the
 installation script has been used with default options.
 
-Ankaios needs a startup configuration that contains all the workloads and their
-configuration which should be started when Ankaios starts up.
+You can start workloads in Ankaios in a number of ways.
+For example, you can define a file with the startup configuration and use systemd to start Ankaios.
+The startup configuration file contains all of the workloads and their configuration that you want to be started by Ankaios.
 
 Let's modify the default config which is stored in `/etc/ankaios/state.yaml`:
 
@@ -55,7 +56,7 @@ ank get state
 
 which creates:
 
-```
+```yaml
 requestId: ank-cli
 startupState:
   workloads: {}
@@ -95,9 +96,9 @@ ank get workloads
 
 which results in:
 
-```
- WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE 
- nginx           agent_A   podman    Running         
+```text
+ WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE
+ nginx           agent_A   podman    Running
 ```
 
 Ankaios also supports adding and removing workloads dynamically.
@@ -117,7 +118,7 @@ We can check the state again with `ank get state` and see, that the workload
 `helloworld` has been added to `currentState.workloads` and the execution
 state is available in `workloadStates`.
 
-As the workload had a one time job its state is `ExecSucceeded` and we can 
+As the workload had a one time job its state is `ExecSucceeded` and we can
 delete it from the state again with:
 
 ```shell
@@ -125,6 +126,6 @@ ank delete workload helloworld
 ```
 
 For next steps see the reference documentation for the
-[startup configuration](../reference/startup-configuration.md) including the 
+[startup configuration](../reference/startup-configuration.md) including the
 `podman-kube` runtime and also working with the
 [complete state data structure](../reference/complete-state.md).

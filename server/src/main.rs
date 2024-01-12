@@ -39,23 +39,33 @@ async fn main() -> Result<(), BoxedStdError> {
     let args = cli::parse();
 
     log::debug!(
-        "Starting the Ankaios server with \n\tserver address: {}, \n\tstartup config path: {}",
+        "Starting the Ankaios server with \n\tserver address: '{}', \n\tstartup config path: '{}'",
         args.addr,
-        args.path,
+        args.path
+            .clone()
+            .unwrap_or("[no config file provided]".to_string()),
     );
 
-    let data = fs::read_to_string(args.path).unwrap_or_exit("Could not read the startup config");
-    // [impl->swdd~server-state-in-memory~1]
-    // [impl->swdd~server-loads-startup-state-file~1]
-    let state: State =
-        state_parser::parse(data).unwrap_or_exit("Parsing start config failed with error");
-    log::trace!(
-        "The state is initialized with the following workloads: {:?}",
-        state.workloads
-    );
+    let state = match args.path {
+        Some(config_path) => {
+            let data =
+                fs::read_to_string(config_path).unwrap_or_exit("Could not read the startup config");
+            // [impl->swdd~server-state-in-memory~1]
+            // [impl->swdd~server-loads-startup-state-file~2]
+            let state: State =
+                state_parser::parse(data).unwrap_or_exit("Parsing start config failed with error");
+            log::trace!(
+                "The state is initialized with the following workloads: {:?}",
+                state.workloads
+            );
+            Some(state)
+        }
+        // [impl->swdd~server-starts-without-startup-config~1]
+        _ => None,
+    };
 
     let (to_server, server_receiver) = create_state_change_channels(common::CHANNEL_CAPACITY);
-    let (to_agents, mut agents_receiver) = create_execution_channels(common::CHANNEL_CAPACITY);
+    let (to_agents, agents_receiver) = create_execution_channels(common::CHANNEL_CAPACITY);
 
     let mut server = AnkaiosServer::new(server_receiver, to_agents.clone());
     let mut communications_server = GRPCCommunicationsServer::new(to_server.clone());
@@ -64,14 +74,14 @@ async fn main() -> Result<(), BoxedStdError> {
     // [impl->swdd~server-default-communication-grpc~1]
     let communications_task = tokio::spawn(async move {
         communications_server
-            .start(&mut agents_receiver, args.addr)
+            .start(agents_receiver, args.addr)
             .await
-            .unwrap_or_illegal_state();
+            .unwrap_or_exit("Server startup error");
     });
 
     // This simulates the state handling.
     // Once the StartupStateLoader is there, it will be started by the main here and it will send the startup state
-    let initial_state_task = tokio::spawn(async move {
+    if let Some(state) = state {
         to_server
             .update_state(
                 common::commands::CompleteState {
@@ -84,9 +94,12 @@ async fn main() -> Result<(), BoxedStdError> {
             )
             .await
             .unwrap_or_illegal_state();
-    });
+    } else {
+        // [impl->swdd~server-starts-without-startup-config~1]
+        log::info!("No startup state provided -> waiting for new workloads from the CLI");
+    }
 
-    try_join!(communications_task, server_task, initial_state_task).unwrap_or_illegal_state();
+    try_join!(communications_task, server_task).unwrap_or_illegal_state();
 
     Ok(())
 }

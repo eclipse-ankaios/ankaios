@@ -33,7 +33,7 @@ struct StoredWorkloadSpec {
     pub agent: String,
     pub restart: bool,
     #[serde(default)]
-    pub dependencies: HashMap<String, ankaios::ExpectedState>,
+    pub dependencies: HashMap<String, ankaios::AddCondition>,
     pub update_strategy: ankaios::UpdateStrategy,
     pub access_rights: ankaios::AccessRights,
     #[serde(default)]

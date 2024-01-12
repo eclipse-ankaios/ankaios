@@ -13,12 +13,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::proto;
-use std::{collections::HashMap, io, path::Path, process::exit, time::Duration, vec};
-
 use prost::Message;
-use tokio::{
+use std::{
+    collections::HashMap,
     fs::File,
-    io::{AsyncReadExt, AsyncWriteExt},
+    io,
+    io::{Read, Write},
+    path::Path,
+    process::exit,
+    time::Duration,
 };
 
 const ANKAIOS_CONTROL_INTERFACE_BASE_PATH: &str = "/run/ankaios/control_interface";
@@ -87,10 +90,12 @@ fn create_request_complete_state_request() -> proto::StateChangeRequest {
     }
 }
 
-async fn read_varint_data(file: &mut File) -> Result<[u8; MAX_VARINT_SIZE], io::Error> {
+fn read_varint_data(file: &mut File) -> Result<[u8; MAX_VARINT_SIZE], io::Error> {
     let mut res = [0u8; MAX_VARINT_SIZE];
+    let mut one_byte_buffer = [0u8; 1];
     for item in res.iter_mut() {
-        *item = file.read_u8().await?;
+        file.read_exact(&mut one_byte_buffer)?;
+        *item = one_byte_buffer[0];
         // check if most significant bit is set to 0 if so it is the last byte to be read
         if *item & 0b10000000 == 0 {
             break;
@@ -99,23 +104,23 @@ async fn read_varint_data(file: &mut File) -> Result<[u8; MAX_VARINT_SIZE], io::
     Ok(res)
 }
 
-async fn read_protobuf_data(file: &mut File) -> Result<Box<[u8]>, io::Error> {
-    let varint_data = read_varint_data(file).await?;
+fn read_protobuf_data(file: &mut File) -> Result<Box<[u8]>, io::Error> {
+    let varint_data = read_varint_data(file)?;
     let mut varint_data = Box::new(&varint_data[..]);
 
     // determine the exact size for exact reading of the bytes later by decoding the varint data
     let size = prost::encoding::decode_varint(&mut varint_data)? as usize;
 
     let mut buf = vec![0; size];
-    file.read_exact(&mut buf[..]).await?; // read exact bytes from file
+    file.read_exact(&mut buf[..])?; // read exact bytes from file
     Ok(buf.into_boxed_slice())
 }
 
-async fn read_from_control_interface() {
+fn read_from_control_interface() {
     let pipes_location = Path::new(ANKAIOS_CONTROL_INTERFACE_BASE_PATH);
     let ex_req_fifo = pipes_location.join("input");
 
-    let mut ex_req = File::open(&ex_req_fifo).await.unwrap_or_else(|err| {
+    let mut ex_req = File::open(&ex_req_fifo).unwrap_or_else(|err| {
         logging::log(&format!(
             "Error: cannot open '{}': '{}'",
             ex_req_fifo.to_str().unwrap(),
@@ -125,7 +130,7 @@ async fn read_from_control_interface() {
     });
 
     loop {
-        if let Ok(binary) = read_protobuf_data(&mut ex_req).await {
+        if let Ok(binary) = read_protobuf_data(&mut ex_req) {
             let proto = proto::ExecutionRequest::decode(&mut Box::new(binary.as_ref()));
 
             logging::log(&format!("Receiving ExecutionRequest containing the workload states of the current state: {:#?}", proto));
@@ -133,11 +138,11 @@ async fn read_from_control_interface() {
     }
 }
 
-async fn write_to_control_interface() {
+fn write_to_control_interface() {
     let pipes_location = Path::new(ANKAIOS_CONTROL_INTERFACE_BASE_PATH);
     let sc_req_fifo = pipes_location.join("output");
 
-    let mut sc_req = File::create(&sc_req_fifo).await.unwrap_or_else(|err| {
+    let mut sc_req = File::create(&sc_req_fifo).unwrap_or_else(|err| {
         logging::log(&format!(
             "Error: cannot create '{}': '{}'",
             sc_req_fifo.to_str().unwrap(),
@@ -152,7 +157,6 @@ async fn write_to_control_interface() {
 
     sc_req
         .write_all(&protobuf_update_workload_request.encode_length_delimited_to_vec())
-        .await
         .unwrap();
 
     let protobuf_request_complete_state_request = create_request_complete_state_request();
@@ -160,16 +164,14 @@ async fn write_to_control_interface() {
         logging::log(format!("Sending StateChangeRequest containing details for requesting all workload states: {:#?}", protobuf_request_complete_state_request).as_str());
         sc_req
             .write_all(&protobuf_request_complete_state_request.encode_length_delimited_to_vec())
-            .await
             .unwrap();
 
-        tokio::time::sleep(Duration::from_secs(WAITING_TIME_IN_SEC)).await;
+        std::thread::sleep(Duration::from_secs(WAITING_TIME_IN_SEC));
     }
 }
 
-#[tokio::main]
-async fn main() {
-    let handle = tokio::spawn(async move { read_from_control_interface().await; });
-    write_to_control_interface().await;
-    handle.await.unwrap();
+fn main() {
+    let handle = std::thread::spawn(read_from_control_interface);
+    write_to_control_interface();
+    handle.join().unwrap();
 }

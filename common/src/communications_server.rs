@@ -26,7 +26,7 @@ use crate::{
 pub trait CommunicationsServer {
     async fn start(
         &mut self,
-        receiver: &mut Receiver<ExecutionCommand>,
+        mut receiver: Receiver<ExecutionCommand>,
         addr: SocketAddr,
     ) -> Result<(), CommunicationMiddlewareError>;
 }

@@ -25,4 +25,3 @@ besides a technical review:
 ## Communication
 
 Please join our [developer mailing list](https://accounts.eclipse.org/mailing-list/ankaios-dev) for up to date information or use the Ankaios [discussion forum](https://github.com/eclipse-ankaios/ankaios/discussions).
-

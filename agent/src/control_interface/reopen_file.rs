@@ -345,7 +345,7 @@ mod tests {
         assert!(f.read_protobuf_data().await.is_err());
     }
 
-    #[tokio::test(flavor = "current_thread")]
+    #[tokio::test]
     async fn test_write_reopen() {
         let tmpdir = tempfile::tempdir().unwrap();
         let fifo = tmpdir.path().join("fifo");
@@ -357,22 +357,22 @@ mod tests {
 
         let jh = tokio::spawn(async move {
             let mut f = super::ReopenFile::create(&fifo2);
+            barrier1.wait().await; // synchronize that both ends of the fifo file is open for writing and reading
             f.write_all(&[1, 2, 3]).await.unwrap();
-            barrier1.wait().await;
+            barrier1.wait().await; // synchronize that both ends of the fifo file is open for writing and reading
             f.write_all(&[4, 5, 6, 7, 8]).await.unwrap();
         });
-
         {
             let mut f = super::File::open(&fifo).await.unwrap();
+            barrier2.wait().await; // synchronize that both ends of the fifo file is open for writing and reading
             let mut buf = [0; 64];
             let s = f.read(&mut buf).await.unwrap();
             assert_eq!(s, 3);
             assert_eq!(buf[0..3], vec![1, 2, 3]);
         }
-        barrier2.wait().await;
-        tokio::time::sleep(Duration::from_millis(TEST_TIMEOUT)).await;
         {
             let mut f = super::File::open(&fifo).await.unwrap();
+            barrier2.wait().await; // synchronize that both ends of the fifo file is open for writing and reading
             let mut buf = [0; 64];
             let s = f.read(&mut buf).await.unwrap();
             assert_eq!(s, 5);

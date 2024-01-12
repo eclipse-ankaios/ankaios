@@ -10,7 +10,7 @@ display_usage() {
     echo -e "Usage: $0 EXAMPLE"
     echo -e "Build and run a control interface example."
     echo -e "  EXAMPLE: subfolder of the example, e.g. rust_control_interface"
-    echo -e "Optionally, set environment variable for alternative Ankaios executable path: ANK_BIN_DIR=/path/to/ankaios/executables, if not set default path: '${DEFAULT_ANKAIOS_BIN_PATH}'"
+    echo -e "Optionally, set environment variable for alternative Ankaios executable path: export ANK_BIN_DIR=/path/to/ankaios/executables, if not set default path: '${DEFAULT_ANKAIOS_BIN_PATH}'"
 }
 
 

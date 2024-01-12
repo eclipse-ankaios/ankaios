@@ -18,43 +18,38 @@ use serde::{Deserialize, Serialize};
 
 use api::proto;
 
+// [impl->swdd~common-supported-workload-states~1]
 #[derive(Debug, Default, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum ExecutionState {
-    ExecPending = 0,
-    ExecRunning = 1,
-    ExecSucceeded = 2,
-    ExecFailed = 3,
     #[default]
-    ExecUnknown = 4,
-    ExecRemoved = 5,
+    ExecUnknown = 0,
+    ExecPending = 1,
+    ExecWaitingToStart = 2,
+    ExecStarting = 3,
+    ExecRunning = 4,
+    ExecSucceeded = 5,
+    ExecFailed = 6,
+    ExecWaitingToStop = 7,
+    ExecStopping = 8,
+    ExecRemoved = 10,
 }
 
 impl From<i32> for ExecutionState {
     fn from(x: i32) -> Self {
         match x {
             x if x == ExecutionState::ExecPending as i32 => ExecutionState::ExecPending,
+            x if x == ExecutionState::ExecWaitingToStart as i32 => {
+                ExecutionState::ExecWaitingToStart
+            }
+            x if x == ExecutionState::ExecStarting as i32 => ExecutionState::ExecStarting,
             x if x == ExecutionState::ExecRunning as i32 => ExecutionState::ExecRunning,
             x if x == ExecutionState::ExecSucceeded as i32 => ExecutionState::ExecSucceeded,
             x if x == ExecutionState::ExecFailed as i32 => ExecutionState::ExecFailed,
+            x if x == ExecutionState::ExecWaitingToStop as i32 => ExecutionState::ExecWaitingToStop,
+            x if x == ExecutionState::ExecStopping as i32 => ExecutionState::ExecStopping,
             x if x == ExecutionState::ExecRemoved as i32 => ExecutionState::ExecRemoved,
             _ => ExecutionState::ExecUnknown,
         }
-    }
-}
-
-impl std::str::FromStr for ExecutionState {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match s.to_lowercase().as_str() {
-            "created" => ExecutionState::ExecPending,
-            "pending" => ExecutionState::ExecPending,
-            "running" => ExecutionState::ExecRunning,
-            "succeeded" => ExecutionState::ExecSucceeded,
-            "failed" => ExecutionState::ExecFailed,
-            "removed" => ExecutionState::ExecRemoved,
-            _ => ExecutionState::ExecUnknown,
-        })
     }
 }
 
@@ -62,11 +57,15 @@ impl Display for ExecutionState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ExecutionState::ExecPending => write!(f, "Pending"),
+            ExecutionState::ExecWaitingToStart => write!(f, "WaitingToStart"),
+            ExecutionState::ExecStarting => write!(f, "Starting"),
             ExecutionState::ExecRunning => write!(f, "Running"),
             ExecutionState::ExecSucceeded => write!(f, "Succeeded"),
             ExecutionState::ExecFailed => write!(f, "Failed"),
-            ExecutionState::ExecUnknown => write!(f, "Unknown"),
+            ExecutionState::ExecWaitingToStop => write!(f, "WaitingToStop"),
+            ExecutionState::ExecStopping => write!(f, "Stopping"),
             ExecutionState::ExecRemoved => write!(f, "Removed"),
+            ExecutionState::ExecUnknown => write!(f, "Unknown"),
         }
     }
 }
@@ -111,8 +110,6 @@ impl From<proto::WorkloadState> for WorkloadState {
 // [utest->swdd~common-object-representation~1]
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use api::proto;
 
     use crate::objects::{ExecutionState, WorkloadState};
@@ -151,50 +148,36 @@ mod tests {
         assert_eq!(WorkloadState::from(proto_wl_state), ankaios_wl_state);
     }
 
+    // [utest->// [impl->swdd~common-supported-workload-states~1]]
     #[test]
     fn utest_execution_state_from_int_mapping() {
-        assert_eq!(ExecutionState::ExecPending, ExecutionState::from(0));
-        assert_eq!(ExecutionState::ExecRunning, ExecutionState::from(1));
-        assert_eq!(ExecutionState::ExecSucceeded, ExecutionState::from(2));
-        assert_eq!(ExecutionState::ExecFailed, ExecutionState::from(3));
-        assert_eq!(ExecutionState::ExecUnknown, ExecutionState::from(4));
-        assert_eq!(ExecutionState::ExecRemoved, ExecutionState::from(5));
+        assert_eq!(ExecutionState::ExecUnknown, ExecutionState::from(0));
+        assert_eq!(ExecutionState::ExecPending, ExecutionState::from(1));
+        assert_eq!(ExecutionState::ExecWaitingToStart, ExecutionState::from(2));
+        assert_eq!(ExecutionState::ExecStarting, ExecutionState::from(3));
+        assert_eq!(ExecutionState::ExecRunning, ExecutionState::from(4));
+        assert_eq!(ExecutionState::ExecSucceeded, ExecutionState::from(5));
+        assert_eq!(ExecutionState::ExecFailed, ExecutionState::from(6));
+        assert_eq!(ExecutionState::ExecWaitingToStop, ExecutionState::from(7));
+        assert_eq!(ExecutionState::ExecStopping, ExecutionState::from(8));
+        assert_eq!(ExecutionState::ExecRemoved, ExecutionState::from(10));
         assert_eq!(ExecutionState::ExecUnknown, ExecutionState::from(100));
     }
 
-    #[test]
-    fn utest_execution_state_from_string_basic_mapping() {
-        assert_eq!(
-            ExecutionState::ExecPending,
-            ExecutionState::from_str("Pending").unwrap()
-        );
-        assert_eq!(
-            ExecutionState::ExecRunning,
-            ExecutionState::from_str("Running").unwrap()
-        );
-        assert_eq!(
-            ExecutionState::ExecSucceeded,
-            ExecutionState::from_str("Succeeded").unwrap()
-        );
-        assert_eq!(
-            ExecutionState::ExecFailed,
-            ExecutionState::from_str("Failed").unwrap()
-        );
-        assert_eq!(
-            ExecutionState::ExecRemoved,
-            ExecutionState::from_str("Removed").unwrap()
-        );
-        assert_eq!(
-            ExecutionState::ExecUnknown,
-            ExecutionState::from_str("Unsupported").unwrap()
-        );
-    }
-
+    // [utest->// [impl->swdd~common-supported-workload-states~1]]
     #[test]
     fn utest_execution_state_to_string_basic_mapping() {
         assert_eq!(
             ExecutionState::ExecPending.to_string(),
             String::from("Pending")
+        );
+        assert_eq!(
+            ExecutionState::ExecWaitingToStart.to_string(),
+            String::from("WaitingToStart")
+        );
+        assert_eq!(
+            ExecutionState::ExecStarting.to_string(),
+            String::from("Starting")
         );
         assert_eq!(
             ExecutionState::ExecRunning.to_string(),
@@ -209,8 +192,16 @@ mod tests {
             String::from("Failed")
         );
         assert_eq!(
+            ExecutionState::ExecWaitingToStop.to_string(),
+            String::from("WaitingToStop")
+        );
+        assert_eq!(
             ExecutionState::ExecRemoved.to_string(),
             String::from("Removed")
+        );
+        assert_eq!(
+            ExecutionState::ExecStopping.to_string(),
+            String::from("Stopping")
         );
         assert_eq!(
             ExecutionState::ExecUnknown.to_string(),

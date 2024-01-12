@@ -15,7 +15,7 @@ The following diagram shows a high level overview of the Common library and its 
 
 ![Context View](drawio/context_view.drawio.svg)
 
-The diagram does not show all dependencies between the Common library and other components of Ankaios as anybody can use the Common library. 
+The diagram does not show all dependencies between the Common library and other components of Ankaios as anybody can use the Common library.
 On the other hand the Common library is not allowed to use other component of Ankaios.
 
 ## Constraints, risks and decisions
@@ -37,7 +37,7 @@ For this reason it is useless to draw a structural diagram for this library.
 
 ### ExecutionCommandChannel
 
-Simplifies sending and receiving `ExecutionCommand`s. Internally uses a multi-producer, single-consumer channel from Tokio. 
+Simplifies sending and receiving `ExecutionCommand`s. Internally uses a multi-producer, single-consumer channel from Tokio.
 
 #### Provide `ExecutionCommandChannel`
 `swdd~execution-command-channel~1`
@@ -75,7 +75,7 @@ Needs:
 
 ### Objects
 
-Definitions of objects which are needed in all other components of Ankaios. 
+Definitions of objects which are needed in all other components of Ankaios.
 These objects especially include objects which needs to be sent through for the `ExecutionCommandChannel` and `StateChangeCommandChannel`.
 
 #### Provide common object representation
@@ -84,6 +84,74 @@ These objects especially include objects which needs to be sent through for the 
 Status: approved
 
 The Common library shall provide data structures for all objects that need to be sent through the asynchronous communication channels.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+
+#### Ankaios supported workload states
+`swdd~common-supported-workload-states~1`
+
+Status: approved
+
+Ankaios shall support the following execution states for a workload:
+
+- pending
+- waiting_to_start
+- starting
+- running
+- succeeded
+- failed
+- waiting_to_stop
+- stopping
+- removed
+- unknown
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+
+The Following diagram shows all Ankaios workload states and the possible transitions between them:
+
+![Workload states](plantuml/state_workload_execution_states.svg)
+
+#### Workload add conditions for dependencies
+`swdd~workload-add-conditions-for-dependencies~1`
+
+Status: approved
+
+Ankaios shall support the following add conditions for a workload dependency:
+* `running` - the workload is operational
+* `succeeded` - the workload has successfully exited
+* `failed` - the workload has exited with an error or could not be started
+
+Rationale:
+Some workloads may need another service to be running before they can be started, others may need preparatory tasks which have been successfully finished. Dependencies on failure of workloads allows the execution of mitigation or recording actions.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+
+#### Workload delete conditions for dependencies
+`swdd~workload-delete-conditions-for-dependencies~1`
+
+Status: approved
+
+Ankaios shall support the following delete conditions for a workload dependency:
+* `running` - the workload is operational
+* `not pending nor running` - the workload is not running nor it is going to be started soon
+
+Rationale:
+Delete conditions are needed to be able to stop a workload on which others depend and for the update strategy `at least once` when the workload is shifted from one agent to another.
 
 Tags:
 - Objects
@@ -124,7 +192,7 @@ Where the hash of the workload runtime config is calculated from the complete ru
 Rationale:
 A unique, consistent and reproducible naming that allows detecting changes in the workload configuration is needed to be able to check if a workload specification differs from the workload execution instance. Such a configuration drift could occur during windows in which an Ankaios Agent was unresponsive or down.
 
-Tags: 
+Tags:
 - Objects
 
 Needs:
@@ -193,3 +261,4 @@ Needs:
 
 ## Glossary
 
+<!-- markdownlint-disable-file MD004 MD022 MD032 -->

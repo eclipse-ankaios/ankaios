@@ -52,7 +52,7 @@ async fn main() {
             }) => {
                 // [impl -> swdd~cli-provides-get-current-state~1]
                 // [impl -> swdd~cli-blocks-until-ankaios-server-responds-get-current-state~1]
-                if let Some(out_text) = cmd.get_state(object_field_mask, output_format).await {
+                if let Ok(out_text) = cmd.get_state(object_field_mask, output_format).await {
                     // [impl -> swdd~cli-returns-current-state-from-server~1]
                     output_and_exit!("{}", out_text);
                 } else {

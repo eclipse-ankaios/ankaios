@@ -9,7 +9,7 @@ The following chapters describe rules and concepts to fit clean code expectation
 
 ## Clean code
 
-We like our code clean and thus use the "Clean Code" rules from "uncle Bob". A short summary can be found [here](https://gist.github.com/wojteklu/73c6914cc446146b8b533c0988cf8d29). 
+We like our code clean and thus use the "Clean Code" rules from "uncle Bob". A short summary can be found [here](https://gist.github.com/wojteklu/73c6914cc446146b8b533c0988cf8d29).
 
 As rust could get a bit messy, feel free to add some additional code comments to blocks that cannot be made readable using the clean code rules.
 
@@ -25,7 +25,7 @@ Names of unit tests within a file shall be hierarchical. Tests which belong toge
 * `container_create_failed`
 * `container_start_success`
 * `container_start_failure_no_id`
- 
+
 So if you want to call tests which work with container, you can write
 
 ```shell
@@ -90,16 +90,17 @@ When writing tests, one of the most tedious task is to setup the environment and
 For example, when you would like to **generate and reuse** a mock for the `Directory` structure located in the `agent/src/control_interface/directory.rs` file, **you shall**
 
 * write a public setup function:
+
   ```rust
   pub fn generate_test_directory_mock() -> __mock_MockDirectory::__new::Context;
   ```
+
   The `<datatype_name>` in `__mock_Mock<datatype_name>::__new::Context` must be replaced with the name of the type the mock is created for.
-  
+
 * place the function in the test part of the file (after the test banner if you use one)
 * place a `#[cfg(test)]` (or `#[cfg(feature = "test_utils")]` in case of a library) before the function to restrict its compilation to test only
 * use this function in all places where you need
-* 
-If you need some variation in the output or the behavior of the function, you can, of course, make it parametrized.
+* If you need some variation in the output or the behavior of the function, you can, of course, make it parametrized.
 
 All **object/mock generation functions shall start** with `generate_test_`.
 
@@ -147,9 +148,9 @@ fn read_from_file(filepath: &str) -> Result<String, io::Error> {
         Ok(file) => file,
         Err(e) => return Err(e),
     };
-    
+
     let mut buffer = String::new();
-    
+
     match file_handle.read_to_string(&mut buffer) {
         Ok(_) => Ok(buffer),
         Err(e) => Err(e)
@@ -161,11 +162,12 @@ Good:
 
 Prefer error propagation over exhaustive match and conditionals.
 
-Error propagation shortens and cleans up the code path by replacing complex and exhaustive conditionals 
+Error propagation shortens and cleans up the code path by replacing complex and exhaustive conditionals
 with the `?` operator without loosing the failure checks.
 
 The refactored variant populates the error and success case the same way to the caller like in the bad example above,
 but is more readable:
+
 ```rust
 fn read_from_file(filepath: &str) -> Result<String, io::Error> {
     let mut buffer = String::new();
@@ -174,15 +176,15 @@ fn read_from_file(filepath: &str) -> Result<String, io::Error> {
 }
 ```
 
-In case of mismatching error types, provide a custom [From-Trait](https://doc.rust-lang.org/rust-by-example/conversion/from_into.html) implementation 
-to convert between error types to keep the benefits of using the `?` operator. 
+In case of mismatching error types, provide a custom [From-Trait](https://doc.rust-lang.org/rust-by-example/conversion/from_into.html) implementation
+to convert between error types to keep the benefits of using the `?` operator.
 But keep in mind that error conversion shall be used wisely
-(e.g. for abstracting third party library error types or if there is a benefit to introduce a common and reusable error type). 
+(e.g. for abstracting third party library error types or if there is a benefit to introduce a common and reusable error type).
 The code base shall not be spammed with From-Trait implementations to replace each single match or conditional.
 
 Error propagation shall also be preferred when converting between `Result<T,E>` and `Option<T>`.
 
-Bad: 
+Bad:
 
 ```rust
 fn string_to_percentage(string: &str) -> Option<f32> {
@@ -211,6 +213,7 @@ fn string_to_percentage(string: &str) -> Option<f32> {
 Applications that are often terminated directly in case of errors are considered as unprofessional and not useful.
 
 Bad:
+
 ```rust
 let value = division(10, 0).unwrap(); // panics, because of a simple division!!!
 ```
@@ -379,7 +382,7 @@ fn list_books(&self) -> Option<Vec<String>> {
     if !self.admin {
         eprintln!("Expected login as admin.");
         return None;
-    } 
+    }
 
     // interesting part
     Some(get_list_of_books())
@@ -411,6 +414,7 @@ Bad:
 
 No need for making those operations async, because they are exclusively called synchronously.
 It is just more syntax and the code raises more questions about the intent to the reader.
+
 ```rust
 let result1 = operation1().await;
 let result2 = operation2().await;
@@ -420,6 +424,7 @@ let result3 = operation3().await;
 Good:
 
 Keep it synchronous and thus simple.
+
 ```rust
 let result1 = operation1();
 let result2 = operation2();
@@ -431,7 +436,7 @@ let result3 = operation3();
 Mixing sync and async code can lead to a number of problems, including performance issues, deadlocks, and race conditions.
 Avoid mixing async with sync code unless there is a good reason to do so.
 
-# Further Readings
+## Further Readings
 
 * <https://rustc-dev-guide.rust-lang.org/conventions.html>
 * <https://www.kernel.org/doc/html/next/rust/coding-guidelines.html>

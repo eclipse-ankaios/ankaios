@@ -4,10 +4,11 @@ The [control interface](./control-interface.md) allows the [workload](glossary.m
 
 !!! note
 
-    The control interface is currently only available for workloads using the 
+    The control interface is currently only available for workloads using the
     `podman` runtime and not for the `podman-kube` runtime.
 
 ## Overview
+
 ```mermaid
 ---
 title: Overview
@@ -21,14 +22,15 @@ flowchart TD
     w4(Workload 4)
     s(Ankaios Server)
 
-    
+
     s <--> a1 <-->|Control Interface| w1 & w2
     s <--> a2 <-->|Control Interface| w3 & w4
 ```
 
-The [control interface](./control-interface.md) enables a [workload](glossary.md#workload) to communicate with the Ankaios system by interacting with the Ankaios server through writing/reading communication data to/from the provided FIFO files in the [FIFO mount point](#fifo-mount-point). 
+The [control interface](./control-interface.md) enables a [workload](glossary.md#workload) to communicate with the Ankaios system by interacting with the Ankaios server through writing/reading communication data to/from the provided FIFO files in the [FIFO mount point](#fifo-mount-point).
 
 ## FIFO mount point
+
 ```mermaid
 ---
 title: FIFO Mount Point
@@ -39,13 +41,14 @@ flowchart TD
     w2(Workload 2)
     s(Ankaios Server)
 
-    
+
     s <--> a1 <-->|"/run/ankaios/control_interface/{input,output}"| w1 & w2
 ```
 
 The [control interface](./control-interface.md) relies on [FIFO](https://en.wikipedia.org/wiki/Named_pipe) (also known as [named pipes](https://en.wikipedia.org/wiki/Named_pipe)) to enable a [workload](glossary.md#workload) process to communicate with the Ankaios system. For that purpose, Ankaios creates a mount point for each [workload](glossary.md#workload) to store the FIFO files. At the mount point `/run/ankaios/control_interface/` the [workload](glossary.md#workload) developer can find the FIFO files `input` and `output` and use them for the communication with the Ankaios server. Ankaios uses its own communication protocol described in [protocol documentation](./_ankaios.proto.md#oprotocol-documentation) as a [protobuf IDL](https://protobuf.com/docs/language-spec) which allows the client code to be generated in any programming language supported by the [protobuf compiler](https://protobuf.dev/reference/). The generated client code can then be integrated and used in a [workload](#communication-between-ankaios-and-workloads).
 
 ## Communication between Ankaios and workloads
+
 ```mermaid
 ---
 title: Communication between Ankaios and a workload
@@ -54,7 +57,7 @@ flowchart TD
     proto("ankaios.proto")
     gen_code("Generated Client Code")
     workload("Workload")
-    
+
     proto -->|generate code with protoc| gen_code
     workload-->|uses| gen_code
 ```
@@ -68,7 +71,7 @@ The messages are encoded using the [length-delimited wire type format](https://p
 ![Length-delimited protobuf message layout inside the file](../assets/length-delimited-protobuf-layout.png)
 
 Every protobuf message is prefixed with its byte length telling the reader how much bytes to read to consume the protobuf message.
-The byte length has a dynamic length and is encoded as [VARINT](https://protobuf.dev/programming-guides/encoding/#length-types). 
+The byte length has a dynamic length and is encoded as [VARINT](https://protobuf.dev/programming-guides/encoding/#length-types).
 
 ## Control interface examples
 
@@ -77,6 +80,7 @@ The subfolder `examples` inside the [Ankaios repository](https://github.com/ecli
 The following sections showcase in Rust some important parts of the communication with the Ankaios cluster using the control interface. The same concepts are also used in all of the example workload applications.
 
 ### Sending request message from a workload to Ankaios server
+
 To send out a request message from the workload to the Ankaios Server the request message needs to be serialized using the generated serializing function, then encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) and then written directly into the `output` FIFO file. The type of request message is [StateChangeRequest](_ankaios.proto.md#statechangerequest).
 
 ```mermaid
@@ -99,14 +103,11 @@ flowchart TD
 ```
 
 Code snippet in [Rust](https://www.rust-lang.org/) for sending request message via control interface:
+
 ```rust
 use api::proto;
 use prost::Message;
-use std::{collections::HashMap, path::Path};
-use tokio::{
-    fs::File,
-    io::AsyncWriteExt,
-};
+use std::{collections::HashMap, fs::File, io::Write, path::Path};
 
 const ANKAIOS_CONTROL_INTERFACE_BASE_PATH: &str = "/run/ankaios/control_interface";
 
@@ -148,11 +149,11 @@ fn create_update_workload_request() -> proto::StateChangeRequest {
     }
 }
 
-async fn write_to_control_interface() {
+fn write_to_control_interface() {
     let pipes_location = Path::new(ANKAIOS_CONTROL_INTERFACE_BASE_PATH);
     let sc_req_fifo = pipes_location.join("output");
 
-    let mut sc_req = File::create(&sc_req_fifo).await.unwrap();
+    let mut sc_req = File::create(&sc_req_fifo).unwrap();
 
     let protobuf_update_workload_request = create_update_workload_request();
 
@@ -160,16 +161,17 @@ async fn write_to_control_interface() {
 
     sc_req
         .write_all(&protobuf_update_workload_request.encode_length_delimited_to_vec())
-        .await
         .unwrap();
 }
 
-#[tokio::main]
-async fn main() {
-    write_to_control_interface().await;
+fn main() {
+    write_to_control_interface();
 }
+
 ```
+
 ### Processing response message from Ankaios server
+
 To process a response message from the Ankaios Server the workload needs to read out the bytes from the `input` FIFO file. As the bytes are encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) with a variable length, the length needs to be decoded and extracted first. Then the length can be used to decode and deserialize the read bytes to a response message object for further processing. The type of the response message is [ExecutionRequest](_ankaios.proto.md#executionrequest).
 
 ```mermaid
@@ -192,23 +194,21 @@ flowchart TD
 ```
 
 Code Snippet in [Rust](https://www.rust-lang.org/) for reading response message via control interface:
+
 ```rust
 use api::proto;
-
 use prost::Message;
-use tokio::{
-    fs::File,
-    io::AsyncReadExt,
-};
-use std::{io, path::Path};
+use std::{fs::File, io, io::Read, path::Path};
 
 const ANKAIOS_CONTROL_INTERFACE_BASE_PATH: &str = "/run/ankaios/control_interface";
 const MAX_VARINT_SIZE: usize = 19;
 
-async fn read_varint_data(file: &mut File) -> Result<[u8; MAX_VARINT_SIZE], io::Error> {
+fn read_varint_data(file: &mut File) -> Result<[u8; MAX_VARINT_SIZE], io::Error> {
     let mut res = [0u8; MAX_VARINT_SIZE];
+    let mut one_byte_buffer = [0u8; 1];
     for item in res.iter_mut() {
-        *item = file.read_u8().await?;
+        file.read_exact(&mut one_byte_buffer)?;
+        *item = one_byte_buffer[0];
         // check if most significant bit is set to 0 if so it is the last byte to be read
         if *item & 0b10000000 == 0 {
             break;
@@ -217,26 +217,26 @@ async fn read_varint_data(file: &mut File) -> Result<[u8; MAX_VARINT_SIZE], io::
     Ok(res)
 }
 
-async fn read_protobuf_data(file: &mut File) -> Result<Box<[u8]>, io::Error> {
-    let varint_data = read_varint_data(file).await?;
+fn read_protobuf_data(file: &mut File) -> Result<Box<[u8]>, io::Error> {
+    let varint_data = read_varint_data(file)?;
     let mut varint_data = Box::new(&varint_data[..]);
 
     // determine the exact size for exact reading of the bytes later by decoding the varint data
     let size = prost::encoding::decode_varint(&mut varint_data)? as usize;
 
     let mut buf = vec![0; size];
-    file.read_exact(&mut buf[..]).await?; // read exact bytes from file
+    file.read_exact(&mut buf[..])?; // read exact bytes from file
     Ok(buf.into_boxed_slice())
 }
 
-async fn read_from_control_interface() {
+fn read_from_control_interface() {
     let pipes_location = Path::new(ANKAIOS_CONTROL_INTERFACE_BASE_PATH);
     let ex_req_fifo = pipes_location.join("input");
 
-    let mut ex_req = File::open(&ex_req_fifo).await.unwrap();
+    let mut ex_req = File::open(&ex_req_fifo).unwrap();
 
     loop {
-        if let Ok(binary) = read_protobuf_data(&mut ex_req).await {
+        if let Ok(binary) = read_protobuf_data(&mut ex_req) {
             let proto = proto::ExecutionRequest::decode(&mut Box::new(binary.as_ref()));
 
             println!("{}", &format!("Receiving ExecutionRequest containing the workload states of the current state: {:#?}", proto));
@@ -244,10 +244,8 @@ async fn read_from_control_interface() {
     }
 }
 
-#[tokio::main]
-async fn main() {
-    read_from_control_interface().await;
+fn main() {
+    read_from_control_interface();
 }
 
 ```
-

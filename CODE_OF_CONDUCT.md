@@ -68,6 +68,7 @@ Reports should be directed to <conduct@eclipse-foundation.org>. It is the Conduc
 The Eclipse Foundation takes all reports of potential Code violations seriously and is committed to confidentiality and a full investigation of all allegations. The identity of the reporter will be omitted from the details of the report supplied to the accused. Contributors who are being investigated for a potential Code violation will have an opportunity to be heard prior to any final determination. Those found to have violated the Code can seek reconsideration of the violation and disciplinary action decisions. Every effort will be made to have all matters disposed of within 60 days of the receipt of the complaint.
 
 ## Actions
+
 Contributors who do not follow this Code in good faith may face temporary or permanent repercussions as determined by the Conduct Committee.
 
 This Code does not address all conduct. It works in conjunction with our [Communication Channel Guidelines](https://www.eclipse.org/org/documents/communication-channel-guidelines/), [Social Media Guidelines](https://www.eclipse.org/org/documents/social_media_guidelines.php), [Bylaws](https://www.eclipse.org/org/documents/eclipse-foundation-be-bylaws-en.pdf), and [Internal Rules](https://www.eclipse.org/org/documents/ef-be-internal-rules.pdf) which set out additional protections for, and obligations of, all contributors. The Foundation has additional policies that provide further guidance on other matters.

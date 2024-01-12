@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::fmt;
+use std::{fmt, time::Duration};
 
 #[cfg(not(test))]
 async fn read_file_to_string(file: String) -> std::io::Result<String> {
@@ -42,6 +42,7 @@ use url::Url;
 use crate::{cli::OutputFormat, output_and_error, output_debug};
 
 const BUFFER_SIZE: usize = 20;
+const WAIT_TIME_MS: Duration = Duration::from_millis(3000);
 
 #[derive(Debug, Clone)]
 pub enum CliError {
@@ -117,8 +118,8 @@ fn get_filtered_value<'a>(
     map: &'a serde_yaml::Value,
     mask: &[&str],
 ) -> Option<&'a serde_yaml::Value> {
-    mask.iter().fold(Some(map), |current_level, mask_part| {
-        current_level?.get(mask_part)
+    mask.iter().try_fold(map, |current_level, mask_part| {
+        current_level.get(mask_part)
     })
 }
 
@@ -223,42 +224,55 @@ impl CliCommands {
         let _ = self.task.await;
     }
 
+    async fn get_complete_state(&mut self, object_field_mask: &Vec<String>) -> Result<Box<CompleteState>, CliError> {
+        output_debug!("get_complete_state: object_field_mask={:?} ", object_field_mask);
+
+        // send complete state request to server
+        self.to_server
+            .request_complete_state(RequestCompleteState {
+                request_id: self.cli_name.to_owned(),
+                field_mask: object_field_mask.clone(),
+            })
+            .await.map_err(|err| CliError::ExecutionError(err.to_string()))?;
+
+        let poll_complete_state_response = async {
+            loop {
+                match self.from_server.recv().await {
+                    Some(ExecutionCommand::CompleteState(res)) => return Ok(res),
+                    None => return Err("Channel preliminary closed."),
+                    Some(_) => (),
+                }
+            }
+        };
+        match tokio::time::timeout(WAIT_TIME_MS, poll_complete_state_response).await {
+            Ok(Ok(res)) => Ok(res),
+            Ok(Err(err)) => Err(CliError::ExecutionError(format!("Failed to get complete state.\nError: {err}"))),
+            Err(_) => Err(CliError::ExecutionError(format!("Failed to get complete state in time (timeout={WAIT_TIME_MS:?}).")))
+        }
+    }
+
     pub async fn get_state(
         &mut self,
         object_field_mask: Vec<String>,
         output_format: OutputFormat,
-    ) -> Option<String> {
-        let mut out_command_text: Option<String> = None;
+    ) -> Result<String, CliError> {
         output_debug!(
             "Got: object_field_mask={:?} output_format={:?}",
             object_field_mask,
             output_format
         );
 
-        // send request
-        self.to_server
-            .request_complete_state(RequestCompleteState {
-                request_id: self.cli_name.to_owned(),
-                field_mask: object_field_mask.clone(),
-            })
-            .await
-            .ok()?;
-
-        if let Some(ExecutionCommand::CompleteState(res)) = self.from_server.recv().await {
-            out_command_text =
-                // [impl->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
-                match generate_compact_state_output(&res, object_field_mask, output_format) {
-                    Ok(res) => Some(res),
-                    Err(err) => {
-                        output_and_error!(
-                            "Error occurred during processing response from server.\nError: {err}"
-                        );
-                        None
-                    }
-                }
+        let res_complete_state = self.get_complete_state(&object_field_mask).await?;
+        // [impl->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
+        match generate_compact_state_output(&res_complete_state, object_field_mask, output_format) {
+            Ok(res) => Ok(res),
+            Err(err) => {
+                output_and_error!(
+                    "Error occurred during processing response from server.\nError: {err}"
+                );
+                Err(err)
+            }
         }
-
-        out_command_text
     }
 
     pub async fn set_state(
@@ -272,12 +286,13 @@ impl CliCommands {
             state_object_file
         );
         let mut complete_state_input = CompleteState::default();
-        if state_object_file.is_some() {
-            let state_object_data = read_file_to_string(state_object_file.unwrap())
-                .await
-                .unwrap_or_else(|error| {
-                    panic!("Could not read the state object file.\nError: {error}")
-                });
+        if let Some(state_object_file) = state_object_file {
+            let state_object_data =
+                read_file_to_string(state_object_file)
+                    .await
+                    .unwrap_or_else(|error| {
+                        panic!("Could not read the state object file.\nError: {error}")
+                    });
             // [impl -> swdd~cli-supports-yaml-to-set-current-state~1]
             complete_state_input =
                 serde_yaml::from_str(&state_object_data).unwrap_or_else(|error| {
@@ -304,100 +319,65 @@ impl CliCommands {
         state: Option<String>,
         workload_name: Vec<String>,
     ) -> Result<String, CliError> {
-        // send request
-        self.to_server
-            .request_complete_state(RequestCompleteState {
-                request_id: self.cli_name.to_owned(),
-                field_mask: Vec::new(),
-            })
-            .await
-            .map_err(|err| CliError::ExecutionError(err.to_string()))?;
-
-        if let Some(ExecutionCommand::CompleteState(res)) = self.from_server.recv().await {
-            let mut workload_infos: Vec<WorkloadInfo> = res
-                .current_state
-                .workloads
-                .values()
-                .cloned()
-                .map(|w| WorkloadInfo {
-                    name: w.name,
-                    agent: w.agent,
-                    runtime: w.runtime,
-                    execution_state: String::new(),
-                })
-                .collect();
-
-            // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-            for wi in &mut workload_infos {
-                if let Some(ws) = res
-                    .workload_states
-                    .iter()
-                    .find(|ws| ws.agent_name == wi.agent && ws.workload_name == wi.name)
-                {
-                    wi.execution_state = ws.execution_state.to_string();
-                }
-            }
-            output_debug!("The table before filtering:\n{:?}", workload_infos);
-
-            // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-            if agent_name.is_some() {
-                workload_infos.retain(|wi| &wi.agent == agent_name.as_ref().unwrap());
-            }
-
-            // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-            if state.is_some() {
-                workload_infos.retain(|wi| {
-                    wi.execution_state.to_lowercase() == state.as_ref().unwrap().to_lowercase()
-                });
-            }
-
-            // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-            if !workload_name.is_empty() {
-                workload_infos.retain(|wi| workload_name.iter().any(|wn| wn == &wi.name));
-            }
-
-            // The order of workloads in RequestCompleteState is not sable -> make sure that the user sees always the same order.
-            // [impl->swdd~cli-shall-sort-list-of-workloads~1]
-            workload_infos.sort_by_key(|wi| wi.name.clone());
-
-            output_debug!("The table after filtering:\n{:?}", workload_infos);
-
-            // [impl->swdd~cli-shall-present-list-workloads-as-table~1]
-            return Ok(Table::new(workload_infos).with(Style::blank()).to_string());
-        }
         // [impl->swdd~cli-returns-list-of-workloads-from-server~1]
-        Err(CliError::ExecutionError(
-            "Failed to get complete state of server.".to_string(),
-        ))
+        let res_complete_state = self.get_complete_state(&Vec::new()).await?;
+
+        let mut workload_infos: Vec<WorkloadInfo> = res_complete_state
+            .current_state
+            .workloads
+            .values()
+            .cloned()
+            .map(|w| WorkloadInfo {
+                name: w.name,
+                agent: w.agent,
+                runtime: w.runtime,
+                execution_state: String::new(),
+            })
+            .collect();
+
+        // [impl->swdd~cli-shall-filter-list-of-workloads~1]
+        for wi in &mut workload_infos {
+            if let Some(ws) = res_complete_state
+                .workload_states
+                .iter()
+                .find(|ws| ws.agent_name == wi.agent && ws.workload_name == wi.name)
+            {
+                wi.execution_state = ws.execution_state.to_string();
+            }
+        }
+        output_debug!("The table before filtering:\n{:?}", workload_infos);
+
+        // [impl->swdd~cli-shall-filter-list-of-workloads~1]
+        if agent_name.is_some() {
+            workload_infos.retain(|wi| &wi.agent == agent_name.as_ref().unwrap());
+        }
+
+        // [impl->swdd~cli-shall-filter-list-of-workloads~1]
+        if state.is_some() {
+            workload_infos.retain(|wi| {
+                wi.execution_state.to_lowercase() == state.as_ref().unwrap().to_lowercase()
+            });
+        }
+
+        // [impl->swdd~cli-shall-filter-list-of-workloads~1]
+        if !workload_name.is_empty() {
+            workload_infos.retain(|wi| workload_name.iter().any(|wn| wn == &wi.name));
+        }
+
+        // The order of workloads in RequestCompleteState is not sable -> make sure that the user sees always the same order.
+        // [impl->swdd~cli-shall-sort-list-of-workloads~1]
+        workload_infos.sort_by_key(|wi| wi.name.clone());
+
+        output_debug!("The table after filtering:\n{:?}", workload_infos);
+
+        // [impl->swdd~cli-shall-present-list-workloads-as-table~1]
+        Ok(Table::new(workload_infos).with(Style::blank()).to_string())
     }
 
     // [impl->swdd~cli-provides-delete-workload~1]
     // [impl->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~1]
     pub async fn delete_workloads(&mut self, workload_names: Vec<String>) -> Result<(), CliError> {
-        // get current state
-        self.to_server
-            .request_complete_state(RequestCompleteState {
-                request_id: self.cli_name.to_owned(),
-                field_mask: Vec::new(),
-            })
-            .await
-            .map_err(|err| CliError::ExecutionError(err.to_string()))?;
-
-        let res = self
-            .from_server
-            .recv()
-            .await
-            .ok_or(CliError::ExecutionError(
-                "Failed to get execution command from server".to_string(),
-            ))?;
-
-        let complete_state = if let ExecutionCommand::CompleteState(res) = res {
-            res
-        } else {
-            return Err(CliError::ExecutionError(
-                "Expected complete state".to_string(),
-            ));
-        };
+        let complete_state = self.get_complete_state(&Vec::new()).await?;
 
         output_debug!("Got current state: {:?}", complete_state);
         let mut new_state = *complete_state.clone();
@@ -455,36 +435,21 @@ impl CliCommands {
         };
         output_debug!("Request to run new workload: {:?}", new_workload);
 
-        // get current state
+        let res_complete_state = self.get_complete_state(&Vec::new()).await?;
+        output_debug!("Got current state: {:?}", res_complete_state);
+        let mut new_state = *res_complete_state.clone();
+        new_state
+            .current_state
+            .workloads
+            .insert(workload_name, new_workload);
+
+        let update_mask = vec!["currentState".to_string()];
+        output_debug!("Sending the new state {:?}", new_state);
         self.to_server
-            .request_complete_state(RequestCompleteState {
-                request_id: self.cli_name.to_owned(),
-                field_mask: Vec::new(),
-            })
+            .update_state(new_state, update_mask)
             .await
             .map_err(|err| CliError::ExecutionError(err.to_string()))?;
-
-        if let Some(ExecutionCommand::CompleteState(res)) = self.from_server.recv().await {
-            output_debug!("Got current state: {:?}", res);
-            let mut new_state = *res.clone();
-            new_state
-                .current_state
-                .workloads
-                .insert(workload_name, new_workload);
-
-            let update_mask = vec!["currentState".to_string()];
-            output_debug!("Sending the new state {:?}", new_state);
-            self.to_server
-                .update_state(new_state, update_mask)
-                .await
-                .map_err(|err| CliError::ExecutionError(err.to_string()))?;
-
-            return Ok(());
-        }
-
-        Err(CliError::ExecutionError(
-            "Failed to get complete state from server".to_string(),
-        ))
+        Ok(())
     }
 }
 
@@ -1071,10 +1036,8 @@ mod tests {
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
         );
-        let cmd_text = cmd.get_state(vec![], crate::cli::OutputFormat::Yaml).await;
-        assert!(cmd_text.is_some());
-
-        let expected_text = Some(serde_yaml::to_string(&test_data).unwrap());
+        let cmd_text = cmd.get_state(vec![], crate::cli::OutputFormat::Yaml).await.unwrap();
+        let expected_text = serde_yaml::to_string(&test_data).unwrap();
         assert_eq!(cmd_text, expected_text);
     }
 
@@ -1123,10 +1086,9 @@ mod tests {
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
         );
-        let cmd_text = cmd.get_state(vec![], crate::cli::OutputFormat::Json).await;
-        assert!(cmd_text.is_some());
-
-        let expected_text = Some(serde_json::to_string_pretty(&test_data).unwrap());
+        let cmd_text = cmd.get_state(vec![], crate::cli::OutputFormat::Json).await.unwrap();
+        
+        let expected_text = serde_json::to_string_pretty(&test_data).unwrap();
         assert_eq!(cmd_text, expected_text);
     }
 
@@ -1180,15 +1142,12 @@ mod tests {
                 vec!["currentState.workloads.name3.runtime".to_owned()],
                 crate::cli::OutputFormat::Yaml,
             )
-            .await;
-        assert!(cmd_text.is_some());
-
-        let expected_single_field_result_text = Some(
-            serde_yaml::to_string(&serde_json::json!(
+            .await.unwrap();
+        
+        let expected_single_field_result_text = serde_yaml::to_string(&serde_json::json!(
                 {"currentState": {"workloads": {"name3": { "runtime": "runtime"}}}}
             ))
-            .unwrap(),
-        );
+            .unwrap();
 
         assert_eq!(cmd_text, expected_single_field_result_text);
     }
@@ -1248,10 +1207,9 @@ mod tests {
                 ],
                 crate::cli::OutputFormat::Yaml,
             )
-            .await;
-        assert!(cmd_text.is_some());
+            .await.unwrap();
         assert!(matches!(cmd_text, 
-            Some(txt) if txt == *"currentState:\n  workloads:\n    name1:\n      runtime: runtime\n    name2:\n      runtime: runtime\n" || 
+            txt if txt == *"currentState:\n  workloads:\n    name1:\n      runtime: runtime\n    name2:\n      runtime: runtime\n" || 
             txt == *"currentState:\n  workloads:\n    name2:\n      runtime: runtime\n    name1:\n      runtime: runtime\n"));
     }
 
@@ -1507,8 +1465,8 @@ mod tests {
                         }
                     ],
                     "dependencies": {
-                        "workload A": "RUNNING",
-                        "workload C": "STOPPED"
+                        "workload A": "ADD_COND_RUNNING",
+                        "workload C": "ADD_COND_SUCCEEDED"
                     },
                     "updateStrategy": "UNSPECIFIED",
                     "restart": true,
@@ -1571,8 +1529,8 @@ mod tests {
                             }
                         ],
                         "dependencies": {
-                            "workload A": "RUNNING",
-                            "workload C": "STOPPED"
+                            "workload A": "ADD_COND_RUNNING",
+                            "workload C": "ADD_COND_SUCCEEDED"
                         },
                         "updateStrategy": "UNSPECIFIED",
                         "restart": true,

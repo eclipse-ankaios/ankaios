@@ -2,7 +2,8 @@
 !include ../../../../resources/doc/plantuml/clean.skin
 
 box "Ankaios Agent"
-    participant "AgentManager" as manager
+    participant "AgentManager" as agent_manager
+    participant "RuntimeManager" as runtime_manager
     participant "Control Interface Instance" as control
     participant "<<task>>\nHandle\nControl Interface" as control_task
 
@@ -12,25 +13,27 @@ box "Ankaios Server"
     participant "Ankaios Server" as server
 end box
 
-activate manager
+activate agent_manager
+activate runtime_manager
 activate server
 
-... Ankaios Agent startup ... 
+... Ankaios Agent startup ...
 
-note over manager, server
+note over agent_manager, server
 The call to the Agent Manager is simpliefied here. The actuall call goes over the Communication Middleware.
 end note
 
-manager <<- server ++: UpdateWorkload
+agent_manager <<- server ++: UpdateWorkload
+agent_manager ->> runtime_manager ++: update workload
 
 loop for each worload
-    manager -> manager: skip workloads with unknown runtime
-    manager -> control **: create Control Interface Instance
+    runtime_manager -> runtime_manager: skip workloads with unknown runtime
+    runtime_manager -> control **: create Control Interface Instance
     activate control
     control -> control: create input-output pipe pair per Workload
     control -> control_task **: start Control Interface task
-    manager -> manager: store Control Interface Instance
-    manager -> manager: store Workload to runtime mapping
+    runtime_manager -> runtime_manager: store Control Interface Instance
+    runtime_manager -> runtime_manager: store Workload to runtime mapping
 
     ... handle initial or subsequent added and deleted workload lists ...
 end

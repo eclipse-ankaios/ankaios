@@ -33,3 +33,5 @@ This project welcomes contributions and suggestions. Before contributing, make s
 ## License
 
 Eclipse Ankaios is licensed using the Apache License Version 2.0.
+
+<!-- markdownlint-disable-file MD041 -->

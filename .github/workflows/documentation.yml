@@ -9,6 +9,11 @@ on:
 
 permissions:
   contents: write
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.head_ref || github.ref }}"
+  cancel-in-progress: true
+
 jobs:
   documentation_changes:
     name: Check if documentation has changed
@@ -33,7 +38,7 @@ jobs:
     if: ${{ needs.documentation_changes.outputs.documentation == 'true' || github.ref_name == 'main' || github.ref_type == 'tag' }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.6.4
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.7.0
     steps:
       - uses: actions/checkout@v3.5.3
       - name: Prepare commit to branch gh-pages
@@ -59,3 +64,18 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
         run: |
             tools/generate_docs.sh build
+  lint:
+    name: Lint documentation
+    # No dependencies as we have markdown files in a lot of places
+    runs-on: ubuntu-latest
+    steps:
+      - name: git checkout
+        uses: actions/checkout@v4
+        with:
+          show-progress: ''
+      - name: markdownlint-cli2-action
+        uses: DavidAnson/markdownlint-cli2-action@v9
+        with:
+          globs: |
+            **/*.md
+            !.github/PULL_REQUEST_TEMPLATE.md

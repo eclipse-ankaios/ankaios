@@ -27,7 +27,7 @@ Library             ankaios_library.py
 
 *** Variables ***
 ${CURRENT_RESULT}       ${EMPTY}
-${TEST_FOLDER_NAME}    ${EMPTY}
+${TEST_FOLDER_NAME}     ${EMPTY}
 
 
 *** Keywords ***
@@ -76,17 +76,36 @@ the command "${cli_command}" finished with exit code "${exit_code}" within "${ti
             Should Be Equal    ${run_result.rc}    ${exit_code_int}
             BREAK
         END
-        IF  ${elapsed_secs} >= ${timeout}
-            Should Be Equal    ${run_result.rc}    ${exit_code_int}    msg=Timeout: Execution result is still '${run_result.rc}!=${exit_code_int}' after ${timeout} seconds!
+        IF    ${elapsed_secs} >= ${timeout}
+            Should Be Equal
+            ...    ${run_result.rc}
+            ...    ${exit_code_int}
+            ...    msg=Timeout: Execution result is still '${run_result.rc}!=${exit_code_int}' after ${timeout} seconds!
             BREAK
         END
     END
 
 Ankaios server is started with config "${config_path}"
-    Start Process    %{ANK_BIN_DIR}${/}ank-server    --startup-config    ${config_path}    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt    env:RUST_LOG=debug
+    Start Process
+    ...    %{ANK_BIN_DIR}${/}ank-server
+    ...    --startup-config
+    ...    ${config_path}
+    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
+    ...    env:RUST_LOG=debug
+
+Ankaios server is started without config
+    Start Process
+    ...    %{ANK_BIN_DIR}${/}ank-server
+    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
+    ...    env:RUST_LOG=debug
 
 Ankaios agent is started with name "${name}"
-    Start Process    %{ANK_BIN_DIR}${/}ank-agent    --name    ${name}    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt    env:RUST_LOG=debug
+    Start Process
+    ...    %{ANK_BIN_DIR}${/}ank-agent
+    ...    --name
+    ...    ${name}
+    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
+    ...    env:RUST_LOG=debug
 
 Podman has deleted all existing containers
     Run Process    podman    rm    -a    -f    timeout=20    shell=True
@@ -98,8 +117,14 @@ Podman has deleted all existing volumes
     Run Process    podman    volume    rm    -a    timeout=20    shell=True
 
 all workloads of agent "${agent_name}" have an initial execution state
-    ${list_result}=    Wait For Initial Execution State    %{ANK_BIN_DIR}${/}ank get workloads    ${agent_name}    60    5
-    Should Not Be Empty    ${list_result}    msg=Timeout: Workloads on agent '${agent_name}' do not have the expected initial execution states!
+    ${list_result}=    Wait For Initial Execution State
+    ...    %{ANK_BIN_DIR}${/}ank get workloads
+    ...    ${agent_name}
+    ...    60
+    ...    5
+    Should Not Be Empty
+    ...    ${list_result}
+    ...    msg=Timeout: Workloads on agent '${agent_name}' do not have the expected initial execution states!
 
 user triggers "${cli_command}"
     ${cmd}=    Split Command Line    ${cli_command}
@@ -107,6 +132,9 @@ user triggers "${cli_command}"
     ${CURRENT_RESULT}=    Run Process    @{cmd}    timeout=20    shell=True
     Log    ${CURRENT_RESULT.stdout}
     Set Global Variable    ${CURRENT_RESULT}
+
+the user waits "${seconds_to_wait}" seconds
+    Run Process    sleep    ${seconds_to_wait}
 
 user updates the state "${new_state_yaml_file}" with "${field_value}"
     @{key_val}=    Split String    ${field_value}    separator==
@@ -124,12 +152,15 @@ the workload "${workload_name}" shall have the execution state "${expected_execu
         ...    ${expected_execution_state}
         ...    ${timeout}
     END
-    Should Not Be Empty    ${list_result}    msg=Timeout: Workload '${workload_name}' on agent '${expected_agent_name}' does not have the execution state '${expected_execution_state}'!
+    Should Not Be Empty
+    ...    ${list_result}
+    ...    msg=Timeout: Workload '${workload_name}' on agent '${expected_agent_name}' does not have the execution state '${expected_execution_state}'!
 
-the workload "${workload_name}" shall not exist within "${timeout}" seconds
-    @{list_result}=    table to list    ${CURRENT_RESULT.stdout}
-    &{dict_result}=    table to dict    ${list_result}    WORKLOAD NAME
-    Dictionary Should Not Contain Key    ${dict_result}    ${workload_name}
+the workload "${workload_name}" shall not exist
+    ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get workloads
+    @{list_result}=    table to list    ${command_result.stdout}
+    &{workload_table}=    table to dict    ${list_result}    WORKLOAD NAME
+    Dictionary Should Not Contain Key    ${workload_table}    ${workload_name}
 
 user executes system app "${cli_command}"
     ${cmd}=    Split Command Line    ${cli_command}    escaping=True
@@ -148,15 +179,19 @@ volumes for "${workload_name}" shall exist on "${agent_name}" within "${timeout}
         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
         ${found_config_index}=    Get Index From List    ${volume_names}    ${volume_agent_config}
         ${found_pods_index}=    Get Index From List    ${volume_names}    ${volume_agent_pods}
-        IF  ${found_config_index}!=-1 and ${found_pods_index}!=-1
-            BREAK
-        END
-        IF  ${elapsed_secs} >= ${timeout}
-            BREAK
-        END
+        IF    ${found_config_index}!=-1 and ${found_pods_index}!=-1    BREAK
+        IF    ${elapsed_secs} >= ${timeout}    BREAK
     END
-    Should Contain X Times    ${volume_names}    ${volume_agent_config}    1    msg=Volume '${workload_name}.{hash}.${agent_name}.config' not found in podman!
-    Should Contain X Times    ${volume_names}    ${volume_agent_pods}    1    msg=Volume '${workload_name}.{hash}.${agent_name}.pods' not found in podman!
+    Should Contain X Times
+    ...    ${volume_names}
+    ...    ${volume_agent_config}
+    ...    1
+    ...    msg=Volume '${workload_name}.{hash}.${agent_name}.config' not found in podman!
+    Should Contain X Times
+    ...    ${volume_names}
+    ...    ${volume_agent_pods}
+    ...    1
+    ...    msg=Volume '${workload_name}.{hash}.${agent_name}.pods' not found in podman!
 
 volumes for "${workload_name}" shall not exists on "${agent_name}" within "${timeout}" seconds
     ${start_time}=    Get Time Secs
@@ -167,14 +202,14 @@ volumes for "${workload_name}" shall not exists on "${agent_name}" within "${tim
         ${current_secs}=    Get Time Secs
         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
         ${found_index}=    Get Index From List    ${volume_names}    ${workload_dot_agent}
-        IF  ${found_index} == -1
-            BREAK
-        END
-        IF  ${elapsed_secs} >= ${timeout}
-            BREAK
-        END
+        IF    ${found_index} == -1    BREAK
+        IF    ${elapsed_secs} >= ${timeout}    BREAK
     END
-    Should Contain X Times    ${volume_names}    ${workload_dot_agent}    0    msg=Unexpected Volume '${workload_name}.{hash}.${agent_name}.{config|pods}' found in podman!
+    Should Contain X Times
+    ...    ${volume_names}
+    ...    ${workload_dot_agent}
+    ...    0
+    ...    msg=Unexpected Volume '${workload_name}.{hash}.${agent_name}.{config|pods}' found in podman!
 
 podman shall have a container for workload "${workload_name}" with custom name "${name}" on agent "${agent_name}" within "${timeout}" seconds
     ${start_time}=    Get Time Secs
@@ -190,14 +225,14 @@ podman shall have a container for workload "${workload_name}" with custom name "
         ${current_secs}=    Get Time Secs
         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
         ${found_index}=    Get Index From List    ${workload_names}    ${workload_name_angent_name}
-        IF  ${found_index}!=-1
-            BREAK
-        END
-        IF  ${elapsed_secs} >= ${timeout}
-            BREAK
-        END
+        IF    ${found_index}!=-1    BREAK
+        IF    ${elapsed_secs} >= ${timeout}    BREAK
     END
-    Should Contain X Times    ${workload_names}    ${workload_name_angent_name}    1    msg=Workload '${used_name}' on agent '${agent_name}' not found in podman!
+    Should Contain X Times
+    ...    ${workload_names}
+    ...    ${workload_name_angent_name}
+    ...    1
+    ...    msg=Workload '${used_name}' on agent '${agent_name}' not found in podman!
 
 podman shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
     ${start_time}=    Get Time Secs
@@ -208,17 +243,20 @@ podman shall not have a container for workload "${workload_name}" on agent "${ag
         ${current_secs}=    Get Time Secs
         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
         ${found_index}=    Get Index From List    ${workload_names}    ${workload_name_angent_name}
-        IF  ${found_index}==-1
-            BREAK
-        END
-        IF  ${elapsed_secs} >= ${timeout}
-            BREAK
-        END
+        IF    ${found_index}==-1    BREAK
+        IF    ${elapsed_secs} >= ${timeout}    BREAK
     END
-    Should Not Contain    ${workload_names}    ${workload_name_angent_name}     msg=Unexpected workload '${workload_name}' on agent '${agent_name}' found in podman!
+    Should Not Contain
+    ...    ${workload_names}
+    ...    ${workload_name_angent_name}
+    ...    msg=Unexpected workload '${workload_name}' on agent '${agent_name}' found in podman!
 
+list of workloads shall be empty
+    @{list_result}=    Create List
+    Should Be Empty    item=${list_result}
 
 # ALIASES
+
 the command "${cli_command}" finished with exit code "${exit_code}"
     the command "${cli_command}" finished with exit code "${exit_code}" within "1" seconds
 
@@ -236,9 +274,6 @@ the workload "${workload_name}" shall have the execution state "${expected_execu
 
 the workload "${workload_name}" shall have the execution state "${execution_state}" on agent "${expected_agent_name}"
     the workload "${workload_name}" shall have the execution state "${execution_state}" on agent "${expected_agent_name}" within "5" seconds
-
-the workload "${workload_name}" shall not exist
-    the workload "${workload_name}" shall not exist within "1" seconds
 
 volumes for "${workload_name}" shall exist on "${agent_name}"
     volumes for "${workload_name}" shall exist on "${agent_name}" within "1" seconds

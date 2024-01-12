@@ -125,7 +125,7 @@ mod tests {
         });
 
         let directory = Directory::new(Path::new("test_path").to_path_buf());
-        assert!(matches!(directory, Ok(_)));
+        assert!(directory.is_ok());
         assert_eq!(
             Path::new("test_path").to_path_buf(),
             directory.as_ref().unwrap().path
@@ -195,7 +195,7 @@ mod tests {
         });
 
         let directory = Directory::new(Path::new("test_path").to_path_buf());
-        assert!(matches!(directory, Ok(_)));
+        assert!(directory.is_ok());
         drop(directory);
 
         let result = actual_error_list.lock().unwrap();

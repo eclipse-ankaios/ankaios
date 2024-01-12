@@ -21,11 +21,12 @@ const PODMAN_PS_CACHE_MAX_AGE: Duration = Duration::from_millis(1000);
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ContainerState {
-    Created,
+    Starting,
     Exited(u8),
     Paused,
     Running,
     Unknown,
+    Stopping,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -38,25 +39,49 @@ pub struct PodmanRunConfig {
 
 impl From<PodmanContainerInfo> for ContainerState {
     fn from(value: PodmanContainerInfo) -> Self {
-        match value.state {
-            PodmanContainerState::Created => ContainerState::Created,
-            PodmanContainerState::Exited => ContainerState::Exited(value.exit_code),
-            PodmanContainerState::Paused => ContainerState::Paused,
-            PodmanContainerState::Running => ContainerState::Running,
-            PodmanContainerState::Unknown => ContainerState::Unknown,
+        match value.state.to_lowercase().as_str() {
+            "created" => ContainerState::Starting,
+            "configured" => ContainerState::Starting,
+            "initialized" => ContainerState::Starting,
+            "exited" => ContainerState::Exited(value.exit_code),
+            "paused" => ContainerState::Paused,
+            "running" => ContainerState::Running,
+            "stopping" => ContainerState::Stopping,
+            "stopped" => ContainerState::Stopping,
+            "removing" => ContainerState::Stopping,
+            "unknown" => ContainerState::Unknown,
+            state => {
+                log::trace!(
+                    "Mapping the container state '{}' to the container state 'Unknown'",
+                    state
+                );
+                ContainerState::Unknown
+            }
         }
     }
 }
 
-// [impl->swdd~podman-state-getter-maps-state~1]
+// [impl->swdd~podman-state-getter-maps-state~3]
 impl From<PodmanContainerInfo> for ExecutionState {
     fn from(value: PodmanContainerInfo) -> Self {
-        match value.state {
-            PodmanContainerState::Created => ExecutionState::ExecPending,
-            PodmanContainerState::Exited if value.exit_code == 0 => ExecutionState::ExecSucceeded,
-            PodmanContainerState::Exited if value.exit_code != 0 => ExecutionState::ExecFailed,
-            PodmanContainerState::Running => ExecutionState::ExecRunning,
-            _ => ExecutionState::ExecUnknown,
+        match value.state.to_lowercase().as_str() {
+            "created" => ExecutionState::ExecStarting,
+            "configured" => ExecutionState::ExecStarting,
+            "initialized" => ExecutionState::ExecStarting,
+            "exited" if value.exit_code == 0 => ExecutionState::ExecSucceeded,
+            "exited" if value.exit_code != 0 => ExecutionState::ExecFailed,
+            "running" => ExecutionState::ExecRunning,
+            "stopping" => ExecutionState::ExecStopping,
+            "stopped" => ExecutionState::ExecStopping,
+            "removing" => ExecutionState::ExecStopping,
+            "unknown" => ExecutionState::ExecUnknown,
+            state => {
+                log::trace!(
+                    "Mapping the container state '{}' to the execution state 'ExecUnknown'",
+                    state
+                );
+                ExecutionState::ExecUnknown
+            }
         }
     }
 }
@@ -91,9 +116,15 @@ impl TimedPodmanPsResult {
     }
 
     async fn new_inner() -> PodmanPsCache {
+        let mut res = PodmanCli::list_states_internal().await;
+        if res.is_err() {
+            // This is a workaround for the known issue in podman (podman ps sometimes fails).
+            log::trace!("'podman ps' has returned error - let's retry it.");
+            res = PodmanCli::list_states_internal().await;
+        }
         PodmanPsCache {
             last_update: Instant::now(),
-            cache: Arc::new(PodmanCli::list_states_internal().await.into()),
+            cache: Arc::new(res.into()),
         }
     }
 }
@@ -435,7 +466,7 @@ struct DataLabel {
 #[derive(Deserialize, Serialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 struct PodmanContainerInfo {
-    state: PodmanContainerState,
+    state: String,
     exit_code: u8,
     #[serde(deserialize_with = "nullable_labels")]
     labels: HashMap<String, String>,
@@ -454,16 +485,6 @@ where
     Ok(opt.unwrap_or_default())
 }
 
-#[derive(Deserialize, Serialize, Clone)]
-#[serde(rename_all = "lowercase")]
-enum PodmanContainerState {
-    Created,
-    Exited,
-    Paused,
-    Running,
-    #[serde(other)]
-    Unknown,
-}
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -475,7 +496,7 @@ enum PodmanContainerState {
 // [utest->swdd~podman-kube-uses-podman-cli~1]
 #[cfg(test)]
 mod tests {
-    use super::{ContainerState, PodmanCli, PodmanContainerState, PodmanPsCache};
+    use super::{ContainerState, PodmanCli, PodmanPsCache};
 
     use super::PodmanContainerInfo;
     use crate::test_helper::MOCKALL_CONTEXT_SYNC;
@@ -490,7 +511,7 @@ mod tests {
     #[test]
     fn utest_container_state_from_podman_container_info_created() {
         let container_state: ContainerState = PodmanContainerInfo {
-            state: PodmanContainerState::Created,
+            state: "Created".to_string(),
             exit_code: 0,
             labels: Default::default(),
             pod: "".into(),
@@ -498,13 +519,41 @@ mod tests {
         }
         .into();
 
-        assert!(matches!(container_state, ContainerState::Created));
+        assert!(matches!(container_state, ContainerState::Starting));
+    }
+
+    #[test]
+    fn utest_container_state_from_podman_container_info_configured() {
+        let container_state: ContainerState = PodmanContainerInfo {
+            state: "Configured".to_string(),
+            exit_code: 0,
+            labels: Default::default(),
+            pod: "".into(),
+            id: "".into(),
+        }
+        .into();
+
+        assert!(matches!(container_state, ContainerState::Starting));
+    }
+
+    #[test]
+    fn utest_container_state_from_podman_container_info_initialized() {
+        let container_state: ContainerState = PodmanContainerInfo {
+            state: "Initialized".to_string(),
+            exit_code: 0,
+            labels: Default::default(),
+            pod: "".into(),
+            id: "".into(),
+        }
+        .into();
+
+        assert!(matches!(container_state, ContainerState::Starting));
     }
 
     #[test]
     fn utest_container_state_from_podman_container_info_exited() {
         let container_state: ContainerState = PodmanContainerInfo {
-            state: PodmanContainerState::Exited,
+            state: "Exited".to_string(),
             exit_code: 23,
             labels: Default::default(),
             pod: "".into(),
@@ -518,7 +567,7 @@ mod tests {
     #[test]
     fn utest_container_state_from_podman_container_info_paused() {
         let container_state: ContainerState = PodmanContainerInfo {
-            state: PodmanContainerState::Paused,
+            state: "Paused".to_string(),
             exit_code: 0,
             labels: Default::default(),
             pod: "".into(),
@@ -532,7 +581,7 @@ mod tests {
     #[test]
     fn utest_container_state_from_podman_container_info_running() {
         let container_state: ContainerState = PodmanContainerInfo {
-            state: PodmanContainerState::Running,
+            state: "Running".to_string(),
             exit_code: 0,
             labels: Default::default(),
             pod: "".into(),
@@ -544,9 +593,65 @@ mod tests {
     }
 
     #[test]
+    fn utest_container_state_from_podman_container_info_stopping() {
+        let container_state: ContainerState = PodmanContainerInfo {
+            state: "Stopping".to_string(),
+            exit_code: 0,
+            labels: Default::default(),
+            pod: "".into(),
+            id: "".into(),
+        }
+        .into();
+
+        assert!(matches!(container_state, ContainerState::Stopping));
+    }
+
+    #[test]
+    fn utest_container_state_from_podman_container_info_stopped() {
+        let container_state: ContainerState = PodmanContainerInfo {
+            state: "Stopped".to_string(),
+            exit_code: 0,
+            labels: Default::default(),
+            pod: "".into(),
+            id: "".into(),
+        }
+        .into();
+
+        assert!(matches!(container_state, ContainerState::Stopping));
+    }
+
+    #[test]
+    fn utest_container_state_from_podman_container_info_removing() {
+        let container_state: ContainerState = PodmanContainerInfo {
+            state: "Removing".to_string(),
+            exit_code: 0,
+            labels: Default::default(),
+            pod: "".into(),
+            id: "".into(),
+        }
+        .into();
+
+        assert!(matches!(container_state, ContainerState::Stopping));
+    }
+
+    #[test]
+    fn utest_container_state_from_podman_container_info_undefined() {
+        let container_state: ContainerState = PodmanContainerInfo {
+            state: "Undefined".to_string(),
+            exit_code: 0,
+            labels: Default::default(),
+            pod: "".into(),
+            id: "".into(),
+        }
+        .into();
+
+        assert!(matches!(container_state, ContainerState::Unknown));
+    }
+
+    #[test]
     fn utest_container_state_from_podman_container_info_unknown() {
         let container_state: ContainerState = PodmanContainerInfo {
-            state: PodmanContainerState::Unknown,
+            state: "Unknown".to_string(),
             exit_code: 0,
             labels: Default::default(),
             pod: "".into(),
@@ -953,13 +1058,13 @@ mod tests {
         assert_eq!(res, Ok("test_id".to_string()));
     }
 
-    // [utest->swdd~podman-state-getter-maps-state~1]
+    // [utest->swdd~podman-state-getter-maps-state~3]
     // [utest->swdd~podmancli-container-state-cache-refresh~1]
     #[tokio::test]
-    async fn utest_list_states_by_id_pending() {
+    async fn utest_list_states_by_id_created() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
-        *super::LAST_PS_RESULT.lock().await = None;
+        PodmanCli::reset_ps_cache().await;
 
         super::CliCommand::new_expect(
             "podman",
@@ -974,10 +1079,58 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::ExecPending)));
+        assert_eq!(res, Ok(Some(ExecutionState::ExecStarting)));
     }
 
-    // [utest->swdd~podman-state-getter-maps-state~1]
+    // [utest->swdd~podman-state-getter-maps-state~3]
+    // [utest->swdd~podmancli-container-state-cache-refresh~1]
+    #[tokio::test]
+    async fn utest_list_states_by_id_configured() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+        PodmanCli::reset_ps_cache().await;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([TestPodmanContainerInfo {
+                    id: "test_id",
+                    state: "configured",
+                    ..Default::default()
+                }]
+                .to_json())),
+        );
+
+        let res = PodmanCli::list_states_by_id("test_id").await;
+        assert_eq!(res, Ok(Some(ExecutionState::ExecStarting)));
+    }
+
+    // [utest->swdd~podman-state-getter-maps-state~3]
+    // [utest->swdd~podmancli-container-state-cache-refresh~1]
+    #[tokio::test]
+    async fn utest_list_states_by_id_initialized() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+        PodmanCli::reset_ps_cache().await;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([TestPodmanContainerInfo {
+                    id: "test_id",
+                    state: "initialized",
+                    ..Default::default()
+                }]
+                .to_json())),
+        );
+
+        let res = PodmanCli::list_states_by_id("test_id").await;
+        assert_eq!(res, Ok(Some(ExecutionState::ExecStarting)));
+    }
+
+    // [utest->swdd~podman-state-getter-maps-state~3]
     // [utest->swdd~podmancli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_succeeded() {
@@ -1002,7 +1155,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::ExecSucceeded)));
     }
 
-    // [utest->swdd~podman-state-getter-maps-state~1]
+    // [utest->swdd~podman-state-getter-maps-state~3]
     // [utest->swdd~podmancli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_failed() {
@@ -1027,7 +1180,7 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::ExecFailed)));
     }
 
-    // [utest->swdd~podman-state-getter-maps-state~1]
+    // [utest->swdd~podman-state-getter-maps-state~3]
     // [utest->swdd~podmancli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_running() {
@@ -1051,7 +1204,79 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::ExecRunning)));
     }
 
-    // [utest->swdd~podman-state-getter-maps-state~1]
+    // [utest->swdd~podman-state-getter-maps-state~3]
+    // [utest->swdd~podmancli-container-state-cache-refresh~1]
+    #[tokio::test]
+    async fn utest_list_states_by_id_stopping() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+        *super::LAST_PS_RESULT.lock().await = None;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([TestPodmanContainerInfo {
+                    id: "test_id",
+                    state: "stopping",
+                    ..Default::default()
+                }]
+                .to_json())),
+        );
+
+        let res = PodmanCli::list_states_by_id("test_id").await;
+        assert_eq!(res, Ok(Some(ExecutionState::ExecStopping)));
+    }
+
+    // [utest->swdd~podman-state-getter-maps-state~3]
+    // [utest->swdd~podmancli-container-state-cache-refresh~1]
+    #[tokio::test]
+    async fn utest_list_states_by_id_stopped() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+        PodmanCli::reset_ps_cache().await;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([TestPodmanContainerInfo {
+                    id: "test_id",
+                    state: "stopped",
+                    ..Default::default()
+                }]
+                .to_json())),
+        );
+
+        let res = PodmanCli::list_states_by_id("test_id").await;
+        assert_eq!(res, Ok(Some(ExecutionState::ExecStopping)));
+    }
+
+    // [utest->swdd~podman-state-getter-maps-state~3]
+    // [utest->swdd~podmancli-container-state-cache-refresh~1]
+    #[tokio::test]
+    async fn utest_list_states_by_id_removing() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+        PodmanCli::reset_ps_cache().await;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([TestPodmanContainerInfo {
+                    id: "test_id",
+                    state: "removing",
+                    ..Default::default()
+                }]
+                .to_json())),
+        );
+
+        let res = PodmanCli::list_states_by_id("test_id").await;
+        assert_eq!(res, Ok(Some(ExecutionState::ExecStopping)));
+    }
+
+    // [utest->swdd~podman-state-getter-maps-state~3]
     // [utest->swdd~podmancli-container-state-cache-refresh~1]
     #[tokio::test]
     async fn utest_list_states_by_id_unknown() {
@@ -1075,8 +1300,49 @@ mod tests {
         assert_eq!(res, Ok(Some(ExecutionState::ExecUnknown)));
     }
 
+    // [utest->swdd~podman-state-getter-maps-state~3]
+    // [utest->swdd~podmancli-container-state-cache-refresh~1]
     #[tokio::test]
-    async fn utest_list_states_by_id_podman_error() {
+    async fn utest_list_states_by_id_undefined() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+        PodmanCli::reset_ps_cache().await;
+
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([TestPodmanContainerInfo {
+                    id: "test_id",
+                    state: "undefined",
+                    ..Default::default()
+                }]
+                .to_json())),
+        );
+
+        let res = PodmanCli::list_states_by_id("test_id").await;
+        assert_eq!(res, Ok(Some(ExecutionState::ExecUnknown)));
+    }
+
+    #[tokio::test]
+    async fn utest_list_states_by_id_podman_error_retry_failed() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+        *super::LAST_PS_RESULT.lock().await = None;
+
+        let mock_cli_command = super::CliCommand::default()
+            .expect_args(&["ps", "--all", "--format=json"])
+            .exec_returns(Err("simulated error".to_string()));
+        // PodmanCli retries the command when the command fails -> we have to mock the command twice.
+        super::CliCommand::new_expect("podman", mock_cli_command.clone());
+        super::CliCommand::new_expect("podman", mock_cli_command);
+
+        let res = PodmanCli::list_states_by_id("test_id").await;
+        assert_eq!(res, Err("simulated error".to_string()));
+    }
+
+    #[tokio::test]
+    async fn utest_list_states_by_id_podman_error_retry_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
         *super::LAST_PS_RESULT.lock().await = None;
@@ -1087,9 +1353,20 @@ mod tests {
                 .expect_args(&["ps", "--all", "--format=json"])
                 .exec_returns(Err("simulated error".to_string())),
         );
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([TestPodmanContainerInfo {
+                    id: "test_id",
+                    state: "running",
+                    ..Default::default()
+                }]
+                .to_json())),
+        );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Err("simulated error".to_string()));
+        assert_eq!(res, Ok(Some(ExecutionState::ExecRunning)));
     }
 
     // [utest->podmancli-uses-container-state-cache~1]
@@ -1147,7 +1424,24 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_list_states_by_id_broken_response() {
+    async fn utest_list_states_by_id_broken_response_retry_failed() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+        *super::LAST_PS_RESULT.lock().await = None;
+
+        let mock_cli_command = super::CliCommand::default()
+            .expect_args(&["ps", "--all", "--format=json"])
+            .exec_returns(Ok("non-json response from podman".to_string()));
+        // PodmanCli retries the command when the command fails -> we have to mock the command twice.
+        super::CliCommand::new_expect("podman", mock_cli_command.clone());
+        super::CliCommand::new_expect("podman", mock_cli_command);
+
+        let res = PodmanCli::list_states_by_id("test_id").await;
+        assert!(matches!(res, Err(msg) if msg.starts_with("Could not parse podman output") ));
+    }
+
+    #[tokio::test]
+    async fn utest_list_states_by_id_broken_response_retry_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
         *super::LAST_PS_RESULT.lock().await = None;
@@ -1158,9 +1452,20 @@ mod tests {
                 .expect_args(&["ps", "--all", "--format=json"])
                 .exec_returns(Ok("non-json response from podman".to_string())),
         );
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([TestPodmanContainerInfo {
+                    id: "test_id",
+                    state: "running",
+                    ..Default::default()
+                }]
+                .to_json())),
+        );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert!(matches!(res, Err(msg) if msg.starts_with("Could not parse podman output") ));
+        assert_eq!(res, Ok(Some(ExecutionState::ExecRunning)));
     }
 
     #[tokio::test]
@@ -1243,7 +1548,26 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_list_states_from_pods_command_fails() {
+    async fn utest_list_states_from_pods_command_fails_retry_fails() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+        *super::LAST_PS_RESULT.lock().await = None;
+
+        let mock_cli_command = super::CliCommand::default()
+            .expect_args(&["ps", "--all", "--format=json"])
+            .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into()));
+        // PodmanCli retries the command when the command fails -> we have to mock the command twice.
+        super::CliCommand::new_expect("podman", mock_cli_command.clone());
+        super::CliCommand::new_expect("podman", mock_cli_command);
+
+        let res =
+            PodmanCli::list_states_from_pods(&["pod1".into(), "pod2".into(), "pod3".into()]).await;
+
+        assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE ));
+    }
+
+    #[tokio::test]
+    async fn utest_list_states_from_pods_command_fails_retry_succeeds() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
         *super::LAST_PS_RESULT.lock().await = None;
@@ -1254,15 +1578,63 @@ mod tests {
                 .expect_args(&["ps", "--all", "--format=json"])
                 .exec_returns(Err(SAMPLE_ERROR_MESSAGE.into())),
         );
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([
+                    TestPodmanContainerInfo {
+                        pod: "pod1",
+                        state: "running",
+                        ..Default::default()
+                    },
+                    TestPodmanContainerInfo {
+                        pod: "pod_other",
+                        state: "created",
+                        ..Default::default()
+                    },
+                    TestPodmanContainerInfo {
+                        pod: "pod2",
+                        state: "exited",
+                        exit_code: 42,
+                        ..Default::default()
+                    },
+                    TestPodmanContainerInfo {
+                        pod: "pod2",
+                        state: "unknown",
+                        ..Default::default()
+                    },
+                ]
+                .to_json())),
+        );
+
+        let res = PodmanCli::list_states_from_pods(&["pod1".into(), "pod2".into()]).await;
+        assert!(
+            matches!(res, Ok(states) if states == [ContainerState::Running, ContainerState::Exited(42), ContainerState::Unknown] )
+        );
+    }
+
+    #[tokio::test]
+    async fn utest_list_states_from_pods_result_not_json_retry_fails() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+        super::CliCommand::reset();
+        *super::LAST_PS_RESULT.lock().await = None;
+
+        let mock_cli_command = super::CliCommand::default()
+            .expect_args(&["ps", "--all", "--format=json"])
+            .exec_returns(Ok("non-json response from podman".into()));
+        // PodmanCli retries the command when the command fails -> we have to mock the command twice.
+        super::CliCommand::new_expect("podman", mock_cli_command.clone());
+        super::CliCommand::new_expect("podman", mock_cli_command);
 
         let res =
             PodmanCli::list_states_from_pods(&["pod1".into(), "pod2".into(), "pod3".into()]).await;
 
-        assert!(matches!(res, Err(msg) if msg == SAMPLE_ERROR_MESSAGE ));
+        assert!(matches!(res, Err(msg) if msg.starts_with("Could not parse podman output:") ));
     }
 
     #[tokio::test]
-    async fn utest_list_states_from_pods_result_not_json() {
+    async fn utest_list_states_from_pods_result_not_json_retry_succeeds() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
         super::CliCommand::reset();
         *super::LAST_PS_RESULT.lock().await = None;
@@ -1273,11 +1645,40 @@ mod tests {
                 .expect_args(&["ps", "--all", "--format=json"])
                 .exec_returns(Ok("non-json response from podman".into())),
         );
+        super::CliCommand::new_expect(
+            "podman",
+            super::CliCommand::default()
+                .expect_args(&["ps", "--all", "--format=json"])
+                .exec_returns(Ok([
+                    TestPodmanContainerInfo {
+                        pod: "pod1",
+                        state: "running",
+                        ..Default::default()
+                    },
+                    TestPodmanContainerInfo {
+                        pod: "pod_other",
+                        state: "created",
+                        ..Default::default()
+                    },
+                    TestPodmanContainerInfo {
+                        pod: "pod2",
+                        state: "exited",
+                        exit_code: 42,
+                        ..Default::default()
+                    },
+                    TestPodmanContainerInfo {
+                        pod: "pod2",
+                        state: "unknown",
+                        ..Default::default()
+                    },
+                ]
+                .to_json())),
+        );
 
-        let res =
-            PodmanCli::list_states_from_pods(&["pod1".into(), "pod2".into(), "pod3".into()]).await;
-
-        assert!(matches!(res, Err(msg) if msg.starts_with("Could not parse podman output:") ));
+        let res = PodmanCli::list_states_from_pods(&["pod1".into(), "pod2".into()]).await;
+        assert!(
+            matches!(res, Ok(states) if states == [ContainerState::Running, ContainerState::Exited(42), ContainerState::Unknown] )
+        );
     }
 
     #[tokio::test]

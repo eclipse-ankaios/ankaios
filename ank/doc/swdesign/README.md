@@ -6,7 +6,7 @@ This document describes the Software Design for the Ankaios Ank. The Ankaios Ank
 
 Ankaios is a workload orchestrator supporting a subset of the Kubernetes configurations and is targeted at the automotive use case.
 
-The CLI is a command line tool, which allows developers to directly interact with the cluster. E.g. it allows to get or set current state, get workloads... 
+The CLI is a command line tool, which allows developers to directly interact with the cluster. E.g. it allows to get or set current state, get workloads...
 
 ## Context View
 
@@ -61,7 +61,7 @@ Following diagram shows the structural view of the Ankaios Ank.
 
 ### CLI (parser)
 
-The CLI parses the commands entered by the user. 
+The CLI parses the commands entered by the user.
 This also includes error handling when the user enters unsupported command or forgets to set a mandatory parameter.
 
 ### CliCommands
@@ -90,7 +90,7 @@ Here is an overview how each command looks like:
 
 ![Command Overview](plantuml/seq_cmd_overview.svg)
 
-The startup section is detailed in the next diagram. 
+The startup section is detailed in the next diagram.
 Implementation of each command is detailed in the next sub-chapters.
 
 ![Startup](plantuml/seq_cmd_startup.svg)
@@ -137,12 +137,11 @@ The Ankaios CLI shall support the usage of the following environment variables:
 Rationale:
 This increases usability for the Ankaios CLI when the Ankaios CLI is used in different terminal windows to connect to the same Ankaios server remotely.
 
-Tags: 
+Tags:
 - CliStartup
 
 Needs:
 - impl
-- stest
 
 #### CLI prioritizes cli argument over environment variable
 `swdd~cli-prioritizes-cli-argument-over-environment-variable~1`
@@ -156,7 +155,7 @@ Tags:
 
 Needs:
 - impl
-- stest
+
 #### CLI is a standalone application
 `swdd~cli-standalone-application~1`
 
@@ -334,7 +333,6 @@ When the CLI receives the list of workloads from the Ankaios Server via CLI comm
 | workload1     | agent | runtime | state           |
 | workload2     | agent | runtime | state           |
 
-
 Tags:
 - GetWorkloads
 
@@ -359,7 +357,7 @@ Needs:
 #### CLI shall filter the list of workloads
 `swdd~cli-shall-filter-list-of-workloads~1`
 
-When the CLI receives the list of workloads from the Ankaios Server via CLI communication interface, 
+When the CLI receives the list of workloads from the Ankaios Server via CLI communication interface,
 the CLI shall filter the workloads from the server using filtering criteria entered by the user in the command.
 
 Tags:
@@ -519,3 +517,5 @@ Needs:
 ## References
 
 ## Glossary
+
+<!-- markdownlint-disable-file MD004 MD022 MD032 -->
