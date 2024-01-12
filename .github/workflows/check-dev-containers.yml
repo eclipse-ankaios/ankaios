@@ -112,7 +112,6 @@ jobs:
         if: ${{ steps.filter.outputs.devcontainer_base == 'true' }}
         run: |
           sed -i "s#ghcr.io/eclipse-ankaios/devcontainer-base:.*#localhost:5000/eclipse-ankaios/devcontainer-base:dev#" .devcontainer/Dockerfile
-          cat .devcontainer/Dockerfile
       - name: Build DevContainer
         if: ${{ steps.filter.outputs.devcontainer_base == 'true' || steps.filter.outputs.devcontainer == 'true' || github.ref_name == 'main' || github.ref_type == 'tag'}}
         uses: docker/build-push-action@v5.1.0
