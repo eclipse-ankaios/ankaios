@@ -22,35 +22,31 @@ jobs:
       devcontainer: ${{ steps.filter.outputs.devcontainer }}
     steps:
     - uses: actions/checkout@v4.1.1
-    - uses: dorny/paths-filter@v2.11.1
-      id: filter
-      with:
-        filters: |
-          devcontainer:
-            - '.devcontainer/**'
-            - .github/workflows/check-dev-containers.yml
   container_base:
-    needs: changes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4.1.1
-        if: ${{ needs.changes.outputs.devcontainer == 'true' || github.ref_name == 'main' || github.ref_type == 'tag'}}
+      - uses: dorny/paths-filter@v2.11.1
+        id: filter
+        with:
+          filters: |
+            devcontainer_base:
+              - '.devcontainer/Dockerfile.base'
+              - .github/workflows/check-dev-containers.yml
+            devcontainer:
+              - '.devcontainer/Dockerfile'
+              - .github/workflows/check-dev-containers.yml
       - name: Build DevContainer Base
-        if: ${{ needs.changes.outputs.devcontainer }}
+        if: ${{ steps.filter.outputs.devcontainer_base == 'true' || github.ref_name == 'main' || github.ref_type == 'tag'}}
         uses: docker/build-push-action@v5.1.0
         with:
           context: '.devcontainer/'
           file: '.devcontainer/Dockerfile.base'
           push: false
-  container:
-    needs: changes
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4.1.1
-        if: ${{ needs.changes.outputs.devcontainer }}
       - name: Build DevContainer
-        if: ${{ needs.changes.outputs.devcontainer }}
+        if: ${{ steps.filter.outputs.devcontainer_base == 'true' || steps.filter.outputs.devcontainer == 'true' || github.ref_name == 'main' || github.ref_type == 'tag'}}
         uses: docker/build-push-action@v5.1.0
         with:
           context: '.devcontainer/'
+          file: '.devcontainer/Dockerfile'
           push: false
