@@ -1080,8 +1080,9 @@
 <p>If you have not installed Ankaios, please follow the instructions
 <a href="../installation/">here</a>. The following examples assumes that the
 installation script has been used with default options.</p>
-<p>Ankaios needs a startup configuration that contains all the workloads and their
-configuration which should be started when Ankaios starts up.</p>
+<p>You can start workloads in Ankaios in a number of ways.
+For example, you can define a file with the startup configuration and use systemd to start Ankaios.
+The startup configuration file contains all of the workloads and their configuration that you want to be started by Ankaios.</p>
 <p>Let's modify the default config which is stored in <code>/etc/ankaios/state.yaml</code>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">workloads</span><span class="p">:</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">nginx</span><span class="p">:</span>
