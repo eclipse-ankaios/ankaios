@@ -33,10 +33,7 @@ pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State
 }
 
 #[cfg(feature = "test_utils")]
-pub fn generate_test_complete_state(
-    request_id: String,
-    workloads: Vec<WorkloadSpec>,
-) -> CompleteState {
+pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> CompleteState {
     CompleteState {
         current_state: State {
             workloads: workloads

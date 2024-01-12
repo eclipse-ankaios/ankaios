@@ -203,7 +203,7 @@ mod tests {
     use super::{forward_from_ankaios_to_proto, forward_from_proto_to_ankaios, GRPCStreaming};
     use async_trait::async_trait;
     use common::{
-        commands, objects as ankaios,
+        objects as ankaios,
         state_change_interface::{StateChangeInterface, ToServer},
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
     };
@@ -237,14 +237,12 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<proto::ToServer>(common::CHANNEL_CAPACITY);
 
-        let input_state = generate_test_complete_state(
-            "request_id".to_owned(),
-            vec![generate_test_workload_spec_with_param(
+        let input_state =
+            generate_test_complete_state(vec![generate_test_workload_spec_with_param(
                 "agent_X".into(),
                 "name".to_string(),
                 "my_runtime".into(),
-            )],
-        );
+            )]);
         let update_mask = vec!["bla".into()];
 
         // As the channel capacity is big enough the await is satisfied right away
@@ -271,7 +269,7 @@ mod tests {
         assert!(matches!(
             result.to_server_enum,
             Some(ToServerEnum::Request(proto::Request{request_id, request_content: Some(proto::request::RequestContent::UpdateState(UpdateStateRequest{new_state, update_mask}))}))
-            if new_state == Some(proto_state) && update_mask == update_mask));
+            if request_id == "request_id" && new_state == Some(proto_state) && update_mask == update_mask));
     }
 
     // [utest->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
@@ -375,15 +373,13 @@ mod tests {
         let agent_name = "fake_agent";
         let (server_tx, mut _server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
-        let mut ankaios_state: proto::CompleteState = generate_test_complete_state(
-            "request_id".to_owned(),
-            vec![generate_test_workload_spec_with_param(
+        let mut ankaios_state: proto::CompleteState =
+            generate_test_complete_state(vec![generate_test_workload_spec_with_param(
                 agent_name.into(),
                 "name".to_string(),
                 "my_runtime".into(),
-            )],
-        )
-        .into();
+            )])
+            .into();
         ankaios_state
             .current_state
             .as_mut()
@@ -428,14 +424,12 @@ mod tests {
         let agent_name = "fake_agent";
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
-        let ankaios_state = generate_test_complete_state(
-            "request_id".to_owned(),
-            vec![generate_test_workload_spec_with_param(
+        let ankaios_state =
+            generate_test_complete_state(vec![generate_test_workload_spec_with_param(
                 agent_name.into(),
                 "name".to_string(),
                 "my_runtime".into(),
-            )],
-        );
+            )]);
 
         let ankaios_update_mask = vec!["bla".into()];
 
@@ -475,7 +469,7 @@ mod tests {
                 request_id,
                 request_content: common::commands::RequestContent::UpdateStateRequest(update_request),
             })
-            if update_request.state == ankaios_state && update_request.update_mask == ankaios_update_mask));
+            if request_id == "request_id" && update_request.state == ankaios_state && update_request.update_mask == ankaios_update_mask));
     }
 
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
@@ -590,9 +584,6 @@ mod tests {
         drop(server_tx);
 
         let result = grpc_rx.recv().await.unwrap();
-
-        let proto_request_complete_state: proto::RequestCompleteState =
-            request_complete_state.into();
 
         assert!(matches!(
         result.to_server_enum,

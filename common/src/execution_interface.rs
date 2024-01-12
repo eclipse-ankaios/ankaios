@@ -149,7 +149,9 @@ impl AgentInterface for FromServerSender {
         Ok(self
             .send(FromServer::Response(commands::Response {
                 request_id,
-                response_content: commands::ResponseContent::CompleteState(complete_state),
+                response_content: commands::ResponseContent::CompleteState(Box::new(
+                    complete_state,
+                )),
             }))
             .await?)
     }
@@ -254,9 +256,7 @@ mod tests {
     fn utest_convert_from_server_to_proto_complete_state() {
         let test_ex_com = FromServer::Response(commands::Response {
             request_id: "req_id".to_owned(),
-            response_content: commands::ResponseContent::CompleteState(commands::CompleteState {
-                ..Default::default()
-            }),
+            response_content: commands::ResponseContent::CompleteState(Box::default()),
         });
 
         let expected_ex_com = Ok(proto::FromServer {

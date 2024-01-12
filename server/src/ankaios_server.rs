@@ -894,7 +894,7 @@ mod tests {
 
         let expected_complete_state = Response {
             request_id: request_id.into(),
-            response_content: ResponseContent::CompleteState(CompleteState {
+            response_content: ResponseContent::CompleteState(Box::new(CompleteState {
                 startup_state: State {
                     workloads: HashMap::new(),
                     configs: HashMap::new(),
@@ -902,7 +902,7 @@ mod tests {
                 },
                 current_state: expected_state.current_state.clone(),
                 workload_states: vec![],
-            }),
+            })),
         };
 
         assert_eq!(
@@ -1049,11 +1049,11 @@ mod tests {
             tc_receiver.recv().await.unwrap(),
             &Response {
                 request_id: String::from("my_request_id"),
-                response_content: ResponseContent::CompleteState(CompleteState {
+                response_content: ResponseContent::CompleteState(Box::new(CompleteState {
                     startup_state: State::default(),
                     workload_states: vec![],
                     current_state: test_state.current_state.clone(),
-                }),
+                })),
             },
         );
 
@@ -1077,7 +1077,7 @@ mod tests {
             tc_receiver.recv().await.unwrap(),
             &Response {
                 request_id: String::from("my_request_id"),
-                response_content: ResponseContent::CompleteState(CompleteState {
+                response_content: ResponseContent::CompleteState(Box::new(CompleteState {
                     current_state: State {
                         workloads: vec![
                             (
@@ -1105,7 +1105,7 @@ mod tests {
                         ..Default::default()
                     },
                     ..Default::default()
-                }),
+                })),
             },
         );
 

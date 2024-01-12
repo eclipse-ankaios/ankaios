@@ -120,7 +120,7 @@ mod tests {
     use super::*;
     use crate::agent_manager::AgentManager;
     use common::{
-        commands::{self, CompleteState, Response, ResponseContent},
+        commands::{self, Response, ResponseContent},
         execution_interface::AgentInterface,
         objects::{ExecutionState, WorkloadState},
         test_utils::generate_test_workload_spec_with_param,
@@ -295,7 +295,7 @@ mod tests {
 
         let response = Response {
             request_id: request_id.clone(),
-            response_content: ResponseContent::CompleteState(complete_state.clone()),
+            response_content: ResponseContent::CompleteState(Box::new(complete_state.clone())),
         };
 
         let mut mock_runtime_manager = RuntimeManager::default();

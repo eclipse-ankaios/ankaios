@@ -4,7 +4,7 @@ use std::{fmt::Display, path::PathBuf};
 use crate::control_interface::PipesChannelContext;
 use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use common::{
-    commands::{self, CompleteState, ResponseContent},
+    commands::{self, ResponseContent},
     execution_interface::FromServer,
     objects::{ExecutionState, WorkloadSpec},
     state_change_interface::{StateChangeInterface, StateChangeSender},
@@ -930,19 +930,17 @@ mod tests {
             workload_command_tx,
             Some(control_interface_mock),
         );
-        let complete_state = generate_test_complete_state(
-            format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-            vec![generate_test_workload_spec_with_param(
+        let complete_state =
+            generate_test_complete_state(vec![generate_test_workload_spec_with_param(
                 AGENT_NAME.to_string(),
                 WORKLOAD_1_NAME.to_string(),
                 RUNTIME_NAME.to_string(),
-            )],
-        );
+            )]);
 
         test_workload
             .forward_response(
                 format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                common::commands::ResponseContent::CompleteState(complete_state.clone()),
+                common::commands::ResponseContent::CompleteState(Box::new(complete_state.clone())),
             )
             .await
             .unwrap();
@@ -952,7 +950,7 @@ mod tests {
         assert!(matches!(
             timeout(Duration::from_millis(200), state_change_rx.recv()).await,
             Ok(Some(FromServer::Response(Response{request_id: _, response_content: ResponseContent::CompleteState(complete_state)})))
-        if expected_complete_state == complete_state));
+        if expected_complete_state == *complete_state));
     }
 
     // [utest->swdd~agent-forward-responses-to-control-interface-pipe~1]
@@ -985,7 +983,7 @@ mod tests {
             test_workload
                 .forward_response(
                     "".to_owned(),
-                    ResponseContent::CompleteState(complete_state)
+                    ResponseContent::CompleteState(Box::new(complete_state))
                 )
                 .await,
             Err(WorkloadError::CompleteState(_))
@@ -1010,7 +1008,7 @@ mod tests {
             test_workload
                 .forward_response(
                     "".to_owned(),
-                    ResponseContent::CompleteState(complete_state)
+                    ResponseContent::CompleteState(Box::new(complete_state))
                 )
                 .await,
             Err(WorkloadError::CompleteState(_))

@@ -187,7 +187,7 @@ pub struct Response {
 pub enum ResponseContent {
     Success,
     Error(Error),
-    CompleteState(CompleteState),
+    CompleteState(Box<CompleteState>),
 }
 
 impl From<ResponseContent> for proto::response::ResponseContent {
@@ -203,7 +203,7 @@ impl From<ResponseContent> for proto::response::ResponseContent {
                 })
             }
             ResponseContent::CompleteState(complete_state) => {
-                proto::response::ResponseContent::CompleteState(complete_state.into())
+                proto::response::ResponseContent::CompleteState((*complete_state).into())
             }
         }
     }

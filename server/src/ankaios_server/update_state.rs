@@ -390,48 +390,42 @@ mod tests {
     }
 
     fn generate_test_old_state() -> CompleteState {
-        generate_test_complete_state(
-            "request_id".to_owned(),
-            vec![
-                generate_test_workload_spec_with_param(
-                    "agent_A".into(),
-                    "workload_1".into(),
-                    "runtime_1".into(),
-                ),
-                generate_test_workload_spec_with_param(
-                    "agent_A".into(),
-                    "workload_2".into(),
-                    "runtime_2".into(),
-                ),
-                generate_test_workload_spec_with_param(
-                    "agent_B".into(),
-                    "workload_3".into(),
-                    "runtime_1".into(),
-                ),
-            ],
-        )
+        generate_test_complete_state(vec![
+            generate_test_workload_spec_with_param(
+                "agent_A".into(),
+                "workload_1".into(),
+                "runtime_1".into(),
+            ),
+            generate_test_workload_spec_with_param(
+                "agent_A".into(),
+                "workload_2".into(),
+                "runtime_2".into(),
+            ),
+            generate_test_workload_spec_with_param(
+                "agent_B".into(),
+                "workload_3".into(),
+                "runtime_1".into(),
+            ),
+        ])
     }
 
     fn generate_test_update_state() -> CompleteState {
-        generate_test_complete_state(
-            "request_id".to_owned(),
-            vec![
-                generate_test_workload_spec_with_param(
-                    "agent_B".into(),
-                    "workload_1".into(),
-                    "runtime_2".into(),
-                ),
-                generate_test_workload_spec_with_param(
-                    "agent_B".into(),
-                    "workload_3".into(),
-                    "runtime_2".into(),
-                ),
-                generate_test_workload_spec_with_param(
-                    "agent_A".into(),
-                    "workload_4".into(),
-                    "runtime_1".into(),
-                ),
-            ],
-        )
+        generate_test_complete_state(vec![
+            generate_test_workload_spec_with_param(
+                "agent_B".into(),
+                "workload_1".into(),
+                "runtime_2".into(),
+            ),
+            generate_test_workload_spec_with_param(
+                "agent_B".into(),
+                "workload_3".into(),
+                "runtime_2".into(),
+            ),
+            generate_test_workload_spec_with_param(
+                "agent_A".into(),
+                "workload_4".into(),
+                "runtime_1".into(),
+            ),
+        ])
     }
 }

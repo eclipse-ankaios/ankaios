@@ -4,7 +4,7 @@ use std::{
 };
 
 use common::{
-    commands::{CompleteState, Response},
+    commands::Response,
     objects::{
         AgentName, DeletedWorkload, WorkloadExecutionInstanceName, WorkloadInstanceName,
         WorkloadSpec,
@@ -1008,13 +1008,12 @@ mod tests {
         runtime_manager
             .forward_response(Response {
                 request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                response_content: ResponseContent::CompleteState(generate_test_complete_state(
-                    format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                    vec![generate_test_workload_spec_with_param(
+                response_content: ResponseContent::CompleteState(Box::new(
+                    generate_test_complete_state(vec![generate_test_workload_spec_with_param(
                         AGENT_NAME.to_string(),
                         WORKLOAD_1_NAME.to_string(),
                         RUNTIME_NAME.to_string(),
-                    )],
+                    )]),
                 )),
             })
             .await;
@@ -1062,13 +1061,12 @@ mod tests {
         runtime_manager
             .forward_response(Response {
                 request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                response_content: ResponseContent::CompleteState(generate_test_complete_state(
-                    format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                    vec![generate_test_workload_spec_with_param(
+                response_content: ResponseContent::CompleteState(Box::new(
+                    generate_test_complete_state(vec![generate_test_workload_spec_with_param(
                         AGENT_NAME.to_string(),
                         WORKLOAD_1_NAME.to_string(),
                         RUNTIME_NAME.to_string(),
-                    )],
+                    )]),
                 )),
             })
             .await;
@@ -1096,13 +1094,12 @@ mod tests {
         runtime_manager
             .forward_response(Response {
                 request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                response_content: ResponseContent::CompleteState(generate_test_complete_state(
-                    format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                    vec![generate_test_workload_spec_with_param(
+                response_content: ResponseContent::CompleteState(Box::new(
+                    generate_test_complete_state(vec![generate_test_workload_spec_with_param(
                         AGENT_NAME.to_string(),
                         WORKLOAD_1_NAME.to_string(),
                         RUNTIME_NAME.to_string(),
-                    )],
+                    )]),
                 )),
             })
             .await;
