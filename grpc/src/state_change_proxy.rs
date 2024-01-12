@@ -438,7 +438,7 @@ mod tests {
             MockGRPCStateChangeRequestStreaming::new(LinkedList::from([
                 Some(proto::ToServer {
                     to_server_enum: Some(ToServerEnum::Request(proto::Request {
-                        request_id: "request_id".to_owned(),
+                        request_id: "my_request_id".to_owned(),
                         request_content: Some(proto::request::RequestContent::UpdateState(
                             proto::UpdateStateRequest {
                                 new_state: Some(ankaios_state.clone().into()),
@@ -462,6 +462,7 @@ mod tests {
 
         // pick received execution command
         let result = server_rx.recv().await.unwrap();
+        let expected_prefixed_my_request_id = String::from("fake_agent@my_request_id");
 
         assert!(matches!(
             result,
@@ -469,7 +470,7 @@ mod tests {
                 request_id,
                 request_content: common::commands::RequestContent::UpdateStateRequest(update_request),
             })
-            if request_id == "request_id" && update_request.state == ankaios_state && update_request.update_mask == ankaios_update_mask));
+            if request_id == expected_prefixed_my_request_id && update_request.state == ankaios_state && update_request.update_mask == ankaios_update_mask));
     }
 
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
