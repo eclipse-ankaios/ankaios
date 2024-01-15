@@ -451,6 +451,11 @@ impl CliCommands {
             .map_err(|err| CliError::ExecutionError(err.to_string()))?;
         Ok(())
     }
+
+    // [impl->swdd~cli-provides-apply-multiple-ankaios-manifests~1]
+    // pub async fn apply_manifests() -> Result<(), CliError> {
+
+    // }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -1087,7 +1092,7 @@ mod tests {
             Url::parse("http://localhost").unwrap(),
         );
         let cmd_text = cmd.get_state(vec![], crate::cli::OutputFormat::Json).await.unwrap();
-        
+
         let expected_text = serde_json::to_string_pretty(&test_data).unwrap();
         assert_eq!(cmd_text, expected_text);
     }
@@ -1143,11 +1148,11 @@ mod tests {
                 crate::cli::OutputFormat::Yaml,
             )
             .await.unwrap();
-        
+
         let expected_single_field_result_text = serde_yaml::to_string(&serde_json::json!(
-                {"currentState": {"workloads": {"name3": { "runtime": "runtime"}}}}
-            ))
-            .unwrap();
+            {"currentState": {"workloads": {"name3": { "runtime": "runtime"}}}}
+        ))
+        .unwrap();
 
         assert_eq!(cmd_text, expected_single_field_result_text);
     }
@@ -1208,8 +1213,8 @@ mod tests {
                 crate::cli::OutputFormat::Yaml,
             )
             .await.unwrap();
-        assert!(matches!(cmd_text, 
-            txt if txt == *"currentState:\n  workloads:\n    name1:\n      runtime: runtime\n    name2:\n      runtime: runtime\n" || 
+        assert!(matches!(cmd_text,
+            txt if txt == *"currentState:\n  workloads:\n    name1:\n      runtime: runtime\n    name2:\n      runtime: runtime\n" ||
             txt == *"currentState:\n  workloads:\n    name2:\n      runtime: runtime\n    name1:\n      runtime: runtime\n"));
     }
 

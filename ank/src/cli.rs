@@ -53,6 +53,8 @@ pub enum Commands {
     Delete(DeleteArgs),
     #[command(arg_required_else_help = true)]
     Run(RunArgs),
+    #[command(arg_required_else_help = false)]
+    Apply(ApplyArgs),
 }
 
 /// Retrieve information about the current Ankaios system
@@ -168,6 +170,15 @@ pub enum RunCommands {
         #[arg(long = "tags", value_parser = parse_key_val::<String, String>)]
         tags: Vec<(String, String)>,
     },
+}
+
+/// Apply Ankaios manifest content or file(s)
+#[derive(clap::Args, Debug)]
+pub struct ApplyArgs {
+    #[arg(value_name = "Ankaios manifest file", required = false)]
+    pub manifest_files: Vec<String>,
+    #[arg(long = "agent")]
+    pub agent_name: Option<String>,
 }
 
 fn parse_key_val<K, V>(s: &str) -> Result<(K, V), Box<dyn Error + Send + Sync + 'static>>

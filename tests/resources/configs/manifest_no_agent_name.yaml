@@ -1,0 +1,14 @@
+workloads:
+  nginx_from_manifest_no_agent_name:
+    runtime: podman
+    restart: true
+    updateStrategy: AT_MOST_ONCE
+    accessRights:
+      allow: []
+      deny: []
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: docker.io/nginx:latest
+      commandOptions: ["-p", "8083:80"]

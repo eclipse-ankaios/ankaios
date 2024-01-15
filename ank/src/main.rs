@@ -138,6 +138,9 @@ async fn main() {
             }
             None => unreachable!("Unreachable code."),
         },
+        cli::Commands::Apply(apply_args) => {
+            println!("{:?}", apply_args.manifest_files);
+        }
     }
 
     cmd.shut_down().await;
