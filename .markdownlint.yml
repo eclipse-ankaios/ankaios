@@ -3,7 +3,7 @@
 
 default: true
 
-# Material for MkDocs needs for 4 spaces to work
+# Material for MkDocs needs 4 spaces to work
 MD007:
   indent: 4
 
