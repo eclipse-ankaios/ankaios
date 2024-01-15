@@ -364,7 +364,6 @@ mod tests {
 
         let (_workload_id, _checker) = res.unwrap();
 
-        // TODO: shouldn't we check what is going on here?
         from_agent.recv().await;
     }
 

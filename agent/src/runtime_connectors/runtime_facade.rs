@@ -10,7 +10,7 @@ use crate::control_interface::PipesChannelContext;
 
 use crate::{
     runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker},
-    workload_state::WorkloadStateMsgSender,
+    workload_state::{WorkloadStateMsgSender, WorkloadStateSenderInterface},
 };
 
 use crate::workload::workload_control_loop::WorkloadControlLoop;
@@ -49,7 +49,11 @@ pub trait RuntimeFacade: Send + Sync + 'static {
         update_state_tx: &WorkloadStateMsgSender,
     ) -> Workload;
 
-    fn delete_workload(&self, instance_name: WorkloadExecutionInstanceName);
+    fn delete_workload(
+        &self,
+        instance_name: WorkloadExecutionInstanceName,
+        update_state_tx: &WorkloadStateMsgSender,
+    );
 }
 
 pub struct GenericRuntimeFacade<
@@ -257,8 +261,13 @@ impl<
     // The situation can occur if an agent has started workload, goes offline and workload are removed
     // from the cluster before the agent goes online again.
     // [impl->swdd~agent-delete-old-workload~1]
-    fn delete_workload(&self, instance_name: WorkloadExecutionInstanceName) {
+    fn delete_workload(
+        &self,
+        instance_name: WorkloadExecutionInstanceName,
+        update_state_tx: &WorkloadStateMsgSender,
+    ) {
         let runtime = self.runtime.to_owned();
+        let update_state_tx = update_state_tx.clone();
 
         log::info!(
             "Deleting '{}' workload '{}' on agent '{}'",
@@ -267,15 +276,19 @@ impl<
             instance_name.agent_name(),
         );
 
-        // TODO: we should send stopping execution state here
-
         tokio::spawn(async move {
-            runtime
-                .delete_workload(&runtime.get_workload_id(&instance_name).await?)
-                .await
-            // TODO: we should iss if the delete failed and send a stopping failed in this case
+            update_state_tx.report_stopping(&instance_name).await;
 
-            // TODO: we should send a removed execution state here
+            if let Ok(workload_id) = runtime.get_workload_id(&instance_name).await {
+                if let Err(err) = runtime.delete_workload(&workload_id).await {
+                    update_state_tx.report_stopping_failed(&instance_name).await;
+                    return;
+                }
+            } else {
+                log::debug!("Workload '{}' already gone.", instance_name);
+            }
+
+            update_state_tx.report_removed(&instance_name).await;
         });
     }
 }
@@ -291,7 +304,7 @@ impl<
 #[cfg(test)]
 mod tests {
     use common::{
-        objects::{WorkloadExecutionInstanceName, WorkloadInstanceName},
+        objects::{ExecutionState, WorkloadExecutionInstanceName, WorkloadInstanceName},
         test_utils::generate_test_workload_spec_with_param,
     };
 
@@ -303,7 +316,7 @@ mod tests {
         },
         runtime_connectors::{GenericRuntimeFacade, RuntimeFacade},
         workload::MockWorkload,
-        workload_state::WorkloadStateMessage,
+        workload_state::{assert_execution_state_sequence, WorkloadStateMessage},
     };
 
     const RUNTIME_NAME: &str = "runtime1";
@@ -790,6 +803,9 @@ mod tests {
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
+        let (state_sink, state_receiver) =
+            tokio::sync::mpsc::channel::<WorkloadStateMessage>(TEST_CHANNEL_BUFFER_SIZE);
+
         runtime_mock
             .expect(vec![
                 RuntimeCall::GetWorkloadId(
@@ -806,9 +822,15 @@ mod tests {
             ownable_runtime_mock,
         ));
 
-        test_runtime_facade.delete_workload(workload_instance_name);
+        test_runtime_facade.delete_workload(workload_instance_name, &state_sink);
 
         tokio::task::yield_now().await;
+
+        assert_execution_state_sequence(
+            state_receiver,
+            vec![ExecutionState::ExecStopping, ExecutionState::ExecRemoved],
+        )
+        .await;
 
         runtime_mock.assert_all_expectations().await;
     }

@@ -16,7 +16,7 @@ use super::workload_state_db::WorkloadStateDB;
 
 use async_trait::async_trait;
 use common::{
-    objects::{ExecutionState, WorkloadState},
+    objects::{ExecutionState, WorkloadExecutionInstanceName, WorkloadState},
     state_change_interface::{StateChangeInterface, StateChangeSender},
     std_extensions::IllegalStateResult,
 };
@@ -36,6 +36,11 @@ pub trait WorkloadStateSenderInterface {
         agent_name: String,
         execution_state: ExecutionState,
     ) -> Result<(), String>;
+
+    async fn report_starting(&self, instance_name: &WorkloadExecutionInstanceName);
+    async fn report_stopping(&self, instance_name: &WorkloadExecutionInstanceName);
+    async fn report_stopping_failed(&self, instance_name: &WorkloadExecutionInstanceName);
+    async fn report_removed(&self, instance_name: &WorkloadExecutionInstanceName);
 }
 
 #[async_trait]
@@ -45,6 +50,7 @@ impl WorkloadStateSenderInterface for WorkloadStateMsgSender {
             .await
             .map_err(|error| error.to_string())
     }
+
     async fn report_workload_execution_state(
         &self,
         workload_name: String,
@@ -59,9 +65,48 @@ impl WorkloadStateSenderInterface for WorkloadStateMsgSender {
         .await
         .map_err(|error| error.to_string())
     }
+
+    async fn report_starting(&self, instance_name: &WorkloadExecutionInstanceName) {
+        self.report_workload_execution_state(
+            instance_name.workload_name().to_string(),
+            instance_name.agent_name().to_string(),
+            ExecutionState::ExecStarting,
+        )
+        .await
+        .unwrap_or_illegal_state();
+    }
+
+    async fn report_stopping(&self, instance_name: &WorkloadExecutionInstanceName) {
+        self.report_workload_execution_state(
+            instance_name.workload_name().to_string(),
+            instance_name.agent_name().to_string(),
+            ExecutionState::ExecStopping,
+        )
+        .await
+        .unwrap_or_illegal_state();
+    }
+
+    async fn report_stopping_failed(&self, instance_name: &WorkloadExecutionInstanceName) {
+        self.report_workload_execution_state(
+            instance_name.workload_name().to_string(),
+            instance_name.agent_name().to_string(),
+            ExecutionState::ExecStoppingFailed,
+        )
+        .await
+        .unwrap_or_illegal_state();
+    }
+
+    async fn report_removed(&self, instance_name: &WorkloadExecutionInstanceName) {
+        self.report_workload_execution_state(
+            instance_name.workload_name().to_string(),
+            instance_name.agent_name().to_string(),
+            ExecutionState::ExecRemoved,
+        )
+        .await
+        .unwrap_or_illegal_state();
+    }
 }
 
-// TODO probably this shall be only internal and the channel should be created via a function
 pub enum WorkloadStateMessage {
     FromChecker(WorkloadState),
     FromServer(Vec<WorkloadState>),
@@ -95,6 +140,9 @@ impl WorkloadStateProxy {
                             .clone()
                             .transition(single_workload_state.execution_state);
                     }
+
+                    self.states_db
+                        .update_workload_state(single_workload_state.clone());
 
                     self.to_server
                         .update_workload_state(vec![single_workload_state])
@@ -134,6 +182,56 @@ pub async fn assert_execution_state_sequence(
 
 #[cfg(test)]
 mod tests {
+    use common::{
+        objects::{ExecutionState, WorkloadInstanceName, WorkloadState},
+        state_change_interface::StateChangeCommand,
+        test_utils::generate_test_workload_spec,
+    };
 
+    use crate::workload_state::{
+        WorkloadStateMessage, WorkloadStateProxy, WorkloadStateSenderInterface,
+    };
+
+    const BUFFER_SIZE: usize = 20;
+
+    #[tokio::test]
+    async fn utest_workload_state_proxy_start_stores_from_checker_and_forwards() {
+        let (workload_state_sender, proxy_receiver) =
+            tokio::sync::mpsc::channel::<WorkloadStateMessage>(BUFFER_SIZE);
+        let (to_server, mut server_receiver) =
+            tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
+
+        let mut test_workload_state_proxy =
+            WorkloadStateProxy::new(to_server.clone(), proxy_receiver);
+
+        let workload_spec = generate_test_workload_spec();
+        let instance_name = workload_spec.instance_name();
+
+        let expected_states = vec![WorkloadState {
+            workload_name: instance_name.workload_name().to_string(),
+            agent_name: instance_name.agent_name().to_string(),
+            execution_state: ExecutionState::ExecStarting,
+        }];
+
+        workload_state_sender.report_starting(&instance_name).await;
+
+        drop(workload_state_sender);
+
+        test_workload_state_proxy.start().await;
+
+        let result = server_receiver.recv().await.unwrap();
+
+        assert!(matches!(
+            result,
+            StateChangeCommand::UpdateWorkloadState(common::commands::UpdateWorkloadState{workload_states})
+            if workload_states == expected_states));
+
+        assert_eq!(
+            test_workload_state_proxy
+                .states_db
+                .get_state_of_workload(instance_name.workload_name()),
+            Some(&ExecutionState::ExecStarting)
+        );
+    }
     // TODO write tests
 }
