@@ -31,6 +31,7 @@ pub enum ExecutionState {
     ExecFailed = 6,
     ExecWaitingToStop = 7,
     ExecStopping = 8,
+    ExecStoppingFailed = 9,
     ExecRemoved = 10,
 }
 
@@ -61,6 +62,9 @@ impl From<i32> for ExecutionState {
             x if x == ExecutionState::ExecFailed as i32 => ExecutionState::ExecFailed,
             x if x == ExecutionState::ExecWaitingToStop as i32 => ExecutionState::ExecWaitingToStop,
             x if x == ExecutionState::ExecStopping as i32 => ExecutionState::ExecStopping,
+            x if x == ExecutionState::ExecStoppingFailed as i32 => {
+                ExecutionState::ExecStoppingFailed
+            }
             x if x == ExecutionState::ExecRemoved as i32 => ExecutionState::ExecRemoved,
             _ => ExecutionState::ExecUnknown,
         }
@@ -78,6 +82,7 @@ impl Display for ExecutionState {
             ExecutionState::ExecFailed => write!(f, "Failed"),
             ExecutionState::ExecWaitingToStop => write!(f, "WaitingToStop"),
             ExecutionState::ExecStopping => write!(f, "Stopping"),
+            ExecutionState::ExecStoppingFailed => write!(f, "StoppingFailed"),
             ExecutionState::ExecRemoved => write!(f, "Removed"),
             ExecutionState::ExecUnknown => write!(f, "Unknown"),
         }
@@ -174,6 +179,7 @@ mod tests {
         assert_eq!(ExecutionState::ExecFailed, ExecutionState::from(6));
         assert_eq!(ExecutionState::ExecWaitingToStop, ExecutionState::from(7));
         assert_eq!(ExecutionState::ExecStopping, ExecutionState::from(8));
+        assert_eq!(ExecutionState::ExecStoppingFailed, ExecutionState::from(9));
         assert_eq!(ExecutionState::ExecRemoved, ExecutionState::from(10));
         assert_eq!(ExecutionState::ExecUnknown, ExecutionState::from(100));
     }
@@ -218,6 +224,10 @@ mod tests {
             String::from("Stopping")
         );
         assert_eq!(
+            ExecutionState::ExecStoppingFailed.to_string(),
+            String::from("StoppingFailed")
+        );
+        assert_eq!(
             ExecutionState::ExecUnknown.to_string(),
             String::from("Unknown")
         );
@@ -244,6 +254,10 @@ mod tests {
         );
         assert_eq!(
             ExecutionState::ExecStarting.transition(ExecutionState::ExecRunning),
+            ExecutionState::ExecRunning
+        );
+        assert_eq!(
+            ExecutionState::ExecStoppingFailed.transition(ExecutionState::ExecRunning),
             ExecutionState::ExecRunning
         );
     }

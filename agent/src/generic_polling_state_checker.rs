@@ -51,11 +51,11 @@ where
 
                     // [impl->swdd~generic-state-checker-sends-workload-state~1]
                     state_sink
-                        .report_local_workload_state(common::objects::WorkloadState {
-                            agent_name: workload_spec.agent.clone(),
-                            workload_name: workload_spec.name.to_string(),
-                            execution_state: current_state,
-                        })
+                        .report_workload_execution_state(
+                            workload_spec.name.to_string(),
+                            workload_spec.agent.clone(),
+                            current_state,
+                        )
                         .await
                         .unwrap_or_illegal_state();
 

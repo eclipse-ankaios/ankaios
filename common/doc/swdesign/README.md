@@ -107,6 +107,7 @@ Ankaios shall support the following execution states for a workload:
 - failed
 - waiting_to_stop
 - stopping
+- stopping_failed
 - removed
 - unknown
 
@@ -119,7 +120,7 @@ Needs:
 
 The Following diagram shows all Ankaios workload states and the possible transitions between them:
 
-![Workload states](plantuml/state_workload_execution_states.svg)
+![Workload states](drawio/state_workload_execution_states.drawio.svg)
 
 #### Workload state transitions
 `swdd~common-workload-state-transitions~1`

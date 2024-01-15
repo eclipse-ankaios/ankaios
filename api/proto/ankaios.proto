@@ -30,7 +30,7 @@
 */
 syntax = "proto3";
 package ankaios;
- 
+
 service AgentConnection {
   rpc ConnectAgent (stream StateChangeRequest) returns (stream ExecutionRequest);
 }
@@ -64,7 +64,7 @@ message ExecutionRequest {
 }
 
 /**
-* A message to the Ankaios server to register a new agent. 
+* A message to the Ankaios server to register a new agent.
 */
 message AgentHello {
   string agentName = 1; /// A unique agent name.
@@ -77,7 +77,7 @@ message Goodbye {
 }
 
 /**
-* A message providing information about the workloads to be added and/or deleted. 
+* A message providing information about the workloads to be added and/or deleted.
 */
 message UpdateWorkload {
   repeated AddedWorkload addedWorkloads = 1; /// A list of messages containing information about a workload to be added by an Ankaios agent.
@@ -111,7 +111,7 @@ message DeletedWorkload {
 */
 enum DeleteCondition {
     DEL_COND_RUNNING = 0; /// The workload is operational.
-    DEL_COND_NOT_PENDING_NOR_RUNNING = 1; /// The workload is not scheduled or running.    
+    DEL_COND_NOT_PENDING_NOR_RUNNING = 1; /// The workload is not scheduled or running.
 }
 
 /**
@@ -136,6 +136,7 @@ enum ExecutionState {
     EXEC_FAILED = 6; /// The workload has failed either during startup ot during operation
     EXEC_WAITING_TO_STOP = 7; /// Thhe deletion of the workload will be triggered once no 'waiting to start', 'starting' or 'running' workload depending on it exists.
     EXEC_STOPPING = 8; /// Stopping the workload was scheduled at the corresponding runtimeg.
+    Exec_STOPPING_FAILED = 9; /// Stopping the workload failed. The workload could transition again to `running` or another state dependening on the failure.
     EXEC_REMOVED = 10; /// The workload has been deleted.
 }
 
@@ -179,7 +180,7 @@ message RequestCompleteState {
 
 /**
 * A message containing a request to update the state of the Ankaios system.
-* The new state is provided as state object. 
+* The new state is provided as state object.
 * To specify which part(s) of the new state object should be updated
 * a list of update mask (same as field mask) paths needs to be provided.
 */

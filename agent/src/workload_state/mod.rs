@@ -19,6 +19,9 @@ mod workload_state_proxy;
 #[cfg(test)]
 pub use workload_state_proxy::MockWorkloadStateProxy;
 
+#[cfg(test)]
+pub use workload_state_proxy::assert_execution_state_sequence;
+
 pub use workload_state_proxy::{
     WorkloadStateMessage, WorkloadStateMsgReceiver, WorkloadStateMsgSender, WorkloadStateProxy,
     WorkloadStateSenderInterface,

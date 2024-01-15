@@ -16,7 +16,7 @@ use super::workload_state_db::WorkloadStateDB;
 
 use async_trait::async_trait;
 use common::{
-    objects::WorkloadState,
+    objects::{ExecutionState, WorkloadState},
     state_change_interface::{StateChangeInterface, StateChangeSender},
     std_extensions::IllegalStateResult,
 };
@@ -30,7 +30,12 @@ pub type WorkloadStateMsgSender = tokio::sync::mpsc::Sender<WorkloadStateMessage
 #[async_trait]
 pub trait WorkloadStateSenderInterface {
     async fn store_remote_workload_states(&self, states: Vec<WorkloadState>) -> Result<(), String>;
-    async fn report_local_workload_state(&self, state: WorkloadState) -> Result<(), String>;
+    async fn report_workload_execution_state(
+        &self,
+        workload_name: String,
+        agent_name: String,
+        execution_state: ExecutionState,
+    ) -> Result<(), String>;
 }
 
 #[async_trait]
@@ -40,10 +45,19 @@ impl WorkloadStateSenderInterface for WorkloadStateMsgSender {
             .await
             .map_err(|error| error.to_string())
     }
-    async fn report_local_workload_state(&self, state: WorkloadState) -> Result<(), String> {
-        self.send(WorkloadStateMessage::FromChecker(state))
-            .await
-            .map_err(|error| error.to_string())
+    async fn report_workload_execution_state(
+        &self,
+        workload_name: String,
+        agent_name: String,
+        execution_state: ExecutionState,
+    ) -> Result<(), String> {
+        self.send(WorkloadStateMessage::FromChecker(WorkloadState {
+            workload_name,
+            agent_name,
+            execution_state,
+        }))
+        .await
+        .map_err(|error| error.to_string())
     }
 }
 
@@ -95,4 +109,31 @@ impl WorkloadStateProxy {
             }
         }
     }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+pub async fn assert_execution_state_sequence(
+    mut state_change_rx: WorkloadStateMsgReceiver,
+    expected_states: Vec<ExecutionState>,
+) {
+    for expected_execution_state in expected_states {
+        assert!(matches!(
+                tokio::time::timeout(std::time::Duration::from_millis(200), state_change_rx.recv()).await,
+                Ok(Some(WorkloadStateMessage::FromChecker(workload_state)))
+            if workload_state.execution_state == expected_execution_state));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    // TODO write tests
 }

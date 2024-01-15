@@ -96,7 +96,7 @@ async fn main() {
 
     let mut workload_state_proxy = WorkloadStateProxy::new(to_server.clone(), proxy_receiver);
 
-    let proxy_task = tokio::spawn(async move { workload_state_proxy.start().await });
+    let state_proxy_task = tokio::spawn(async move { workload_state_proxy.start().await });
 
     // The RuntimeManager currently directly gets the server StateChangeInterface, but it shall get the agent manager interface
     // This is needed to be able to filter/authorize the commands towards the Ankaios server
@@ -129,7 +129,7 @@ async fn main() {
     });
 
     let (_, communication_task_result, _) =
-        try_join!(manager_task, communications_task, proxy_task).unwrap_or_illegal_state();
+        try_join!(manager_task, communications_task, state_proxy_task).unwrap_or_illegal_state();
 
     communication_task_result.unwrap_or_unreachable();
 }

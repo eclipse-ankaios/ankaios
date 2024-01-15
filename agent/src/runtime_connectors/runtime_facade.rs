@@ -161,28 +161,8 @@ impl<
         let (workload_channel_sender, command_receiver) = WorkloadCommandSender::new();
         let workload_channel = workload_channel_sender.clone();
         tokio::spawn(async move {
-            let instance_name = new_workload_spec.instance_name();
-            let workload_name = instance_name.workload_name();
-            match runtime.get_workload_id(&old_instance_name).await {
-                Ok(old_id) => runtime
-                    .delete_workload(&old_id)
-                    .await
-                    .unwrap_or_else(|err| {
-                        log::warn!(
-                            "Failed to delete workload when replacing workload '{}': '{}'",
-                            workload_name,
-                            err
-                        )
-                    }),
-                Err(err) => log::warn!(
-                    "Failed to get workload id when replacing workload '{}': '{}'",
-                    workload_name,
-                    err
-                ),
-            }
-
             workload_channel
-                .create(new_workload_spec, control_interface_path)
+                .update(new_workload_spec, control_interface_path)
                 .await
                 .unwrap_or_else(|err| {
                     log::warn!("Failed to send restart workload command: '{}'", err);
@@ -190,8 +170,8 @@ impl<
 
             // replace workload_id and state_checker through Option directly and pass in None if create_workload fails
             let control_loop_state = ControlLoopState {
-                instance_name,
-                workload_id: None,
+                workload_id: runtime.get_workload_id(&old_instance_name).await.ok(),
+                instance_name: old_instance_name,
                 state_checker: None,
                 update_state_tx,
                 runtime,
@@ -273,6 +253,9 @@ impl<
         Workload::new(workload_name, workload_channel, control_interface)
     }
 
+    // This is a direct delete method that is stopping old workload no longer in the current state
+    // The situation can occur if an agent has started workload, goes offline and workload are removed
+    // from the cluster before the agent goes online again.
     // [impl->swdd~agent-delete-old-workload~1]
     fn delete_workload(&self, instance_name: WorkloadExecutionInstanceName) {
         let runtime = self.runtime.to_owned();
@@ -284,10 +267,15 @@ impl<
             instance_name.agent_name(),
         );
 
+        // TODO: we should send stopping execution state here
+
         tokio::spawn(async move {
             runtime
                 .delete_workload(&runtime.get_workload_id(&instance_name).await?)
                 .await
+            // TODO: we should iss if the delete failed and send a stopping failed in this case
+
+            // TODO: we should send a removed execution state here
         });
     }
 }
@@ -314,7 +302,8 @@ mod tests {
             OwnableRuntime,
         },
         runtime_connectors::{GenericRuntimeFacade, RuntimeFacade},
-        workload::MockWorkload, workload_state::WorkloadStateMessage,
+        workload::MockWorkload,
+        workload_state::WorkloadStateMessage,
     };
 
     const RUNTIME_NAME: &str = "runtime1";
@@ -377,7 +366,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (state_sink, _) =
+        let (state_sink, _state_receiver) =
             tokio::sync::mpsc::channel::<WorkloadStateMessage>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
@@ -603,7 +592,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (state_sink, _) =
+        let (state_sink, _state_receiver) =
             tokio::sync::mpsc::channel::<WorkloadStateMessage>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
@@ -672,7 +661,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (state_sink, _) =
+        let (state_sink, _state_receiver) =
             tokio::sync::mpsc::channel::<WorkloadStateMessage>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
@@ -726,7 +715,7 @@ mod tests {
 
     // [utest->swdd~agent-replace-workload~1]
     #[tokio::test]
-    async fn utest_runtime_facade_replace_workload_delete_fails_create_still_called() {
+    async fn utest_runtime_facade_replace_workload_delete_fails_create_not_called() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -743,7 +732,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (state_sink, _) =
+        let (state_sink, _state_receiver) =
             tokio::sync::mpsc::channel::<WorkloadStateMessage>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
@@ -770,13 +759,6 @@ mod tests {
                     Err(crate::runtime_connectors::RuntimeError::Delete(
                         "some delete error".to_string(),
                     )),
-                ),
-                // the expectation is that create will still be called although delete failed
-                RuntimeCall::CreateWorkload(
-                    workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    state_sink.clone(),
-                    Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
                 ),
             ])
             .await;
