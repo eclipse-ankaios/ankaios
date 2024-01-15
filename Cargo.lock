@@ -87,6 +87,8 @@ dependencies = [
  "env_logger",
  "grpc",
  "log",
+ "mockall",
+ "mockall_double",
  "nix",
  "rand",
  "serde",

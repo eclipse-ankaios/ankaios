@@ -12,23 +12,23 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-mod update_state;
+mod cyclic_check;
+mod server_state;
 
 use common::std_extensions::IllegalStateResult;
-#[cfg(test)]
-use tests::update_state_mock as update_state;
-#[cfg(not(test))]
-use update_state::update_state;
 
-use common::commands::{CompleteState, RequestCompleteState};
+#[cfg_attr(test, mockall_double::double)]
+use server_state::ServerState;
+// #[cfg(not(test))]
+// use server_state::update_state;
+// #[cfg(test)]
+// use tests::update_state_mock as update_state;
+
+use crate::workload_state_db::WorkloadStateDB;
 use common::execution_interface::ExecutionCommand;
 use common::objects::State;
 use common::{execution_interface::ExecutionInterface, state_change_interface::StateChangeCommand};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
-
-use crate::ankaios_server::update_state::prepare_update_workload;
-use crate::state_manipulation::Object;
-use crate::workload_state_db::WorkloadStateDB;
 
 pub type StateChangeChannels = (Sender<StateChangeCommand>, Receiver<StateChangeCommand>);
 pub type ExecutionChannels = (Sender<ExecutionCommand>, Receiver<ExecutionCommand>);
@@ -45,7 +45,7 @@ pub struct AnkaiosServer {
     receiver: Receiver<StateChangeCommand>,
     // [impl->swdd~communication-to-from-server-middleware~1]
     to_agents: Sender<ExecutionCommand>,
-    current_complete_state: CompleteState,
+    server_state: ServerState,
     workload_state_db: WorkloadStateDB,
 }
 
@@ -57,54 +57,8 @@ impl AnkaiosServer {
         AnkaiosServer {
             receiver,
             to_agents,
-            current_complete_state: CompleteState::default(),
+            server_state: ServerState::default(),
             workload_state_db: WorkloadStateDB::default(),
-        }
-    }
-
-    fn get_complete_state_by_field_mask(
-        &self,
-        request_complete_state: &RequestCompleteState,
-    ) -> Result<CompleteState, String> {
-        let current_complete_state = CompleteState {
-            request_id: request_complete_state.request_id.to_owned(),
-            current_state: self.current_complete_state.current_state.clone(),
-            startup_state: self.current_complete_state.startup_state.clone(),
-            workload_states: self.workload_state_db.get_all_workload_states(),
-        };
-
-        // [impl->swdd~server-filters-get-complete-state-result~1]
-        if !request_complete_state.field_mask.is_empty() {
-            let current_complete_state: Object =
-                current_complete_state.try_into().unwrap_or_illegal_state();
-            let mut return_state = Object::default();
-
-            return_state.set(
-                &"requestId".into(),
-                request_complete_state.request_id.to_owned().into(),
-            )?;
-
-            for field in &request_complete_state.field_mask {
-                if let Some(value) = current_complete_state.get(&field.into()) {
-                    return_state.set(&field.into(), value.to_owned())?;
-                } else {
-                    log::debug!(
-                        concat!(
-                        "Result for CompleteState incomplete, as requested field does not exist:\n",
-                        "   request_id: {:?}\n",
-                        "   field: {}"),
-                        request_complete_state.request_id,
-                        field
-                    );
-                    continue;
-                };
-            }
-
-            return_state.try_into().map_err(|err: serde_yaml::Error| {
-                format!("The result for CompleteState is invalid: '{}'", err)
-            })
-        } else {
-            Ok(current_complete_state)
         }
     }
 
@@ -122,14 +76,8 @@ impl AnkaiosServer {
 
                     // Send this agent all workloads in the current state which are assigned to him
                     let added_workloads = self
-                        .current_complete_state
-                        .current_state
-                        .workloads
-                        .clone()
-                        .into_values()
-                        // [impl->swdd~agent-from-agent-field~1]
-                        .filter(|workload_spec| workload_spec.agent.eq(&method_obj.agent_name))
-                        .collect();
+                        .server_state
+                        .get_workloads_for_agent(&method_obj.agent_name);
 
                     log::debug!(
                         "Sending initial UpdateWorkload to agent '{}' with added workloads: '{:?}'",
@@ -192,22 +140,19 @@ impl AnkaiosServer {
                         update_request.update_mask
                     );
 
-                    match update_state(&self.current_complete_state, update_request) {
-                        Ok(new_state) => {
-                            let cmd = prepare_update_workload(
-                                &self.current_complete_state.current_state,
-                                &new_state.current_state,
-                            );
-
-                            if let Some(cmd) = cmd {
-                                self.to_agents.send(cmd).await.unwrap_or_illegal_state();
+                    match self.server_state.update(update_request) {
+                        Ok(cmd) => {
+                            if let Some(execution_command) = cmd {
+                                self.to_agents
+                                    .send(execution_command)
+                                    .await
+                                    .unwrap_or_illegal_state();
                             } else {
                                 log::debug!("The current state and new state are identical -> nothing to do");
                             }
-                            self.current_complete_state = new_state;
                         }
-                        Err(error) => {
-                            log::error!("Could not execute UpdateRequest: '{}'", error);
+                        Err(error_msg) => {
+                            log::error!("{error_msg}",);
                         }
                     }
                 }
@@ -236,7 +181,10 @@ impl AnkaiosServer {
                         method_obj.field_mask
                     );
 
-                    match self.get_complete_state_by_field_mask(&method_obj) {
+                    match self
+                        .server_state
+                        .get_complete_state_by_field_mask(&method_obj, &self.workload_state_db)
+                    {
                         Ok(complete_state) => self
                             .to_agents
                             .complete_state(complete_state)
@@ -288,6 +236,9 @@ mod tests {
     use std::collections::{HashMap, VecDeque};
     use std::future::Future;
 
+    use super::server_state::UpdateStateError;
+    use super::{create_execution_channels, create_state_change_channels, AnkaiosServer};
+    use crate::ankaios_server::server_state::MockServerState;
     use common::commands::{RequestCompleteState, UpdateStateRequest};
     use common::objects::{DeletedWorkload, State, Tag, WorkloadSpec, WorkloadState};
     use common::test_utils::generate_test_workload_spec_with_param;
@@ -298,9 +249,6 @@ mod tests {
     };
     use tokio::join;
     use tokio::sync::mpsc::{self, channel, Receiver, Sender};
-
-    use super::update_state::UpdateStateError;
-    use super::{create_execution_channels, create_state_change_channels, AnkaiosServer};
 
     type TestSetup = (
         (
@@ -638,7 +586,7 @@ mod tests {
         );
 
         // prepare current state
-        ankaios_server.current_complete_state = CompleteState {
+        ankaios_server.server_state = CompleteState {
             current_state: State {
                 workloads: wl,
                 configs: HashMap::default(),
@@ -865,7 +813,7 @@ mod tests {
         ) = create_test_setup();
 
         // prepare current state
-        ankaios_server.current_complete_state = original_state.clone();
+        ankaios_server.server_state = original_state.clone();
         let server_task = tokio::spawn(async move { ankaios_server.start().await });
 
         let agent_hello_result = to_server.agent_hello(agent_names[0].to_owned()).await;
@@ -984,7 +932,7 @@ mod tests {
         };
 
         // prepare current state
-        ankaios_server.current_complete_state = test_state.clone();
+        ankaios_server.server_state = test_state.clone();
 
         let server_task = tokio::spawn(async move { ankaios_server.start().await });
 
@@ -1020,7 +968,7 @@ mod tests {
         // send command 'RequestCompleteState' with empty field mask meaning without active filter
         // so CompleteState shall contain the complete state
         let request_complete_state_result = to_server
-            .request_complete_state(super::RequestCompleteState {
+            .request_complete_state(RequestCompleteState {
                 request_id: format!("{agent_name_fake_agent_1}@my_request_id"),
                 field_mask: vec![],
             })
@@ -1039,7 +987,7 @@ mod tests {
 
         // send command 'RequestCompleteState' with field mask = ["workloadStates"]
         let request_complete_state_result = to_server
-            .request_complete_state(super::RequestCompleteState {
+            .request_complete_state(RequestCompleteState {
                 request_id: format!("{agent_name_fake_agent_1}@my_request_id"),
                 field_mask: vec![
                     String::from("workloadStates"),
@@ -1131,7 +1079,7 @@ mod tests {
         );
 
         // prepare current state
-        server.current_complete_state = CompleteState {
+        server.server_state = CompleteState {
             current_state: State {
                 workloads: wl,
                 configs: HashMap::default(),
@@ -1321,7 +1269,7 @@ mod tests {
         );
 
         // prepare current state
-        server.current_complete_state = CompleteState {
+        server.server_state = CompleteState {
             current_state: State {
                 workloads: wl,
                 configs: HashMap::default(),
@@ -1331,7 +1279,7 @@ mod tests {
         };
 
         // prepare the new state (one workload to be updated, one workload to be removed)
-        let mut new_state = server.current_complete_state.clone();
+        let mut new_state = server.server_state.clone();
         new_state
             .current_state
             .workloads

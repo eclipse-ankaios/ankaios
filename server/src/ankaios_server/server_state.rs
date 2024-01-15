@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Elektrobit Automotive GmbH
+// Copyright (c) 2024 Elektrobit Automotive GmbH
 //
 // This program and the accompanying materials are made available under the
 // terms of the Apache License, Version 2.0 which is available at
@@ -12,15 +12,26 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+// #[cfg(not(test))]
+// use super::update_state::update_state;
+// use common::objects::WorkloadSpec;
+// #[cfg(test)]
+// use tests::update_state_mock as update_state;
+
+use super::cyclic_check;
+use crate::state_manipulation::{Object, Path};
+use crate::workload_state_db::WorkloadStateDB;
+use common::std_extensions::IllegalStateResult;
+use common::{
+    commands::{CompleteState, RequestCompleteState, UpdateStateRequest, UpdateWorkload},
+    execution_interface::ExecutionCommand,
+    objects::{DeleteCondition, DeletedWorkload, State, WorkloadSpec},
+};
 use std::collections::HashMap;
 use std::fmt::Display;
 
-use crate::state_manipulation::{Object, Path};
-use common::{commands::CompleteState, commands::UpdateStateRequest, commands::UpdateWorkload};
-use common::{
-    execution_interface::ExecutionCommand,
-    objects::{DeletedWorkload, State, WorkloadSpec},
-};
+#[cfg(test)]
+use mockall::automock;
 
 pub fn update_state(
     current_state: &CompleteState,
@@ -135,6 +146,111 @@ impl Display for UpdateStateError {
     }
 }
 
+pub type DeleteGraph = HashMap<String, HashMap<String, DeleteCondition>>;
+
+#[derive(Default)]
+pub struct ServerState {
+    state: CompleteState,
+    delete_conditions: DeleteGraph,
+}
+
+#[cfg_attr(test, automock)]
+impl ServerState {
+    pub fn get_complete_state_by_field_mask(
+        &self,
+        request_complete_state: &RequestCompleteState,
+        workload_state_db: &WorkloadStateDB,
+    ) -> Result<CompleteState, String> {
+        let current_complete_state = CompleteState {
+            request_id: request_complete_state.request_id.to_owned(),
+            current_state: self.state.current_state.clone(),
+            startup_state: self.state.startup_state.clone(),
+            workload_states: workload_state_db.get_all_workload_states(),
+        };
+
+        // [impl->swdd~server-filters-get-complete-state-result~1]
+        if !request_complete_state.field_mask.is_empty() {
+            let current_complete_state: Object =
+                current_complete_state.try_into().unwrap_or_illegal_state();
+            let mut return_state = Object::default();
+
+            return_state.set(
+                &"requestId".into(),
+                request_complete_state.request_id.to_owned().into(),
+            )?;
+
+            for field in &request_complete_state.field_mask {
+                if let Some(value) = current_complete_state.get(&field.into()) {
+                    return_state.set(&field.into(), value.to_owned())?;
+                } else {
+                    log::debug!(
+                        concat!(
+                        "Result for CompleteState incomplete, as requested field does not exist:\n",
+                        "   request_id: {:?}\n",
+                        "   field: {}"),
+                        request_complete_state.request_id,
+                        field
+                    );
+                    continue;
+                };
+            }
+
+            return_state.try_into().map_err(|err: serde_yaml::Error| {
+                format!("The result for CompleteState is invalid: '{}'", err)
+            })
+        } else {
+            Ok(current_complete_state)
+        }
+    }
+
+    pub fn get_workloads_for_agent(&self, agent_name: &String) -> Vec<WorkloadSpec> {
+        self.state
+            .current_state
+            .workloads
+            .clone()
+            .into_values()
+            // [impl->swdd~agent-from-agent-field~1]
+            .filter(|workload_spec| workload_spec.agent.eq(agent_name))
+            .collect()
+    }
+
+    pub fn update(
+        &mut self,
+        update_request: UpdateStateRequest,
+    ) -> Result<Option<ExecutionCommand>, String> {
+        match update_state(&self.state, update_request) {
+            Ok(new_state) => {
+                let cmd =
+                    prepare_update_workload(&self.state.current_state, &new_state.current_state);
+
+                if let Some(cmd) = cmd {
+                    if let ExecutionCommand::UpdateWorkload(UpdateWorkload {
+                        added_workloads,
+                        deleted_workloads: _,
+                    }) = &cmd
+                    {
+                        let start_nodes: Vec<&String> =
+                            added_workloads.iter().map(|w| &w.name).collect();
+                        let result = cyclic_check::dfs(
+                            &new_state.current_state,
+                            cyclic_check::StartNodes::Subset(start_nodes),
+                        );
+
+                        log::debug!("{:?}", result);
+                        self.state = new_state;
+                        Ok(Some(cmd))
+                    } else {
+                        std::unreachable!("Expected ExecutionCommand::UpdateWorkload");
+                    }
+                } else {
+                    Ok(None)
+                }
+            }
+            Err(error) => Err(format!("Could not execute UpdateRequest: '{}'", error)),
+        }
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -142,7 +258,6 @@ impl Display for UpdateStateError {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;

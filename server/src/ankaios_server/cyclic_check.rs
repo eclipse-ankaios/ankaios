@@ -11,116 +11,95 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+use common::objects::State;
+use core::fmt;
+use std::collections::{HashSet, VecDeque};
 
-use common::{
-    commands::CompleteState,
-    objects::{DeleteCondition, State},
-};
-use std::collections::HashMap;
+#[derive(Debug, PartialEq, Eq)]
+pub enum CyclicCheckResult {
+    WorkloadPartOfCycle(String),
+    InvalidStructure(String),
+}
 
-use self::cyclic_check::CyclicCheckResult;
+pub enum StartNodes<'a> {
+    All,
+    Subset(Vec<&'a String>),
+}
 
-mod cyclic_check {
-    use super::State;
-    use core::fmt;
-    use std::collections::{HashSet, VecDeque};
-
-    #[derive(Debug, PartialEq, Eq)]
-    pub enum CyclicCheckResult {
-        WorkloadPartOfCycle(String),
-        InvalidStructure(String),
-    }
-
-    impl fmt::Display for CyclicCheckResult {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            match self {
-                CyclicCheckResult::InvalidStructure(err) => write!(f, "{err}"),
-                CyclicCheckResult::WorkloadPartOfCycle(workload) => {
-                    write!(f, "workload '{}' part of a cycle.", workload)
-                }
+impl fmt::Display for CyclicCheckResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CyclicCheckResult::InvalidStructure(err) => write!(f, "{err}"),
+            CyclicCheckResult::WorkloadPartOfCycle(workload) => {
+                write!(f, "workload '{}' part of a cycle.", workload)
             }
         }
-    }
-
-    pub fn dfs(state: &State) -> Result<(), CyclicCheckResult> {
-        // stack is used to terminate the search properly
-        let mut stack: VecDeque<&String> = VecDeque::new();
-
-        // used to prevent visiting nodes repeatedly
-        let mut visited: HashSet<&String> = HashSet::with_capacity(state.workloads.len());
-
-        /* although the path container is used for lookups,
-        measurements have shown that it is faster than associative data structure within this code path */
-        let mut path: VecDeque<&String> = VecDeque::with_capacity(state.workloads.len());
-
-        /* sort the map to have an constant equal outcome
-        because the current data structure is randomly ordered because of HashMap's random seed */
-        let mut data: Vec<&String> = state.workloads.keys().collect();
-        data.sort();
-
-        // iterate through all the nodes if the they are not already visited
-        for workload_name in data {
-            if visited.contains(workload_name) {
-                continue;
-            }
-
-            log::debug!("searching for workload = '{}'", workload_name);
-            stack.push_front(workload_name);
-            while let Some(head) = stack.front() {
-                let workload_spec = state.workloads.get(*head).ok_or_else(|| {
-                    CyclicCheckResult::InvalidStructure(format!(
-                        "workload '{head}' is not part of the state."
-                    ))
-                })?;
-
-                if !visited.contains(head) {
-                    log::debug!("visit '{}'", head);
-                    visited.insert(head);
-                    path.push_back(head);
-                } else {
-                    log::debug!("remove '{}' from path", head);
-                    path.pop_back();
-                    stack.pop_front();
-                }
-
-                // sort the map to have an constant equal outcome
-                let mut dependencies: Vec<&String> = workload_spec.dependencies.keys().collect();
-                dependencies.sort();
-
-                for dependency in dependencies {
-                    if !visited.contains(dependency) {
-                        stack.push_front(dependency);
-                    } else if path.contains(&dependency) {
-                        log::debug!("workload '{dependency}' is part of a cycle.");
-                        return Err(CyclicCheckResult::WorkloadPartOfCycle(
-                            dependency.to_string(),
-                        ));
-                    }
-                }
-            }
-        }
-        Ok(())
     }
 }
 
-pub type DeleteGraph = HashMap<String, HashMap<String, DeleteCondition>>;
+pub fn dfs(state: &State, start_nodes: StartNodes) -> Result<(), CyclicCheckResult> {
+    // stack is used to terminate the search properly
+    let mut stack: VecDeque<&String> = VecDeque::new();
 
-pub struct ServerState {
-    state: CompleteState,
-    delete_conditions: DeleteGraph,
-}
+    // used to prevent visiting nodes repeatedly
+    let mut visited: HashSet<&String> = HashSet::with_capacity(state.workloads.len());
 
-impl ServerState {
-    pub fn new(state: CompleteState, delete_conditions: DeleteGraph) -> Self {
-        ServerState {
-            state,
-            delete_conditions,
+    /* although the path container is used for lookups,
+    measurements have shown that it is faster than associative data structure within this code path */
+    let mut path: VecDeque<&String> = VecDeque::with_capacity(state.workloads.len());
+
+    // start visiting workloads in the graph only for a subset of workloads (e.g. in case of a an update) or for all
+    let mut data: Vec<&String> = if let StartNodes::Subset(workloads_to_visit) = start_nodes {
+        workloads_to_visit
+    } else {
+        state.workloads.keys().collect()
+    };
+    /* sort the keys of the map to have an constant equal outcome
+    because the current data structure is randomly ordered because of HashMap's random seed */
+    data.sort();
+
+    // iterate through all the nodes if they are not already visited
+    for workload_name in data {
+        if visited.contains(workload_name) {
+            continue;
+        }
+
+        log::debug!("searching for workload = '{}'", workload_name);
+        stack.push_front(workload_name);
+        while let Some(head) = stack.front() {
+            let workload_spec = state.workloads.get(*head).ok_or_else(|| {
+                CyclicCheckResult::InvalidStructure(format!(
+                    "workload '{head}' is not part of the state."
+                ))
+            })?;
+
+            if !visited.contains(head) {
+                log::debug!("visit '{}'", head);
+                visited.insert(head);
+                path.push_back(head);
+            } else {
+                log::debug!("remove '{}' from path", head);
+                path.pop_back();
+                stack.pop_front();
+            }
+
+            // sort the map to have an constant equal outcome
+            let mut dependencies: Vec<&String> = workload_spec.dependencies.keys().collect();
+            dependencies.sort();
+
+            for dependency in dependencies {
+                if !visited.contains(dependency) {
+                    stack.push_front(dependency);
+                } else if path.contains(&dependency) {
+                    log::debug!("workload '{dependency}' is part of a cycle.");
+                    return Err(CyclicCheckResult::WorkloadPartOfCycle(
+                        dependency.to_string(),
+                    ));
+                }
+            }
         }
     }
-
-    pub fn has_cyclic_dependencies(&self) -> Result<(), CyclicCheckResult> {
-        cyclic_check::dfs(&self.state.current_state)
-    }
+    Ok(())
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -132,13 +111,16 @@ impl ServerState {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-
     use super::*;
     use common::{
         objects::AddCondition,
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
     };
-    use std::{collections::HashSet, ops::Deref, time::Instant};
+    use std::{
+        collections::{HashMap, HashSet},
+        ops::Deref,
+        time::Instant,
+    };
 
     const AGENT_NAME: &str = "agent_A";
     const RUNTIME: &str = "runtime X";
@@ -152,7 +134,7 @@ mod tests {
 
         let workloads = ["A", "B", "C", "D"];
 
-        let builder = CompleteStateBuilder::default()
+        let builder = StateBuilder::default()
             .with_workloads(&workloads)
             .workload_dependency("A", "B", AddCondition::AddCondRunning)
             .workload_dependency("B", "C", AddCondition::AddCondRunning)
@@ -163,9 +145,9 @@ mod tests {
 
         for start_node in workloads {
             let builder = builder.clone();
-            let complete_state = builder.set_start_node(start_node).build();
-            let server_state = ServerState::new(complete_state, DeleteGraph::new());
-            let result = server_state.has_cyclic_dependencies();
+            let state = builder.set_start_node(start_node).build();
+
+            let result = dfs(&state, StartNodes::All);
             assert!(matches!(
                 result,
                 Err(CyclicCheckResult::WorkloadPartOfCycle(w)) if expected_nodes_part_of_a_cycle.into_iter().any(|expected| w.contains(expected))
@@ -180,7 +162,7 @@ mod tests {
 
         let workloads = ["A", "B", "C", "D", "E", "F"];
 
-        let builder = CompleteStateBuilder::default()
+        let builder = StateBuilder::default()
             .with_workloads(&workloads)
             .workload_dependency("A", "B", AddCondition::AddCondRunning)
             .workload_dependency("B", "C", AddCondition::AddCondRunning)
@@ -191,9 +173,9 @@ mod tests {
 
         for start_node in workloads {
             let builder = builder.clone();
-            let complete_state = builder.set_start_node(start_node).build();
-            let server_state = ServerState::new(complete_state, DeleteGraph::new());
-            let result = server_state.has_cyclic_dependencies();
+            let state = builder.set_start_node(start_node).build();
+
+            let result = dfs(&state, StartNodes::All);
             assert!(matches!(
                 result,
                 Err(CyclicCheckResult::WorkloadPartOfCycle(_))
@@ -208,7 +190,7 @@ mod tests {
 
         let workloads = ["A", "B", "C"];
 
-        let builder = CompleteStateBuilder::default()
+        let builder = StateBuilder::default()
             .with_workloads(&workloads)
             .workload_dependency("A", "B", AddCondition::AddCondRunning)
             .workload_dependency("B", "C", AddCondition::AddCondSucceeded)
@@ -219,9 +201,9 @@ mod tests {
         let mut actual = HashSet::new();
         for start_node in workloads {
             let builder = builder.clone();
-            let complete_state = builder.set_start_node(start_node).build();
-            let server_state = ServerState::new(complete_state, DeleteGraph::new());
-            let result = server_state.has_cyclic_dependencies();
+            let state = builder.set_start_node(start_node).build();
+
+            let result = dfs(&state, StartNodes::All);
 
             assert!(matches!(
                 &result,
@@ -241,7 +223,7 @@ mod tests {
 
         let workloads = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
-        let builder = CompleteStateBuilder::default()
+        let builder = StateBuilder::default()
             .with_workloads(&workloads)
             .workload_dependency("A", "B", AddCondition::AddCondRunning)
             .workload_dependency("B", "C", AddCondition::AddCondSucceeded)
@@ -261,9 +243,9 @@ mod tests {
         let mut actual = HashSet::new();
         for start_node in workloads {
             let builder = builder.clone();
-            let complete_state = builder.set_start_node(start_node).build();
-            let server_state = ServerState::new(complete_state, DeleteGraph::new());
-            let result = server_state.has_cyclic_dependencies();
+            let state = builder.set_start_node(start_node).build();
+
+            let result = dfs(&state, StartNodes::All);
 
             assert!(matches!(
                 &result,
@@ -283,7 +265,7 @@ mod tests {
 
         let workloads = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
-        let builder = CompleteStateBuilder::default()
+        let builder = StateBuilder::default()
             .with_workloads(&workloads)
             .workload_dependency("A", "B", AddCondition::AddCondRunning)
             .workload_dependency("B", "C", AddCondition::AddCondSucceeded)
@@ -303,9 +285,9 @@ mod tests {
         let mut actual = HashSet::new();
         for start_node in workloads {
             let builder = builder.clone();
-            let complete_state = builder.set_start_node(start_node).build();
-            let server_state = ServerState::new(complete_state, DeleteGraph::new());
-            let result = server_state.has_cyclic_dependencies();
+            let state = builder.set_start_node(start_node).build();
+
+            let result = dfs(&state, StartNodes::All);
 
             assert!(matches!(
                 &result,
@@ -325,7 +307,7 @@ mod tests {
 
         let workloads = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
-        let builder = CompleteStateBuilder::default()
+        let builder = StateBuilder::default()
             .with_workloads(&workloads)
             .workload_dependency("A", "H", AddCondition::AddCondRunning)
             .workload_dependency("A", "D", AddCondition::AddCondRunning)
@@ -346,9 +328,9 @@ mod tests {
 
         for start_node in workloads {
             let builder = builder.clone();
-            let complete_state = builder.set_start_node(start_node).build();
-            let server_state = ServerState::new(complete_state, DeleteGraph::new());
-            let result = server_state.has_cyclic_dependencies();
+            let state = builder.set_start_node(start_node).build();
+
+            let result = dfs(&state, StartNodes::All);
             assert!(matches!(
                 result,
                 Err(CyclicCheckResult::WorkloadPartOfCycle(w)) if expected_nodes_part_of_a_cycle.into_iter().any(|expected| w.contains(expected))
@@ -363,7 +345,7 @@ mod tests {
 
         let workloads = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
-        let builder = CompleteStateBuilder::default()
+        let builder = StateBuilder::default()
             .with_workloads(&workloads)
             .workload_dependency("A", "H", AddCondition::AddCondRunning)
             .workload_dependency("A", "D", AddCondition::AddCondRunning)
@@ -382,9 +364,9 @@ mod tests {
 
         for start_node in workloads {
             let builder = builder.clone();
-            let complete_state = builder.set_start_node(start_node).build();
-            let server_state = ServerState::new(complete_state, DeleteGraph::new());
-            let result = server_state.has_cyclic_dependencies();
+            let state = builder.set_start_node(start_node).build();
+
+            let result = dfs(&state, StartNodes::All);
             assert!(result.is_ok());
         }
     }
@@ -396,7 +378,7 @@ mod tests {
 
         let workloads = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
-        let builder = CompleteStateBuilder::default()
+        let builder = StateBuilder::default()
             .with_workloads(&workloads)
             .workload_dependency("A", "B", AddCondition::AddCondRunning)
             .workload_dependency("B", "C", AddCondition::AddCondSucceeded)
@@ -412,9 +394,9 @@ mod tests {
         let mut actual = HashSet::new();
         for start_node in workloads {
             let builder = builder.clone();
-            let complete_state = builder.set_start_node(start_node).build();
-            let server_state = ServerState::new(complete_state, DeleteGraph::new());
-            let result = server_state.has_cyclic_dependencies();
+            let state = builder.set_start_node(start_node).build();
+
+            let result = dfs(&state, StartNodes::All);
 
             assert!(matches!(
                 &result,
@@ -433,13 +415,12 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         // 1)
-        let complete_state = CompleteStateBuilder::default()
+        let state = StateBuilder::default()
             .with_workloads(&["A"])
             .workload_dependency("A", "A", AddCondition::AddCondRunning)
             .build();
 
-        let server_state = ServerState::new(complete_state, DeleteGraph::new());
-        let result = server_state.has_cyclic_dependencies();
+        let result = dfs(&state, StartNodes::All);
         assert_eq!(
             result,
             Err(CyclicCheckResult::WorkloadPartOfCycle("A".to_string()))
@@ -448,7 +429,7 @@ mod tests {
         // 2)
         let workloads = ["A", "B"];
 
-        let builder = CompleteStateBuilder::default()
+        let builder = StateBuilder::default()
             .with_workloads(&workloads)
             .workload_dependency("A", "B", AddCondition::AddCondRunning)
             .workload_dependency("B", "B", AddCondition::AddCondRunning);
@@ -458,9 +439,9 @@ mod tests {
         let mut actual = HashSet::new();
         for start_node in workloads {
             let builder = builder.clone();
-            let complete_state = builder.set_start_node(start_node).build();
-            let server_state = ServerState::new(complete_state, DeleteGraph::new());
-            let result = server_state.has_cyclic_dependencies();
+            let state = builder.set_start_node(start_node).build();
+
+            let result = dfs(&state, StartNodes::All);
 
             assert!(matches!(
                 &result,
@@ -480,16 +461,16 @@ mod tests {
 
         let workloads = ["A", "B"];
 
-        let builder = CompleteStateBuilder::default()
+        let builder = StateBuilder::default()
             .with_workloads(&workloads)
             .workload_dependency("A", "B", AddCondition::AddCondRunning)
             .workload_dependency("B", "C", AddCondition::AddCondRunning);
 
         for start_node in workloads {
             let builder = builder.clone();
-            let complete_state = builder.set_start_node(start_node).build();
-            let server_state = ServerState::new(complete_state, DeleteGraph::new());
-            let result = server_state.has_cyclic_dependencies();
+            let state = builder.set_start_node(start_node).build();
+
+            let result = dfs(&state, StartNodes::All);
 
             assert_eq!(
                 result,
@@ -507,7 +488,7 @@ mod tests {
 
         let workloads = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
-        let builder = CompleteStateBuilder::default()
+        let builder = StateBuilder::default()
             .with_workloads(&workloads)
             .workload_dependency("A", "D", AddCondition::AddCondRunning)
             .workload_dependency("B", "D", AddCondition::AddCondSucceeded)
@@ -520,9 +501,9 @@ mod tests {
 
         for start_node in workloads {
             let builder = builder.clone();
-            let complete_state = builder.set_start_node(start_node).build();
-            let server_state = ServerState::new(complete_state, DeleteGraph::new());
-            let result = server_state.has_cyclic_dependencies();
+            let state = builder.set_start_node(start_node).build();
+
+            let result = dfs(&state, StartNodes::All);
             assert!(result.is_ok());
         }
     }
@@ -532,7 +513,7 @@ mod tests {
     fn utest_detect_no_cycle_in_dependencies_2() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let builder = CompleteStateBuilder::default()
+        let builder = StateBuilder::default()
             .workload_spec("A")
             .workload_spec("B")
             .workload_spec("C")
@@ -555,9 +536,9 @@ mod tests {
 
         for start_node in ["A", "B", "C", "D", "E", "F", "G", "H"] {
             let builder = builder.clone();
-            let complete_state = builder.set_start_node(start_node).build();
-            let server_state = ServerState::new(complete_state, DeleteGraph::new());
-            let result = server_state.has_cyclic_dependencies();
+            let state = builder.set_start_node(start_node).build();
+
+            let result = dfs(&state, StartNodes::All);
             assert!(result.is_ok());
         }
     }
@@ -568,7 +549,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let workloads = ["A", "B", "C", "D", "E", "F", "G", "H"];
-        let builder = CompleteStateBuilder::default()
+        let builder = StateBuilder::default()
             .with_workloads(&workloads)
             .workload_dependency("A", "B", AddCondition::AddCondRunning)
             .workload_dependency("B", "C", AddCondition::AddCondSucceeded)
@@ -580,9 +561,9 @@ mod tests {
 
         for start_node in workloads {
             let builder = builder.clone();
-            let complete_state = builder.set_start_node(start_node).build();
-            let server_state = ServerState::new(complete_state, DeleteGraph::new());
-            let result = server_state.has_cyclic_dependencies();
+            let state = builder.set_start_node(start_node).build();
+
+            let result = dfs(&state, StartNodes::All);
             assert!(result.is_ok());
         }
     }
@@ -627,16 +608,12 @@ mod tests {
         dependencies.last_mut().unwrap().dependencies =
             HashMap::from([(root_name.clone(), AddCondition::AddCondRunning)]);
 
-        let mut complete_state = generate_test_complete_state(REQUEST_ID.to_string(), dependencies);
-        complete_state.workload_states.clear();
-        assert_eq!(
-            complete_state.current_state.workloads.len(),
-            BENCHMARKING_NUMBER_OF_WORKLOADS
-        );
+        let mut state =
+            generate_test_complete_state(REQUEST_ID.to_string(), dependencies).current_state;
+        assert_eq!(state.workloads.len(), BENCHMARKING_NUMBER_OF_WORKLOADS);
 
-        let server_state = ServerState::new(complete_state, DeleteGraph::new());
         let start = Instant::now();
-        let result = server_state.has_cyclic_dependencies();
+        let result = dfs(&state, StartNodes::All);
         let duration = start.elapsed();
         assert!(result.is_err());
         log::info!("{}", result.err().unwrap());
@@ -648,13 +625,12 @@ mod tests {
     }
 
     #[derive(Clone)]
-    struct CompleteStateBuilder(CompleteState);
-    impl CompleteStateBuilder {
+    struct StateBuilder(State);
+    impl StateBuilder {
         fn default() -> Self {
-            let mut complete_state =
-                generate_test_complete_state(REQUEST_ID.to_string(), Vec::new());
-            complete_state.workload_states.clear();
-            CompleteStateBuilder(complete_state)
+            let mut state =
+                generate_test_complete_state(REQUEST_ID.to_string(), Vec::new()).current_state;
+            StateBuilder(state)
         }
 
         fn workload_spec(mut self, workload_name: &str) -> Self {
@@ -665,7 +641,6 @@ mod tests {
             );
             test_workload_spec.dependencies.clear();
             self.0
-                .current_state
                 .workloads
                 .insert(workload_name.into(), test_workload_spec);
             self
@@ -679,10 +654,7 @@ mod tests {
                     RUNTIME.into(),
                 );
                 test_workload_spec.dependencies.clear();
-                self.0
-                    .current_state
-                    .workloads
-                    .insert(w.to_string(), test_workload_spec);
+                self.0.workloads.insert(w.to_string(), test_workload_spec);
             }
             self
         }
@@ -694,7 +666,6 @@ mod tests {
             add_condition: AddCondition,
         ) -> Self {
             self.0
-                .current_state
                 .workloads
                 .get_mut(workload)
                 .and_then(|w_spec| w_spec.dependencies.insert(depend_on.into(), add_condition));
@@ -703,13 +674,10 @@ mod tests {
 
         fn set_start_node(mut self, start_node: &str) -> Self {
             let new_name = format!("1_{start_node}");
-            let entry = self.0.current_state.workloads.remove(start_node).unwrap();
-            self.0
-                .current_state
-                .workloads
-                .insert(new_name.clone(), entry);
+            let entry = self.0.workloads.remove(start_node).unwrap();
+            self.0.workloads.insert(new_name.clone(), entry);
 
-            for workload_spec in self.0.current_state.workloads.values_mut() {
+            for workload_spec in self.0.workloads.values_mut() {
                 if let Some(dep_condition) = workload_spec.dependencies.remove(start_node) {
                     workload_spec
                         .dependencies
@@ -719,7 +687,7 @@ mod tests {
             self
         }
 
-        fn build(self) -> CompleteState {
+        fn build(self) -> State {
             self.0
         }
     }
