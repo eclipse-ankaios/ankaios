@@ -14,11 +14,14 @@
 
 mod update_state;
 
+use common::objects::ExecutionState;
 use common::std_extensions::IllegalStateResult;
+#[cfg(test)]
+use tests::append_stopping_workloads_mock as append_stopping_workloads;
 #[cfg(test)]
 use tests::update_state_mock as update_state;
 #[cfg(not(test))]
-use update_state::update_state;
+use update_state::{append_stopping_workloads, update_state};
 
 use common::commands::{CompleteState, RequestCompleteState};
 use common::execution_interface::ExecutionCommand;
@@ -193,7 +196,7 @@ impl AnkaiosServer {
                     );
 
                     match update_state(&self.current_complete_state, update_request) {
-                        Ok(new_state) => {
+                        Ok(mut new_state) => {
                             let cmd = prepare_update_workload(
                                 &self.current_complete_state.current_state,
                                 &new_state.current_state,
@@ -204,6 +207,11 @@ impl AnkaiosServer {
                             } else {
                                 log::debug!("The current state and new state are identical -> nothing to do");
                             }
+                            append_stopping_workloads(
+                                &self.current_complete_state.current_state,
+                                &mut new_state.current_state,
+                                &mut self.workload_state_db,
+                            );
                             self.current_complete_state = new_state;
                         }
                         Err(error) => {
@@ -220,6 +228,23 @@ impl AnkaiosServer {
                     // [impl->swdd~server-stores-workload-state~1]
                     self.workload_state_db
                         .insert(method_obj.workload_states.clone());
+
+                    method_obj
+                        .workload_states
+                        .clone()
+                        .into_iter()
+                        .for_each(|wl_state| {
+                            if wl_state.execution_state == ExecutionState::ExecRemoved {
+                                log::debug!(
+                                    "Removing the workload '{}' from the current state",
+                                    wl_state.workload_name
+                                );
+                                self.current_complete_state
+                                    .current_state
+                                    .workloads
+                                    .remove(&wl_state.workload_name);
+                            }
+                        });
 
                     // [impl->swdd~server-forwards-workload-state~1]
                     self.to_agents
@@ -298,6 +323,8 @@ mod tests {
     };
     use tokio::join;
     use tokio::sync::mpsc::{self, channel, Receiver, Sender};
+
+    use crate::workload_state_db::WorkloadStateDB;
 
     use super::update_state::UpdateStateError;
     use super::{create_execution_channels, create_state_change_channels, AnkaiosServer};
@@ -591,6 +618,13 @@ mod tests {
             let mut results = results.borrow_mut();
             results.pop_front().unwrap()
         })
+    }
+
+    pub fn append_stopping_workloads_mock(
+        current_state: &State,
+        new_state: &mut State,
+        workload_state_db: &mut WorkloadStateDB,
+    ) {
     }
 
     thread_local! {
