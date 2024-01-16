@@ -19,10 +19,6 @@ use common::std_extensions::IllegalStateResult;
 
 #[cfg_attr(test, mockall_double::double)]
 use server_state::ServerState;
-// #[cfg(not(test))]
-// use server_state::update_state;
-// #[cfg(test)]
-// use tests::update_state_mock as update_state;
 
 use crate::workload_state_db::WorkloadStateDB;
 use common::execution_interface::ExecutionCommand;
@@ -230,546 +226,206 @@ impl AnkaiosServer {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
 
-    extern crate serde;
-    use std::cell::RefCell;
-    use std::collections::{HashMap, VecDeque};
-    use std::future::Future;
-
-    use super::server_state::UpdateStateError;
-    use super::{create_execution_channels, create_state_change_channels, AnkaiosServer};
+    use super::AnkaiosServer;
     use crate::ankaios_server::server_state::MockServerState;
-    use common::commands::{RequestCompleteState, UpdateStateRequest};
-    use common::objects::{DeletedWorkload, State, Tag, WorkloadSpec, WorkloadState};
+    use common::commands::{
+        RequestCompleteState, UpdateStateRequest, UpdateWorkload, UpdateWorkloadState,
+    };
+    use common::objects::{DeletedWorkload, ExecutionState, State, WorkloadState};
     use common::test_utils::generate_test_workload_spec_with_param;
     use common::{
-        commands::CompleteState,
-        execution_interface::ExecutionCommand,
-        state_change_interface::{StateChangeCommand, StateChangeInterface},
+        commands::CompleteState, execution_interface::ExecutionCommand,
+        state_change_interface::StateChangeInterface,
     };
-    use tokio::join;
-    use tokio::sync::mpsc::{self, channel, Receiver, Sender};
 
-    type TestSetup = (
-        (
-            AnkaiosServer,
-            tokio::task::JoinHandle<()>,
-            tokio::task::JoinHandle<()>,
-            tokio::task::JoinHandle<()>,
-        ), // ( server instance, communication mapper task, fake agent 1 task, fake agent 2 task)
-        (Sender<StateChangeCommand>, Sender<ExecutionCommand>), // (state change sender channel to ankaios server, execution sender channel to communication mapper)
-        Receiver<TestResult>,                                   // test result receiver channel
-    );
-
-    const RUNTIME_NAME: &str = "fake_runtime";
-
-    #[derive(PartialEq, Debug, Clone)]
-    enum TestResult {
-        Result(String),
-    }
-
-    #[derive(Debug)]
-    struct CommunicationMapper {
-        fake_agents: HashMap<String, Sender<ExecutionCommand>>,
-        ex_receiver: Receiver<ExecutionCommand>,
-    }
-
-    impl CommunicationMapper {
-        fn new(ex_receiver: Receiver<ExecutionCommand>) -> Self {
-            CommunicationMapper {
-                fake_agents: HashMap::new(),
-                ex_receiver,
-            }
-        }
-        fn insert(&mut self, agent_name: String, to_agent: Sender<ExecutionCommand>) {
-            self.fake_agents.insert(agent_name, to_agent);
-        }
-
-        async fn start(&mut self) {
-            while let Some(ex_command) = self.ex_receiver.recv().await {
-                match ex_command {
-                    ExecutionCommand::UpdateWorkload(update_workload) => {
-                        let agent_names: Vec<String> = update_workload
-                            .added_workloads
-                            .iter()
-                            .map(|wl| wl.agent.clone())
-                            .collect();
-
-                        let relevant_agents: Vec<(String, Sender<ExecutionCommand>)> = self
-                            .fake_agents
-                            .clone()
-                            .into_iter()
-                            .filter(|x| agent_names.iter().any(|y| y == &x.0))
-                            .collect();
-
-                        for (_, agent_sender) in relevant_agents.into_iter() {
-                            agent_sender
-                                .send(ExecutionCommand::UpdateWorkload(update_workload.clone()))
-                                .await
-                                .unwrap();
-                        }
-                    }
-                    ExecutionCommand::UpdateWorkloadState(update_workload_state) => {
-                        let agent_names: Vec<String> = update_workload_state
-                            .workload_states
-                            .iter()
-                            .map(|wls| wls.agent_name.clone())
-                            .collect();
-
-                        let relevant_agents: Vec<(String, Sender<ExecutionCommand>)> = self
-                            .fake_agents
-                            .clone()
-                            .into_iter()
-                            .filter(|x| agent_names.iter().any(|y| y == &x.0))
-                            .collect();
-
-                        for (_, agent_sender) in relevant_agents.into_iter() {
-                            agent_sender
-                                .send(ExecutionCommand::UpdateWorkloadState(
-                                    update_workload_state.clone(),
-                                ))
-                                .await
-                                .unwrap();
-                        }
-                    }
-                    ExecutionCommand::CompleteState(mut boxed_complete_state) => {
-                        let mut splitted = boxed_complete_state.request_id.split('@');
-                        let agent_name = splitted.next().unwrap();
-                        let request_id = splitted.next().unwrap();
-                        let agent_sender = self.fake_agents.get(agent_name).unwrap();
-                        boxed_complete_state.request_id = request_id.to_owned();
-                        agent_sender
-                            .send(ExecutionCommand::CompleteState(boxed_complete_state))
-                            .await
-                            .unwrap();
-                    }
-                    _ => panic!(),
-                }
-            }
-        }
-    }
-
-    struct FakeAgent {
-        ex_receiver: Receiver<ExecutionCommand>,
-        tc_sender: Sender<TestResult>,
-    }
-
-    impl FakeAgent {
-        fn new(ex_receiver: Receiver<ExecutionCommand>, tc_sender: Sender<TestResult>) -> Self {
-            FakeAgent {
-                ex_receiver,
-                tc_sender,
-            }
-        }
-
-        async fn start<F, Fut>(&mut self, handler: F)
-        where
-            F: Fn(Sender<TestResult>, ExecutionCommand) -> Fut,
-            Fut: Future<Output = ()>,
-        {
-            while let Some(ex_command) = self.ex_receiver.recv().await {
-                handler(self.tc_sender.clone(), ex_command).await;
-            }
-        }
-    }
-
-    fn create_test_setup() -> TestSetup {
-        //
-        //  ________________                           _____________________                            ______________
-        // | ankaios server |---ex_command_channel--->| CommunicationMapper |---ex_command_channel---> | fake agent N |
-        // |                |                         |                     |                          |              |
-        // |                |                         |_____________________|                          |              |
-        // |________________|                                                                          |______________|
-        //         ^                                                                                          |
-        //         | state_change_channel                                                                     |
-        //  _______|________                                                                                  |
-        // |    Test Case   |                                                                                 |
-        // |________________|<----------------------------test_result_channel----------------------------------
-        //
-        // Note: the fake agent only forwards commands received through the "ex_command_channel" to the Test Case.
-        // This way the Test Case can check which execution commands the agent is supposed to receive.
-        // If the agent in your Test Case needs to sent a status change command, it must be done by the Test Case itself
-        // (the fake agent contains no business logic).
-
-        // [utest->swdd~server-uses-async-channels~1]
-        let (to_server, server_receiver) = create_state_change_channels(common::CHANNEL_CAPACITY);
-        let (to_cm, cm_receiver) = create_execution_channels(common::CHANNEL_CAPACITY);
-        let (to_agent_1, agent_1_receiver) = create_execution_channels(common::CHANNEL_CAPACITY);
-        let (to_agent_2, agent_2_receiver) = create_execution_channels(common::CHANNEL_CAPACITY);
-        let (to_test_case, test_case_receiver) = channel::<TestResult>(common::CHANNEL_CAPACITY);
-
-        let ankaios_server = AnkaiosServer::new(server_receiver, to_cm.clone());
-
-        let mut cm_server = CommunicationMapper::new(cm_receiver);
-        cm_server.insert("fake_agent_1".to_owned(), to_agent_1);
-        cm_server.insert("fake_agent_2".to_owned(), to_agent_2);
-        let cm_server_task = tokio::spawn(async move { cm_server.start().await });
-
-        let agent_ex_command_handler = |tcs: Sender<TestResult>, ex_command| async move {
-            match ex_command {
-                ExecutionCommand::UpdateWorkload(update_workload) => {
-                    tcs.send(TestResult::Result(
-                        serde_json::to_string(&update_workload).unwrap().to_owned(),
-                    ))
-                    .await
-                    .unwrap();
-                }
-                ExecutionCommand::UpdateWorkloadState(update_workload_state) => tcs
-                    .send(TestResult::Result(
-                        serde_json::to_string(&update_workload_state)
-                            .unwrap()
-                            .to_owned(),
-                    ))
-                    .await
-                    .unwrap(),
-
-                ExecutionCommand::CompleteState(boxed_complete_state) => tcs
-                    .send(TestResult::Result(
-                        serde_json::to_string(&boxed_complete_state)
-                            .unwrap()
-                            .to_owned(),
-                    ))
-                    .await
-                    .unwrap(),
-
-                _ => panic!(),
-            }
-        };
-
-        let mut fake_agent_1 = FakeAgent::new(agent_1_receiver, to_test_case.clone());
-        let fake_agent_1_task =
-            tokio::spawn(async move { fake_agent_1.start(agent_ex_command_handler).await });
-
-        let mut fake_agent_2 = FakeAgent::new(agent_2_receiver, to_test_case);
-        let fake_agent_2_task =
-            tokio::spawn(async move { fake_agent_2.start(agent_ex_command_handler).await });
-
-        (
-            (
-                ankaios_server,
-                cm_server_task,
-                fake_agent_1_task,
-                fake_agent_2_task,
-            ),
-            (to_server, to_cm),
-            test_case_receiver,
-        )
-    }
-
-    fn get_workloads(
-        result_from_fake_agent: &TestResult,
-    ) -> Option<common::commands::UpdateWorkload> {
-        match result_from_fake_agent {
-            TestResult::Result(update_workload) => match serde_json::from_str(update_workload) {
-                Ok(wl) => Some(wl),
-                Err(_) => None,
-            },
-        }
-    }
-    fn get_workload_states(
-        result_from_fake_agent: &TestResult,
-    ) -> Option<common::commands::UpdateWorkloadState> {
-        match result_from_fake_agent {
-            TestResult::Result(update_workload_state) => {
-                match serde_json::from_str(update_workload_state) {
-                    Ok(ws) => Some(ws),
-                    Err(_) => None,
-                }
-            }
-        }
-    }
-
-    fn get_complete_state(
-        result_from_fake_agent: &TestResult,
-    ) -> Option<common::commands::CompleteState> {
-        match result_from_fake_agent {
-            TestResult::Result(res) => match serde_json::from_str(res) {
-                Ok(some_typed_object) => Some(some_typed_object),
-                Err(_) => None,
-            },
-        }
-    }
-
-    fn check_update_workload(
-        tested_workload: Option<common::commands::UpdateWorkload>,
-        expected_agent_name: String,
-        expected_workload_names: Vec<String>,
-    ) {
-        if let Some(wl) = tested_workload {
-            let workload_names: Vec<(String, String)> = wl
-                .added_workloads
-                .into_iter()
-                .map(|wls| (wls.agent, wls.name))
-                .collect();
-
-            let agent_name: &str = workload_names[0].0.as_ref();
-            assert_eq!(expected_agent_name, agent_name);
-            assert_eq!(expected_workload_names.len(), workload_names.len());
-            let mut actual_workload_names: Vec<String> =
-                workload_names.clone().into_iter().map(|x| x.1).collect();
-            actual_workload_names.sort();
-            assert_eq!(expected_workload_names, actual_workload_names);
-        }
-    }
-
-    fn check_update_workload_state(
-        tested_workload_state: Option<common::commands::UpdateWorkloadState>,
-        expected_agent_name: String,
-        expected_workload_states: Vec<WorkloadState>,
-    ) {
-        if let Some(ws) = tested_workload_state {
-            assert_eq!(expected_agent_name, ws.workload_states[0].agent_name);
-            assert_eq!(expected_workload_states.len(), ws.workload_states.len());
-            let mut wls = ws.workload_states;
-            wls.sort_by(|a, b| a.workload_name.cmp(&b.workload_name));
-            assert_eq!(expected_workload_states, wls);
-        }
-    }
-
-    pub fn update_state_mock(
-        current_state: &CompleteState,
-        update: UpdateStateRequest,
-    ) -> Result<CompleteState, UpdateStateError> {
-        UPDATE_STATE_MOCK_CALLS.with(move |calls| {
-            let mut calls = calls.borrow_mut();
-            calls.push_back((current_state.to_owned(), update));
-        });
-
-        UPDATE_STATE_MOCK_RESULTS.with(move |results| {
-            let mut results = results.borrow_mut();
-            results.pop_front().unwrap()
-        })
-    }
-
-    thread_local! {
-        static UPDATE_STATE_MOCK_CALLS: RefCell<VecDeque<(CompleteState,UpdateStateRequest)>>  = RefCell::new(VecDeque::new());
-        static UPDATE_STATE_MOCK_RESULTS: RefCell<VecDeque<Result<CompleteState, UpdateStateError>>> = RefCell::new(VecDeque::new());
-    }
+    const AGENT_A: &str = "agent_A";
+    const AGENT_B: &str = "agent_B";
+    const WORKLOAD_NAME_1: &str = "workload_1";
+    const WORKLOAD_NAME_2: &str = "workload_2";
+    const WORKLOAD_NAME_3: &str = "workload_3";
+    const RUNTIME_NAME: &str = "runtime";
 
     // [utest->swdd~server-sends-all-workloads-on-start~1]
     // [utest->swdd~agent-from-agent-field~1]
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states() {
-        // prepare test setup
-        let fake_agent_names = ["fake_agent_1", "fake_agent_2"];
-        let (
-            (mut ankaios_server, cm_server_task, fake_agent_1_task, fake_agent_2_task),
-            (to_server, _to_cm_server),
-            mut tc_receiver,
-        ) = create_test_setup();
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) =
+            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            super::create_execution_channels(common::CHANNEL_CAPACITY);
 
-        // prepare workload specs
-        let mut wl = HashMap::new();
-        wl.insert(
-            "fake_workload_spec_1".to_owned(),
-            generate_test_workload_spec_with_param(
-                fake_agent_names[0].to_owned(),
-                "fake_workload_1".to_owned(),
-                RUNTIME_NAME.to_string(),
-            ),
-        );
-        wl.insert(
-            "fake_workload_spec_2".to_owned(),
-            generate_test_workload_spec_with_param(
-                fake_agent_names[0].to_owned(),
-                "fake_workload_2".to_owned(),
-                RUNTIME_NAME.to_string(),
-            ),
-        );
-        wl.insert(
-            "fake_workload_spec_3".to_owned(),
-            generate_test_workload_spec_with_param(
-                fake_agent_names[1].to_owned(),
-                "fake_workload_3".to_owned(),
-                RUNTIME_NAME.to_string(),
-            ),
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+
+        let w1 = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME_NAME.to_string(),
         );
 
-        // prepare current state
-        ankaios_server.server_state = CompleteState {
-            current_state: State {
-                workloads: wl,
-                configs: HashMap::default(),
-                cron_jobs: HashMap::default(),
-            },
-            ..Default::default()
-        };
+        let w2 = generate_test_workload_spec_with_param(
+            AGENT_B.to_owned(),
+            WORKLOAD_NAME_2.to_owned(),
+            RUNTIME_NAME.to_string(),
+        );
 
-        let server_task = tokio::spawn(async move { ankaios_server.start().await });
+        let mut mock_server_state = MockServerState::new();
+        let mut seq = mockall::Sequence::new();
+        mock_server_state
+            .expect_get_workloads_for_agent()
+            .with(mockall::predicate::eq(AGENT_A.to_string()))
+            .once()
+            .in_sequence(&mut seq)
+            .return_const(vec![w1.clone()]);
 
-        // fake_agent_1 connects to the ankaios server
-        let agent_hello_result = to_server.agent_hello(fake_agent_names[0].to_owned()).await;
+        mock_server_state
+            .expect_get_workloads_for_agent()
+            .with(mockall::predicate::eq(AGENT_B.to_string()))
+            .once()
+            .in_sequence(&mut seq)
+            .return_const(vec![w2.clone()]);
+        server.server_state = mock_server_state;
+
+        let server_task = tokio::spawn(async move { server.start().await });
+
+        // first agent connects to the server
+        let agent_hello_result = to_server.agent_hello(AGENT_A.to_string()).await;
         assert!(agent_hello_result.is_ok());
 
-        check_update_workload(
-            get_workloads(&tc_receiver.recv().await.unwrap()),
-            "fake_agent_1".to_string(),
-            vec!["fake_workload_1".to_string(), "fake_workload_2".to_string()],
+        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+
+        assert_eq!(
+            ExecutionCommand::UpdateWorkload(UpdateWorkload {
+                added_workloads: vec![w1],
+                deleted_workloads: vec![],
+            }),
+            execution_command
         );
 
         // [utest->swdd~server-informs-a-newly-connected-agent-workload-states~1]
         // [utest->swdd~server-sends-all-workload-states-on-agent-connect~1]
-        // send update_workload_state for fake_agent_1 which is then stored in the workload_state_db in ankaios server
+        // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
         let update_workload_state_result = to_server
-            .update_workload_state(vec![
-                common::objects::WorkloadState {
-                    agent_name: fake_agent_names[0].to_string(),
-                    workload_name: "fake_workload_1".to_string(),
-                    execution_state: common::objects::ExecutionState::ExecRunning,
-                },
-                common::objects::WorkloadState {
-                    agent_name: fake_agent_names[0].to_string(),
-                    workload_name: "fake_workload_2".to_string(),
-                    execution_state: common::objects::ExecutionState::ExecSucceeded,
-                },
-            ])
-            .await;
-        assert!(update_workload_state_result.is_ok());
-
-        check_update_workload_state(
-            get_workload_states(&tc_receiver.recv().await.unwrap()),
-            "fake_agent_1".to_string(),
-            vec![
-                common::objects::WorkloadState {
-                    agent_name: "fake_agent_1".to_string(),
-                    workload_name: "fake_workload_1".to_string(),
-                    execution_state: common::objects::ExecutionState::ExecRunning,
-                },
-                common::objects::WorkloadState {
-                    agent_name: "fake_agent_1".to_string(),
-                    workload_name: "fake_workload_2".to_string(),
-                    execution_state: common::objects::ExecutionState::ExecSucceeded,
-                },
-            ],
-        );
-
-        // fake_agent_2 connects to the ankaios server
-        let agent_hello_result = to_server.agent_hello(fake_agent_names[1].to_owned()).await;
-        assert!(agent_hello_result.is_ok());
-
-        check_update_workload(
-            get_workloads(&tc_receiver.recv().await.unwrap()),
-            "fake_agent_2".to_string(),
-            vec!["fake_workload_3".to_string()],
-        );
-
-        check_update_workload_state(
-            get_workload_states(&tc_receiver.recv().await.unwrap()),
-            "fake_agent_1".to_string(),
-            vec![
-                common::objects::WorkloadState {
-                    agent_name: "fake_agent_1".to_string(),
-                    workload_name: "fake_workload_1".to_string(),
-                    execution_state: common::objects::ExecutionState::ExecRunning,
-                },
-                common::objects::WorkloadState {
-                    agent_name: "fake_agent_1".to_string(),
-                    workload_name: "fake_workload_2".to_string(),
-                    execution_state: common::objects::ExecutionState::ExecSucceeded,
-                },
-            ],
-        );
-
-        // [utest->swdd~server-forwards-workload-state~1]
-        // send update_workload_state for fake_agent_2 which is then stored in the workload_state_db in ankaios server
-        let update_workload_state_result = to_server
-            .update_workload_state(vec![common::objects::WorkloadState {
-                agent_name: fake_agent_names[1].to_string(),
-                workload_name: "fake_workload_3".to_string(),
-                execution_state: common::objects::ExecutionState::ExecSucceeded,
+            .update_workload_state(vec![WorkloadState {
+                agent_name: AGENT_A.to_string(),
+                workload_name: WORKLOAD_NAME_1.to_string(),
+                execution_state: ExecutionState::ExecRunning,
             }])
             .await;
         assert!(update_workload_state_result.is_ok());
 
-        check_update_workload_state(
-            get_workload_states(&tc_receiver.recv().await.unwrap()),
-            "fake_agent_2".to_string(),
-            vec![common::objects::WorkloadState {
-                agent_name: "fake_agent_2".to_string(),
-                workload_name: "fake_workload_3".to_string(),
-                execution_state: common::objects::ExecutionState::ExecSucceeded,
-            }],
+        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+
+        assert_eq!(
+            ExecutionCommand::UpdateWorkloadState(UpdateWorkloadState {
+                workload_states: vec![WorkloadState {
+                    workload_name: WORKLOAD_NAME_1.to_string(),
+                    agent_name: AGENT_A.to_string(),
+                    execution_state: ExecutionState::ExecRunning
+                },]
+            }),
+            execution_command
         );
 
-        // send update_workload_state for fake_agent_1 which is then stored in the workload_state_db in ankaios server
+        let agent_hello_result = to_server.agent_hello(AGENT_B.to_owned()).await;
+        assert!(agent_hello_result.is_ok());
+
+        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+
+        assert_eq!(
+            ExecutionCommand::UpdateWorkload(UpdateWorkload {
+                added_workloads: vec![w2],
+                deleted_workloads: vec![]
+            }),
+            execution_command
+        );
+
+        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+
+        assert_eq!(
+            ExecutionCommand::UpdateWorkloadState(UpdateWorkloadState {
+                workload_states: vec![WorkloadState {
+                    workload_name: WORKLOAD_NAME_1.to_string(),
+                    agent_name: AGENT_A.to_string(),
+                    execution_state: ExecutionState::ExecRunning
+                }]
+            }),
+            execution_command
+        );
+
+        // [utest->swdd~server-forwards-workload-state~1]
+        // send update_workload_state for second agent which is then stored in the workload_state_db in ankaios server
         let update_workload_state_result = to_server
-            .update_workload_state(vec![
-                common::objects::WorkloadState {
-                    agent_name: fake_agent_names[0].to_string(),
-                    workload_name: "fake_workload_1".to_string(),
-                    execution_state: common::objects::ExecutionState::ExecSucceeded,
-                },
-                common::objects::WorkloadState {
-                    agent_name: fake_agent_names[0].to_string(),
-                    workload_name: "fake_workload_2".to_string(),
-                    execution_state: common::objects::ExecutionState::ExecSucceeded,
-                },
-            ])
+            .update_workload_state(vec![common::objects::WorkloadState {
+                agent_name: AGENT_B.to_string(),
+                workload_name: WORKLOAD_NAME_2.to_string(),
+                execution_state: ExecutionState::ExecSucceeded,
+            }])
             .await;
         assert!(update_workload_state_result.is_ok());
 
-        // for fake_agent_2 check reception of update_workload_state of fake_agent_1
-        check_update_workload_state(
-            get_workload_states(&tc_receiver.recv().await.unwrap()),
-            "fake_agent_1".to_string(),
-            vec![
-                common::objects::WorkloadState {
-                    agent_name: "fake_agent_1".to_string(),
-                    workload_name: "fake_workload_1".to_string(),
-                    execution_state: common::objects::ExecutionState::ExecSucceeded,
-                },
-                common::objects::WorkloadState {
-                    agent_name: "fake_agent_1".to_string(),
-                    workload_name: "fake_workload_2".to_string(),
-                    execution_state: common::objects::ExecutionState::ExecSucceeded,
-                },
-            ],
+        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+
+        assert_eq!(
+            ExecutionCommand::UpdateWorkloadState(UpdateWorkloadState {
+                workload_states: vec![WorkloadState {
+                    workload_name: WORKLOAD_NAME_2.to_string(),
+                    agent_name: AGENT_B.to_string(),
+                    execution_state: ExecutionState::ExecSucceeded
+                }]
+            }),
+            execution_command
         );
 
-        // clean up
-        fake_agent_1_task.abort();
-        fake_agent_2_task.abort();
-        cm_server_task.abort();
+        // send update_workload_state for first agent again which is then updated in the workload_state_db in ankaios server
+        let update_workload_state_result = to_server
+            .update_workload_state(vec![WorkloadState {
+                agent_name: AGENT_A.to_string(),
+                workload_name: WORKLOAD_NAME_1.to_string(),
+                execution_state: ExecutionState::ExecSucceeded,
+            }])
+            .await;
+        assert!(update_workload_state_result.is_ok());
+
+        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+
+        assert_eq!(
+            ExecutionCommand::UpdateWorkloadState(UpdateWorkloadState {
+                workload_states: vec![WorkloadState {
+                    workload_name: WORKLOAD_NAME_1.to_string(),
+                    agent_name: AGENT_A.to_string(),
+                    execution_state: ExecutionState::ExecSucceeded
+                }]
+            }),
+            execution_command
+        );
+
         server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
     // [utest->swdd~server-provides-update-current-state-interface~1]
     #[tokio::test]
-    async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state() {
-        // prepare names
-        let agent_names = ["fake_agent_1", "fake_agent_2"];
-        let workload_names = ["workload_1", "workload_2"];
-        let request_id = "id1";
-        let update_mask = format!("workloads.{}", workload_names[1]);
+    async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_success()
+    {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) =
+            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            super::create_execution_channels(common::CHANNEL_CAPACITY);
 
-        // prepare structures
-        let workloads = vec![
-            generate_test_workload_spec_with_param(
-                agent_names[0].to_owned(),
-                workload_names[0].to_owned(),
-                RUNTIME_NAME.to_string(),
-            ),
-            generate_test_workload_spec_with_param(
-                agent_names[1].to_owned(),
-                workload_names[1].to_owned(),
-                RUNTIME_NAME.to_string(),
-            ),
-        ];
-
-        let original_state = CompleteState {
-            current_state: State {
-                workloads: vec![(workload_names[0].to_owned(), workloads[0].clone())]
-                    .into_iter()
-                    .collect(),
-                configs: HashMap::default(),
-                cron_jobs: HashMap::default(),
-            },
-            ..Default::default()
-        };
+        let mut w1 = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME_NAME.to_string(),
+        );
+        w1.runtime_config = "changed".to_string();
 
         let update_state = CompleteState {
             current_state: State {
-                workloads: vec![(workload_names[1].to_owned(), workloads[1].clone())]
+                workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
                     .into_iter()
                     .collect(),
                 configs: HashMap::default(),
@@ -777,104 +433,154 @@ mod tests {
             },
             ..Default::default()
         };
+        let update_mask = vec![format!("currentState.workloads.{}", WORKLOAD_NAME_1)];
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_update()
+            .with(mockall::predicate::eq(UpdateStateRequest {
+                state: update_state.clone(),
+                update_mask: update_mask.clone(),
+            }))
+            .once()
+            .return_const(Ok(Some(ExecutionCommand::UpdateWorkload(UpdateWorkload {
+                added_workloads: vec![w1.clone()],
+                deleted_workloads: vec![],
+            }))));
+        server.server_state = mock_server_state;
+        let server_task = tokio::spawn(async move { server.start().await });
 
-        let expected_state = CompleteState {
+        // send new state to server
+        let update_state_result = to_server
+            .update_state(update_state.clone(), update_mask.clone())
+            .await;
+        assert!(update_state_result.is_ok());
+
+        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            ExecutionCommand::UpdateWorkload(UpdateWorkload {
+                added_workloads: vec![w1.clone()],
+                deleted_workloads: vec![],
+            }),
+            execution_command
+        );
+
+        server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    // [utest->swdd~server-provides-update-current-state-interface~1]
+    #[tokio::test]
+    async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_nothing_todo(
+    ) {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) =
+            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            super::create_execution_channels(common::CHANNEL_CAPACITY);
+
+        let mut w1 = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME_NAME.to_string(),
+        );
+        w1.runtime_config = "changed".to_string();
+
+        let update_state = CompleteState {
             current_state: State {
-                workloads: vec![
-                    (workload_names[0].to_owned(), workloads[0].clone()),
-                    (workload_names[1].to_owned(), workloads[1].clone()),
-                ]
-                .into_iter()
-                .collect(),
+                workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
+                    .into_iter()
+                    .collect(),
                 configs: HashMap::default(),
                 cron_jobs: HashMap::default(),
             },
             ..Default::default()
         };
-
-        let mock_result = expected_state.clone();
-
-        // prepare mock
-        UPDATE_STATE_MOCK_RESULTS.with(move |results| {
-            let mut results = results.borrow_mut();
-            results.clear();
-            results.push_back(Ok(mock_result));
-        });
-        UPDATE_STATE_MOCK_CALLS.with(move |calls| {
-            let mut calls = calls.borrow_mut();
-            calls.clear();
-        });
-
-        // prepare test setup
-        let (
-            (mut ankaios_server, cm_server_task, fake_agent_1_task, fake_agent_2_task),
-            (to_server, _to_cm_server),
-            mut tc_receiver,
-        ) = create_test_setup();
-
-        // prepare current state
-        ankaios_server.server_state = original_state.clone();
-        let server_task = tokio::spawn(async move { ankaios_server.start().await });
-
-        let agent_hello_result = to_server.agent_hello(agent_names[0].to_owned()).await;
-        assert!(agent_hello_result.is_ok());
+        let update_mask = vec![format!("currentState.workloads.{}", WORKLOAD_NAME_1)];
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_update()
+            .with(mockall::predicate::eq(UpdateStateRequest {
+                state: update_state.clone(),
+                update_mask: update_mask.clone(),
+            }))
+            .once()
+            .return_const(Ok(None));
+        server.server_state = mock_server_state;
+        let server_task = tokio::spawn(async move { server.start().await });
 
         // send new state to server
         let update_state_result = to_server
-            .update_state(update_state.clone(), vec![update_mask.clone()])
+            .update_state(update_state.clone(), update_mask.clone())
             .await;
         assert!(update_state_result.is_ok());
 
-        // request complete state
-        let request_complete_state_result = to_server
-            .request_complete_state(RequestCompleteState {
-                request_id: format!("{}@{}", agent_names[0], request_id),
-                field_mask: vec![],
-            })
-            .await;
-        assert!(request_complete_state_result.is_ok());
+        assert!(tokio::time::timeout(
+            tokio::time::Duration::from_millis(200),
+            comm_middle_ware_receiver.recv()
+        )
+        .await
+        .is_err());
 
-        let _ignore_added_workloads = tc_receiver.recv().await;
-        let complete_state = tc_receiver.recv().await;
-
-        let expected_complete_state = CompleteState {
-            request_id: request_id.into(),
-            startup_state: State {
-                workloads: HashMap::new(),
-                configs: HashMap::new(),
-                cron_jobs: HashMap::new(),
-            },
-            current_state: expected_state.current_state.clone(),
-            workload_states: vec![],
-        };
-
-        assert_eq!(
-            complete_state,
-            Some(TestResult::Result(
-                serde_json::to_string(&expected_complete_state).unwrap()
-            ))
-        );
-
-        let actual_call = UPDATE_STATE_MOCK_CALLS.with(move |calls| {
-            let mut calls = calls.borrow_mut();
-            calls.pop_front().unwrap()
-        });
-
-        assert_eq!(
-            actual_call,
-            (
-                original_state,
-                UpdateStateRequest {
-                    state: update_state,
-                    update_mask: vec![update_mask]
-                }
-            )
-        );
-
-        fake_agent_1_task.abort();
-        fake_agent_2_task.abort();
-        cm_server_task.abort();
         server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    // [utest->swdd~server-provides-update-current-state-interface~1]
+    #[tokio::test]
+    async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_error() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) =
+            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            super::create_execution_channels(common::CHANNEL_CAPACITY);
+
+        let w1 = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let update_state = CompleteState {
+            current_state: State {
+                workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
+                    .into_iter()
+                    .collect(),
+                configs: HashMap::default(),
+                cron_jobs: HashMap::default(),
+            },
+            ..Default::default()
+        };
+        let update_mask = vec![format!("currentState.workloads.{}", WORKLOAD_NAME_1)];
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_update()
+            .with(mockall::predicate::eq(UpdateStateRequest {
+                state: update_state.clone(),
+                update_mask: update_mask.clone(),
+            }))
+            .once()
+            .return_const(Err("some update error.".to_string()));
+        server.server_state = mock_server_state;
+        let server_task = tokio::spawn(async move { server.start().await });
+
+        // send new state to server
+        let update_state_result = to_server
+            .update_state(update_state.clone(), update_mask.clone())
+            .await;
+        assert!(update_state_result.is_ok());
+
+        assert!(tokio::time::timeout(
+            tokio::time::Duration::from_millis(200),
+            comm_middle_ware_receiver.recv()
+        )
+        .await
+        .is_err());
+
+        server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
     // [utest->swdd~server-provides-interface-get-complete-state~1]
@@ -882,47 +588,42 @@ mod tests {
     // [utest->swdd~server-includes-id-in-control-interface-response~1]
     #[tokio::test]
     async fn utest_server_returns_complete_state_when_received_request_complete_state() {
-        // prepare test setup
-        let agent_name_fake_agent_1: &str = "fake_agent_1";
-        let (
-            (mut ankaios_server, cm_server_task, fake_agent_1_task, _),
-            (to_server, _to_cm_server),
-            mut tc_receiver,
-        ) = create_test_setup();
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) =
+            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            super::create_execution_channels(common::CHANNEL_CAPACITY);
 
-        // prepare workload specs
-        let mut workloads = HashMap::new();
-        workloads.insert(
-            "fake_workload_spec_1".to_owned(),
-            generate_test_workload_spec_with_param(
-                agent_name_fake_agent_1.to_owned(),
-                "fake_workload_1".to_owned(),
-                RUNTIME_NAME.to_string(),
-            ),
+        let w1 = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME_NAME.to_string(),
         );
-        workloads.insert(
-            "fake_workload_spec_2".to_owned(),
-            generate_test_workload_spec_with_param(
-                agent_name_fake_agent_1.to_owned(),
-                "fake_workload_2".to_owned(),
-                RUNTIME_NAME.to_string(),
-            ),
+
+        let w2 = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_2.to_owned(),
+            RUNTIME_NAME.to_string(),
         );
-        workloads.insert(
-            "fake_workload_spec_3".to_owned(),
-            generate_test_workload_spec_with_param(
-                agent_name_fake_agent_1.to_owned(),
-                "fake_workload_3".to_owned(),
-                RUNTIME_NAME.to_string(),
-            ),
+
+        let w3 = generate_test_workload_spec_with_param(
+            AGENT_B.to_owned(),
+            WORKLOAD_NAME_3.to_owned(),
+            RUNTIME_NAME.to_string(),
         );
+
+        let workloads = HashMap::from([
+            (w1.name.clone(), w1),
+            (w2.name.clone(), w2),
+            (w3.name.clone(), w3),
+        ]);
 
         let mut configs = HashMap::new();
-        configs.insert("key1".into(), "value1".into());
-        configs.insert("key2".into(), "value2".into());
-        configs.insert("key3".into(), "value3".into());
+        configs.insert("key1".to_string(), "value1".to_string());
+        configs.insert("key2".to_string(), "value2".to_string());
+        configs.insert("key3".to_string(), "value3".to_string());
 
-        let test_state = CompleteState {
+        let current_complete_state = CompleteState {
             current_state: State {
                 workloads,
                 configs,
@@ -930,470 +631,313 @@ mod tests {
             },
             ..Default::default()
         };
+        let request_id = format!("{AGENT_A}@my_request_id");
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_get_complete_state_by_field_mask()
+            .with(
+                mockall::predicate::function(|request_compl_state| {
+                    request_compl_state
+                        == &RequestCompleteState {
+                            request_id: format!("{AGENT_A}@my_request_id"),
+                            field_mask: vec![],
+                        }
+                }),
+                mockall::predicate::always(),
+            )
+            .once()
+            .return_const(Ok(current_complete_state.clone()));
+        server.server_state = mock_server_state;
+        let server_task = tokio::spawn(async move { server.start().await });
 
-        // prepare current state
-        ankaios_server.server_state = test_state.clone();
-
-        let server_task = tokio::spawn(async move { ankaios_server.start().await });
-
-        let check_workload_state =
-            |next_result: TestResult, expected_complete_state: &CompleteState| {
-                if let Some(complete_state) = get_complete_state(&next_result) {
-                    assert_eq!(
-                        expected_complete_state.request_id,
-                        complete_state.request_id
-                    );
-                    assert_eq!(
-                        expected_complete_state.current_state,
-                        complete_state.current_state
-                    );
-                    assert_eq!(
-                        expected_complete_state.startup_state,
-                        complete_state.startup_state
-                    );
-                    assert_eq!(
-                        expected_complete_state.workload_states,
-                        complete_state.workload_states
-                    );
-                }
-            };
-
-        let agent_hello_result = to_server
-            .agent_hello(agent_name_fake_agent_1.to_owned())
-            .await;
-        assert!(agent_hello_result.is_ok());
-
-        let _skip_hello_result_as_not_on_test_focus = tc_receiver.recv().await.unwrap();
-
-        // send command 'RequestCompleteState' with empty field mask meaning without active filter
-        // so CompleteState shall contain the complete state
+        // send command 'RequestCompleteState'
+        // CompleteState shall contain the complete state
         let request_complete_state_result = to_server
             .request_complete_state(RequestCompleteState {
-                request_id: format!("{agent_name_fake_agent_1}@my_request_id"),
+                request_id,
                 field_mask: vec![],
             })
             .await;
         assert!(request_complete_state_result.is_ok());
 
-        check_workload_state(
-            tc_receiver.recv().await.unwrap(),
-            &CompleteState {
-                request_id: String::from("my_request_id"),
-                startup_state: State::default(),
-                workload_states: vec![],
-                current_state: test_state.current_state.clone(),
-            },
+        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+
+        assert_eq!(
+            ExecutionCommand::CompleteState(Box::new(current_complete_state)),
+            execution_command
         );
 
-        // send command 'RequestCompleteState' with field mask = ["workloadStates"]
+        server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    // [utest->swdd~server-provides-interface-get-complete-state~1]
+    // [utest->swdd~server-filters-get-complete-state-result~1]
+    // [utest->swdd~server-includes-id-in-control-interface-response~1]
+    #[tokio::test]
+    async fn utest_server_returns_complete_state_when_received_request_complete_state_error() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) =
+            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            super::create_execution_channels(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_get_complete_state_by_field_mask()
+            .with(
+                mockall::predicate::function(|request_compl_state| {
+                    request_compl_state
+                        == &RequestCompleteState {
+                            request_id: format!("{AGENT_A}@my_request_id"),
+                            field_mask: vec![],
+                        }
+                }),
+                mockall::predicate::always(),
+            )
+            .once()
+            .return_const(Err("complete state error.".to_string()));
+        server.server_state = mock_server_state;
+        let server_task = tokio::spawn(async move { server.start().await });
+
+        let request_id = format!("{AGENT_A}@my_request_id");
+        // send command 'RequestCompleteState'
+        // CompleteState shall contain the complete state
         let request_complete_state_result = to_server
             .request_complete_state(RequestCompleteState {
-                request_id: format!("{agent_name_fake_agent_1}@my_request_id"),
-                field_mask: vec![
-                    String::from("workloadStates"),
-                    String::from("currentState.workloads.fake_workload_spec_1"),
-                    String::from("currentState.workloads.fake_workload_spec_3.tags"),
-                    String::from("currentState.workloads.fake_workload_spec_4"),
-                ],
+                request_id: request_id.clone(),
+                field_mask: vec![],
             })
             .await;
         assert!(request_complete_state_result.is_ok());
 
-        check_workload_state(
-            tc_receiver.recv().await.unwrap(),
-            &CompleteState {
-                request_id: String::from("my_request_id"),
-                current_state: State {
-                    workloads: vec![
-                        (
-                            "fake_workload_spec_1".into(),
-                            test_state
-                                .current_state
-                                .workloads
-                                .get("fake_workload_spec_1")
-                                .unwrap()
-                                .to_owned(),
-                        ),
-                        (
-                            "fake_workload_spec_3".into(),
-                            WorkloadSpec {
-                                tags: vec![Tag {
-                                    key: "key".into(),
-                                    value: "value".into(),
-                                }],
-                                ..Default::default()
-                            },
-                        ),
-                    ]
-                    .into_iter()
-                    .collect(),
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
+        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+
+        let expected_complete_state = CompleteState {
+            request_id,
+            startup_state: State::default(),
+            current_state: State::default(),
+            workload_states: vec![],
+        };
+        assert_eq!(
+            ExecutionCommand::CompleteState(Box::new(expected_complete_state)),
+            execution_command
         );
 
-        // clean up
-        fake_agent_1_task.abort();
-        cm_server_task.abort();
         server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-stores-workload-state~1]
+    // [utest->swdd~server-set-workload-state-unknown-on-disconnect~1]
     #[tokio::test]
-    async fn utest_start_distributes_workload_unknown_after_disconnect() {
+    async fn utest_server_start_distributes_workload_unknown_after_agent_gone() {
         let _ = env_logger::builder().is_test(true).try_init();
-
-        const BUFFER_SIZE: usize = 20;
-        let fake_agent_names = ["fake_agent_1", "fake_agent_2"];
-
-        let (to_agents, mut agents_receiver) = mpsc::channel::<ExecutionCommand>(BUFFER_SIZE);
-        let (to_server, server_receiver) = mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
+        let (to_server, server_receiver) =
+            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            super::create_execution_channels(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mock_server_state = MockServerState::new();
+        server.server_state = mock_server_state;
 
-        // prepare workload specs
-        let mut wl = HashMap::new();
-        wl.insert(
-            "fake_workload_spec_1".to_owned(),
-            generate_test_workload_spec_with_param(
-                fake_agent_names[0].to_owned(),
-                "fake_workload_1".to_owned(),
-                RUNTIME_NAME.to_string(),
-            ),
-        );
-        wl.insert(
-            "fake_workload_spec_2".to_owned(),
-            generate_test_workload_spec_with_param(
-                fake_agent_names[0].to_owned(),
-                "fake_workload_2".to_owned(),
-                RUNTIME_NAME.to_string(),
-            ),
-        );
-        wl.insert(
-            "fake_workload_spec_3".to_owned(),
-            generate_test_workload_spec_with_param(
-                fake_agent_names[1].to_owned(),
-                "fake_workload_3".to_owned(),
-                RUNTIME_NAME.to_string(),
-            ),
-        );
-
-        // prepare current state
-        server.server_state = CompleteState {
-            current_state: State {
-                workloads: wl,
-                configs: HashMap::default(),
-                cron_jobs: HashMap::default(),
-            },
-            ..Default::default()
-        };
-
-        let agent_hello1_result = to_server.agent_hello(fake_agent_names[0].to_owned()).await;
-        assert!(agent_hello1_result.is_ok());
-        let agent_hello2_result = to_server.agent_hello(fake_agent_names[1].to_owned()).await;
-        assert!(agent_hello2_result.is_ok());
-
-        // send update_workload_state for fake_agent_1 which is then stored in the workload_state_db in ankaios server
+        // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
         let update_workload_state_result = to_server
-            .update_workload_state(vec![
-                common::objects::WorkloadState {
-                    agent_name: fake_agent_names[0].to_string(),
-                    workload_name: "fake_workload_1".to_string(),
-                    execution_state: common::objects::ExecutionState::ExecRunning,
-                },
-                common::objects::WorkloadState {
-                    agent_name: fake_agent_names[0].to_string(),
-                    workload_name: "fake_workload_2".to_string(),
-                    execution_state: common::objects::ExecutionState::ExecSucceeded,
-                },
-            ])
+            .update_workload_state(vec![WorkloadState {
+                agent_name: AGENT_A.to_string(),
+                workload_name: WORKLOAD_NAME_1.to_string(),
+                execution_state: ExecutionState::ExecRunning,
+            }])
             .await;
         assert!(update_workload_state_result.is_ok());
 
-        // fake_agent_1 disconnects from the ankaios server
-        let agent_gone_result = to_server.agent_gone(fake_agent_names[0].to_owned()).await;
+        // first agent disconnects from the ankaios server
+        let agent_gone_result = to_server.agent_gone(AGENT_A.to_owned()).await;
         assert!(agent_gone_result.is_ok());
 
-        let handle = server.start();
+        let server_handle = server.start();
 
         // The receiver in the server receives the messages and terminates the infinite waiting-loop
         drop(to_server);
-        join!(handle);
+        tokio::join!(server_handle);
 
-        // [utest->swdd~server-stores-workload-state~1]
-        // [utest->swdd~server-set-workload-state-unknown-on-disconnect~1]
-        let mut workload_states = server
-            .workload_state_db
-            .get_workload_state_for_agent(fake_agent_names[0]);
-
-        workload_states.sort_by(|a, b| a.workload_name.cmp(&b.workload_name));
-
-        assert_eq!(workload_states.len(), 2);
+        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
-            workload_states,
-            vec![
-                common::objects::WorkloadState {
-                    agent_name: "fake_agent_1".to_string(),
-                    workload_name: "fake_workload_1".to_string(),
-                    execution_state: common::objects::ExecutionState::ExecUnknown,
-                },
-                common::objects::WorkloadState {
-                    agent_name: "fake_agent_1".to_string(),
-                    workload_name: "fake_workload_2".to_string(),
-                    execution_state: common::objects::ExecutionState::ExecUnknown,
-                },
-            ]
+            ExecutionCommand::UpdateWorkloadState(UpdateWorkloadState {
+                workload_states: vec![WorkloadState {
+                    workload_name: WORKLOAD_NAME_1.to_string(),
+                    agent_name: AGENT_A.to_string(),
+                    execution_state: ExecutionState::ExecRunning,
+                }]
+            }),
+            execution_command
         );
 
-        // UpdateWorkload for the Fake Agent 1
-        let agent_message = agents_receiver.try_recv();
-        assert!(agent_message.is_ok());
-        match agent_message.unwrap() {
-            ExecutionCommand::UpdateWorkload(wl) => {
-                check_update_workload(
-                    Some(wl),
-                    "fake_agent_1".to_string(),
-                    vec!["fake_workload_1".to_string(), "fake_workload_2".to_string()],
-                );
-            }
-            cmd => panic!("Unexpected command {:?}", cmd),
-        }
+        let workload_states = server
+            .workload_state_db
+            .get_workload_state_for_agent(AGENT_A);
 
-        // UpdateWorkload for the Fake Agent 2
-        let agent_message = agents_receiver.try_recv();
-        assert!(agent_message.is_ok());
-        match agent_message.unwrap() {
-            ExecutionCommand::UpdateWorkload(wl) => {
-                check_update_workload(
-                    Some(wl),
-                    "fake_agent_2".to_string(),
-                    vec!["fake_workload_3".to_string()],
-                );
-            }
-            cmd => panic!("Unexpected command {:?}", cmd),
-        }
+        let expected_workload_state = WorkloadState {
+            workload_name: WORKLOAD_NAME_1.to_string(),
+            agent_name: AGENT_A.to_string(),
+            execution_state: ExecutionState::ExecUnknown,
+        };
+        assert_eq!(vec![expected_workload_state.clone()], workload_states);
 
-        // UpdateWorkloadState for the Fake Agent 2
-        let agent_message = agents_receiver.try_recv();
-        assert!(agent_message.is_ok());
-        match agent_message.unwrap() {
-            ExecutionCommand::UpdateWorkloadState(wls) => {
-                check_update_workload_state(
-                    Some(wls),
-                    "fake_agent_1".to_string(),
-                    vec![
-                        common::objects::WorkloadState {
-                            agent_name: "fake_agent_1".to_string(),
-                            workload_name: "fake_workload_1".to_string(),
-                            execution_state: common::objects::ExecutionState::ExecRunning,
-                        },
-                        common::objects::WorkloadState {
-                            agent_name: "fake_agent_1".to_string(),
-                            workload_name: "fake_workload_2".to_string(),
-                            execution_state: common::objects::ExecutionState::ExecSucceeded,
-                        },
-                    ],
-                );
-            }
-            cmd => panic!("Unexpected command {:?}", cmd),
-        }
-
-        // UpdateWorkloadState for the Fake Agent 2
-        // [utest->swdd~server-distribute-workload-state-unknown-on-disconnect~1]
-        let agent_message = agents_receiver.try_recv();
-        assert!(agent_message.is_ok());
-        match agent_message.unwrap() {
-            ExecutionCommand::UpdateWorkloadState(wls) => {
-                check_update_workload_state(
-                    Some(wls),
-                    "fake_agent_1".to_string(),
-                    vec![
-                        common::objects::WorkloadState {
-                            agent_name: "fake_agent_1".to_string(),
-                            workload_name: "fake_workload_1".to_string(),
-                            execution_state: common::objects::ExecutionState::ExecUnknown,
-                        },
-                        common::objects::WorkloadState {
-                            agent_name: "fake_agent_1".to_string(),
-                            workload_name: "fake_workload_2".to_string(),
-                            execution_state: common::objects::ExecutionState::ExecUnknown,
-                        },
-                    ],
-                );
-            }
-            cmd => panic!("Unexpected command {:?}", cmd),
-        }
-
-        // Make sure that the queue is empty - we have read all messages.
-        let agent_message = agents_receiver.try_recv();
-        assert!(agent_message.is_err());
+        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            ExecutionCommand::UpdateWorkloadState(UpdateWorkloadState {
+                workload_states: vec![expected_workload_state]
+            }),
+            execution_command
+        );
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
     #[tokio::test]
-    async fn utest_start_calls_agents_in_update_state_command() {
+    async fn utest_server_start_calls_agents_in_update_state_command() {
         let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) =
+            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            super::create_execution_channels(common::CHANNEL_CAPACITY);
 
-        const BUFFER_SIZE: usize = 20;
-        let fake_agent_names = ["fake_agent_1", "fake_agent_2"];
-
-        let (to_agents, mut agents_receiver) = mpsc::channel::<ExecutionCommand>(BUFFER_SIZE);
-        let (to_server, server_receiver) = mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
-
-        let mut server = AnkaiosServer::new(server_receiver, to_agents);
-
-        // prepare workload specs
-        let mut wl = HashMap::new();
-        wl.insert(
-            "fake_workload_spec_1".to_owned(),
-            generate_test_workload_spec_with_param(
-                fake_agent_names[0].to_owned(),
-                "fake_workload_1".to_owned(),
-                RUNTIME_NAME.to_string(),
-            ),
-        );
-        wl.insert(
-            "fake_workload_spec_2".to_owned(),
-            generate_test_workload_spec_with_param(
-                fake_agent_names[0].to_owned(),
-                "fake_workload_2".to_owned(),
-                RUNTIME_NAME.to_string(),
-            ),
-        );
-        wl.insert(
-            "fake_workload_spec_3".to_owned(),
-            generate_test_workload_spec_with_param(
-                fake_agent_names[1].to_owned(),
-                "fake_workload_3".to_owned(),
-                RUNTIME_NAME.to_string(),
-            ),
+        let w1 = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME_NAME.to_string(),
         );
 
-        // prepare current state
-        server.server_state = CompleteState {
+        let w2 = generate_test_workload_spec_with_param(
+            AGENT_B.to_owned(),
+            WORKLOAD_NAME_2.to_owned(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let mut updated_w1 = w1.clone();
+        updated_w1.restart = false;
+        let update_state = CompleteState {
             current_state: State {
-                workloads: wl,
+                workloads: vec![(WORKLOAD_NAME_1.to_owned(), updated_w1.clone())]
+                    .into_iter()
+                    .collect(),
                 configs: HashMap::default(),
                 cron_jobs: HashMap::default(),
             },
             ..Default::default()
         };
+        let update_mask = vec!["currentState.workloads".to_string()];
 
-        // prepare the new state (one workload to be updated, one workload to be removed)
-        let mut new_state = server.server_state.clone();
-        new_state
-            .current_state
-            .workloads
-            .get_mut("fake_workload_spec_1")
-            .unwrap()
-            .restart = false;
-        new_state
-            .current_state
-            .workloads
-            .remove("fake_workload_spec_2");
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+        let mut seq = mockall::Sequence::new();
+        mock_server_state
+            .expect_get_workloads_for_agent()
+            .with(mockall::predicate::eq(AGENT_A.to_string()))
+            .once()
+            .in_sequence(&mut seq)
+            .return_const(vec![w1.clone()]);
 
-        let new_state_clone = new_state.clone();
+        mock_server_state
+            .expect_get_workloads_for_agent()
+            .with(mockall::predicate::eq(AGENT_B.to_string()))
+            .once()
+            .in_sequence(&mut seq)
+            .return_const(vec![w2.clone()]);
 
-        let agent_hello1_result = to_server.agent_hello(fake_agent_names[0].to_owned()).await;
+        mock_server_state
+            .expect_update()
+            .with(mockall::predicate::eq(UpdateStateRequest {
+                state: update_state.clone(),
+                update_mask: update_mask.clone(),
+            }))
+            .once()
+            .in_sequence(&mut seq)
+            .return_const(Ok(Some(ExecutionCommand::UpdateWorkload(UpdateWorkload {
+                added_workloads: vec![updated_w1.clone()],
+                deleted_workloads: vec![DeletedWorkload {
+                    agent: w1.agent.clone(),
+                    name: w1.name.clone(),
+                    dependencies: HashMap::new(),
+                }],
+            }))));
+        server.server_state = mock_server_state;
+
+        let agent_hello1_result = to_server.agent_hello(AGENT_A.to_owned()).await;
         assert!(agent_hello1_result.is_ok());
 
-        let agent_hello2_result = to_server.agent_hello(fake_agent_names[1].to_owned()).await;
+        let agent_hello2_result = to_server.agent_hello(AGENT_B.to_owned()).await;
         assert!(agent_hello2_result.is_ok());
 
-        // prepare update state mock
-        UPDATE_STATE_MOCK_RESULTS.with(move |results| {
-            let mut results = results.borrow_mut();
-            results.clear();
-            results.push_back(Ok(new_state_clone));
-        });
-        UPDATE_STATE_MOCK_CALLS.with(move |calls| {
-            let mut calls = calls.borrow_mut();
-            calls.clear();
-        });
-
-        let update_mask = format!("workloads.{}", "fake_workload_spec_1");
-
         let update_state_result = to_server
-            .update_state(new_state, vec![update_mask.clone()])
+            .update_state(update_state, update_mask.clone())
             .await;
         assert!(update_state_result.is_ok());
 
-        let handle = server.start();
+        let server_handle = server.start();
 
         // The receiver in the server receives the messages and terminates the infinite waiting-loop
         drop(to_server);
-        join!(handle);
+        tokio::join!(server_handle);
 
-        // UpdateWorkload triggered by the "Agent Hello" from the Fake Agent 1
-        let agent_message = agents_receiver.try_recv();
-        assert!(agent_message.is_ok());
-        match agent_message.unwrap() {
-            ExecutionCommand::UpdateWorkload(wl) => {
-                assert_eq!(wl.added_workloads.len(), 2);
-                assert_eq!(wl.deleted_workloads.len(), 0);
-                check_update_workload(
-                    Some(wl),
-                    "fake_agent_1".to_string(),
-                    vec!["fake_workload_1".to_string(), "fake_workload_2".to_string()],
-                );
-            }
-            cmd => panic!("Unexpected command {:?}", cmd),
+        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            ExecutionCommand::UpdateWorkload(UpdateWorkload {
+                added_workloads: vec![w1.clone()],
+                deleted_workloads: vec![]
+            }),
+            execution_command
+        );
+
+        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            ExecutionCommand::UpdateWorkload(UpdateWorkload {
+                added_workloads: vec![w2],
+                deleted_workloads: vec![]
+            }),
+            execution_command
+        );
+
+        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            ExecutionCommand::UpdateWorkload(UpdateWorkload {
+                added_workloads: vec![updated_w1],
+                deleted_workloads: vec![DeletedWorkload {
+                    agent: w1.agent.clone(),
+                    name: w1.name.clone(),
+                    dependencies: HashMap::new(),
+                }]
+            }),
+            execution_command
+        );
+
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_server_stop() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) =
+            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            super::create_execution_channels(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mock_server_state = MockServerState::new();
+        server.server_state = mock_server_state;
+
+        let server_task = tokio::spawn(async move { server.start().await });
+
+        assert!(to_server.stop().await.is_ok());
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+        assert!(server_task.is_finished());
+
+        if !server_task.is_finished() {
+            server_task.abort();
         }
-
-        // UpdateWorkload triggered by the "Agent Hello" from the Fake Agent 2
-        let agent_message = agents_receiver.try_recv();
-        assert!(agent_message.is_ok());
-        match agent_message.unwrap() {
-            ExecutionCommand::UpdateWorkload(wl) => {
-                assert_eq!(wl.added_workloads.len(), 1);
-                assert_eq!(wl.deleted_workloads.len(), 0);
-                check_update_workload(
-                    Some(wl),
-                    "fake_agent_2".to_string(),
-                    vec!["fake_workload_3".to_string()],
-                );
-            }
-            cmd => panic!("Unexpected command {:?}", cmd),
-        }
-
-        // UpdateWorkload triggered by the "Update State"
-        let agent_message = agents_receiver.try_recv();
-        assert!(agent_message.is_ok());
-        match agent_message.unwrap() {
-            ExecutionCommand::UpdateWorkload(wl) => {
-                assert_eq!(wl.added_workloads.len(), 1);
-                assert_eq!(wl.deleted_workloads.len(), 2);
-                // TODO: this check shall be part of the "check_update_workload" function
-                // I do not want to change this function, because we have two another feature branches which made changes here.
-                // It would be difficult to merge them if we make changes in the function "check_update_workload"
-
-                let mut wld = wl.deleted_workloads.clone();
-                wld.sort_by(|a, b| a.name.cmp(&b.name));
-                assert_eq!(
-                    wld,
-                    vec![
-                        DeletedWorkload {
-                            agent: "fake_agent_1".to_string(),
-                            name: "fake_workload_spec_1".to_string(),
-                            dependencies: HashMap::new(),
-                        },
-                        DeletedWorkload {
-                            agent: "fake_agent_1".to_string(),
-                            name: "fake_workload_spec_2".to_string(),
-                            dependencies: HashMap::new(),
-                        }
-                    ]
-                );
-                check_update_workload(
-                    Some(wl),
-                    "fake_agent_1".to_string(),
-                    vec!["fake_workload_1".to_string()],
-                );
-            }
-            cmd => panic!("Unexpected command {:?}", cmd),
-        }
-
-        // Make sure that the queue is empty - we have read all messages.
-        let agent_message = agents_receiver.try_recv();
-        assert!(agent_message.is_err());
     }
 }

@@ -229,14 +229,27 @@ impl ServerState {
                         deleted_workloads: _,
                     }) = &cmd
                     {
-                        let start_nodes: Vec<&String> =
-                            added_workloads.iter().map(|w| &w.name).collect();
+                        log::debug!("update_state => added_workloads = {:?}", added_workloads);
+                        let start_nodes: Vec<&String> = added_workloads
+                            .iter()
+                            .filter_map(|w| {
+                                if !w.dependencies.is_empty() {
+                                    Some(&w.name)
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+                        log::debug!(
+                            "Execute cyclic dependency check with start_nodes = {:?}",
+                            start_nodes
+                        );
                         let result = cyclic_check::dfs(
                             &new_state.current_state,
                             cyclic_check::StartNodes::Subset(start_nodes),
                         );
 
-                        log::debug!("{:?}", result);
+                        log::debug!("cyclic dependency check result = {:?}", result);
                         self.state = new_state;
                         Ok(Some(cmd))
                     } else {
