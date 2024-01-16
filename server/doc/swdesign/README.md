@@ -89,8 +89,10 @@ Tags:
 Needs:
 - impl
 
-### Server starts without startup config
+#### Server starts without startup config
 `swdd~server-starts-without-startup-config~1`
+
+Status: approved
 
 When the Ankaios server is started without a startup config, the server shall start with an empty current state.
 
@@ -312,6 +314,8 @@ The following diagram shows the sequence of GetCompleteState request from the ag
 ##### Server provides interface GetCompleteState
 `swdd~server-provides-interface-get-complete-state~1`
 
+Status: approved
+
 The Ankaios Server provides an interface to get the CompleteState.
 The CompleteState includes:
 
@@ -329,6 +333,8 @@ Needs:
 ##### Server filters GetCompleteState requests
 `swdd~server-filters-get-complete-state-result~1`
 
+Status: approved
+
 When the Ankaios Server responses to a GetCompleteState request and the request contains a `field_mask`,
 it only includes fields in the response, which are listed in the `field_mask`.
 
@@ -341,6 +347,8 @@ Needs:
 
 ##### Server includes RequestID in the ControlInterface response
 `swdd~server-includes-id-in-control-interface-response~1`
+
+Status: approved
 
 When the Ankaios Server responses to a GetCompleteState request,
 it includes the the RequestID from the GetCompleteState request.
@@ -360,6 +368,8 @@ The following diagram shows the sequence of UpdateState request from the agent:
 ##### Server provides UpdateCurrentState interface
 `swdd~server-provides-update-current-state-interface~1`
 
+Status: approved
+
 The Ankaios Server provides an UpdateCurrentState interface.
 
 Tags:
@@ -371,6 +381,8 @@ Needs:
 
 ##### UpdateCurrentState interface with empty update_mask
 `swdd~update-current-state-empty-update-mask~1`
+
+Status: approved
 
 When the Ankaios Server gets an UpdateCurrentState request with empty update_mask,
 the Ankaios Server replaces its CurrentState with the newState from the UpdateStateRequest.
@@ -384,6 +396,8 @@ Needs:
 
 ##### UpdateCurrentState interface with update_mask
 `swdd~update-current-state-with-update-mask~1`
+
+Status: approved
 
 When the Ankaios Server gets an UpdateCurrentState request with a non empty update_mask,
 the Ankaios Server replaces each field of its CurrentState listed in the update_mask, with the value of the same field of the newState from the UpdateStateRequest.
@@ -406,6 +420,8 @@ The behavioral diagram of the updating current state is shown in the chapter "Up
 #### Server detects new workload
 `swdd~server-detects-new-workload~1`
 
+Status: approved
+
 When the Ankaios Server gets the `StateChangeCommand` `UpdateState` and detects a change of the state where a workload is present only in the New State,
 the Ankaios Server shall send `ExecutionCommand` to the corresponding Ankaios Agent to add the workload.
 
@@ -420,6 +436,8 @@ Needs:
 #### Server detects deleted workload
 `swdd~server-detects-deleted-workload~1`
 
+Status: approved
+
 When the Ankaios Server gets the `StateChangeCommand` `UpdateState` and detects a change of the state where a workload is present only in the Current State,
 the Ankaios Server shall send `ExecutionCommand` to the corresponding Ankaios Agent to delete the workload.
 
@@ -433,6 +451,8 @@ Needs:
 
 #### Server detects changed workload
 `swdd~server-detects-changed-workload~1`
+
+Status: approved
 
 When the Ankaios Server gets the `StateChangeCommand` `UpdateState` and detects a change of the state where a workload is present in both states
 and at least one field of the workload is different,
