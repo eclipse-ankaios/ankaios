@@ -73,8 +73,7 @@ mod grpc_tests {
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
         let server_addr = format!("0.0.0.0:{}", port);
-        let (to_grpc_server, mut grpc_server_receiver) =
-            tokio::sync::mpsc::channel::<FromServer>(20);
+        let (to_grpc_server, grpc_server_receiver) = tokio::sync::mpsc::channel::<FromServer>(20);
         let (to_server, server_receiver) = tokio::sync::mpsc::channel::<ToServer>(20);
 
         // create communication server
@@ -84,7 +83,7 @@ mod grpc_tests {
 
         let grpc_server_task = tokio::spawn(async move {
             communications_server
-                .start(&mut grpc_server_receiver, socket_addr)
+                .start(grpc_server_receiver, socket_addr)
                 .await
         });
 

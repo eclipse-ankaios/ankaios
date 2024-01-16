@@ -1,6 +1,6 @@
 # CI/CD - Release
 
-A release shall be built directly using the CI/CD environment Github Actions.
+A release shall be built directly using the CI/CD environment GitHub Actions.
 The release build creates and uploads all necessary artifacts that are required for a release.
 
 ## Release workflow
@@ -8,10 +8,10 @@ The release build creates and uploads all necessary artifacts that are required 
 For building a release a separate workflow exists inside `.github/workflows/release.yml`.
 The release workflow reuses the complete build workflow from `.github/workflows/build.yml` and its artifacts.
 
-This allows to avoid having to duplicate the steps of the build workflow into the release workflow 
+This allows to avoid having to duplicate the steps of the build workflow into the release workflow
 and thus have a single point of change for the build workflow.
 
-The release workflow executes the build workflow, exports the build artifacts into an archive for each supported platform and uploads it to the Github release.
+The release workflow executes the build workflow, exports the build artifacts into an archive for each supported platform and uploads it to the GitHub release.
 
 As an example the following release artifacts are created for linux-amd64:
 
@@ -36,7 +36,7 @@ In addition, it exports the following:
 Within the release workflow the build artifacts are downloaded into a temporary folder called `dist`
 which has the following structure:
 
-```
+```tree
 ├── coverage
 │   ├── index.html
 │   └── style.css
@@ -65,7 +65,8 @@ If a new platform shall be supported the following steps must be done:
 1. If not already done, add a build job for the new platform in `.github/workflows/build.yml` and configure the upload of the artifacts, see [CI/CD](ci-cd.md) section.
 2. Configure the release workflow under `.github/workflows/release.yml` to download the new artifacts.
    Under `jobs.release.steps` add a new step after the existing download steps and replace the parameters `<os>-<platform>` with the correct text (e.g. linux-amd64):
-   ```
+
+   ```tree
     jobs:
       ...
       release:
@@ -78,18 +79,22 @@ If a new platform shall be supported the following steps must be done:
             path: dist/<os>-<platform>/bin
         ...
    ```
+
    The name `ankaios-<os>-<platform>-bin` must match the used name in the upload artifact action defined inside the build workflow (`.github/workflows/build.yml`).
 3. Inside `tools/create_release.sh` script add a new call to the script `tools/create_artifacts.sh` like the following:
-   ```
+
+   ```bash
    ...
     "${SCRIPT_DIR}"/create_artifacts.sh -p <os>-<platform>
    ...
    ```
+
    The `<os>-<platform>` string must match the name of the sub-folder inside the dist folder. The called script expects the pre-built binaries inside `<os>-<platform>/bin`.
 
 4. Configure the upload of the new release artifact in the release workflow inside `.github/workflows/release.yml`.
    Inside the step that uploads the release artifacts add the new artifact(s) to the github upload command:
-   ```
+
+   ```bash
    ...
    run: |
      gh release upload ${{ github.ref_name }}
@@ -98,18 +103,32 @@ If a new platform shall be supported the following steps must be done:
       <os>-<platform>/ankaios-<os>-<platform>.tar.gz.sha512sum.txt
       ...
    ```
+
 5. Test and run the release workflow and check if the new artifact is uploaded correctly.
 6. Validate if the platform auto-detect mechanism of the installation script is supporting the new platform `tools/install.sh` and update the script if needed.
 
 ## Release notes
 
-The release notes are generated automatically if a release is created via the Github web frontend by clicking on the `Generate release notes` button.
+The release notes are generated automatically if a release is created via the GitHub web frontend by clicking on the `Generate release notes` button.
 
 The procedure uses the filters for pull request labels configured inside `.github/release.yml`.
 
+## Preparing a release
+
+The following steps shall be done before the actual release build is triggered.
+
+1. Create an isssue containing tasks for getting the main branch ready:
+    1. Update the versions in the project packages (Cargo.toml files) to the new version.
+    2. Execute tests on the supported targets.
+    3. Make sure there are no security warnings of Github dependabot.
+2. Finish all tasks inside the issue.
+3. Build the release according to the steps described [here](#building-a-release).
+
 ## Building a release
 
-The release shall be created directly via the Github web frontend.
+Before building the release, all [preparation steps](#preparing-a-release) shall be finished before.
+
+The release shall be created directly via the GitHub web frontend.
 
 When creating a release a tag with the following naming convention must be provided: `vX.Y.Z` (e.g. v0.1.0).
 
@@ -119,11 +138,10 @@ When creating a release a tag with the following naming convention must be provi
 4. Click on the button `Generate release notes` to generate the release notes automatically based on the filter settings for pull requests inside `.github/release.yml` configuration. In case of unwanted pull requests are listed, label the pull requests correctly, delete the description field and generate the release notes again (The correction of the labels and the regeneration of the release notes can also be done after the release build.).
 5. Make sure that the check box `Set as the latest release` is enabled. This setting is important otherwise the provided link for the installation script in [chapter installation](../usage/installation.md) is still pointing to the previous release marked as latest.
 6. Click on `Publish release`.
-7. Go to Github Actions section and wait until the release workflow has finished.
+7. Go to GitHub Actions section and wait until the release workflow has finished.
 8. If the release build finished successfully, go to the release section again and validate that all required artifacts are uploaded to the new release.
-9. If the release workflow fails, delete the release and the tag manually via the Github web frontend. Next, check the logs of the release workflow and fix the issues. Repeat the steps starting at step 1.
-
+9. If the release workflow fails, delete the release and the tag manually via the GitHub web frontend. Next, check the logs of the release workflow and fix the issues. Repeat the steps starting at step 1.
 
 !!! Note
 
-    There is a Github Action available to automatically rollback the created release and tag. This action is not used to have a better control over the cleanup procedure before a next release build is triggered. For instance, without auto-rollback a manually entered release description is still available after a failing release build.
+    There is a GitHub Action available to automatically rollback the created release and tag. This action is not used to have a better control over the cleanup procedure before a next release build is triggered. For instance, without auto-rollback a manually entered release description is still available after a failing release build.

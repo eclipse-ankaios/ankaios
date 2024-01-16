@@ -12,7 +12,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-FROM ghcr.io/eclipse-ankaios/devcontainer-base:0.6.4
+FROM ghcr.io/eclipse-ankaios/devcontainer-base:0.7.0
 
 ARG USERNAME=vscode
 

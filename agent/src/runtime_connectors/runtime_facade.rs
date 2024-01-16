@@ -5,17 +5,17 @@ use common::{
 };
 #[cfg(test)]
 use mockall::automock;
-use tokio::sync::mpsc;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::PipesChannelContext;
 
 use crate::runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker};
 
+use crate::workload::workload_control_loop::WorkloadControlLoop;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
-
-static COMMAND_BUFFER_SIZE: usize = 5;
+use crate::workload::WorkloadCommandSender;
+use crate::workload::{ControlLoopState, RestartCounter};
 
 #[async_trait]
 #[cfg_attr(test, automock)]
@@ -93,10 +93,7 @@ impl<
         control_interface: Option<PipesChannelContext>,
         update_state_tx: &StateChangeSender,
     ) -> Workload {
-        let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
-
         let workload_name = workload_spec.name.clone();
-        let agent_name = workload_spec.agent.clone();
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
         let control_interface_path = control_interface
@@ -107,39 +104,34 @@ impl<
             "Creating '{}' workload '{}' on agent '{}'",
             runtime.name(),
             workload_name,
-            agent_name
+            workload_spec.agent
         );
-
+        let (workload_channel_sender, command_receiver) = WorkloadCommandSender::new();
+        let workload_channel = workload_channel_sender.clone();
         tokio::spawn(async move {
-            let workload_name = workload_spec.name.clone();
-            let (workload_id, state_checker) = runtime
-                .create_workload(
-                    workload_spec,
-                    control_interface_path,
-                    update_state_tx.clone(),
-                )
+            let instance_name = workload_spec.instance_name();
+            workload_channel
+                .create(workload_spec, control_interface_path)
                 .await
-                .map_or_else(
-                    |err| {
-                        log::warn!("Failed to create workload: '{}': '{}'", workload_name, err);
-                        (None, None)
-                    },
-                    |(workload_id, state_checker)| (Some(workload_id), Some(state_checker)),
-                );
+                .unwrap_or_else(|err| {
+                    log::warn!("Failed to send restart workload command: '{}'", err);
+                });
 
-            Workload::await_new_command(
-                workload_name,
-                agent_name,
-                workload_id,
-                state_checker,
+            let control_loop_state = ControlLoopState {
+                instance_name,
+                workload_id: None,
+                state_checker: None,
                 update_state_tx,
                 runtime,
                 command_receiver,
-            )
-            .await;
+                workload_channel,
+                restart_counter: RestartCounter::new(),
+            };
+
+            WorkloadControlLoop::run(control_loop_state).await;
         });
 
-        Workload::new(workload_name, command_sender, control_interface)
+        Workload::new(workload_name, workload_channel_sender, control_interface)
     }
 
     // [impl->swdd~agent-replace-workload~1]
@@ -150,10 +142,7 @@ impl<
         control_interface: Option<PipesChannelContext>,
         update_state_tx: &StateChangeSender,
     ) -> Workload {
-        let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
-
         let workload_name = new_workload_spec.name.clone();
-        let agent_name = new_workload_spec.agent.clone();
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
         let control_interface_path = control_interface
@@ -164,11 +153,14 @@ impl<
             "Replacing '{}' workload '{}' on agent '{}'",
             runtime.name(),
             workload_name,
-            agent_name
+            new_workload_spec.agent
         );
 
+        let (workload_channel_sender, command_receiver) = WorkloadCommandSender::new();
+        let workload_channel = workload_channel_sender.clone();
         tokio::spawn(async move {
-            let workload_name = new_workload_spec.name.clone();
+            let instance_name = new_workload_spec.instance_name();
+            let workload_name = instance_name.workload_name();
             match runtime.get_workload_id(&old_instance_name).await {
                 Ok(old_id) => runtime
                     .delete_workload(&old_id)
@@ -187,39 +179,29 @@ impl<
                 ),
             }
 
-            let (workload_id, state_checker) = runtime
-                .create_workload(
-                    new_workload_spec,
-                    control_interface_path,
-                    update_state_tx.clone(),
-                )
+            workload_channel
+                .create(new_workload_spec, control_interface_path)
                 .await
-                .map_or_else(
-                    |err| {
-                        log::warn!(
-                            "Failed to create workload when replacing workload '{}': '{}'",
-                            workload_name,
-                            err
-                        );
-                        (None, None)
-                    },
-                    |(workload_id, state_checker)| (Some(workload_id), Some(state_checker)),
-                );
+                .unwrap_or_else(|err| {
+                    log::warn!("Failed to send restart workload command: '{}'", err);
+                });
 
             // replace workload_id and state_checker through Option directly and pass in None if create_workload fails
-            Workload::await_new_command(
-                workload_name,
-                agent_name,
-                workload_id,
-                state_checker,
+            let control_loop_state = ControlLoopState {
+                instance_name,
+                workload_id: None,
+                state_checker: None,
                 update_state_tx,
                 runtime,
                 command_receiver,
-            )
-            .await;
+                workload_channel,
+                restart_counter: RestartCounter::new(),
+            };
+
+            WorkloadControlLoop::run(control_loop_state).await;
         });
 
-        Workload::new(workload_name, command_sender, control_interface)
+        Workload::new(workload_name, workload_channel_sender, control_interface)
     }
 
     // [impl->swdd~agent-resume-workload~1]
@@ -229,10 +211,7 @@ impl<
         control_interface: Option<PipesChannelContext>,
         update_state_tx: &StateChangeSender,
     ) -> Workload {
-        let (command_sender, command_receiver) = mpsc::channel(COMMAND_BUFFER_SIZE);
-
         let workload_name = workload_spec.name.clone();
-        let agent_name = workload_spec.agent.clone();
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
 
@@ -240,11 +219,14 @@ impl<
             "Resuming '{}' workload '{}' on agent '{}'",
             runtime.name(),
             workload_name,
-            agent_name
+            workload_spec.agent
         );
 
+        let (workload_channel, command_receiver) = WorkloadCommandSender::new();
+        let workload_channel_retry = workload_channel.clone();
         tokio::spawn(async move {
-            let workload_name = workload_spec.name.clone();
+            let instance_name = workload_spec.instance_name();
+            let workload_name = instance_name.workload_name();
             let workload_id = runtime
                 .get_workload_id(&workload_spec.instance_name())
                 .await;
@@ -272,19 +254,21 @@ impl<
                 }
             };
 
-            Workload::await_new_command(
-                workload_name,
-                agent_name,
-                workload_id.ok(),
+            let control_loop_state = ControlLoopState {
+                instance_name,
+                workload_id: workload_id.ok(),
                 state_checker,
                 update_state_tx,
                 runtime,
                 command_receiver,
-            )
-            .await;
+                workload_channel: workload_channel_retry,
+                restart_counter: RestartCounter::new(),
+            };
+
+            WorkloadControlLoop::run(control_loop_state).await;
         });
 
-        Workload::new(workload_name, command_sender, control_interface)
+        Workload::new(workload_name, workload_channel, control_interface)
     }
 
     // [impl->swdd~agent-delete-old-workload~1]
@@ -316,14 +300,11 @@ impl<
 
 #[cfg(test)]
 mod tests {
-
     use common::{
         objects::{WorkloadExecutionInstanceName, WorkloadInstanceName},
         state_change_interface::ToServer,
         test_utils::generate_test_workload_spec_with_param,
     };
-    use mockall::predicate;
-    use tokio::sync::mpsc::Sender;
 
     use crate::{
         control_interface::MockPipesChannelContext,
@@ -405,24 +386,6 @@ mod tests {
             .once()
             .return_once(|_, _, _| mock_workload);
 
-        let to_server_clone = to_server.clone();
-        let await_command_context = MockWorkload::await_new_command_context();
-        await_command_context
-            .expect()
-            .once()
-            .with(
-                predicate::eq(WORKLOAD_1_NAME.to_string()),
-                predicate::eq(AGENT_NAME.to_string()),
-                predicate::eq(Some(WORKLOAD_ID.to_string())),
-                predicate::always(),
-                predicate::function(move |sender: &Sender<ToServer>| {
-                    sender.same_channel(&to_server_clone)
-                }),
-                predicate::always(),
-                predicate::always(),
-            )
-            .return_once(|_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _| {});
-
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
             .expect(vec![RuntimeCall::CreateWorkload(
@@ -475,24 +438,6 @@ mod tests {
             .once()
             .return_once(|_, _, _| mock_workload);
 
-        let to_server_clone = to_server.clone();
-        let await_command_context = MockWorkload::await_new_command_context();
-        await_command_context
-            .expect()
-            .once()
-            .with(
-                predicate::eq(WORKLOAD_1_NAME.to_string()),
-                predicate::eq(AGENT_NAME.to_string()),
-                predicate::eq(Some(WORKLOAD_ID.to_string())),
-                predicate::always(),
-                predicate::function(move |sender: &Sender<ToServer>| {
-                    sender.same_channel(&to_server_clone)
-                }),
-                predicate::always(),
-                predicate::always(),
-            )
-            .return_once(|_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _| {});
-
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
             .expect(vec![
@@ -505,6 +450,118 @@ mod tests {
                     workload_spec.clone(),
                     to_server.clone(),
                     Ok(StubStateChecker::new()),
+                ),
+            ])
+            .await;
+
+        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
+            Box::new(runtime_mock.clone());
+        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
+            ownable_runtime_mock,
+        ));
+
+        let _workload = test_runtime_facade.resume_workload(
+            workload_spec.clone(),
+            Some(control_interface_mock),
+            &to_server,
+        );
+
+        tokio::task::yield_now().await;
+
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    // [utest->swdd~agent-resume-workload~1]
+    #[tokio::test]
+    async fn utest_runtime_facade_resume_workload_list_fails() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let control_interface_mock = MockPipesChannelContext::default();
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let (to_server, _server_receiver) =
+            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
+
+        let mock_workload = MockWorkload::default();
+        let new_workload_context = MockWorkload::new_context();
+        new_workload_context
+            .expect()
+            .once()
+            .return_once(|_, _, _| mock_workload);
+
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock
+            .expect(vec![RuntimeCall::GetWorkloadId(
+                workload_spec.instance_name(),
+                Err(crate::runtime_connectors::RuntimeError::List(
+                    "some list workload error".to_string(),
+                )),
+            )])
+            .await;
+
+        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
+            Box::new(runtime_mock.clone());
+        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
+            ownable_runtime_mock,
+        ));
+
+        let _workload = test_runtime_facade.resume_workload(
+            workload_spec.clone(),
+            Some(control_interface_mock),
+            &to_server,
+        );
+
+        tokio::task::yield_now().await;
+
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    // [utest->swdd~agent-resume-workload~1]
+    #[tokio::test]
+    async fn utest_runtime_facade_resume_workload_start_state_checker_fails() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let control_interface_mock = MockPipesChannelContext::default();
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let (to_server, _server_receiver) =
+            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
+
+        let mock_workload = MockWorkload::default();
+        let new_workload_context = MockWorkload::new_context();
+        new_workload_context
+            .expect()
+            .once()
+            .return_once(|_, _, _| mock_workload);
+
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock
+            .expect(vec![
+                RuntimeCall::GetWorkloadId(
+                    workload_spec.instance_name(),
+                    Ok(WORKLOAD_ID.to_string()),
+                ),
+                RuntimeCall::StartChecker(
+                    WORKLOAD_ID.to_string(),
+                    workload_spec.clone(),
+                    to_server.clone(),
+                    Err(crate::runtime_connectors::RuntimeError::Create(
+                        "some state checker error".to_string(),
+                    )),
                 ),
             ])
             .await;
@@ -554,24 +611,6 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| mock_workload);
-
-        let to_server_clone = to_server.clone();
-        let await_command_context = MockWorkload::await_new_command_context();
-        await_command_context
-            .expect()
-            .once()
-            .with(
-                predicate::eq(WORKLOAD_1_NAME.to_string()),
-                predicate::eq(AGENT_NAME.to_string()),
-                predicate::eq(Some(WORKLOAD_ID.to_string())),
-                predicate::always(),
-                predicate::function(move |sender: &Sender<ToServer>| {
-                    sender.same_channel(&to_server_clone)
-                }),
-                predicate::always(),
-                predicate::always(),
-            )
-            .return_once(|_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _| {});
 
         let old_workload_instance_name = WorkloadExecutionInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME)
@@ -641,24 +680,6 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| mock_workload);
-
-        let to_server_clone = to_server.clone();
-        let await_command_context = MockWorkload::await_new_command_context();
-        await_command_context
-            .expect()
-            .once()
-            .with(
-                predicate::eq(WORKLOAD_1_NAME.to_string()),
-                predicate::eq(AGENT_NAME.to_string()),
-                predicate::eq(Some(WORKLOAD_ID.to_string())),
-                predicate::always(),
-                predicate::function(move |sender: &Sender<ToServer>| {
-                    sender.same_channel(&to_server_clone)
-                }),
-                predicate::always(),
-                predicate::always(),
-            )
-            .return_once(|_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _| {});
 
         let old_workload_instance_name = WorkloadExecutionInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME)
@@ -730,24 +751,6 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| mock_workload);
-
-        let to_server_clone = to_server.clone();
-        let await_command_context = MockWorkload::await_new_command_context();
-        await_command_context
-            .expect()
-            .once()
-            .with(
-                predicate::eq(WORKLOAD_1_NAME.to_string()),
-                predicate::eq(AGENT_NAME.to_string()),
-                predicate::eq(Some(WORKLOAD_ID.to_string())),
-                predicate::always(),
-                predicate::function(move |sender: &Sender<ToServer>| {
-                    sender.same_channel(&to_server_clone)
-                }),
-                predicate::always(),
-                predicate::always(),
-            )
-            .return_once(|_, _, _: Option<String>, _: Option<StubStateChecker>, _, _, _| {});
 
         let old_workload_instance_name = WorkloadExecutionInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME)

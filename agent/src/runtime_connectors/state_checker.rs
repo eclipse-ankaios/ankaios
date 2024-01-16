@@ -15,7 +15,7 @@ pub trait RuntimeStateGetter<WorkloadId>: Send + Sync + 'static
 where
     WorkloadId: Send + Sync + 'static,
 {
-    // [impl->swdd~allowed-workload-states~1]
+    // [impl->swdd~allowed-workload-states~2]
     async fn get_state(&self, workload_id: &WorkloadId) -> ExecutionState;
 }
 

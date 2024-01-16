@@ -1,4 +1,0 @@
-@startuml seq_example
-!include ../../../../resources/doc/plantuml/clean.skin
-
-ping -> pong : send object list

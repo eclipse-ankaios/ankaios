@@ -57,15 +57,19 @@ impl RuntimeStateGetter<PodmanWorkloadId> for PodmanStateGetter {
             }
             Err(err) => {
                 log::warn!(
-                    "Could not get state of workload '{:?}': '{}'. Returning unknown.",
-                    workload_id,
+                    "Could not get state of workload '{}': '{}'. Returning unknown.",
+                    workload_id.id,
                     err
                 );
                 ExecutionState::ExecUnknown
             }
         };
 
-        log::trace!("Returning the state {}", exec_state);
+        log::trace!(
+            "Returning the state '{}' for the workload '{}'",
+            exec_state,
+            workload_id.id
+        );
         exec_state
     }
 }

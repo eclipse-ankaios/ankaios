@@ -47,12 +47,10 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     && \
     rm -rf /var/lib/apt/lists/*
 
-          
 VOLUME /var/lib/containers
 
 COPY containers.conf /etc/containers/containers.conf
 RUN chmod 644 /etc/containers/containers.conf
-
 
 # install grpcurl
 RUN if [ "$TARGETARCH" = "amd64" ]; then \
@@ -76,7 +74,7 @@ RUN PIP_BREAK_SYSTEM_PACKAGES=1 pip install mkdocs-material pillow cairosvg mike
 RUN curl -sL https://github.com/pseudomuto/protoc-gen-doc/releases/download/v1.5.1/protoc-gen-doc_1.5.1_linux_${TARGETARCH}.tar.gz | tar xz --directory=/usr/local/bin protoc-gen-doc
 
 # Before installing cargo tools, change to the user that will be used in the container later.
-# The reason is that cargo creates some cache, etc. folders with the correct group rustlang, but 
+# The reason is that cargo creates some cache, etc. folders with the correct group rustlang, but
 # without making them group writable. Easiest fix is to change to the correct user before the install,
 # s.t. the owner is correct from the start.
 USER ${USERNAME}
@@ -84,7 +82,8 @@ USER ${USERNAME}
 # Install cargo cli tools
 RUN cargo install cargo-llvm-cov --locked; \
     cargo install cargo-deb --locked; \
-    cargo install cargo-nextest --locked
+    cargo install cargo-nextest --locked; \
+    cargo install cargo-deny --locked
 
 # Install required cargo targets and toolchains
 RUN rustup target add x86_64-unknown-linux-musl \

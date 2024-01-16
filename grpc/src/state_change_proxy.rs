@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ankaios_streaming::GRPCStreaming;
-use crate::proxy_error::GrpcProxyError;
+use crate::grpc_middleware_error::GrpcMiddlewareError;
 use api::proto::request::RequestContent;
 use api::proto::to_server::ToServerEnum;
 use api::proto::{self, Request};
@@ -49,29 +49,27 @@ pub async fn forward_from_proto_to_ankaios(
     agent_name: String,
     grpc_streaming: &mut impl GRPCStreaming<proto::ToServer>,
     sink: Sender<ToServer>,
-) -> Result<(), GrpcProxyError> {
+) -> Result<(), GrpcMiddlewareError> {
     while let Some(message) = grpc_streaming.message().await? {
         log::trace!("REQUEST={:?}", message);
 
-        match message.to_server_enum.ok_or(GrpcProxyError::Receive(
-            "Missing state_change_request".to_string(),
-        ))? {
+        match message
+            .to_server_enum
+            .ok_or(GrpcMiddlewareError::ReceiveError(
+                "Missing state_change_request".to_string(),
+            ))? {
             ToServerEnum::Request(Request {
                 request_id,
                 request_content,
             }) => {
-                let request_content = match request_content {
-                    Some(value) => value,
-                    None => {
-                        return Err(GrpcProxyError::Conversion(format!(
-                            "Request content empty for request ID: {}",
-                            request_id
-                        )));
-                    }
-                };
+                log::debug!("Received Request from {}", agent_name);
+
                 // [impl->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
                 let request_id = prepend_request_id(request_id.as_ref(), agent_name.as_ref());
-                match request_content {
+                match request_content.ok_or(GrpcMiddlewareError::ConversionError(format!(
+                    "Request content empty for request ID: {}",
+                    request_id
+                )))? {
                     RequestContent::UpdateState(UpdateStateRequest {
                         new_state,
                         update_mask,
@@ -83,7 +81,7 @@ pub async fn forward_from_proto_to_ankaios(
                                     .await?;
                             }
                             Err(error) => {
-                                return Err(GrpcProxyError::Conversion(format!(
+                                return Err(GrpcMiddlewareError::ConversionError(format!(
                                     "Could not convert UpdateStateRequest for forwarding: {}",
                                     error
                                 )));
@@ -133,7 +131,7 @@ pub async fn forward_from_proto_to_ankaios(
 pub async fn forward_from_ankaios_to_proto(
     grpc_tx: Sender<proto::ToServer>,
     server_rx: &mut StateChangeReceiver,
-) -> Result<(), GrpcProxyError> {
+) -> Result<(), GrpcMiddlewareError> {
     while let Some(x) = server_rx.recv().await {
         match x {
             ToServer::Request(request) => {
@@ -324,7 +322,7 @@ mod tests {
         )
         .await;
         assert!(forward_result.is_err());
-        assert_eq!(forward_result.unwrap_err().to_string(), String::from("StreamingError: 'status: Unknown, message: \"test\", details: [], metadata: MetadataMap { headers: {} }'"));
+        assert_eq!(forward_result.unwrap_err().to_string(), String::from("Connection interrupted: 'status: Unknown, message: \"test\", details: [], metadata: MetadataMap { headers: {} }'"));
 
         // pick received execution command
         let result = server_rx.recv().await;

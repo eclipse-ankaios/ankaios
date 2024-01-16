@@ -519,8 +519,8 @@ mod tests {
                             .entry(
                                 "dependencies",
                                 Mapping::default()
-                                    .entry("workload A", "RUNNING")
-                                    .entry("workload C", "STOPPED"),
+                                    .entry("workload A", "ADD_COND_RUNNING")
+                                    .entry("workload C", "ADD_COND_SUCCEEDED"),
                             )
                             .entry("updateStrategy", "UNSPECIFIED")
                             .entry(

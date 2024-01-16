@@ -2,7 +2,7 @@
 
 ## About this document
 
-This document describes the Software Design for the Ankaios Agent. 
+This document describes the Software Design for the Ankaios Agent.
 
 Ankaios is a workload orchestrator supporting a subset of the Kubernetes configurations and is targeted at the automotive use case.
 
@@ -39,15 +39,32 @@ The initial setup of the Ankaios agent is done in the main.rs is also counted as
 
 ### RuntimeManager
 
-The RuntimeManager holds a list of RuntimeFacades (more precisely a list of runtime connectors wrapped into a RuntimeFacade) and a list of running workloads. It is also responsible for the handling the update workload calls including the workload reuse and the logic of translating the added and deleted workload lists into commands to a RuntimeFacade or a WorkloadObject.
+The RuntimeManager holds a list of RuntimeFacades (more precisely a list of runtime connectors wrapped into a RuntimeFacade) and a list of running workloads. It is also responsible for handling the update workload calls including the workload reuse and the logic of translating the added and deleted workload lists into commands to a RuntimeFacade or a WorkloadObject.
 
 ### RuntimeFacade
 
-The RuntimeFacade wraps some common actions shared between all runtime connectors, s.t. they don't need to be implemented multiple times. The RuntimeFacade is responsible for creating, resuming and replacing a WorkloadObject including the start of the workload control task. Furthermore, The RuntimeFacade is responsible for providing functionality for deleting workloads that do not have an internal WorkloadObject (found unneeded workloads started in a previous execution of the Ankaios agent).
+The RuntimeFacade wraps some common actions shared between all runtime connectors, s.t. they don't need to be implemented multiple times. The RuntimeFacade is responsible for creating, resuming and replacing a WorkloadObject including the start of the WorkloadControlLoop. Furthermore, The RuntimeFacade is responsible for providing functionality for deleting workloads that do not have an internal WorkloadObject (found unneeded workloads started in a previous execution of the Ankaios agent).
+
+### WorkloadCommand
+
+A WorkloadCommand is used to instruct the WorkloadControlLoop to do an action on a workload.
+Thus, the following WorkloadCommands exists:
+* `Create` for creating a workload
+* `Update` for updating a workload
+* `Restart` for restarting a workload
+* `Delete` for deleting a workload
+
+### WorkloadControlLoop
+
+The WorkloadControlLoop is started for each workload with the creation of that workload and is running until its deletion. The WorkloadControlLoop receives the WorkloadCommands via the WorkloadCommandSender and triggers the corresponding operation on the runtime connector.
+
+### WorkloadCommandSender
+
+The WorkloadCommandSender is a communication channel and responsible for sending WorkloadCommands to the WorkloadControlLoop.
 
 ### WorkloadObject
 
-A WorkloadObject represents a workload inside the Ankaios agent. It holds the control interface and the sender for the communication channel with the workload control task. The WorkloadObject is also responsible for managing the workload control task.
+A WorkloadObject represents a workload inside the Ankaios agent. It holds the control interface and the sender of the WorkloadCommandSender to send WorkloadCommands to the WorkloadControlLoop.
 
 ### ParameterStorage
 
@@ -89,7 +106,6 @@ The Middleware is responsible for the connection to the Ankaios Server.
 The channels are defined in the `common` library.
 They are used to connect modules in the Ankaios Agent, more precisely they connect task in which modules run.
 
-
 ## Behavioral view
 
 This chapter defines the runtime behavior of the Ankaios Agent in details. The following chapters show essential parts of the behavior and describe the requirements towards the Ankaios Agent.
@@ -116,7 +132,6 @@ Needs:
 - impl
 - itest
 
-
 #### Agent sends hello
 `swdd~agent-sends-hello~1`
 
@@ -130,7 +145,6 @@ Tags:
 Needs:
 - impl
 - itest
-
 
 #### AgentManager shall listen for request from the Server
 `swdd~agent-manager-listens-requests-from-server~1`
@@ -192,8 +206,6 @@ Needs:
 - impl
 - utest
 
-
-
 #### Agent supports multiple runtime connectors
 `swdd~agent-supports-multiple-runtime-connectors~1`
 
@@ -201,13 +213,12 @@ Status: approved
 
 The Ankaios agent shall support multiple runtime connectors.
 
-Tags: 
+Tags:
 - RuntimeManager
 
 Needs:
 - impl
 - utest
-
 
 #### Agent uses specified runtime connector
 `swdd~agent-uses-specified-runtime~1`
@@ -247,7 +258,7 @@ The Agent shall support Podman for creating Kubernetes resources as a build-in r
 Rationale:
 Supporting Kubernetes resources as a separate runtime allows differentiating between plain containers and pods started via Kubernetes manifests.
 
-Tags: 
+Tags:
 - PodmanKubeRuntime
 
 Needs:
@@ -260,15 +271,15 @@ The following diagram show the general steps the Ankaios Agent takes when receiv
 
 ![Handling UpdateWorkload](plantuml/seq_update_workload.svg)
 
-#### Agent Manager creates Control Interface Instance for each workload
+#### RuntimeManager creates Control Interface Instance for each workload
 `swdd~agent-create-control-interface-pipes-per-workload~1`
 
 Status: approved
 
-When the Agent Manager gets an `UpdateWorkload` message, for each added Workload with a runtime that is known, the Agent Manager shall create a Control Interface Instance for this Workload.
+When the RuntimeManager receives a call to handle an `UpdateWorkload` message, for each added Workload with a runtime that is known, the RuntimeManager shall create a Control Interface Instance for this Workload.
 
 Tags:
-- AgentManager
+- RuntimeManager
 - ControlInterface
 
 Needs:
@@ -282,8 +293,8 @@ Status: approved
 
 Each new ControlInterface instance shall create two FIFO files :
 
-- a FIFO file for the workload to send requests to the Control Interface (called output pipe in the following) 
-- a FIFO file for the workload to request responses to the Control Interface (called input pipe in the following) 
+- a FIFO file for the workload to send requests to the Control Interface (called output pipe in the following)
+- a FIFO file for the workload to request responses to the Control Interface (called input pipe in the following)
 
 Tags:
 - ControlInterface
@@ -291,7 +302,6 @@ Tags:
 Needs:
 - impl
 - utest
-
 
 #### Control Interface pipes at predefined path
 `swdd~agent-control-interface-pipes-path-naming~1`
@@ -305,7 +315,7 @@ The Control Interface Instance shall create the Control Interface pipes at the f
 Rationale:
 The Ankaios Agent needs a unique, reproducible name to be able to make the mapping between a workload execution instance and a control interface pipes instance.
 
-Tags: 
+Tags:
 - ControlInterface
 
 Needs:
@@ -317,7 +327,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Agent gets an add Workload command with the `UpdateWorklaod` message and the runtime of the Workload is unknown, the RuntimeManager shall skip this Workload.
+When the Ankaios Agent gets an add Workload command with the `UpdateWorkload` message and the runtime of the Workload is unknown, the RuntimeManager shall skip this Workload.
 
 Tags:
 - RuntimeManager
@@ -350,7 +360,6 @@ Needs:
 
 The following diagram and the subsequent requirements show the steps the Ankaios Agent takes when receiving the first UpdateWorkload command sent by Server. The first UpdateWorkload contains the complete initial list of workloads the Agent shall manage.
 
-
 ![Handling initial UpdateWorkload](plantuml/seq_update_workload_initial.svg)
 
 ##### RuntimeManager initial list of workloads handles existing workloads
@@ -363,7 +372,7 @@ After receiving the complete list of added workloads from the Ankaios Sever at t
 Comment:
 In case the Agent was already running, the RuntimeManager can take care of Workloads that were started in an earlier execution. Some of these workloads can be reused, some have to be updated and some stopped.
 
-Tags: 
+Tags:
 - RuntimeManager
 
 Needs:
@@ -380,7 +389,7 @@ When handling existing workloads, the RuntimeManager shall call each RuntimeFaca
 Comment:
 A 'machine runtime window' is the time between the start and shutdown of the machine. Finding existing workloads needs to be done before stating new workloads in order to avoid conflicts. If this call fails, the agent currently ignores the failure assumes that no workloads are running. It must be confirmed that this behavior is correct.
 
-Tags: 
+Tags:
 - RuntimeManager
 
 Needs:
@@ -397,7 +406,7 @@ When receiving a call to list all reusable workloads, the RuntimeFacade shall fo
 Comment:
 No decoupling is done here and we wait for the list to be built in order to prevent race conditions with calls from the server.
 
-Tags: 
+Tags:
 - RuntimeFacade
 
 Needs:
@@ -427,17 +436,14 @@ Needs:
 Status: approved
 
 When the RuntimeFacade gets a requests to create a workload, the RuntimeFacade shall:
-* request the wrapped runtime to create the workload (incl. starting the state checker monitoring it)
-* start the workload task waiting for stop or update commands for that workload
-* return a new workload object allowing the communication with the task handling the stop or update commands
- 
-Comment:
-The state checker doesn't need to be started as an additional step here as the runtime starts it when creating the workload.
+* start the WorkloadControlLoop waiting for WorkloadCommands
+* request the create of the workload by sending a create command to the WorkloadControlLoop
+* return a new workload object containing a WorkloadCommandSender to communicate with the WorkloadControlLoop
 
 Rationale:
 The task handling stop and update commands is needed to ensure maintaining the order of the commands for a workload while not blocking Ankaios to wait until one command is complete.
 
-Tags: 
+Tags:
 - RuntimeFacade
 
 Needs:
@@ -465,16 +471,16 @@ Status: approved
 
 When requested, the RuntimeFacade resumes a workload by:
 * request the wrapped runtime to start the state checker for that workload
-* start the workload task waiting for stop or update commands for that workload
-* return a new workload object allowing the communication with the task handling the stop or update commands
- 
+* start the WorkloadControlLoop waiting for WorkloadCommands
+* return a new workload object containing a WorkloadCommandSender to communicate with the WorkloadControlLoop
+
 Comment:
 If a workload is running, there is no need to create it again via the specific runtime. The state checker must be started as an additional step here as the runtime does not create a new workload.
 
 Rationale:
 The task handling stop and update commands is needed to ensure maintaining the order of the commands for a workload while not blocking Ankaios to wait until one command is complete.
 
-Tags: 
+Tags:
 - RuntimeFacade
 
 Needs:
@@ -491,9 +497,9 @@ When handling existing workloads, for each found existing workload which is requ
 Comment:
 The RuntimeManager can check if the specified workload is already running, but was updated by comparing the new workload execution instance name with that of the running instance.
 
-Tags: 
+Tags:
 - RuntimeManager
-- 
+-
 Needs:
 - impl
 - utest
@@ -505,9 +511,9 @@ Status: approved
 
 When requested, the RuntimeFacade replaces a workload by:
 * request the wrapped runtime to delete the old workload
-* request the wrapped runtime to create a workload with the new config(incl. starting the state checker monitoring it)
-* start the workload task waiting for stop or update commands for that workload
-* return a new workload object allowing the communication with the task handling the stop or update commands
+* start the WorkloadControlLoop waiting for WorkloadCommands
+* request the create of the workload with the new config by sending a create command to the WorkloadControlLoop
+* return a new workload object containing a WorkloadCommandSender to communicate with the WorkloadControlLoop
 
 Comment:
 No need to specifically ask for starting the state checker at that point as runtimes are expected to always create a state checker when creating a workload.
@@ -560,7 +566,7 @@ Needs:
 
 The UpdateWorkload message contains two lists of workloads - deleted Workloads specified by name and added Workloads including their desired configuration. The Ankaios Agent goes through the deleted Workloads first in order to free resources before starting to allocate new ones.
 
-The following two diagrams show how deleted and added Workloads are handled by the Agent Manager. The first diagram shows how the deleted Workloads are handled:
+The following two diagrams show how deleted and added Workloads are handled by the AgentManager. The first diagram shows how the deleted Workloads are handled:
 
 ![Handling subsequent UpdateWorkload - deleted Workloads](plantuml/seq_update_workload_subsequent_deleted.svg)
 
@@ -581,7 +587,7 @@ Updated Workloads can be handled before everything is deleted as in the normal c
 Rationale:
 Deleting Workloads first ensures that the machine which executes the workloads has enough resources to start the new ones.
 
-Tags: 
+Tags:
 - RuntimeManager
 
 Needs:
@@ -598,7 +604,7 @@ The RuntimeManager shall request an update of a workload if the workload is in b
 Rationale:
 This is needed to ensure the order of the commands.
 
-Tags: 
+Tags:
 - RuntimeManager
 
 Needs:
@@ -613,7 +619,7 @@ Status: approved
 When the WorkloadObject receives a trigger to update the workload, it:
 * stops the old control interface
 * stores the new control interface
-* sends a command on the command channel to the workload task to update the workload
+* sends a command via the WorkloadCommandSender to the WorkloadControlLoop to update the workload
 
 Tags:
 - WorkloadObject
@@ -622,36 +628,58 @@ Needs:
 - impl
 - utest
 
-##### Workload task executes update command
-`swdd~agent-workload-task-executes-update~1`
+##### WorkloadControlLoop executes create command
+`swdd~agent-workload-control-loop-executes-create~1`
 
 Status: approved
 
-When the control task started during the creation of the workload object receives an update command, the workload task shall:
+When the WorkloadControlLoop receives an create command, the WorkloadControlLoop shall:
+* create a new workload via the corresponding runtime connector (which creates and starts a state checker)
+* store the Id and reference to the state checker for the created workload inside the WorkloadControlLoop
+
+Comment:
+For details on the runtime connector specific actions, e.g., create, see the specific runtime connector workflows.
+
+Rationale:
+The WorkloadControlLoop allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
+##### WorkloadControlLoop executes update command
+`swdd~agent-workload-control-loop-executes-update~1`
+
+Status: approved
+
+When the WorkloadControlLoop started during the creation of the workload object receives an update command, the WorkloadControlLoop shall:
 * delete the old workload via the corresponding runtime connector
 * stop the state checker for the workload
 * create a new workload via the corresponding runtime connector (which creates and starts a state checker)
-* store the new Id and reference to the state checker inside the workload control task
+* store the new Id and reference to the state checker inside the WorkloadControlLoop
 
 Comment:
 For details on the runtime connector specific actions, e.g., delete, see the specific runtime connector workflows.
 
 Rationale:
-The workload task allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
+The WorkloadControlLoop allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
 
 Tags:
-- WorkloadObject
+- WorkloadControlLoop
 
 Needs:
 - impl
 - utest
 
-##### Workload task update broken allowed
-`swdd~agent-workload-task-update-broken-allowed~1`
+##### WorkloadControlLoop update broken allowed
+`swdd~agent-workload-control-loop-update-broken-allowed~1`
 
 Status: approved
 
-When the workload control task has no old workload to delete during the update of a workload, the control task shall continue with the update.
+When the WorkloadControlLoop has no old workload to delete during the update of a workload, the WorkloadControlLoop shall continue with the update.
 
 Comment:
 The assumption here is that the old workload is not running anymore.
@@ -660,41 +688,41 @@ Rationale:
 This allows to bring the system into a working state.
 
 Tags:
-- WorkloadObject
+- WorkloadControlLoop
 
 Needs:
 - impl
 - utest
 
-##### Workload task update delete failed allows retry
-`swdd~agent-workload-task-update-delete-failed-allows-retry~1`
+##### WorkloadControlLoop update delete failed allows retry
+`swdd~agent-workload-control-loop-update-delete-failed-allows-retry~1`
 
 Status: approved
 
-When the workload control task encounters a failure while deleting the old workload during the update of a workload, the control task shall continue allowing a subsequent update or delete attempt.
+When the WorkloadControlLoop encounters a failure while deleting the old workload during the update of a workload, the WorkloadControlLoop shall continue allowing subsequent WorkloadCommands attempt.
 
 Rationale:
 This allows to try the update again instead of going in an undefined state.
 
 Tags:
-- WorkloadObject
+- WorkloadControlLoop
 
 Needs:
 - impl
 - utest
 
-##### Workload task update create failed allows retry
-`swdd~agent-workload-task-update-create-failed-allows-retry~1`
+##### WorkloadControlLoop update create failed allows retry
+`swdd~agent-workload-control-loop-update-create-failed-allows-retry~1`
 
 Status: approved
 
-When the workload control task encounters a failure while creating a new workload during the update of a workload, the control task shall continue allowing a subsequent update or delete attempt.
+When the WorkloadControlLoop encounters a failure while creating a new workload during the update of a workload, the WorkloadControlLoop shall continue allowing subsequent WorkloadCommands attempt.
 
 Rationale:
 This allows to try the update again instead of going in an undefined state.
 
 Tags:
-- WorkloadObject
+- WorkloadControlLoop
 
 Needs:
 - impl
@@ -708,7 +736,7 @@ Status: approved
 When the Ankaios Agent gets an `UpdateWorkload` message that indicates an update of a workload and the workload cannot be found, the RuntimeManager shall trigger adding of the workload.
 
 Comment:
-This situation cannot actually occur, but if a workload is requested to be added it shall also be added instead of just tracing an error/warning. 
+This situation cannot actually occur, but if a workload is requested to be added it shall also be added instead of just tracing an error/warning.
 
 Tags:
 - RuntimeManager
@@ -738,7 +766,7 @@ Status: approved
 
 When the WorkloadObject receives a trigger to delete the workload, it:
 * stops the control interface
-* sends a command on the command channel to the workload task to delete the workload
+* sends a command via the WorkloadCommandSender to the WorkloadControlLoop to delete the workload
 
 Tags:
 - WorkloadObject
@@ -747,38 +775,38 @@ Needs:
 - impl
 - utest
 
-##### Workload task executes delete command
-`swdd~agent-workload-tasks-executes-delete~1`
+##### WorkloadControlLoop executes delete command
+`swdd~agent-workload-control-loop-executes-delete~1`
 
 Status: approved
 
-When the control task started during the creation of the workload object receives a delete command, the workload task shall:
+When the WorkloadControlLoop started during the creation of the workload object receives a delete command, the WorkloadControlLoop shall:
 * delete the old workload via the corresponding runtime connector
 * stop the state checker for the workload
 * send a removed workload state for that workload
-* stop the workload control task
+* stop the WorkloadControlLoop
 
 Comment:
 For details on the runtime connector specific actions, e.g., delete, see the specific runtime connector workflows.
 
 Rationale:
-The workload task allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
-As the state checker for the workload is stopped, we cannot be sure that the removed workload state is correctly sent to the server before the state checker is stopped. 
+The WorkloadControlLoop allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
+As the state checker for the workload is stopped, we cannot be sure that the removed workload state is correctly sent to the server before the state checker is stopped.
 For that reason the removed state is explicitly sent, even if it could be sent twice this way.
 
-Tags: 
-- WorkloadObject
+Tags:
+- WorkloadControlLoop
 
 Needs:
 - impl
 - utest
 
-##### Workload task delete broken allowed
-`swdd~agent-workload-task-delete-broken-allowed~1`
+##### WorkloadControlLoop delete broken allowed
+`swdd~agent-workload-control-loop-delete-broken-allowed~1`
 
 Status: approved
 
-When the workload control task has no old workload to delete during the deletion of a workload, the control task shall exit.
+When the WorkloadControlLoop has no old workload to delete during the deletion of a workload, the WorkloadControlLoop shall exit.
 
 Comment:
 The assumption here is that the old workload is not running anymore and the job is done.
@@ -787,24 +815,24 @@ Rationale:
 This allows to bring the system into a working state.
 
 Tags:
-- WorkloadObject
+- WorkloadControlLoop
 
 Needs:
 - impl
 - utest
 
-##### Workload task delete failed allows retry
-`swdd~agent-workload-task-delete-failed-allows-retry~1`
+##### WorkloadControlLoop delete failed allows retry
+`swdd~agent-workload-control-loop-delete-failed-allows-retry~1`
 
 Status: approved
 
-When the workload control task encounters a failure while deleting the workload, the control task shall continue allowing a subsequent update or delete attempt.
+When the WorkloadControlLoop encounters a failure while deleting the workload, the WorkloadControlLoop shall continue allowing subsequent workload command attempts.
 
 Rationale:
 This allows to try the delete again instead of going in an undefined state.
 
 Tags:
-- WorkloadObject
+- WorkloadControlLoop
 
 Needs:
 - impl
@@ -841,6 +869,152 @@ Needs:
 - impl
 - utest
 
+#### Restart of workloads
+
+The following diagram describes the restart behavior when a workload is created and the create fails:
+
+![Restart Workload On Create Failure](plantuml/seq_restart_workload_on_create_failure.svg)
+
+The following diagram describes the restart behavior when an update command is received within the WorkloadControlLoop and the create of the new workload fails:
+
+![Restart Workload On Update With Create Failure](plantuml/seq_restart_workload_on_update_with_create_failure.svg)
+
+##### WorkloadControlLoop restarts a workload on failing create
+`swdd~agent-workload-control-loop-restart-workload-on-create-failure~1`
+
+Status: approved
+
+When the WorkloadControlLoop creates a workload and the operation fails, the WorkloadControlLoop shall restart the creation of a workload by sending the WorkloadCommand Restart to the WorkloadControlLoop of the workload.
+
+Comment:
+Depending on the runtime, a create of a workload might fail if the workload is added again while a delete operation for a workload with the same config is still in progress.
+
+Rationale:
+The restart behavior for unsuccessful creation of a workload makes the system more resilient against runtime specific failures.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
+
+##### WorkloadControlLoop requests restart of a workload on failing restart attempt
+`swdd~agent-workload-control-loop-request-restarts-on-failing-restart-attempt~1`
+
+Status: approved
+
+When the WorkloadControlLoop executes a restart of a workload and the runtime connector fails to create the workload, the WorkloadControlLoop shall request a restart of the creation of the workload within a 1 sec time interval.
+
+Comment:
+The creation of a workload can fail temporarily, for example if a Runtime is still busy deleting and the workload is to be recreated. The WorkloadControlLoop uses the WorkloadCommandSender to send the WorkloadCommand restart.
+
+Rationale:
+The restart behavior for unsuccessful creation of a workload makes the system more resilient against runtime specific failures.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
+
+##### WorkloadControlLoop restarts a workload
+`swdd~agent-workload-control-loop-executes-restart~1`
+
+Status: approved
+
+When the WorkloadControlLoop receives a restart command, the WorkloadControlLoop shall:
+* create a new workload via the corresponding runtime connector (which creates and starts a state checker)
+* store the new Id and reference to the state checker inside the WorkloadControlLoop
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
+
+##### WorkloadControlLoop stops restarts after the defined maximum amount of restart attempts
+`swdd~agent-workload-control-loop-limit-restart-attempts~1`
+
+Status: approved
+
+The WorkloadControlLoop shall execute a maximum of 20 restart attempts.
+
+Rationale:
+Limiting the restart attempts prevents pointless attempts if the workload cannot be started due to a configuration conflict that the runtime rejects in general.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
+
+##### WorkloadControlLoop sets execution state of workload to failed after reaching the restart limit
+`swdd~agent-workload-control-loop-restart-limit-set-execution-state~1`
+
+Status: approved
+
+When the WorkloadControlLoop receives a restart command and the maximum amount of restart attempts is reached, the WorkloadControlLoop shall set the execution state of the workload to `ExecFailed`.
+
+Rationale:
+The workload has a well defined state after reaching the restart attempt limit indicating that the create of the workload has failed.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
+
+##### WorkloadControlLoop prevents restarts when receiving other workload commands
+`swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1`
+
+Status: approved
+
+When the WorkloadControlLoop receives an update or delete from the WorkloadCommandSender, the WorkloadControlLoop shall stop triggering restart attempts.
+
+Comment:
+When executing the restart attempts the WorkloadControlLoop might receive other WorkloadCommands like update or delete making the restart attempts with the previous workload configuration obsolete.
+
+Rationale:
+This prevents the continuation of unnecessary restart attempts of a workload when receiving a WorkloadCommand update or delete.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
+
+##### WorkloadControlLoop resets restart attempts when receiving an update
+`swdd~agent-workload-control-loop-reset-restart-attempts-on-update~1`
+
+Status: approved
+
+When the WorkloadControlLoop receives an update from the WorkloadCommandSender, the WorkloadControlLoop shall reset the restart counter.
+
+Comment:
+The restart counter might be already incremented when the workload that shall be updated was already failing a few times during its initial creation.
+
+Rationale:
+This enables new restart attempts for the new workload again.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
 #### Runtime connector workflows
 
 Ankaios supports multiple runtimes by providing a runtime connector trait specifying the functions that shall be implemented by the runtime.
@@ -860,7 +1034,7 @@ The runtime connector trait shall require the implementation of the following fu
 * delete workload
 
 Comment:
-The function "create workload" shall also start the workload and start the state checker. 
+The function "create workload" shall also start the workload and start the state checker.
 Next subchapters describe features of these functions specific for each runtime connector.
 
 Rationale:
@@ -927,7 +1101,7 @@ Needs:
 
 Status: approved
 
-When the podman runtime connector is called to return list of existing workloads, 
+When the podman runtime connector is called to return list of existing workloads,
 the podman runtime connector shall use the label `agent` stored in the workloads.
 
 Tags:
@@ -962,7 +1136,7 @@ Needs:
 
 Status: approved
 
-When the podman runtime connector is called to create workload and the action is successfully processed by the Podman runtime connector, 
+When the podman runtime connector is called to create workload and the action is successfully processed by the Podman runtime connector,
 the podman runtime connector shall return workload id.
 
 Tags:
@@ -1026,7 +1200,7 @@ Needs:
 
 Status: approved
 
-When the podman runtime connector is called to get workload id, 
+When the podman runtime connector is called to get workload id,
 the podman runtime connector shall use the label `name` stored in the workload.
 
 Tags:
@@ -1323,7 +1497,7 @@ Needs:
 
 This section describes how workload states are sampled inside the Ankaios agent and how they get forwarded to the Ankaios server.
 
-It is required that each runtime connector delivers a state checker when a workload is created. Additionally, the runtime connector provides an extra method for starting a checker for workloads that are resumed by the WorkloadFacade. 
+It is required that each runtime connector delivers a state checker when a workload is created. Additionally, the runtime connector provides an extra method for starting a checker for workloads that are resumed by the WorkloadFacade.
 
 How the state checker is implemented is up to the specific runtime connector, given that the state checker trait is implemented. The state checker trait requires a state getter object to be provided. The object must implement the runtime state getter trait and is specific to the runtime connector. The provided state getter object is called inside the state checker.
 The extra complexity introduced by having two traits is needed in order to provide common state checker implementations that can be reused among runtime connectors. One of these checkers is the `GenericPollingStateChecker`.
@@ -1333,15 +1507,15 @@ The extra complexity introduced by having two traits is needed in order to provi
 
 Status: approved
 
-The state checker interface returned by the runtime connectors shall: 
-* accept a specific runtime state getter object 
+The state checker interface returned by the runtime connectors shall:
+* accept a specific runtime state getter object
 * support a stop action
 
 Rationale:
 The specific runtime state getter allows the implementation of common state checkers.
 The stop action is needed in order to stop the state checker when a workload is deleted.
 
-Tags: 
+Tags:
 - RuntimeConnectorInterfaces
 
 Needs:
@@ -1354,25 +1528,26 @@ Status: approved
 
 The state getter interface shall allow getting the current state of a workload for a given Id.
 
-Tags: 
+Tags:
 - RuntimeConnectorInterfaces
 
 Needs:
 - impl
 
 #### Allowed workload states
-`swdd~allowed-workload-states~1`
+`swdd~allowed-workload-states~2`
 
 The state getter interface shall return one of following workload states:
 
-* pending
+* starting
 * running
 * succeeded
 * failed
 * unknown
 * removed
+* stopping
 
-Tags: 
+Tags:
 - RuntimeConnectorInterfaces
 
 Needs:
@@ -1464,7 +1639,7 @@ Needs:
 
 #### Podman runtime connector specific state getter
 
-###### Podman runtime implements the runtime state getter trait
+##### Podman runtime implements the runtime state getter trait
 `swdd~podman-implements-runtime-state-getter~1`
 
 Status: approved
@@ -1482,7 +1657,7 @@ Needs:
 - impl
 
 ##### PodmanStateGetter maps workload state
-`swdd~podman-state-getter-maps-state~1`
+`swdd~podman-state-getter-maps-state~3`
 
 Status: approved
 
@@ -1490,15 +1665,24 @@ The `PodmanStateGetter` shall map the workload state returned by the Podman into
 
 | Podman Container State | Container ExitCode | Workload State |
 | ---------------------- | :----------------: | :------------: |
-| Created                |         -          |    Pending     |
+| Created                |         -          |    Starting    |
+| Configured             |         -          |    Starting    |
+| Initialized            |         -          |    Starting    |
 | Paused                 |         -          |    Unknown     |
 | Running                |         -          |    Running     |
 | Exited                 |        == 0        |   Succeeded    |
 | Exited                 |        != 0        |     Failed     |
+| Stopping               |         -          |    Stopping    |
+| Stopped                |         -          |    Stopping    |
+| Removing               |         -          |    Stopping    |
 | (anything else)        |         -          |    Unknown     |
 
 Comment:
 The Podman also supports "pod states". This table shows the container states only.
+The container states `Stopped` and `Removing` are mapped to the workload state `Stopping`,
+because they are considered as transition states from the state `Succeeded` or `Running` into `Removed`.
+Mapping the state `Stopped` to a value different than `Stopping` would result in Ankaios reporting shortly some other state during workload deletion.
+We are assuming that Ankaios workloads are not managed by an entity different than Ankaios and the container state `Stopped` is only transitionary.
 
 Tags:
 - PodmanRuntimeConnector
@@ -1506,7 +1690,6 @@ Tags:
 Needs:
 - impl
 - utest
-
 
 ##### PodmanStateGetter uses PodmanCli
 `swdd~podman-state-getter-uses-podmancli~1`
@@ -1583,7 +1766,7 @@ Needs:
 
 #### Podman-kube runtime connector specific state getter
 
-###### Podman-kube runtime connector implements the runtime state getter trait
+##### Podman-kube runtime connector implements the runtime state getter trait
 `swdd~podman-kube-implements-runtime-state-getter~1`
 
 Status: approved
@@ -1652,7 +1835,7 @@ Needs:
 - utest
 
 ##### PodmanKubeStateGetter maps workload state
-`swdd~podman-kube-state-getter-maps-state~1`
+`swdd~podman-kube-state-getter-maps-state~2`
 
 Status: approved
 
@@ -1660,11 +1843,12 @@ The `PodmanKubeStateGetter` shall map pod state returned by Podman into workload
 
 | Podman Container State | Container ExitCode | Workload State |
 | ---------------------- | :----------------: | :------------: |
-| Created                |         -          |    Pending     |
+| Created                |         -          |    Starting    |
 | Paused                 |         -          |    Unknown     |
 | Running                |         -          |    Running     |
 | Exited                 |        == 0        |   Succeeded    |
 | Exited                 |        != 0        |     Failed     |
+| Stopping               |         -          |    Stopping    |
 | (anything else)        |         -          |    Unknown     |
 
 Tags:
@@ -1675,7 +1859,7 @@ Needs:
 - utest
 
 ##### PodmanKubeStateGetter combines pod states from containers
-`swdd~podman-kube-state-getter-combines-states~1`
+`swdd~podman-kube-state-getter-combines-states~2`
 
 Status: approved
 
@@ -1686,10 +1870,11 @@ The priority of the workload state is given in the table below:
 | Workload State | Priority |
 | -------------- | -------: |
 | Failed         |        0 |
-| Pending        |        1 |
+| Starting       |        1 |
 | Unknown        |        2 |
 | Running        |        3 |
-| Succeeded      |        4 |
+| Stopping       |        4 |
+| Succeeded      |        5 |
 
 Tags:
 - PodmanKubeRuntimeConnector
@@ -1702,7 +1887,6 @@ Needs:
 `swdd~podman-kube-state-getter-treats-missing-pods-as-unknown~1`
 
 Status: approved
-
 
 When the `PodmanKubeStateGetter` is called to get the current state of a workload and a pod of this workload is missing,
 the `PodmanKubeStateGetter` shall treat this pod, as if it contains one container with the state `unknown`.
@@ -1720,7 +1904,7 @@ After the Ankaios agent is started it receives an information about Workload Sta
 
 ![Storing a Workload State](plantuml/seq_store_workload_state.svg)
 
-#### Agent Manager stores all Workload States
+#### AgentManager stores all Workload States
 `swdd~agent-manager-stores-all-workload-states~1`
 
 Status: approved
@@ -1751,7 +1935,7 @@ Status: approved
 
 When sending or receiving message via the Control Interface pipes, Ankaios Agent uses length delimited protobuf encoding.
 
-Comment: 
+Comment:
 A length delimited protobuf message, is the protobuf encoded message preceded by the size of the message in bytes encoded as protobuf varint.
 This size excludes the size prefix.
 
@@ -1909,3 +2093,5 @@ Needs:
 
 * gRPC - [Google Remote Procedure Call](https://grpc.io/)
 * SOME/IP - [Scalable service-Oriented MiddlewarE over IP](https://some-ip.com/)
+
+<!-- markdownlint-disable-file MD004 MD022 MD032 -->

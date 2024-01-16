@@ -286,9 +286,7 @@ mod tests {
     use std::future::Future;
 
     use common::commands::{RequestCompleteState, Response, ResponseContent, UpdateStateRequest};
-    use common::objects::{
-        DeletedWorkload, ExpectedState, State, Tag, WorkloadSpec, WorkloadState,
-    };
+    use common::objects::{DeletedWorkload, State, Tag, WorkloadSpec, WorkloadState};
     use common::test_utils::generate_test_workload_spec_with_param;
     use common::{
         commands::CompleteState,
@@ -1450,18 +1448,12 @@ mod tests {
                         DeletedWorkload {
                             agent: "fake_agent_1".to_string(),
                             name: "fake_workload_spec_1".to_string(),
-                            dependencies: HashMap::from([
-                                ("workload C".to_string(), ExpectedState::Stopped),
-                                ("workload A".to_string(), ExpectedState::Running)
-                            ]),
+                            dependencies: HashMap::new(),
                         },
                         DeletedWorkload {
                             agent: "fake_agent_1".to_string(),
                             name: "fake_workload_spec_2".to_string(),
-                            dependencies: HashMap::from([
-                                ("workload C".to_string(), ExpectedState::Stopped),
-                                ("workload A".to_string(), ExpectedState::Running)
-                            ]),
+                            dependencies: HashMap::new(),
                         }
                     ]
                 );

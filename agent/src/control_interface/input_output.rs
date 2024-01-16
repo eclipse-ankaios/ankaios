@@ -133,7 +133,7 @@ mod tests {
             });
 
         let io = InputOutput::new(Path::new("test_path").join("workload_name"));
-        assert!(matches!(io, Ok(_)));
+        assert!(io.is_ok());
         assert_eq!(
             &Path::new("test_path").join("workload_name").join("input"),
             io.as_ref().unwrap().get_input().get_path()
