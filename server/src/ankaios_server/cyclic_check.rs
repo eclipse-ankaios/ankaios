@@ -608,7 +608,7 @@ mod tests {
         dependencies.last_mut().unwrap().dependencies =
             HashMap::from([(root_name.clone(), AddCondition::AddCondRunning)]);
 
-        let mut state =
+        let state =
             generate_test_complete_state(REQUEST_ID.to_string(), dependencies).current_state;
         assert_eq!(state.workloads.len(), BENCHMARKING_NUMBER_OF_WORKLOADS);
 
@@ -627,7 +627,7 @@ mod tests {
     struct StateBuilder(State);
     impl StateBuilder {
         fn default() -> Self {
-            let mut state =
+            let state =
                 generate_test_complete_state(REQUEST_ID.to_string(), Vec::new()).current_state;
             StateBuilder(state)
         }

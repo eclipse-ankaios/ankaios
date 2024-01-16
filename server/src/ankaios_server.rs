@@ -922,7 +922,7 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
         let (to_server, server_receiver) =
             super::create_state_change_channels(common::CHANNEL_CAPACITY);
-        let (to_agents, mut comm_middle_ware_receiver) =
+        let (to_agents, _comm_middle_ware_receiver) =
             super::create_execution_channels(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);

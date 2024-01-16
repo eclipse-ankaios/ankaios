@@ -33,7 +33,7 @@ use std::fmt::Display;
 #[cfg(test)]
 use mockall::automock;
 
-pub fn update_state(
+fn update_state(
     current_state: &CompleteState,
     update: UpdateStateRequest,
 ) -> Result<CompleteState, UpdateStateError> {
@@ -70,7 +70,7 @@ pub fn update_state(
     }
 }
 
-pub fn prepare_update_workload(
+fn prepare_update_workload(
     current_state: &State,
     new_state: &State,
 ) -> Option<common::execution_interface::ExecutionCommand> {
