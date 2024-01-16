@@ -17,11 +17,11 @@ use std::collections::HashMap;
 
 type WorkloadStateMap = HashMap<String, (common::objects::ExecutionState, String)>;
 
-pub struct WorkloadStateDB {
+pub struct WorkloadStateStore {
     states_storage: WorkloadStateMap,
 }
 
-impl WorkloadStateDB {
+impl WorkloadStateStore {
     pub fn new() -> Self {
         Self {
             states_storage: HashMap::new(),
@@ -49,12 +49,12 @@ impl WorkloadStateDB {
 #[cfg(test)]
 mod tests {
 
-    use super::WorkloadStateDB;
+    use super::WorkloadStateStore;
     use common::objects::{ExecutionState, WorkloadState};
 
     #[test]
     fn utest_update_storage_empty_storage_add_one() {
-        let mut storage = WorkloadStateDB::new();
+        let mut storage = WorkloadStateStore::new();
         assert!(storage.states_storage.is_empty());
 
         let test_update = WorkloadState {
@@ -76,7 +76,7 @@ mod tests {
 
     #[test]
     fn utest_update_storage_removed_gets_sdeleted() {
-        let mut storage = WorkloadStateDB::new();
+        let mut storage = WorkloadStateStore::new();
         assert!(storage.states_storage.is_empty());
 
         let test_update = WorkloadState {
@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn utest_update_storage_update_record() {
-        let mut storage = WorkloadStateDB::new();
+        let mut storage = WorkloadStateStore::new();
         assert!(storage.states_storage.is_empty());
 
         let test_update = WorkloadState {
@@ -133,7 +133,7 @@ mod tests {
 
     #[test]
     fn utest_update_storage_add_multiple_records() {
-        let mut storage = WorkloadStateDB::new();
+        let mut storage = WorkloadStateStore::new();
         assert!(storage.states_storage.is_empty());
 
         let agent_name_a = String::from("test_agent_a");

@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::workload_state_db::WorkloadStateDB;
+use super::workload_state_store::WorkloadStateStore;
 
 use async_trait::async_trait;
 use common::{
@@ -115,7 +115,7 @@ pub enum WorkloadStateMessage {
 pub struct WorkloadStateProxy {
     to_server: StateChangeSender,
     receiver: WorkloadStateMsgReceiver,
-    states_db: WorkloadStateDB,
+    states_db: WorkloadStateStore,
 }
 
 #[cfg_attr(test, automock)]
@@ -124,7 +124,7 @@ impl WorkloadStateProxy {
         WorkloadStateProxy {
             to_server,
             receiver,
-            states_db: WorkloadStateDB::new(),
+            states_db: WorkloadStateStore::new(),
         }
     }
 

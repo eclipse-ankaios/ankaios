@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-mod workload_state_db;
+mod workload_state_store;
 
 mod workload_state_proxy;
 
