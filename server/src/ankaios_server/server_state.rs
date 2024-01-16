@@ -224,37 +224,37 @@ impl ServerState {
                     prepare_update_workload(&self.state.current_state, &new_state.current_state);
 
                 if let Some(cmd) = cmd {
-                    if let ExecutionCommand::UpdateWorkload(UpdateWorkload {
+                    let ExecutionCommand::UpdateWorkload(UpdateWorkload {
                         added_workloads,
                         deleted_workloads: _,
                     }) = &cmd
-                    {
-                        log::debug!("update_state => added_workloads = {:?}", added_workloads);
-                        let start_nodes: Vec<&String> = added_workloads
-                            .iter()
-                            .filter_map(|w| {
-                                if !w.dependencies.is_empty() {
-                                    Some(&w.name)
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect();
-                        log::debug!(
-                            "Execute cyclic dependency check with start_nodes = {:?}",
-                            start_nodes
-                        );
-                        let result = cyclic_check::dfs(
-                            &new_state.current_state,
-                            cyclic_check::StartNodes::Subset(start_nodes),
-                        );
-
-                        log::debug!("cyclic dependency check result = {:?}", result);
-                        self.state = new_state;
-                        Ok(Some(cmd))
-                    } else {
+                    else {
                         std::unreachable!("Expected ExecutionCommand::UpdateWorkload");
-                    }
+                    };
+
+                    log::debug!("update_state => added_workloads = {:?}", added_workloads);
+                    let start_nodes: Vec<&String> = added_workloads
+                        .iter()
+                        .filter_map(|w| {
+                            if !w.dependencies.is_empty() {
+                                Some(&w.name)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    log::debug!(
+                        "Execute cyclic dependency check with start_nodes = {:?}",
+                        start_nodes
+                    );
+                    let result = cyclic_check::dfs(
+                        &new_state.current_state,
+                        cyclic_check::StartNodes::Subset(start_nodes),
+                    );
+
+                    log::debug!("cyclic dependency check result = {:?}", result);
+                    self.state = new_state;
+                    Ok(Some(cmd))
                 } else {
                     Ok(None)
                 }
@@ -276,12 +276,221 @@ mod tests {
     use std::collections::HashMap;
 
     use common::{
-        commands::{CompleteState, UpdateStateRequest, UpdateWorkload},
-        objects::{DeletedWorkload, State},
+        commands::{CompleteState, RequestCompleteState, UpdateStateRequest, UpdateWorkload},
+        objects::{DeletedWorkload, State, WorkloadSpec},
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
     };
 
-    use super::prepare_update_workload;
+    use crate::workload_state_db::WorkloadStateDB;
+
+    use super::{prepare_update_workload, ServerState};
+    const AGENT_A: &str = "agent_A";
+    const AGENT_B: &str = "agent_B";
+    const WORKLOAD_NAME_1: &str = "workload_1";
+    const WORKLOAD_NAME_2: &str = "workload_2";
+    const WORKLOAD_NAME_3: &str = "workload_3";
+    const RUNTIME: &str = "runtime";
+
+    #[test]
+    fn utest_server_state_get_complete_state_by_field_mask_empty_mask() {
+        let w1 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let w2 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_2.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let w3 = generate_test_workload_spec_with_param(
+            AGENT_B.to_string(),
+            WORKLOAD_NAME_3.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let server_state = ServerState {
+            state: generate_test_complete_state(
+                "".to_string(),
+                vec![w1.clone(), w2.clone(), w3.clone()],
+            ),
+            ..Default::default()
+        };
+
+        let request_id = "cli@request_id".to_string();
+        let request_complete_state = RequestCompleteState {
+            request_id: request_id.clone(),
+            field_mask: vec![],
+        };
+
+        let mut workload_state_db = WorkloadStateDB::default();
+        workload_state_db.insert(server_state.state.workload_states.clone());
+
+        let mut complete_state = server_state
+            .get_complete_state_by_field_mask(&request_complete_state, &workload_state_db)
+            .unwrap();
+
+        // result must be sorted because inside WorkloadStateDB the order of workload states is not preserved
+        complete_state
+            .workload_states
+            .sort_by(|left, right| left.workload_name.cmp(&right.workload_name));
+
+        let mut expected_complete_state = server_state.state.clone();
+        expected_complete_state.request_id = request_id;
+        expected_complete_state
+            .workload_states
+            .sort_by(|left, right| left.workload_name.cmp(&right.workload_name));
+        assert_eq!(expected_complete_state, complete_state);
+    }
+
+    #[test]
+    fn utest_server_state_get_complete_state_by_field_mask() {
+        let w1 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let w2 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_2.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let w3 = generate_test_workload_spec_with_param(
+            AGENT_B.to_string(),
+            WORKLOAD_NAME_3.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let server_state = ServerState {
+            state: generate_test_complete_state(
+                "".to_string(),
+                vec![w1.clone(), w2.clone(), w3.clone()],
+            ),
+            ..Default::default()
+        };
+
+        let request_id = "cli@request_id".to_string();
+        let request_complete_state = RequestCompleteState {
+            request_id: request_id.clone(),
+            field_mask: vec![
+                format!("currentState.workloads.{}", WORKLOAD_NAME_1),
+                format!("currentState.workloads.{}.agent", WORKLOAD_NAME_3),
+            ],
+        };
+
+        let mut workload_state_db = WorkloadStateDB::default();
+        workload_state_db.insert(server_state.state.workload_states.clone());
+
+        let mut complete_state = server_state
+            .get_complete_state_by_field_mask(&request_complete_state, &workload_state_db)
+            .unwrap();
+
+        // result must be sorted because inside WorkloadStateDB the order of workload states is not preserved
+        complete_state
+            .workload_states
+            .sort_by(|left, right| left.workload_name.cmp(&right.workload_name));
+
+        let mut expected_complete_state = server_state.state.clone();
+        expected_complete_state.current_state.workloads = HashMap::from([
+            (w1.name.clone(), w1.clone()),
+            (
+                w3.name.clone(),
+                WorkloadSpec {
+                    agent: AGENT_B.to_string(),
+                    ..Default::default()
+                },
+            ),
+        ]);
+        expected_complete_state.request_id = request_id;
+        expected_complete_state.workload_states.clear();
+        assert_eq!(expected_complete_state, complete_state);
+    }
+
+    #[test]
+    fn utest_server_state_get_complete_state_by_field_mask_continue_on_invalid_mask() {
+        let w1 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let server_state = ServerState {
+            state: generate_test_complete_state("".to_string(), vec![w1.clone()]),
+            ..Default::default()
+        };
+
+        let request_id = "cli@request_id".to_string();
+        let request_complete_state = RequestCompleteState {
+            request_id: request_id.clone(),
+            field_mask: vec![
+                "workoads.invalidMask".to_string(), // invalid not existing workload
+                format!("currentState.workloads.{}", WORKLOAD_NAME_1),
+            ],
+        };
+
+        let mut workload_state_db = WorkloadStateDB::default();
+        workload_state_db.insert(server_state.state.workload_states.clone());
+
+        let mut complete_state = server_state
+            .get_complete_state_by_field_mask(&request_complete_state, &workload_state_db)
+            .unwrap();
+
+        // result must be sorted because inside WorkloadStateDB the order of workload states is not preserved
+        complete_state
+            .workload_states
+            .sort_by(|left, right| left.workload_name.cmp(&right.workload_name));
+
+        let mut expected_complete_state = server_state.state.clone();
+        expected_complete_state.current_state.workloads =
+            HashMap::from([(w1.name.clone(), w1.clone())]);
+        expected_complete_state.request_id = request_id;
+        expected_complete_state.workload_states.clear();
+        assert_eq!(expected_complete_state, complete_state);
+    }
+
+    // [utest->swdd~agent-from-agent-field~1]
+    #[test]
+    fn utest_server_state_get_workloads_per_agent() {
+        let w1 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let w2 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_2.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let w3 = generate_test_workload_spec_with_param(
+            AGENT_B.to_string(),
+            WORKLOAD_NAME_3.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let server_state = ServerState {
+            state: generate_test_complete_state(
+                "".to_string(),
+                vec![w1.clone(), w2.clone(), w3.clone()],
+            ),
+            ..Default::default()
+        };
+
+        let mut workloads = server_state.get_workloads_for_agent(&AGENT_A.to_string());
+        workloads.sort_by(|left, right| left.name.cmp(&right.name));
+        assert_eq!(workloads, vec![w1, w2]);
+
+        let workloads = server_state.get_workloads_for_agent(&AGENT_B.to_string());
+        assert_eq!(workloads, vec![w3]);
+
+        let workloads = server_state.get_workloads_for_agent(&"unknown_agent".to_string());
+        assert_eq!(workloads.len(), 0);
+    }
 
     // [utest->swdd~update-current-state-empty-update-mask~1]
     #[test]
@@ -292,11 +501,14 @@ mod tests {
             update_mask: vec![],
         };
 
+        let mut server_state = ServerState {
+            state: old_state.clone(),
+            ..Default::default()
+        };
+        server_state.update(update_request.clone()).unwrap();
+
         let expected = update_request.state.clone();
-
-        let actual = super::update_state(&old_state, update_request).unwrap();
-
-        assert_eq!(expected, actual);
+        assert_eq!(expected, server_state.state);
     }
 
     // [utest->swdd~update-current-state-with-update-mask~1]
@@ -320,9 +532,13 @@ mod tests {
                 .clone(),
         );
 
-        let actual = super::update_state(&old_state, update_request).unwrap();
+        let mut server_state = ServerState {
+            state: old_state.clone(),
+            ..Default::default()
+        };
+        server_state.update(update_request).unwrap();
 
-        assert_eq!(expected, actual);
+        assert_eq!(expected, server_state.state);
     }
 
     // [utest->swdd~update-current-state-with-update-mask~1]
@@ -346,9 +562,13 @@ mod tests {
                 .clone(),
         );
 
-        let actual = super::update_state(&old_state, update_request).unwrap();
+        let mut server_state = ServerState {
+            state: old_state.clone(),
+            ..Default::default()
+        };
+        server_state.update(update_request).unwrap();
 
-        assert_eq!(expected, actual);
+        assert_eq!(expected, server_state.state);
     }
 
     // [utest->swdd~update-current-state-with-update-mask~1]
@@ -363,9 +583,13 @@ mod tests {
         let mut expected = old_state.clone();
         expected.current_state.workloads.remove("workload_2");
 
-        let actual = super::update_state(&old_state, update_request).unwrap();
+        let mut server_state = ServerState {
+            state: old_state.clone(),
+            ..Default::default()
+        };
+        server_state.update(update_request).unwrap();
 
-        assert_eq!(expected, actual);
+        assert_eq!(expected, server_state.state);
     }
 
     // [utest->swdd~update-current-state-with-update-mask~1]
@@ -379,9 +603,13 @@ mod tests {
 
         let expected = &old_state;
 
-        let actual = super::update_state(&old_state, update_request).unwrap();
+        let mut server_state = ServerState {
+            state: old_state.clone(),
+            ..Default::default()
+        };
+        server_state.update(update_request).unwrap();
 
-        assert_eq!(*expected, actual);
+        assert_eq!(*expected, server_state.state);
     }
 
     #[test]
@@ -392,9 +620,13 @@ mod tests {
             update_mask: vec!["currentState.workloads.workload_2.tags.x".into()],
         };
 
-        let actual = super::update_state(&old_state, update_request);
+        let mut server_state = ServerState {
+            state: old_state.clone(),
+            ..Default::default()
+        };
+        let result = server_state.update(update_request);
 
-        assert!(actual.is_err());
+        assert!(result.is_err());
     }
 
     #[test]
@@ -405,23 +637,27 @@ mod tests {
             update_mask: vec!["".into()],
         };
 
-        let actual = super::update_state(&old_state, update_request);
+        let mut server_state = ServerState {
+            state: old_state.clone(),
+            ..Default::default()
+        };
+        let result = server_state.update(update_request);
 
-        assert!(actual.is_err());
+        assert!(result.is_err());
     }
 
     #[test]
     fn utest_prepare_update_workload_no_update() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let current_state = State {
-            workloads: HashMap::new(),
-            configs: HashMap::new(),
-            cron_jobs: HashMap::new(),
+        let update_request = UpdateStateRequest {
+            state: CompleteState::default(),
+            update_mask: vec![],
         };
-        let new_state = &current_state;
 
-        let update_cmd = prepare_update_workload(&current_state, new_state);
+        let mut server_state = ServerState::default();
+
+        let update_cmd = server_state.update(update_request).unwrap();
         assert!(update_cmd.is_none());
     }
 
