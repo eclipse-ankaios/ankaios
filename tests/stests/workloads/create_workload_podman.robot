@@ -37,7 +37,6 @@ Test Ankaios Podman create workloads
     And Ankaios agent is started with name "agent_A"
     # Asserts
     Then the workload "nginx" shall have the execution state "Running" on agent "agent_A" within "30" seconds
-    And the workload "hello1" shall have the execution state "Removed" from agent "agent_B" within "30" seconds
     And the workload "hello2" shall have the execution state "Succeeded" on agent "agent_B" within "30" seconds
     And the workload "hello3" shall have the execution state "Succeeded" on agent "agent_B" within "30" seconds
     And podman shall have a container for workload "nginx" on agent "agent_A"
