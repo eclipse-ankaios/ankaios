@@ -277,13 +277,13 @@ mod tests {
 
     use common::{
         commands::{CompleteState, RequestCompleteState, UpdateStateRequest, UpdateWorkload},
-        objects::{DeletedWorkload, State, WorkloadSpec},
+        objects::{DeletedWorkload, WorkloadSpec},
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
     };
 
     use crate::workload_state_db::WorkloadStateDB;
 
-    use super::{prepare_update_workload, ServerState};
+    use super::ServerState;
     const AGENT_A: &str = "agent_A";
     const AGENT_B: &str = "agent_B";
     const WORKLOAD_NAME_1: &str = "workload_1";
@@ -627,10 +627,12 @@ mod tests {
         let result = server_state.update(update_request);
 
         assert!(result.is_err());
+        assert_eq!(server_state.state, old_state);
     }
 
     #[test]
     fn utest_fails_with_update_mask_empty_string() {
+        let _ = env_logger::builder().is_test(true).try_init();
         let old_state = generate_test_old_state();
         let update_request = UpdateStateRequest {
             state: generate_test_update_state(),
@@ -642,8 +644,8 @@ mod tests {
             ..Default::default()
         };
         let result = server_state.update(update_request);
-
         assert!(result.is_err());
+        assert_eq!(server_state.state, old_state);
     }
 
     #[test]
@@ -659,6 +661,7 @@ mod tests {
 
         let update_cmd = server_state.update(update_request).unwrap();
         assert!(update_cmd.is_none());
+        assert_eq!(server_state.state, CompleteState::default());
     }
 
     // [utest->swdd~server-detects-new-workload~1]
@@ -666,22 +669,30 @@ mod tests {
     fn utest_prepare_update_workload_new_workloads() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let current_state = State {
-            workloads: HashMap::new(),
-            configs: HashMap::new(),
-            cron_jobs: HashMap::new(),
-        };
         let new_state = generate_test_update_state();
 
-        let update_cmd = prepare_update_workload(&current_state, &new_state.current_state);
+        let update_request = UpdateStateRequest {
+            state: new_state.clone(),
+            update_mask: vec![],
+        };
+
+        let mut server_state = ServerState::default();
+
+        let update_cmd = server_state.update(update_request).unwrap();
 
         let expected_cmd =
             common::execution_interface::ExecutionCommand::UpdateWorkload(UpdateWorkload {
-                added_workloads: new_state.current_state.workloads.into_values().collect(),
+                added_workloads: new_state
+                    .clone()
+                    .current_state
+                    .workloads
+                    .into_values()
+                    .collect(),
                 deleted_workloads: Vec::new(),
             });
         assert!(update_cmd.is_some());
         assert_eq!(update_cmd.unwrap(), expected_cmd);
+        assert_eq!(server_state.state, new_state);
     }
 
     // [utest->swdd~server-detects-deleted-workload~1]
@@ -690,13 +701,18 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let current_complete_state = generate_test_old_state();
-        let new_state = State {
-            workloads: HashMap::new(),
-            configs: HashMap::new(),
-            cron_jobs: HashMap::new(),
+
+        let update_request = UpdateStateRequest {
+            state: CompleteState::default(),
+            update_mask: vec![],
         };
 
-        let update_cmd = prepare_update_workload(&current_complete_state.current_state, &new_state);
+        let mut server_state = ServerState {
+            state: current_complete_state.clone(),
+            ..Default::default()
+        };
+
+        let update_cmd = server_state.update(update_request).unwrap();
 
         let expected_cmd =
             common::execution_interface::ExecutionCommand::UpdateWorkload(UpdateWorkload {
@@ -714,6 +730,7 @@ mod tests {
             });
         assert!(update_cmd.is_some());
         assert_eq!(update_cmd.unwrap(), expected_cmd);
+        assert_eq!(server_state.state, CompleteState::default());
     }
 
     // [utest->swdd~server-detects-changed-workload~1]
@@ -739,7 +756,21 @@ mod tests {
             .workloads
             .insert(wl_name_to_update.to_string(), wls_update.clone());
 
-        let update_cmd = prepare_update_workload(&current_complete_state.current_state, &new_state);
+        let new_complete_state = CompleteState {
+            current_state: new_state.clone(),
+            ..Default::default()
+        };
+        let update_request = UpdateStateRequest {
+            state: new_complete_state.clone(),
+            update_mask: vec![],
+        };
+
+        let mut server_state = ServerState {
+            state: current_complete_state.clone(),
+            ..Default::default()
+        };
+
+        let update_cmd = server_state.update(update_request).unwrap();
 
         let expected_cmd =
             common::execution_interface::ExecutionCommand::UpdateWorkload(UpdateWorkload {
@@ -752,6 +783,7 @@ mod tests {
             });
         assert!(update_cmd.is_some());
         assert_eq!(update_cmd.unwrap(), expected_cmd);
+        assert_eq!(server_state.state, new_complete_state);
     }
 
     fn generate_test_old_state() -> CompleteState {
