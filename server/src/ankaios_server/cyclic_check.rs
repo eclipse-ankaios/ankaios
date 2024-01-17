@@ -18,7 +18,6 @@ use std::collections::{HashSet, VecDeque};
 #[derive(Debug, PartialEq, Eq)]
 pub enum CyclicCheckResult {
     WorkloadPartOfCycle(String),
-    InvalidStructure(String),
 }
 
 pub enum StartNodes<'a> {
@@ -29,7 +28,6 @@ pub enum StartNodes<'a> {
 impl fmt::Display for CyclicCheckResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CyclicCheckResult::InvalidStructure(err) => write!(f, "{err}"),
             CyclicCheckResult::WorkloadPartOfCycle(workload) => {
                 write!(f, "workload '{}' part of a cycle.", workload)
             }
@@ -67,35 +65,37 @@ pub fn dfs(state: &State, start_nodes: StartNodes) -> Result<(), CyclicCheckResu
         log::debug!("searching for workload = '{}'", workload_name);
         stack.push_front(workload_name);
         while let Some(head) = stack.front() {
-            let workload_spec = state.workloads.get(*head).ok_or_else(|| {
-                CyclicCheckResult::InvalidStructure(format!(
-                    "workload '{head}' is not part of the state."
-                ))
-            })?;
-
-            if !visited.contains(head) {
-                log::debug!("visit '{}'", head);
-                visited.insert(head);
-                path.push_back(head);
-            } else {
-                log::debug!("remove '{}' from path", head);
-                path.pop_back();
-                stack.pop_front();
-            }
-
-            // sort the map to have an constant equal outcome
-            let mut dependencies: Vec<&String> = workload_spec.dependencies.keys().collect();
-            dependencies.sort();
-
-            for dependency in dependencies {
-                if !visited.contains(dependency) {
-                    stack.push_front(dependency);
-                } else if path.contains(&dependency) {
-                    log::debug!("workload '{dependency}' is part of a cycle.");
-                    return Err(CyclicCheckResult::WorkloadPartOfCycle(
-                        dependency.to_string(),
-                    ));
+            if let Some(workload_spec) = state.workloads.get(*head) {
+                if !visited.contains(head) {
+                    log::debug!("visit '{}'", head);
+                    visited.insert(head);
+                    path.push_back(head);
+                } else {
+                    log::debug!("remove '{}' from path", head);
+                    path.pop_back();
+                    stack.pop_front();
                 }
+
+                // sort the map to have an constant equal outcome
+                let mut dependencies: Vec<&String> = workload_spec.dependencies.keys().collect();
+                dependencies.sort();
+
+                for dependency in dependencies {
+                    if !visited.contains(dependency) {
+                        stack.push_front(dependency);
+                    } else if path.contains(&dependency) {
+                        log::debug!("workload '{dependency}' is part of a cycle.");
+                        return Err(CyclicCheckResult::WorkloadPartOfCycle(
+                            dependency.to_string(),
+                        ));
+                    }
+                }
+            } else {
+                log::debug!(
+                    "workload '{}' is skipped because it is not part of the state.",
+                    head
+                );
+                stack.pop_front();
             }
         }
     }
@@ -454,17 +454,64 @@ mod tests {
         assert_eq!(actual.len(), expected_nodes_part_of_a_cycle.len());
     }
 
-    // Graph visualized: A -> B -> C (C is defined as dependency but missing in the state config)
+    /// Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20B%20-%3E%20E%3B%0A%20%20%20%20E%20-%3E%20F%3B%0A%20%20%20%20F%20-%3E%20D%3B%0A%20%20%20%20F%20-%3E%20C%3B%0A%20%20%20%20C%20-%3E%20D%3B%0A%7D
+    /// The graph configuration below contains an additional edge to a dependency that is not part of the state config.
     #[test]
-    fn utest_detect_non_existing_workload_in_dependencies() {
+    fn utest_detect_continue_on_non_existing_workload_in_dependencies_and_find_cycles() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let workloads = ["A", "B"];
+        let workloads = ["A", "B", "C", "D", "E", "F"];
 
         let builder = StateBuilder::default()
             .with_workloads(&workloads)
             .workload_dependency("A", "B", AddCondition::AddCondRunning)
-            .workload_dependency("B", "C", AddCondition::AddCondRunning);
+            .workload_dependency("B", "C", AddCondition::AddCondRunning)
+            .workload_dependency("B", "E", AddCondition::AddCondRunning)
+            .workload_dependency("E", "F", AddCondition::AddCondRunning)
+            .workload_dependency("F", "C", AddCondition::AddCondRunning)
+            .workload_dependency("F", "D", AddCondition::AddCondRunning)
+            .workload_dependency("F", "G", AddCondition::AddCondRunning) // G does not exist in the state
+            .workload_dependency("C", "G", AddCondition::AddCondRunning)
+            .workload_dependency("C", "D", AddCondition::AddCondRunning)
+            .workload_dependency("C", "E", AddCondition::AddCondRunning);
+
+        let expected_nodes_part_of_a_cycle = ["E", "F", "C"];
+
+        let mut actual = HashSet::new();
+        for start_node in workloads {
+            let builder = builder.clone();
+            let state = builder.set_start_node(start_node).build();
+
+            let result = dfs(&state, StartNodes::All);
+            assert!(matches!(
+                &result,
+                Err(CyclicCheckResult::WorkloadPartOfCycle(w)) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
+            ));
+            actual.insert(result.unwrap_err().to_string().replace("1_", ""));
+        }
+
+        assert_eq!(actual.len(), expected_nodes_part_of_a_cycle.len());
+    }
+
+    /// Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20B%20-%3E%20E%3B%0A%20%20%20%20E%20-%3E%20F%3B%0A%20%20%20%20F%20-%3E%20D%3B%0A%20%20%20%20F%20-%3E%20C%3B%0A%20%20%20%20C%20-%3E%20D%3B%0A%7D
+    /// The graph configuration below contains an additional edge to a dependency that is not part of the state config.
+    #[test]
+    fn utest_detect_continue_on_non_existing_workload_in_dependencies() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let workloads = ["A", "B", "C", "D", "E", "F"];
+
+        let builder = StateBuilder::default()
+            .with_workloads(&workloads)
+            .workload_dependency("A", "B", AddCondition::AddCondRunning)
+            .workload_dependency("B", "C", AddCondition::AddCondRunning)
+            .workload_dependency("B", "E", AddCondition::AddCondRunning)
+            .workload_dependency("E", "F", AddCondition::AddCondRunning)
+            .workload_dependency("F", "C", AddCondition::AddCondRunning)
+            .workload_dependency("F", "D", AddCondition::AddCondRunning)
+            .workload_dependency("F", "G", AddCondition::AddCondRunning) // G does not exist in the state
+            .workload_dependency("C", "G", AddCondition::AddCondRunning) // G does not exist in the state
+            .workload_dependency("C", "D", AddCondition::AddCondRunning);
 
         for start_node in workloads {
             let builder = builder.clone();
@@ -472,12 +519,7 @@ mod tests {
 
             let result = dfs(&state, StartNodes::All);
 
-            assert_eq!(
-                result,
-                Err(CyclicCheckResult::InvalidStructure(
-                    "workload 'C' is not part of the state.".to_string()
-                ))
-            );
+            assert!(result.is_ok());
         }
     }
 
@@ -568,10 +610,10 @@ mod tests {
         }
     }
 
-    /// Graph visualized: 1000 Nodes, n_1 -> n_2 -> ... -> n_999 -> n_1
+    /// Graph visualized: 1000 Nodes, n_0 -> n_2 -> ... -> n_999 -> n_0
     #[test]
     fn utest_detect_cycle_in_dependencies_performance_1000_nodes() {
-        //let _ = env_logger::builder().is_test(true).try_init();
+        let _ = env_logger::builder().is_test(true).try_init();
         use rand::{thread_rng, Rng};
         let root_name: String = thread_rng()
             .sample_iter(&rand::distributions::Alphanumeric)
