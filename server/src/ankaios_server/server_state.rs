@@ -307,7 +307,6 @@ mod tests {
                 "".to_string(),
                 vec![w1.clone(), w2.clone(), w3.clone()],
             ),
-            ..Default::default()
         };
 
         let request_id = "cli@request_id".to_string();
@@ -361,7 +360,6 @@ mod tests {
                 "".to_string(),
                 vec![w1.clone(), w2.clone(), w3.clone()],
             ),
-            ..Default::default()
         };
 
         let request_id = "cli@request_id".to_string();
@@ -411,14 +409,13 @@ mod tests {
 
         let server_state = ServerState {
             state: generate_test_complete_state("".to_string(), vec![w1.clone()]),
-            ..Default::default()
         };
 
         let request_id = "cli@request_id".to_string();
         let request_complete_state = RequestCompleteState {
             request_id: request_id.clone(),
             field_mask: vec![
-                "workoads.invalidMask".to_string(), // invalid not existing workload
+                "workloads.invalidMask".to_string(), // invalid not existing workload
                 format!("currentState.workloads.{}", WORKLOAD_NAME_1),
             ],
         };
@@ -469,7 +466,6 @@ mod tests {
                 "".to_string(),
                 vec![w1.clone(), w2.clone(), w3.clone()],
             ),
-            ..Default::default()
         };
 
         let mut workloads = server_state.get_workloads_for_agent(&AGENT_A.to_string());
@@ -494,7 +490,6 @@ mod tests {
 
         let mut server_state = ServerState {
             state: old_state.clone(),
-            ..Default::default()
         };
         server_state.update(update_request.clone()).unwrap();
 
@@ -525,7 +520,6 @@ mod tests {
 
         let mut server_state = ServerState {
             state: old_state.clone(),
-            ..Default::default()
         };
         server_state.update(update_request).unwrap();
 
@@ -555,7 +549,6 @@ mod tests {
 
         let mut server_state = ServerState {
             state: old_state.clone(),
-            ..Default::default()
         };
         server_state.update(update_request).unwrap();
 
@@ -576,7 +569,6 @@ mod tests {
 
         let mut server_state = ServerState {
             state: old_state.clone(),
-            ..Default::default()
         };
         server_state.update(update_request).unwrap();
 
@@ -596,7 +588,6 @@ mod tests {
 
         let mut server_state = ServerState {
             state: old_state.clone(),
-            ..Default::default()
         };
         server_state.update(update_request).unwrap();
 
@@ -613,7 +604,6 @@ mod tests {
 
         let mut server_state = ServerState {
             state: old_state.clone(),
-            ..Default::default()
         };
         let result = server_state.update(update_request);
 
@@ -632,7 +622,6 @@ mod tests {
 
         let mut server_state = ServerState {
             state: old_state.clone(),
-            ..Default::default()
         };
         let result = server_state.update(update_request);
         assert!(result.is_err());
@@ -700,7 +689,6 @@ mod tests {
 
         let mut server_state = ServerState {
             state: current_complete_state.clone(),
-            ..Default::default()
         };
 
         let update_cmd = server_state.update(update_request).unwrap();
@@ -758,7 +746,6 @@ mod tests {
 
         let mut server_state = ServerState {
             state: current_complete_state.clone(),
-            ..Default::default()
         };
 
         let update_cmd = server_state.update(update_request).unwrap();
