@@ -111,6 +111,20 @@ impl WorkloadStateDB {
             }
         }
     }
+
+    pub fn remove(&mut self, workload_state: &WorkloadState) {
+        if let Some(current_states_agent) = self
+            .stored_states
+            .get_mut(workload_state.agent_name.as_str())
+        {
+            current_states_agent.remove(&workload_state.workload_name);
+        } else {
+            log::warn!(
+                "Failed to remove the workload state {:?}. The agent is not in the map.",
+                workload_state
+            );
+        }
+    }
 }
 
 impl Default for WorkloadStateDB {

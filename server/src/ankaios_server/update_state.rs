@@ -16,8 +16,6 @@ use std::collections::HashMap;
 use std::fmt::Display;
 
 use crate::state_manipulation::{Object, Path};
-use crate::workload_state_db::WorkloadStateDB;
-use common::objects::{ExecutionState, WorkloadState};
 use common::{commands::CompleteState, commands::UpdateStateRequest, commands::UpdateWorkload};
 use common::{
     execution_interface::ExecutionCommand,
@@ -116,30 +114,6 @@ pub fn prepare_update_workload(
         added_workloads,
         deleted_workloads,
     }))
-}
-
-pub fn append_stopping_workloads(
-    current_state: &State,
-    new_state: &mut State,
-    workload_state_db: &mut WorkloadStateDB,
-) {
-    for (wl_name, wls) in &current_state.workloads {
-        if new_state.workloads.get(wl_name).is_none() {
-            log::debug!(
-                "The workload '{}' is supposed to be deleted -> setting the state to stopping.",
-                wl_name.clone()
-            );
-            workload_state_db.insert(vec![WorkloadState {
-                workload_name: wl_name.to_owned(),
-                agent_name: wls.agent.clone(),
-                execution_state: ExecutionState::ExecStopping,
-            }]);
-            // keep the workload in the new state and wait for deletion (a message from the agent)
-            new_state
-                .workloads
-                .insert(wl_name.to_owned(), wls.to_owned());
-        }
-    }
 }
 
 #[derive(Debug)]
