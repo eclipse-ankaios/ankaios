@@ -118,9 +118,8 @@ fn get_filtered_value<'a>(
     map: &'a serde_yaml::Value,
     mask: &[&str],
 ) -> Option<&'a serde_yaml::Value> {
-    mask.iter().try_fold(map, |current_level, mask_part| {
-        current_level.get(mask_part)
-    })
+    mask.iter()
+        .try_fold(map, |current_level, mask_part| current_level.get(mask_part))
 }
 
 fn update_compact_state(
@@ -224,8 +223,14 @@ impl CliCommands {
         let _ = self.task.await;
     }
 
-    async fn get_complete_state(&mut self, object_field_mask: &Vec<String>) -> Result<Box<CompleteState>, CliError> {
-        output_debug!("get_complete_state: object_field_mask={:?} ", object_field_mask);
+    async fn get_complete_state(
+        &mut self,
+        object_field_mask: &Vec<String>,
+    ) -> Result<Box<CompleteState>, CliError> {
+        output_debug!(
+            "get_complete_state: object_field_mask={:?} ",
+            object_field_mask
+        );
 
         // send complete state request to server
         self.to_server
@@ -233,7 +238,8 @@ impl CliCommands {
                 request_id: self.cli_name.to_owned(),
                 field_mask: object_field_mask.clone(),
             })
-            .await.map_err(|err| CliError::ExecutionError(err.to_string()))?;
+            .await
+            .map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
         let poll_complete_state_response = async {
             loop {
@@ -246,8 +252,12 @@ impl CliCommands {
         };
         match tokio::time::timeout(WAIT_TIME_MS, poll_complete_state_response).await {
             Ok(Ok(res)) => Ok(res),
-            Ok(Err(err)) => Err(CliError::ExecutionError(format!("Failed to get complete state.\nError: {err}"))),
-            Err(_) => Err(CliError::ExecutionError(format!("Failed to get complete state in time (timeout={WAIT_TIME_MS:?}).")))
+            Ok(Err(err)) => Err(CliError::ExecutionError(format!(
+                "Failed to get complete state.\nError: {err}"
+            ))),
+            Err(_) => Err(CliError::ExecutionError(format!(
+                "Failed to get complete state in time (timeout={WAIT_TIME_MS:?})."
+            ))),
         }
     }
 
@@ -323,40 +333,37 @@ impl CliCommands {
         let res_complete_state = self.get_complete_state(&Vec::new()).await?;
 
         let mut workload_infos: Vec<WorkloadInfo> = res_complete_state
-            .current_state
-            .workloads
-            .values()
-            .cloned()
-            .map(|w| WorkloadInfo {
-                name: w.name,
-                agent: w.agent,
-                runtime: w.runtime,
-                execution_state: String::new(),
+            .workload_states
+            .into_iter()
+            .map(|wl_state| WorkloadInfo {
+                name: wl_state.workload_name,
+                agent: wl_state.agent_name,
+                runtime: String::new(),
+                execution_state: wl_state.execution_state.to_string(),
             })
             .collect();
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
         for wi in &mut workload_infos {
-            if let Some(ws) = res_complete_state
-                .workload_states
+            if let Some((_found_wl_name, found_wl_spec)) = res_complete_state
+                .current_state
+                .workloads
                 .iter()
-                .find(|ws| ws.agent_name == wi.agent && ws.workload_name == wi.name)
+                .find(|&(wl_name, wl_spec)| *wl_name == wi.name && wl_spec.agent == wi.agent)
             {
-                wi.execution_state = ws.execution_state.to_string();
+                wi.runtime = found_wl_spec.runtime.clone();
             }
         }
         output_debug!("The table before filtering:\n{:?}", workload_infos);
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-        if agent_name.is_some() {
-            workload_infos.retain(|wi| &wi.agent == agent_name.as_ref().unwrap());
+        if let Some(agent_name) = agent_name {
+            workload_infos.retain(|wi| wi.agent == agent_name);
         }
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-        if state.is_some() {
-            workload_infos.retain(|wi| {
-                wi.execution_state.to_lowercase() == state.as_ref().unwrap().to_lowercase()
-            });
+        if let Some(state) = state {
+            workload_infos.retain(|wi| wi.execution_state.to_lowercase() == state.to_lowercase());
         }
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
@@ -1036,7 +1043,10 @@ mod tests {
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
         );
-        let cmd_text = cmd.get_state(vec![], crate::cli::OutputFormat::Yaml).await.unwrap();
+        let cmd_text = cmd
+            .get_state(vec![], crate::cli::OutputFormat::Yaml)
+            .await
+            .unwrap();
         let expected_text = serde_yaml::to_string(&test_data).unwrap();
         assert_eq!(cmd_text, expected_text);
     }
@@ -1086,8 +1096,11 @@ mod tests {
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
         );
-        let cmd_text = cmd.get_state(vec![], crate::cli::OutputFormat::Json).await.unwrap();
-        
+        let cmd_text = cmd
+            .get_state(vec![], crate::cli::OutputFormat::Json)
+            .await
+            .unwrap();
+
         let expected_text = serde_json::to_string_pretty(&test_data).unwrap();
         assert_eq!(cmd_text, expected_text);
     }
@@ -1142,12 +1155,13 @@ mod tests {
                 vec!["currentState.workloads.name3.runtime".to_owned()],
                 crate::cli::OutputFormat::Yaml,
             )
-            .await.unwrap();
-        
-        let expected_single_field_result_text = serde_yaml::to_string(&serde_json::json!(
-                {"currentState": {"workloads": {"name3": { "runtime": "runtime"}}}}
-            ))
+            .await
             .unwrap();
+
+        let expected_single_field_result_text = serde_yaml::to_string(&serde_json::json!(
+            {"currentState": {"workloads": {"name3": { "runtime": "runtime"}}}}
+        ))
+        .unwrap();
 
         assert_eq!(cmd_text, expected_single_field_result_text);
     }
@@ -1207,9 +1221,10 @@ mod tests {
                 ],
                 crate::cli::OutputFormat::Yaml,
             )
-            .await.unwrap();
-        assert!(matches!(cmd_text, 
-            txt if txt == *"currentState:\n  workloads:\n    name1:\n      runtime: runtime\n    name2:\n      runtime: runtime\n" || 
+            .await
+            .unwrap();
+        assert!(matches!(cmd_text,
+            txt if txt == *"currentState:\n  workloads:\n    name1:\n      runtime: runtime\n    name2:\n      runtime: runtime\n" ||
             txt == *"currentState:\n  workloads:\n    name2:\n      runtime: runtime\n    name1:\n      runtime: runtime\n"));
     }
 
