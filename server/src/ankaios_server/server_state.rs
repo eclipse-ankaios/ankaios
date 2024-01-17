@@ -17,7 +17,7 @@ use crate::state_manipulation::{Object, Path};
 use crate::workload_state_db::WorkloadStateDB;
 use common::std_extensions::IllegalStateResult;
 use common::{
-    commands::{CompleteState, RequestCompleteState, UpdateStateRequest, UpdateWorkload},
+    commands::{CompleteState, RequestCompleteState, UpdateWorkload},
     execution_interface::ExecutionCommand,
     objects::{DeletedWorkload, State, WorkloadSpec},
 };
@@ -29,22 +29,23 @@ use mockall::automock;
 
 fn update_state(
     current_state: &CompleteState,
-    update: UpdateStateRequest,
+    updated_state: CompleteState,
+    update_mask: Vec<String>,
 ) -> Result<CompleteState, UpdateStateError> {
     // [impl->swdd~update-current-state-empty-update-mask~1]
-    if update.update_mask.is_empty() {
-        return Ok(update.state);
+    if update_mask.is_empty() {
+        return Ok(updated_state);
     }
 
     // [impl->swdd~update-current-state-with-update-mask~1]
     let mut new_state: Object = current_state.try_into().map_err(|err| {
         UpdateStateError::ResultInvalid(format!("Failed to parse current state, '{}'", err))
     })?;
-    let state_from_update: Object = update.state.try_into().map_err(|err| {
+    let state_from_update: Object = updated_state.try_into().map_err(|err| {
         UpdateStateError::ResultInvalid(format!("Failed to parse new state, '{}'", err))
     })?;
 
-    for field in update.update_mask {
+    for field in update_mask {
         let field: Path = field.into();
         if let Some(field_from_update) = state_from_update.get(&field) {
             if new_state.set(&field, field_from_update.to_owned()).is_err() {
@@ -109,11 +110,11 @@ fn prepare_update_workload(
         return None;
     }
 
-    log::info!(
-        "The update has {} new or updated workloads, {} workloads to delete",
-        added_workloads.len(),
-        deleted_workloads.len()
-    );
+    // log::info!(
+    //     "The update has {} new or updated workloads, {} workloads to delete",
+    //     added_workloads.len(),
+    //     deleted_workloads.len()
+    // );
 
     Some(ExecutionCommand::UpdateWorkload(UpdateWorkload {
         added_workloads,
@@ -121,10 +122,11 @@ fn prepare_update_workload(
     }))
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum UpdateStateError {
     FieldNotFound(String),
     ResultInvalid(String),
+    CycleInDependencies(String),
 }
 
 impl Display for UpdateStateError {
@@ -135,6 +137,13 @@ impl Display for UpdateStateError {
             }
             UpdateStateError::ResultInvalid(reason) => {
                 write!(f, "Resulting State is invalid, reason: '{}'", reason)
+            }
+            UpdateStateError::CycleInDependencies(workload_part_of_cycle) => {
+                write!(
+                    f,
+                    "workload dependency '{}' is part of a cycle.",
+                    workload_part_of_cycle
+                )
             }
         }
     }
@@ -207,9 +216,10 @@ impl ServerState {
 
     pub fn update(
         &mut self,
-        update_request: UpdateStateRequest,
-    ) -> Result<Option<ExecutionCommand>, String> {
-        match update_state(&self.state, update_request) {
+        new_state: CompleteState,
+        update_mask: Vec<String>,
+    ) -> Result<Option<ExecutionCommand>, UpdateStateError> {
+        match update_state(&self.state, new_state, update_mask) {
             Ok(new_state) => {
                 let cmd =
                     prepare_update_workload(&self.state.current_state, &new_state.current_state);
@@ -238,19 +248,22 @@ impl ServerState {
                         "Execute cyclic dependency check with start_nodes = {:?}",
                         start_nodes
                     );
-                    let result = cyclic_check::dfs(
-                        &new_state.current_state,
-                        cyclic_check::StartNodes::Subset(start_nodes),
-                    );
 
-                    log::debug!("cyclic dependency check result = {:?}", result);
+                    if let Some(workload_part_of_cycle) =
+                        cyclic_check::dfs(&new_state.current_state, Some(start_nodes))
+                    {
+                        return Err(UpdateStateError::CycleInDependencies(
+                            workload_part_of_cycle,
+                        ));
+                    }
+
                     self.state = new_state;
                     Ok(Some(cmd))
                 } else {
                     Ok(None)
                 }
             }
-            Err(error) => Err(format!("Could not execute UpdateRequest: '{}'", error)),
+            Err(error) => Err(error),
         }
     }
 }
@@ -267,7 +280,7 @@ mod tests {
     use std::collections::HashMap;
 
     use common::{
-        commands::{CompleteState, RequestCompleteState, UpdateStateRequest, UpdateWorkload},
+        commands::{CompleteState, RequestCompleteState, UpdateWorkload},
         objects::{DeletedWorkload, WorkloadSpec},
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
     };
@@ -483,34 +496,28 @@ mod tests {
     #[test]
     fn utest_replace_all_if_update_mask_empty() {
         let old_state = generate_test_old_state();
-        let update_request = UpdateStateRequest {
-            state: generate_test_update_state(),
-            update_mask: vec![],
-        };
-
+        let update_state = generate_test_update_state();
         let mut server_state = ServerState {
             state: old_state.clone(),
         };
-        server_state.update(update_request.clone()).unwrap();
+        server_state
+            .update(generate_test_update_state(), vec![])
+            .unwrap();
 
-        let expected = update_request.state.clone();
-        assert_eq!(expected, server_state.state);
+        assert_eq!(update_state, server_state.state);
     }
 
     // [utest->swdd~update-current-state-with-update-mask~1]
     #[test]
     fn utest_replace_workload() {
         let old_state = generate_test_old_state();
-        let update_request = UpdateStateRequest {
-            state: generate_test_update_state(),
-            update_mask: vec!["currentState.workloads.workload_1".into()],
-        };
+        let update_state = generate_test_update_state();
+        let update_mask = vec!["currentState.workloads.workload_1".into()];
 
         let mut expected = old_state.clone();
         expected.current_state.workloads.insert(
             "workload_1".into(),
-            update_request
-                .state
+            update_state
                 .current_state
                 .workloads
                 .get("workload_1")
@@ -521,7 +528,7 @@ mod tests {
         let mut server_state = ServerState {
             state: old_state.clone(),
         };
-        server_state.update(update_request).unwrap();
+        server_state.update(update_state, update_mask).unwrap();
 
         assert_eq!(expected, server_state.state);
     }
@@ -530,16 +537,13 @@ mod tests {
     #[test]
     fn utest_add_workload() {
         let old_state = generate_test_old_state();
-        let update_request = UpdateStateRequest {
-            state: generate_test_update_state(),
-            update_mask: vec!["currentState.workloads.workload_4".into()],
-        };
+        let update_state = generate_test_update_state();
+        let update_mask = vec!["currentState.workloads.workload_4".into()];
 
         let mut expected = old_state.clone();
         expected.current_state.workloads.insert(
             "workload_4".into(),
-            update_request
-                .state
+            update_state
                 .current_state
                 .workloads
                 .get("workload_4")
@@ -550,7 +554,7 @@ mod tests {
         let mut server_state = ServerState {
             state: old_state.clone(),
         };
-        server_state.update(update_request).unwrap();
+        server_state.update(update_state, update_mask).unwrap();
 
         assert_eq!(expected, server_state.state);
     }
@@ -559,10 +563,8 @@ mod tests {
     #[test]
     fn utest_remove_workload() {
         let old_state = generate_test_old_state();
-        let update_request = UpdateStateRequest {
-            state: generate_test_update_state(),
-            update_mask: vec!["currentState.workloads.workload_2".into()],
-        };
+        let update_state = generate_test_update_state();
+        let update_mask = vec!["currentState.workloads.workload_2".into()];
 
         let mut expected = old_state.clone();
         expected.current_state.workloads.remove("workload_2");
@@ -570,7 +572,7 @@ mod tests {
         let mut server_state = ServerState {
             state: old_state.clone(),
         };
-        server_state.update(update_request).unwrap();
+        server_state.update(update_state, update_mask).unwrap();
 
         assert_eq!(expected, server_state.state);
     }
@@ -579,17 +581,15 @@ mod tests {
     #[test]
     fn utest_remove_non_existing_workload() {
         let old_state = generate_test_old_state();
-        let update_request = UpdateStateRequest {
-            state: generate_test_update_state(),
-            update_mask: vec!["currentState.workloads.workload_5".into()],
-        };
+        let update_state = generate_test_update_state();
+        let update_mask = vec!["currentState.workloads.workload_5".into()];
 
         let expected = &old_state;
 
         let mut server_state = ServerState {
             state: old_state.clone(),
         };
-        server_state.update(update_request).unwrap();
+        server_state.update(update_state, update_mask).unwrap();
 
         assert_eq!(*expected, server_state.state);
     }
@@ -597,15 +597,13 @@ mod tests {
     #[test]
     fn utest_remove_fails_from_non_map() {
         let old_state = generate_test_old_state();
-        let update_request = UpdateStateRequest {
-            state: generate_test_update_state(),
-            update_mask: vec!["currentState.workloads.workload_2.tags.x".into()],
-        };
+        let update_state = generate_test_update_state();
+        let update_mask = vec!["currentState.workloads.workload_2.tags.x".into()];
 
         let mut server_state = ServerState {
             state: old_state.clone(),
         };
-        let result = server_state.update(update_request);
+        let result = server_state.update(update_state, update_mask);
 
         assert!(result.is_err());
         assert_eq!(server_state.state, old_state);
@@ -615,15 +613,13 @@ mod tests {
     fn utest_fails_with_update_mask_empty_string() {
         let _ = env_logger::builder().is_test(true).try_init();
         let old_state = generate_test_old_state();
-        let update_request = UpdateStateRequest {
-            state: generate_test_update_state(),
-            update_mask: vec!["".into()],
-        };
+        let update_state = generate_test_update_state();
+        let update_mask = vec!["".into()];
 
         let mut server_state = ServerState {
             state: old_state.clone(),
         };
-        let result = server_state.update(update_request);
+        let result = server_state.update(update_state, update_mask);
         assert!(result.is_err());
         assert_eq!(server_state.state, old_state);
     }
@@ -632,14 +628,11 @@ mod tests {
     fn utest_prepare_update_workload_no_update() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let update_request = UpdateStateRequest {
-            state: CompleteState::default(),
-            update_mask: vec![],
-        };
-
         let mut server_state = ServerState::default();
 
-        let update_cmd = server_state.update(update_request).unwrap();
+        let update_cmd = server_state
+            .update(CompleteState::default(), vec![])
+            .unwrap();
         assert!(update_cmd.is_none());
         assert_eq!(server_state.state, CompleteState::default());
     }
@@ -650,15 +643,11 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let new_state = generate_test_update_state();
-
-        let update_request = UpdateStateRequest {
-            state: new_state.clone(),
-            update_mask: vec![],
-        };
+        let update_mask = vec![];
 
         let mut server_state = ServerState::default();
 
-        let update_cmd = server_state.update(update_request).unwrap();
+        let update_cmd = server_state.update(new_state.clone(), update_mask).unwrap();
 
         let expected_cmd =
             common::execution_interface::ExecutionCommand::UpdateWorkload(UpdateWorkload {
@@ -681,17 +670,14 @@ mod tests {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let current_complete_state = generate_test_old_state();
-
-        let update_request = UpdateStateRequest {
-            state: CompleteState::default(),
-            update_mask: vec![],
-        };
+        let update_state = CompleteState::default();
+        let update_mask = vec![];
 
         let mut server_state = ServerState {
             state: current_complete_state.clone(),
         };
 
-        let update_cmd = server_state.update(update_request).unwrap();
+        let update_cmd = server_state.update(update_state, update_mask).unwrap();
 
         let expected_cmd =
             common::execution_interface::ExecutionCommand::UpdateWorkload(UpdateWorkload {
@@ -739,16 +725,15 @@ mod tests {
             current_state: new_state.clone(),
             ..Default::default()
         };
-        let update_request = UpdateStateRequest {
-            state: new_complete_state.clone(),
-            update_mask: vec![],
-        };
+        let update_mask = vec![];
 
         let mut server_state = ServerState {
             state: current_complete_state.clone(),
         };
 
-        let update_cmd = server_state.update(update_request).unwrap();
+        let update_cmd = server_state
+            .update(new_complete_state.clone(), update_mask)
+            .unwrap();
 
         let expected_cmd =
             common::execution_interface::ExecutionCommand::UpdateWorkload(UpdateWorkload {

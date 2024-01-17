@@ -12,30 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 use common::objects::State;
-use core::fmt;
 use std::collections::{HashSet, VecDeque};
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum CyclicCheckResult {
-    WorkloadPartOfCycle(String),
-}
-
-pub enum StartNodes<'a> {
-    All,
-    Subset(Vec<&'a String>),
-}
-
-impl fmt::Display for CyclicCheckResult {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            CyclicCheckResult::WorkloadPartOfCycle(workload) => {
-                write!(f, "workload '{}' part of a cycle.", workload)
-            }
-        }
-    }
-}
-
-pub fn dfs(state: &State, start_nodes: StartNodes) -> Result<(), CyclicCheckResult> {
+pub fn dfs(state: &State, start_nodes: Option<Vec<&String>>) -> Option<String> {
     // stack is used to terminate the search properly
     let mut stack: VecDeque<&String> = VecDeque::new();
 
@@ -47,7 +26,7 @@ pub fn dfs(state: &State, start_nodes: StartNodes) -> Result<(), CyclicCheckResu
     let mut path: VecDeque<&String> = VecDeque::with_capacity(state.workloads.len());
 
     // start visiting workloads in the graph only for a subset of workloads (e.g. in case of a an update) or for all
-    let mut data: Vec<&String> = if let StartNodes::Subset(workloads_to_visit) = start_nodes {
+    let mut data: Vec<&String> = if let Some(workloads_to_visit) = start_nodes {
         workloads_to_visit
     } else {
         state.workloads.keys().collect()
@@ -62,16 +41,16 @@ pub fn dfs(state: &State, start_nodes: StartNodes) -> Result<(), CyclicCheckResu
             continue;
         }
 
-        log::debug!("searching for workload = '{}'", workload_name);
+        log::trace!("searching for workload = '{}'", workload_name);
         stack.push_front(workload_name);
         while let Some(head) = stack.front() {
             if let Some(workload_spec) = state.workloads.get(*head) {
                 if !visited.contains(head) {
-                    log::debug!("visit '{}'", head);
+                    log::trace!("visit '{}'", head);
                     visited.insert(head);
                     path.push_back(head);
                 } else {
-                    log::debug!("remove '{}' from path", head);
+                    log::trace!("remove '{}' from path", head);
                     path.pop_back();
                     stack.pop_front();
                 }
@@ -85,13 +64,11 @@ pub fn dfs(state: &State, start_nodes: StartNodes) -> Result<(), CyclicCheckResu
                         stack.push_front(dependency);
                     } else if path.contains(&dependency) {
                         log::debug!("workload '{dependency}' is part of a cycle.");
-                        return Err(CyclicCheckResult::WorkloadPartOfCycle(
-                            dependency.to_string(),
-                        ));
+                        return Some(dependency.to_string());
                     }
                 }
             } else {
-                log::debug!(
+                log::trace!(
                     "workload '{}' is skipped because it is not part of the state.",
                     head
                 );
@@ -99,7 +76,7 @@ pub fn dfs(state: &State, start_nodes: StartNodes) -> Result<(), CyclicCheckResu
             }
         }
     }
-    Ok(())
+    None
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -147,10 +124,10 @@ mod tests {
             let builder = builder.clone();
             let state = builder.set_start_node(start_node).build();
 
-            let result = dfs(&state, StartNodes::All);
+            let result = dfs(&state, None);
             assert!(matches!(
                 result,
-                Err(CyclicCheckResult::WorkloadPartOfCycle(w)) if expected_nodes_part_of_a_cycle.into_iter().any(|expected| w.contains(expected))
+                Some(w) if expected_nodes_part_of_a_cycle.into_iter().any(|expected| w.contains(expected))
             ));
         }
     }
@@ -174,12 +151,7 @@ mod tests {
         for start_node in workloads {
             let builder = builder.clone();
             let state = builder.set_start_node(start_node).build();
-
-            let result = dfs(&state, StartNodes::All);
-            assert!(matches!(
-                result,
-                Err(CyclicCheckResult::WorkloadPartOfCycle(_))
-            ));
+            assert!(dfs(&state, None).is_some());
         }
     }
 
@@ -203,14 +175,14 @@ mod tests {
             let builder = builder.clone();
             let state = builder.set_start_node(start_node).build();
 
-            let result = dfs(&state, StartNodes::All);
+            let result = dfs(&state, None);
 
             assert!(matches!(
                 &result,
-                Err(CyclicCheckResult::WorkloadPartOfCycle(w)) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
+                Some(w) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
             ));
 
-            actual.insert(result.unwrap_err().to_string().replace("1_", ""));
+            actual.insert(result.unwrap().to_string().replace("1_", ""));
         }
 
         assert_eq!(actual.len(), expected_nodes_part_of_a_cycle.len());
@@ -245,14 +217,14 @@ mod tests {
             let builder = builder.clone();
             let state = builder.set_start_node(start_node).build();
 
-            let result = dfs(&state, StartNodes::All);
+            let result = dfs(&state, None);
 
             assert!(matches!(
                 &result,
-                Err(CyclicCheckResult::WorkloadPartOfCycle(w)) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
+                Some(w) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
             ));
 
-            actual.insert(result.unwrap_err().to_string().replace("1_", ""));
+            actual.insert(result.unwrap().to_string().replace("1_", ""));
         }
 
         assert_eq!(actual.len(), expected_nodes_part_of_a_cycle.len());
@@ -287,14 +259,14 @@ mod tests {
             let builder = builder.clone();
             let state = builder.set_start_node(start_node).build();
 
-            let result = dfs(&state, StartNodes::All);
+            let result = dfs(&state, None);
 
             assert!(matches!(
                 &result,
-                Err(CyclicCheckResult::WorkloadPartOfCycle(w)) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
+                Some(w) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
             ));
 
-            actual.insert(result.unwrap_err().to_string().replace("1_", ""));
+            actual.insert(result.unwrap().to_string().replace("1_", ""));
         }
 
         assert_eq!(actual.len(), expected_nodes_part_of_a_cycle.len());
@@ -330,10 +302,10 @@ mod tests {
             let builder = builder.clone();
             let state = builder.set_start_node(start_node).build();
 
-            let result = dfs(&state, StartNodes::All);
+            let result = dfs(&state, None);
             assert!(matches!(
                 result,
-                Err(CyclicCheckResult::WorkloadPartOfCycle(w)) if expected_nodes_part_of_a_cycle.into_iter().any(|expected| w.contains(expected))
+                Some(w) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
             ));
         }
     }
@@ -365,9 +337,7 @@ mod tests {
         for start_node in workloads {
             let builder = builder.clone();
             let state = builder.set_start_node(start_node).build();
-
-            let result = dfs(&state, StartNodes::All);
-            assert!(result.is_ok());
+            assert!(dfs(&state, None).is_none());
         }
     }
 
@@ -396,14 +366,14 @@ mod tests {
             let builder = builder.clone();
             let state = builder.set_start_node(start_node).build();
 
-            let result = dfs(&state, StartNodes::All);
+            let result = dfs(&state, None);
 
             assert!(matches!(
                 &result,
-                Err(CyclicCheckResult::WorkloadPartOfCycle(w)) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
+                Some(w) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
             ));
 
-            actual.insert(result.unwrap_err().to_string().replace("1_", ""));
+            actual.insert(result.unwrap().to_string().replace("1_", ""));
         }
 
         assert_eq!(actual.len(), expected_nodes_part_of_a_cycle.len());
@@ -420,11 +390,8 @@ mod tests {
             .workload_dependency("A", "A", AddCondition::AddCondRunning)
             .build();
 
-        let result = dfs(&state, StartNodes::All);
-        assert_eq!(
-            result,
-            Err(CyclicCheckResult::WorkloadPartOfCycle("A".to_string()))
-        );
+        let result = dfs(&state, None);
+        assert_eq!(result, Some("A".to_string()));
 
         // 2)
         let workloads = ["A", "B"];
@@ -441,14 +408,14 @@ mod tests {
             let builder = builder.clone();
             let state = builder.set_start_node(start_node).build();
 
-            let result = dfs(&state, StartNodes::All);
+            let result = dfs(&state, None);
 
             assert!(matches!(
                 &result,
-                Err(CyclicCheckResult::WorkloadPartOfCycle(w)) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
+                Some(w) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
             ));
 
-            actual.insert(result.unwrap_err().to_string().replace("1_", ""));
+            actual.insert(result.unwrap().to_string().replace("1_", ""));
         }
 
         assert_eq!(actual.len(), expected_nodes_part_of_a_cycle.len());
@@ -482,12 +449,12 @@ mod tests {
             let builder = builder.clone();
             let state = builder.set_start_node(start_node).build();
 
-            let result = dfs(&state, StartNodes::All);
+            let result = dfs(&state, None);
             assert!(matches!(
                 &result,
-                Err(CyclicCheckResult::WorkloadPartOfCycle(w)) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
+                Some(w) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
             ));
-            actual.insert(result.unwrap_err().to_string().replace("1_", ""));
+            actual.insert(result.unwrap().to_string().replace("1_", ""));
         }
 
         assert_eq!(actual.len(), expected_nodes_part_of_a_cycle.len());
@@ -516,10 +483,7 @@ mod tests {
         for start_node in workloads {
             let builder = builder.clone();
             let state = builder.set_start_node(start_node).build();
-
-            let result = dfs(&state, StartNodes::All);
-
-            assert!(result.is_ok());
+            assert!(dfs(&state, None).is_none());
         }
     }
 
@@ -544,9 +508,7 @@ mod tests {
         for start_node in workloads {
             let builder = builder.clone();
             let state = builder.set_start_node(start_node).build();
-
-            let result = dfs(&state, StartNodes::All);
-            assert!(result.is_ok());
+            assert!(dfs(&state, None).is_none());
         }
     }
 
@@ -579,9 +541,7 @@ mod tests {
         for start_node in ["A", "B", "C", "D", "E", "F", "G", "H"] {
             let builder = builder.clone();
             let state = builder.set_start_node(start_node).build();
-
-            let result = dfs(&state, StartNodes::All);
-            assert!(result.is_ok());
+            assert!(dfs(&state, None).is_none());
         }
     }
 
@@ -604,9 +564,7 @@ mod tests {
         for start_node in workloads {
             let builder = builder.clone();
             let state = builder.set_start_node(start_node).build();
-
-            let result = dfs(&state, StartNodes::All);
-            assert!(result.is_ok());
+            assert!(dfs(&state, None).is_none());
         }
     }
 
@@ -655,10 +613,10 @@ mod tests {
         assert_eq!(state.workloads.len(), BENCHMARKING_NUMBER_OF_WORKLOADS);
 
         let start = Instant::now();
-        let result = dfs(&state, StartNodes::All);
+        let result = dfs(&state, None);
         let duration = start.elapsed();
-        assert!(result.is_err());
-        log::info!("{}", result.err().unwrap());
+        assert!(result.is_some());
+        log::info!("{}", result.unwrap());
         log::info!(
             "time iterative cyclic dependency check: '{:?}' micro sek.",
             duration.as_micros()

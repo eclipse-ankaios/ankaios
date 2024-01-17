@@ -15,6 +15,7 @@
 mod cyclic_check;
 mod server_state;
 
+use common::commands::CompleteState;
 use common::std_extensions::IllegalStateResult;
 
 #[cfg_attr(test, mockall_double::double)]
@@ -58,9 +59,25 @@ impl AnkaiosServer {
         }
     }
 
-    pub async fn start(&mut self) {
-        log::info!("Starting...");
-        self.listen_to_agents().await
+    pub async fn start(&mut self, startup_state: CompleteState) -> Result<(), String> {
+        match self.server_state.update(startup_state, vec![]) {
+            Ok(cmd) => {
+                if let Some(execution_command) = cmd {
+                    log::info!("Starting...");
+                    self.to_agents
+                        .send(execution_command)
+                        .await
+                        .unwrap_or_illegal_state();
+                } else {
+                    return Err("unexpected command.".to_string());
+                }
+            }
+            Err(err) => {
+                return Err(err.to_string());
+            }
+        }
+        self.listen_to_agents().await;
+        Ok(())
     }
 
     async fn listen_to_agents(&mut self) {
@@ -136,9 +153,12 @@ impl AnkaiosServer {
                         update_request.update_mask
                     );
 
-                    match self.server_state.update(update_request) {
-                        Ok(cmd) => {
-                            if let Some(execution_command) = cmd {
+                    match self
+                        .server_state
+                        .update(update_request.state, update_request.update_mask)
+                    {
+                        Ok(command) => {
+                            if let Some(execution_command) = command {
                                 self.to_agents
                                     .send(execution_command)
                                     .await
@@ -229,10 +249,8 @@ mod tests {
     use std::collections::HashMap;
 
     use super::AnkaiosServer;
-    use crate::ankaios_server::server_state::MockServerState;
-    use common::commands::{
-        RequestCompleteState, UpdateStateRequest, UpdateWorkload, UpdateWorkloadState,
-    };
+    use crate::ankaios_server::server_state::{MockServerState, UpdateStateError};
+    use common::commands::{RequestCompleteState, UpdateWorkload, UpdateWorkloadState};
     use common::objects::{DeletedWorkload, ExecutionState, State, WorkloadState};
     use common::test_utils::generate_test_workload_spec_with_param;
     use common::{
@@ -288,7 +306,7 @@ mod tests {
             .return_const(vec![w2.clone()]);
         server.server_state = mock_server_state;
 
-        let server_task = tokio::spawn(async move { server.start().await });
+        let server_task = tokio::spawn(async move { server.listen_to_agents().await });
 
         // first agent connects to the server
         let agent_hello_result = to_server.agent_hello(AGENT_A.to_string()).await;
@@ -438,17 +456,17 @@ mod tests {
         let mut mock_server_state = MockServerState::new();
         mock_server_state
             .expect_update()
-            .with(mockall::predicate::eq(UpdateStateRequest {
-                state: update_state.clone(),
-                update_mask: update_mask.clone(),
-            }))
+            .with(
+                mockall::predicate::eq(update_state.clone()),
+                mockall::predicate::eq(update_mask.clone()),
+            )
             .once()
             .return_const(Ok(Some(ExecutionCommand::UpdateWorkload(UpdateWorkload {
                 added_workloads: vec![w1.clone()],
                 deleted_workloads: vec![],
             }))));
         server.server_state = mock_server_state;
-        let server_task = tokio::spawn(async move { server.start().await });
+        let server_task = tokio::spawn(async move { server.listen_to_agents().await });
 
         // send new state to server
         let update_state_result = to_server
@@ -501,14 +519,14 @@ mod tests {
         let mut mock_server_state = MockServerState::new();
         mock_server_state
             .expect_update()
-            .with(mockall::predicate::eq(UpdateStateRequest {
-                state: update_state.clone(),
-                update_mask: update_mask.clone(),
-            }))
+            .with(
+                mockall::predicate::eq(update_state.clone()),
+                mockall::predicate::eq(update_mask.clone()),
+            )
             .once()
             .return_const(Ok(None));
         server.server_state = mock_server_state;
-        let server_task = tokio::spawn(async move { server.start().await });
+        let server_task = tokio::spawn(async move { server.listen_to_agents().await });
 
         // send new state to server
         let update_state_result = to_server
@@ -557,14 +575,16 @@ mod tests {
         let mut mock_server_state = MockServerState::new();
         mock_server_state
             .expect_update()
-            .with(mockall::predicate::eq(UpdateStateRequest {
-                state: update_state.clone(),
-                update_mask: update_mask.clone(),
-            }))
+            .with(
+                mockall::predicate::eq(update_state.clone()),
+                mockall::predicate::eq(update_mask.clone()),
+            )
             .once()
-            .return_const(Err("some update error.".to_string()));
+            .return_const(Err(UpdateStateError::ResultInvalid(
+                "some update error.".to_string(),
+            )));
         server.server_state = mock_server_state;
-        let server_task = tokio::spawn(async move { server.start().await });
+        let server_task = tokio::spawn(async move { server.listen_to_agents().await });
 
         // send new state to server
         let update_state_result = to_server
@@ -649,7 +669,7 @@ mod tests {
             .once()
             .return_const(Ok(current_complete_state.clone()));
         server.server_state = mock_server_state;
-        let server_task = tokio::spawn(async move { server.start().await });
+        let server_task = tokio::spawn(async move { server.listen_to_agents().await });
 
         // send command 'RequestCompleteState'
         // CompleteState shall contain the complete state
@@ -700,7 +720,7 @@ mod tests {
             .once()
             .return_const(Err("complete state error.".to_string()));
         server.server_state = mock_server_state;
-        let server_task = tokio::spawn(async move { server.start().await });
+        let server_task = tokio::spawn(async move { server.listen_to_agents().await });
 
         let request_id = format!("{AGENT_A}@my_request_id");
         // send command 'RequestCompleteState'
@@ -758,7 +778,7 @@ mod tests {
         let agent_gone_result = to_server.agent_gone(AGENT_A.to_owned()).await;
         assert!(agent_gone_result.is_ok());
 
-        let server_handle = server.start();
+        let server_handle = server.listen_to_agents();
 
         // The receiver in the server receives the messages and terminates the infinite waiting-loop
         drop(to_server);
@@ -850,10 +870,10 @@ mod tests {
 
         mock_server_state
             .expect_update()
-            .with(mockall::predicate::eq(UpdateStateRequest {
-                state: update_state.clone(),
-                update_mask: update_mask.clone(),
-            }))
+            .with(
+                mockall::predicate::eq(update_state.clone()),
+                mockall::predicate::eq(update_mask.clone()),
+            )
             .once()
             .in_sequence(&mut seq)
             .return_const(Ok(Some(ExecutionCommand::UpdateWorkload(UpdateWorkload {
@@ -877,7 +897,7 @@ mod tests {
             .await;
         assert!(update_state_result.is_ok());
 
-        let server_handle = server.start();
+        let server_handle = server.listen_to_agents();
 
         // The receiver in the server receives the messages and terminates the infinite waiting-loop
         drop(to_server);
@@ -929,7 +949,7 @@ mod tests {
         let mock_server_state = MockServerState::new();
         server.server_state = mock_server_state;
 
-        let server_task = tokio::spawn(async move { server.start().await });
+        let server_task = tokio::spawn(async move { server.listen_to_agents().await });
 
         assert!(to_server.stop().await.is_ok());
 
