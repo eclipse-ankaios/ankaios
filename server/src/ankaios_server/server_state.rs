@@ -12,12 +12,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// #[cfg(not(test))]
-// use super::update_state::update_state;
-// use common::objects::WorkloadSpec;
-// #[cfg(test)]
-// use tests::update_state_mock as update_state;
-
 use super::cyclic_check;
 use crate::state_manipulation::{Object, Path};
 use crate::workload_state_db::WorkloadStateDB;
@@ -25,7 +19,7 @@ use common::std_extensions::IllegalStateResult;
 use common::{
     commands::{CompleteState, RequestCompleteState, UpdateStateRequest, UpdateWorkload},
     execution_interface::ExecutionCommand,
-    objects::{DeleteCondition, DeletedWorkload, State, WorkloadSpec},
+    objects::{DeletedWorkload, State, WorkloadSpec},
 };
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -146,12 +140,9 @@ impl Display for UpdateStateError {
     }
 }
 
-pub type DeleteGraph = HashMap<String, HashMap<String, DeleteCondition>>;
-
 #[derive(Default)]
 pub struct ServerState {
     state: CompleteState,
-    delete_conditions: DeleteGraph,
 }
 
 #[cfg_attr(test, automock)]
