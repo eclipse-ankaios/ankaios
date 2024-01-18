@@ -116,7 +116,7 @@ fn prepare_update_workload(
     }))
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum UpdateStateError {
     FieldNotFound(String),
     ResultInvalid(String),
@@ -275,11 +275,13 @@ mod tests {
 
     use common::{
         commands::{CompleteState, RequestCompleteState, UpdateWorkload},
-        objects::{DeletedWorkload, WorkloadSpec},
+        objects::{DeletedWorkload, State, WorkloadSpec},
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
     };
 
-    use crate::workload_state_db::WorkloadStateDB;
+    use crate::{
+        ankaios_server::server_state::UpdateStateError, workload_state_db::WorkloadStateDB,
+    };
 
     use super::ServerState;
     const AGENT_A: &str = "agent_A";
@@ -486,6 +488,65 @@ mod tests {
         assert_eq!(workloads.len(), 0);
     }
 
+    #[test]
+    fn utest_server_state_update_state_reject_state_with_cyclic_dependencies() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let workload = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        // workload has a self cycle to workload A
+        let new_workload_1 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            "workload A".to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let mut new_workload_2 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME.to_string(),
+        );
+        new_workload_2.dependencies.clear();
+
+        let old_state = CompleteState {
+            current_state: State {
+                workloads: HashMap::from([(workload.name.clone(), workload)]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let rejected_new_state = CompleteState {
+            current_state: State {
+                workloads: HashMap::from([
+                    (new_workload_1.name.clone(), new_workload_1),
+                    (new_workload_2.name.clone(), new_workload_2),
+                ]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let mut server_state = ServerState {
+            state: old_state.clone(),
+        };
+
+        let result = server_state.update(rejected_new_state.clone(), vec![]);
+        assert_eq!(
+            result,
+            Err(UpdateStateError::CycleInDependencies(
+                "workload A".to_string()
+            ))
+        );
+
+        // server state shall be the old state, new state shall be rejected
+        assert_eq!(old_state, server_state.state);
+    }
+
     // [utest->swdd~update-current-state-empty-update-mask~1]
     #[test]
     fn utest_replace_all_if_update_mask_empty() {
@@ -494,9 +555,7 @@ mod tests {
         let mut server_state = ServerState {
             state: old_state.clone(),
         };
-        server_state
-            .update(generate_test_update_state(), vec![])
-            .unwrap();
+        server_state.update(update_state.clone(), vec![]).unwrap();
 
         assert_eq!(update_state, server_state.state);
     }
