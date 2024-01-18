@@ -242,7 +242,6 @@ impl WorkloadControlLoop {
 
         let workload_name = control_loop_state.instance_name.workload_name();
 
-        // TODO: check if we can extract the delete to a single function and use it here ans below
         if let Some(old_id) = control_loop_state.workload_id.take() {
             if let Err(err) = control_loop_state.runtime.delete_workload(&old_id).await {
                 control_loop_state
