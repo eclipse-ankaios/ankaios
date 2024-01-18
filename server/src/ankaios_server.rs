@@ -168,7 +168,7 @@ impl AnkaiosServer {
                             }
                         }
                         Err(error_msg) => {
-                            log::error!("{error_msg}",);
+                            log::error!("Update rejected: '{error_msg}'",);
                         }
                     }
                 }
