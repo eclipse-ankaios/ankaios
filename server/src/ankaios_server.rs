@@ -311,7 +311,7 @@ mod tests {
             .return_const(vec![w2.clone()]);
         server.server_state = mock_server_state;
 
-        let server_task = tokio::spawn(async move { server.listen_to_agents().await });
+        let server_task = tokio::spawn(async move { server.start(None).await });
 
         // first agent connects to the server
         let agent_hello_result = to_server.agent_hello(AGENT_A.to_string()).await;
@@ -471,7 +471,7 @@ mod tests {
                 deleted_workloads: vec![],
             }))));
         server.server_state = mock_server_state;
-        let server_task = tokio::spawn(async move { server.listen_to_agents().await });
+        let server_task = tokio::spawn(async move { server.start(None).await });
 
         // send new state to server
         let update_state_result = to_server
@@ -531,7 +531,7 @@ mod tests {
             .once()
             .return_const(Ok(None));
         server.server_state = mock_server_state;
-        let server_task = tokio::spawn(async move { server.listen_to_agents().await });
+        let server_task = tokio::spawn(async move { server.start(None).await });
 
         // send new state to server
         let update_state_result = to_server
@@ -589,7 +589,7 @@ mod tests {
                 "some update error.".to_string(),
             )));
         server.server_state = mock_server_state;
-        let server_task = tokio::spawn(async move { server.listen_to_agents().await });
+        let server_task = tokio::spawn(async move { server.start(None).await });
 
         // send new state to server
         let update_state_result = to_server
@@ -674,7 +674,7 @@ mod tests {
             .once()
             .return_const(Ok(current_complete_state.clone()));
         server.server_state = mock_server_state;
-        let server_task = tokio::spawn(async move { server.listen_to_agents().await });
+        let server_task = tokio::spawn(async move { server.start(None).await });
 
         // send command 'RequestCompleteState'
         // CompleteState shall contain the complete state
@@ -725,7 +725,7 @@ mod tests {
             .once()
             .return_const(Err("complete state error.".to_string()));
         server.server_state = mock_server_state;
-        let server_task = tokio::spawn(async move { server.listen_to_agents().await });
+        let server_task = tokio::spawn(async move { server.start(None).await });
 
         let request_id = format!("{AGENT_A}@my_request_id");
         // send command 'RequestCompleteState'
@@ -783,11 +783,11 @@ mod tests {
         let agent_gone_result = to_server.agent_gone(AGENT_A.to_owned()).await;
         assert!(agent_gone_result.is_ok());
 
-        let server_handle = server.listen_to_agents();
+        let server_handle = server.start(None);
 
         // The receiver in the server receives the messages and terminates the infinite waiting-loop
         drop(to_server);
-        tokio::join!(server_handle);
+        tokio::join!(server_handle).0.unwrap();
 
         let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
@@ -902,11 +902,11 @@ mod tests {
             .await;
         assert!(update_state_result.is_ok());
 
-        let server_handle = server.listen_to_agents();
+        let server_handle = server.start(None);
 
         // The receiver in the server receives the messages and terminates the infinite waiting-loop
         drop(to_server);
-        tokio::join!(server_handle);
+        tokio::join!(server_handle).0.unwrap();
 
         let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
@@ -954,7 +954,7 @@ mod tests {
         let mock_server_state = MockServerState::new();
         server.server_state = mock_server_state;
 
-        let server_task = tokio::spawn(async move { server.listen_to_agents().await });
+        let server_task = tokio::spawn(async move { server.start(None).await });
 
         assert!(to_server.stop().await.is_ok());
 

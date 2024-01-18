@@ -110,12 +110,6 @@ fn prepare_update_workload(
         return None;
     }
 
-    // log::info!(
-    //     "The update has {} new or updated workloads, {} workloads to delete",
-    //     added_workloads.len(),
-    //     deleted_workloads.len()
-    // );
-
     Some(ExecutionCommand::UpdateWorkload(UpdateWorkload {
         added_workloads,
         deleted_workloads,
@@ -233,7 +227,6 @@ impl ServerState {
                         std::unreachable!("Expected ExecutionCommand::UpdateWorkload");
                     };
 
-                    log::debug!("update_state => added_workloads = {:?}", added_workloads);
                     let start_nodes: Vec<&String> = added_workloads
                         .iter()
                         .filter_map(|w| {
@@ -244,6 +237,7 @@ impl ServerState {
                             }
                         })
                         .collect();
+
                     log::debug!(
                         "Execute cyclic dependency check with start_nodes = {:?}",
                         start_nodes
