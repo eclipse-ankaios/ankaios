@@ -430,7 +430,7 @@ mod tests {
     use std::time::Duration;
 
     use common::{
-        objects::{ExecutionState, WorkloadInstanceName, WorkloadState},
+        objects::{ExecutionState, WorkloadInstanceName},
         test_utils::generate_test_workload_spec_with_param,
     };
     use tokio::{sync::mpsc, time::timeout};
@@ -438,9 +438,7 @@ mod tests {
     use crate::{
         runtime_connectors::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
         workload::{ControlLoopState, RestartCounter, WorkloadCommandSender, WorkloadControlLoop},
-        workload_state::{
-            assert_execution_state_sequence, WorkloadStateMessage, WorkloadStateMsgReceiver,
-        },
+        workload_state::assert_execution_state_sequence,
     };
 
     const RUNTIME_NAME: &str = "runtime1";
@@ -624,7 +622,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut old_mock_state_checker = StubStateChecker::new();
         old_mock_state_checker.panic_if_not_stopped();
@@ -700,7 +698,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut old_mock_state_checker = StubStateChecker::new();
         old_mock_state_checker.panic_if_not_stopped();
@@ -778,7 +776,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut mock_state_checker = StubStateChecker::new();
         mock_state_checker.panic_if_not_stopped();
@@ -835,7 +833,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut mock_state_checker = StubStateChecker::new();
         mock_state_checker.panic_if_not_stopped();
