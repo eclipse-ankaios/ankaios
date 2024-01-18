@@ -1190,10 +1190,12 @@ A workload specification must contain the following information:</p>
 <li><code>runtime</code>, specify the type of the runtime. Currently supported values are <code>podman</code> and <code>podman-kube</code>.</li>
 <li><code>agent</code>, specify the name of the owning agent which is going to execute the workload.</li>
 <li><code>restart</code>, specify if the workload shall be restarted when it exits (not implemented yet).</li>
-<li><code>updateStrategy</code>, specify the update strategy (not implemented yet) which can be one of the following values:</li>
+<li><code>updateStrategy</code>, specify the update strategy (not implemented yet) which can be one of the following values:<ul>
 <li><code>UNSPECIFIED</code></li>
 <li><code>AT_LEAST_ONCE</code></li>
 <li><code>AT_MOST_ONCE</code></li>
+</ul>
+</li>
 <li><code>accessRights</code>, specify lists of access rules for <code>allow</code> and <code>deny</code> (not implemented yet; shall be set to empty list for both).</li>
 <li><code>tags</code>, specify a list of <code>key</code> <code>value</code>  pairs.</li>
 <li><code>runtimeConfig</code>, specify as a <em>string</em> the configuration for the <a href="../glossary/#runtime">runtime</a> whose configuration structure is specific for each runtime, e.g., for <code>podman</code> runtime the <a href="#podmanruntimeconfig">PodmanRuntimeConfig</a> is used.</li>
