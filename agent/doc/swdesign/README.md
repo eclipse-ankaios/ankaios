@@ -66,9 +66,9 @@ The WorkloadCommandSender is a communication channel and responsible for sending
 
 A WorkloadObject represents a workload inside the Ankaios agent. It holds the control interface and the sender of the WorkloadCommandSender to send WorkloadCommands to the WorkloadControlLoop.
 
-### WorkloadStateDB
+### WorkloadStateStore
 
-The WorkloadStateDB stores, as the name suggests, information on the states of the workloads. This information includes states which the Agent gets from the Server as well as states of workloads executed by the agent itself.
+The WorkloadStateStore stores, as the name suggests, information on the states of the workloads. This information includes states which the Agent gets from the Server as well as states of workloads executed by the agent itself.
 
 ### WorkloadStateProxy
 
@@ -1920,7 +1920,7 @@ The `UpdateWorkloadState` contains workload states of other workloads. The Workl
 
 Tags:
 - WorkloadStateProxy
-- WorkloadStateDB
+- WorkloadStateStore
 
 Needs:
 - impl
