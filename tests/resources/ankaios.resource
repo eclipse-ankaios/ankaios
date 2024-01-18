@@ -27,6 +27,7 @@ Library             ankaios_library.py
 
 *** Variables ***
 ${CURRENT_RESULT}       ${EMPTY}
+${SERVER_PROCESS_HANDLE}       ${EMPTY}
 ${TEST_FOLDER_NAME}    ${EMPTY}
 
 
@@ -83,7 +84,17 @@ the command "${cli_command}" finished with exit code "${exit_code}" within "${ti
     END
 
 Ankaios server is started with config "${config_path}"
-    Start Process    %{ANK_BIN_DIR}${/}ank-server    --startup-config    ${config_path}    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt    env:RUST_LOG=debug
+    ${server_process}=    Start Process    %{ANK_BIN_DIR}${/}ank-server    --startup-config    ${config_path}    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt    env:RUST_LOG=debug
+    RETURN    ${server_process}
+
+Ankaios server is started with an invalid config "${config_path}"
+    ${SERVER_PROCESS_HANDLE}=        Ankaios server is started with config "${config_path}"
+    Set Global Variable    ${SERVER_PROCESS_HANDLE}
+
+the Ankaios server shall exit with an error code
+    ${process_result}=    Wait For Process    ${SERVER_PROCESS_HANDLE}    timeout=3 s    on_timeout=continue
+    Process Should Be Stopped    ${SERVER_PROCESS_HANDLE}
+    Should Not Be Equal As Integers   ${process_result.rc}    0
 
 Ankaios agent is started with name "${name}"
     Start Process    %{ANK_BIN_DIR}${/}ank-agent    --name    ${name}    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt    env:RUST_LOG=debug
