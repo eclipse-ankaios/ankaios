@@ -92,7 +92,7 @@ impl CommunicationsClient for GRPCCommunicationsClient {
                         Err(GrpcMiddlewareError::ServerNotAvailable(err)) => {
                             log::debug!("No connection to the server: '{err}'");
                             return Err(CommunicationMiddlewareError(format!(
-                                "Could not connect to server on {}.",
+                                "Could not connect to Ankaios server on {}.",
                                 self.server_address
                             )));
                         }
