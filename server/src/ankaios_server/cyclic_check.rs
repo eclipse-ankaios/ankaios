@@ -14,6 +14,18 @@
 use common::objects::State;
 use std::collections::{HashSet, VecDeque};
 
+/// Returns an Option containing the workload dependency that is part of a cycle
+/// or [`None`] if no cycles are detected
+///
+/// The method implements the iterative depth search first (dfs) algorithm to
+/// detect a cycle in the directed graph for interworkload dependencies within a state.
+///
+/// # Arguments
+///
+/// * `state` - The State with workloads representing the directed graph to check for a cycle
+/// * `start_nodes` - Start visiting the graph only for the passed workloads
+///                   if [`None`] the search is started from all workloads of the state
+///
 pub fn dfs(state: &State, start_nodes: Option<Vec<&String>>) -> Option<String> {
     // stack is used to terminate the search properly
     let mut stack: VecDeque<&String> = VecDeque::new();
