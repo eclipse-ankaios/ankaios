@@ -140,6 +140,18 @@ async fn main() {
         },
         cli::Commands::Apply(apply_args) => {
             println!("{:?}", apply_args.manifest_files);
+            match apply_args.get_input_sources() {
+                Ok(mut manifests) => manifests.iter_mut().for_each(|x| {
+                    let mut data = "".to_owned();
+                    let _ = x.1.read_to_string(&mut data);
+                    let manifest_content: common::objects::State = serde_yaml::from_str(&data)
+                        .unwrap_or_else(|error| {
+                            panic!("Error while parsing the state object data.\nError: {error}")
+                        });
+                    println!("\n'{}' - {:?}", x.0, manifest_content);
+                }),
+                Err(err) => output_and_exit!("{:?}", err),
+            }
         }
     }
 

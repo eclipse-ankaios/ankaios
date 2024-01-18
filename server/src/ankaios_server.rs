@@ -27,8 +27,8 @@ use common::{execution_interface::ExecutionInterface, state_change_interface::St
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 use crate::ankaios_server::update_state::prepare_update_workload;
-use crate::state_manipulation::Object;
 use crate::workload_state_db::WorkloadStateDB;
+use common::state_manipulation::Object;
 
 pub type StateChangeChannels = (Sender<StateChangeCommand>, Receiver<StateChangeCommand>);
 pub type ExecutionChannels = (Sender<ExecutionCommand>, Receiver<ExecutionCommand>);

@@ -15,8 +15,12 @@
 use std::collections::HashMap;
 use std::fmt::Display;
 
-use crate::state_manipulation::{Object, Path};
-use common::{commands::CompleteState, commands::UpdateStateRequest, commands::UpdateWorkload};
+use common::{
+    commands::CompleteState,
+    commands::UpdateStateRequest,
+    commands::UpdateWorkload,
+    state_manipulation::{Object, Path},
+};
 use common::{
     execution_interface::ExecutionCommand,
     objects::{DeletedWorkload, State, WorkloadSpec},

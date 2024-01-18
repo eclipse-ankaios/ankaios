@@ -53,7 +53,7 @@ pub enum Commands {
     Delete(DeleteArgs),
     #[command(arg_required_else_help = true)]
     Run(RunArgs),
-    #[command(arg_required_else_help = false)]
+    #[command(arg_required_else_help = true)]
     Apply(ApplyArgs),
 }
 

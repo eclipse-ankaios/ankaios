@@ -20,12 +20,12 @@ tokio = { version = "1.28", features = [
 ] }
 tokio-stream = "0.1"
 serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
 log = "0.4"
 sha256 = "1.1"
 
 [dev-dependencies]
 common = { features = ["test_utils"], path = "." }
-serde_yaml = "0.9"
 
 [features]
 default = []

@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{fmt, time::Duration};
+use std::{fmt, fs, io, ops::Deref, time::Duration};
 
 #[cfg(not(test))]
 async fn read_file_to_string(file: String) -> std::io::Result<String> {
@@ -24,8 +24,9 @@ use tests::read_to_string_mock as read_file_to_string;
 use common::{
     commands::{CompleteState, RequestCompleteState},
     execution_interface::ExecutionCommand,
-    objects::{Tag, WorkloadSpec},
+    objects::{State, Tag, WorkloadSpec},
     state_change_interface::{StateChangeCommand, StateChangeInterface},
+    state_manipulation::Object,
 };
 
 #[cfg(not(test))]
@@ -39,7 +40,10 @@ use tests::MockGRPCCommunicationsClient as GRPCCommunicationsClient;
 use tabled::{settings::Style, Table, Tabled};
 use url::Url;
 
-use crate::{cli::OutputFormat, output_and_error, output_debug};
+use crate::{
+    cli::{ApplyArgs, OutputFormat},
+    output_and_error, output_debug,
+};
 
 const BUFFER_SIZE: usize = 20;
 const WAIT_TIME_MS: Duration = Duration::from_millis(3000);
@@ -118,9 +122,8 @@ fn get_filtered_value<'a>(
     map: &'a serde_yaml::Value,
     mask: &[&str],
 ) -> Option<&'a serde_yaml::Value> {
-    mask.iter().try_fold(map, |current_level, mask_part| {
-        current_level.get(mask_part)
-    })
+    mask.iter()
+        .try_fold(map, |current_level, mask_part| current_level.get(mask_part))
 }
 
 fn update_compact_state(
@@ -185,6 +188,43 @@ fn setup_cli_communication(
     (communications_task, to_server, cli_receiver)
 }
 
+fn merge_state_objects<'a>(states: &'a [State], in_out_state: &'a mut State) {
+    states.iter().fold(in_out_state, |acc_state_object, state| {
+        let acc_object: Object = acc_state_object.deref().try_into().unwrap();
+        let state_object: Object = state.try_into().unwrap();
+        println!("{:?}", state_object);
+        acc_state_object
+    });
+}
+
+type InputSources = Result<Vec<(String, Box<dyn io::Read>)>, io::Error>;
+impl ApplyArgs {
+    pub fn get_input_sources(self) -> InputSources {
+        if let Some(first_arg) = self.manifest_files.first() {
+            match first_arg.as_str() {
+                "-" => Ok(vec![("stdin".to_owned(), Box::new(io::stdin()))]),
+                _ => {
+                    let mut res: InputSources = Ok(vec![]);
+                    for file_path in self.manifest_files {
+                        match fs::File::open(&file_path) {
+                            Ok(open_file) => {
+                                res.as_mut().unwrap().push((file_path, Box::new(open_file)))
+                            }
+                            Err(err) => {
+                                res = Err(err);
+                                break;
+                            }
+                        }
+                    }
+                    res
+                }
+            }
+        } else {
+            Ok(vec![])
+        }
+    }
+}
+
 #[derive(Debug, Tabled)]
 #[tabled(rename_all = "UPPERCASE")]
 struct WorkloadInfo {
@@ -224,8 +264,14 @@ impl CliCommands {
         let _ = self.task.await;
     }
 
-    async fn get_complete_state(&mut self, object_field_mask: &Vec<String>) -> Result<Box<CompleteState>, CliError> {
-        output_debug!("get_complete_state: object_field_mask={:?} ", object_field_mask);
+    async fn get_complete_state(
+        &mut self,
+        object_field_mask: &Vec<String>,
+    ) -> Result<Box<CompleteState>, CliError> {
+        output_debug!(
+            "get_complete_state: object_field_mask={:?} ",
+            object_field_mask
+        );
 
         // send complete state request to server
         self.to_server
@@ -233,7 +279,8 @@ impl CliCommands {
                 request_id: self.cli_name.to_owned(),
                 field_mask: object_field_mask.clone(),
             })
-            .await.map_err(|err| CliError::ExecutionError(err.to_string()))?;
+            .await
+            .map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
         let poll_complete_state_response = async {
             loop {
@@ -246,8 +293,12 @@ impl CliCommands {
         };
         match tokio::time::timeout(WAIT_TIME_MS, poll_complete_state_response).await {
             Ok(Ok(res)) => Ok(res),
-            Ok(Err(err)) => Err(CliError::ExecutionError(format!("Failed to get complete state.\nError: {err}"))),
-            Err(_) => Err(CliError::ExecutionError(format!("Failed to get complete state in time (timeout={WAIT_TIME_MS:?}).")))
+            Ok(Err(err)) => Err(CliError::ExecutionError(format!(
+                "Failed to get complete state.\nError: {err}"
+            ))),
+            Err(_) => Err(CliError::ExecutionError(format!(
+                "Failed to get complete state in time (timeout={WAIT_TIME_MS:?})."
+            ))),
         }
     }
 
@@ -467,12 +518,12 @@ impl CliCommands {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use std::{io, thread};
+    use std::{collections::HashMap, io, thread};
 
     use common::{
         commands,
         execution_interface::ExecutionCommand,
-        objects::{Tag, WorkloadSpec},
+        objects::{Tag, UpdateStrategy, WorkloadSpec},
         state_change_interface::{StateChangeCommand, StateChangeReceiver},
         test_utils::{self, generate_test_complete_state},
     };
@@ -482,7 +533,8 @@ mod tests {
     use crate::{
         cli::OutputFormat,
         cli_commands::{
-            generate_compact_state_output, get_filtered_value, update_compact_state, WorkloadInfo,
+            generate_compact_state_output, get_filtered_value, merge_state_objects,
+            update_compact_state, WorkloadInfo,
         },
     };
 
@@ -1041,7 +1093,10 @@ mod tests {
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
         );
-        let cmd_text = cmd.get_state(vec![], crate::cli::OutputFormat::Yaml).await.unwrap();
+        let cmd_text = cmd
+            .get_state(vec![], crate::cli::OutputFormat::Yaml)
+            .await
+            .unwrap();
         let expected_text = serde_yaml::to_string(&test_data).unwrap();
         assert_eq!(cmd_text, expected_text);
     }
@@ -1091,7 +1146,10 @@ mod tests {
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
         );
-        let cmd_text = cmd.get_state(vec![], crate::cli::OutputFormat::Json).await.unwrap();
+        let cmd_text = cmd
+            .get_state(vec![], crate::cli::OutputFormat::Json)
+            .await
+            .unwrap();
 
         let expected_text = serde_json::to_string_pretty(&test_data).unwrap();
         assert_eq!(cmd_text, expected_text);
@@ -1147,7 +1205,8 @@ mod tests {
                 vec!["currentState.workloads.name3.runtime".to_owned()],
                 crate::cli::OutputFormat::Yaml,
             )
-            .await.unwrap();
+            .await
+            .unwrap();
 
         let expected_single_field_result_text = serde_yaml::to_string(&serde_json::json!(
             {"currentState": {"workloads": {"name3": { "runtime": "runtime"}}}}
@@ -1212,7 +1271,8 @@ mod tests {
                 ],
                 crate::cli::OutputFormat::Yaml,
             )
-            .await.unwrap();
+            .await
+            .unwrap();
         assert!(matches!(cmd_text,
             txt if txt == *"currentState:\n  workloads:\n    name1:\n      runtime: runtime\n    name2:\n      runtime: runtime\n" ||
             txt == *"currentState:\n  workloads:\n    name2:\n      runtime: runtime\n    name1:\n      runtime: runtime\n"));
@@ -1721,5 +1781,38 @@ mod tests {
             serde_yaml::Value::Mapping(Default::default()),
         );
         assert_eq!(empty_map, expected_map);
+    }
+
+    #[test]
+    fn utest_merge_state_objects_ok() {
+        use common::objects::State;
+        let mut test_state = State::default();
+        let test_state_clone = test_state.clone();
+
+        let mut workload_spec1: HashMap<String, WorkloadSpec> = HashMap::new();
+        workload_spec1.insert(
+            "hello".to_string(),
+            WorkloadSpec {
+                name: "wl1".to_string(),
+                agent: "agent1".to_string(),
+                tags: vec![],
+                dependencies: HashMap::default(),
+                update_strategy: UpdateStrategy::Unspecified,
+                restart: true,
+                access_rights: common::objects::AccessRights::default(),
+                runtime: "".to_string(),
+                runtime_config: "".to_string(),
+            },
+        );
+        let other_states = vec![
+            common::objects::State {
+                workloads: workload_spec1,
+                configs: HashMap::default(),
+                cron_jobs: HashMap::default(),
+            },
+            State::default(),
+        ];
+        let _ = merge_state_objects(&other_states, &mut test_state);
+        assert_ne!(test_state_clone, test_state);
     }
 }
