@@ -33,14 +33,12 @@ impl AgentManager {
         agent_name: String,
         receiver: ExecutionReceiver,
         runtime_manager: RuntimeManager,
-        // workload_state_proxy: WorkloadStateProxy,
         state_sink: WorkloadStateMsgSender,
     ) -> AgentManager {
         AgentManager {
             agent_name,
             runtime_manager,
             receiver,
-            // workload_state_proxy,
             state_sink,
         }
     }
