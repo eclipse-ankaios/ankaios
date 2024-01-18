@@ -16,7 +16,7 @@ mod cyclic_check;
 mod server_state;
 
 use common::commands::CompleteState;
-use common::std_extensions::IllegalStateResult;
+use common::std_extensions::{IllegalStateResult, UnreachableOption};
 
 #[cfg_attr(test, mockall_double::double)]
 use server_state::ServerState;
@@ -63,15 +63,12 @@ impl AnkaiosServer {
         if let Some(state) = startup_state {
             match self.server_state.update(state, vec![]) {
                 Ok(cmd) => {
-                    if let Some(execution_command) = cmd {
-                        log::info!("Starting...");
-                        self.to_agents
-                            .send(execution_command)
-                            .await
-                            .unwrap_or_illegal_state();
-                    } else {
-                        return Err("unexpected command.".to_string());
-                    }
+                    let execution_command = cmd.unwrap_or_unreachable();
+                    log::info!("Starting...");
+                    self.to_agents
+                        .send(execution_command)
+                        .await
+                        .unwrap_or_illegal_state();
                 }
                 Err(err) => {
                     return Err(err.to_string());
@@ -269,6 +266,99 @@ mod tests {
     const WORKLOAD_NAME_2: &str = "workload_2";
     const WORKLOAD_NAME_3: &str = "workload_3";
     const RUNTIME_NAME: &str = "runtime";
+
+    #[tokio::test]
+    async fn utest_server_start_fail_on_invalid_startup_config() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (_to_server, server_receiver) =
+            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            super::create_execution_channels(common::CHANNEL_CAPACITY);
+
+        // contains a self cycle to workload A
+        let workload = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            "workload A".to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let startup_state = CompleteState {
+            current_state: State {
+                workloads: HashMap::from([(workload.name.clone(), workload)]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_update()
+            .with(
+                mockall::predicate::eq(startup_state.clone()),
+                mockall::predicate::eq(vec![]),
+            )
+            .once()
+            .return_const(Err(UpdateStateError::CycleInDependencies(
+                "workload_A part of cycle.".to_string(),
+            )));
+        server.server_state = mock_server_state;
+
+        let result = server.start(Some(startup_state)).await;
+        assert!(result.is_err());
+
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_server_start_with_valid_startup_config() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (_to_server, server_receiver) =
+            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            super::create_execution_channels(common::CHANNEL_CAPACITY);
+
+        // contains a self cycle to workload A
+        let workload = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let startup_state = CompleteState {
+            current_state: State {
+                workloads: HashMap::from([(workload.name.clone(), workload.clone())]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let update_request_for_agents = ExecutionCommand::UpdateWorkload(UpdateWorkload {
+            added_workloads: vec![workload],
+            deleted_workloads: vec![],
+        });
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_update()
+            .with(
+                mockall::predicate::eq(startup_state.clone()),
+                mockall::predicate::eq(vec![]),
+            )
+            .once()
+            .return_const(Ok(Some(update_request_for_agents.clone())));
+
+        server.server_state = mock_server_state;
+
+        let server_task = tokio::spawn(async move { server.start(Some(startup_state)).await });
+
+        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+
+        assert_eq!(execution_command, update_request_for_agents);
+
+        server_task.abort();
+    }
 
     // [utest->swdd~server-sends-all-workloads-on-start~1]
     // [utest->swdd~agent-from-agent-field~1]
