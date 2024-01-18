@@ -36,20 +36,34 @@ async fn main() {
     let args = cli::parse();
 
     log::debug!(
-        "Starting the Ankaios server with \n\tserver address: {}, \n\tstartup config path: {}",
+        "Starting the Ankaios server with \n\tserver address: '{}', \n\tstartup config path: '{}'",
         args.addr,
-        args.path,
+        args.path
+            .clone()
+            .unwrap_or("[no config file provided]".to_string()),
     );
 
-    let data = fs::read_to_string(args.path).unwrap_or_exit("Could not read the startup config");
-    // [impl->swdd~server-state-in-memory~1]
-    // [impl->swdd~server-loads-startup-state-file~1]
-    let state: State =
-        state_parser::parse(data).unwrap_or_exit("Parsing start config failed with error");
-    log::trace!(
-        "The state is initialized with the following workloads: {:?}",
-        state.workloads
-    );
+    let startup_state = match args.path {
+        Some(config_path) => {
+            let data =
+                fs::read_to_string(config_path).unwrap_or_exit("Could not read the startup config");
+            // [impl->swdd~server-state-in-memory~1]
+            // [impl->swdd~server-loads-startup-state-file~2]
+            let state: State =
+                state_parser::parse(data).unwrap_or_exit("Parsing start config failed with error");
+            log::trace!(
+                "The state is initialized with the following workloads: {:?}",
+                state.workloads
+            );
+            Some(CompleteState {
+                request_id: "".to_string(),
+                current_state: state,
+                ..Default::default()
+            })
+        }
+        // [impl->swdd~server-starts-without-startup-config~1]
+        _ => None,
+    };
 
     let (to_server, server_receiver) = create_state_change_channels(common::CHANNEL_CAPACITY);
     let (to_agents, agents_receiver) = create_execution_channels(common::CHANNEL_CAPACITY);
@@ -62,10 +76,7 @@ async fn main() {
         communication_result = communications_server.start(agents_receiver, args.addr) => {
             communication_result.unwrap_or_exit("server error")
         }
-        server_result = server.start(CompleteState {
-            current_state: state,
-            ..Default::default()
-        }) => {
+        server_result = server.start(startup_state) => {
             server_result.unwrap_or_exit("server error")
         }
     }

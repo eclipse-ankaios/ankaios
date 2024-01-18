@@ -59,22 +59,27 @@ impl AnkaiosServer {
         }
     }
 
-    pub async fn start(&mut self, startup_state: CompleteState) -> Result<(), String> {
-        match self.server_state.update(startup_state, vec![]) {
-            Ok(cmd) => {
-                if let Some(execution_command) = cmd {
-                    log::info!("Starting...");
-                    self.to_agents
-                        .send(execution_command)
-                        .await
-                        .unwrap_or_illegal_state();
-                } else {
-                    return Err("unexpected command.".to_string());
+    pub async fn start(&mut self, startup_state: Option<CompleteState>) -> Result<(), String> {
+        if let Some(state) = startup_state {
+            match self.server_state.update(state, vec![]) {
+                Ok(cmd) => {
+                    if let Some(execution_command) = cmd {
+                        log::info!("Starting...");
+                        self.to_agents
+                            .send(execution_command)
+                            .await
+                            .unwrap_or_illegal_state();
+                    } else {
+                        return Err("unexpected command.".to_string());
+                    }
+                }
+                Err(err) => {
+                    return Err(err.to_string());
                 }
             }
-            Err(err) => {
-                return Err(err.to_string());
-            }
+        } else {
+            // [impl->swdd~server-starts-without-startup-config~1]
+            log::info!("No startup state provided -> waiting for new workloads from the CLI");
         }
         self.listen_to_agents().await;
         Ok(())
