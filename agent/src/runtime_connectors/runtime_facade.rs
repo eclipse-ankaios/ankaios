@@ -281,6 +281,11 @@ impl<
 
             if let Ok(workload_id) = runtime.get_workload_id(&instance_name).await {
                 if let Err(err) = runtime.delete_workload(&workload_id).await {
+                    log::warn!(
+                        "Error deleting workload '{}' at the runtime: '{}'",
+                        instance_name,
+                        err
+                    );
                     update_state_tx.report_stopping_failed(&instance_name).await;
                     return;
                 }
