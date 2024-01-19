@@ -65,7 +65,7 @@ fn update_state(
     }
 }
 
-fn prepare_update_workload(
+fn extract_added_and_deleted_workloads(
     current_state: &State,
     new_state: &State,
 ) -> Option<common::execution_interface::ExecutionCommand> {
@@ -215,8 +215,10 @@ impl ServerState {
     ) -> Result<Option<ExecutionCommand>, UpdateStateError> {
         match update_state(&self.state, new_state, update_mask) {
             Ok(new_state) => {
-                let cmd =
-                    prepare_update_workload(&self.state.current_state, &new_state.current_state);
+                let cmd = extract_added_and_deleted_workloads(
+                    &self.state.current_state,
+                    &new_state.current_state,
+                );
 
                 if let Some(cmd) = cmd {
                     let ExecutionCommand::UpdateWorkload(UpdateWorkload {
@@ -678,7 +680,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_prepare_update_workload_no_update() {
+    fn utest_extract_added_and_deleted_workloads_no_update() {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let mut server_state = ServerState::default();
@@ -692,7 +694,7 @@ mod tests {
 
     // [utest->swdd~server-detects-new-workload~1]
     #[test]
-    fn utest_prepare_update_workload_new_workloads() {
+    fn utest_extract_added_and_deleted_workloads_new_workloads() {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let new_state = generate_test_update_state();
@@ -719,7 +721,7 @@ mod tests {
 
     // [utest->swdd~server-detects-deleted-workload~1]
     #[test]
-    fn utest_prepare_update_workload_deleted_workloads() {
+    fn utest_extract_added_and_deleted_workloads_deleted_workloads() {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let current_complete_state = generate_test_old_state();
@@ -753,7 +755,7 @@ mod tests {
 
     // [utest->swdd~server-detects-changed-workload~1]
     #[test]
-    fn utest_prepare_update_workload_updated_workloads() {
+    fn utest_extract_added_and_deleted_workloads_updated_workloads() {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let current_complete_state = generate_test_old_state();
