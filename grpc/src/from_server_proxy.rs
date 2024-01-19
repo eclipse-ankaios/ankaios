@@ -91,7 +91,7 @@ pub async fn forward_from_proto_to_ankaios(
                     match response
                         .response_content
                         .ok_or(GrpcMiddlewareError::ConversionError(format!(
-                            "Response content empty for response ID: {}",
+                            "Response content empty for response ID: '{}'",
                             request_id
                         )))? {
                         proto::response::ResponseContent::Success(_) => {

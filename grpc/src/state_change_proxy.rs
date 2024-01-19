@@ -62,7 +62,7 @@ pub async fn forward_from_proto_to_ankaios(
                 request_id,
                 request_content,
             }) => {
-                log::debug!("Received Request from {}", agent_name);
+                log::debug!("Received Request from '{}'", agent_name);
 
                 // [impl->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
                 let request_id = prepend_request_id(request_id.as_ref(), agent_name.as_ref());
