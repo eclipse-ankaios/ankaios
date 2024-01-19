@@ -18,7 +18,7 @@ use std::collections::{HashSet, VecDeque};
 /// or [`None`] if no cycles are detected
 ///
 /// The method implements the iterative depth search first (dfs) algorithm to
-/// detect a cycle in the directed graph for interworkload dependencies within a state.
+/// detect a cycle in the directed graph for inter workload dependencies within a state.
 ///
 /// # Arguments
 ///
