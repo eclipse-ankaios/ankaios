@@ -476,14 +476,7 @@ mod tests {
         let workloads = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
         let builder = StateBuilder::default()
-            .workload_spec("A")
-            .workload_spec("B")
-            .workload_spec("C")
-            .workload_spec("D")
-            .workload_spec("E")
-            .workload_spec("F")
-            .workload_spec("G")
-            .workload_spec("H")
+            .with_workloads(&workloads)
             .workload_dependency("A", "B", AddCondition::AddCondRunning)
             .workload_dependency("B", "C", AddCondition::AddCondSucceeded)
             .workload_dependency("B", "E", AddCondition::AddCondSucceeded)
@@ -525,19 +518,6 @@ mod tests {
             let state =
                 generate_test_complete_state(REQUEST_ID.to_string(), Vec::new()).current_state;
             StateBuilder(state)
-        }
-
-        fn workload_spec(mut self, workload_name: &str) -> Self {
-            let mut test_workload_spec = generate_test_workload_spec_with_param(
-                AGENT_NAME.into(),
-                workload_name.into(),
-                RUNTIME.into(),
-            );
-            test_workload_spec.dependencies.clear();
-            self.0
-                .workloads
-                .insert(workload_name.into(), test_workload_spec);
-            self
         }
 
         fn with_workloads(mut self, workloads: &[&str]) -> Self {
