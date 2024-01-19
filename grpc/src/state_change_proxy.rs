@@ -17,7 +17,7 @@ use crate::grpc_middleware_error::GrpcMiddlewareError;
 use api::proto::request::RequestContent;
 use api::proto::to_server::ToServerEnum;
 use api::proto::{self, Request};
-use api::proto::{RequestCompleteState, UpdateStateRequest};
+use api::proto::{CompleteStateRequest, UpdateStateRequest};
 
 use common::request_id_prepending::prepend_request_id;
 use common::to_server_interface::{ToServer, ToServerInterface, ToServerReceiver};
@@ -70,7 +70,7 @@ pub async fn forward_from_proto_to_ankaios(
                     "Request content empty for request ID: {}",
                     request_id
                 )))? {
-                    RequestContent::UpdateState(UpdateStateRequest {
+                    RequestContent::UpdateStateRequest(UpdateStateRequest {
                         new_state,
                         update_mask,
                     }) => {
@@ -88,11 +88,11 @@ pub async fn forward_from_proto_to_ankaios(
                             }
                         };
                     }
-                    RequestContent::RequestCompleteState(RequestCompleteState { field_mask }) => {
+                    RequestContent::CompleteStateRequest(CompleteStateRequest { field_mask }) => {
                         log::trace!("Received RequestCompleteState from {}", agent_name);
                         sink.request_complete_state(
                             request_id,
-                            proto::RequestCompleteState { field_mask }.into(),
+                            proto::CompleteStateRequest { field_mask }.into(),
                         )
                         .await?;
                     }
@@ -266,7 +266,7 @@ mod tests {
 
         assert!(matches!(
             result.to_server_enum,
-            Some(ToServerEnum::Request(proto::Request{request_id, request_content: Some(proto::request::RequestContent::UpdateState(UpdateStateRequest{new_state, update_mask}))}))
+            Some(ToServerEnum::Request(proto::Request{request_id, request_content: Some(proto::request::RequestContent::UpdateStateRequest(UpdateStateRequest{new_state, update_mask}))}))
             if request_id == "request_id" && new_state == Some(proto_state) && update_mask == update_mask));
     }
 
@@ -395,7 +395,7 @@ mod tests {
                 Some(proto::ToServer {
                     to_server_enum: Some(ToServerEnum::Request(proto::Request {
                         request_id: "request_id".to_owned(),
-                        request_content: Some(proto::request::RequestContent::UpdateState(
+                        request_content: Some(proto::request::RequestContent::UpdateStateRequest(
                             proto::UpdateStateRequest {
                                 new_state: Some(ankaios_state),
                                 update_mask: ankaios_update_mask.clone(),
@@ -437,7 +437,7 @@ mod tests {
                 Some(proto::ToServer {
                     to_server_enum: Some(ToServerEnum::Request(proto::Request {
                         request_id: "my_request_id".to_owned(),
-                        request_content: Some(proto::request::RequestContent::UpdateState(
+                        request_content: Some(proto::request::RequestContent::UpdateStateRequest(
                             proto::UpdateStateRequest {
                                 new_state: Some(ankaios_state.clone().into()),
                                 update_mask: ankaios_update_mask.clone(),
@@ -529,8 +529,8 @@ mod tests {
                     to_server_enum: Some(ToServerEnum::Request(proto::Request {
                         request_id: "my_request_id".to_owned(),
                         request_content: Some(
-                            proto::request::RequestContent::RequestCompleteState(
-                                proto::RequestCompleteState { field_mask: vec![] },
+                            proto::request::RequestContent::CompleteStateRequest(
+                                proto::CompleteStateRequest { field_mask: vec![] },
                             ),
                         ),
                     })),
@@ -556,8 +556,8 @@ mod tests {
             matches!(result, common::to_server_interface::ToServer::Request(common::commands::Request {
                 request_id,
                 request_content:
-                    common::commands::RequestContent::RequestCompleteState(
-                        common::commands::RequestCompleteState { field_mask },
+                    common::commands::RequestContent::CompleteStateRequest(
+                        common::commands::CompleteStateRequest { field_mask },
                     ),
             }) if request_id == expected_prefixed_my_request_id && field_mask == exepected_empty_field_mask)
         );
@@ -568,7 +568,7 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<proto::ToServer>(common::CHANNEL_CAPACITY);
 
-        let request_complete_state = common::commands::RequestCompleteState { field_mask: vec![] };
+        let request_complete_state = common::commands::CompleteStateRequest { field_mask: vec![] };
 
         let request_complete_state_result = server_tx
             .request_complete_state("my_request_id".to_owned(), request_complete_state.clone())
@@ -589,8 +589,8 @@ mod tests {
         Some(ToServerEnum::Request(proto::Request {
             request_id,
             request_content:
-                Some(proto::request::RequestContent::RequestCompleteState(
-                    proto::RequestCompleteState { field_mask },
+                Some(proto::request::RequestContent::CompleteStateRequest(
+                    proto::CompleteStateRequest { field_mask },
                 )),
         }))
         if request_id == request_id && field_mask == field_mask));

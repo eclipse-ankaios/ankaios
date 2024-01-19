@@ -20,7 +20,7 @@ use tests::update_state_mock as update_state;
 #[cfg(not(test))]
 use update_state::update_state;
 
-use common::commands::{CompleteState, Request, RequestCompleteState};
+use common::commands::{CompleteState, CompleteStateRequest, Request};
 use common::from_server_interface::FromServer;
 use common::objects::State;
 use common::{from_server_interface::AgentInterface, to_server_interface::ToServer};
@@ -61,7 +61,7 @@ impl AnkaiosServer {
 
     fn get_complete_state_by_field_mask(
         &self,
-        request_complete_state: &RequestCompleteState,
+        request_complete_state: &CompleteStateRequest,
     ) -> Result<CompleteState, String> {
         let current_complete_state = CompleteState {
             current_state: self.current_complete_state.current_state.clone(),
@@ -179,7 +179,7 @@ impl AnkaiosServer {
                 }) => match request_content {
                     // [impl->swdd~server-provides-interface-get-complete-state~1]
                     // [impl->swdd~server-includes-id-in-control-interface-response~1]
-                    common::commands::RequestContent::RequestCompleteState(request_content) => {
+                    common::commands::RequestContent::CompleteStateRequest(request_content) => {
                         log::debug!(
                             "Received RequestCompleteState with id '{}' and field mask: '{:?}'",
                             request_id,
@@ -285,7 +285,7 @@ mod tests {
     use std::collections::{HashMap, VecDeque};
     use std::future::Future;
 
-    use common::commands::{RequestCompleteState, Response, ResponseContent, UpdateStateRequest};
+    use common::commands::{CompleteStateRequest, Response, ResponseContent, UpdateStateRequest};
     use common::objects::{DeletedWorkload, State, Tag, WorkloadSpec, WorkloadState};
     use common::test_utils::generate_test_workload_spec_with_param;
     use common::{
@@ -882,7 +882,7 @@ mod tests {
         let request_complete_state_result = to_server
             .request_complete_state(
                 format!("{}@{}", agent_names[0], request_id),
-                RequestCompleteState { field_mask: vec![] },
+                CompleteStateRequest { field_mask: vec![] },
             )
             .await;
         assert!(request_complete_state_result.is_ok());
@@ -1038,7 +1038,7 @@ mod tests {
         let request_complete_state_result = to_server
             .request_complete_state(
                 format!("{agent_name_fake_agent_1}@my_request_id"),
-                super::RequestCompleteState { field_mask: vec![] },
+                super::CompleteStateRequest { field_mask: vec![] },
             )
             .await;
         assert!(request_complete_state_result.is_ok());
@@ -1059,7 +1059,7 @@ mod tests {
         let request_complete_state_result = to_server
             .request_complete_state(
                 format!("{agent_name_fake_agent_1}@my_request_id"),
-                super::RequestCompleteState {
+                super::CompleteStateRequest {
                     field_mask: vec![
                         String::from("workloadStates"),
                         String::from("currentState.workloads.fake_workload_spec_1"),

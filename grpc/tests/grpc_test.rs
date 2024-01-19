@@ -4,7 +4,7 @@ mod grpc_tests {
     use std::time::Duration;
 
     use common::{
-        commands::{self, CompleteState, Request, RequestCompleteState, RequestContent},
+        commands::{self, CompleteState, CompleteStateRequest, Request, RequestContent},
         communications_client::CommunicationsClient,
         communications_error::CommunicationMiddlewareError,
         communications_server::CommunicationsServer,
@@ -118,7 +118,7 @@ mod grpc_tests {
         let request_complete_state_result = to_grpc_client
             .request_complete_state(
                 test_request_id.to_owned(),
-                RequestCompleteState { field_mask: vec![] },
+                CompleteStateRequest { field_mask: vec![] },
             )
             .await;
         assert!(request_complete_state_result.is_ok());
@@ -131,7 +131,7 @@ mod grpc_tests {
             Ok(Some(ToServer::Request(
                 Request{
                     request_id,
-                    request_content: RequestContent::RequestCompleteState(RequestCompleteState {
+                    request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
                         field_mask
                     })
                 }

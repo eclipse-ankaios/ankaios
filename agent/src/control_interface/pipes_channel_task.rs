@@ -186,8 +186,8 @@ mod tests {
         let test_output_request = proto::ToServer {
             to_server_enum: Some(proto::to_server::ToServerEnum::Request(proto::Request {
                 request_id: "req_id".to_owned(),
-                request_content: Some(proto::request::RequestContent::RequestCompleteState(
-                    proto::RequestCompleteState { field_mask: vec![] },
+                request_content: Some(proto::request::RequestContent::CompleteStateRequest(
+                    proto::CompleteStateRequest { field_mask: vec![] },
                 )),
             })),
         };
@@ -234,8 +234,8 @@ mod tests {
         assert_eq!(
             Some(ToServer::Request(commands::Request {
                 request_id: "prefix@req_id".to_owned(),
-                request_content: commands::RequestContent::RequestCompleteState(
-                    commands::RequestCompleteState { field_mask: vec![] }
+                request_content: commands::RequestContent::CompleteStateRequest(
+                    commands::CompleteStateRequest { field_mask: vec![] }
                 )
             })),
             output_pipe_receiver.recv().await

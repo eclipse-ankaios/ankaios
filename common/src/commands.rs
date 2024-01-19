@@ -117,18 +117,18 @@ impl TryFrom<proto::Request> for Request {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RequestContent {
-    RequestCompleteState(RequestCompleteState),
+    CompleteStateRequest(CompleteStateRequest),
     UpdateStateRequest(Box<UpdateStateRequest>),
 }
 
 impl From<RequestContent> for proto::request::RequestContent {
     fn from(value: RequestContent) -> Self {
         match value {
-            RequestContent::RequestCompleteState(content) => {
-                proto::request::RequestContent::RequestCompleteState(content.into())
+            RequestContent::CompleteStateRequest(content) => {
+                proto::request::RequestContent::CompleteStateRequest(content.into())
             }
             RequestContent::UpdateStateRequest(content) => {
-                proto::request::RequestContent::UpdateState((*content).into())
+                proto::request::RequestContent::UpdateStateRequest((*content).into())
             }
         }
     }
@@ -138,32 +138,32 @@ impl TryFrom<proto::request::RequestContent> for RequestContent {
     type Error = String;
     fn try_from(value: proto::request::RequestContent) -> Result<Self, Self::Error> {
         Ok(match value {
-            proto::request::RequestContent::UpdateState(value) => {
+            proto::request::RequestContent::UpdateStateRequest(value) => {
                 RequestContent::UpdateStateRequest(Box::new(value.try_into()?))
             }
-            proto::request::RequestContent::RequestCompleteState(value) => {
-                RequestContent::RequestCompleteState(value.into())
+            proto::request::RequestContent::CompleteStateRequest(value) => {
+                RequestContent::CompleteStateRequest(value.into())
             }
         })
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RequestCompleteState {
+pub struct CompleteStateRequest {
     pub field_mask: Vec<String>,
 }
 
-impl From<RequestCompleteState> for proto::RequestCompleteState {
-    fn from(item: RequestCompleteState) -> Self {
-        proto::RequestCompleteState {
+impl From<CompleteStateRequest> for proto::CompleteStateRequest {
+    fn from(item: CompleteStateRequest) -> Self {
+        proto::CompleteStateRequest {
             field_mask: item.field_mask,
         }
     }
 }
 
-impl From<proto::RequestCompleteState> for RequestCompleteState {
-    fn from(item: proto::RequestCompleteState) -> Self {
-        RequestCompleteState {
+impl From<proto::CompleteStateRequest> for CompleteStateRequest {
+    fn from(item: proto::CompleteStateRequest) -> Self {
+        CompleteStateRequest {
             field_mask: item.field_mask,
         }
     }
@@ -280,7 +280,7 @@ mod tests {
     use api::proto;
 
     use crate::{
-        commands::{Request, RequestCompleteState, RequestContent, UpdateWorkloadState},
+        commands::{CompleteStateRequest, Request, RequestContent, UpdateWorkloadState},
         objects::{ExecutionState, WorkloadState},
     };
 
@@ -312,15 +312,15 @@ mod tests {
     fn utest_converts_to_proto_request_complete_state() {
         let ankaios_request_complete_state = Request {
             request_id: "42".to_string(),
-            request_content: RequestContent::RequestCompleteState(RequestCompleteState {
+            request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec!["1".to_string(), "2".to_string()],
             }),
         };
 
         let proto_request_complete_state = proto::Request {
             request_id: "42".to_string(),
-            request_content: Some(proto::request::RequestContent::RequestCompleteState(
-                proto::RequestCompleteState {
+            request_content: Some(proto::request::RequestContent::CompleteStateRequest(
+                proto::CompleteStateRequest {
                     field_mask: vec!["1".to_string(), "2".to_string()],
                 },
             )),
@@ -336,7 +336,7 @@ mod tests {
     fn utest_request_complete_state_prefix_request_id() {
         let mut ankaios_request_complete_state = Request {
             request_id: "42".to_string(),
-            request_content: RequestContent::RequestCompleteState(RequestCompleteState {
+            request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec!["1".to_string(), "2".to_string()],
             }),
         };

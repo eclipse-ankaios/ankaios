@@ -22,7 +22,7 @@ async fn read_file_to_string(file: String) -> std::io::Result<String> {
 use tests::read_to_string_mock as read_file_to_string;
 
 use common::{
-    commands::{CompleteState, RequestCompleteState, Response, ResponseContent},
+    commands::{CompleteState, CompleteStateRequest, Response, ResponseContent},
     from_server_interface::FromServer,
     objects::{Tag, WorkloadSpec},
     to_server_interface::{ToServer, ToServerInterface},
@@ -235,7 +235,7 @@ impl CliCommands {
         self.to_server
             .request_complete_state(
                 self.cli_name.to_owned(),
-                RequestCompleteState {
+                CompleteStateRequest {
                     field_mask: object_field_mask.clone(),
                 },
             )

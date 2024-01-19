@@ -79,7 +79,7 @@ pub trait ToServerInterface {
     async fn request_complete_state(
         &self,
         request_id: String,
-        request_complete_state: commands::RequestCompleteState,
+        request_complete_state: commands::CompleteStateRequest,
     ) -> Result<(), ToServerError>;
     async fn stop(&self) -> Result<(), ToServerError>;
 }
@@ -133,13 +133,13 @@ impl ToServerInterface for ToServerSender {
     async fn request_complete_state(
         &self,
         request_id: String,
-        request_complete_state: commands::RequestCompleteState,
+        request_complete_state: commands::CompleteStateRequest,
     ) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::Request(commands::Request {
                 request_id,
-                request_content: RequestContent::RequestCompleteState(
-                    commands::RequestCompleteState {
+                request_content: RequestContent::CompleteStateRequest(
+                    commands::CompleteStateRequest {
                         field_mask: request_complete_state.field_mask,
                     },
                 ),
@@ -181,7 +181,7 @@ mod tests {
     use api::proto::{self, to_server::ToServerEnum};
 
     use crate::{
-        commands::{AgentHello, Request, RequestCompleteState, RequestContent, UpdateStateRequest},
+        commands::{AgentHello, CompleteStateRequest, Request, RequestContent, UpdateStateRequest},
         to_server_interface::ToServer,
     };
 
@@ -222,7 +222,7 @@ mod tests {
         let proto_request = proto::ToServer {
             to_server_enum: Some(ToServerEnum::Request(proto::Request {
                 request_id: "request_id".to_owned(),
-                request_content: Some(proto::request::RequestContent::UpdateState(
+                request_content: Some(proto::request::RequestContent::UpdateStateRequest(
                     proto::UpdateStateRequest {
                         update_mask: vec!["test_update_mask_field".to_owned()],
                         new_state: Some(proto::CompleteState {
@@ -272,7 +272,7 @@ mod tests {
         let proto_request = proto::ToServer {
             to_server_enum: Some(proto::to_server::ToServerEnum::Request(proto::Request {
                 request_id: "requeset_id".to_owned(),
-                request_content: Some(proto::request::RequestContent::UpdateState(
+                request_content: Some(proto::request::RequestContent::UpdateStateRequest(
                     proto::UpdateStateRequest {
                         update_mask: vec!["test_update_mask_field".to_owned()],
                         new_state: Some(proto::CompleteState {
@@ -307,8 +307,8 @@ mod tests {
         let proto_request = proto::ToServer {
             to_server_enum: Some(proto::to_server::ToServerEnum::Request(proto::Request {
                 request_id: request_id.clone(),
-                request_content: Some(proto::request::RequestContent::RequestCompleteState(
-                    proto::RequestCompleteState {
+                request_content: Some(proto::request::RequestContent::CompleteStateRequest(
+                    proto::CompleteStateRequest {
                         field_mask: field_mask.clone(),
                     },
                 )),
@@ -317,7 +317,7 @@ mod tests {
 
         let ankaios_command = ToServer::Request(Request {
             request_id,
-            request_content: RequestContent::RequestCompleteState(RequestCompleteState {
+            request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask,
             }),
         });
