@@ -111,21 +111,6 @@ mod tests {
     const RUNTIME: &str = "runtime X";
     const REQUEST_ID: &str = "request@id";
 
-    /* The method to check for cycles uses the internal State data structure containing members that
-    represent already the dependency graph in an adjacency list style as HashMap collections.
-    The order of the workloads inside the hashmap is not preserved between different runs
-    due to the HashMap's seed.
-
-    Thus, the cycle check method does a sorting first to have equal output for each program execution
-    (this shall not be done on the caller side to hold invariants and easy useability).
-
-    For detailed testing and having variance in the start nodes the cycle check shall be started from all workloads
-    in the graph as first start nodes. Thus, to put a workload as first start node, it must be prefixed with "1_".
-
-    Example:
-    Workloads: A, B, C
-    Make B as first start node: 1_B, A, C */
-
     fn fn_assert_cycle(
         state_builder: StateBuilder,
         workloads: &[&str],
@@ -170,13 +155,45 @@ mod tests {
             let builder = state_builder.clone();
             // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
             let state = builder.set_start_node(start_node).build();
+            let result = dfs(&state, None);
             assert!(
-                dfs(&state, None).is_none(),
-                "expected no cycle, but cycle detected."
+                result.is_none(),
+                "{}",
+                format!(
+                    "expected no cycle, but cycle detected, workload '{:?}' is part of cycle.",
+                    result
+                )
             );
         }
     }
 
+    /// Asserts that a cycle is detected within the inter workload dependencies.
+    /// To accomplish that the cycle is found regardless of a certain start node,
+    /// the cycle check is repeated for each workload, so that each workload
+    /// is one times the start node of the cycle search.
+    ///
+    /// This will invoke the [`panic!`] macro if the provided expression cannot be
+    /// evaluated to `true` at runtime.
+    ///
+    /// # Description
+    ///
+    /// The State structure contains the dependency graph within its members.
+    /// The dependency graph is represented as adjacency list based on HashMaps.
+    /// Due to HashMap's seed, the order is not preserved between different runs and
+    /// the cycle check method sorts the input to avoid different output.
+    /// To mark each workload one times as a start node, we must prefix the workload name
+    /// with "1_", so that it moves to the first position due to the sorting.
+    ///
+    /// Example:
+    /// Workloads: A, B, C
+    /// Make B as first start node: 1_B, A, C
+    ///
+    /// # Arguments
+    ///
+    /// * `state_builder` - The State builder for creating a State
+    /// * `workloads` - The workloads array representing the vertices of the dependency graph
+    /// * `expected_workloads_part_of_cycle` - The expected workloads that shall be part of a cycle
+    ///
     #[macro_export]
     macro_rules! assert_cycle {
         ( $builder:expr, $workloads:expr, $expected:expr ) => {
@@ -184,6 +201,32 @@ mod tests {
         };
     }
 
+    /// Asserts that no cycle is detected within the inter workload dependencies.
+    /// To accomplish that no cycle is found regardless of a certain start node,
+    /// the cycle check is repeated for each workload, so that each workload
+    /// is one times the start node of the cycle search.
+    ///
+    /// This will invoke the [`panic!`] macro if the provided expression cannot be
+    /// evaluated to `true` at runtime.
+    ///
+    /// # Description
+    ///
+    /// The State structure contains the dependency graph within its members.
+    /// The dependency graph is represented as adjacency list based on HashMaps.
+    /// Due to HashMap's seed, the order is not preserved between different runs and
+    /// the cycle check method sorts the input to avoid different output.
+    /// To mark each workload one times as a start node, we must prefix the workload name
+    /// with "1_", so that it moves to the first position due to the sorting.
+    ///
+    /// Example:
+    /// Workloads: A, B, C
+    /// Make B as first start node: 1_B, A, C
+    ///
+    /// # Arguments
+    ///
+    /// * `state_builder` - The State builder for creating a State
+    /// * `workloads` - The workloads array representing the vertices of the dependency graph
+    ///
     #[macro_export]
     macro_rules! assert_no_cycle {
         ( $builder:expr, $workloads:expr ) => {
