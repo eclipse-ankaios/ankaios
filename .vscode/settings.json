@@ -7,7 +7,8 @@
         "protobuf",
         "swdd",
         "automock",
-        "mockall"
+        "mockall",
+        "Elektrobit"
     ],
     "markdown-preview-github-styles.colorTheme": "light",
     "hediet.vscode-drawio.theme": "min",
