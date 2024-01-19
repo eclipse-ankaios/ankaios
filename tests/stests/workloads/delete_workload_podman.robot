@@ -39,7 +39,7 @@ Test Ankaios Podman remove workloads
     # Actions
     When user triggers "ank delete workload nginx"
     # Asserts
-    And the workload "hello1" shall not exist
+    And the workload "hello1" shall have the execution state "Removed" from agent "agent_B" within "30" seconds
     And the workload "hello2" shall have the execution state "Succeeded" on agent "agent_B" within "30" seconds
     And the workload "hello3" shall have the execution state "Succeeded" on agent "agent_B" within "30" seconds
     And podman shall not have a container for workload "hello1" on agent "agent_B"

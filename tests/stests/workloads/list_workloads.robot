@@ -31,7 +31,7 @@ Test Ankaios CLI get workloads
     When user triggers "ank get workloads"
     # Asserts
     Then the workload "nginx" shall have the execution state "Running" on agent "agent_A"
-    And podman shall not have a container for workload "hello1" on agent "agent_B" within "30" seconds
+    And the workload "hello1" shall have the execution state "Removed" from agent "agent_B"
     And the workload "hello2" shall have the execution state "Succeeded" on agent "agent_B"
     And the workload "hello3" shall have the execution state "Succeeded" on agent "agent_B"
     [Teardown]    Clean up Ankaios
