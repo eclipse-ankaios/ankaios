@@ -842,6 +842,7 @@ mod tests {
         assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
 
+    // [utest->swdd~cli-shall-present-list-workloads-as-table~1]
     #[tokio::test]
     async fn get_workloads_deleted_workload() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
