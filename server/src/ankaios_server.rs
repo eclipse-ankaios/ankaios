@@ -267,6 +267,7 @@ mod tests {
     const WORKLOAD_NAME_3: &str = "workload_3";
     const RUNTIME_NAME: &str = "runtime";
 
+    // [utest->swdd~server-uses-async-channels~1]
     #[tokio::test]
     async fn utest_server_start_fail_on_invalid_startup_config() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -310,6 +311,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-uses-async-channels~1]
     #[tokio::test]
     async fn utest_server_start_with_valid_startup_config() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -360,6 +362,7 @@ mod tests {
         server_task.abort();
     }
 
+    // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-sends-all-workloads-on-start~1]
     // [utest->swdd~agent-from-agent-field~1]
     #[tokio::test]
@@ -519,6 +522,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-provides-update-current-state-interface~1]
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_success()
@@ -582,6 +586,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-provides-update-current-state-interface~1]
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_nothing_todo(
@@ -640,6 +645,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-provides-update-current-state-interface~1]
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_error() {
@@ -698,6 +704,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-provides-interface-get-complete-state~1]
     // [utest->swdd~server-filters-get-complete-state-result~1]
     // [utest->swdd~server-includes-id-in-control-interface-response~1]
@@ -787,6 +794,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-provides-interface-get-complete-state~1]
     // [utest->swdd~server-filters-get-complete-state-result~1]
     // [utest->swdd~server-includes-id-in-control-interface-response~1]
@@ -845,8 +853,10 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-stores-workload-state~1]
     // [utest->swdd~server-set-workload-state-unknown-on-disconnect~1]
+    // [utest->swdd~server-distribute-workload-state-unknown-on-disconnect~1]
     #[tokio::test]
     async fn utest_server_start_distributes_workload_unknown_after_agent_gone() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -912,6 +922,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-uses-async-channels~1]
     #[tokio::test]
     async fn utest_server_start_calls_agents_in_update_state_command() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1032,6 +1043,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-uses-async-channels~1]
     #[tokio::test]
     async fn utest_server_stop() {
         let _ = env_logger::builder().is_test(true).try_init();
