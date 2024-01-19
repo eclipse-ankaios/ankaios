@@ -19,7 +19,7 @@ use api::proto::from_server::FromServerEnum;
 use api::proto::{self, response, CompleteState};
 
 use async_trait::async_trait;
-use common::execution_interface::{AgentInterface, FromServer};
+use common::from_server_interface::{AgentInterface, FromServer};
 use common::objects::{
     get_workloads_per_agent, DeletedWorkload, DeletedWorkloadCollection, WorkloadCollection,
     WorkloadSpec, WorkloadState,
@@ -261,7 +261,7 @@ async fn distribute_workloads_to_agents(
         get_workloads_per_agent(added_workloads, deleted_workloads)
     {
         if let Some(sender) = agent_senders.get(&agent_name) {
-            log::trace!("Sending added and deleted workloads to agent '{}'.\n\tAdded workloads: {:?}.\n\tDeleted workloads: {:?}.", 
+            log::trace!("Sending added and deleted workloads to agent '{}'.\n\tAdded workloads: {:?}.\n\tDeleted workloads: {:?}.",
                 agent_name, added_workload_vector, deleted_workload_vector);
             let result = sender
                 .send(Ok(proto::FromServer {
@@ -313,7 +313,7 @@ mod tests {
     use api::proto::{self, from_server::FromServerEnum, FromServer, UpdateWorkload};
     use async_trait::async_trait;
     use common::commands::CompleteState;
-    use common::execution_interface::AgentInterface;
+    use common::from_server_interface::AgentInterface;
     use common::objects::{State, WorkloadSpec};
     use common::test_utils::*;
     use tokio::sync::mpsc::error::TryRecvError;
@@ -323,8 +323,8 @@ mod tests {
     };
 
     type TestSetup = (
-        Sender<common::execution_interface::FromServer>,
-        Receiver<common::execution_interface::FromServer>,
+        Sender<common::from_server_interface::FromServer>,
+        Receiver<common::from_server_interface::FromServer>,
         Sender<Result<FromServer, tonic::Status>>,
         Receiver<Result<FromServer, tonic::Status>>,
         AgentSendersMap,
@@ -334,7 +334,7 @@ mod tests {
 
     fn create_test_setup(agent_name: &str) -> TestSetup {
         let (to_manager, manager_receiver) =
-            mpsc::channel::<common::execution_interface::FromServer>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
         let (agent_tx, agent_rx) = tokio::sync::mpsc::channel::<Result<FromServer, tonic::Status>>(
             common::CHANNEL_CAPACITY,
         );
@@ -445,7 +445,7 @@ mod tests {
     async fn utest_execution_command_forward_from_proto_to_ankaios_handles_missing_agent_reply() {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<common::execution_interface::FromServer>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
         // simulate the reception of an update workload grpc execution request
         let mut mock_grpc_ex_request_streaming =
@@ -480,7 +480,7 @@ mod tests {
     ) {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<common::execution_interface::FromServer>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
         let mut workload: proto::AddedWorkload = generate_test_workload_spec_with_param(
             agent_name.to_string(),
@@ -527,7 +527,7 @@ mod tests {
     ) {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<common::execution_interface::FromServer>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
         let workload: proto::DeletedWorkload = proto::DeletedWorkload {
             name: "name".into(),
@@ -569,7 +569,7 @@ mod tests {
     async fn utest_execution_command_forward_from_proto_to_ankaios_update_workload() {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<common::execution_interface::FromServer>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
         // simulate the reception of an update workload grpc execution request
         let mut mock_grpc_ex_request_streaming =
@@ -600,7 +600,7 @@ mod tests {
         assert!(matches!(
             result,
             // We don't need to check teh exact object, this will be checked in the test for distribute_workloads_to_agents
-            common::execution_interface::FromServer::UpdateWorkload(_)
+            common::from_server_interface::FromServer::UpdateWorkload(_)
         ));
     }
 
@@ -609,7 +609,7 @@ mod tests {
     async fn utest_execution_command_forward_from_proto_to_ankaios_update_workload_state() {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<common::execution_interface::FromServer>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
         // simulate the reception of an update workload state grpc execution request
         let mut mock_grpc_ex_request_streaming =
@@ -640,7 +640,7 @@ mod tests {
         assert!(matches!(
             result,
             // We don't need to check teh exact object, this will be checked in the test for distribute_workloads_to_agents
-            common::execution_interface::FromServer::UpdateWorkloadState(_)
+            common::from_server_interface::FromServer::UpdateWorkloadState(_)
         ));
     }
 
@@ -782,7 +782,7 @@ mod tests {
     ) {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<common::execution_interface::FromServer>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
         let my_request_id = "my_request_id".to_owned();
 
@@ -837,7 +837,7 @@ mod tests {
     async fn utest_execution_command_forward_from_proto_to_ankaios_complete_state() {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<common::execution_interface::FromServer>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
         let mut startup_workloads = HashMap::<String, WorkloadSpec>::new();
         startup_workloads.insert(
@@ -898,7 +898,7 @@ mod tests {
 
         assert!(matches!(
             result,
-            common::execution_interface::FromServer::Response(common::commands::Response {
+            common::from_server_interface::FromServer::Response(common::commands::Response {
                 request_id,
                 response_content: common::commands::ResponseContent::CompleteState(
                     boxed_complete_state

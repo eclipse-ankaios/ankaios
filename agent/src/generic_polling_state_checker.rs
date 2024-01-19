@@ -5,8 +5,8 @@ use tokio::{task::JoinHandle, time};
 use crate::runtime_connectors::{RuntimeStateGetter, StateChecker};
 use common::{
     objects::{ExecutionState, WorkloadSpec},
-    state_change_interface::{StateChangeInterface, StateChangeSender},
     std_extensions::IllegalStateResult,
+    to_server_interface::{ToServerInterface, ToServerSender},
 };
 
 // [impl->swdd~agent-provides-generic-state-checker-implementation~1]
@@ -27,7 +27,7 @@ where
     fn start_checker(
         workload_spec: &WorkloadSpec,
         workload_id: WorkloadId,
-        manager_interface: StateChangeSender,
+        manager_interface: ToServerSender,
         state_getter: impl RuntimeStateGetter<WorkloadId>,
     ) -> Self {
         let workload_spec = workload_spec.clone();
@@ -97,8 +97,8 @@ mod tests {
     use common::{
         commands,
         objects::{ExecutionState, WorkloadState},
-        state_change_interface::ToServer,
         test_utils::generate_test_workload_spec_with_param,
+        to_server_interface::ToServer,
     };
 
     use crate::{

@@ -14,7 +14,7 @@
 
 use common::communications_client::CommunicationsClient;
 use common::objects::AgentName;
-use common::state_change_interface::ToServer;
+use common::to_server_interface::ToServer;
 use generic_polling_state_checker::GenericPollingStateChecker;
 use std::collections::HashMap;
 use tokio::try_join;
@@ -31,7 +31,7 @@ mod generic_polling_state_checker;
 mod runtime_manager;
 mod workload;
 
-use common::execution_interface::FromServer;
+use common::from_server_interface::FromServer;
 use common::std_extensions::{GracefulExitResult, IllegalStateResult, UnreachableResult};
 use grpc::client::GRPCCommunicationsClient;
 

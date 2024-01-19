@@ -21,9 +21,9 @@ use tests::update_state_mock as update_state;
 use update_state::update_state;
 
 use common::commands::{CompleteState, Request, RequestCompleteState};
-use common::execution_interface::FromServer;
+use common::from_server_interface::FromServer;
 use common::objects::State;
-use common::{execution_interface::AgentInterface, state_change_interface::ToServer};
+use common::{from_server_interface::AgentInterface, to_server_interface::ToServer};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 use crate::ankaios_server::update_state::prepare_update_workload;
@@ -290,8 +290,8 @@ mod tests {
     use common::test_utils::generate_test_workload_spec_with_param;
     use common::{
         commands::CompleteState,
-        execution_interface::FromServer,
-        state_change_interface::{StateChangeInterface, ToServer},
+        from_server_interface::FromServer,
+        to_server_interface::{ToServer, ToServerInterface},
     };
     use tokio::join;
     use tokio::sync::mpsc::{self, channel, Receiver, Sender};

@@ -17,7 +17,9 @@ use std::net::SocketAddr;
 use async_trait::async_trait;
 use tokio::sync::mpsc::Receiver;
 
-use crate::{communications_error::CommunicationMiddlewareError, execution_interface::FromServer};
+use crate::{
+    communications_error::CommunicationMiddlewareError, from_server_interface::FromServer,
+};
 
 // [impl->swdd~common-interface-definitions~1]
 #[async_trait]

@@ -25,7 +25,7 @@ use super::pipes_channel_task::PipesChannelTask;
 use super::reopen_file::ReopenFile;
 #[cfg_attr(test, mockall_double::double)]
 use super::FromServerChannels;
-use common::{execution_interface::FromServerSender, state_change_interface::StateChangeSender};
+use common::{from_server_interface::FromServerSender, to_server_interface::ToServerSender};
 use std::{
     fmt::{self, Display},
     path::{Path, PathBuf},
@@ -60,7 +60,7 @@ impl PipesChannelContext {
     pub fn new(
         run_directory: &Path,
         execution_instance_name: &WorkloadExecutionInstanceName,
-        output_pipe_channel: StateChangeSender,
+        output_pipe_channel: ToServerSender,
     ) -> Result<Self, PipesChannelContextError> {
         // [impl->swdd~agent-control-interface-pipes-path-naming~1]
         match InputOutput::new(execution_instance_name.pipes_folder_name(run_directory)) {
@@ -119,7 +119,7 @@ impl Drop for PipesChannelContext {
 mod tests {
     use std::path::Path;
 
-    use common::execution_interface::FromServer;
+    use common::from_server_interface::FromServer;
     use tokio::sync::mpsc;
 
     const CONFIG: &str = "config";

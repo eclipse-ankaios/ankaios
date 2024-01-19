@@ -26,18 +26,18 @@ use api::proto;
 use api::proto::agent_connection_server::AgentConnection;
 use api::proto::to_server::ToServerEnum;
 
-use common::state_change_interface::{self, StateChangeInterface};
+use common::to_server_interface::{self, ToServerInterface};
 
 #[derive(Debug)]
 pub struct GRPCAgentConnection {
     agent_senders: AgentSendersMap,
-    to_ankaios_server: Sender<state_change_interface::ToServer>,
+    to_ankaios_server: Sender<to_server_interface::ToServer>,
 }
 
 impl GRPCAgentConnection {
     pub fn new(
         agent_senders: AgentSendersMap,
-        to_ankaios_server: Sender<state_change_interface::ToServer>,
+        to_ankaios_server: Sender<to_server_interface::ToServer>,
     ) -> Self {
         Self {
             agent_senders,

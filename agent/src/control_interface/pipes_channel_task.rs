@@ -16,8 +16,8 @@
 use super::ReopenFile;
 use api::proto;
 use common::{
-    execution_interface::{FromServer, FromServerReceiver},
-    state_change_interface::{StateChangeSender, ToServer},
+    from_server_interface::{FromServer, FromServerReceiver},
+    to_server_interface::{ToServer, ToServerSender},
 };
 
 use prost::Message;
@@ -35,7 +35,7 @@ pub struct PipesChannelTask {
     output_stream: ReopenFile,
     input_stream: ReopenFile,
     input_pipe_receiver: FromServerReceiver,
-    output_pipe_channel: StateChangeSender,
+    output_pipe_channel: ToServerSender,
     request_id_prefix: String,
 }
 
@@ -45,7 +45,7 @@ impl PipesChannelTask {
         output_stream: ReopenFile,
         input_stream: ReopenFile,
         input_pipe_receiver: FromServerReceiver,
-        output_pipe_channel: StateChangeSender,
+        output_pipe_channel: ToServerSender,
         request_id_prefix: String,
     ) -> Self {
         Self {

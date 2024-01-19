@@ -18,8 +18,8 @@ use crate::workload::WorkloadCommandSender;
 use common::objects::WorkloadExecutionInstanceName;
 use common::{
     objects::{ExecutionState, WorkloadInstanceName, WorkloadSpec},
-    state_change_interface::{StateChangeInterface, StateChangeSender},
     std_extensions::IllegalStateResult,
+    to_server_interface::{ToServerInterface, ToServerSender},
 };
 use futures_util::Future;
 use std::path::PathBuf;
@@ -76,7 +76,7 @@ where
     pub instance_name: WorkloadExecutionInstanceName,
     pub workload_id: Option<WorkloadId>,
     pub state_checker: Option<StChecker>,
-    pub update_state_tx: StateChangeSender,
+    pub update_state_tx: ToServerSender,
     pub runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>,
     pub command_receiver: WorkloadCommandReceiver,
     pub workload_channel: WorkloadCommandSender,
@@ -408,8 +408,8 @@ mod tests {
     use common::{
         commands::UpdateWorkloadState,
         objects::{ExecutionState, WorkloadInstanceName, WorkloadState},
-        state_change_interface::ToServer,
         test_utils::generate_test_workload_spec_with_param,
+        to_server_interface::ToServer,
     };
     use tokio::{sync::mpsc, time::timeout};
 

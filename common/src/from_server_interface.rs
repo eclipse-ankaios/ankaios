@@ -19,17 +19,17 @@ use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
 #[derive(Debug)]
-pub struct AgentInterfaceError(String);
+pub struct FromServerInterfaceError(String);
 
-impl fmt::Display for AgentInterfaceError {
+impl fmt::Display for FromServerInterfaceError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "AgentInterfaceError: '{}'", self.0)
     }
 }
 
-impl From<SendError<FromServer>> for AgentInterfaceError {
+impl From<SendError<FromServer>> for FromServerInterfaceError {
     fn from(error: SendError<FromServer>) -> Self {
-        AgentInterfaceError(error.to_string())
+        FromServerInterfaceError(error.to_string())
     }
 }
 
@@ -93,23 +93,23 @@ pub trait AgentInterface {
         &self,
         added_workloads: Vec<WorkloadSpec>,
         deleted_workloads: Vec<DeletedWorkload>,
-    ) -> Result<(), AgentInterfaceError>;
+    ) -> Result<(), FromServerInterfaceError>;
     async fn update_workload_state(
         &self,
         workload_running: Vec<WorkloadState>,
-    ) -> Result<(), AgentInterfaceError>;
+    ) -> Result<(), FromServerInterfaceError>;
     async fn complete_state(
         &self,
         request_id: String,
         complete_state: commands::CompleteState,
-    ) -> Result<(), AgentInterfaceError>;
-    async fn success(&self, request_id: String) -> Result<(), AgentInterfaceError>;
+    ) -> Result<(), FromServerInterfaceError>;
+    async fn success(&self, request_id: String) -> Result<(), FromServerInterfaceError>;
     async fn error(
         &self,
         request_id: String,
         error: commands::Error,
-    ) -> Result<(), AgentInterfaceError>;
-    async fn stop(&self) -> Result<(), AgentInterfaceError>;
+    ) -> Result<(), FromServerInterfaceError>;
+    async fn stop(&self) -> Result<(), FromServerInterfaceError>;
 }
 
 pub type FromServerSender = tokio::sync::mpsc::Sender<FromServer>;
@@ -121,7 +121,7 @@ impl AgentInterface for FromServerSender {
         &self,
         added_workloads: Vec<WorkloadSpec>,
         deleted_workloads: Vec<DeletedWorkload>,
-    ) -> Result<(), AgentInterfaceError> {
+    ) -> Result<(), FromServerInterfaceError> {
         Ok(self
             .send(FromServer::UpdateWorkload(commands::UpdateWorkload {
                 added_workloads,
@@ -133,7 +133,7 @@ impl AgentInterface for FromServerSender {
     async fn update_workload_state(
         &self,
         workload_states: Vec<WorkloadState>,
-    ) -> Result<(), AgentInterfaceError> {
+    ) -> Result<(), FromServerInterfaceError> {
         Ok(self
             .send(FromServer::UpdateWorkloadState(
                 commands::UpdateWorkloadState { workload_states },
@@ -145,7 +145,7 @@ impl AgentInterface for FromServerSender {
         &self,
         request_id: String,
         complete_state: commands::CompleteState,
-    ) -> Result<(), AgentInterfaceError> {
+    ) -> Result<(), FromServerInterfaceError> {
         Ok(self
             .send(FromServer::Response(commands::Response {
                 request_id,
@@ -156,7 +156,7 @@ impl AgentInterface for FromServerSender {
             .await?)
     }
 
-    async fn success(&self, request_id: String) -> Result<(), AgentInterfaceError> {
+    async fn success(&self, request_id: String) -> Result<(), FromServerInterfaceError> {
         Ok(self
             .send(FromServer::Response(commands::Response {
                 request_id,
@@ -168,7 +168,7 @@ impl AgentInterface for FromServerSender {
         &self,
         request_id: String,
         error: commands::Error,
-    ) -> Result<(), AgentInterfaceError> {
+    ) -> Result<(), FromServerInterfaceError> {
         Ok(self
             .send(FromServer::Response(commands::Response {
                 request_id,
@@ -177,7 +177,7 @@ impl AgentInterface for FromServerSender {
             .await?)
     }
 
-    async fn stop(&self) -> Result<(), AgentInterfaceError> {
+    async fn stop(&self) -> Result<(), FromServerInterfaceError> {
         Ok(self.send(FromServer::Stop(commands::Stop {})).await?)
     }
 }
@@ -194,7 +194,7 @@ impl AgentInterface for FromServerSender {
 mod tests {
     use crate::{
         commands,
-        execution_interface::FromServer,
+        from_server_interface::FromServer,
         objects::{ExecutionState, WorkloadSpec, WorkloadState},
         test_utils::{generate_test_deleted_workload, generate_test_proto_deleted_workload},
     };

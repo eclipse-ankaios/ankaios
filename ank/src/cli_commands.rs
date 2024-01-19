@@ -23,9 +23,9 @@ use tests::read_to_string_mock as read_file_to_string;
 
 use common::{
     commands::{CompleteState, RequestCompleteState, Response, ResponseContent},
-    execution_interface::FromServer,
+    from_server_interface::FromServer,
     objects::{Tag, WorkloadSpec},
-    state_change_interface::{StateChangeInterface, ToServer},
+    to_server_interface::{ToServer, ToServerInterface},
 };
 
 #[cfg(not(test))]
@@ -118,9 +118,8 @@ fn get_filtered_value<'a>(
     map: &'a serde_yaml::Value,
     mask: &[&str],
 ) -> Option<&'a serde_yaml::Value> {
-    mask.iter().try_fold(map, |current_level, mask_part| {
-        current_level.get(mask_part)
-    })
+    mask.iter()
+        .try_fold(map, |current_level, mask_part| current_level.get(mask_part))
 }
 
 fn update_compact_state(
@@ -223,20 +222,33 @@ impl CliCommands {
         let _ = self.task.await;
     }
 
-    async fn get_complete_state(&mut self, object_field_mask: &Vec<String>) -> Result<Box<CompleteState>, CliError> {
-        output_debug!("get_complete_state: object_field_mask={:?} ", object_field_mask);
+    async fn get_complete_state(
+        &mut self,
+        object_field_mask: &Vec<String>,
+    ) -> Result<Box<CompleteState>, CliError> {
+        output_debug!(
+            "get_complete_state: object_field_mask={:?} ",
+            object_field_mask
+        );
 
         // send complete state request to server
         self.to_server
-            .request_complete_state(self.cli_name.to_owned(), RequestCompleteState {
-                field_mask: object_field_mask.clone(),
-            })
-            .await.map_err(|err| CliError::ExecutionError(err.to_string()))?;
+            .request_complete_state(
+                self.cli_name.to_owned(),
+                RequestCompleteState {
+                    field_mask: object_field_mask.clone(),
+                },
+            )
+            .await
+            .map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
         let poll_complete_state_response = async {
             loop {
                 match self.from_server.recv().await {
-                    Some(FromServer::Response(Response { request_id: _, response_content: ResponseContent::CompleteState(res) })) => return Ok(res),
+                    Some(FromServer::Response(Response {
+                        request_id: _,
+                        response_content: ResponseContent::CompleteState(res),
+                    })) => return Ok(res),
                     None => return Err("Channel preliminary closed."),
                     Some(_) => (),
                 }
@@ -244,8 +256,12 @@ impl CliCommands {
         };
         match tokio::time::timeout(WAIT_TIME_MS, poll_complete_state_response).await {
             Ok(Ok(res)) => Ok(res),
-            Ok(Err(err)) => Err(CliError::ExecutionError(format!("Failed to get complete state.\nError: {err}"))),
-            Err(_) => Err(CliError::ExecutionError(format!("Failed to get complete state in time (timeout={WAIT_TIME_MS:?}).")))
+            Ok(Err(err)) => Err(CliError::ExecutionError(format!(
+                "Failed to get complete state.\nError: {err}"
+            ))),
+            Err(_) => Err(CliError::ExecutionError(format!(
+                "Failed to get complete state in time (timeout={WAIT_TIME_MS:?})."
+            ))),
         }
     }
 
@@ -468,10 +484,10 @@ mod tests {
 
     use common::{
         commands::{self, Request, RequestContent, Response, ResponseContent},
-        execution_interface::FromServer,
+        from_server_interface::FromServer,
         objects::{Tag, WorkloadSpec},
-        state_change_interface::{StateChangeReceiver, ToServer},
         test_utils::{self, generate_test_complete_state},
+        to_server_interface::{ToServer, ToServerReceiver},
     };
     use tabled::{settings::Style, Table};
     use tokio::sync::mpsc::Sender;
@@ -522,7 +538,7 @@ mod tests {
             pub fn new_cli_communication(name: String, server_address: Url) -> Self;
             pub async fn run(
                 &mut self,
-                mut server_rx: StateChangeReceiver,
+                mut server_rx: ToServerReceiver,
                 agent_tx: Sender<FromServer>,
             ) -> Result<(), String>;
         }
@@ -1051,7 +1067,10 @@ mod tests {
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
         );
-        let cmd_text = cmd.get_state(vec![], crate::cli::OutputFormat::Yaml).await.unwrap();
+        let cmd_text = cmd
+            .get_state(vec![], crate::cli::OutputFormat::Yaml)
+            .await
+            .unwrap();
         let expected_text = serde_yaml::to_string(&test_data).unwrap();
         assert_eq!(cmd_text, expected_text);
     }
@@ -1101,8 +1120,11 @@ mod tests {
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
         );
-        let cmd_text = cmd.get_state(vec![], crate::cli::OutputFormat::Json).await.unwrap();
-        
+        let cmd_text = cmd
+            .get_state(vec![], crate::cli::OutputFormat::Json)
+            .await
+            .unwrap();
+
         let expected_text = serde_json::to_string_pretty(&test_data).unwrap();
         assert_eq!(cmd_text, expected_text);
     }
@@ -1157,12 +1179,13 @@ mod tests {
                 vec!["currentState.workloads.name3.runtime".to_owned()],
                 crate::cli::OutputFormat::Yaml,
             )
-            .await.unwrap();
-        
-        let expected_single_field_result_text = serde_yaml::to_string(&serde_json::json!(
-                {"currentState": {"workloads": {"name3": { "runtime": "runtime"}}}}
-            ))
+            .await
             .unwrap();
+
+        let expected_single_field_result_text = serde_yaml::to_string(&serde_json::json!(
+            {"currentState": {"workloads": {"name3": { "runtime": "runtime"}}}}
+        ))
+        .unwrap();
 
         assert_eq!(cmd_text, expected_single_field_result_text);
     }
@@ -1222,9 +1245,10 @@ mod tests {
                 ],
                 crate::cli::OutputFormat::Yaml,
             )
-            .await.unwrap();
-        assert!(matches!(cmd_text, 
-            txt if txt == *"currentState:\n  workloads:\n    name1:\n      runtime: runtime\n    name2:\n      runtime: runtime\n" || 
+            .await
+            .unwrap();
+        assert!(matches!(cmd_text,
+            txt if txt == *"currentState:\n  workloads:\n    name1:\n      runtime: runtime\n    name2:\n      runtime: runtime\n" ||
             txt == *"currentState:\n  workloads:\n    name2:\n      runtime: runtime\n    name1:\n      runtime: runtime\n"));
     }
 

@@ -10,7 +10,7 @@ use common::{
         WorkloadSpec,
     },
     request_id_prepending::detach_prefix_from_request_id,
-    state_change_interface::StateChangeSender,
+    to_server_interface::ToServerSender,
 };
 
 #[cfg_attr(test, mockall_double::double)]
@@ -36,12 +36,12 @@ fn flatten(
 pub struct RuntimeManager {
     agent_name: AgentName,
     run_folder: PathBuf,
-    control_interface_tx: StateChangeSender,
+    control_interface_tx: ToServerSender,
     initial_workload_list_received: bool,
     workloads: HashMap<String, Workload>,
     // [impl->swdd~agent-supports-multiple-runtime-connectors~1]
     runtime_map: HashMap<String, Box<dyn RuntimeFacade>>,
-    update_state_tx: StateChangeSender,
+    update_state_tx: ToServerSender,
 }
 
 #[cfg_attr(test, automock)]
@@ -49,9 +49,9 @@ impl RuntimeManager {
     pub fn new(
         agent_name: AgentName,
         run_folder: PathBuf,
-        control_interface_tx: StateChangeSender,
+        control_interface_tx: ToServerSender,
         runtime_map: HashMap<String, Box<dyn RuntimeFacade>>,
-        update_state_tx: StateChangeSender,
+        update_state_tx: ToServerSender,
     ) -> Self {
         RuntimeManager {
             agent_name,
@@ -307,7 +307,7 @@ impl RuntimeManager {
     // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
     fn create_control_interface(
         run_folder: &Path,
-        control_interface_tx: StateChangeSender,
+        control_interface_tx: ToServerSender,
         workload_spec: &WorkloadSpec,
     ) -> Option<PipesChannelContext> {
         log::debug!("Creating control interface pipes for '{:?}'", workload_spec);
@@ -347,7 +347,7 @@ mod tests {
     use common::objects::WorkloadExecutionInstanceNameBuilder;
     use common::test_utils::{generate_test_complete_state, generate_test_deleted_workload};
     use common::{
-        state_change_interface::ToServer, test_utils::generate_test_workload_spec_with_param,
+        test_utils::generate_test_workload_spec_with_param, to_server_interface::ToServer,
     };
     use mockall::{predicate, Sequence};
     use tokio::sync::mpsc::{channel, Receiver};

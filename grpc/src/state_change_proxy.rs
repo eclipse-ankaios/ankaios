@@ -20,7 +20,7 @@ use api::proto::{self, Request};
 use api::proto::{RequestCompleteState, UpdateStateRequest};
 
 use common::request_id_prepending::prepend_request_id;
-use common::state_change_interface::{StateChangeInterface, StateChangeReceiver, ToServer};
+use common::to_server_interface::{ToServer, ToServerInterface, ToServerReceiver};
 
 use tokio::sync::mpsc::Sender;
 use tonic::Streaming;
@@ -130,7 +130,7 @@ pub async fn forward_from_proto_to_ankaios(
 // [impl->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
 pub async fn forward_from_ankaios_to_proto(
     grpc_tx: Sender<proto::ToServer>,
-    server_rx: &mut StateChangeReceiver,
+    server_rx: &mut ToServerReceiver,
 ) -> Result<(), GrpcMiddlewareError> {
     while let Some(x) = server_rx.recv().await {
         match x {
@@ -202,8 +202,8 @@ mod tests {
     use async_trait::async_trait;
     use common::{
         objects as ankaios,
-        state_change_interface::{StateChangeInterface, ToServer},
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
+        to_server_interface::{ToServer, ToServerInterface},
     };
     use tokio::sync::mpsc;
 
@@ -553,7 +553,7 @@ mod tests {
         let expected_prefixed_my_request_id = String::from("fake_agent@my_request_id");
         let exepected_empty_field_mask: Vec<String> = vec![];
         assert!(
-            matches!(result, common::state_change_interface::ToServer::Request(common::commands::Request {
+            matches!(result, common::to_server_interface::ToServer::Request(common::commands::Request {
                 request_id,
                 request_content:
                     common::commands::RequestContent::RequestCompleteState(

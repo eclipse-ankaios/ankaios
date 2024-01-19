@@ -8,8 +8,8 @@ mod grpc_tests {
         communications_client::CommunicationsClient,
         communications_error::CommunicationMiddlewareError,
         communications_server::CommunicationsServer,
-        execution_interface::FromServer,
-        state_change_interface::{StateChangeInterface, ToServer},
+        from_server_interface::FromServer,
+        to_server_interface::{ToServer, ToServerInterface},
     };
     use grpc::{client::GRPCCommunicationsClient, server::GRPCCommunicationsServer};
 

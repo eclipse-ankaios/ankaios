@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::execution_interface::{FromServerReceiver, FromServerSender};
+use common::from_server_interface::{FromServerReceiver, FromServerSender};
 use tokio::sync::mpsc;
 
 pub struct FromServerChannels {
@@ -52,14 +52,14 @@ mod tests {
 
         let _ = test_channels
             .get_sender()
-            .send(common::execution_interface::FromServer::Stop(
+            .send(common::from_server_interface::FromServer::Stop(
                 common::commands::Stop {},
             ))
             .await;
         let mut receiver = test_channels.move_receiver();
         assert!(matches!(
             receiver.recv().await,
-            Some(common::execution_interface::FromServer::Stop(
+            Some(common::from_server_interface::FromServer::Stop(
                 common::commands::Stop {}
             ))
         ))

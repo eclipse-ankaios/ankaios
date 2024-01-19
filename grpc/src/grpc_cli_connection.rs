@@ -14,7 +14,7 @@
 
 use std::pin::Pin;
 
-use common::state_change_interface;
+use common::to_server_interface;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -30,13 +30,13 @@ use api::proto;
 #[derive(Debug)]
 pub struct GRPCCliConnection {
     cli_senders: AgentSendersMap,
-    to_ankaios_server: Sender<state_change_interface::ToServer>,
+    to_ankaios_server: Sender<to_server_interface::ToServer>,
 }
 
 impl GRPCCliConnection {
     pub fn new(
         cli_senders: AgentSendersMap,
-        to_ankaios_server: Sender<state_change_interface::ToServer>,
+        to_ankaios_server: Sender<to_server_interface::ToServer>,
     ) -> Self {
         Self {
             cli_senders,

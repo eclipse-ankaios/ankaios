@@ -35,9 +35,7 @@ impl TryFrom<proto::ToServer> for ToServer {
 
     fn try_from(item: proto::ToServer) -> Result<Self, Self::Error> {
         use proto::to_server::ToServerEnum;
-        let state_change_request = item
-            .to_server_enum
-            .ok_or("StateChangeRequest is None.".to_string())?;
+        let state_change_request = item.to_server_enum.ok_or("ToServer is None.".to_string())?;
 
         Ok(match state_change_request {
             ToServerEnum::AgentHello(protobuf) => ToServer::AgentHello(protobuf.into()),
@@ -50,54 +48,54 @@ impl TryFrom<proto::ToServer> for ToServer {
     }
 }
 
-pub struct StateChangeCommandError(String);
+pub struct ToServerError(String);
 
-impl From<SendError<ToServer>> for StateChangeCommandError {
+impl From<SendError<ToServer>> for ToServerError {
     fn from(error: SendError<ToServer>) -> Self {
-        StateChangeCommandError(error.to_string())
+        ToServerError(error.to_string())
     }
 }
 
-impl fmt::Display for StateChangeCommandError {
+impl fmt::Display for ToServerError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "StateChangeCommandError: '{}'", self.0)
     }
 }
 
 #[async_trait]
-pub trait StateChangeInterface {
-    async fn agent_hello(&self, agent_name: String) -> Result<(), StateChangeCommandError>;
-    async fn agent_gone(&self, agent_name: String) -> Result<(), StateChangeCommandError>;
+pub trait ToServerInterface {
+    async fn agent_hello(&self, agent_name: String) -> Result<(), ToServerError>;
+    async fn agent_gone(&self, agent_name: String) -> Result<(), ToServerError>;
     async fn update_state(
         &self,
         request_id: String,
         state: commands::CompleteState,
         update_mask: Vec<String>,
-    ) -> Result<(), StateChangeCommandError>;
+    ) -> Result<(), ToServerError>;
     async fn update_workload_state(
         &self,
         workload_running: Vec<crate::objects::WorkloadState>,
-    ) -> Result<(), StateChangeCommandError>;
+    ) -> Result<(), ToServerError>;
     async fn request_complete_state(
         &self,
         request_id: String,
         request_complete_state: commands::RequestCompleteState,
-    ) -> Result<(), StateChangeCommandError>;
-    async fn stop(&self) -> Result<(), StateChangeCommandError>;
+    ) -> Result<(), ToServerError>;
+    async fn stop(&self) -> Result<(), ToServerError>;
 }
 
-pub type StateChangeSender = tokio::sync::mpsc::Sender<ToServer>;
-pub type StateChangeReceiver = tokio::sync::mpsc::Receiver<ToServer>;
+pub type ToServerSender = tokio::sync::mpsc::Sender<ToServer>;
+pub type ToServerReceiver = tokio::sync::mpsc::Receiver<ToServer>;
 
 #[async_trait]
-impl StateChangeInterface for StateChangeSender {
-    async fn agent_hello(&self, agent_name: String) -> Result<(), StateChangeCommandError> {
+impl ToServerInterface for ToServerSender {
+    async fn agent_hello(&self, agent_name: String) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::AgentHello(commands::AgentHello { agent_name }))
             .await?)
     }
 
-    async fn agent_gone(&self, agent_name: String) -> Result<(), StateChangeCommandError> {
+    async fn agent_gone(&self, agent_name: String) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::AgentGone(commands::AgentGone { agent_name }))
             .await?)
@@ -108,7 +106,7 @@ impl StateChangeInterface for StateChangeSender {
         request_id: String,
         state: commands::CompleteState,
         update_mask: Vec<String>,
-    ) -> Result<(), StateChangeCommandError> {
+    ) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::Request(commands::Request {
                 request_id,
@@ -122,7 +120,7 @@ impl StateChangeInterface for StateChangeSender {
     async fn update_workload_state(
         &self,
         workload_running: Vec<crate::objects::WorkloadState>,
-    ) -> Result<(), StateChangeCommandError> {
+    ) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::UpdateWorkloadState(
                 commands::UpdateWorkloadState {
@@ -136,7 +134,7 @@ impl StateChangeInterface for StateChangeSender {
         &self,
         request_id: String,
         request_complete_state: commands::RequestCompleteState,
-    ) -> Result<(), StateChangeCommandError> {
+    ) -> Result<(), ToServerError> {
         Ok(self
             .send(ToServer::Request(commands::Request {
                 request_id,
@@ -149,7 +147,7 @@ impl StateChangeInterface for StateChangeSender {
             .await?)
     }
 
-    async fn stop(&self) -> Result<(), StateChangeCommandError> {
+    async fn stop(&self) -> Result<(), ToServerError> {
         Ok(self.send(ToServer::Stop(commands::Stop {})).await?)
     }
 }
@@ -184,7 +182,7 @@ mod tests {
 
     use crate::{
         commands::{AgentHello, Request, RequestCompleteState, RequestContent, UpdateStateRequest},
-        state_change_interface::ToServer,
+        to_server_interface::ToServer,
     };
 
     #[test]

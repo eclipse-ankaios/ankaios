@@ -26,10 +26,10 @@ use std::{fmt::Display, path::PathBuf};
 use crate::control_interface::PipesChannelContext;
 use common::{
     commands::{self, ResponseContent},
-    execution_interface::FromServer,
+    from_server_interface::FromServer,
     objects::{ExecutionState, WorkloadSpec},
-    state_change_interface::{StateChangeInterface, StateChangeSender},
     std_extensions::IllegalStateResult,
+    to_server_interface::{ToServerInterface, ToServerSender},
 };
 
 #[cfg(test)]
@@ -161,10 +161,10 @@ mod tests {
 
     use common::{
         commands::{CompleteState, Response, ResponseContent, UpdateWorkloadState},
-        execution_interface::FromServer,
+        from_server_interface::FromServer,
         objects::{ExecutionState, WorkloadState},
-        state_change_interface::ToServer,
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
+        to_server_interface::ToServer,
     };
     use tokio::{sync::mpsc, time::timeout};
 

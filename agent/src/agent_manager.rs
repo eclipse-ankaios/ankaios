@@ -13,8 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use common::{
-    execution_interface::{FromServer, FromServerReceiver},
-    state_change_interface::StateChangeSender,
+    from_server_interface::{FromServer, FromServerReceiver},
+    to_server_interface::ToServerSender,
 };
 
 use crate::parameter_storage::ParameterStorage;
@@ -27,7 +27,7 @@ pub struct AgentManager {
     runtime_manager: RuntimeManager,
     // [impl->swdd~communication-to-from-agent-middleware~1]
     receiver: FromServerReceiver,
-    _to_server: StateChangeSender,
+    _to_server: ToServerSender,
     parameter_storage: ParameterStorage,
 }
 
@@ -36,7 +36,7 @@ impl AgentManager {
         agent_name: String,
         receiver: FromServerReceiver,
         runtime_manager: RuntimeManager,
-        _to_server: StateChangeSender,
+        _to_server: ToServerSender,
     ) -> AgentManager {
         AgentManager {
             agent_name,
@@ -121,7 +121,7 @@ mod tests {
     use crate::agent_manager::AgentManager;
     use common::{
         commands::{self, Response, ResponseContent},
-        execution_interface::AgentInterface,
+        from_server_interface::AgentInterface,
         objects::{ExecutionState, WorkloadState},
         test_utils::generate_test_workload_spec_with_param,
     };

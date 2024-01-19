@@ -24,9 +24,9 @@ use api::proto::AgentHello;
 
 use common::communications_client::CommunicationsClient;
 use common::communications_error::CommunicationMiddlewareError;
-use common::execution_interface::FromServer;
+use common::from_server_interface::FromServer;
 
-use common::state_change_interface::StateChangeReceiver;
+use common::to_server_interface::ToServerReceiver;
 
 use tokio::select;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -70,7 +70,7 @@ impl GRPCCommunicationsClient {
 impl CommunicationsClient for GRPCCommunicationsClient {
     async fn run(
         &mut self,
-        mut server_rx: StateChangeReceiver,
+        mut server_rx: ToServerReceiver,
         agent_tx: Sender<FromServer>,
     ) -> Result<(), CommunicationMiddlewareError> {
         log::debug!("gRPC Communication Client starts.");
@@ -119,7 +119,7 @@ impl GRPCCommunicationsClient {
     /// is interrupted.
     async fn run_internal(
         &self,
-        server_rx: &mut StateChangeReceiver,
+        server_rx: &mut ToServerReceiver,
         agent_tx: &Sender<FromServer>,
     ) -> Result<(), GrpcMiddlewareError> {
         // [impl->swdd~grpc-client-creates-state-change-channel~1]

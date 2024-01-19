@@ -30,8 +30,8 @@ use api::proto::agent_connection_server::AgentConnectionServer;
 use crate::from_server_proxy;
 use crate::grpc_agent_connection::GRPCAgentConnection;
 
-use common::execution_interface::FromServer;
-use common::state_change_interface::ToServer;
+use common::from_server_interface::FromServer;
+use common::to_server_interface::ToServer;
 
 use async_trait::async_trait;
 

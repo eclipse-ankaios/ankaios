@@ -15,8 +15,8 @@ use std::fmt;
 
 use api::proto::{FromServer, ToServer};
 use common::{
-    communications_error::CommunicationMiddlewareError, execution_interface::AgentInterfaceError,
-    state_change_interface::StateChangeCommandError,
+    communications_error::CommunicationMiddlewareError,
+    from_server_interface::FromServerInterfaceError, to_server_interface::ToServerError,
 };
 use tokio::sync::mpsc::error::SendError;
 
@@ -36,14 +36,14 @@ impl From<GrpcMiddlewareError> for CommunicationMiddlewareError {
     }
 }
 
-impl From<AgentInterfaceError> for GrpcMiddlewareError {
-    fn from(error: AgentInterfaceError) -> Self {
+impl From<FromServerInterfaceError> for GrpcMiddlewareError {
+    fn from(error: FromServerInterfaceError) -> Self {
         GrpcMiddlewareError::SendError(error.to_string())
     }
 }
 
-impl From<StateChangeCommandError> for GrpcMiddlewareError {
-    fn from(error: StateChangeCommandError) -> Self {
+impl From<ToServerError> for GrpcMiddlewareError {
+    fn from(error: ToServerError) -> Self {
         GrpcMiddlewareError::SendError(error.to_string())
     }
 }
