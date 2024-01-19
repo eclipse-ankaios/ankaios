@@ -105,16 +105,26 @@ mod tests {
         objects::AddCondition,
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
     };
-    use std::{
-        collections::{HashMap, HashSet},
-        ops::Deref,
-        time::Instant,
-    };
+    use std::{collections::HashSet, ops::Deref};
 
     const AGENT_NAME: &str = "agent_A";
     const RUNTIME: &str = "runtime X";
     const REQUEST_ID: &str = "request@id";
-    const BENCHMARKING_NUMBER_OF_WORKLOADS: usize = 1000;
+
+    /* The method to check for cycles uses the internal State data structure containing members that
+    represent already the dependency graph in an adjacency list style as HashMap collections.
+    The order of the workloads inside the hashmap is not preserved between different runs
+    due to the HashMap's seed.
+
+    Thus, the cycle check method does a sorting first to have equal output for each program execution
+    (this shall not be done on the caller side to hold invariants and easy useability).
+
+    For detailed testing and having variance in the start nodes the cycle check shall be started from all workloads
+    in the graph as first start nodes. Thus, to put a workload as first start node, it must be prefixed with "1_".
+
+    Example:
+    Workloads: A, B, C
+    Make B as first start node: 1_B, A, C */
 
     // Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20C%20-%3E%20D%3B%0A%20%20%20%20C%20-%3E%20A%3B%0A%7D
     #[test]
@@ -132,16 +142,23 @@ mod tests {
 
         let expected_nodes_part_of_a_cycle = ["A", "B", "C"];
 
+        let mut actual = HashSet::new();
         for start_node in workloads {
             let builder = builder.clone();
+            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
             let state = builder.set_start_node(start_node).build();
 
             let result = dfs(&state, None);
+
             assert!(matches!(
-                result,
-                Some(w) if expected_nodes_part_of_a_cycle.into_iter().any(|expected| w.contains(expected))
+                &result,
+                Some(w) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
             ));
+
+            actual.insert(result.unwrap().to_string().replace("1_", ""));
         }
+
+        assert_eq!(actual.len(), expected_nodes_part_of_a_cycle.len());
     }
 
     // Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20C%20-%3E%20F%3B%0A%20%20%20%20F%20-%3E%20E%3B%0A%20%20%20%20E%20-%3E%20D%3B%0A%20%20%20%20D%20-%3E%20A%3B%0A%7D
@@ -162,6 +179,7 @@ mod tests {
 
         for start_node in workloads {
             let builder = builder.clone();
+            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
             let state = builder.set_start_node(start_node).build();
             assert!(dfs(&state, None).is_some());
         }
@@ -227,6 +245,7 @@ mod tests {
         let mut actual = HashSet::new();
         for start_node in workloads {
             let builder = builder.clone();
+            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
             let state = builder.set_start_node(start_node).build();
 
             let result = dfs(&state, None);
@@ -269,6 +288,7 @@ mod tests {
         let mut actual = HashSet::new();
         for start_node in workloads {
             let builder = builder.clone();
+            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
             let state = builder.set_start_node(start_node).build();
 
             let result = dfs(&state, None);
@@ -312,6 +332,7 @@ mod tests {
 
         for start_node in workloads {
             let builder = builder.clone();
+            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
             let state = builder.set_start_node(start_node).build();
 
             let result = dfs(&state, None);
@@ -348,6 +369,7 @@ mod tests {
 
         for start_node in workloads {
             let builder = builder.clone();
+            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
             let state = builder.set_start_node(start_node).build();
             assert!(dfs(&state, None).is_none());
         }
@@ -376,6 +398,7 @@ mod tests {
         let mut actual = HashSet::new();
         for start_node in workloads {
             let builder = builder.clone();
+            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
             let state = builder.set_start_node(start_node).build();
 
             let result = dfs(&state, None);
@@ -418,6 +441,7 @@ mod tests {
         let mut actual = HashSet::new();
         for start_node in workloads {
             let builder = builder.clone();
+            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
             let state = builder.set_start_node(start_node).build();
 
             let result = dfs(&state, None);
@@ -459,6 +483,7 @@ mod tests {
         let mut actual = HashSet::new();
         for start_node in workloads {
             let builder = builder.clone();
+            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
             let state = builder.set_start_node(start_node).build();
 
             let result = dfs(&state, None);
@@ -494,6 +519,7 @@ mod tests {
 
         for start_node in workloads {
             let builder = builder.clone();
+            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
             let state = builder.set_start_node(start_node).build();
             assert!(dfs(&state, None).is_none());
         }
@@ -519,6 +545,7 @@ mod tests {
 
         for start_node in workloads {
             let builder = builder.clone();
+            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
             let state = builder.set_start_node(start_node).build();
             assert!(dfs(&state, None).is_none());
         }
@@ -552,6 +579,7 @@ mod tests {
 
         for start_node in ["A", "B", "C", "D", "E", "F", "G", "H"] {
             let builder = builder.clone();
+            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
             let state = builder.set_start_node(start_node).build();
             assert!(dfs(&state, None).is_none());
         }
@@ -575,64 +603,10 @@ mod tests {
 
         for start_node in workloads {
             let builder = builder.clone();
+            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
             let state = builder.set_start_node(start_node).build();
             assert!(dfs(&state, None).is_none());
         }
-    }
-
-    /// Graph visualized: 1000 Nodes, n_0 -> n_2 -> ... -> n_999 -> n_0
-    #[test]
-    fn utest_detect_cycle_in_dependencies_performance_1000_nodes() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        use rand::{thread_rng, Rng};
-        let root_name: String = thread_rng()
-            .sample_iter(&rand::distributions::Alphanumeric)
-            .take(thread_rng().gen_range(10..30))
-            .map(|x| x as char)
-            .collect();
-
-        let mut workload_root = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            root_name.clone(),
-            RUNTIME.to_string(),
-        );
-        workload_root.dependencies.clear();
-
-        let mut dependencies = vec![workload_root];
-        for i in 1..BENCHMARKING_NUMBER_OF_WORKLOADS {
-            let random_workload_name: String = thread_rng()
-                .sample_iter(&rand::distributions::Alphanumeric)
-                .take(thread_rng().gen_range(10..30))
-                .map(|x| x as char)
-                .collect();
-            let workload_name = format!("{}{}", random_workload_name, i); // concatenate with index to ensure unique name in collection
-            let workload_i = generate_test_workload_spec_with_param(
-                AGENT_NAME.to_string(),
-                workload_name,
-                RUNTIME.to_string(),
-            );
-
-            dependencies.last_mut().unwrap().dependencies =
-                HashMap::from([(workload_i.name.clone(), AddCondition::AddCondRunning)]);
-            dependencies.push(workload_i);
-        }
-
-        dependencies.last_mut().unwrap().dependencies =
-            HashMap::from([(root_name.clone(), AddCondition::AddCondRunning)]);
-
-        let state =
-            generate_test_complete_state(REQUEST_ID.to_string(), dependencies).current_state;
-        assert_eq!(state.workloads.len(), BENCHMARKING_NUMBER_OF_WORKLOADS);
-
-        let start = Instant::now();
-        let result = dfs(&state, None);
-        let duration = start.elapsed();
-        assert!(result.is_some());
-        log::info!("{}", result.unwrap());
-        log::info!(
-            "time iterative cyclic dependency check: '{:?}' micro sek.",
-            duration.as_micros()
-        );
     }
 
     #[derive(Clone)]
