@@ -126,6 +126,60 @@ mod tests {
     Workloads: A, B, C
     Make B as first start node: 1_B, A, C */
 
+    fn assert_cycle_fn(
+        state_builder: StateBuilder,
+        workloads: &[&str],
+        expected_nodes_part_of_a_cycle: &[&str],
+    ) {
+        let mut actual = HashSet::new();
+        for start_node in workloads {
+            let builder = state_builder.clone();
+            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
+            let state = builder.set_start_node(start_node).build();
+
+            let result = dfs(&state, None);
+
+            assert!(matches!(
+                &result,
+                Some(w) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
+            ));
+
+            actual.insert(result.unwrap().to_string().replace("1_", ""));
+        }
+
+        assert_eq!(
+            actual,
+            HashSet::from_iter(
+                expected_nodes_part_of_a_cycle
+                    .iter()
+                    .map(|item| item.to_string())
+            )
+        );
+    }
+
+    fn assert_no_cycle_fn(state_builder: StateBuilder, workloads: &[&str]) {
+        for start_node in workloads {
+            let builder = state_builder.clone();
+            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
+            let state = builder.set_start_node(start_node).build();
+            assert!(dfs(&state, None).is_none());
+        }
+    }
+
+    #[macro_export]
+    macro_rules! assert_cycle {
+        ( $builder:expr, $workloads:expr, $expected:expr ) => {
+            assert_cycle_fn($builder, $workloads, $expected)
+        };
+    }
+
+    #[macro_export]
+    macro_rules! assert_no_cycle {
+        ( $builder:expr, $workloads:expr ) => {
+            assert_no_cycle_fn($builder, $workloads)
+        };
+    }
+
     // Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20C%20-%3E%20D%3B%0A%20%20%20%20C%20-%3E%20A%3B%0A%7D
     #[test]
     fn utest_detect_cycle_in_dependencies_1() {
@@ -142,23 +196,7 @@ mod tests {
 
         let expected_nodes_part_of_a_cycle = ["A", "B", "C"];
 
-        let mut actual = HashSet::new();
-        for start_node in workloads {
-            let builder = builder.clone();
-            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
-            let state = builder.set_start_node(start_node).build();
-
-            let result = dfs(&state, None);
-
-            assert!(matches!(
-                &result,
-                Some(w) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
-            ));
-
-            actual.insert(result.unwrap().to_string().replace("1_", ""));
-        }
-
-        assert_eq!(actual.len(), expected_nodes_part_of_a_cycle.len());
+        assert_cycle!(builder, &workloads, &expected_nodes_part_of_a_cycle);
     }
 
     // Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20C%20-%3E%20F%3B%0A%20%20%20%20F%20-%3E%20E%3B%0A%20%20%20%20E%20-%3E%20D%3B%0A%20%20%20%20D%20-%3E%20A%3B%0A%7D
@@ -177,12 +215,9 @@ mod tests {
             .workload_dependency("E", "D", AddCondition::AddCondRunning)
             .workload_dependency("D", "A", AddCondition::AddCondRunning);
 
-        for start_node in workloads {
-            let builder = builder.clone();
-            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
-            let state = builder.set_start_node(start_node).build();
-            assert!(dfs(&state, None).is_some());
-        }
+        let expected_nodes_part_of_a_cycle = ["A", "B", "C", "D", "E", "F"];
+
+        assert_cycle!(builder, &workloads, &expected_nodes_part_of_a_cycle);
     }
 
     // Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20B%20-%3E%20A%3B%0A%7D
@@ -200,22 +235,7 @@ mod tests {
 
         let expected_nodes_part_of_a_cycle = ["A", "B"];
 
-        let mut actual = HashSet::new();
-        for start_node in workloads {
-            let builder = builder.clone();
-            let state = builder.set_start_node(start_node).build();
-
-            let result = dfs(&state, None);
-
-            assert!(matches!(
-                &result,
-                Some(w) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
-            ));
-
-            actual.insert(result.unwrap().to_string().replace("1_", ""));
-        }
-
-        assert_eq!(actual.len(), expected_nodes_part_of_a_cycle.len());
+        assert_cycle!(builder, &workloads, &expected_nodes_part_of_a_cycle);
     }
 
     /// Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20B%20-%3E%20D%3B%0A%20%20%20%20B%20-%3E%20E%3B%0A%20%20%20%20C%20-%3E%20E%3B%0A%20%20%20%20C%20-%3E%20H%3B%0A%20%20%20%20D%20-%3E%20C%3B%0A%20%20%20%20D%20-%3E%20E%3B%0A%20%20%20%20F%20-%3E%20E%3B%0A%20%20%20%20H%20-%3E%20G%3B%0A%20%20%20%20G%20-%3E%20F%3B%0A%20%20%20%20F%20-%3E%20D%3B%0A%7D
@@ -242,23 +262,7 @@ mod tests {
 
         let expected_nodes_part_of_a_cycle = ["C", "H", "G", "F", "D"];
 
-        let mut actual = HashSet::new();
-        for start_node in workloads {
-            let builder = builder.clone();
-            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
-            let state = builder.set_start_node(start_node).build();
-
-            let result = dfs(&state, None);
-
-            assert!(matches!(
-                &result,
-                Some(w) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
-            ));
-
-            actual.insert(result.unwrap().to_string().replace("1_", ""));
-        }
-
-        assert_eq!(actual.len(), expected_nodes_part_of_a_cycle.len());
+        assert_cycle!(builder, &workloads, &expected_nodes_part_of_a_cycle);
     }
 
     // Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20B%20-%3E%20D%3B%0A%20%20%20%20B%20-%3E%20E%3B%0A%20%20%20%20C%20-%3E%20E%3B%0A%20%20%20%20C%20-%3E%20H%3B%0A%20%20%20%20D%20-%3E%20C%3B%0A%20%20%20%20D%20-%3E%20E%3B%0A%20%20%20%20F%20-%3E%20E%3B%0A%20%20%20%20H%20-%3E%20G%3B%0A%20%20%20%20G%20-%3E%20F%3B%0A%20%20%20%20F%20-%3E%20A%3B%0A%7D
@@ -285,23 +289,7 @@ mod tests {
 
         let expected_nodes_part_of_a_cycle = ["A", "B", "D", "C", "H", "G", "F"];
 
-        let mut actual = HashSet::new();
-        for start_node in workloads {
-            let builder = builder.clone();
-            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
-            let state = builder.set_start_node(start_node).build();
-
-            let result = dfs(&state, None);
-
-            assert!(matches!(
-                &result,
-                Some(w) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
-            ));
-
-            actual.insert(result.unwrap().to_string().replace("1_", ""));
-        }
-
-        assert_eq!(actual.len(), expected_nodes_part_of_a_cycle.len());
+        assert_cycle!(builder, &workloads, &expected_nodes_part_of_a_cycle);
     }
 
     /// Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20H%3B%0A%20%20%20%20A%20-%3E%20D%3B%0A%20%20%20%20B%20-%3E%20A%3B%0A%20%20%20%20B%20-%3E%20D%3B%0A%20%20%20%20C%20-%3E%20B%3B%0A%20%20%20%20C%20-%3E%20D%3B%0A%20%20%20%20E%20-%3E%20D%3B%0A%20%20%20%20E%20-%3E%20C%3B%0A%20%20%20%20F%20-%3E%20D%3B%0A%20%20%20%20F%20-%3E%20E%3B%0A%20%20%20%20F%20-%3E%20G%3B%0A%20%20%20%20G%20-%3E%20D%3B%0A%20%20%20%20D%20-%3E%20H%3B%0A%20%20%20%20H%20-%3E%20G%3B%0A%7D
@@ -330,17 +318,7 @@ mod tests {
 
         let expected_nodes_part_of_a_cycle = ["G", "D", "H", "D"];
 
-        for start_node in workloads {
-            let builder = builder.clone();
-            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
-            let state = builder.set_start_node(start_node).build();
-
-            let result = dfs(&state, None);
-            assert!(matches!(
-                result,
-                Some(w) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
-            ));
-        }
+        assert_cycle!(builder, &workloads, &expected_nodes_part_of_a_cycle);
     }
 
     /// Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20H%3B%0A%20%20%20%20A%20-%3E%20D%3B%0A%20%20%20%20B%20-%3E%20A%3B%0A%20%20%20%20B%20-%3E%20D%3B%0A%20%20%20%20C%20-%3E%20B%3B%0A%20%20%20%20C%20-%3E%20D%3B%0A%20%20%20%20E%20-%3E%20D%3B%0A%20%20%20%20E%20-%3E%20C%3B%0A%20%20%20%20F%20-%3E%20D%3B%0A%20%20%20%20F%20-%3E%20E%3B%0A%20%20%20%20F%20-%3E%20G%3B%0A%20%20%20%20G%20-%3E%20D%3B%0A%20%20%20%20H%20-%3E%20D%3B%0A%20%20%20%20H%20-%3E%20G%3B%0A%7D
@@ -367,12 +345,7 @@ mod tests {
             .workload_dependency("H", "D", AddCondition::AddCondSucceeded)
             .workload_dependency("H", "G", AddCondition::AddCondSucceeded);
 
-        for start_node in workloads {
-            let builder = builder.clone();
-            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
-            let state = builder.set_start_node(start_node).build();
-            assert!(dfs(&state, None).is_none());
-        }
+        assert_no_cycle!(builder, &workloads);
     }
 
     /// Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20D%20-%3E%20A%3B%0A%20%20%20%20D%20-%3E%20C%3B%0A%20%20%20%20D%20-%3E%20B%3B%0A%20%20%20%20G%20-%3E%20H%3B%0A%20%20%20%20H%20-%3E%20F%3B%0A%20%20%20%20F%20-%3E%20F%3B%0A%7D
@@ -395,23 +368,7 @@ mod tests {
 
         let expected_nodes_part_of_a_cycle = ["F"]; // self cycle in one of the two graphs
 
-        let mut actual = HashSet::new();
-        for start_node in workloads {
-            let builder = builder.clone();
-            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
-            let state = builder.set_start_node(start_node).build();
-
-            let result = dfs(&state, None);
-
-            assert!(matches!(
-                &result,
-                Some(w) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
-            ));
-
-            actual.insert(result.unwrap().to_string().replace("1_", ""));
-        }
-
-        assert_eq!(actual.len(), expected_nodes_part_of_a_cycle.len());
+        assert_cycle!(builder, &workloads, &expected_nodes_part_of_a_cycle);
     }
 
     /// Graph visualized: 1) A -> A and 2) A -> B -> B
@@ -438,23 +395,7 @@ mod tests {
 
         let expected_nodes_part_of_a_cycle = ["B"]; // self cycle in one of the two graphs
 
-        let mut actual = HashSet::new();
-        for start_node in workloads {
-            let builder = builder.clone();
-            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
-            let state = builder.set_start_node(start_node).build();
-
-            let result = dfs(&state, None);
-
-            assert!(matches!(
-                &result,
-                Some(w) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
-            ));
-
-            actual.insert(result.unwrap().to_string().replace("1_", ""));
-        }
-
-        assert_eq!(actual.len(), expected_nodes_part_of_a_cycle.len());
+        assert_cycle!(builder, &workloads, &expected_nodes_part_of_a_cycle);
     }
 
     /// Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20B%20-%3E%20E%3B%0A%20%20%20%20E%20-%3E%20F%3B%0A%20%20%20%20F%20-%3E%20D%3B%0A%20%20%20%20F%20-%3E%20C%3B%0A%20%20%20%20C%20-%3E%20D%3B%0A%7D
@@ -480,21 +421,7 @@ mod tests {
 
         let expected_nodes_part_of_a_cycle = ["E", "F", "C"];
 
-        let mut actual = HashSet::new();
-        for start_node in workloads {
-            let builder = builder.clone();
-            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
-            let state = builder.set_start_node(start_node).build();
-
-            let result = dfs(&state, None);
-            assert!(matches!(
-                &result,
-                Some(w) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
-            ));
-            actual.insert(result.unwrap().to_string().replace("1_", ""));
-        }
-
-        assert_eq!(actual.len(), expected_nodes_part_of_a_cycle.len());
+        assert_cycle!(builder, &workloads, &expected_nodes_part_of_a_cycle);
     }
 
     /// Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20B%20-%3E%20E%3B%0A%20%20%20%20E%20-%3E%20F%3B%0A%20%20%20%20F%20-%3E%20D%3B%0A%20%20%20%20F%20-%3E%20C%3B%0A%20%20%20%20C%20-%3E%20D%3B%0A%7D
@@ -517,12 +444,7 @@ mod tests {
             .workload_dependency("C", "G", AddCondition::AddCondRunning) // G does not exist in the state
             .workload_dependency("C", "D", AddCondition::AddCondRunning);
 
-        for start_node in workloads {
-            let builder = builder.clone();
-            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
-            let state = builder.set_start_node(start_node).build();
-            assert!(dfs(&state, None).is_none());
-        }
+        assert_no_cycle!(builder, &workloads);
     }
 
     /// Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20D%3B%0A%20%20%20%20B%20-%3E%20D%3B%0A%20%20%20%20B%20-%3E%20E%3B%0A%20%20%20%20C%20-%3E%20E%3B%0A%20%20%20%20C%20-%3E%20H%3B%0A%20%20%20%20D%20-%3E%20F%3B%0A%20%20%20%20D%20-%3E%20G%3B%0A%20%20%20%20D%20-%3E%20H%3B%0A%7D
@@ -543,18 +465,15 @@ mod tests {
             .workload_dependency("D", "G", AddCondition::AddCondSucceeded)
             .workload_dependency("D", "H", AddCondition::AddCondSucceeded);
 
-        for start_node in workloads {
-            let builder = builder.clone();
-            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
-            let state = builder.set_start_node(start_node).build();
-            assert!(dfs(&state, None).is_none());
-        }
+        assert_no_cycle!(builder, &workloads);
     }
 
     /// Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20B%20-%3E%20E%3B%0A%20%20%20%20C%20-%3E%20E%3B%0A%20%20%20%20C%20-%3E%20H%3B%0A%20%20%20%20D%20-%3E%20B%3B%0A%20%20%20%20D%20-%3E%20C%3B%0A%20%20%20%20D%20-%3E%20E%3B%0A%20%20%20%20F%20-%3E%20E%3B%0A%20%20%20%20H%20-%3E%20G%3B%0A%20%20%20%20G%20-%3E%20F%3B%0A%7D
     #[test]
     fn utest_detect_no_cycle_in_dependencies_2() {
         let _ = env_logger::builder().is_test(true).try_init();
+
+        let workloads = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
         let builder = StateBuilder::default()
             .workload_spec("A")
@@ -577,12 +496,7 @@ mod tests {
             .workload_dependency("H", "G", AddCondition::AddCondSucceeded)
             .workload_dependency("G", "F", AddCondition::AddCondSucceeded);
 
-        for start_node in ["A", "B", "C", "D", "E", "F", "G", "H"] {
-            let builder = builder.clone();
-            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
-            let state = builder.set_start_node(start_node).build();
-            assert!(dfs(&state, None).is_none());
-        }
+        assert_no_cycle!(builder, &workloads);
     }
 
     /// Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20D%20-%3E%20A%3B%0A%20%20%20%20D%20-%3E%20C%3B%0A%20%20%20%20D%20-%3E%20B%3B%0A%20%20%20%20G%20-%3E%20H%3B%0A%20%20%20%20H%20-%3E%20F%3B%0A%20%20%20%20F%20-%3E%20F%3B%0A%7D
@@ -601,12 +515,7 @@ mod tests {
             .workload_dependency("G", "H", AddCondition::AddCondSucceeded)
             .workload_dependency("H", "F", AddCondition::AddCondSucceeded);
 
-        for start_node in workloads {
-            let builder = builder.clone();
-            // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
-            let state = builder.set_start_node(start_node).build();
-            assert!(dfs(&state, None).is_none());
-        }
+        assert_no_cycle!(builder, &workloads);
     }
 
     #[derive(Clone)]
