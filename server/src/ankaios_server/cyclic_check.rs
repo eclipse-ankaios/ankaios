@@ -139,6 +139,7 @@ mod tests {
 
             let result = dfs(&state, None);
 
+            // matches! not used, because of better assertion output if a test fails
             assert!(result.is_some(), "expected cycle, but no cycle detected");
             let workload_part_of_cycle = result.unwrap().replace("1_", ""); // remove prefix "1_"
             assert!(
