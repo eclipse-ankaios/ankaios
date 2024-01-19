@@ -126,7 +126,7 @@ mod tests {
     Workloads: A, B, C
     Make B as first start node: 1_B, A, C */
 
-    fn assert_cycle_fn(
+    fn fn_assert_cycle(
         state_builder: StateBuilder,
         workloads: &[&str],
         expected_nodes_part_of_a_cycle: &[&str],
@@ -157,7 +157,7 @@ mod tests {
         );
     }
 
-    fn assert_no_cycle_fn(state_builder: StateBuilder, workloads: &[&str]) {
+    fn fn_assert_no_cycle(state_builder: StateBuilder, workloads: &[&str]) {
         for start_node in workloads {
             let builder = state_builder.clone();
             // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
@@ -169,14 +169,14 @@ mod tests {
     #[macro_export]
     macro_rules! assert_cycle {
         ( $builder:expr, $workloads:expr, $expected:expr ) => {
-            assert_cycle_fn($builder, $workloads, $expected)
+            fn_assert_cycle($builder, $workloads, $expected)
         };
     }
 
     #[macro_export]
     macro_rules! assert_no_cycle {
         ( $builder:expr, $workloads:expr ) => {
-            assert_no_cycle_fn($builder, $workloads)
+            fn_assert_no_cycle($builder, $workloads)
         };
     }
 
