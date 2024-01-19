@@ -14,7 +14,6 @@
 
 mod update_state;
 
-use common::objects::ExecutionState;
 use common::std_extensions::IllegalStateResult;
 #[cfg(test)]
 use tests::update_state_mock as update_state;
@@ -221,24 +220,6 @@ impl AnkaiosServer {
                     // [impl->swdd~server-stores-workload-state~1]
                     self.workload_state_db
                         .insert(method_obj.workload_states.clone());
-
-                    method_obj
-                        .workload_states
-                        .clone()
-                        .into_iter()
-                        .for_each(|wl_state| {
-                            if wl_state.execution_state == ExecutionState::ExecRemoved {
-                                log::debug!(
-                                    "Removing the workload '{}' from the current state and the workload_states",
-                                    wl_state.workload_name
-                                );
-                                self.workload_state_db.remove(&wl_state);
-                                self.current_complete_state
-                                    .current_state
-                                    .workloads
-                                    .remove(&wl_state.workload_name);
-                            }
-                        });
 
                     // [impl->swdd~server-forwards-workload-state~1]
                     self.to_agents
