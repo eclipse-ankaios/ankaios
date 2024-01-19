@@ -469,12 +469,12 @@ impl CliCommands {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use std::{io, thread};
+    use std::{collections::HashMap, io, thread};
 
     use common::{
         commands,
         execution_interface::ExecutionCommand,
-        objects::{Tag, WorkloadSpec},
+        objects::{ExecutionState, State, Tag, WorkloadSpec, WorkloadState},
         state_change_interface::{StateChangeCommand, StateChangeReceiver},
         test_utils::{self, generate_test_complete_state},
     };
@@ -839,6 +839,65 @@ mod tests {
 
         let expected_table: Vec<WorkloadInfo> = Vec::new();
         let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
+        assert_eq!(cmd_text.unwrap(), expected_table_text);
+    }
+
+    #[tokio::test]
+    async fn get_workloads_deleted_workload() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let complete_state = vec![ExecutionCommand::CompleteState(Box::new(
+            commands::CompleteState {
+                request_id: String::new(),
+                startup_state: State {
+                    workloads: HashMap::new(),
+                    configs: HashMap::new(),
+                    cron_jobs: HashMap::new(),
+                },
+                current_state: State {
+                    workloads: HashMap::new(),
+                    configs: HashMap::new(),
+                    cron_jobs: HashMap::new(),
+                },
+                workload_states: vec![WorkloadState {
+                    workload_name: "Workload_1".to_string(),
+                    agent_name: "agent_A".to_string(),
+                    execution_state: ExecutionState::ExecRemoved,
+                }],
+            },
+        ))];
+
+        let mut mock_client = MockGRPCCommunicationsClient::default();
+        mock_client
+            .expect_run()
+            .return_once(|_r, to_cli| prepare_server_response(complete_state, to_cli));
+
+        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
+        mock_new
+            .expect()
+            .return_once(move |_name, _server_address| mock_client);
+
+        let mut cmd = CliCommands::init(
+            RESPONSE_TIMEOUT_MS,
+            "TestCli".to_string(),
+            Url::parse("http://localhost").unwrap(),
+        );
+
+        let cmd_text = cmd.get_workloads(None, None, Vec::new()).await;
+        assert!(cmd_text.is_ok());
+
+        let expected_empty_table: Vec<WorkloadInfo> = vec![WorkloadInfo {
+            name: String::from("Workload_1"),
+            agent: String::from("agent_A"),
+            runtime: String::new(),
+            execution_state: String::from("Removed"),
+        }];
+        let expected_table_text = Table::new(expected_empty_table)
+            .with(Style::blank())
+            .to_string();
+
         assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
 
