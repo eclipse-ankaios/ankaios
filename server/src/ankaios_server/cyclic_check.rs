@@ -139,12 +139,18 @@ mod tests {
 
             let result = dfs(&state, None);
 
-            assert!(matches!(
-                &result,
-                Some(w) if expected_nodes_part_of_a_cycle.contains(&w.replace("1_", "").deref())
-            ));
+            assert!(result.is_some(), "expected cycle, but no cycle detected");
+            let workload_part_of_cycle = result.unwrap().replace("1_", ""); // remove prefix "1_"
+            assert!(
+                expected_nodes_part_of_a_cycle.contains(&workload_part_of_cycle.deref()),
+                "{}",
+                format!(
+                    "expected workload '{}' is not part of a cycle",
+                    workload_part_of_cycle
+                )
+            );
 
-            actual.insert(result.unwrap().to_string().replace("1_", ""));
+            actual.insert(workload_part_of_cycle);
         }
 
         assert_eq!(
@@ -153,7 +159,8 @@ mod tests {
                 expected_nodes_part_of_a_cycle
                     .iter()
                     .map(|item| item.to_string())
-            )
+            ),
+            "fewer workloads than expected are part of the cycle"
         );
     }
 
@@ -162,7 +169,10 @@ mod tests {
             let builder = state_builder.clone();
             // marking `start_node` as first node to visit by adding prefix "1_" to the workload name
             let state = builder.set_start_node(start_node).build();
-            assert!(dfs(&state, None).is_none());
+            assert!(
+                dfs(&state, None).is_none(),
+                "expected no cycle, but cycle detected."
+            );
         }
     }
 
