@@ -29,18 +29,18 @@ use common::request_id_prepending::detach_prefix_from_request_id;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tonic::Streaming;
 
-pub struct GRPCExecutionRequestStreaming {
+pub struct GRPCFromServerStreaming {
     inner: Streaming<proto::FromServer>,
 }
 
-impl GRPCExecutionRequestStreaming {
+impl GRPCFromServerStreaming {
     pub fn new(inner: Streaming<proto::FromServer>) -> Self {
         Self { inner }
     }
 }
 
 #[async_trait]
-impl GRPCStreaming<proto::FromServer> for GRPCExecutionRequestStreaming {
+impl GRPCStreaming<proto::FromServer> for GRPCFromServerStreaming {
     async fn message(&mut self) -> Result<Option<proto::FromServer>, tonic::Status> {
         self.inner.message().await
     }

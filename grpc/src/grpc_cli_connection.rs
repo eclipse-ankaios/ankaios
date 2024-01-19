@@ -22,7 +22,7 @@ use tonic::codegen::futures_core::Stream;
 use tonic::{Request, Response, Status};
 
 use crate::agent_senders_map::AgentSendersMap;
-use crate::state_change_proxy::{forward_from_proto_to_ankaios, GRPCStateChangeRequestStreaming};
+use crate::state_change_proxy::{forward_from_proto_to_ankaios, GRPCToServerStreaming};
 use api::proto::cli_connection_server::CliConnection;
 
 use api::proto;
@@ -68,7 +68,7 @@ impl CliConnection for GRPCCliConnection {
         let cli_senders = self.cli_senders.clone();
         self.cli_senders.insert(&cli_connection_name, new_sender);
         let _x = tokio::spawn(async move {
-            let mut stream = GRPCStateChangeRequestStreaming::new(stream);
+            let mut stream = GRPCToServerStreaming::new(stream);
             let result = forward_from_proto_to_ankaios(
                 cli_connection_name.clone(),
                 &mut stream,

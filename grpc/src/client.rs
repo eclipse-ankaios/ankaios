@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::from_server_proxy;
-use crate::from_server_proxy::GRPCExecutionRequestStreaming;
+use crate::from_server_proxy::GRPCFromServerStreaming;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 use crate::state_change_proxy;
 use api::proto;
@@ -141,7 +141,7 @@ impl GRPCCommunicationsClient {
 
         // [impl->swdd~grpc-client-connects-with-agent-hello~1]
         let mut grpc_to_server_streaming =
-            GRPCExecutionRequestStreaming::new(self.connect_to_server(grpc_rx).await?);
+            GRPCFromServerStreaming::new(self.connect_to_server(grpc_rx).await?);
 
         // [impl->swdd~grpc-client-forwards-commands-to-agent~1]
         let forward_exec_from_proto_task = from_server_proxy::forward_from_proto_to_ankaios(

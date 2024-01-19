@@ -27,18 +27,18 @@ use tonic::Streaming;
 
 use async_trait::async_trait;
 
-pub struct GRPCStateChangeRequestStreaming {
+pub struct GRPCToServerStreaming {
     inner: Streaming<proto::ToServer>,
 }
 
-impl GRPCStateChangeRequestStreaming {
+impl GRPCToServerStreaming {
     pub fn new(inner: Streaming<proto::ToServer>) -> Self {
-        GRPCStateChangeRequestStreaming { inner }
+        GRPCToServerStreaming { inner }
     }
 }
 
 #[async_trait]
-impl GRPCStreaming<proto::ToServer> for GRPCStateChangeRequestStreaming {
+impl GRPCStreaming<proto::ToServer> for GRPCToServerStreaming {
     async fn message(&mut self) -> Result<Option<proto::ToServer>, tonic::Status> {
         self.inner.message().await
     }
