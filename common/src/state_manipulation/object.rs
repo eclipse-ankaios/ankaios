@@ -179,65 +179,6 @@ impl TryInto<Vec<Path>> for Object {
 }
 
 impl Object {
-    // pub fn set(&mut self, path: &Path, value: Value) -> Result<(), String> {
-    //     let (path_head, path_last) = path.split_last()?;
-    //     if !self.data.is_mapping() {
-    //         return Err("The root of the object is not a mapping".to_owned());
-    //     }
-    //     let is_integer =
-    //         |part: Option<&String>| -> bool { part.is_some_and(|v| v.parse::<usize>().is_ok()) };
-
-    //     let mut current = &mut self.data;
-    //     let path_parts = path_head.parts();
-    //     for (index, path_part) in path_parts.iter().enumerate() {
-    //         let next_part = path_parts.get(index + 1);
-    //         println!(
-    //             "path_part: {:?} next_part: {:?}({})\n current:\n{:?}",
-    //             path_part,
-    //             next_part,
-    //             is_integer(next_part),
-    //             current
-    //         );
-    //         let next = match current {
-    //             Value::Mapping(cur_mapping) => {
-    //                 match cur_mapping.entry(path_part.to_owned().into()) {
-    //                     Occupied(value) => Ok(&mut *value.into_mut()),
-    //                     Vacant(value) => Ok(&mut *value.insert(if is_integer(next_part) {
-    //                         Value::Sequence(Sequence::default())
-    //                     } else {
-    //                         Value::Mapping(Mapping::default())
-    //                     })),
-    //                 }
-    //             }
-    //             Value::Sequence(cur_sequence) => {
-    //                 let index_from_part = path_part.parse::<usize>().unwrap();
-    //                 if cur_sequence.get_mut(index_from_part).is_none() {
-    //                     cur_sequence.push(Value::Mapping(Mapping::default()));
-    //                 }
-    //                 cur_sequence.get_mut(index_from_part).ok_or(format!(
-    //                     "Index '{:?}' not found in sequence!",
-    //                     index_from_part
-    //                 ))
-    //             }
-    //             _ => Err(format!("Unexpected value type: {:?}", current)),
-    //         };
-
-    //         current = next?;
-    //     }
-
-    //     match current {
-    //         Value::Sequence(sequence) => {
-    //             sequence.push(value);
-    //             Ok(())
-    //         }
-    //         Value::Mapping(mapping) => {
-    //             mapping.insert(path_last.into(), value);
-    //             Ok(())
-    //         }
-    //         _ => Err(format!("Failed to set '{:?}={:?}'", path, value)),
-    //     }
-    // }
-
     pub fn set(&mut self, path: &Path, value: Value) -> Result<(), String> {
         let (path_head, path_last) = path.split_last()?;
         let mut current = self

@@ -140,8 +140,14 @@ async fn main() {
             None => unreachable!("Unreachable code."),
         },
         cli::Commands::Apply(apply_args) => {
-            println!("{:?}", apply_args.manifest_files);
+            println!("Applying manifest files: \n");
+            apply_args
+                .manifest_files
+                .iter()
+                .for_each(|file| println!("{}", file));
+            println!("--------------------- \n");
             let mut req_obj: Object = State::default().try_into().unwrap();
+            let mut req_paths: Vec<common::state_manipulation::Path> = Vec::new();
             match apply_args.get_input_sources() {
                 Ok(mut manifests) => {
                     for manifest in manifests.iter_mut() {
@@ -167,30 +173,48 @@ async fn main() {
                                 &mut workload_paths.insert(common::state_manipulation::Path::from(
                                     format!("{}.{}", parts[0], parts[1]),
                                 ));
+
+                            req_paths.push(path);
                         }
 
-                        print!("Processing manifest: '{}' - workloads: {{ ", manifest.0);
-                        workload_paths.iter().for_each(|workload_path| {
+                        print!(
+                            "Processing manifest: '{}' - contained workloads: {{",
+                            manifest.0
+                        );
+
+                        let workload_path_len = workload_paths.len();
+                        for (index, workload_path) in workload_paths.iter().enumerate() {
                             if req_obj.get(workload_path).is_none() {
-                                print!("'{}'", workload_path.parts()[1]);
+                                if index == workload_path_len - 1 {
+                                    print!(" '{}'", workload_path.parts()[1]);
+                                } else {
+                                    print!(" '{}',", workload_path.parts()[1]);
+                                }
                                 let _ = req_obj.set(
                                     workload_path,
                                     cur_obj.get(workload_path).unwrap().clone(),
                                 );
                             } else {
                                 output_and_exit!(
-                                    "Error: Multiple workloads with the same name '{}' found, last detected in '{}'!",
-                                    workload_path.parts()[1],
-                                    manifest.0
+                                    "Error: Multiple workloads with the same name '{}' found!! }} - NOK",
+                                    workload_path.parts()[1]
                                 );
                             }
-                        });
-                        print!(" }}\n");
-                        println!("\nreq_obj: {:?}\n", req_obj);
+                        }
+                        println!(" }} - OK");
                     }
 
+                    // println!("\nreq_obj: {:?}\n", req_obj);
                     let update_state_req_obj: State = req_obj.try_into().unwrap();
-                    println!("\n update_obj: {:?} \n", update_state_req_obj);
+                    println!("\n state_obj: {:?} \n", update_state_req_obj,);
+                    println!(
+                        "\n filter_masks {:?} \n",
+                        req_paths
+                            .into_iter()
+                            .map(|path| path.parts().join("."))
+                            .collect::<Vec<String>>()
+                    );
+                    println!("Done.");
                 }
                 Err(err) => output_and_exit!("{:?}", err),
             }
