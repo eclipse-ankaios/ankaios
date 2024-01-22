@@ -8,9 +8,6 @@ participant "<<thread>>\nAnkaiosServer" as server
 
 participant "<<thread>>\nGRPCCommunicationsServer" as grpc_server
 participant "<<thread>>\ntonic gRPC server" as tonic_server
-
-
-participant "<<thread>>\nStartupStateLoader" as state_loader
 end box
 
 box "Ankaios Agent"
@@ -18,32 +15,29 @@ box "Ankaios Agent"
 end box
 
 -> main ++
+main -> main ++--: load startup config
+note right: Empty state is loaded,\nif the startup config is empty.
 main -> main ++--: create communication channels
-main ->> server **: create and start in a new thread
-activate server
-main ->> grpc_server ** : create and start in a new thread
+main ->> grpc_server ** : start
 activate grpc_server
-
+main ->> server **: start with startup config
+activate server
+server -> server++: validate startup config
+alt startup config valid
 activate agent
 loop per agent
     agent -> grpc_server ++: agent hello (name)
     deactivate grpc_server
 end
 
-main ->> state_loader ** : create and start in a new thread
-activate state_loader
-
-server -> server ++: start listening for \nstate change requests
+activate server
+server -> server ++: start listening for \nstate change commands
 
 grpc_server ->> tonic_server **: spawn gRPC server thread
 activate tonic_server
-tonic_server -> tonic_server ++--: start listening for state change requests
+tonic_server -> tonic_server ++--: start listening for \nstate change commands
 
-grpc_server -> grpc_server ++--: start listening for execution requests /'evil laughter'/
-
-state_loader -> state_loader ++: load startup config
-note right: Empty state is loaded,\nif the startup config is empty.
-state_loader ->> server --++: send startup state
+grpc_server -> grpc_server ++--: start listening for\n execution commands /'evil laughter'/
 
 server -> server ++: calculate execution request
 
@@ -56,5 +50,22 @@ loop for each agent
 end
 loop for each other agent
     grpc_server ->> agent ++:send execution request \nwith list of workload states
+end
+
+deactivate agent
+deactivate agent
+deactivate server
+deactivate grpc_server
+deactivate grpc_server
+deactivate grpc_server
+deactivate tonic_server
+else
+server -->> main--: startup config error
+deactivate server
+main -> main++--: Graceful shutdown
+destroy tonic_server
+destroy grpc_server
+destroy server
+destroy main
 end
 @enduml

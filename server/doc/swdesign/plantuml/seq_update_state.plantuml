@@ -3,12 +3,13 @@
 
 box "Ankaios Server"
 participant "<<thread>>\nAnkaiosServer" as server
+participant "ServerState" as server_state
 participant "<<thread>>\nGRPCCommunicationsServer" as grpc_server
 participant "<<thread>>\ntonic gRPC server" as tonic_server
 end box
 
 
-box "Ankaios Agents" 
+box "Ankaios Agents"
 participant "Agent 1" as agent1
 participant "Agent 2" as agent2
 end box
@@ -17,18 +18,29 @@ activate agent1
 
 ...
 agent1 ->> tonic_server--: UpdateState
-tonic_server ->> server: UpdateState
-server -> server: update CurrentState
-server -> server: create ExecutionRequests\nfrom comparison of new\nand old CurrentState
-server ->> grpc_server: send ExecutionRequests
-alt ExuectionsRequests for Agent 1
+tonic_server ->> server++: UpdateState
+server -> server_state++: update state
+server_state -> server_state++--: create ExecutionRequest\nfrom comparison of new\nand old CurrentState
+alt State valid
+server_state -->> server--: ExecutionRequest
+server ->> grpc_server++: send ExecutionRequests
+grpc_server -->> server
+deactivate server
+opt ExuectionsRequests for Agent 1
 grpc_server ->> agent1++:send ExecutionRequests
-agent1 -> agent1: execute ExecutionRequests
+agent1 -> agent1++--: execute ExecutionRequests
+deactivate agent1
 end
-alt ExuectionsRequests for Agent 2
+opt ExuectionsRequests for Agent 2
 grpc_server ->> agent2++:send ExecutionRequests
-agent2 -> agent2: execute ExecutionRequests
+agent2 -> agent2++--: execute ExecutionRequests
+deactivate agent2
 end
+deactivate grpc_server
+else
+server_state -->> server: UpdateStateError
+end
+server -> server++: listen for incoming requests
 
 
 @enduml
