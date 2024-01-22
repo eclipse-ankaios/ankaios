@@ -17,10 +17,12 @@ use std::collections::HashSet;
 use super::Path;
 use crate::{commands::CompleteState, objects::State};
 use serde_yaml::{
-    from_value, mapping::Entry::Occupied, mapping::Entry::Vacant, to_value, Mapping, Value,
+    from_value,
+    mapping::{Entry::Occupied, Entry::Vacant},
+    to_value, Mapping, Sequence, Value,
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Object {
     data: Value,
 }
@@ -30,6 +32,16 @@ impl Default for Object {
         Self {
             data: Value::Mapping(Default::default()),
         }
+    }
+}
+
+impl TryFrom<&serde_yaml::Value> for Object {
+    type Error = serde_yaml::Error;
+
+    fn try_from(value: &serde_yaml::Value) -> Result<Self, Self::Error> {
+        Ok(Object {
+            data: value.to_owned(),
+        })
     }
 }
 
@@ -145,20 +157,87 @@ fn generate_paths_from_yaml_node(
     }
 }
 
+pub fn get_paths_from_yaml_node(node: &Value, includes_mappings_and_sequences: bool) -> Vec<Path> {
+    let mut yaml_node_paths: HashSet<String> = HashSet::new();
+    generate_paths_from_yaml_node(
+        node,
+        "",
+        &mut yaml_node_paths,
+        includes_mappings_and_sequences,
+    );
+    yaml_node_paths
+        .into_iter()
+        .map(|entry| Path::from(&entry))
+        .collect()
+}
 impl TryInto<Vec<Path>> for Object {
     type Error = serde_yaml::Error;
 
     fn try_into(self) -> Result<Vec<Path>, Self::Error> {
-        let mut yaml_node_paths: HashSet<String> = HashSet::new();
-        generate_paths_from_yaml_node(&self.data, "", &mut yaml_node_paths, true);
-        Ok(yaml_node_paths
-            .into_iter()
-            .map(|entry| Path::from(&entry))
-            .collect())
+        Ok(get_paths_from_yaml_node(&self.data, true))
     }
 }
 
 impl Object {
+    // pub fn set(&mut self, path: &Path, value: Value) -> Result<(), String> {
+    //     let (path_head, path_last) = path.split_last()?;
+    //     if !self.data.is_mapping() {
+    //         return Err("The root of the object is not a mapping".to_owned());
+    //     }
+    //     let is_integer =
+    //         |part: Option<&String>| -> bool { part.is_some_and(|v| v.parse::<usize>().is_ok()) };
+
+    //     let mut current = &mut self.data;
+    //     let path_parts = path_head.parts();
+    //     for (index, path_part) in path_parts.iter().enumerate() {
+    //         let next_part = path_parts.get(index + 1);
+    //         println!(
+    //             "path_part: {:?} next_part: {:?}({})\n current:\n{:?}",
+    //             path_part,
+    //             next_part,
+    //             is_integer(next_part),
+    //             current
+    //         );
+    //         let next = match current {
+    //             Value::Mapping(cur_mapping) => {
+    //                 match cur_mapping.entry(path_part.to_owned().into()) {
+    //                     Occupied(value) => Ok(&mut *value.into_mut()),
+    //                     Vacant(value) => Ok(&mut *value.insert(if is_integer(next_part) {
+    //                         Value::Sequence(Sequence::default())
+    //                     } else {
+    //                         Value::Mapping(Mapping::default())
+    //                     })),
+    //                 }
+    //             }
+    //             Value::Sequence(cur_sequence) => {
+    //                 let index_from_part = path_part.parse::<usize>().unwrap();
+    //                 if cur_sequence.get_mut(index_from_part).is_none() {
+    //                     cur_sequence.push(Value::Mapping(Mapping::default()));
+    //                 }
+    //                 cur_sequence.get_mut(index_from_part).ok_or(format!(
+    //                     "Index '{:?}' not found in sequence!",
+    //                     index_from_part
+    //                 ))
+    //             }
+    //             _ => Err(format!("Unexpected value type: {:?}", current)),
+    //         };
+
+    //         current = next?;
+    //     }
+
+    //     match current {
+    //         Value::Sequence(sequence) => {
+    //             sequence.push(value);
+    //             Ok(())
+    //         }
+    //         Value::Mapping(mapping) => {
+    //             mapping.insert(path_last.into(), value);
+    //             Ok(())
+    //         }
+    //         _ => Err(format!("Failed to set '{:?}={:?}'", path, value)),
+    //     }
+    // }
+
     pub fn set(&mut self, path: &Path, value: Value) -> Result<(), String> {
         let (path_head, path_last) = path.split_last()?;
         let mut current = self
@@ -249,13 +328,13 @@ mod tests {
     use super::Object;
     #[test]
     fn utest_object_from_state() {
-        let state = generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
+        let state: State = generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
 
         let expected = Object {
             data: object::generate_test_state().into(),
         };
-        let actual: Object = state.try_into().unwrap();
-
+        let actual: Object = state.clone().try_into().unwrap();
+        println!("\nstate:\n{:?}\nactual:\n{:?}", state, actual);
         assert_eq!(actual, expected)
     }
 

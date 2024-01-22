@@ -188,7 +188,7 @@ fn setup_cli_communication(
     (communications_task, to_server, cli_receiver)
 }
 
-fn merge_state_objects<'a>(states: &'a [State], in_out_state: &'a mut State) {
+fn merge_state_objects(states: &[State], in_out_state: &mut State) {
     states.iter().fold(in_out_state, |acc_state_object, state| {
         let acc_object: Object = acc_state_object.deref().try_into().unwrap();
         let state_object: Object = state.try_into().unwrap();

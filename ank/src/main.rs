@@ -12,11 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::env;
-
 mod cli;
 mod cli_commands;
+use std::{collections::HashSet, env};
+
 use cli_commands::CliCommands;
+use common::{objects::State, state_manipulation::Object};
 mod log;
 
 #[cfg(test)]
@@ -140,16 +141,57 @@ async fn main() {
         },
         cli::Commands::Apply(apply_args) => {
             println!("{:?}", apply_args.manifest_files);
+            let mut req_obj: Object = State::default().try_into().unwrap();
             match apply_args.get_input_sources() {
-                Ok(mut manifests) => manifests.iter_mut().for_each(|x| {
-                    let mut data = "".to_owned();
-                    let _ = x.1.read_to_string(&mut data);
-                    let manifest_content: common::objects::State = serde_yaml::from_str(&data)
-                        .unwrap_or_else(|error| {
-                            panic!("Error while parsing the state object data.\nError: {error}")
+                Ok(mut manifests) => {
+                    for manifest in manifests.iter_mut() {
+                        let mut data = "".to_owned();
+                        let _ = manifest.1.read_to_string(&mut data);
+                        let yaml_nodes: serde_yaml::Value = serde_yaml::from_str(&data)
+                            .unwrap_or_else(|error| {
+                                panic!("Error while parsing the state object data.\nError: {error}")
+                            });
+
+                        let cur_obj: Object = Object::try_from(&yaml_nodes).unwrap();
+                        let paths = common::state_manipulation::get_paths_from_yaml_node(
+                            &yaml_nodes,
+                            false,
+                        );
+                        // println!("\npaths:\n{:?}", paths);
+
+                        let mut workload_paths: HashSet<common::state_manipulation::Path> =
+                            HashSet::new();
+                        for path in paths {
+                            let parts = path.parts();
+                            let _ =
+                                &mut workload_paths.insert(common::state_manipulation::Path::from(
+                                    format!("{}.{}", parts[0], parts[1]),
+                                ));
+                        }
+
+                        print!("Processing manifest: '{}' - workloads: {{ ", manifest.0);
+                        workload_paths.iter().for_each(|workload_path| {
+                            if req_obj.get(workload_path).is_none() {
+                                print!("'{}'", workload_path.parts()[1]);
+                                let _ = req_obj.set(
+                                    workload_path,
+                                    cur_obj.get(workload_path).unwrap().clone(),
+                                );
+                            } else {
+                                output_and_exit!(
+                                    "Error: Multiple workloads with the same name '{}' found, last detected in '{}'!",
+                                    workload_path.parts()[1],
+                                    manifest.0
+                                );
+                            }
                         });
-                    println!("\n'{}' - {:?}", x.0, manifest_content);
-                }),
+                        print!(" }}\n");
+                        println!("\nreq_obj: {:?}\n", req_obj);
+                    }
+
+                    let update_state_req_obj: State = req_obj.try_into().unwrap();
+                    println!("\n update_obj: {:?} \n", update_state_req_obj);
+                }
                 Err(err) => output_and_exit!("{:?}", err),
             }
         }
