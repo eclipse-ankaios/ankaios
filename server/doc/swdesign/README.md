@@ -45,12 +45,17 @@ The StartupStateLoader loads the initial startup state, parses it and pushes it 
 The Communication Middleware is responsible for:
 
 * establishing the connections to multiple Ankaios Agents.
-* forwarding the ExecutionRequests and ExecutionStateUpdates from AnkaiosServer to the proper Ankaios Agents through the xecutionCommandChannel.
+* forwarding the ExecutionRequests and ExecutionStateUpdates from AnkaiosServer to the proper Ankaios Agents through the ExecutionCommandChannel.
 * forwarding the StateChangeRequests from connected Agents to the AnkaiosServer.
 
 ### WorkloadStateDB
 
 The WorkloadStateDB is a data structure for storing the Workload States of each nodes.
+
+### ServerState
+
+The ServerState is a data structure for maintaining the state of the Ankaios server. It prevents invariants when updating the state, by doing checks on the new state
+before applying it or when a view on the state is requested.
 
 ## Behavioral view
 
@@ -89,7 +94,7 @@ Tags:
 Needs:
 - impl
 
-### Server starts without startup config
+#### Server starts without startup config
 `swdd~server-starts-without-startup-config~1`
 
 When the Ankaios server is started without a startup config, the server shall start with an empty current state.
@@ -102,6 +107,7 @@ Tags:
 
 Needs:
 - impl
+- utest
 - stest
 
 #### StartupStateLoader parses yaml with Startup State
@@ -133,6 +139,24 @@ Tags:
 Needs:
 - impl
 - utest
+
+#### Ankaios server fails to start on invalid startup state config
+`swdd~server-fails-on-invalid-startup-state~1`
+
+Status: approved
+
+When the Startup State is invalid, the server shall not start.
+
+Comment: If the Startup State is invalid no workloads can be deployed.
+
+Rationale: Invalid States shall be avoided to preserve internal invariants.
+
+Tags:
+
+Needs:
+- impl
+- utest
+- stest
 
 #### All communication with Agents through Middleware
 `swdd~communication-to-from-server-middleware~1`
@@ -445,6 +469,84 @@ Needs:
 - impl
 - utest
 - itest
+
+#### ServerState rejects state with cycle
+`swdd~server-state-rejects-state-with-cyclic-dependencies~1`
+
+Status: approved
+
+When the ServerState is requested to update its State and the new State has a cycle in the workload dependencies, the server shall reject the new State.
+
+Rationale: A new State may contain inter workload dependencies configurations forming a cycle that brings the system in an undesired state.
+
+Comment: The inter workload dependencies config within a state is only valid if the dependencies form an directed acyclic graph.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Cycle detection stops on the first detected cycle
+`swdd~cycle-detection-stops-on-the-first-cycle~1`
+
+Status: approved
+
+When the ServerState searches for cycles within the dependency graph of the State,
+the ServerState shall stop at the first detected cycle.
+
+Rationale: Searching all cycles in a graph might have performance impacts and is not in the scope of the project.
+
+Comment: With only one cycle, the log message remains clearer.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+
+#### Cycle detection ignores non existing workload dependencies
+`swdd~cycle-detection-ignores-non-existing-workloads~1`
+
+Status: approved
+
+When the ServerState searches for cycles within the dependency graph of the State
+and it encounters an edge in the dependency graph that refers to a workload that does not occur in the workload nodes,
+the ServerState shall ignore this edge.
+
+Rationale: A user might want to put a workload into the State that has a dependency to a workload which config is not prepared and published into the State yet.
+
+Comment: Continuation of the cycle search in that case does not break the cycle detection algorithm because a dependency to a workload that is not part of the State cannot introduce a cycle.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Server continues when receiving an invalid state
+`swdd~server-continues-on-invalid-updated-state~1`
+
+Status: approved
+
+When the ServerState rejects an updated state, the server shall continue to listen for incoming requests.
+
+Comment: The continuation allows the user to retry the update of the state.
+
+Rationale: The continuation allows better use-ability.
+
+Tags:
+- AnkaiosServer
+
+Needs:
+- impl
+- utest
+- stest
 
 ## Data view
 

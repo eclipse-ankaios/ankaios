@@ -75,11 +75,13 @@ pub fn dfs(state: &State, start_nodes: Option<Vec<&String>>) -> Option<String> {
                     if !visited.contains(dependency) {
                         stack.push_front(dependency);
                     } else if path.contains(&dependency) {
+                        // [impl->swdd~cycle-detection-stops-on-the-first-cycle~1]
                         log::debug!("workload '{dependency}' is part of a cycle.");
                         return Some(dependency.to_string());
                     }
                 }
             } else {
+                // [impl->swdd~cycle-detection-ignores-non-existing-workloads~1]
                 log::trace!(
                     "workload '{}' is skipped because it is not part of the state.",
                     head
@@ -234,6 +236,7 @@ mod tests {
         };
     }
 
+    // [utest->swdd~cycle-detection-stops-on-the-first-cycle~1]
     // Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20C%20-%3E%20D%3B%0A%20%20%20%20C%20-%3E%20A%3B%0A%7D
     #[test]
     fn utest_detect_cycle_in_dependencies_1() {
@@ -253,6 +256,7 @@ mod tests {
         assert_cycle!(builder, &workloads, &expected_nodes_part_of_a_cycle);
     }
 
+    // [utest->swdd~cycle-detection-stops-on-the-first-cycle~1]
     // Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20C%20-%3E%20F%3B%0A%20%20%20%20F%20-%3E%20E%3B%0A%20%20%20%20E%20-%3E%20D%3B%0A%20%20%20%20D%20-%3E%20A%3B%0A%7D
     #[test]
     fn utest_detect_cycle_in_dependencies_2() {
@@ -274,6 +278,7 @@ mod tests {
         assert_cycle!(builder, &workloads, &expected_nodes_part_of_a_cycle);
     }
 
+    // [utest->swdd~cycle-detection-stops-on-the-first-cycle~1]
     // Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20B%20-%3E%20A%3B%0A%7D
     #[test]
     fn utest_detect_cycle_in_dependencies_3() {
@@ -292,6 +297,7 @@ mod tests {
         assert_cycle!(builder, &workloads, &expected_nodes_part_of_a_cycle);
     }
 
+    // [utest->swdd~cycle-detection-stops-on-the-first-cycle~1]
     /// Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20B%20-%3E%20D%3B%0A%20%20%20%20B%20-%3E%20E%3B%0A%20%20%20%20C%20-%3E%20E%3B%0A%20%20%20%20C%20-%3E%20H%3B%0A%20%20%20%20D%20-%3E%20C%3B%0A%20%20%20%20D%20-%3E%20E%3B%0A%20%20%20%20F%20-%3E%20E%3B%0A%20%20%20%20H%20-%3E%20G%3B%0A%20%20%20%20G%20-%3E%20F%3B%0A%20%20%20%20F%20-%3E%20D%3B%0A%7D
     #[test]
     fn utest_detect_cycle_in_dependencies_4() {
@@ -319,6 +325,7 @@ mod tests {
         assert_cycle!(builder, &workloads, &expected_nodes_part_of_a_cycle);
     }
 
+    // [utest->swdd~cycle-detection-stops-on-the-first-cycle~1]
     // Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20B%20-%3E%20D%3B%0A%20%20%20%20B%20-%3E%20E%3B%0A%20%20%20%20C%20-%3E%20E%3B%0A%20%20%20%20C%20-%3E%20H%3B%0A%20%20%20%20D%20-%3E%20C%3B%0A%20%20%20%20D%20-%3E%20E%3B%0A%20%20%20%20F%20-%3E%20E%3B%0A%20%20%20%20H%20-%3E%20G%3B%0A%20%20%20%20G%20-%3E%20F%3B%0A%20%20%20%20F%20-%3E%20A%3B%0A%7D
     #[test]
     fn utest_detect_cycle_in_dependencies_5() {
@@ -346,6 +353,7 @@ mod tests {
         assert_cycle!(builder, &workloads, &expected_nodes_part_of_a_cycle);
     }
 
+    // [utest->swdd~cycle-detection-stops-on-the-first-cycle~1]
     /// Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20H%3B%0A%20%20%20%20A%20-%3E%20D%3B%0A%20%20%20%20B%20-%3E%20A%3B%0A%20%20%20%20B%20-%3E%20D%3B%0A%20%20%20%20C%20-%3E%20B%3B%0A%20%20%20%20C%20-%3E%20D%3B%0A%20%20%20%20E%20-%3E%20D%3B%0A%20%20%20%20E%20-%3E%20C%3B%0A%20%20%20%20F%20-%3E%20D%3B%0A%20%20%20%20F%20-%3E%20E%3B%0A%20%20%20%20F%20-%3E%20G%3B%0A%20%20%20%20G%20-%3E%20D%3B%0A%20%20%20%20D%20-%3E%20H%3B%0A%20%20%20%20H%20-%3E%20G%3B%0A%7D
     #[test]
     fn utest_detect_cycle_in_dependencies_star_1() {
@@ -402,6 +410,7 @@ mod tests {
         assert_no_cycle!(builder, &workloads);
     }
 
+    // [utest->swdd~cycle-detection-stops-on-the-first-cycle~1]
     /// Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20D%20-%3E%20A%3B%0A%20%20%20%20D%20-%3E%20C%3B%0A%20%20%20%20D%20-%3E%20B%3B%0A%20%20%20%20G%20-%3E%20H%3B%0A%20%20%20%20H%20-%3E%20F%3B%0A%20%20%20%20F%20-%3E%20F%3B%0A%7D
     #[test]
     fn utest_detect_self_cycle_in_dependencies_separated_graphs() {
@@ -425,6 +434,7 @@ mod tests {
         assert_cycle!(builder, &workloads, &expected_nodes_part_of_a_cycle);
     }
 
+    // [utest->swdd~cycle-detection-stops-on-the-first-cycle~1]
     /// Graph visualized: 1) A -> A and 2) A -> B -> B
     #[test]
     fn utest_detect_self_cycle_in_dependencies() {
@@ -452,6 +462,7 @@ mod tests {
         assert_cycle!(builder, &workloads, &expected_nodes_part_of_a_cycle);
     }
 
+    // [utest->swdd~cycle-detection-ignores-non-existing-workloads~1]
     /// Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20B%20-%3E%20E%3B%0A%20%20%20%20E%20-%3E%20F%3B%0A%20%20%20%20F%20-%3E%20D%3B%0A%20%20%20%20F%20-%3E%20C%3B%0A%20%20%20%20C%20-%3E%20D%3B%0A%7D
     /// The graph configuration below contains an additional edge to a dependency that is not part of the state config.
     #[test]
@@ -478,6 +489,7 @@ mod tests {
         assert_cycle!(builder, &workloads, &expected_nodes_part_of_a_cycle);
     }
 
+    // [utest->swdd~cycle-detection-ignores-non-existing-workloads~1]
     /// Graph visualized: https://dreampuf.github.io/GraphvizOnline/#digraph%20%7B%0A%20%20%20%20A%20-%3E%20B%3B%0A%20%20%20%20B%20-%3E%20C%3B%0A%20%20%20%20B%20-%3E%20E%3B%0A%20%20%20%20E%20-%3E%20F%3B%0A%20%20%20%20F%20-%3E%20D%3B%0A%20%20%20%20F%20-%3E%20C%3B%0A%20%20%20%20C%20-%3E%20D%3B%0A%7D
     /// The graph configuration below contains an additional edge to a dependency that is not part of the state config.
     #[test]

@@ -213,6 +213,7 @@ impl ServerState {
         new_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<Option<ExecutionCommand>, UpdateStateError> {
+        // [impl->swdd~server-state-rejects-state-with-cyclic-dependencies~1]
         match update_state(&self.state, new_state, update_mask) {
             Ok(new_state) => {
                 let cmd = extract_added_and_deleted_workloads(
@@ -490,6 +491,7 @@ mod tests {
         assert_eq!(workloads.len(), 0);
     }
 
+    // [utest->swdd~server-state-rejects-state-with-cyclic-dependencies~1]
     #[test]
     fn utest_server_state_update_state_reject_state_with_cyclic_dependencies() {
         let _ = env_logger::builder().is_test(true).try_init();

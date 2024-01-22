@@ -71,6 +71,7 @@ impl AnkaiosServer {
                         .unwrap_or_illegal_state();
                 }
                 Err(err) => {
+                    // [impl->swdd~server-fails-on-invalid-startup-state~1]
                     return Err(err.to_string());
                 }
             }
@@ -170,6 +171,7 @@ impl AnkaiosServer {
                             }
                         }
                         Err(error_msg) => {
+                            // [impl->swdd~server-continues-on-invalid-updated-state~1]
                             log::error!("Update rejected: '{error_msg}'",);
                         }
                     }
@@ -268,6 +270,7 @@ mod tests {
     const RUNTIME_NAME: &str = "runtime";
 
     // [utest->swdd~server-uses-async-channels~1]
+    // [utest->swdd~server-fails-on-invalid-startup-state~1]
     #[tokio::test]
     async fn utest_server_start_fail_on_invalid_startup_config() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -311,6 +314,98 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-continues-on-invalid-updated-state~1]
+    #[tokio::test]
+    async fn utest_server_update_state_continues_on_invalid_new_state() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) =
+            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            super::create_execution_channels(common::CHANNEL_CAPACITY);
+
+        /* new workload invalidates the state because
+        it contains a self cycle in the inter workload dependencies config */
+        let mut updated_workload = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            "workload A".to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let new_state = CompleteState {
+            current_state: State {
+                workloads: HashMap::from([(
+                    updated_workload.name.clone(),
+                    updated_workload.clone(),
+                )]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        // fix new state by deleting the dependencies
+        let mut fixed_state = new_state.clone();
+        updated_workload.dependencies.clear();
+        fixed_state.current_state.workloads =
+            HashMap::from([(updated_workload.name.clone(), updated_workload.clone())]);
+
+        let update_mask = vec!["currentState.workloads".to_string()];
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+        let mut seq = mockall::Sequence::new();
+        mock_server_state
+            .expect_update()
+            .with(
+                mockall::predicate::eq(new_state.clone()),
+                mockall::predicate::eq(update_mask.clone()),
+            )
+            .once()
+            .in_sequence(&mut seq)
+            .return_const(Err(UpdateStateError::CycleInDependencies(
+                "workload A".to_string(),
+            )));
+
+        let expected_execution_command = ExecutionCommand::UpdateWorkload(UpdateWorkload {
+            added_workloads: vec![updated_workload],
+            deleted_workloads: vec![],
+        });
+
+        mock_server_state
+            .expect_update()
+            .with(
+                mockall::predicate::eq(fixed_state.clone()),
+                mockall::predicate::eq(update_mask.clone()),
+            )
+            .once()
+            .in_sequence(&mut seq)
+            .return_const(Ok(Some(expected_execution_command.clone())));
+
+        server.server_state = mock_server_state;
+
+        let server_task = tokio::spawn(async move { server.start(None).await });
+
+        // send the new invalid state update
+        assert!(to_server
+            .update_state(new_state.clone(), update_mask.clone())
+            .await
+            .is_ok());
+
+        // send the update with the new clean state again
+        assert!(to_server
+            .update_state(fixed_state.clone(), update_mask)
+            .await
+            .is_ok());
+
+        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+
+        assert_eq!(execution_command, expected_execution_command);
+
+        // make sure all messages are consumed
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+
+        server_task.abort();
+    }
+
     // [utest->swdd~server-uses-async-channels~1]
     #[tokio::test]
     async fn utest_server_start_with_valid_startup_config() {
@@ -320,7 +415,6 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             super::create_execution_channels(common::CHANNEL_CAPACITY);
 
-        // contains a self cycle to workload A
         let workload = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
             WORKLOAD_NAME_1.to_string(),
@@ -365,6 +459,7 @@ mod tests {
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-sends-all-workloads-on-start~1]
     // [utest->swdd~agent-from-agent-field~1]
+    // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -422,6 +517,7 @@ mod tests {
 
         // [utest->swdd~server-informs-a-newly-connected-agent-workload-states~1]
         // [utest->swdd~server-sends-all-workload-states-on-agent-connect~1]
+        // [utest->swdd~server-starts-without-startup-config~1]
         // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
         let update_workload_state_result = to_server
             .update_workload_state(vec![WorkloadState {
@@ -524,6 +620,7 @@ mod tests {
 
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-provides-update-current-state-interface~1]
+    // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_success()
     {
@@ -588,6 +685,7 @@ mod tests {
 
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-provides-update-current-state-interface~1]
+    // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_nothing_todo(
     ) {
@@ -647,6 +745,7 @@ mod tests {
 
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-provides-update-current-state-interface~1]
+    // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_error() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -708,6 +807,7 @@ mod tests {
     // [utest->swdd~server-provides-interface-get-complete-state~1]
     // [utest->swdd~server-filters-get-complete-state-result~1]
     // [utest->swdd~server-includes-id-in-control-interface-response~1]
+    // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
     async fn utest_server_returns_complete_state_when_received_request_complete_state() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -798,6 +898,7 @@ mod tests {
     // [utest->swdd~server-provides-interface-get-complete-state~1]
     // [utest->swdd~server-filters-get-complete-state-result~1]
     // [utest->swdd~server-includes-id-in-control-interface-response~1]
+    // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
     async fn utest_server_returns_complete_state_when_received_request_complete_state_error() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -857,6 +958,7 @@ mod tests {
     // [utest->swdd~server-stores-workload-state~1]
     // [utest->swdd~server-set-workload-state-unknown-on-disconnect~1]
     // [utest->swdd~server-distribute-workload-state-unknown-on-disconnect~1]
+    // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
     async fn utest_server_start_distributes_workload_unknown_after_agent_gone() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -923,6 +1025,7 @@ mod tests {
     }
 
     // [utest->swdd~server-uses-async-channels~1]
+    // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
     async fn utest_server_start_calls_agents_in_update_state_command() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1044,6 +1147,7 @@ mod tests {
     }
 
     // [utest->swdd~server-uses-async-channels~1]
+    // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
     async fn utest_server_stop() {
         let _ = env_logger::builder().is_test(true).try_init();

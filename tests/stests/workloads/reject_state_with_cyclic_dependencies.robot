@@ -26,6 +26,9 @@ ${new_state_yaml_file}          ${EMPTY}
 
 
 *** Test Cases ***
+
+# [stest->swdd~server-state-rejects-state-with-cyclic-dependencies~1]
+# [stest->swdd~server-fails-on-invalid-startup-state~1]
 Test Ankaios reject startup state config with cyclic interworkload dependencies
     [Documentation]    The cycle is workload_A <-> workload_B inside startup state.
     [Setup]    Run Keywords    Setup Ankaios
@@ -39,6 +42,9 @@ Test Ankaios reject startup state config with cyclic interworkload dependencies
     Then the Ankaios server shall exit with an error code
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~server-state-rejects-state-with-cyclic-dependencies~1]
+# [stest->swdd~server-continues-on-invalid-updated-state~1]
+# [stest->swdd~cycle-detection-ignores-non-existing-workloads~1]
 Test Ankaios CLI update state with cycle in interworkload dependencies is rejected by Ankaios server
     [Documentation]    The cycle is workload_A -> workload_B -> workload_C -> workload_A inside the updated state.
     [Setup]    Run Keywords    Setup Ankaios
