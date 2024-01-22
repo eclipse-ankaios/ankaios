@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{fmt, fs, io, ops::Deref, time::Duration};
+use std::{collections::HashSet, fmt, fs, io, ops::Deref, time::Duration};
 
 #[cfg(not(test))]
 async fn read_file_to_string(file: String) -> std::io::Result<String> {
@@ -504,9 +504,75 @@ impl CliCommands {
     }
 
     // [impl->swdd~cli-provides-apply-multiple-ankaios-manifests~1]
-    // pub async fn apply_manifests() -> Result<(), CliError> {
+    pub async fn apply_manifests(&mut self, apply_args: ApplyArgs) -> Result<(), CliError> {
+        let mut req_obj: Object = State::default().try_into().unwrap();
+        let mut req_paths: Vec<common::state_manipulation::Path> = Vec::new();
+        match apply_args.get_input_sources() {
+            Ok(mut manifests) => {
+                for manifest in manifests.iter_mut() {
+                    let mut data = "".to_owned();
+                    let _ = manifest.1.read_to_string(&mut data);
+                    let yaml_nodes: serde_yaml::Value =
+                        serde_yaml::from_str(&data).unwrap_or_else(|error| {
+                            panic!("Error while parsing the state object data.\nError: {error}")
+                        });
 
-    // }
+                    let cur_obj: Object = Object::try_from(&yaml_nodes).unwrap();
+                    let paths =
+                        common::state_manipulation::get_paths_from_yaml_node(&yaml_nodes, false);
+                    // println!("\npaths:\n{:?}", paths);
+
+                    let mut workload_paths: HashSet<common::state_manipulation::Path> =
+                        HashSet::new();
+                    for path in paths {
+                        let parts = path.parts();
+                        let _ = &mut workload_paths.insert(common::state_manipulation::Path::from(
+                            format!("{}.{}", parts[0], parts[1]),
+                        ));
+
+                        req_paths.push(path);
+                    }
+
+                    print!(
+                        "Processing manifest: '{}' - contained workloads: {{",
+                        manifest.0
+                    );
+
+                    let workload_path_len = workload_paths.len();
+                    for (index, workload_path) in workload_paths.iter().enumerate() {
+                        if req_obj.get(workload_path).is_none() {
+                            if index == workload_path_len - 1 {
+                                print!(" '{}'", workload_path.parts()[1]);
+                            } else {
+                                print!(" '{}',", workload_path.parts()[1]);
+                            }
+                            let _ = req_obj
+                                .set(workload_path, cur_obj.get(workload_path).unwrap().clone());
+                        } else {
+                            return Err(CliError::ExecutionError(format!("Error: Multiple workloads with the same name '{}' found!! }} - NOK",
+                            workload_path.parts()[1]))
+                                );
+                        }
+                    }
+                    println!(" }} - OK");
+                }
+
+                // println!("\nreq_obj: {:?}\n", req_obj);
+                let update_state_req_obj: State = req_obj.try_into().unwrap();
+                println!("\n state_obj: {:?} \n", update_state_req_obj,);
+                println!(
+                    "\n filter_masks {:?} \n",
+                    req_paths
+                        .into_iter()
+                        .map(|path| path.parts().join("."))
+                        .collect::<Vec<String>>()
+                );
+                println!("Done.");
+                Ok(())
+            }
+            Err(err) => Err(CliError::ExecutionError(err.to_string())),
+        }
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
