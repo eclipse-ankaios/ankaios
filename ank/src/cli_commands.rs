@@ -12,12 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{
-    collections::HashSet,
-    default, fmt, fs, io,
-    ops::{Add, Deref},
-    time::Duration,
-};
+use std::{collections::HashSet, fmt, fs, io, time::Duration};
 
 #[cfg(not(test))]
 async fn read_file_to_string(file: String) -> std::io::Result<String> {
@@ -348,6 +343,8 @@ impl CliCommands {
         }
 
         output_debug!("Send UpdateState request ...");
+        println!("\nstate:\n{:?}", complete_state_input);
+        println!("\nobject_field_mask:\n{:?}", object_field_mask);
         // send update request
         self.to_server
             .update_state(complete_state_input, object_field_mask)
@@ -500,7 +497,7 @@ impl CliCommands {
     }
 
     // [impl->swdd~cli-provides-apply-multiple-ankaios-manifests~1]
-    pub async fn apply_manifests(&mut self, apply_args: ApplyArgs) -> Result<(), CliError> {
+    pub async fn apply_manifests(&mut self, apply_args: ApplyArgs) -> Result<String, CliError> {
         let mut req_obj: Object = State::default().try_into().unwrap();
         let mut req_paths: Vec<common::state_manipulation::Path> = Vec::new();
         let mut console_output = String::default();
@@ -525,7 +522,9 @@ impl CliCommands {
                     let mut data = "".to_owned();
                     let _ = manifest.1.read_to_string(&mut data);
                     if data.is_empty() {
-                        output_and_exit!("Empty manifest provided -> nothing to do!");
+                        return Err(CliError::ExecutionError(
+                            "Empty manifest provided -> nothing to do!".to_owned(),
+                        ));
                     }
                     let yaml_nodes: serde_yaml::Value =
                         serde_yaml::from_str(&data).unwrap_or_else(|error| {
@@ -579,21 +578,13 @@ impl CliCommands {
                         } else {
                             let error_str = format!("Error: Multiple workloads with the same name '{}' found!! }} - NOK",
                             workload_name);
-                            // out.push_str(&format!("{}\n", &error_str));
                             output_and_error!("\n{}\n{}", console_output, error_str);
                             return Err(CliError::ExecutionError(error_str));
                         }
                     }
-                    console_output.push_str(" }} - OK\n");
+                    console_output.push_str(" } - OK\n");
                 }
 
-                // println!("\nreq_obj: {:?}\n", req_obj);
-                let update_state_req_obj: State = req_obj.try_into().unwrap();
-                let complete_state_req_obj = common::commands::CompleteState {
-                    request_id: self.cli_name.to_owned(),
-                    current_state: update_state_req_obj,
-                    ..Default::default()
-                };
                 let mut filter_masks = req_paths
                     .into_iter()
                     .map(|path| format!("currentState.{}.{}", path.parts()[0], path.parts()[1]))
@@ -601,23 +592,34 @@ impl CliCommands {
                 filter_masks.sort();
                 filter_masks.dedup();
 
-                output_debug!("\n{:?}\n{:?}", complete_state_req_obj, filter_masks);
-
                 console_output.push_str("Applying collected manifests...");
-                if delete_mode {
-                    self.to_server
-                        .update_state(CompleteState::default(), filter_masks)
-                        .await
-                        .map_err(|err| CliError::ExecutionError(err.to_string()))?;
+
+                let complete_state_req_obj = if delete_mode {
+                    CompleteState {
+                        request_id: self.cli_name.to_owned(),
+                        ..Default::default()
+                    }
                 } else {
-                    self.to_server
-                        .update_state(complete_state_req_obj, filter_masks)
-                        .await
-                        .map_err(|err| CliError::ExecutionError(err.to_string()))?;
+                    let update_state_req_obj: State = req_obj.try_into().unwrap();
+                    CompleteState {
+                        request_id: self.cli_name.to_owned(),
+                        current_state: update_state_req_obj,
+                        ..Default::default()
+                    }
+                };
+
+                println!("\n{:?}\n{:?}", complete_state_req_obj, filter_masks);
+                match self
+                    .to_server
+                    .update_state(complete_state_req_obj, filter_masks)
+                    .await
+                {
+                    Ok(_) => {
+                        console_output.push_str("Done.");
+                        Ok(console_output)
+                    }
+                    Err(err) => Err(CliError::ExecutionError(err.to_string())),
                 }
-                console_output.push_str("Done.");
-                output_and_exit!("{}", console_output);
-                Ok(())
             }
             Err(err) => Err(CliError::ExecutionError(err.to_string())),
         }

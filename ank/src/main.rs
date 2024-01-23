@@ -14,10 +14,9 @@
 
 mod cli;
 mod cli_commands;
-use std::{collections::HashSet, env};
+use std::env;
 
 use cli_commands::CliCommands;
-use common::{objects::State, state_manipulation::Object, std_extensions::GracefulExitResult};
 mod log;
 
 #[cfg(test)]
@@ -139,11 +138,10 @@ async fn main() {
             }
             None => unreachable!("Unreachable code."),
         },
-        cli::Commands::Apply(apply_args) => {
-            if let Err(err) = cmd.apply_manifests(apply_args).await {
-                output_and_error!("{:?}", err);
-            }
-        }
+        cli::Commands::Apply(apply_args) => match cmd.apply_manifests(apply_args).await {
+            Ok(output) => output_and_exit!("{}", output),
+            Err(err) => output_and_error!("{:?}", err),
+        },
     }
 
     cmd.shut_down().await;

@@ -116,6 +116,7 @@ impl AnkaiosServer {
     async fn listen_to_agents(&mut self) {
         log::debug!("Start listening to agents...");
         while let Some(state_change_command) = self.receiver.recv().await {
+            log::debug!("listen_to_agents : {:?}", state_change_command);
             match state_change_command {
                 StateChangeCommand::AgentHello(method_obj) => {
                     log::info!("Received AgentHello from '{}'", method_obj.agent_name);

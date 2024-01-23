@@ -19,7 +19,7 @@ use crate::{commands::CompleteState, objects::State};
 use serde_yaml::{
     from_value,
     mapping::{Entry::Occupied, Entry::Vacant},
-    to_value, Mapping, Sequence, Value,
+    to_value, Mapping, Value,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]

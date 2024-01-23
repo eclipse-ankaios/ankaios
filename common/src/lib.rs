@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub const CHANNEL_CAPACITY: usize = 20;
+pub const CHANNEL_CAPACITY: usize = 1024;
 pub const DEFAULT_SOCKET_ADDRESS: &str = "127.0.0.1:25551";
 pub const DEFAULT_SERVER_ADDRESS: &str = "http://127.0.0.1:25551";
 
