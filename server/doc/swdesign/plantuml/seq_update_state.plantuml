@@ -15,10 +15,9 @@ participant "Agent 2" as agent2
 end box
 
 activate agent1
-
 ...
-agent1 ->> tonic_server--: UpdateState
-tonic_server ->> server++: UpdateState
+agent1 ->> tonic_server--++: UpdateState
+tonic_server ->> server--++: UpdateState
 server -> server_state++: update state
 server_state -> server_state++--: create ExecutionRequest\nfrom comparison of new\nand old CurrentState
 alt State valid
