@@ -146,7 +146,7 @@ mod tests {
             .once()
             .return_const(());
 
-        let (state_sink, _state_receiver) =
+        let (state_sink, _state_change_rx) =
             tokio::sync::mpsc::channel::<WorkloadStateMessage>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mut agent_manager = AgentManager::new(
@@ -201,7 +201,7 @@ mod tests {
             execution_state: ExecutionState::ExecRunning,
         };
 
-        let (state_sink, _state_receiver) =
+        let (state_sink, mut state_change_rx) =
             tokio::sync::mpsc::channel::<WorkloadStateMessage>(TEST_CHANNEL_BUFFER_SIZE);
 
         // TODO: check the receiver
@@ -222,52 +222,15 @@ mod tests {
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(to_manager);
         join!(handle);
-    }
 
-    // [utest->swdd~agent-manager-listens-requests-from-server~1]
-    // [utest->swdd~agent-uses-async-channels~1]
-    #[tokio::test]
-    async fn utest_agent_manager_no_update_on_empty_workload_states() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
+        let x = state_change_rx.recv().await.unwrap();
+        assert!(matches!(
+            x,
+            WorkloadStateMessage::FromServer(state) if state[0].execution_state == ExecutionState::ExecRunning
+        ));
 
-        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
-        let mut mock_runtime_manager = RuntimeManager::default();
-        mock_runtime_manager.expect_handle_update_workload().never();
-
-        let workload_state = WorkloadState {
-            workload_name: WORKLOAD_1_NAME.into(),
-            agent_name: AGENT_NAME.into(),
-            execution_state: ExecutionState::ExecRunning,
-        };
-
-        let (state_sink, _state_receiver) =
-            tokio::sync::mpsc::channel::<WorkloadStateMessage>(TEST_CHANNEL_BUFFER_SIZE);
-
-        // TODO: check the receiver
-
-        let mut agent_manager = AgentManager::new(
-            AGENT_NAME.to_string(),
-            manager_receiver,
-            mock_runtime_manager,
-            state_sink,
-        );
-
-        let initial_workload_states = vec![workload_state];
-        let initial_update_workload_result = to_manager
-            .update_workload_state(initial_workload_states)
-            .await;
-        assert!(initial_update_workload_result.is_ok());
-
-        let new_empty_states = vec![];
-        let update_workload_result = to_manager.update_workload_state(new_empty_states).await;
-        assert!(update_workload_result.is_ok());
-
-        let handle = agent_manager.start();
-        // The receiver in the agent receives the message and terminates the infinite waiting-loop.
-        drop(to_manager);
-        join!(handle);
+        let y = state_change_rx.try_recv();
+        assert!(y.is_err());
     }
 
     // [utest->swdd~agent-manager-listens-requests-from-server~1]
@@ -293,10 +256,8 @@ mod tests {
             .once()
             .return_const(());
 
-            let (state_sink, _state_receiver) =
+        let (state_sink, _state_change_rx) =
             tokio::sync::mpsc::channel::<WorkloadStateMessage>(TEST_CHANNEL_BUFFER_SIZE);
-
-        // TODO: check the receiver
 
         let mut agent_manager = AgentManager::new(
             AGENT_NAME.to_string(),
@@ -313,5 +274,7 @@ mod tests {
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(to_manager);
         join!(handle);
+
+        // the expectation is tha the mock runtime manager will receive the complete state
     }
 }
