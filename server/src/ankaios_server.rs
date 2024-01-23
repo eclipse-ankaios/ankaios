@@ -16,7 +16,7 @@ mod cyclic_check;
 mod server_state;
 
 use common::commands::{CompleteState, UpdateWorkload};
-use common::std_extensions::{IllegalStateResult, UnreachableOption};
+use common::std_extensions::IllegalStateResult;
 
 #[cfg_attr(test, mockall_double::double)]
 use server_state::ServerState;
@@ -62,9 +62,7 @@ impl AnkaiosServer {
     pub async fn start(&mut self, startup_state: Option<CompleteState>) -> Result<(), String> {
         if let Some(state) = startup_state {
             match self.server_state.update(state, vec![]) {
-                Ok(added_deleted_workloads) => {
-                    let (added_workloads, deleted_workloads) =
-                        added_deleted_workloads.unwrap_or_unreachable();
+                Ok(Some((added_workloads, deleted_workloads))) => {
                     let execution_command = ExecutionCommand::UpdateWorkload(UpdateWorkload {
                         added_workloads,
                         deleted_workloads,
@@ -75,6 +73,7 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
                 }
+                Ok(None) => log::info!("No initial workloads to send to agents."),
                 Err(err) => {
                     // [impl->swdd~server-fails-on-invalid-startup-state~1]
                     return Err(err.to_string());
