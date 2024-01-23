@@ -3,10 +3,14 @@
 
 default: true
 
+# Material for MkDocs needs 4 spaces to work
+MD007:
+  indent: 4
+
 # Disable line length warnings
 MD013: false
 
-# Allow some exceptions for inline HTML 
+# Allow some exceptions for inline HTML
 MD033:
   allowed_elements: ['nobr', 'picture', 'source', 'img']
 

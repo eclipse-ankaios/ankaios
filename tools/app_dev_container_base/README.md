@@ -19,14 +19,14 @@ RUN ... # customize the image with your dev dependencies
 The devcontainer contains the following:
 
 - Prebult Ankaios executables:
-  - Ankaios server
-  - Ankaios agent
-  - Ankaios CLI
+    - Ankaios server
+    - Ankaios agent
+    - Ankaios CLI
 
 - Control interface dependencies:
-  - ankaios.proto (located at /usr/local/lib/ankaios/ankaios.proto)
-  - protobuf-compiler
-  - grpcurl
+    - ankaios.proto (located at /usr/local/lib/ankaios/ankaios.proto)
+    - protobuf-compiler
+    - grpcurl
 
 - Podman 4 (daemonless container orchestrator)
 
