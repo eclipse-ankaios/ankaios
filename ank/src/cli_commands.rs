@@ -12,7 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashSet, fmt, fs, io, ops::Deref, time::Duration};
+use std::{
+    collections::HashSet,
+    default, fmt, fs, io,
+    ops::{Add, Deref},
+    time::Duration,
+};
 
 #[cfg(not(test))]
 async fn read_file_to_string(file: String) -> std::io::Result<String> {
@@ -42,7 +47,7 @@ use url::Url;
 
 use crate::{
     cli::{ApplyArgs, OutputFormat},
-    output_and_error, output_debug,
+    output_and_error, output_and_exit, output_debug,
 };
 
 const BUFFER_SIZE: usize = 20;
@@ -186,15 +191,6 @@ fn setup_cli_communication(
         }
     });
     (communications_task, to_server, cli_receiver)
-}
-
-fn merge_state_objects(states: &[State], in_out_state: &mut State) {
-    states.iter().fold(in_out_state, |acc_state_object, state| {
-        let acc_object: Object = acc_state_object.deref().try_into().unwrap();
-        let state_object: Object = state.try_into().unwrap();
-        println!("{:?}", state_object);
-        acc_state_object
-    });
 }
 
 type InputSources = Result<Vec<(String, Box<dyn io::Read>)>, io::Error>;
@@ -507,20 +503,42 @@ impl CliCommands {
     pub async fn apply_manifests(&mut self, apply_args: ApplyArgs) -> Result<(), CliError> {
         let mut req_obj: Object = State::default().try_into().unwrap();
         let mut req_paths: Vec<common::state_manipulation::Path> = Vec::new();
+        let mut console_output = String::default();
+        let line_len = apply_args.manifest_files.iter().max().unwrap().len() + 2;
+        let plot_line = |console_output: &mut String, end_str: &str| {
+            for _ in 1..line_len {
+                console_output.push('-');
+            }
+            console_output.push_str(end_str);
+        };
+        console_output.push_str("Applying manifest files overview:\n");
+        plot_line(&mut console_output, "\n");
+        apply_args.manifest_files.iter().for_each(|file| {
+            console_output.push_str(&format!("{}\n", if "-" != file { file } else { "stdin" }))
+        });
+
+        plot_line(&mut console_output, "\n");
+        let delete_mode = apply_args.delete_mode;
         match apply_args.get_input_sources() {
             Ok(mut manifests) => {
                 for manifest in manifests.iter_mut() {
                     let mut data = "".to_owned();
                     let _ = manifest.1.read_to_string(&mut data);
+                    if data.is_empty() {
+                        output_and_exit!("Empty manifest provided -> nothing to do!");
+                    }
                     let yaml_nodes: serde_yaml::Value =
                         serde_yaml::from_str(&data).unwrap_or_else(|error| {
-                            panic!("Error while parsing the state object data.\nError: {error}")
+                            let error_out = format!(
+                                "Error while parsing the state object data.\nError: {error}"
+                            );
+                            output_and_error!("{}", error_out);
+                            panic!("{}", error_out)
                         });
 
                     let cur_obj: Object = Object::try_from(&yaml_nodes).unwrap();
                     let paths =
                         common::state_manipulation::get_paths_from_yaml_node(&yaml_nodes, false);
-                    // println!("\npaths:\n{:?}", paths);
 
                     let mut workload_paths: HashSet<common::state_manipulation::Path> =
                         HashSet::new();
@@ -533,41 +551,72 @@ impl CliCommands {
                         req_paths.push(path);
                     }
 
-                    print!(
-                        "Processing manifest: '{}' - contained workloads: {{",
-                        manifest.0
-                    );
+                    let info_collecting = if delete_mode {
+                        format!(
+                            "Collecting manifest for deletion: '{}' - contained workloads: {{",
+                            manifest.0
+                        )
+                    } else {
+                        format!(
+                            "Collecting manifest: '{}' - contained workloads: {{",
+                            manifest.0
+                        )
+                    };
+
+                    console_output.push_str(&info_collecting);
 
                     let workload_path_len = workload_paths.len();
                     for (index, workload_path) in workload_paths.iter().enumerate() {
+                        let workload_name = &workload_path.parts()[1];
                         if req_obj.get(workload_path).is_none() {
                             if index == workload_path_len - 1 {
-                                print!(" '{}'", workload_path.parts()[1]);
+                                console_output.push_str(&format!(" '{}'", workload_name));
                             } else {
-                                print!(" '{}',", workload_path.parts()[1]);
+                                console_output.push_str(&format!(" '{}',", workload_name));
                             }
                             let _ = req_obj
                                 .set(workload_path, cur_obj.get(workload_path).unwrap().clone());
                         } else {
-                            return Err(CliError::ExecutionError(format!("Error: Multiple workloads with the same name '{}' found!! }} - NOK",
-                            workload_path.parts()[1]))
-                                );
+                            let error_str = format!("Error: Multiple workloads with the same name '{}' found!! }} - NOK",
+                            workload_name);
+                            // out.push_str(&format!("{}\n", &error_str));
+                            output_and_error!("\n{}\n{}", console_output, error_str);
+                            return Err(CliError::ExecutionError(error_str));
                         }
                     }
-                    println!(" }} - OK");
+                    console_output.push_str(" }} - OK\n");
                 }
 
                 // println!("\nreq_obj: {:?}\n", req_obj);
                 let update_state_req_obj: State = req_obj.try_into().unwrap();
-                println!("\n state_obj: {:?} \n", update_state_req_obj,);
-                println!(
-                    "\n filter_masks {:?} \n",
-                    req_paths
-                        .into_iter()
-                        .map(|path| path.parts().join("."))
-                        .collect::<Vec<String>>()
-                );
-                println!("Done.");
+                let complete_state_req_obj = common::commands::CompleteState {
+                    request_id: self.cli_name.to_owned(),
+                    current_state: update_state_req_obj,
+                    ..Default::default()
+                };
+                let mut filter_masks = req_paths
+                    .into_iter()
+                    .map(|path| format!("currentState.{}.{}", path.parts()[0], path.parts()[1]))
+                    .collect::<Vec<String>>();
+                filter_masks.sort();
+                filter_masks.dedup();
+
+                output_debug!("\n{:?}\n{:?}", complete_state_req_obj, filter_masks);
+
+                console_output.push_str("Applying collected manifests...");
+                if delete_mode {
+                    self.to_server
+                        .update_state(CompleteState::default(), filter_masks)
+                        .await
+                        .map_err(|err| CliError::ExecutionError(err.to_string()))?;
+                } else {
+                    self.to_server
+                        .update_state(complete_state_req_obj, filter_masks)
+                        .await
+                        .map_err(|err| CliError::ExecutionError(err.to_string()))?;
+                }
+                console_output.push_str("Done.");
+                output_and_exit!("{}", console_output);
                 Ok(())
             }
             Err(err) => Err(CliError::ExecutionError(err.to_string())),

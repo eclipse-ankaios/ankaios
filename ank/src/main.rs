@@ -140,12 +140,6 @@ async fn main() {
             None => unreachable!("Unreachable code."),
         },
         cli::Commands::Apply(apply_args) => {
-            println!("Applying manifest files: \n");
-            apply_args
-                .manifest_files
-                .iter()
-                .for_each(|file| println!("{}", file));
-            println!("--------------------- \n");
             if let Err(err) = cmd.apply_manifests(apply_args).await {
                 output_and_error!("{:?}", err);
             }

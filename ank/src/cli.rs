@@ -177,8 +177,13 @@ pub enum RunCommands {
 pub struct ApplyArgs {
     #[arg(value_name = "Ankaios manifest file", required = false)]
     pub manifest_files: Vec<String>,
+    /// Specify on which agent to apply the Ankaios manifests.
+    /// If not specified, the agent must be specified in the Ankaios manifests.
     #[arg(long = "agent")]
     pub agent_name: Option<String>,
+    /// Delete mode activated.
+    #[arg(short)]
+    pub delete_mode: bool,
 }
 
 fn parse_key_val<K, V>(s: &str) -> Result<(K, V), Box<dyn Error + Send + Sync + 'static>>
