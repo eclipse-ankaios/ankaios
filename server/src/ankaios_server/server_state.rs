@@ -17,8 +17,7 @@ use crate::state_manipulation::{Object, Path};
 use crate::workload_state_db::WorkloadStateDB;
 use common::std_extensions::IllegalStateResult;
 use common::{
-    commands::{CompleteState, RequestCompleteState, UpdateWorkload},
-    execution_interface::ExecutionCommand,
+    commands::{CompleteState, RequestCompleteState},
     objects::{DeletedWorkload, State, WorkloadSpec},
 };
 use std::collections::HashMap;
@@ -68,7 +67,7 @@ fn update_state(
 fn extract_added_and_deleted_workloads(
     current_state: &State,
     new_state: &State,
-) -> Option<common::execution_interface::ExecutionCommand> {
+) -> Option<(Vec<WorkloadSpec>, Vec<DeletedWorkload>)> {
     let mut added_workloads: Vec<WorkloadSpec> = Vec::new();
     let mut deleted_workloads: Vec<DeletedWorkload> = Vec::new();
 
@@ -110,10 +109,7 @@ fn extract_added_and_deleted_workloads(
         return None;
     }
 
-    Some(ExecutionCommand::UpdateWorkload(UpdateWorkload {
-        added_workloads,
-        deleted_workloads,
-    }))
+    Some((added_workloads, deleted_workloads))
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -147,6 +143,8 @@ impl Display for UpdateStateError {
 pub struct ServerState {
     state: CompleteState,
 }
+
+pub type AddedDeletedWorkloads = Option<(Vec<WorkloadSpec>, Vec<DeletedWorkload>)>;
 
 #[cfg_attr(test, automock)]
 impl ServerState {
@@ -212,7 +210,7 @@ impl ServerState {
         &mut self,
         new_state: CompleteState,
         update_mask: Vec<String>,
-    ) -> Result<Option<ExecutionCommand>, UpdateStateError> {
+    ) -> Result<AddedDeletedWorkloads, UpdateStateError> {
         // [impl->swdd~server-state-rejects-state-with-cyclic-dependencies~1]
         match update_state(&self.state, new_state, update_mask) {
             Ok(new_state) => {
@@ -221,15 +219,7 @@ impl ServerState {
                     &new_state.current_state,
                 );
 
-                if let Some(cmd) = cmd {
-                    let ExecutionCommand::UpdateWorkload(UpdateWorkload {
-                        added_workloads,
-                        deleted_workloads: _,
-                    }) = &cmd
-                    else {
-                        std::unreachable!("Expected ExecutionCommand::UpdateWorkload");
-                    };
-
+                if let Some((added_workloads, deleted_workloads)) = cmd {
                     let start_nodes: Vec<&String> = added_workloads
                         .iter()
                         .filter_map(|w| {
@@ -255,7 +245,7 @@ impl ServerState {
                     }
 
                     self.state = new_state;
-                    Ok(Some(cmd))
+                    Ok(Some((added_workloads, deleted_workloads)))
                 } else {
                     Ok(None)
                 }
@@ -277,7 +267,7 @@ mod tests {
     use std::collections::HashMap;
 
     use common::{
-        commands::{CompleteState, RequestCompleteState, UpdateWorkload},
+        commands::{CompleteState, RequestCompleteState},
         objects::{DeletedWorkload, State, WorkloadSpec},
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
     };
@@ -704,20 +694,20 @@ mod tests {
 
         let mut server_state = ServerState::default();
 
-        let update_cmd = server_state.update(new_state.clone(), update_mask).unwrap();
+        let added_deleted_workloads = server_state.update(new_state.clone(), update_mask).unwrap();
 
-        let expected_cmd =
-            common::execution_interface::ExecutionCommand::UpdateWorkload(UpdateWorkload {
-                added_workloads: new_state
-                    .clone()
-                    .current_state
-                    .workloads
-                    .into_values()
-                    .collect(),
-                deleted_workloads: Vec::new(),
-            });
-        assert!(update_cmd.is_some());
-        assert_eq!(update_cmd.unwrap(), expected_cmd);
+        let expected_added_workloads: Vec<WorkloadSpec> = new_state
+            .clone()
+            .current_state
+            .workloads
+            .into_values()
+            .collect();
+
+        let expected_deleted_workloads: Vec<DeletedWorkload> = Vec::new();
+        assert!(added_deleted_workloads.is_some());
+        let (added_workloads, deleted_workloads) = added_deleted_workloads.unwrap();
+        assert_eq!(added_workloads, expected_added_workloads);
+        assert_eq!(deleted_workloads, expected_deleted_workloads);
         assert_eq!(server_state.state, new_state);
     }
 
@@ -734,24 +724,24 @@ mod tests {
             state: current_complete_state.clone(),
         };
 
-        let update_cmd = server_state.update(update_state, update_mask).unwrap();
+        let added_deleted_workloads = server_state.update(update_state, update_mask).unwrap();
 
-        let expected_cmd =
-            common::execution_interface::ExecutionCommand::UpdateWorkload(UpdateWorkload {
-                added_workloads: Vec::new(),
-                deleted_workloads: current_complete_state
-                    .current_state
-                    .workloads
-                    .iter()
-                    .map(|(k, v)| DeletedWorkload {
-                        agent: v.agent.clone(),
-                        name: k.clone(),
-                        dependencies: HashMap::new(),
-                    })
-                    .collect(),
-            });
-        assert!(update_cmd.is_some());
-        assert_eq!(update_cmd.unwrap(), expected_cmd);
+        let expected_added_workloads: Vec<WorkloadSpec> = Vec::new();
+        let expected_deleted_workloads: Vec<DeletedWorkload> = current_complete_state
+            .current_state
+            .workloads
+            .iter()
+            .map(|(k, v)| DeletedWorkload {
+                agent: v.agent.clone(),
+                name: k.clone(),
+                dependencies: HashMap::new(),
+            })
+            .collect();
+
+        assert!(added_deleted_workloads.is_some());
+        let (added_workloads, deleted_workloads) = added_deleted_workloads.unwrap();
+        assert_eq!(added_workloads, expected_added_workloads);
+        assert_eq!(deleted_workloads, expected_deleted_workloads);
         assert_eq!(server_state.state, CompleteState::default());
     }
 
@@ -788,21 +778,20 @@ mod tests {
             state: current_complete_state.clone(),
         };
 
-        let update_cmd = server_state
+        let added_deleted_workloads = server_state
             .update(new_complete_state.clone(), update_mask)
             .unwrap();
 
-        let expected_cmd =
-            common::execution_interface::ExecutionCommand::UpdateWorkload(UpdateWorkload {
-                added_workloads: vec![wls_update],
-                deleted_workloads: vec![DeletedWorkload {
-                    agent: wls_to_update.agent.clone(),
-                    name: wl_name_to_update.to_string(),
-                    dependencies: HashMap::new(),
-                }],
-            });
-        assert!(update_cmd.is_some());
-        assert_eq!(update_cmd.unwrap(), expected_cmd);
+        let expected_added_workloads = vec![wls_update];
+        let expected_deleted_workloads = vec![DeletedWorkload {
+            agent: wls_to_update.agent.clone(),
+            name: wl_name_to_update.to_string(),
+            dependencies: HashMap::new(),
+        }];
+        assert!(added_deleted_workloads.is_some());
+        let (added_workloads, deleted_workloads) = added_deleted_workloads.unwrap();
+        assert_eq!(added_workloads, expected_added_workloads);
+        assert_eq!(deleted_workloads, expected_deleted_workloads);
         assert_eq!(server_state.state, new_complete_state);
     }
 

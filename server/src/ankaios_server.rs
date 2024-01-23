@@ -15,7 +15,7 @@
 mod cyclic_check;
 mod server_state;
 
-use common::commands::CompleteState;
+use common::commands::{CompleteState, UpdateWorkload};
 use common::std_extensions::{IllegalStateResult, UnreachableOption};
 
 #[cfg_attr(test, mockall_double::double)]
@@ -62,8 +62,13 @@ impl AnkaiosServer {
     pub async fn start(&mut self, startup_state: Option<CompleteState>) -> Result<(), String> {
         if let Some(state) = startup_state {
             match self.server_state.update(state, vec![]) {
-                Ok(cmd) => {
-                    let execution_command = cmd.unwrap_or_unreachable();
+                Ok(added_deleted_workloads) => {
+                    let (added_workloads, deleted_workloads) =
+                        added_deleted_workloads.unwrap_or_unreachable();
+                    let execution_command = ExecutionCommand::UpdateWorkload(UpdateWorkload {
+                        added_workloads,
+                        deleted_workloads,
+                    });
                     log::info!("Starting...");
                     self.to_agents
                         .send(execution_command)
@@ -160,16 +165,25 @@ impl AnkaiosServer {
                         .server_state
                         .update(update_request.state, update_request.update_mask)
                     {
-                        Ok(command) => {
-                            if let Some(execution_command) = command {
-                                self.to_agents
-                                    .send(execution_command)
-                                    .await
-                                    .unwrap_or_illegal_state();
-                            } else {
-                                log::debug!("The current state and new state are identical -> nothing to do");
-                            }
+                        Ok(Some((added_workloads, deleted_workloads))) => {
+                            log::info!(
+                                "The update has {} new or updated workloads, {} workloads to delete",
+                                added_workloads.len(),
+                                deleted_workloads.len()
+                            );
+                            let execution_command =
+                                ExecutionCommand::UpdateWorkload(UpdateWorkload {
+                                    added_workloads,
+                                    deleted_workloads,
+                                });
+                            self.to_agents
+                                .send(execution_command)
+                                .await
+                                .unwrap_or_illegal_state();
                         }
+                        Ok(None) => log::debug!(
+                            "The current state and new state are identical -> nothing to do"
+                        ),
                         Err(error_msg) => {
                             // [impl->swdd~server-continues-on-invalid-updated-state~1]
                             log::error!("Update rejected: '{error_msg}'",);
@@ -365,10 +379,8 @@ mod tests {
                 "workload A".to_string(),
             )));
 
-        let expected_execution_command = ExecutionCommand::UpdateWorkload(UpdateWorkload {
-            added_workloads: vec![updated_workload],
-            deleted_workloads: vec![],
-        });
+        let added_workloads = vec![updated_workload.clone()];
+        let deleted_workloads = vec![];
 
         mock_server_state
             .expect_update()
@@ -378,7 +390,10 @@ mod tests {
             )
             .once()
             .in_sequence(&mut seq)
-            .return_const(Ok(Some(expected_execution_command.clone())));
+            .return_const(Ok(Some((
+                added_workloads.clone(),
+                deleted_workloads.clone(),
+            ))));
 
         server.server_state = mock_server_state;
 
@@ -398,6 +413,10 @@ mod tests {
 
         let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
 
+        let expected_execution_command = ExecutionCommand::UpdateWorkload(UpdateWorkload {
+            added_workloads,
+            deleted_workloads,
+        });
         assert_eq!(execution_command, expected_execution_command);
 
         // make sure all messages are consumed
@@ -429,10 +448,8 @@ mod tests {
             ..Default::default()
         };
 
-        let update_request_for_agents = ExecutionCommand::UpdateWorkload(UpdateWorkload {
-            added_workloads: vec![workload],
-            deleted_workloads: vec![],
-        });
+        let added_workloads = vec![workload];
+        let deleted_workloads = vec![];
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
@@ -443,7 +460,10 @@ mod tests {
                 mockall::predicate::eq(vec![]),
             )
             .once()
-            .return_const(Ok(Some(update_request_for_agents.clone())));
+            .return_const(Ok(Some((
+                added_workloads.clone(),
+                deleted_workloads.clone(),
+            ))));
 
         server.server_state = mock_server_state;
 
@@ -451,7 +471,11 @@ mod tests {
 
         let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
 
-        assert_eq!(execution_command, update_request_for_agents);
+        let expected_execution_command = ExecutionCommand::UpdateWorkload(UpdateWorkload {
+            added_workloads,
+            deleted_workloads,
+        });
+        assert_eq!(execution_command, expected_execution_command);
 
         server_task.abort();
     }
@@ -647,6 +671,10 @@ mod tests {
             },
             ..Default::default()
         };
+
+        let added_workloads = vec![w1.clone()];
+        let deleted_workloads = vec![];
+
         let update_mask = vec![format!("currentState.workloads.{}", WORKLOAD_NAME_1)];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
@@ -657,10 +685,10 @@ mod tests {
                 mockall::predicate::eq(update_mask.clone()),
             )
             .once()
-            .return_const(Ok(Some(ExecutionCommand::UpdateWorkload(UpdateWorkload {
-                added_workloads: vec![w1.clone()],
-                deleted_workloads: vec![],
-            }))));
+            .return_const(Ok(Some((
+                added_workloads.clone(),
+                deleted_workloads.clone(),
+            ))));
         server.server_state = mock_server_state;
         let server_task = tokio::spawn(async move { server.start(None).await });
 
@@ -673,8 +701,8 @@ mod tests {
         let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             ExecutionCommand::UpdateWorkload(UpdateWorkload {
-                added_workloads: vec![w1.clone()],
-                deleted_workloads: vec![],
+                added_workloads,
+                deleted_workloads,
             }),
             execution_command
         );
@@ -1060,6 +1088,13 @@ mod tests {
         };
         let update_mask = vec!["currentState.workloads".to_string()];
 
+        let added_workloads = vec![updated_w1.clone()];
+        let deleted_workloads = vec![DeletedWorkload {
+            agent: w1.agent.clone(),
+            name: w1.name.clone(),
+            dependencies: HashMap::new(),
+        }];
+
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
         let mut seq = mockall::Sequence::new();
@@ -1085,14 +1120,7 @@ mod tests {
             )
             .once()
             .in_sequence(&mut seq)
-            .return_const(Ok(Some(ExecutionCommand::UpdateWorkload(UpdateWorkload {
-                added_workloads: vec![updated_w1.clone()],
-                deleted_workloads: vec![DeletedWorkload {
-                    agent: w1.agent.clone(),
-                    name: w1.name.clone(),
-                    dependencies: HashMap::new(),
-                }],
-            }))));
+            .return_const(Ok(Some((added_workloads, deleted_workloads))));
         server.server_state = mock_server_state;
 
         let agent_hello1_result = to_server.agent_hello(AGENT_A.to_owned()).await;
