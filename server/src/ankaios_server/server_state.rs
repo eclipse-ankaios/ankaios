@@ -211,7 +211,6 @@ impl ServerState {
         new_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<AddedDeletedWorkloads, UpdateStateError> {
-        // [impl->swdd~server-state-rejects-state-with-cyclic-dependencies~1]
         match update_state(&self.state, new_state, update_mask) {
             Ok(new_state) => {
                 let cmd = extract_added_and_deleted_workloads(
