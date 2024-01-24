@@ -191,7 +191,7 @@ $ ank get workloads
  WORKLOAD NAME   AGENT      RUNTIME   EXECUTION STATE
  databroker      agent_A    podman    Running
  speedometer     agent_A    podman    Running
- navigation      navigation podman    Running
+ navigation      infotainment podman    Running
 ```
 
 ## Reading workload logs
@@ -205,7 +205,7 @@ podman logs -f $(podman ps -a | grep navigation | awk '{print $1}')
 
 !!! info
 
-    If you want to see the logs of the databroker or navigation you need to use `sudo podman` instead of `podman` (two occurences) as those workloads run on podman as root on agent_A.
+    If you want to see the logs of the databroker or speedometer you need to use `sudo podman` instead of `podman` (two occurences) as those workloads run on podman as root on agent_A.
 
 Now, in the existing file, we want to change the interval for the speedometer:
 
