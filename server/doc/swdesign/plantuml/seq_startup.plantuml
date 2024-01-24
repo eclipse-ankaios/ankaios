@@ -5,7 +5,6 @@ box "Ankaios Server"
 participant Main as main
 participant "<<thread>>\nAnkaiosServer" as server
 
-
 participant "<<thread>>\nGRPCCommunicationsServer" as grpc_server
 participant "<<thread>>\ntonic gRPC server" as tonic_server
 end box
@@ -14,58 +13,65 @@ box "Ankaios Agent"
     participant "Ankaios Agent" as agent
 end box
 
+agent <- ++: start
+
 -> main ++
 main -> main ++--: load startup config
 note right: Empty state is loaded,\nif the startup config is empty.
 main -> main ++--: create communication channels
-main ->> grpc_server ** : start
+main ->> grpc_server **: start
 activate grpc_server
+note over grpc_server
+    start listening for
+    execution commands /'evil laughter'/
+end note
 main ->> server **: start with startup config
 activate server
-server -> server++: validate startup config
+server -> server++--: validate startup config
 alt startup config valid
-activate agent
+
+
+
+
 loop per agent
-    agent -> grpc_server ++: agent hello (name)
+    agent ->> grpc_server ++: agent hello (name)
+
+
+
+    grpc_server ->> tonic_server **: spawn gRPC server thread
     deactivate grpc_server
+    activate tonic_server
+    tonic_server ->> server++: agent hello (name)
+    note over tonic_server
+        start listening for
+        state change commands
+    end note
+
+
+
+    server -> server ++--: calculate commands to \n the specific agent
+
+
+    server ->> grpc_server --++: send commands
+    grpc_server ->> agent --++: forward commands
+    note left
+        the commands include
+        new workloads and
+        workload execution states
+    end note
+    ... Agent starts workloads according to commands ...
 end
 
-activate server
-server -> server ++: start listening for \nstate change commands
 
-grpc_server ->> tonic_server **: spawn gRPC server thread
-activate tonic_server
-tonic_server -> tonic_server ++--: start listening for \nstate change commands
-
-grpc_server -> grpc_server ++--: start listening for\n execution commands /'evil laughter'/
-
-server -> server ++: calculate execution request
-
-server ->> grpc_server --++: send execution request
-
-grpc_server -> grpc_server ++: find concerned agents
-
-loop for each agent
-    grpc_server ->> agent ++:send execution request \nwith workload list
-end
-loop for each other agent
-    grpc_server ->> agent ++:send execution request \nwith list of workload states
-end
-
-deactivate agent
-deactivate agent
-deactivate server
-deactivate grpc_server
-deactivate grpc_server
-deactivate grpc_server
-deactivate tonic_server
 else
 server -->> main--: startup config error
 deactivate server
+deactivate tonic_server
+
 main -> main++--: Graceful shutdown
-destroy tonic_server
 destroy grpc_server
 destroy server
 destroy main
+
 end
 @enduml
