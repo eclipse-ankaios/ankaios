@@ -475,7 +475,7 @@ Needs:
 
 Status: approved
 
-When the ServerState is requested to update its State and the new State has a cycle in the workload dependencies, the server shall reject the new State.
+When the ServerState is requested to update its State and the new State has a cycle in the workload dependencies, the server shall reject the new State as invalid.
 
 Rationale: A cyclic dependency between workloads will prevent the affected workloads from starting rendering the state invalid.
 
