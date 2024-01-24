@@ -42,7 +42,7 @@ use url::Url;
 
 use crate::{
     cli::{ApplyArgs, OutputFormat},
-    output_and_error, output_and_exit, output_debug,
+    output_and_error, output_debug,
 };
 
 const BUFFER_SIZE: usize = 20;
@@ -516,6 +516,7 @@ impl CliCommands {
 
         plot_line(&mut console_output, "\n");
         let delete_mode = apply_args.delete_mode;
+        let agent = apply_args.agent_name.clone();
         match apply_args.get_input_sources() {
             Ok(mut manifests) => {
                 for manifest in manifests.iter_mut() {
@@ -543,11 +544,20 @@ impl CliCommands {
                         HashSet::new();
                     for path in paths {
                         let parts = path.parts();
-                        let _ = &mut workload_paths.insert(common::state_manipulation::Path::from(
-                            format!("{}.{}", parts[0], parts[1]),
-                        ));
+                        if parts.len() > 1 {
+                            let _ =
+                                &mut workload_paths.insert(common::state_manipulation::Path::from(
+                                    format!("{}.{}", parts[0], parts[1]),
+                                ));
 
-                        req_paths.push(path);
+                            req_paths.push(path);
+                        }
+                    }
+
+                    if req_paths.is_empty() {
+                        return Err(CliError::ExecutionError(
+                            "No workload provided in manifests!".to_owned(),
+                        ));
                     }
 
                     let info_collecting = if delete_mode {
@@ -592,15 +602,42 @@ impl CliCommands {
                 filter_masks.sort();
                 filter_masks.dedup();
 
-                console_output.push_str("Applying collected manifests...");
-
                 let complete_state_req_obj = if delete_mode {
                     CompleteState {
                         request_id: self.cli_name.to_owned(),
                         ..Default::default()
                     }
                 } else {
-                    let update_state_req_obj: State = req_obj.try_into().unwrap();
+                    let mut update_state_req_obj: State = req_obj.try_into().unwrap();
+                    let mut _apply_on_agent = "".to_owned();
+                    if agent.is_none() {
+                        let agent_names: HashSet<String> = HashSet::from_iter(
+                            update_state_req_obj
+                                .clone()
+                                .workloads
+                                .into_values()
+                                .map(|wl| wl.agent),
+                        );
+                        if agent_names.len() > 1 {
+                            return Err(CliError::ExecutionError(format!("Multiple agent names in manifests detected {:?} -> use '--agent' option to overwrite!", &agent_names)));
+                        } else {
+                            _apply_on_agent = agent_names.iter().next().unwrap().to_owned();
+                            for (_, wl) in &mut update_state_req_obj.workloads.iter_mut() {
+                                wl.agent = _apply_on_agent.to_owned();
+                            }
+                        }
+                    } else {
+                        _apply_on_agent = agent.as_ref().unwrap().to_owned();
+                        for (_, wl) in &mut update_state_req_obj.workloads.iter_mut() {
+                            wl.agent = _apply_on_agent.to_owned();
+                        }
+                    }
+
+                    console_output.push_str(&format!(
+                        "Applying collected manifests on agent '{}' ... ",
+                        _apply_on_agent
+                    ));
+
                     CompleteState {
                         request_id: self.cli_name.to_owned(),
                         current_state: update_state_req_obj,
@@ -608,7 +645,7 @@ impl CliCommands {
                     }
                 };
 
-                println!("\n{:?}\n{:?}", complete_state_req_obj, filter_masks);
+                // println!("\n{:?}\n{:?}", complete_state_req_obj, filter_masks);
                 match self
                     .to_server
                     .update_state(complete_state_req_obj, filter_masks)
@@ -650,8 +687,7 @@ mod tests {
     use crate::{
         cli::OutputFormat,
         cli_commands::{
-            generate_compact_state_output, get_filtered_value, merge_state_objects,
-            update_compact_state, WorkloadInfo,
+            generate_compact_state_output, get_filtered_value, update_compact_state, WorkloadInfo,
         },
     };
 

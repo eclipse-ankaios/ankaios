@@ -138,10 +138,14 @@ async fn main() {
             }
             None => unreachable!("Unreachable code."),
         },
-        cli::Commands::Apply(apply_args) => match cmd.apply_manifests(apply_args).await {
-            Ok(output) => output_and_exit!("{}", output),
-            Err(err) => output_and_error!("{:?}", err),
-        },
+        cli::Commands::Apply(apply_args) => {
+            let res = cmd.apply_manifests(apply_args).await;
+            std::thread::sleep(std::time::Duration::from_millis(1000));
+            match res {
+                Ok(output) => output_and_exit!("{}", output),
+                Err(err) => output_and_error!("{:?}", err),
+            }
+        }
     }
 
     cmd.shut_down().await;
