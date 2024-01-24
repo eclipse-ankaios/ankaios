@@ -27,7 +27,12 @@ use std::collections::{HashSet, VecDeque};
 ///                   if [`None`] the search is started from all workloads of the state
 ///
 pub fn dfs(state: &State, start_nodes: Option<Vec<&String>>) -> Option<String> {
-    // stack is used to terminate the search properly
+    /* The stack is used to push the neighbors of a workload inside the dependency graph
+    that needs to be visited next and to terminate the search. If a workload is not already visited,
+    all neighbor workloads of that workload are pushed on the stack and next round a workload is popped
+    from the stack and the procedure is repeated until a cycle is detected or all workloads are visited once.
+    With pushing and popping to the stack the search is done in the depth inside the dependency graph.
+    The stack simulates what the recursion stack represents in the recursive dfs algorithm. */
     let mut stack: VecDeque<&String> = VecDeque::new();
 
     // used to prevent visiting nodes repeatedly
@@ -38,17 +43,17 @@ pub fn dfs(state: &State, start_nodes: Option<Vec<&String>>) -> Option<String> {
     let mut path: VecDeque<&String> = VecDeque::with_capacity(state.workloads.len());
 
     // start visiting workloads in the graph only for a subset of workloads (e.g. in case of a an update) or for all
-    let mut data: Vec<&String> = if let Some(workloads_to_visit) = start_nodes {
-        workloads_to_visit
+    let mut workloads_to_visit: Vec<&String> = if let Some(nodes) = start_nodes {
+        nodes
     } else {
         state.workloads.keys().collect()
     };
     /* sort the keys of the map to have an constant equal outcome
     because the current data structure is randomly ordered because of HashMap's random seed */
-    data.sort();
+    workloads_to_visit.sort();
 
     // iterate through all the nodes if they are not already visited
-    for workload_name in data {
+    for workload_name in workloads_to_visit {
         if visited.contains(workload_name) {
             continue;
         }
