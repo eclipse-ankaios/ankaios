@@ -49,7 +49,7 @@ See the [reference documentation](https://eclipse-ankaios.github.io/ankaios/late
 
 Let's have a look at the `runtimeConfig` which in this case is specific for the `podman` runtime.
 
-* `image: ghcr.io/eclipse/kuksa.val/databroker:0.4.2` specifies the container image according to the OCI image format. Fortunately, the Kuksa.val project already provides an image for the databroker that we can use here.
+* `image: ghcr.io/eclipse/kuksa.val/databroker:0.4.1` specifies the container image according to the OCI image format. Fortunately, the Kuksa.val project already provides an image for the databroker that we can use here.
 * `commandArgs: ["--insecure"]`: These are command arguments which are passed to the container, in this case to the container's entrypoint. As we are not using authentication for the databroker we pass the argument `--insecure`.
 * `commandOptions: ["--net=host"]`: These options are passed to the `podman run` command. We want to use the host network for the databroker.
 
@@ -86,7 +86,7 @@ workloads:
       deny: []
     tags: []
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/speedometer:latest
+      image: ghcr.io/eclipse-ankaios/speedometer:0.1.0
       commandOptions:
         - "--net=host"
         - "-e"
@@ -152,7 +152,7 @@ workloads:
       deny: []
     tags: []
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/speed-consumer:latest
+      image: ghcr.io/eclipse-ankaios/speed-consumer:0.1.0
       commandOptions:
         - "--net=host"
         - "-e"
@@ -175,6 +175,13 @@ ank apply --agent infotainment navigation.yaml
 
     ```
     ank apply -s http://127.0.0.1:25551 --agent infotainment navigation.yaml
+    ```
+
+    Optionally the server URL can also be provided via environment variable:
+
+    ```
+    export ANK_SERVER_URL=http://127.0.0.1:25551
+    ank apply --agent infotainment navigation.yaml
     ```
 
 And we check that the new workload is running:
@@ -214,7 +221,7 @@ workloads:
       deny: []
     tags: []
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/speedometer:latest
+      image: ghcr.io/eclipse-ankaios/speedometer:0.1.0
       commandOptions:
         - "--net=host"
         - "-e"
@@ -290,7 +297,7 @@ workloads:
     dependencies:
       databroker: ADD_COND_RUNNING
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/speedometer:latest
+      image: ghcr.io/eclipse-ankaios/speedometer:0.1.0
       commandOptions:
         - "--net=host"
         - "-e"
@@ -307,7 +314,7 @@ workloads:
     dependencies:
       databroker: ADD_COND_RUNNING
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/speed-consumer:latest
+      image: ghcr.io/eclipse-ankaios/speed-consumer:0.1.0
       commandOptions:
         - "--net=host"
         - "-e"
