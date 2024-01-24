@@ -288,7 +288,7 @@ workloads:
       deny: []
     tags: []
     dependencies:
-      databroker: running
+      databroker: ADD_COND_RUNNING
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/speedometer:latest
       commandOptions:
@@ -305,7 +305,7 @@ workloads:
       deny: []
     tags: []
     dependencies:
-      databroker: running
+      databroker: ADD_COND_RUNNING
     runtimeConfig: |
       image: ghcr.io/eclipse-ankaios/speed-consumer:latest
       commandOptions:
