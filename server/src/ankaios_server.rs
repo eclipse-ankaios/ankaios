@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-mod cyclic_check;
+mod cycle_check;
 mod server_state;
 
 use common::commands::{CompleteState, UpdateWorkload};

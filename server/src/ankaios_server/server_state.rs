@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::cyclic_check;
+use super::cycle_check;
 use crate::state_manipulation::{Object, Path};
 use crate::workload_state_db::WorkloadStateDB;
 use common::std_extensions::IllegalStateResult;
@@ -237,7 +237,7 @@ impl ServerState {
                     );
 
                     if let Some(workload_part_of_cycle) =
-                        cyclic_check::dfs(&new_state.current_state, Some(start_nodes))
+                        cycle_check::dfs(&new_state.current_state, Some(start_nodes))
                     {
                         return Err(UpdateStateError::CycleInDependencies(
                             workload_part_of_cycle,
