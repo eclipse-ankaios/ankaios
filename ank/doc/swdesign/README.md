@@ -335,7 +335,7 @@ When the CLI receives the list of workloads from the Ankaios Server via CLI comm
 
 Note:
 The column runtime is not filled when the workload has been deleted.
-It means when the workload has been deleted from the current state and the workload state is reported as "removed".
+This can happen when the workload has been deleted from the current state and the workload state is reported as "removed".
 
 Tags:
 - GetWorkloads
