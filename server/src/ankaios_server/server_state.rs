@@ -112,6 +112,13 @@ fn extract_added_and_deleted_workloads(
     Some((added_workloads, deleted_workloads))
 }
 
+fn map_add_to_delete_condition(add_condition: &AddCondition) -> Option<DeleteCondition> {
+    match add_condition {
+        AddCondition::AddCondRunning => Some(DeleteCondition::DelCondNotPendingNorRunning),
+        _ => None,
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum UpdateStateError {
     FieldNotFound(String),
@@ -139,9 +146,13 @@ impl Display for UpdateStateError {
     }
 }
 
+use common::objects::{AddCondition, DeleteCondition, UpdateStrategy};
+pub type DeleteGraph = HashMap<String, HashMap<String, DeleteCondition>>;
+
 #[derive(Default)]
 pub struct ServerState {
     state: CompleteState,
+    delete_conditions: DeleteGraph,
 }
 
 pub type AddedDeletedWorkloads = Option<(Vec<WorkloadSpec>, Vec<DeletedWorkload>)>;
@@ -206,6 +217,40 @@ impl ServerState {
             .collect()
     }
 
+    fn update_delete_graph(
+        &mut self,
+        added_workloads: &[WorkloadSpec],
+        _deleted_workloads: &[DeletedWorkload],
+    ) {
+        let mut update_delete_conditions =
+            |dependency_name: String, workload_name: String, delete_condition: DeleteCondition| {
+                self.delete_conditions
+                    .entry(dependency_name)
+                    .and_modify(|e| {
+                        e.insert(workload_name.clone(), delete_condition);
+                    })
+                    .or_insert_with(|| HashMap::from([(workload_name, delete_condition)]));
+            };
+        for workload in added_workloads {
+            if workload.update_strategy == UpdateStrategy::AtLeastOnce {
+                update_delete_conditions(
+                    workload.name.clone(),
+                    workload.name.clone(),
+                    DeleteCondition::DelCondRunning,
+                );
+            }
+            for (dependency_name, add_condition) in workload.dependencies.iter() {
+                if let Some(delete_condition) = map_add_to_delete_condition(add_condition) {
+                    update_delete_conditions(
+                        dependency_name.clone(),
+                        workload.name.clone(),
+                        delete_condition,
+                    );
+                }
+            }
+        }
+    }
+
     pub fn update(
         &mut self,
         new_state: CompleteState,
@@ -243,6 +288,8 @@ impl ServerState {
                         ));
                     }
 
+                    self.update_delete_graph(&added_workloads, &deleted_workloads);
+
                     self.state = new_state;
                     Ok(Some((added_workloads, deleted_workloads)))
                 } else {
@@ -267,7 +314,9 @@ mod tests {
 
     use common::{
         commands::{CompleteState, RequestCompleteState},
-        objects::{DeletedWorkload, State, WorkloadSpec},
+        objects::{
+            AddCondition, DeleteCondition, DeletedWorkload, State, UpdateStrategy, WorkloadSpec,
+        },
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
     };
 
@@ -308,6 +357,7 @@ mod tests {
                 "".to_string(),
                 vec![w1.clone(), w2.clone(), w3.clone()],
             ),
+            ..Default::default()
         };
 
         let request_id = "cli@request_id".to_string();
@@ -361,6 +411,7 @@ mod tests {
                 "".to_string(),
                 vec![w1.clone(), w2.clone(), w3.clone()],
             ),
+            ..Default::default()
         };
 
         let request_id = "cli@request_id".to_string();
@@ -410,6 +461,7 @@ mod tests {
 
         let server_state = ServerState {
             state: generate_test_complete_state("".to_string(), vec![w1.clone()]),
+            ..Default::default()
         };
 
         let request_id = "cli@request_id".to_string();
@@ -467,6 +519,7 @@ mod tests {
                 "".to_string(),
                 vec![w1.clone(), w2.clone(), w3.clone()],
             ),
+            ..Default::default()
         };
 
         let mut workloads = server_state.get_workloads_for_agent(&AGENT_A.to_string());
@@ -526,6 +579,7 @@ mod tests {
 
         let mut server_state = ServerState {
             state: old_state.clone(),
+            ..Default::default()
         };
 
         let result = server_state.update(rejected_new_state.clone(), vec![]);
@@ -547,6 +601,7 @@ mod tests {
         let update_state = generate_test_update_state();
         let mut server_state = ServerState {
             state: old_state.clone(),
+            ..Default::default()
         };
         server_state.update(update_state.clone(), vec![]).unwrap();
 
@@ -573,6 +628,7 @@ mod tests {
 
         let mut server_state = ServerState {
             state: old_state.clone(),
+            ..Default::default()
         };
         server_state.update(update_state, update_mask).unwrap();
 
@@ -599,6 +655,7 @@ mod tests {
 
         let mut server_state = ServerState {
             state: old_state.clone(),
+            ..Default::default()
         };
         server_state.update(update_state, update_mask).unwrap();
 
@@ -617,6 +674,7 @@ mod tests {
 
         let mut server_state = ServerState {
             state: old_state.clone(),
+            ..Default::default()
         };
         server_state.update(update_state, update_mask).unwrap();
 
@@ -634,6 +692,7 @@ mod tests {
 
         let mut server_state = ServerState {
             state: old_state.clone(),
+            ..Default::default()
         };
         server_state.update(update_state, update_mask).unwrap();
 
@@ -648,6 +707,7 @@ mod tests {
 
         let mut server_state = ServerState {
             state: old_state.clone(),
+            ..Default::default()
         };
         let result = server_state.update(update_state, update_mask);
 
@@ -664,6 +724,7 @@ mod tests {
 
         let mut server_state = ServerState {
             state: old_state.clone(),
+            ..Default::default()
         };
         let result = server_state.update(update_state, update_mask);
         assert!(result.is_err());
@@ -721,6 +782,7 @@ mod tests {
 
         let mut server_state = ServerState {
             state: current_complete_state.clone(),
+            ..Default::default()
         };
 
         let added_deleted_workloads = server_state.update(update_state, update_mask).unwrap();
@@ -775,6 +837,7 @@ mod tests {
 
         let mut server_state = ServerState {
             state: current_complete_state.clone(),
+            ..Default::default()
         };
 
         let added_deleted_workloads = server_state
@@ -792,6 +855,80 @@ mod tests {
         assert_eq!(added_workloads, expected_added_workloads);
         assert_eq!(deleted_workloads, expected_deleted_workloads);
         assert_eq!(server_state.state, new_complete_state);
+    }
+
+    #[test]
+    fn utest_server_state_update_state_update_delete_graph() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let mut workload_1 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let mut workload_2 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_2.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        workload_2.update_strategy = UpdateStrategy::AtLeastOnce;
+
+        let mut workload_3 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_3.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let mut workload_4 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            "workload_4".to_string(),
+            RUNTIME.to_string(),
+        );
+
+        workload_1.dependencies =
+            HashMap::from([(workload_2.name.clone(), AddCondition::AddCondRunning)]);
+
+        workload_2.dependencies =
+            HashMap::from([(workload_3.name.clone(), AddCondition::AddCondSucceeded)]);
+
+        workload_3.dependencies =
+            HashMap::from([(workload_4.name.clone(), AddCondition::AddCondFailed)]);
+
+        workload_4.dependencies.clear();
+
+        let new_state = CompleteState {
+            current_state: State {
+                workloads: HashMap::from([
+                    (workload_1.name.clone(), workload_1.clone()),
+                    (workload_2.name.clone(), workload_2.clone()),
+                    (workload_3.name.clone(), workload_3.clone()),
+                    (workload_4.name.clone(), workload_4.clone()),
+                ]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let mut server_state = ServerState::default();
+
+        let result = server_state.update(new_state.clone(), vec![]);
+        assert!(result.unwrap().is_some());
+
+        let expected_delete_conditions = HashMap::from([(
+            workload_2.name.clone(),
+            HashMap::from([
+                (
+                    workload_1.name.clone(),
+                    DeleteCondition::DelCondNotPendingNorRunning,
+                ),
+                (workload_2.name.clone(), DeleteCondition::DelCondRunning),
+            ]),
+        )]);
+        assert_eq!(expected_delete_conditions, server_state.delete_conditions);
+        assert_eq!(new_state, server_state.state);
+        log::info!("{:?}", server_state.delete_conditions);
     }
 
     fn generate_test_old_state() -> CompleteState {
