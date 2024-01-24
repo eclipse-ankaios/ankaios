@@ -477,7 +477,7 @@ Status: approved
 
 When the ServerState is requested to update its State and the new State has a cycle in the workload dependencies, the server shall reject the new State.
 
-Rationale: A new State may contain inter workload dependencies configurations forming a cycle that brings the system in an undesired state.
+Rationale: A cyclic dependency between workloads will prevent the affected workloads from starting rendering the state invalid.
 
 Comment: The inter workload dependencies config within a state is only valid if the dependencies form an directed acyclic graph.
 
