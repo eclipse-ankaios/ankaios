@@ -30,13 +30,8 @@ activate server
 server -> server++--: validate startup config
 alt startup config valid
 
-
-
-
 loop per agent
     agent ->> grpc_server ++: agent hello (name)
-
-
 
     grpc_server ->> tonic_server **: spawn gRPC server thread
     deactivate grpc_server
@@ -47,10 +42,7 @@ loop per agent
         state change commands
     end note
 
-
-
     server -> server ++--: calculate commands to \n the specific agent
-
 
     server ->> grpc_server --++: send commands
     grpc_server ->> agent --++: forward commands
@@ -61,7 +53,6 @@ loop per agent
     end note
     ... Agent starts workloads according to commands ...
 end
-
 
 else
 server -->> main--: startup config error
