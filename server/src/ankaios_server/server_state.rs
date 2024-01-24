@@ -230,11 +230,11 @@ impl ServerState {
                         })
                         .collect();
 
+                    // [impl->swdd~server-state-rejects-state-with-cyclic-dependencies~1]
                     log::debug!(
                         "Execute cyclic dependency check with start_nodes = {:?}",
                         start_nodes
                     );
-
                     if let Some(workload_part_of_cycle) =
                         cycle_check::dfs(&new_state.current_state, Some(start_nodes))
                     {
