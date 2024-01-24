@@ -1,0 +1,49 @@
+workloads:
+  workload_A:
+    runtime: podman
+    agent: agent_A
+    restart: true
+    updateStrategy: AT_MOST_ONCE
+    accessRights:
+      allow: []
+      deny: []
+    dependencies:
+      workload_B:
+        ADD_COND_SUCCEEDED
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: docker.io/nginx:latest
+      commandOptions: ["-p", "8081:80"]
+  workload_B:
+    runtime: podman
+    agent: agent_B
+    restart: true
+    updateStrategy: AT_MOST_ONCE
+    accessRights:
+      allow: []
+      deny: []
+    dependencies:
+      workload_C:
+        ADD_COND_SUCCEEDED
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: alpine:latest
+      commandArgs: [ "echo", "Hello Ankaios"]
+  workload_D:
+    runtime: podman
+    agent: agent_A
+    restart: true
+    updateStrategy: AT_MOST_ONCE
+    accessRights:
+      allow: []
+      deny: []
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: alpine:latest
+      commandArgs: [ "echo", "Hello Ankaios"]

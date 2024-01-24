@@ -16,7 +16,6 @@ use common::objects::{ExecutionState, WorkloadState};
 use std::collections::HashMap;
 
 type WorkloadStatesMap = HashMap<String, common::objects::ExecutionState>;
-// type WorkloadStates = HashMap<String, bool>;
 type AgentWorkloadStates = HashMap<String, WorkloadStatesMap>;
 
 pub struct WorkloadStateDB {
