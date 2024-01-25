@@ -91,7 +91,10 @@ impl CommunicationsClient for GRPCCommunicationsClient {
                         // [impl->swdd~grpc-client-outputs-error-server-unavailability-for-cli-connection~1]
                         Err(GrpcMiddlewareError::ServerNotAvailable(err)) => {
                             log::debug!("No connection to the server: '{err}'");
-                            return Err(CommunicationMiddlewareError("No connection to the server! Make sure that Ankaios Server is running.".to_string()));
+                            return Err(CommunicationMiddlewareError(format!(
+                                "Could not connect to Ankaios server on '{}'.",
+                                self.server_address
+                            )));
                         }
                         // [impl->swdd~grpc-client-outputs-error-server-connection-loss-for-cli-connection~1]
                         Err(GrpcMiddlewareError::ConnectionInterrupted(err)) => {

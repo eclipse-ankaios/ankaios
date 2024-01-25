@@ -333,6 +333,10 @@ When the CLI receives the list of workloads from the Ankaios Server via CLI comm
 | workload1     | agent | runtime | state           |
 | workload2     | agent | runtime | state           |
 
+Note:
+The column runtime is not filled when the workload has been deleted.
+This can happen when the workload has been deleted from the current state and the workload state is reported as "removed".
+
 Tags:
 - GetWorkloads
 

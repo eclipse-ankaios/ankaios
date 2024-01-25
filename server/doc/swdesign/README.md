@@ -45,12 +45,17 @@ The StartupStateLoader loads the initial startup state, parses it and pushes it 
 The Communication Middleware is responsible for:
 
 * establishing the connections to multiple Ankaios Agents.
-* forwarding the ExecutionRequests and ExecutionStateUpdates from AnkaiosServer to the proper Ankaios Agents through the xecutionCommandChannel.
+* forwarding the ExecutionRequests and ExecutionStateUpdates from AnkaiosServer to the proper Ankaios Agents through the ExecutionCommandChannel.
 * forwarding the StateChangeRequests from connected Agents to the AnkaiosServer.
 
 ### WorkloadStateDB
 
 The WorkloadStateDB is a data structure for storing the Workload States of each nodes.
+
+### ServerState
+
+The ServerState is a data structure for maintaining the state of the Ankaios server. It prevents invariants when updating the state, by doing checks on the new state
+before applying it or when a view on the state is requested.
 
 ## Behavioral view
 
@@ -89,8 +94,10 @@ Tags:
 Needs:
 - impl
 
-### Server starts without startup config
+#### Server starts without startup config
 `swdd~server-starts-without-startup-config~1`
+
+Status: approved
 
 When the Ankaios server is started without a startup config, the server shall start with an empty current state.
 
@@ -102,6 +109,7 @@ Tags:
 
 Needs:
 - impl
+- utest
 - stest
 
 #### StartupStateLoader parses yaml with Startup State
@@ -133,6 +141,24 @@ Tags:
 Needs:
 - impl
 - utest
+
+#### Ankaios server fails to start on invalid startup state config
+`swdd~server-fails-on-invalid-startup-state~1`
+
+Status: approved
+
+When the Startup State is invalid, the server shall not start.
+
+Comment: If the Startup State is invalid no workloads can be deployed.
+
+Rationale: Invalid States shall be avoided to preserve internal invariants.
+
+Tags:
+
+Needs:
+- impl
+- utest
+- stest
 
 #### All communication with Agents through Middleware
 `swdd~communication-to-from-server-middleware~1`
@@ -312,6 +338,8 @@ The following diagram shows the sequence of GetCompleteState request from the ag
 ##### Server provides interface GetCompleteState
 `swdd~server-provides-interface-get-complete-state~1`
 
+Status: approved
+
 The Ankaios Server provides an interface to get the CompleteState.
 The CompleteState includes:
 
@@ -329,6 +357,8 @@ Needs:
 ##### Server filters GetCompleteState requests
 `swdd~server-filters-get-complete-state-result~1`
 
+Status: approved
+
 When the Ankaios Server responses to a GetCompleteState request and the request contains a `field_mask`,
 it only includes fields in the response, which are listed in the `field_mask`.
 
@@ -341,6 +371,8 @@ Needs:
 
 ##### Server includes RequestID in the ControlInterface response
 `swdd~server-includes-id-in-control-interface-response~1`
+
+Status: approved
 
 When the Ankaios Server responses to a GetCompleteState request,
 it includes the the RequestID from the GetCompleteState request.
@@ -360,6 +392,8 @@ The following diagram shows the sequence of UpdateState request from the agent:
 ##### Server provides UpdateCurrentState interface
 `swdd~server-provides-update-current-state-interface~1`
 
+Status: approved
+
 The Ankaios Server provides an UpdateCurrentState interface.
 
 Tags:
@@ -371,6 +405,8 @@ Needs:
 
 ##### UpdateCurrentState interface with empty update_mask
 `swdd~update-current-state-empty-update-mask~1`
+
+Status: approved
 
 When the Ankaios Server gets an UpdateCurrentState request with empty update_mask,
 the Ankaios Server replaces its CurrentState with the newState from the UpdateStateRequest.
@@ -384,6 +420,8 @@ Needs:
 
 ##### UpdateCurrentState interface with update_mask
 `swdd~update-current-state-with-update-mask~1`
+
+Status: approved
 
 When the Ankaios Server gets an UpdateCurrentState request with a non empty update_mask,
 the Ankaios Server replaces each field of its CurrentState listed in the update_mask, with the value of the same field of the newState from the UpdateStateRequest.
@@ -406,6 +444,8 @@ The behavioral diagram of the updating current state is shown in the chapter "Up
 #### Server detects new workload
 `swdd~server-detects-new-workload~1`
 
+Status: approved
+
 When the Ankaios Server gets the `StateChangeCommand` `UpdateState` and detects a change of the state where a workload is present only in the New State,
 the Ankaios Server shall send `ExecutionCommand` to the corresponding Ankaios Agent to add the workload.
 
@@ -419,6 +459,8 @@ Needs:
 
 #### Server detects deleted workload
 `swdd~server-detects-deleted-workload~1`
+
+Status: approved
 
 When the Ankaios Server gets the `StateChangeCommand` `UpdateState` and detects a change of the state where a workload is present only in the Current State,
 the Ankaios Server shall send `ExecutionCommand` to the corresponding Ankaios Agent to delete the workload.
@@ -434,6 +476,8 @@ Needs:
 #### Server detects changed workload
 `swdd~server-detects-changed-workload~1`
 
+Status: approved
+
 When the Ankaios Server gets the `StateChangeCommand` `UpdateState` and detects a change of the state where a workload is present in both states
 and at least one field of the workload is different,
 the Ankaios Server shall send `ExecutionCommand` to the corresponding Ankaios Agents to delete and add the workload.
@@ -445,6 +489,84 @@ Needs:
 - impl
 - utest
 - itest
+
+#### ServerState rejects state with cycle
+`swdd~server-state-rejects-state-with-cyclic-dependencies~1`
+
+Status: approved
+
+When the ServerState is requested to update its State and the new State has a cycle in the workload dependencies, the server shall reject the new State as invalid.
+
+Rationale: A cyclic dependency between workloads will prevent the affected workloads from starting rendering the state invalid.
+
+Comment: The inter workload dependencies config within a state is only valid if the dependencies form an directed acyclic graph.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Cycle detection stops on the first detected cycle
+`swdd~cycle-detection-stops-on-the-first-cycle~1`
+
+Status: approved
+
+When the ServerState searches for cycles within the dependency graph of the State,
+the ServerState shall stop at the first detected cycle.
+
+Rationale: Searching all cycles in a graph might have performance impacts and is not in the scope of the project.
+
+Comment: With only one cycle, the log message remains clearer.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+
+#### Cycle detection ignores non existing workload dependencies
+`swdd~cycle-detection-ignores-non-existing-workloads~1`
+
+Status: approved
+
+When the ServerState searches for cycles within the dependency graph of the State
+and it encounters an edge in the dependency graph that refers to a workload that does not occur in the workload nodes,
+the ServerState shall ignore this edge.
+
+Rationale: A user might want to put a workload into the State that has a dependency to a workload which config is not prepared and published into the State yet.
+
+Comment: Continuation of the cycle search in that case does not break the cycle detection algorithm because a dependency to a workload that is not part of the State cannot introduce a cycle.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Server continues when receiving an invalid state
+`swdd~server-continues-on-invalid-updated-state~1`
+
+Status: approved
+
+When the ServerState rejects an updated state, the server shall continue to listen for incoming requests.
+
+Comment: The continuation allows the user to retry the update of the state.
+
+Rationale: The continuation allows better use-ability.
+
+Tags:
+- AnkaiosServer
+
+Needs:
+- impl
+- utest
+- stest
 
 ## Data view
 

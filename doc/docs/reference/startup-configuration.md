@@ -12,9 +12,9 @@ A workload specification must contain the following information:
 * `agent`, specify the name of the owning agent which is going to execute the workload.
 * `restart`, specify if the workload shall be restarted when it exits (not implemented yet).
 * `updateStrategy`, specify the update strategy (not implemented yet) which can be one of the following values:
-  * `UNSPECIFIED`
-  * `AT_LEAST_ONCE`
-  * `AT_MOST_ONCE`
+    * `UNSPECIFIED`
+    * `AT_LEAST_ONCE`
+    * `AT_MOST_ONCE`
 * `accessRights`, specify lists of access rules for `allow` and `deny` (not implemented yet; shall be set to empty list for both).
 * `tags`, specify a list of `key` `value`  pairs.
 * `runtimeConfig`, specify as a _string_ the configuration for the [runtime](./glossary.md#runtime) whose configuration structure is specific for each runtime, e.g., for `podman` runtime the [PodmanRuntimeConfig](#podmanruntimeconfig) is used.

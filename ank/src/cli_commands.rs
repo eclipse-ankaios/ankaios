@@ -341,40 +341,37 @@ impl CliCommands {
         let res_complete_state = self.get_complete_state(&Vec::new()).await?;
 
         let mut workload_infos: Vec<WorkloadInfo> = res_complete_state
-            .current_state
-            .workloads
-            .values()
-            .cloned()
-            .map(|w| WorkloadInfo {
-                name: w.name,
-                agent: w.agent,
-                runtime: w.runtime,
-                execution_state: String::new(),
+            .workload_states
+            .into_iter()
+            .map(|wl_state| WorkloadInfo {
+                name: wl_state.workload_name,
+                agent: wl_state.agent_name,
+                runtime: String::new(),
+                execution_state: wl_state.execution_state.to_string(),
             })
             .collect();
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
         for wi in &mut workload_infos {
-            if let Some(ws) = res_complete_state
-                .workload_states
+            if let Some((_found_wl_name, found_wl_spec)) = res_complete_state
+                .current_state
+                .workloads
                 .iter()
-                .find(|ws| ws.agent_name == wi.agent && ws.workload_name == wi.name)
+                .find(|&(wl_name, wl_spec)| *wl_name == wi.name && wl_spec.agent == wi.agent)
             {
-                wi.execution_state = ws.execution_state.to_string();
+                wi.runtime = found_wl_spec.runtime.clone();
             }
         }
         output_debug!("The table before filtering:\n{:?}", workload_infos);
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-        if agent_name.is_some() {
-            workload_infos.retain(|wi| &wi.agent == agent_name.as_ref().unwrap());
+        if let Some(agent_name) = agent_name {
+            workload_infos.retain(|wi| wi.agent == agent_name);
         }
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-        if state.is_some() {
-            workload_infos.retain(|wi| {
-                wi.execution_state.to_lowercase() == state.as_ref().unwrap().to_lowercase()
-            });
+        if let Some(state) = state {
+            workload_infos.retain(|wi| wi.execution_state.to_lowercase() == state.to_lowercase());
         }
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
@@ -480,12 +477,12 @@ impl CliCommands {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use std::{io, thread};
+    use std::{collections::HashMap, io, thread};
 
     use common::{
         commands::{self, Request, RequestContent, Response, ResponseContent},
         from_server_interface::FromServer,
-        objects::{Tag, WorkloadSpec},
+        objects::{ExecutionState, Tag, WorkloadSpec, WorkloadState},
         test_utils::{self, generate_test_complete_state},
         to_server_interface::{ToServer, ToServerReceiver},
     };
@@ -853,6 +850,61 @@ mod tests {
 
         let expected_table: Vec<WorkloadInfo> = Vec::new();
         let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
+        assert_eq!(cmd_text.unwrap(), expected_table_text);
+    }
+
+    // [utest->swdd~cli-shall-present-list-workloads-as-table~1]
+    #[tokio::test]
+    async fn get_workloads_deleted_workload() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let test_data =
+            commands::CompleteState {
+                workload_states: vec![WorkloadState {
+                    workload_name: "Workload_1".to_string(),
+                    agent_name: "agent_A".to_string(),
+                    execution_state: ExecutionState::ExecRemoved,
+                }],
+                ..Default::default()
+            };
+
+        let complete_state = vec![FromServer::Response(Response {
+            request_id: "TestCli".to_owned(),
+            response_content: ResponseContent::CompleteState(Box::new(test_data.clone())),
+        })];
+
+
+        let mut mock_client = MockGRPCCommunicationsClient::default();
+        mock_client
+            .expect_run()
+            .return_once(|_r, to_cli| prepare_server_response(complete_state, to_cli));
+
+        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
+        mock_new
+            .expect()
+            .return_once(move |_name, _server_address| mock_client);
+
+        let mut cmd = CliCommands::init(
+            RESPONSE_TIMEOUT_MS,
+            "TestCli".to_string(),
+            Url::parse("http://localhost").unwrap(),
+        );
+
+        let cmd_text = cmd.get_workloads(None, None, Vec::new()).await;
+        assert!(cmd_text.is_ok());
+
+        let expected_empty_table: Vec<WorkloadInfo> = vec![WorkloadInfo {
+            name: String::from("Workload_1"),
+            agent: String::from("agent_A"),
+            runtime: String::new(),
+            execution_state: String::from("Removed"),
+        }];
+        let expected_table_text = Table::new(expected_empty_table)
+            .with(Style::blank())
+            .to_string();
+
         assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
 

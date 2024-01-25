@@ -5,7 +5,10 @@
         "VecDeque",
         "Northstar",
         "protobuf",
-        "swdd"
+        "swdd",
+        "automock",
+        "mockall",
+        "Elektrobit"
     ],
     "markdown-preview-github-styles.colorTheme": "light",
     "hediet.vscode-drawio.theme": "min",
