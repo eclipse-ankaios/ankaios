@@ -112,10 +112,29 @@ fn extract_added_and_deleted_workloads(
     Some((added_workloads, deleted_workloads))
 }
 
-fn map_add_to_delete_condition(add_condition: &AddCondition) -> Option<DeleteCondition> {
-    match add_condition {
-        AddCondition::AddCondRunning => Some(DeleteCondition::DelCondNotPendingNorRunning),
-        _ => None,
+fn update_delete_graph(delete_graph: &mut DeleteGraph, state: &State) {
+    for workload in state.workloads.values() {
+        for (dependency_name, add_condition) in workload.dependencies.iter() {
+            /* for other add conditions besides AddCondRunning
+            the workload can be deleted immediately and does not need a delete condition */
+            if add_condition == &AddCondition::AddCondRunning {
+                let workload_name = workload.name.clone();
+                delete_graph
+                    .entry(dependency_name.clone())
+                    .and_modify(|e| {
+                        e.insert(
+                            workload_name.clone(),
+                            DeleteCondition::DelCondNotPendingNorRunning,
+                        );
+                    })
+                    .or_insert_with(|| {
+                        HashMap::from([(
+                            workload_name,
+                            DeleteCondition::DelCondNotPendingNorRunning,
+                        )])
+                    });
+            }
+        }
     }
 }
 
@@ -146,13 +165,13 @@ impl Display for UpdateStateError {
     }
 }
 
-use common::objects::{AddCondition, DeleteCondition, UpdateStrategy};
+use common::objects::{AddCondition, DeleteCondition};
 pub type DeleteGraph = HashMap<String, HashMap<String, DeleteCondition>>;
 
 #[derive(Default)]
 pub struct ServerState {
     state: CompleteState,
-    delete_conditions: DeleteGraph,
+    delete_graph: DeleteGraph,
 }
 
 pub type AddedDeletedWorkloads = Option<(Vec<WorkloadSpec>, Vec<DeletedWorkload>)>;
@@ -217,40 +236,6 @@ impl ServerState {
             .collect()
     }
 
-    fn update_delete_graph(
-        &mut self,
-        added_workloads: &[WorkloadSpec],
-        _deleted_workloads: &[DeletedWorkload],
-    ) {
-        let mut update_delete_conditions =
-            |dependency_name: String, workload_name: String, delete_condition: DeleteCondition| {
-                self.delete_conditions
-                    .entry(dependency_name)
-                    .and_modify(|e| {
-                        e.insert(workload_name.clone(), delete_condition);
-                    })
-                    .or_insert_with(|| HashMap::from([(workload_name, delete_condition)]));
-            };
-        for workload in added_workloads {
-            if workload.update_strategy == UpdateStrategy::AtLeastOnce {
-                update_delete_conditions(
-                    workload.name.clone(),
-                    workload.name.clone(),
-                    DeleteCondition::DelCondRunning,
-                );
-            }
-            for (dependency_name, add_condition) in workload.dependencies.iter() {
-                if let Some(delete_condition) = map_add_to_delete_condition(add_condition) {
-                    update_delete_conditions(
-                        dependency_name.clone(),
-                        workload.name.clone(),
-                        delete_condition,
-                    );
-                }
-            }
-        }
-    }
-
     pub fn update(
         &mut self,
         new_state: CompleteState,
@@ -288,7 +273,7 @@ impl ServerState {
                         ));
                     }
 
-                    self.update_delete_graph(&added_workloads, &deleted_workloads);
+                    self::update_delete_graph(&mut self.delete_graph, &new_state.current_state);
 
                     self.state = new_state;
                     Ok(Some((added_workloads, deleted_workloads)))
@@ -314,9 +299,7 @@ mod tests {
 
     use common::{
         commands::{CompleteState, RequestCompleteState},
-        objects::{
-            AddCondition, DeleteCondition, DeletedWorkload, State, UpdateStrategy, WorkloadSpec,
-        },
+        objects::{AddCondition, DeleteCondition, DeletedWorkload, State, WorkloadSpec},
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
     };
 
@@ -873,8 +856,6 @@ mod tests {
             RUNTIME.to_string(),
         );
 
-        workload_2.update_strategy = UpdateStrategy::AtLeastOnce;
-
         let mut workload_3 = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
             WORKLOAD_NAME_3.to_string(),
@@ -916,19 +897,16 @@ mod tests {
         let result = server_state.update(new_state.clone(), vec![]);
         assert!(result.unwrap().is_some());
 
-        let expected_delete_conditions = HashMap::from([(
+        let expected_delete_graph = HashMap::from([(
             workload_2.name.clone(),
-            HashMap::from([
-                (
-                    workload_1.name.clone(),
-                    DeleteCondition::DelCondNotPendingNorRunning,
-                ),
-                (workload_2.name.clone(), DeleteCondition::DelCondRunning),
-            ]),
+            HashMap::from([(
+                workload_1.name.clone(),
+                DeleteCondition::DelCondNotPendingNorRunning,
+            )]),
         )]);
-        assert_eq!(expected_delete_conditions, server_state.delete_conditions);
+        assert_eq!(expected_delete_graph, server_state.delete_graph);
         assert_eq!(new_state, server_state.state);
-        log::info!("{:?}", server_state.delete_conditions);
+        log::info!("{:?}", server_state.delete_graph);
     }
 
     fn generate_test_old_state() -> CompleteState {
