@@ -24,8 +24,6 @@ use std::fs;
 use common::communications_server::CommunicationsServer;
 use common::objects::State;
 use common::std_extensions::GracefulExitResult;
-use common::to_server_interface::ToServerInterface;
-use common::{communications_server::CommunicationsServer, std_extensions::IllegalStateResult};
 
 use ankaios_server::{create_execution_channels, create_state_change_channels, AnkaiosServer};
 
@@ -58,7 +56,6 @@ async fn main() {
                 state.workloads
             );
             Some(CompleteState {
-                request_id: "".to_string(),
                 current_state: state,
                 ..Default::default()
             })

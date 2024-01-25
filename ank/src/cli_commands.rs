@@ -477,7 +477,7 @@ impl CliCommands {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, io, thread};
+    use std::{io, thread};
 
     use common::{
         commands::{self, Request, RequestContent, Response, ResponseContent},

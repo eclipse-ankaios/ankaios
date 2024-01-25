@@ -27,9 +27,7 @@ use crate::control_interface::PipesChannelContext;
 use common::{
     commands::{self, ResponseContent},
     from_server_interface::FromServer,
-    objects::{ExecutionState, WorkloadSpec},
-    std_extensions::IllegalStateResult,
-    to_server_interface::{ToServerInterface, ToServerSender},
+    objects::WorkloadSpec,
 };
 
 #[cfg(test)]
@@ -160,11 +158,9 @@ mod tests {
     use std::time::Duration;
 
     use common::{
-        commands::{CompleteState, Response, ResponseContent, UpdateWorkloadState},
+        commands::{CompleteState, Response, ResponseContent},
         from_server_interface::FromServer,
-        objects::{ExecutionState, WorkloadState},
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
-        to_server_interface::ToServer,
     };
     use tokio::{sync::mpsc, time::timeout};
 
