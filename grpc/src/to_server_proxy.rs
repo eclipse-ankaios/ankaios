@@ -231,7 +231,7 @@ mod tests {
 
     // [utest->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
     #[tokio::test]
-    async fn utest_state_change_command_forward_from_ankaios_to_proto_update_workload() {
+    async fn utest_to_server_command_forward_from_ankaios_to_proto_update_workload() {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<proto::ToServer>(common::CHANNEL_CAPACITY);
 
@@ -272,7 +272,7 @@ mod tests {
 
     // [utest->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
     #[tokio::test]
-    async fn utest_state_change_command_forward_from_ankaios_to_proto_update_workload_state() {
+    async fn utest_to_server_command_forward_from_ankaios_to_proto_update_workload_state() {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<proto::ToServer>(common::CHANNEL_CAPACITY);
 
@@ -306,7 +306,7 @@ mod tests {
 
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
     #[tokio::test]
-    async fn utest_state_change_command_forward_from_proto_to_ankaios_ignores_none() {
+    async fn utest_to_server_command_forward_from_proto_to_ankaios_ignores_none() {
         let agent_name = "fake_agent";
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
@@ -332,7 +332,7 @@ mod tests {
 
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
     #[tokio::test]
-    async fn utest_state_change_command_forward_from_proto_to_ankaios_handles_missing_to_server() {
+    async fn utest_to_server_command_forward_from_proto_to_ankaios_handles_missing_to_server() {
         let agent_name = "fake_agent";
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
@@ -366,7 +366,7 @@ mod tests {
 
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
     #[tokio::test]
-    async fn utest_state_change_command_forward_from_proto_to_ankaios_fail_on_invalid_state() {
+    async fn utest_to_server_command_forward_from_proto_to_ankaios_fail_on_invalid_state() {
         let agent_name = "fake_agent";
         let (server_tx, mut _server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
@@ -417,7 +417,7 @@ mod tests {
 
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
     #[tokio::test]
-    async fn utest_state_change_command_forward_from_proto_to_ankaios_update_workload() {
+    async fn utest_to_server_command_forward_from_proto_to_ankaios_update_workload() {
         let agent_name = "fake_agent";
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
@@ -472,7 +472,7 @@ mod tests {
 
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
     #[tokio::test]
-    async fn utest_state_change_command_forward_from_proto_to_ankaios_update_workload_state() {
+    async fn utest_to_server_command_forward_from_proto_to_ankaios_update_workload_state() {
         let agent_name = "fake_agent";
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
@@ -517,7 +517,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_state_change_command_forward_from_proto_to_ankaios_request_complete_state() {
+    async fn utest_to_server_command_forward_from_proto_to_ankaios_request_complete_state() {
         let agent_name = "fake_agent";
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
@@ -563,7 +563,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_state_change_command_forward_from_ankaios_to_proto_request_complete_state() {
+    async fn utest_to_server_command_forward_from_ankaios_to_proto_request_complete_state() {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<proto::ToServer>(common::CHANNEL_CAPACITY);
 
