@@ -20,7 +20,7 @@ use api::proto::{self, Request};
 use api::proto::{CompleteStateRequest, UpdateStateRequest};
 
 use common::request_id_prepending::prepend_request_id;
-use common::to_server_interface::{ToServer, ToServerInterface, ToServerReceiver};
+use common::to_server_interface::{ToServer, ToServerInterface, ToServerReceiver, ToServerSender};
 
 use tokio::sync::mpsc::Sender;
 use tonic::Streaming;
@@ -48,7 +48,7 @@ impl GRPCStreaming<proto::ToServer> for GRPCToServerStreaming {
 pub async fn forward_from_proto_to_ankaios(
     agent_name: String,
     grpc_streaming: &mut impl GRPCStreaming<proto::ToServer>,
-    sink: Sender<ToServer>,
+    sink: ToServerSender,
 ) -> Result<(), GrpcMiddlewareError> {
     while let Some(message) = grpc_streaming.message().await? {
         log::trace!("REQUEST={:?}", message);

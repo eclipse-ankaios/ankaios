@@ -19,14 +19,15 @@ use api::proto::from_server::FromServerEnum;
 use api::proto::{self, response, CompleteState};
 
 use async_trait::async_trait;
-use common::from_server_interface::{FromServer, FromServerInterface};
+use common::from_server_interface::{
+    FromServer, FromServerInterface, FromServerReceiver, FromServerSender,
+};
 use common::objects::{
     get_workloads_per_agent, DeletedWorkload, DeletedWorkloadCollection, WorkloadCollection,
     WorkloadSpec, WorkloadState,
 };
 use common::request_id_prepending::detach_prefix_from_request_id;
 
-use tokio::sync::mpsc::{Receiver, Sender};
 use tonic::Streaming;
 
 pub struct GRPCFromServerStreaming {
@@ -50,7 +51,7 @@ impl GRPCStreaming<proto::FromServer> for GRPCFromServerStreaming {
 pub async fn forward_from_proto_to_ankaios(
     agent_name: &str,
     grpc_streaming: &mut impl GRPCStreaming<proto::FromServer>,
-    agent_tx: &Sender<FromServer>,
+    agent_tx: &FromServerSender,
 ) -> Result<(), GrpcMiddlewareError> {
     while let Some(value) = grpc_streaming.message().await? {
         log::trace!("RESPONSE={:?}", value);
@@ -128,7 +129,7 @@ pub async fn forward_from_proto_to_ankaios(
 // [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
 pub async fn forward_from_ankaios_to_proto(
     agent_senders: &AgentSendersMap,
-    receiver: &mut Receiver<FromServer>,
+    receiver: &mut FromServerReceiver,
 ) {
     while let Some(from_server_msg) = receiver.recv().await {
         match from_server_msg {

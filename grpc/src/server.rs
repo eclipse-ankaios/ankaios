@@ -18,8 +18,6 @@ use common::communications_server::CommunicationsServer;
 
 use tonic::transport::Server;
 
-use tokio::sync::mpsc::{Receiver, Sender};
-
 use std::net::SocketAddr;
 
 use crate::agent_senders_map::AgentSendersMap;
@@ -30,14 +28,14 @@ use api::proto::agent_connection_server::AgentConnectionServer;
 use crate::from_server_proxy;
 use crate::grpc_agent_connection::GRPCAgentConnection;
 
-use common::from_server_interface::FromServer;
-use common::to_server_interface::ToServer;
+use common::from_server_interface::FromServerReceiver;
+use common::to_server_interface::ToServerSender;
 
 use async_trait::async_trait;
 
 #[derive(Debug)]
 pub struct GRPCCommunicationsServer {
-    sender: Sender<ToServer>,
+    sender: ToServerSender,
     agent_senders: AgentSendersMap,
 }
 
@@ -45,7 +43,7 @@ pub struct GRPCCommunicationsServer {
 impl CommunicationsServer for GRPCCommunicationsServer {
     async fn start(
         &mut self,
-        mut receiver: Receiver<FromServer>,
+        mut receiver: FromServerReceiver,
         addr: SocketAddr,
     ) -> Result<(), CommunicationMiddlewareError> {
         // [impl->swdd~grpc-server-creates-agent-connection~1]
@@ -86,7 +84,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
 }
 
 impl GRPCCommunicationsServer {
-    pub fn new(sender: Sender<ToServer>) -> Self {
+    pub fn new(sender: ToServerSender) -> Self {
         GRPCCommunicationsServer {
             agent_senders: AgentSendersMap::new(),
             sender,

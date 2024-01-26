@@ -24,12 +24,12 @@ use api::proto::AgentHello;
 
 use common::communications_client::CommunicationsClient;
 use common::communications_error::CommunicationMiddlewareError;
-use common::from_server_interface::FromServer;
+use common::from_server_interface::FromServerSender;
 
 use common::to_server_interface::ToServerReceiver;
 
 use tokio::select;
-use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::mpsc::Receiver;
 use tokio_stream::wrappers::ReceiverStream;
 
 use async_trait::async_trait;
@@ -71,7 +71,7 @@ impl CommunicationsClient for GRPCCommunicationsClient {
     async fn run(
         &mut self,
         mut server_rx: ToServerReceiver,
-        agent_tx: Sender<FromServer>,
+        agent_tx: FromServerSender,
     ) -> Result<(), CommunicationMiddlewareError> {
         log::debug!("gRPC Communication Client starts.");
 
@@ -123,7 +123,7 @@ impl GRPCCommunicationsClient {
     async fn run_internal(
         &self,
         server_rx: &mut ToServerReceiver,
-        agent_tx: &Sender<FromServer>,
+        agent_tx: &FromServerSender,
     ) -> Result<(), GrpcMiddlewareError> {
         // [impl->swdd~grpc-client-creates-to-server-channel~1]
         let (grpc_tx, grpc_rx) =

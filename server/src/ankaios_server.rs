@@ -16,7 +16,9 @@ mod cycle_check;
 mod server_state;
 
 use common::commands::{CompleteState, Request, UpdateWorkload};
+use common::from_server_interface::{FromServerReceiver, FromServerSender};
 use common::std_extensions::IllegalStateResult;
+use common::to_server_interface::{ToServerReceiver, ToServerSender};
 
 #[cfg_attr(test, mockall_double::double)]
 use server_state::ServerState;
@@ -27,10 +29,10 @@ use common::{
     to_server_interface::ToServer,
 };
 
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::mpsc::channel;
 
-pub type ToServerChannel = (Sender<ToServer>, Receiver<ToServer>);
-pub type FromServerChannel = (Sender<FromServer>, Receiver<FromServer>);
+pub type ToServerChannel = (ToServerSender, ToServerReceiver);
+pub type FromServerChannel = (FromServerSender, FromServerReceiver);
 
 pub fn create_to_server_channel(capacity: usize) -> ToServerChannel {
     channel::<ToServer>(capacity)
@@ -41,15 +43,15 @@ pub fn create_from_server_channel(capacity: usize) -> FromServerChannel {
 
 pub struct AnkaiosServer {
     // [impl->swdd~server-uses-async-channels~1]
-    receiver: Receiver<ToServer>,
+    receiver: ToServerReceiver,
     // [impl->swdd~communication-to-from-server-middleware~1]
-    to_agents: Sender<FromServer>,
+    to_agents: FromServerSender,
     server_state: ServerState,
     workload_state_db: WorkloadStateDB,
 }
 
 impl AnkaiosServer {
-    pub fn new(receiver: Receiver<ToServer>, to_agents: Sender<FromServer>) -> Self {
+    pub fn new(receiver: ToServerReceiver, to_agents: FromServerSender) -> Self {
         AnkaiosServer {
             receiver,
             to_agents,

@@ -8,15 +8,12 @@ mod grpc_tests {
         communications_client::CommunicationsClient,
         communications_error::CommunicationMiddlewareError,
         communications_server::CommunicationsServer,
-        from_server_interface::FromServer,
-        to_server_interface::{ToServer, ToServerInterface},
+        from_server_interface::{FromServer, FromServerSender},
+        to_server_interface::{ToServer, ToServerInterface, ToServerReceiver, ToServerSender},
     };
     use grpc::{client::GRPCCommunicationsClient, server::GRPCCommunicationsServer};
 
-    use tokio::{
-        sync::mpsc::{Receiver, Sender},
-        time::timeout,
-    };
+    use tokio::time::timeout;
     use url::Url;
 
     enum CommunicationType {
@@ -28,9 +25,9 @@ mod grpc_tests {
         server_addr: &str,
         comm_type: CommunicationType,
         test_request_id: &str,
-        to_grpc_server: Sender<FromServer>,
+        to_grpc_server: FromServerSender,
     ) -> (
-        Sender<ToServer>,
+        ToServerSender,
         tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>,
     ) {
         let (to_grpc_client, grpc_client_receiver) = tokio::sync::mpsc::channel::<ToServer>(20);
@@ -58,8 +55,8 @@ mod grpc_tests {
         comm_type: CommunicationType,
         test_request_id: &str,
     ) -> (
-        Sender<ToServer>,                                                  // to_grpc_client
-        Receiver<ToServer>,                                                // server_receiver
+        ToServerSender,                                                    // to_grpc_client
+        ToServerReceiver,                                                  // server_receiver
         tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>, // grpc_server_task
         tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>, // grpc_client_task
     ) {

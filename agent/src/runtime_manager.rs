@@ -345,12 +345,13 @@ mod tests {
     use crate::workload::{MockWorkload, WorkloadError};
     use common::commands::ResponseContent;
     use common::objects::WorkloadExecutionInstanceNameBuilder;
-    use common::test_utils::{generate_test_complete_state, generate_test_deleted_workload};
-    use common::{
-        test_utils::generate_test_workload_spec_with_param, to_server_interface::ToServer,
+    use common::test_utils::{
+        generate_test_complete_state, generate_test_deleted_workload,
+        generate_test_workload_spec_with_param,
     };
+    use common::to_server_interface::ToServerReceiver;
     use mockall::{predicate, Sequence};
-    use tokio::sync::mpsc::{channel, Receiver};
+    use tokio::sync::mpsc::channel;
 
     const BUFFER_SIZE: usize = 20;
     const RUNTIME_NAME: &str = "runtime1";
@@ -377,7 +378,7 @@ mod tests {
             self
         }
 
-        pub fn build(self) -> (Receiver<ToServer>, RuntimeManager) {
+        pub fn build(self) -> (ToServerReceiver, RuntimeManager) {
             let (to_server, server_receiver) = channel(BUFFER_SIZE);
             let runtime_manager = RuntimeManager::new(
                 AGENT_NAME.into(),

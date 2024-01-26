@@ -23,9 +23,9 @@ use tests::read_to_string_mock as read_file_to_string;
 
 use common::{
     commands::{CompleteState, CompleteStateRequest, Response, ResponseContent},
-    from_server_interface::FromServer,
+    from_server_interface::{FromServer, FromServerReceiver},
     objects::{Tag, WorkloadSpec},
-    to_server_interface::{ToServer, ToServerInterface},
+    to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
 
 #[cfg(not(test))]
@@ -162,8 +162,8 @@ fn setup_cli_communication(
     server_url: Url,
 ) -> (
     tokio::task::JoinHandle<()>,
-    tokio::sync::mpsc::Sender<ToServer>,
-    tokio::sync::mpsc::Receiver<FromServer>,
+    ToServerSender,
+    FromServerReceiver,
 ) // (task,sender,receiver)
 {
     let mut grpc_communications_client =
@@ -199,8 +199,8 @@ pub struct CliCommands {
     _response_timeout_ms: u64,
     cli_name: String,
     task: tokio::task::JoinHandle<()>,
-    to_server: tokio::sync::mpsc::Sender<ToServer>,
-    from_server: tokio::sync::mpsc::Receiver<FromServer>,
+    to_server: ToServerSender,
+    from_server: FromServerReceiver,
 }
 
 impl CliCommands {
@@ -481,13 +481,12 @@ mod tests {
 
     use common::{
         commands::{self, Request, RequestContent, Response, ResponseContent},
-        from_server_interface::FromServer,
+        from_server_interface::{FromServer, FromServerSender},
         objects::{ExecutionState, Tag, WorkloadSpec, WorkloadState},
         test_utils::{self, generate_test_complete_state},
         to_server_interface::{ToServer, ToServerReceiver},
     };
     use tabled::{settings::Style, Table};
-    use tokio::sync::mpsc::Sender;
 
     use crate::{
         cli::OutputFormat,
@@ -536,14 +535,14 @@ mod tests {
             pub async fn run(
                 &mut self,
                 mut server_rx: ToServerReceiver,
-                agent_tx: Sender<FromServer>,
+                agent_tx: FromServerSender,
             ) -> Result<(), String>;
         }
     }
 
     fn prepare_server_response(
         complete_states: Vec<FromServer>,
-        to_cli: Sender<FromServer>,
+        to_cli: FromServerSender,
     ) -> Result<(), String> {
         let sync_code = thread::spawn(move || {
             complete_states.into_iter().for_each(|cs| {
@@ -860,21 +859,19 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let test_data =
-            commands::CompleteState {
-                workload_states: vec![WorkloadState {
-                    workload_name: "Workload_1".to_string(),
-                    agent_name: "agent_A".to_string(),
-                    execution_state: ExecutionState::ExecRemoved,
-                }],
-                ..Default::default()
-            };
+        let test_data = commands::CompleteState {
+            workload_states: vec![WorkloadState {
+                workload_name: "Workload_1".to_string(),
+                agent_name: "agent_A".to_string(),
+                execution_state: ExecutionState::ExecRemoved,
+            }],
+            ..Default::default()
+        };
 
         let complete_state = vec![FromServer::Response(Response {
             request_id: "TestCli".to_owned(),
             response_content: ResponseContent::CompleteState(Box::new(test_data.clone())),
         })];
-
 
         let mut mock_client = MockGRPCCommunicationsClient::default();
         mock_client
