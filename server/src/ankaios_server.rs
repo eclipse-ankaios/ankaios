@@ -141,7 +141,7 @@ impl AnkaiosServer {
                     self.workload_state_db
                         .mark_all_workload_state_for_agent_unknown(&method_obj.agent_name);
 
-                    // communicate the workload state changes to other agents
+                    // communicate the workload execution states to other agents
                     // [impl->swdd~server-distribute-workload-state-unknown-on-disconnect~1]
                     self.to_agents
                         .update_workload_state(
