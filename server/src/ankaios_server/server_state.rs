@@ -112,13 +112,13 @@ fn extract_added_and_deleted_workloads(
     Some((added_workloads, deleted_workloads))
 }
 
-fn update_delete_graph(delete_graph: &mut DeleteGraph, state: &State) {
-    for workload in state.workloads.values() {
-        for (dependency_name, add_condition) in workload.dependencies.iter() {
-            /* for other add conditions besides AddCondRunning
+fn update_delete_graph(delete_graph: &mut DeleteGraph, added_workloads: &[WorkloadSpec]) {
+    for workload_spec in added_workloads {
+        for (dependency_name, add_condition) in workload_spec.dependencies.iter() {
+            /* currently for other add conditions besides AddCondRunning
             the workload can be deleted immediately and does not need a delete condition */
             if add_condition == &AddCondition::AddCondRunning {
-                let workload_name = workload.name.clone();
+                let workload_name = workload_spec.name.clone();
                 delete_graph
                     .entry(dependency_name.clone())
                     .and_modify(|e| {
@@ -273,7 +273,7 @@ impl ServerState {
                         ));
                     }
 
-                    self::update_delete_graph(&mut self.delete_graph, &new_state.current_state);
+                    self::update_delete_graph(&mut self.delete_graph, &added_workloads);
 
                     self.state = new_state;
                     Ok(Some((added_workloads, deleted_workloads)))
