@@ -139,14 +139,17 @@ fn read_from_control_interface() {
         if let Ok(binary) = read_protobuf_data(&mut ex_req) {
             let from_server = FromServer::decode(&mut Box::new(binary.as_ref()));
 
-            logging::log(&format!("Receiving Response message containing the workload states of the current state: {:#?}", from_server));
+            logging::log(&format!(
+                "Receiving Response containing the workload states of the current state: {:#?}",
+                from_server
+            ));
         }
     }
 }
 
 /// Writes a Request into the control interface output fifo
-/// to add the new workload dynamically and every 30 sec another Request
-/// to request the workload states.
+// to add the new workload dynamically and every x sec according to WAITING_TIME_IN_SEC
+// another Request to request the workload states.
 fn write_to_control_interface() {
     let pipes_location = Path::new(ANKAIOS_CONTROL_INTERFACE_BASE_PATH);
     let sc_req_fifo = pipes_location.join("output");
@@ -162,7 +165,7 @@ fn write_to_control_interface() {
 
     let protobuf_update_workload_request = create_request_to_add_new_workload();
 
-    logging::log(format!("Sending Request containing details for adding the dynamic workload \"dynamic_nginx\": {:#?}", protobuf_update_workload_request).as_str());
+    logging::log(format!("Sending Request containing details for adding the dynamic workload \"dynamic_nginx\":\n{:#?}", protobuf_update_workload_request).as_str());
 
     sc_req
         .write_all(&protobuf_update_workload_request.encode_length_delimited_to_vec())
@@ -172,7 +175,7 @@ fn write_to_control_interface() {
     loop {
         logging::log(
             format!(
-                "Sending Request containing details for requesting all workload states: {:#?}",
+                "Sending Request containing details for requesting all workload states:\n{:#?}",
                 protobuf_request_complete_state_request
             )
             .as_str(),

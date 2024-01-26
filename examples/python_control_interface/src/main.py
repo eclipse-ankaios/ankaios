@@ -90,8 +90,8 @@ def read_from_control_interface():
 
 def write_to_control_interface():
     """Writes a Request into the control interface output fifo
-    to add the new workload dynamically and every 30 sec another Request
-    to request the workload states.
+    to add the new workload dynamically and every x sec according to WAITING_TIME_IN_SEC
+    another Request to request the workload states.
     """
 
     with open(f"{ANKAIOS_CONTROL_INTERFACE_BASE_PATH}/output", "ab") as f:
@@ -99,7 +99,7 @@ def write_to_control_interface():
         update_workload_request_byte_len = update_workload_request.ByteSize() # Length of the msg
         proto_update_workload_request_msg = update_workload_request.SerializeToString() # Serialized proto msg
 
-        logger.info(f"Sending Request containing details for adding the dynamic workload \'dynamic_nginx\':\nToServer {{\n{update_workload_request}}}\n")
+        logger.info(f'Sending Request containing details for adding the dynamic workload \"dynamic_nginx\":\nToServer {{\n{update_workload_request}}}\n')
         f.write(_VarintBytes(update_workload_request_byte_len)) # Send the byte length of the proto msg
         f.write(proto_update_workload_request_msg) # Send the proto msg itself
         f.flush()
@@ -113,7 +113,7 @@ def write_to_control_interface():
             f.write(_VarintBytes(request_complete_state_byte_len)) # Send the byte length of the proto msg
             f.write(proto_request_complete_state_msg) # Send the proto msg itself
             f.flush()
-            time.sleep(WAITING_TIME_IN_SEC) # Wait until sending the next RequestCompleteState to avoid spamming...
+            time.sleep(WAITING_TIME_IN_SEC) # Wait according to WAITING_TIME_IN_SEC until sending the next Request to server to avoid spamming...
 
 if __name__ == '__main__':
     read_thread = threading.Thread(target=read_from_control_interface)

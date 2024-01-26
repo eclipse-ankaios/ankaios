@@ -108,8 +108,8 @@ void readFromControlInterface()
 }
 
 /* Writes a Request into the control interface output fifo
-    to add the new workload dynamically and every 30 sec another Request
-    to request the workload states. */
+    to add the new workload dynamically and every x sec according to WAITING_TIME_IN_SEC
+    another Request to request the workload states. */
 void writeToControlInterface()
 {
     const auto requestToAddNewWorkload = createRequestToAddNewWorkload();
@@ -122,7 +122,7 @@ void writeToControlInterface()
     }
 
     logging::log(std::cout,
-                 "Sending Request containing details for adding the dynamic workload \'dynamic_nginx\':\n",
+                 "Sending Request containing details for adding the dynamic workload \"dynamic_nginx\":\n",
                  "ToServer {\n",
                  requestToAddNewWorkload.DebugString(),
                  "}\n");

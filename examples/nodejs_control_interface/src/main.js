@@ -9,18 +9,6 @@ let ToServer;
 let FromServer;
 let UpdateStrategyEnum;
 
-function write_to_control_interface(root, message) {
-    ToServer = root.lookupType("ankaios.ToServer");
-    let buffer = ToServer.encodeDelimited(message).finish(); // use length-delimited encoding!!!
-
-    const ci_output_path = '/run/ankaios/control_interface/output';
-    fs.writeFile(ci_output_path, buffer, { flag: 'a+' }, err => {
-        if (err) {
-            console.error(err);
-        }
-    });
-}
-
 function create_request_to_add_new_workload(root) {
     /* Create the Request containing an UpdateStateRequest
     that contains the details for adding the new workload and
@@ -82,10 +70,11 @@ function create_request_for_complete_state(root) {
 function decode_from_server_response_message(root, data) {
     FromServer = root.lookupType("ankaios.FromServer");
     const decoded_message = FromServer.decodeDelimited(data);
-    console.log(`[${new Date().toISOString()}] Receiving Response containing the workload states of the current state:\n FromServer `, util.inspect(decoded_message.toJSON(), { depth: null }));
+    console.log(`[${new Date().toISOString()}] Receiving Response containing the workload states of the current state:\nFromServer `, util.inspect(decoded_message.toJSON(), { depth: null }));
 }
 
 function read_from_control_interface(root, decode_func) {
+    // Reads from the control interface input fifo and prints the workload states.
     const ci_input_path = '/run/ankaios/control_interface/input';
     const fifo = fs.createReadStream(ci_input_path);
     fifo.on('data', data => {
@@ -102,13 +91,29 @@ function read_from_control_interface(root, decode_func) {
     });
 }
 
+function write_to_control_interface(root, message) {
+    /* Writes a Request into the control interface output fifo
+    to add the new workload dynamically and every x sec according to WAITING_TIME_IN_SEC
+    another Request to request the workload states. */
+
+    ToServer = root.lookupType("ankaios.ToServer");
+    let buffer = ToServer.encodeDelimited(message).finish(); // use length-delimited encoding!!!
+
+    const ci_output_path = '/run/ankaios/control_interface/output';
+    fs.writeFile(ci_output_path, buffer, { flag: 'a+' }, err => {
+        if (err) {
+            console.error(err);
+        }
+    });
+}
+
 async function main() {
     protobuf.load("/usr/local/lib/ankaios/ankaios.proto", async function (err, root) {
         if (err) throw err;
 
         // Send request to add the new workload dynamic_nginx to Ankaios Server
         const message = create_request_to_add_new_workload(root);
-        console.log(`[${new Date().toISOString()}] Sending Request containing details for adding the dynamic workload "dynamic_nginx":\n ToServer `, util.inspect(message.toJSON(), { depth: null }));
+        console.log(`[${new Date().toISOString()}] Sending Request containing details for adding the dynamic workload "dynamic_nginx":\nToServer `, util.inspect(message.toJSON(), { depth: null }));
         write_to_control_interface(root, message);
 
         read_from_control_interface(root, decode_from_server_response_message);
@@ -116,7 +121,7 @@ async function main() {
         const send_request_for_complete_state = async () => {
             // Send the request to request the complete state containing the workload states to Ankaios Server
             const message = create_request_for_complete_state(root);
-            console.log(`[${new Date().toISOString()}] Sending Request containing details for requesting all workload states:\n ToServer `, util.inspect(message.toJSON(), { depth: null }));
+            console.log(`[${new Date().toISOString()}] Sending Request containing details for requesting all workload states:\nToServer `, util.inspect(message.toJSON(), { depth: null }));
             write_to_control_interface(root, message);
         }
 
