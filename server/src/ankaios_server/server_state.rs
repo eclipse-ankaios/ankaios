@@ -949,6 +949,105 @@ mod tests {
         ]);
         assert_eq!(expected_delete_graph, server_state.delete_graph);
         assert_eq!(new_state, server_state.state);
+    }
+
+    #[test]
+    fn utest_server_state_update_state_update_delete_graph_separate_graphs() {
+        /*
+            Dependency graph as input           Expected delete graph
+
+            R = ADD_COND_RUNNING
+            S = ADD_COND_SUCCEEDED
+            F = ADD_COND_FAILED
+
+                                          =>    2 --> 1 (DelCondNotPendingNorRunning)
+            4 --> 1 --> 2                       5 --> 3 (DelCondNotPendingNorRunning)
+               F     R
+            3 --> 5
+               R
+        */
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let mut workload_1 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let mut workload_2 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_2.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let mut workload_3 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_3.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let mut workload_4 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            "workload_4".to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let mut workload_5 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            "workload_5".to_string(),
+            RUNTIME.to_string(),
+        );
+
+        workload_1.dependencies =
+            HashMap::from([(workload_2.name.clone(), AddCondition::AddCondRunning)]);
+
+        workload_2.dependencies.clear();
+
+        workload_3.dependencies =
+            HashMap::from([(workload_5.name.clone(), AddCondition::AddCondRunning)]);
+
+        workload_4.dependencies =
+            HashMap::from([(workload_1.name.clone(), AddCondition::AddCondFailed)]);
+
+        workload_5.dependencies.clear();
+
+        let new_state = CompleteState {
+            current_state: State {
+                workloads: HashMap::from([
+                    (workload_1.name.clone(), workload_1.clone()),
+                    (workload_2.name.clone(), workload_2.clone()),
+                    (workload_3.name.clone(), workload_3.clone()),
+                    (workload_4.name.clone(), workload_4.clone()),
+                    (workload_5.name.clone(), workload_5.clone()),
+                ]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let mut server_state = ServerState::default();
+
+        let result = server_state.update(new_state.clone(), vec![]);
+        assert!(result.unwrap().is_some());
+
+        let expected_delete_graph = HashMap::from([
+            (
+                workload_2.name.clone(),
+                HashMap::from([(
+                    workload_1.name.clone(),
+                    DeleteCondition::DelCondNotPendingNorRunning,
+                )]),
+            ),
+            (
+                workload_5.name.clone(),
+                HashMap::from([(
+                    workload_3.name.clone(),
+                    DeleteCondition::DelCondNotPendingNorRunning,
+                )]),
+            ),
+        ]);
+        assert_eq!(expected_delete_graph, server_state.delete_graph);
+        assert_eq!(new_state, server_state.state);
         log::info!("{:?}", server_state.delete_graph);
     }
 
