@@ -62,13 +62,13 @@ impl AnkaiosServer {
         if let Some(state) = startup_state {
             match self.server_state.update(state, vec![]) {
                 Ok(Some((added_workloads, deleted_workloads))) => {
-                    let execution_command = FromServer::UpdateWorkload(UpdateWorkload {
+                    let from_server_command = FromServer::UpdateWorkload(UpdateWorkload {
                         added_workloads,
                         deleted_workloads,
                     });
                     log::info!("Starting...");
                     self.to_agents
-                        .send(execution_command)
+                        .send(from_server_command)
                         .await
                         .unwrap_or_illegal_state();
                 }
@@ -208,13 +208,13 @@ impl AnkaiosServer {
                                         added_workloads.len(),
                                         deleted_workloads.len()
                                     );
-                                let execution_command =
+                                let from_server_command =
                                     FromServer::UpdateWorkload(UpdateWorkload {
                                         added_workloads,
                                         deleted_workloads,
                                     });
                                 self.to_agents
-                                    .send(execution_command)
+                                    .send(from_server_command)
                                     .await
                                     .unwrap_or_illegal_state();
                             }
@@ -419,13 +419,13 @@ mod tests {
             .await
             .is_ok());
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
-        let expected_execution_command = FromServer::UpdateWorkload(UpdateWorkload {
+        let expected_from_server_command = FromServer::UpdateWorkload(UpdateWorkload {
             added_workloads,
             deleted_workloads,
         });
-        assert_eq!(execution_command, expected_execution_command);
+        assert_eq!(from_server_command, expected_from_server_command);
 
         // make sure all messages are consumed
         assert!(comm_middle_ware_receiver.try_recv().is_err());
@@ -476,13 +476,13 @@ mod tests {
 
         let server_task = tokio::spawn(async move { server.start(Some(startup_state)).await });
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
-        let expected_execution_command = FromServer::UpdateWorkload(UpdateWorkload {
+        let expected_from_server_command = FromServer::UpdateWorkload(UpdateWorkload {
             added_workloads,
             deleted_workloads,
         });
-        assert_eq!(execution_command, expected_execution_command);
+        assert_eq!(from_server_command, expected_from_server_command);
 
         server_task.abort();
     }
@@ -535,14 +535,14 @@ mod tests {
         let agent_hello_result = to_server.agent_hello(AGENT_A.to_string()).await;
         assert!(agent_hello_result.is_ok());
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
             FromServer::UpdateWorkload(UpdateWorkload {
                 added_workloads: vec![w1],
                 deleted_workloads: vec![],
             }),
-            execution_command
+            from_server_command
         );
 
         // [utest->swdd~server-informs-a-newly-connected-agent-workload-states~1]
@@ -558,7 +558,7 @@ mod tests {
             .await;
         assert!(update_workload_state_result.is_ok());
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
             FromServer::UpdateWorkloadState(UpdateWorkloadState {
@@ -568,23 +568,23 @@ mod tests {
                     execution_state: ExecutionState::ExecRunning
                 },]
             }),
-            execution_command
+            from_server_command
         );
 
         let agent_hello_result = to_server.agent_hello(AGENT_B.to_owned()).await;
         assert!(agent_hello_result.is_ok());
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
             FromServer::UpdateWorkload(UpdateWorkload {
                 added_workloads: vec![w2],
                 deleted_workloads: vec![]
             }),
-            execution_command
+            from_server_command
         );
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
             FromServer::UpdateWorkloadState(UpdateWorkloadState {
@@ -594,7 +594,7 @@ mod tests {
                     execution_state: ExecutionState::ExecRunning
                 }]
             }),
-            execution_command
+            from_server_command
         );
 
         // [utest->swdd~server-forwards-workload-state~1]
@@ -608,7 +608,7 @@ mod tests {
             .await;
         assert!(update_workload_state_result.is_ok());
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
             FromServer::UpdateWorkloadState(UpdateWorkloadState {
@@ -618,7 +618,7 @@ mod tests {
                     execution_state: ExecutionState::ExecSucceeded
                 }]
             }),
-            execution_command
+            from_server_command
         );
 
         // send update_workload_state for first agent again which is then updated in the workload_state_db in ankaios server
@@ -631,7 +631,7 @@ mod tests {
             .await;
         assert!(update_workload_state_result.is_ok());
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
             FromServer::UpdateWorkloadState(UpdateWorkloadState {
@@ -641,7 +641,7 @@ mod tests {
                     execution_state: ExecutionState::ExecSucceeded
                 }]
             }),
-            execution_command
+            from_server_command
         );
 
         server_task.abort();
@@ -703,13 +703,13 @@ mod tests {
             .await;
         assert!(update_state_result.is_ok());
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::UpdateWorkload(UpdateWorkload {
                 added_workloads,
                 deleted_workloads,
             }),
-            execution_command
+            from_server_command
         );
 
         server_task.abort();
@@ -909,18 +909,17 @@ mod tests {
             .await;
         assert!(request_complete_state_result.is_ok());
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
-        assert!(matches!(
-            execution_command,
+        assert_eq!(
+            from_server_command,
             common::from_server_interface::FromServer::Response(common::commands::Response {
-                request_id: received_request_id,
-                response_content: common::commands::ResponseContent::CompleteState(
-                    boxed_complete_state
-                )
-            }) if request_id == received_request_id &&
-            *boxed_complete_state == current_complete_state
-        ));
+                request_id,
+                response_content: common::commands::ResponseContent::CompleteState(Box::new(
+                    current_complete_state
+                ))
+            })
+        );
 
         server_task.abort();
         assert!(comm_middle_ware_receiver.try_recv().is_err());
@@ -964,24 +963,21 @@ mod tests {
             .await;
         assert!(request_complete_state_result.is_ok());
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         let expected_complete_state = CompleteState {
-            startup_state: State::default(),
-            current_state: State::default(),
-            workload_states: vec![],
+            ..Default::default()
         };
 
-        assert!(matches!(
-            execution_command,
+        assert_eq!(
+            from_server_command,
             common::from_server_interface::FromServer::Response(common::commands::Response {
-                request_id: received_request_id,
-                response_content: common::commands::ResponseContent::CompleteState(
-                    boxed_complete_state
-                )
-            }) if request_id == received_request_id &&
-            *boxed_complete_state == expected_complete_state
-        ));
+                request_id,
+                response_content: common::commands::ResponseContent::CompleteState(Box::new(
+                    expected_complete_state
+                ))
+            })
+        );
 
         server_task.abort();
         assert!(comm_middle_ware_receiver.try_recv().is_err());
@@ -1023,7 +1019,7 @@ mod tests {
         drop(to_server);
         tokio::join!(server_handle).0.unwrap();
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::UpdateWorkloadState(UpdateWorkloadState {
                 workload_states: vec![WorkloadState {
@@ -1032,7 +1028,7 @@ mod tests {
                     execution_state: ExecutionState::ExecRunning,
                 }]
             }),
-            execution_command
+            from_server_command
         );
 
         let workload_states = server
@@ -1046,12 +1042,12 @@ mod tests {
         };
         assert_eq!(vec![expected_workload_state.clone()], workload_states);
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::UpdateWorkloadState(UpdateWorkloadState {
                 workload_states: vec![expected_workload_state]
             }),
-            execution_command
+            from_server_command
         );
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
@@ -1143,25 +1139,25 @@ mod tests {
         drop(to_server);
         tokio::join!(server_handle).0.unwrap();
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::UpdateWorkload(UpdateWorkload {
                 added_workloads: vec![w1.clone()],
                 deleted_workloads: vec![]
             }),
-            execution_command
+            from_server_command
         );
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::UpdateWorkload(UpdateWorkload {
                 added_workloads: vec![w2],
                 deleted_workloads: vec![]
             }),
-            execution_command
+            from_server_command
         );
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::UpdateWorkload(UpdateWorkload {
                 added_workloads: vec![updated_w1],
@@ -1171,7 +1167,7 @@ mod tests {
                     dependencies: HashMap::new(),
                 }]
             }),
-            execution_command
+            from_server_command
         );
 
         assert!(comm_middle_ware_receiver.try_recv().is_err());
