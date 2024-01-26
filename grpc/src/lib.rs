@@ -28,4 +28,4 @@ mod grpc_agent_connection;
 mod grpc_cli_connection;
 pub mod grpc_middleware_error;
 pub mod server;
-mod state_change_proxy;
+mod to_server_proxy;

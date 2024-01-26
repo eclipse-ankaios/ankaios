@@ -35,9 +35,9 @@ impl TryFrom<proto::ToServer> for ToServer {
 
     fn try_from(item: proto::ToServer) -> Result<Self, Self::Error> {
         use proto::to_server::ToServerEnum;
-        let state_change_request = item.to_server_enum.ok_or("ToServer is None.".to_string())?;
+        let to_server = item.to_server_enum.ok_or("ToServer is None.".to_string())?;
 
-        Ok(match state_change_request {
+        Ok(match to_server {
             ToServerEnum::AgentHello(protobuf) => ToServer::AgentHello(protobuf.into()),
             ToServerEnum::UpdateWorkloadState(protobuf) => {
                 ToServer::UpdateWorkloadState(protobuf.into())
@@ -186,7 +186,7 @@ mod tests {
     };
 
     #[test]
-    fn utest_convert_proto_state_change_request_agent_hello() {
+    fn utest_convert_proto_to_server_agent_hello() {
         let agent_name = "agent_A".to_string();
 
         let proto_request = proto::ToServer {
@@ -201,7 +201,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_convert_proto_state_change_request_update_workload_state() {
+    fn utest_convert_proto_to_server_update_workload_state() {
         let proto_request = proto::ToServer {
             to_server_enum: Some(ToServerEnum::UpdateWorkloadState(
                 proto::UpdateWorkloadState {
@@ -218,7 +218,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_convert_proto_state_change_request_update_state() {
+    fn utest_convert_proto_to_server_update_state() {
         let proto_request = proto::ToServer {
             to_server_enum: Some(ToServerEnum::Request(proto::Request {
                 request_id: "request_id".to_owned(),
@@ -268,7 +268,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_convert_proto_state_change_request_update_state_fails() {
+    fn utest_convert_proto_to_server_update_state_fails() {
         let proto_request = proto::ToServer {
             to_server_enum: Some(proto::to_server::ToServerEnum::Request(proto::Request {
                 request_id: "requeset_id".to_owned(),
@@ -300,7 +300,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_convert_proto_state_change_request_request_complete_state() {
+    fn utest_convert_proto_to_server_request_complete_state() {
         let request_id = "42".to_string();
         let field_mask = vec!["1".to_string()];
 

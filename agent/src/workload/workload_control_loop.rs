@@ -440,7 +440,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, mut to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut old_mock_state_checker = StubStateChecker::new();
         old_mock_state_checker.panic_if_not_stopped();
@@ -465,7 +465,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    to_server_tx.clone(),
                     Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -486,7 +486,7 @@ mod tests {
             instance_name,
             workload_id: Some(OLD_WORKLOAD_ID.to_string()),
             state_checker: Some(old_mock_state_checker),
-            update_state_tx: state_change_tx.clone(),
+            update_state_tx: to_server_tx.clone(),
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
@@ -509,7 +509,7 @@ mod tests {
         };
 
         assert!(matches!(
-            timeout(Duration::from_millis(200), state_change_rx.recv()).await,
+            timeout(Duration::from_millis(200), to_server_rx.recv()).await,
             Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
         if workload_state == expected_state));
 
@@ -524,7 +524,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, mut to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         // Since we also send a delete command to exit the control loop properly, the new state
         // checker will also be stopped. This also tests if the new state checker was properly stored.
@@ -545,7 +545,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    to_server_tx.clone(),
                     Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -566,7 +566,7 @@ mod tests {
             instance_name,
             workload_id: None,
             state_checker: None,
-            update_state_tx: state_change_tx.clone(),
+            update_state_tx: to_server_tx.clone(),
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
@@ -589,7 +589,7 @@ mod tests {
         };
 
         assert!(matches!(
-            timeout(Duration::from_millis(200), state_change_rx.recv()).await,
+            timeout(Duration::from_millis(200), to_server_rx.recv()).await,
             Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
         if workload_state == expected_state));
 
@@ -604,7 +604,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, mut to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut old_mock_state_checker = StubStateChecker::new();
         old_mock_state_checker.panic_if_not_stopped();
@@ -644,7 +644,7 @@ mod tests {
             instance_name,
             workload_id: Some(OLD_WORKLOAD_ID.to_string()),
             state_checker: Some(old_mock_state_checker),
-            update_state_tx: state_change_tx.clone(),
+            update_state_tx: to_server_tx.clone(),
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
@@ -667,7 +667,7 @@ mod tests {
         };
 
         assert!(matches!(
-            timeout(Duration::from_millis(200), state_change_rx.recv()).await,
+            timeout(Duration::from_millis(200), to_server_rx.recv()).await,
             Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
         if workload_state == expected_state));
 
@@ -682,7 +682,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, mut to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut old_mock_state_checker = StubStateChecker::new();
         old_mock_state_checker.panic_if_not_stopped();
@@ -702,7 +702,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    to_server_tx.clone(),
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some create error".to_string(),
                     )),
@@ -724,7 +724,7 @@ mod tests {
             instance_name,
             workload_id: Some(OLD_WORKLOAD_ID.to_string()),
             state_checker: Some(old_mock_state_checker),
-            update_state_tx: state_change_tx.clone(),
+            update_state_tx: to_server_tx.clone(),
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
@@ -747,7 +747,7 @@ mod tests {
         };
 
         assert!(matches!(
-            timeout(Duration::from_millis(200), state_change_rx.recv()).await,
+            timeout(Duration::from_millis(200), to_server_rx.recv()).await,
             Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
         if workload_state == expected_state));
 
@@ -762,7 +762,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, mut to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut mock_state_checker = StubStateChecker::new();
         mock_state_checker.panic_if_not_stopped();
@@ -788,7 +788,7 @@ mod tests {
             instance_name: workload_spec.instance_name(),
             workload_id: Some(OLD_WORKLOAD_ID.to_string()),
             state_checker: Some(mock_state_checker),
-            update_state_tx: state_change_tx.clone(),
+            update_state_tx: to_server_tx.clone(),
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
@@ -811,7 +811,7 @@ mod tests {
         };
 
         assert!(matches!(
-            timeout(Duration::from_millis(200), state_change_rx.recv()).await,
+            timeout(Duration::from_millis(200), to_server_rx.recv()).await,
             Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
         if workload_state == expected_state));
 
@@ -826,7 +826,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, mut to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut mock_state_checker = StubStateChecker::new();
         mock_state_checker.panic_if_not_stopped();
@@ -859,7 +859,7 @@ mod tests {
             instance_name: workload_spec.instance_name(),
             workload_id: Some(OLD_WORKLOAD_ID.to_string()),
             state_checker: Some(mock_state_checker),
-            update_state_tx: state_change_tx.clone(),
+            update_state_tx: to_server_tx.clone(),
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
@@ -882,7 +882,7 @@ mod tests {
         };
 
         assert!(matches!(
-            timeout(Duration::from_millis(200), state_change_rx.recv()).await,
+            timeout(Duration::from_millis(200), to_server_rx.recv()).await,
             Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
         if workload_state == expected_state));
 
@@ -897,7 +897,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, _to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let runtime_mock = MockRuntimeConnector::new();
 
@@ -914,7 +914,7 @@ mod tests {
             instance_name: workload_spec.instance_name(),
             workload_id: None,
             state_checker: None,
-            update_state_tx: state_change_tx.clone(),
+            update_state_tx: to_server_tx.clone(),
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
@@ -940,7 +940,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, _to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -959,7 +959,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    to_server_tx.clone(),
                     Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -983,7 +983,7 @@ mod tests {
             instance_name,
             workload_id: None,
             state_checker: None,
-            update_state_tx: state_change_tx.clone(),
+            update_state_tx: to_server_tx.clone(),
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
@@ -1010,7 +1010,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, _to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1029,7 +1029,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    to_server_tx.clone(),
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some create error".to_string(),
                     )),
@@ -1037,7 +1037,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    to_server_tx.clone(),
                     Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -1061,7 +1061,7 @@ mod tests {
             instance_name,
             workload_id: None,
             state_checker: None,
-            update_state_tx: state_change_tx.clone(),
+            update_state_tx: to_server_tx.clone(),
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
@@ -1088,7 +1088,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, _to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1101,7 +1101,7 @@ mod tests {
         let runtime_expectations = vec![RuntimeCall::CreateWorkload(
             workload_spec.clone(),
             Some(PIPES_LOCATION.into()),
-            state_change_tx.clone(),
+            to_server_tx.clone(),
             Err(crate::runtime_connectors::RuntimeError::Create(
                 "some create error".to_string(),
             )),
@@ -1116,7 +1116,7 @@ mod tests {
             instance_name,
             workload_id: None,
             state_checker: None,
-            update_state_tx: state_change_tx.clone(),
+            update_state_tx: to_server_tx.clone(),
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
@@ -1151,7 +1151,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, _to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1170,7 +1170,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    to_server_tx.clone(),
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some create error".to_string(),
                     )),
@@ -1178,7 +1178,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    to_server_tx.clone(),
                     Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -1202,7 +1202,7 @@ mod tests {
             instance_name,
             workload_id: None,
             state_checker: None,
-            update_state_tx: state_change_tx.clone(),
+            update_state_tx: to_server_tx.clone(),
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
@@ -1231,7 +1231,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, mut to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1248,7 +1248,7 @@ mod tests {
             runtime_expectations.push(RuntimeCall::CreateWorkload(
                 workload_spec.clone(),
                 Some(PIPES_LOCATION.into()),
-                state_change_tx.clone(),
+                to_server_tx.clone(),
                 Err(crate::runtime_connectors::RuntimeError::Create(
                     "some create error".to_string(),
                 )),
@@ -1275,7 +1275,7 @@ mod tests {
             instance_name,
             workload_id: None,
             state_checker: None,
-            update_state_tx: state_change_tx.clone(),
+            update_state_tx: to_server_tx.clone(),
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
@@ -1297,7 +1297,7 @@ mod tests {
             }],
         };
 
-        assert!(matches!(state_change_rx.try_recv(),
+        assert!(matches!(to_server_rx.try_recv(),
             Ok(ToServer::UpdateWorkloadState(workload_state))
             if workload_state == expected_state));
 
@@ -1315,7 +1315,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1328,7 +1328,7 @@ mod tests {
         let runtime_expectations = vec![RuntimeCall::CreateWorkload(
             workload_spec.clone(),
             Some(PIPES_LOCATION.into()),
-            state_change_tx.clone(),
+            to_server_tx.clone(),
             Err(crate::runtime_connectors::RuntimeError::Create(
                 "some create error".to_string(),
             )),
@@ -1347,7 +1347,7 @@ mod tests {
             instance_name,
             workload_id: None,
             state_checker: None,
-            update_state_tx: state_change_tx.clone(),
+            update_state_tx: to_server_tx.clone(),
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
@@ -1355,7 +1355,7 @@ mod tests {
         };
 
         // dropping the channel causes the failing send of ToServer message after the restart limit is exceeded.
-        drop(state_change_rx);
+        drop(to_server_rx);
 
         // execute last restart => restart limit is exceeded after this last try
         let new_control_loop_state = WorkloadControlLoop::restart(
@@ -1377,7 +1377,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, _to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1390,7 +1390,7 @@ mod tests {
         let runtime_expectations = vec![RuntimeCall::CreateWorkload(
             workload_spec.clone(),
             Some(PIPES_LOCATION.into()),
-            state_change_tx.clone(),
+            to_server_tx.clone(),
             Err(crate::runtime_connectors::RuntimeError::Create(
                 "some create error".to_string(),
             )),
@@ -1405,7 +1405,7 @@ mod tests {
             instance_name,
             workload_id: None,
             state_checker: None,
-            update_state_tx: state_change_tx.clone(),
+            update_state_tx: to_server_tx.clone(),
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
@@ -1440,7 +1440,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, _to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1461,7 +1461,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    to_server_tx.clone(),
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some create error".to_string(),
                     )),
@@ -1469,7 +1469,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    to_server_tx.clone(),
                     Ok((WORKLOAD_ID_2.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -1498,7 +1498,7 @@ mod tests {
             instance_name,
             workload_id: None,
             state_checker: None,
-            update_state_tx: state_change_tx.clone(),
+            update_state_tx: to_server_tx.clone(),
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
@@ -1526,7 +1526,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, _to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1553,7 +1553,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    to_server_tx.clone(),
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some create error".to_string(),
                     )),
@@ -1562,7 +1562,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    to_server_tx.clone(),
                     Ok((WORKLOAD_ID_2.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -1586,7 +1586,7 @@ mod tests {
             instance_name,
             workload_id: Some(WORKLOAD_ID.into()),
             state_checker: Some(old_state_checker),
-            update_state_tx: state_change_tx.clone(),
+            update_state_tx: to_server_tx.clone(),
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
@@ -1615,7 +1615,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, _to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1642,7 +1642,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    to_server_tx.clone(),
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some create error".to_string(),
                     )),
@@ -1651,7 +1651,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    to_server_tx.clone(),
                     Ok((WORKLOAD_ID_2.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -1681,7 +1681,7 @@ mod tests {
             instance_name,
             workload_id: Some(WORKLOAD_ID.into()),
             state_checker: Some(old_state_checker),
-            update_state_tx: state_change_tx.clone(),
+            update_state_tx: to_server_tx.clone(),
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
@@ -1709,7 +1709,7 @@ mod tests {
             .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, _to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1739,7 +1739,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec_update1.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    to_server_tx.clone(),
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some create error".to_string(),
                     )),
@@ -1749,7 +1749,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec_update2.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    to_server_tx.clone(),
                     Ok((WORKLOAD_ID_3.to_string(), new_mock_state_checker_update2)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -1778,7 +1778,7 @@ mod tests {
             instance_name,
             workload_id: Some(WORKLOAD_ID.into()),
             state_checker: Some(old_state_checker),
-            update_state_tx: state_change_tx.clone(),
+            update_state_tx: to_server_tx.clone(),
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,

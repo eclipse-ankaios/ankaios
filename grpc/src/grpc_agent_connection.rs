@@ -21,7 +21,7 @@ use tonic::codegen::futures_core::Stream;
 use tonic::{Request, Response, Status};
 
 use crate::agent_senders_map::AgentSendersMap;
-use crate::state_change_proxy::{forward_from_proto_to_ankaios, GRPCToServerStreaming};
+use crate::to_server_proxy::{forward_from_proto_to_ankaios, GRPCToServerStreaming};
 use api::proto;
 use api::proto::agent_connection_server::AgentConnection;
 use api::proto::to_server::ToServerEnum;

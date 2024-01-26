@@ -56,7 +56,7 @@ pub async fn forward_from_proto_to_ankaios(
         match message
             .to_server_enum
             .ok_or(GrpcMiddlewareError::ReceiveError(
-                "Missing state_change_request".to_string(),
+                "Missing to_server".to_string(),
             ))? {
             ToServerEnum::Request(Request {
                 request_id,
@@ -332,8 +332,7 @@ mod tests {
 
     // [utest->swdd~grpc-agent-connection-forwards-commands-to-server~1]
     #[tokio::test]
-    async fn utest_state_change_command_forward_from_proto_to_ankaios_handles_missing_state_change_request(
-    ) {
+    async fn utest_state_change_command_forward_from_proto_to_ankaios_handles_missing_to_server() {
         let agent_name = "fake_agent";
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
@@ -356,7 +355,7 @@ mod tests {
         assert!(forward_result.is_err());
         assert_eq!(
             forward_result.unwrap_err().to_string(),
-            String::from("ReceiveError: 'Missing state_change_request'")
+            String::from("ReceiveError: 'Missing to_server'")
         );
 
         // pick received from server message

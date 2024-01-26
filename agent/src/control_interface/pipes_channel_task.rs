@@ -23,9 +23,7 @@ use common::{
 use prost::Message;
 use tokio::{io, select, task::JoinHandle};
 
-fn decode_state_change_request(
-    protobuf_data: io::Result<Box<[u8]>>,
-) -> io::Result<proto::ToServer> {
+fn decode_to_server(protobuf_data: io::Result<Box<[u8]>>) -> io::Result<proto::ToServer> {
     Ok(proto::ToServer::decode(&mut Box::new(
         protobuf_data?.as_ref(),
     ))?)
@@ -67,15 +65,15 @@ impl PipesChannelTask {
                 }
                 // [impl->swdd~agent-listens-for-requests-from-pipe~1]
                 // [impl->swdd~agent-forward-request-from-control-interface-pipe-to-server~1]
-                state_change_request_binary = self.input_stream.read_protobuf_data() => {
-                    if let Ok(state_change_request) = decode_state_change_request(state_change_request_binary) {
-                        match state_change_request.try_into() {
+                to_server_binary = self.input_stream.read_protobuf_data() => {
+                    if let Ok(to_server) = decode_to_server(to_server_binary) {
+                        match to_server.try_into() {
                             Ok(ToServer::Request(mut request)) => {
                                 request.prefix_request_id(&self.request_id_prefix);
                                 let _ = self.output_pipe_channel.send(ToServer::Request(request)).await;
                             }
-                            Ok(state_change_command) => {
-                                let _ = self.output_pipe_channel.send(state_change_command).await;
+                            Ok(to_server_message) => {
+                                let _ = self.output_pipe_channel.send(to_server_message).await;
                             }
                             Err(error) => {
                                 log::warn!("Could not convert protobuf in internal data structure: {}", error)

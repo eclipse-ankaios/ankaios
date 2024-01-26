@@ -15,7 +15,7 @@
 use crate::from_server_proxy;
 use crate::from_server_proxy::GRPCFromServerStreaming;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
-use crate::state_change_proxy;
+use crate::to_server_proxy;
 use api::proto;
 use api::proto::agent_connection_client::AgentConnectionClient;
 use api::proto::cli_connection_client::CliConnectionClient;
@@ -154,12 +154,12 @@ impl GRPCCommunicationsClient {
         );
 
         // [impl->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
-        let forward_state_change_from_ank_task =
-            state_change_proxy::forward_from_ankaios_to_proto(grpc_tx, server_rx);
+        let forward_to_server_from_ank_task =
+            to_server_proxy::forward_from_ankaios_to_proto(grpc_tx, server_rx);
 
         select! {
             _ = forward_exec_from_proto_task => {log::debug!("Forward from server message from proto to Ankaios task completed");}
-            _ = forward_state_change_from_ank_task => {log::debug!("Forward from server message from Ankaios to proto task completed");}
+            _ = forward_to_server_from_ank_task => {log::debug!("Forward from server message from Ankaios to proto task completed");}
         };
 
         Ok(())

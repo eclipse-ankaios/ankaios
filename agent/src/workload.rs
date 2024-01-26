@@ -340,13 +340,13 @@ mod tests {
             .await;
 
         let (workload_command_sender, _) = WorkloadCommandSender::new();
-        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, mut to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut control_interface_mock = MockPipesChannelContext::default();
         control_interface_mock
             .expect_get_input_pipe_sender()
             .once()
-            .return_const(state_change_tx);
+            .return_const(to_server_tx);
 
         let mut test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
@@ -371,7 +371,7 @@ mod tests {
         let expected_complete_state = complete_state;
 
         assert!(matches!(
-            timeout(Duration::from_millis(200), state_change_rx.recv()).await,
+            timeout(Duration::from_millis(200), to_server_rx.recv()).await,
             Ok(Some(FromServer::Response(Response{request_id: _, response_content: ResponseContent::CompleteState(complete_state)})))
         if expected_complete_state == *complete_state));
     }
@@ -384,15 +384,15 @@ mod tests {
             .await;
 
         let (workload_command_sender, _) = WorkloadCommandSender::new();
-        let (state_change_tx, state_change_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, to_server_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
 
-        drop(state_change_rx);
+        drop(to_server_rx);
 
         let mut control_interface_mock = MockPipesChannelContext::default();
         control_interface_mock
             .expect_get_input_pipe_sender()
             .once()
-            .return_const(state_change_tx);
+            .return_const(to_server_tx);
 
         let mut test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
