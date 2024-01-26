@@ -32,10 +32,10 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 pub type ToServerChannel = (Sender<ToServer>, Receiver<ToServer>);
 pub type FromServerChannel = (Sender<FromServer>, Receiver<FromServer>);
 
-pub fn create_state_change_channels(capacity: usize) -> ToServerChannel {
+pub fn create_to_server_channel(capacity: usize) -> ToServerChannel {
     channel::<ToServer>(capacity)
 }
-pub fn create_execution_channels(capacity: usize) -> FromServerChannel {
+pub fn create_from_server_channel(capacity: usize) -> FromServerChannel {
     channel::<FromServer>(capacity)
 }
 
@@ -88,8 +88,8 @@ impl AnkaiosServer {
 
     async fn listen_to_agents(&mut self) {
         log::debug!("Start listening to agents...");
-        while let Some(state_change_command) = self.receiver.recv().await {
-            match state_change_command {
+        while let Some(to_server_command) = self.receiver.recv().await {
+            match to_server_command {
                 ToServer::AgentHello(method_obj) => {
                     log::info!("Received AgentHello from '{}'", method_obj.agent_name);
 
@@ -274,7 +274,7 @@ mod tests {
 
     use super::AnkaiosServer;
     use crate::ankaios_server::server_state::{MockServerState, UpdateStateError};
-    use crate::ankaios_server::{create_execution_channels, create_state_change_channels};
+    use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
     use common::commands::{CompleteStateRequest, UpdateWorkload, UpdateWorkloadState};
     use common::objects::{DeletedWorkload, ExecutionState, State, WorkloadState};
     use common::test_utils::generate_test_workload_spec_with_param;
@@ -294,9 +294,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_start_fail_on_invalid_startup_config() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (_to_server, server_receiver) = create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (_to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         // contains a self cycle to workload A
         let workload = generate_test_workload_spec_with_param(
@@ -337,9 +337,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_update_state_continues_on_invalid_new_state() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) = create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         /* new workload invalidates the state because
         it contains a self cycle in the inter workload dependencies config */
@@ -437,9 +437,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_start_with_valid_startup_config() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (_to_server, server_receiver) = create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (_to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let workload = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
@@ -494,9 +494,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) = create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
 
@@ -655,9 +655,9 @@ mod tests {
     async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_success()
     {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) = create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut w1 = generate_test_workload_spec_with_param(
             AGENT_A.to_owned(),
@@ -723,9 +723,9 @@ mod tests {
     async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_nothing_todo(
     ) {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) = create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut w1 = generate_test_workload_spec_with_param(
             AGENT_A.to_owned(),
@@ -781,9 +781,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_error() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) = create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let w1 = generate_test_workload_spec_with_param(
             AGENT_A.to_owned(),
@@ -842,9 +842,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_returns_complete_state_when_received_request_complete_state() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) = create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let w1 = generate_test_workload_spec_with_param(
             AGENT_A.to_owned(),
@@ -933,9 +933,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_returns_complete_state_when_received_request_complete_state_error() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) = create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
@@ -991,9 +991,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_start_distributes_workload_unknown_after_agent_gone() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) = create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mock_server_state = MockServerState::new();
@@ -1057,9 +1057,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_start_calls_agents_in_update_state_command() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) = create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let w1 = generate_test_workload_spec_with_param(
             AGENT_A.to_owned(),
@@ -1178,9 +1178,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_stop() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) = create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, _comm_middle_ware_receiver) =
-            create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mock_server_state = MockServerState::new();
