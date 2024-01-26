@@ -58,7 +58,7 @@ impl AgentConnection for GRPCAgentConnection {
     ) -> Result<Response<Self::ConnectAgentStream>, Status> {
         let mut stream = request.into_inner();
 
-        // [impl->swdd~grpc-agent-connection-creates-execution-command-channel~1]
+        // [impl->swdd~grpc-agent-connection-creates-from-server-channel~1]
         let (new_agent_sender, new_agent_receiver) = tokio::sync::mpsc::channel::<
             Result<proto::FromServer, tonic::Status>,
         >(common::CHANNEL_CAPACITY);
@@ -77,7 +77,7 @@ impl AgentConnection for GRPCAgentConnection {
             ToServerEnum::AgentHello(proto::AgentHello { agent_name }) => {
                 log::trace!("Received a hello from '{}'", agent_name);
 
-                // [impl->swdd~grpc-agent-connection-stores-execution-channel-tx~1]
+                // [impl->swdd~grpc-agent-connection-stores-from-server-channel-tx~1]
                 self.agent_senders
                     .insert(&agent_name, new_agent_sender.to_owned());
                 // [impl->swdd~grpc-agent-connection-forwards-hello-to-ankaios-server~1]
@@ -119,7 +119,7 @@ impl AgentConnection for GRPCAgentConnection {
             }
         }
 
-        // [impl->swdd~grpc-agent-connection-responds-with-execution-channel-rx~1]
+        // [impl->swdd~grpc-agent-connection-responds-with-from-server-channel-rx~1]
         Ok(Response::new(Box::pin(ReceiverStream::new(
             new_agent_receiver,
         ))))

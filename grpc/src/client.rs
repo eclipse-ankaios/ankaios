@@ -125,7 +125,7 @@ impl GRPCCommunicationsClient {
         server_rx: &mut ToServerReceiver,
         agent_tx: &Sender<FromServer>,
     ) -> Result<(), GrpcMiddlewareError> {
-        // [impl->swdd~grpc-client-creates-state-change-channel~1]
+        // [impl->swdd~grpc-client-creates-to-server-channel~1]
         let (grpc_tx, grpc_rx) =
             tokio::sync::mpsc::channel::<proto::ToServer>(common::CHANNEL_CAPACITY);
 
@@ -146,7 +146,7 @@ impl GRPCCommunicationsClient {
         let mut grpc_to_server_streaming =
             GRPCFromServerStreaming::new(self.connect_to_server(grpc_rx).await?);
 
-        // [impl->swdd~grpc-client-forwards-commands-to-agent~1]
+        // [impl->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
         let forward_exec_from_proto_task = from_server_proxy::forward_from_proto_to_ankaios(
             self.name.as_str(),
             &mut grpc_to_server_streaming,
@@ -158,8 +158,8 @@ impl GRPCCommunicationsClient {
             state_change_proxy::forward_from_ankaios_to_proto(grpc_tx, server_rx);
 
         select! {
-            _ = forward_exec_from_proto_task => {log::debug!("Forward execution command from proto to Ankaios task completed");}
-            _ = forward_state_change_from_ank_task => {log::debug!("Forward execution command from Ankaios to proto task completed");}
+            _ = forward_exec_from_proto_task => {log::debug!("Forward from server message from proto to Ankaios task completed");}
+            _ = forward_state_change_from_ank_task => {log::debug!("Forward from server message from Ankaios to proto task completed");}
         };
 
         Ok(())

@@ -101,7 +101,7 @@ The `GenericPollingStateChecker` is a general purpose `StateChecker` (and implem
 
 The Middleware is responsible for the connection to the Ankaios Server.
 
-#### ExecutionCommand Channel, StateChangeCommand Channel
+#### FromServer Channel, ToServer Channel
 
 The channels are defined in the `common` library.
 They are used to connect modules in the Ankaios Agent, more precisely they connect task in which modules run.

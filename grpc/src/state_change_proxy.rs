@@ -120,7 +120,7 @@ pub async fn forward_from_proto_to_ankaios(
                 break;
             }
             unknown_message => {
-                log::warn!("Wrong StateChangeRequest: {:?}", unknown_message);
+                log::warn!("Wrong ToServer message: {:?}", unknown_message);
             }
         }
     }
@@ -210,16 +210,16 @@ mod tests {
     use api::proto::{to_server::ToServerEnum, UpdateStateRequest};
 
     #[derive(Default, Clone)]
-    struct MockGRPCStateChangeRequestStreaming {
+    struct MockGRPCToServerStreaming {
         msgs: LinkedList<Option<proto::ToServer>>,
     }
-    impl MockGRPCStateChangeRequestStreaming {
+    impl MockGRPCToServerStreaming {
         fn new(msgs: LinkedList<Option<proto::ToServer>>) -> Self {
-            MockGRPCStateChangeRequestStreaming { msgs }
+            MockGRPCToServerStreaming { msgs }
         }
     }
     #[async_trait]
-    impl GRPCStreaming<proto::ToServer> for MockGRPCStateChangeRequestStreaming {
+    impl GRPCStreaming<proto::ToServer> for MockGRPCToServerStreaming {
         async fn message(&mut self) -> Result<Option<proto::ToServer>, tonic::Status> {
             if let Some(msg) = self.msgs.pop_front() {
                 Ok(msg)
@@ -312,7 +312,7 @@ mod tests {
 
         // simulate the reception of an update workload state grpc execution request
         let mut mock_grpc_ex_request_streaming =
-            MockGRPCStateChangeRequestStreaming::new(LinkedList::from([]));
+            MockGRPCToServerStreaming::new(LinkedList::from([]));
 
         // forwards from proto to ankaios
         let forward_result = forward_from_proto_to_ankaios(
@@ -324,7 +324,7 @@ mod tests {
         assert!(forward_result.is_err());
         assert_eq!(forward_result.unwrap_err().to_string(), String::from("Connection interrupted: 'status: Unknown, message: \"test\", details: [], metadata: MetadataMap { headers: {} }'"));
 
-        // pick received execution command
+        // pick received from server message
         let result = server_rx.recv().await;
 
         assert_eq!(result, None);
@@ -339,7 +339,7 @@ mod tests {
 
         // simulate the reception of an update workload state grpc execution request
         let mut mock_grpc_ex_request_streaming =
-            MockGRPCStateChangeRequestStreaming::new(LinkedList::from([
+            MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(proto::ToServer {
                     to_server_enum: None,
                 }),
@@ -359,7 +359,7 @@ mod tests {
             String::from("ReceiveError: 'Missing state_change_request'")
         );
 
-        // pick received execution command
+        // pick received from server message
         let result = server_rx.recv().await;
 
         assert_eq!(result, None);
@@ -391,7 +391,7 @@ mod tests {
 
         // simulate the reception of an update workload state grpc execution request
         let mut mock_grpc_ex_request_streaming =
-            MockGRPCStateChangeRequestStreaming::new(LinkedList::from([
+            MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(proto::ToServer {
                     to_server_enum: Some(ToServerEnum::Request(proto::Request {
                         request_id: "request_id".to_owned(),
@@ -433,7 +433,7 @@ mod tests {
 
         // simulate the reception of an update workload state grpc execution request
         let mut mock_grpc_ex_request_streaming =
-            MockGRPCStateChangeRequestStreaming::new(LinkedList::from([
+            MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(proto::ToServer {
                     to_server_enum: Some(ToServerEnum::Request(proto::Request {
                         request_id: "my_request_id".to_owned(),
@@ -458,7 +458,7 @@ mod tests {
 
         assert!(forward_result.is_ok());
 
-        // pick received execution command
+        // pick received from server message
         let result = server_rx.recv().await.unwrap();
         let expected_prefixed_my_request_id = String::from("fake_agent@my_request_id");
 
@@ -485,7 +485,7 @@ mod tests {
 
         // simulate the reception of an update workload state grpc execution request
         let mut mock_grpc_ex_request_streaming =
-            MockGRPCStateChangeRequestStreaming::new(LinkedList::from([
+            MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(proto::ToServer {
                     to_server_enum: Some(ToServerEnum::UpdateWorkloadState(
                         proto::UpdateWorkloadState {
@@ -506,7 +506,7 @@ mod tests {
 
         assert!(forward_result.is_ok());
 
-        // pick received execution command
+        // pick received from server message
         let result = server_rx.recv().await.unwrap();
 
         assert!(matches!(
@@ -524,7 +524,7 @@ mod tests {
 
         // simulate the reception of an update workload state grpc execution request
         let mut mock_grpc_ex_request_streaming =
-            MockGRPCStateChangeRequestStreaming::new(LinkedList::from([
+            MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(proto::ToServer {
                     to_server_enum: Some(ToServerEnum::Request(proto::Request {
                         request_id: "my_request_id".to_owned(),
@@ -547,7 +547,7 @@ mod tests {
         .await;
         assert!(forward_result.is_ok());
 
-        // pick received execution command
+        // pick received from server message
         let result = server_rx.recv().await.unwrap();
         // [utest->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
         let expected_prefixed_my_request_id = String::from("fake_agent@my_request_id");

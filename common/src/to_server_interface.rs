@@ -18,7 +18,7 @@ use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
 
-// [impl->swdd~state-change-command-channel~1]
+// [impl->swdd~to-server-channel~1]
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ToServer {
@@ -58,7 +58,7 @@ impl From<SendError<ToServer>> for ToServerError {
 
 impl fmt::Display for ToServerError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "StateChangeCommandError: '{}'", self.0)
+        write!(f, "ToServerError: '{}'", self.0)
     }
 }
 

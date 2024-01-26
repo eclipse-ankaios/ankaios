@@ -1354,7 +1354,7 @@ mod tests {
             restart_counter,
         };
 
-        // dropping the channel causes the failing send of StateChangeRequest after the restart limit is exceeded.
+        // dropping the channel causes the failing send of ToServer message after the restart limit is exceeded.
         drop(state_change_rx);
 
         // execute last restart => restart limit is exceeded after this last try

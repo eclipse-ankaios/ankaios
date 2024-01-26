@@ -33,7 +33,7 @@ impl From<SendError<FromServer>> for FromServerInterfaceError {
     }
 }
 
-// [impl->swdd~execution-command-channel~1]
+// [impl->swdd~from-server-channel~1]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FromServer {
     UpdateWorkload(commands::UpdateWorkload),

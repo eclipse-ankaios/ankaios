@@ -46,7 +46,7 @@ impl GRPCStreaming<proto::FromServer> for GRPCFromServerStreaming {
     }
 }
 
-// [impl->swdd~grpc-client-forwards-commands-to-agent~1]
+// [impl->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
 pub async fn forward_from_proto_to_ankaios(
     agent_name: &str,
     grpc_streaming: &mut impl GRPCStreaming<proto::FromServer>,
@@ -125,7 +125,7 @@ pub async fn forward_from_proto_to_ankaios(
     Ok(())
 }
 
-// [impl->swdd~grpc-server-forwards-commands-to-grpc-client~1]
+// [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
 pub async fn forward_from_ankaios_to_proto(
     agent_senders: &AgentSendersMap,
     receiver: &mut Receiver<FromServer>,
@@ -204,7 +204,7 @@ pub async fn forward_from_ankaios_to_proto(
     }
 }
 
-// [impl->swdd~grpc-server-forwards-commands-to-grpc-client~1]
+// [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
 async fn distribute_workload_states_to_agents(
     agent_senders: &AgentSendersMap,
     workload_state_collection: Vec<WorkloadState>,
@@ -250,7 +250,7 @@ async fn distribute_workload_states_to_agents(
     }
 }
 
-// [impl->swdd~grpc-server-forwards-commands-to-grpc-client~1]
+// [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
 async fn distribute_workloads_to_agents(
     agent_senders: &AgentSendersMap,
     added_workloads: WorkloadCollection,
@@ -440,7 +440,7 @@ mod tests {
         ))
     }
 
-    // [utest->swdd~grpc-client-forwards-commands-to-agent~1]
+    // [utest->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
     #[tokio::test]
     async fn utest_execution_command_forward_from_proto_to_ankaios_handles_missing_agent_reply() {
         let agent_name = "fake_agent";
@@ -468,13 +468,13 @@ mod tests {
         .await;
         assert!(forward_result.is_ok());
 
-        // pick received execution command
+        // pick received from server message
         let result = agent_receiver.recv().await;
 
         assert_eq!(result, None);
     }
 
-    // [utest->swdd~grpc-client-forwards-commands-to-agent~1]
+    // [utest->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
     #[tokio::test]
     async fn utest_execution_command_forward_from_proto_to_ankaios_handles_incorrect_added_workloads(
     ) {
@@ -515,13 +515,13 @@ mod tests {
         .await;
         assert!(forward_result.is_ok());
 
-        // pick received execution command
+        // pick received from server message
         let result = agent_receiver.recv().await;
 
         assert_eq!(result, None);
     }
 
-    // [utest->swdd~grpc-client-forwards-commands-to-agent~1]
+    // [utest->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
     #[tokio::test]
     async fn utest_execution_command_forward_from_proto_to_ankaios_handles_incorrect_deleted_workloads(
     ) {
@@ -558,13 +558,13 @@ mod tests {
         .await;
         assert!(forward_result.is_ok());
 
-        // pick received execution command
+        // pick received from server message
         let result = agent_receiver.recv().await;
 
         assert_eq!(result, None);
     }
 
-    // [utest->swdd~grpc-client-forwards-commands-to-agent~1]
+    // [utest->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
     #[tokio::test]
     async fn utest_execution_command_forward_from_proto_to_ankaios_update_workload() {
         let agent_name = "fake_agent";
@@ -594,7 +594,7 @@ mod tests {
         .await;
         assert!(forward_result.is_ok());
 
-        // pick received execution command
+        // pick received from server message
         let result = agent_receiver.recv().await.unwrap();
 
         assert!(matches!(
@@ -604,7 +604,7 @@ mod tests {
         ));
     }
 
-    // [utest->swdd~grpc-client-forwards-commands-to-agent~1]
+    // [utest->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
     #[tokio::test]
     async fn utest_execution_command_forward_from_proto_to_ankaios_update_workload_state() {
         let agent_name = "fake_agent";
@@ -634,7 +634,7 @@ mod tests {
         .await;
         assert!(forward_result.is_ok());
 
-        // pick received execution command
+        // pick received from server message
         let result = agent_receiver.recv().await.unwrap();
 
         assert!(matches!(
@@ -827,7 +827,7 @@ mod tests {
         .await;
         assert!(forward_result.is_ok());
 
-        // pick received execution command
+        // pick received from server message
         let result = agent_receiver.recv().await;
 
         assert_eq!(result, None);
@@ -891,7 +891,7 @@ mod tests {
         .await;
         assert!(forward_result.is_ok());
 
-        // pick received execution command
+        // pick received from server message
         let result = agent_receiver.recv().await.unwrap();
 
         let expected_test_complete_state = test_complete_state.clone();

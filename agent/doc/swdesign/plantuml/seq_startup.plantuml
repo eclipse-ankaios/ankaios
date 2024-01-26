@@ -41,11 +41,11 @@ listen_to_server ->> server ++: AgentHello
 note right
         ""agentName: Node 1""
 end note
-listen_to_server -> listen_to_server ++: start listening for \nexecution requests
+listen_to_server -> listen_to_server ++: start listening for \nfrom server messages
 
 grpc_client ->> listen_to_manager **: create an async task
 activate listen_to_manager
-listen_to_manager -> listen_to_manager ++: start listening for \nstate change requests
+listen_to_manager -> listen_to_manager ++: start listening for \nto server messages
 
 listen_to_server <<- server --: UpdateWorkload
 note right

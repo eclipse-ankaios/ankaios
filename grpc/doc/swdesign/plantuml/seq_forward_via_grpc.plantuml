@@ -22,11 +22,11 @@ activate ankaios_agent
 
 ... Startup ...
 
-== Forward Execution Commands ==
+== Forward From Server messages ==
 
-ankaios_server ->> grpc_server ++: send Execution Command
+ankaios_server ->> grpc_server ++: send From Server message
 
-grpc_server -> grpc_server ++--: use Common lib to find \n commands per Agent
+grpc_server -> grpc_server ++--: use Common lib to find\ncommands per Agent
 
 loop for every Agent
 
@@ -42,11 +42,11 @@ loop for every Agent
 
 end
 
-== Forward State Change Commands ==
+== Forward To Server messages ==
 
-ankaios_agent ->> grpc_client ++--: send State Change Command
+ankaios_agent ->> grpc_client ++--: send To Server message
 
-grpc_client ->> agent_connection ++--: forward State Change \n Command over gRPC
+grpc_client ->> agent_connection ++--: forward To Server\nmessage over gRPC
 
-agent_connection -->> ankaios_server ++--: forward State Change Command
+agent_connection -->> ankaios_server ++--: forward To Server message
 @enduml

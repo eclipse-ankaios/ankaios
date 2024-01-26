@@ -67,14 +67,14 @@ The gRPC Server also forwards messages from the Ankaios Server to the Agents.
 The Agent Senders Map holds the sink ends of the channels to the Ankaios Agents.
 It also allows concurrent access to the sinks by internal locking.
 
-### Execution Command Proxy
+### From Server Proxy
 
-The Execution Command Proxy provides functions that forward the Execution Commands to and from Ankaios via gRPC.
+The From Server Proxy provides functions that forward From Server messages to and from Ankaios via gRPC.
 The Proxy functions also do conversion of the transferred objects to the appropriate format.
 
-### State Change Command Proxy
+### To Server Proxy
 
-The State Change Command Proxy provides functions that forward the State Change Command to and from Ankaios via gRPC.
+The To Server Proxy provides functions that forward To Server messages to and from Ankaios via gRPC.
 The Proxy functions also do conversion of the transferred objects to the appropriate format.
 
 ### gRPC Agent Connection
@@ -204,12 +204,12 @@ Needs:
 - impl
 - itest
 
-#### gRPC Client creates state change channel
-`swdd~grpc-client-creates-state-change-channel~1`
+#### gRPC Client creates to server channel
+`swdd~grpc-client-creates-to-server-channel~1`
 
 Status: approved
 
-Before connecting to the gRPC Server, the gRPC Client shall create a State Change Command Channel for sending commands to the gRPC Server.
+Before connecting to the gRPC Server, the gRPC Client shall create a To Server Channel for sending commands to the gRPC Server.
 
 Tags:
 - gRPC_Client
@@ -223,7 +223,7 @@ Needs:
 
 Status: approved
 
-The gRPC Client shall connect with the gRPC Server by sending `AgentHello` and the receiving side of the State Change Command Channel.
+The gRPC Client shall connect with the gRPC Server by sending `AgentHello` and the receiving side of the To Server Channel.
 
 Tags:
 - gRPC_Client
@@ -246,12 +246,12 @@ Needs:
 - impl
 - itest
 
-#### gRPC Agent Connection creates execution command channel
-`swdd~grpc-agent-connection-creates-execution-command-channel~1`
+#### gRPC Agent Connection creates from server channel
+`swdd~grpc-agent-connection-creates-from-server-channel~1`
 
 Status: approved
 
-For each received connection request, the gRPC Agent Connection shall create a new Execution Command Channel for this agent.
+For each received connection request, the gRPC Agent Connection shall create a new From Server Channel for this agent.
 
 Tags:
 - gRPC_Agent_Connection
@@ -260,12 +260,12 @@ Needs:
 - impl
 - itest
 
-#### gRPC Agent Connection stores execution channel tx
-`swdd~grpc-agent-connection-stores-execution-channel-tx~1`
+#### gRPC Agent Connection stores from server channel tx
+`swdd~grpc-agent-connection-stores-from-server-channel-tx~1`
 
 Status: approved
 
-For each received connection request, the gRPC Agent Connection shall store the created Execution Command Channel in the Agent Senders Map.
+For each received connection request, the gRPC Agent Connection shall store the created From Server Channel in the Agent Senders Map.
 
 Tags:
 - gRPC_Agent_Connection
@@ -274,12 +274,12 @@ Needs:
 - impl
 - itest
 
-#### gRPC Agent Connection responds to client with execution channel rx
-`swdd~grpc-agent-connection-responds-with-execution-channel-rx~1`
+#### gRPC Agent Connection responds to client with from server channel rx
+`swdd~grpc-agent-connection-responds-with-from-server-channel-rx~1`
 
 Status: approved
 
-The gRPC Agent Connection shall respond to the connection request of the gRPC Client with the receiving side of an Execution Command Channel.
+The gRPC Agent Connection shall respond to the connection request of the gRPC Client with the receiving side of an From Server Channel.
 
 Tags:
 - gRPCAgentConnection
@@ -311,12 +311,12 @@ The following diagram show how the gRPC Connection Middleware forwards messages 
 
 ![Forwarding messages](plantuml/seq_forward_via_grpc.svg)
 
-#### gRPC Server forwards Execution Commands to every gRPC Client in a single call
-`swdd~grpc-server-forwards-commands-to-grpc-client~1`
+#### gRPC Server forwards From Server messages to every gRPC Client in a single call
+`swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1`
 
 Status: approved
 
-When receiving Execution Commands from the Ankaios Agent, for all Agents that are recipients of Commands, the gRPC Server shall forward all Commands to a particular gRPC Client in a single call.
+When receiving From Server messages from the Ankaios Agent, for all Agents that are recipients of messages, the gRPC Server shall forward all messages to a particular gRPC Client in a single call.
 
 Tags:
 - gRPC_Server
@@ -341,12 +341,12 @@ Tags:
 Needs:
 - impl
 
-#### gRPC Client forwards Commands to Ankaios Agent
-`swdd~grpc-client-forwards-commands-to-agent~1`
+#### gRPC Client forwards From Server messages to Ankaios Agent
+`swdd~grpc-client-forwards-from-server-messages-to-agent~1`
 
 Status: approved
 
-When receiving Execution Commands from the gRPC Server, the gRPC Client shall forward these Commands to the Ankaios Agent.
+When receiving From Server messages from the gRPC Server, the gRPC Client shall forward these messages to the Ankaios Agent.
 
 Tags:
 - gRPC_Client
@@ -356,12 +356,12 @@ Needs:
 - utest
 - itest
 
-#### gRPC Client forwards State Change Commands to gRPC Agent Connection
+#### gRPC Client forwards To Server messages to gRPC Agent Connection
 `swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1`
 
 Status: approved
 
-When receiving State Change Commands from the Ankaios Agent, the gRPC Client shall forward these Commands to the gRPC Agent Connection.
+When receiving To Server messages from the Ankaios Agent, the gRPC Client shall forward these messages to the gRPC Agent Connection.
 
 Comment:
 The gRPC Clients must also convert the commands to protobuf in order to forward them to the gRPC Agent Connection.
@@ -374,12 +374,12 @@ Needs:
 - utest
 - itest
 
-#### gRPC Agent Connection forwards Commands to Ankaios Server
+#### gRPC Agent Connection forwards To Server messages to Ankaios Server
 `swdd~grpc-agent-connection-forwards-commands-to-server~1`
 
 Status: approved
 
-When receiving State Change Commands from the gRPC Client, the gRPC Agent Connection shall forward these Commands to the Ankaios Server.
+When receiving To Server messages from the gRPC Client, the gRPC Agent Connection shall forward these messages to the Ankaios Server.
 
 Comment:
 The gRPC Agent Connection must also convert the commands from protobuf in order to forward them to the Ankaios Server.

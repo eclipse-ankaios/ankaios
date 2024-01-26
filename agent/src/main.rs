@@ -87,7 +87,7 @@ async fn main() {
     >::new(podman_kube_runtime));
     runtime_facade_map.insert(podman_kube_runtime_name, podman_kube_facade);
 
-    // The RuntimeManager currently directly gets the server StateChangeInterface, but it shall get the agent manager interface
+    // The RuntimeManager currently directly gets the server ToServerInterface, but it shall get the agent manager interface
     // This is needed to be able to filter/authorize the commands towards the Ankaios server
     // The pipe connecting the workload to Ankaios must be in the runtime adapter
     let runtime_manager = RuntimeManager::new(

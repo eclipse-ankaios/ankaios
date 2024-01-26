@@ -23,7 +23,7 @@ main ->> grpc_server **: start
 activate grpc_server
 note over grpc_server
     start listening for
-    execution commands /'evil laughter'/
+    From Server messages
 end note
 main ->> server **: start with startup config
 activate server
@@ -39,7 +39,7 @@ loop per agent
     tonic_server ->> server++: agent hello (name)
     note over tonic_server
         start listening for
-        state change commands
+        To Server messages
     end note
 
     server -> server ++--: calculate commands to \n the specific agent

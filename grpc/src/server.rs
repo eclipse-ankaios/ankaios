@@ -70,7 +70,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                         GrpcMiddlewareError::StartError(format!("{err:?}"))
                     })?
             }
-            // [impl->swdd~grpc-server-forwards-commands-to-grpc-client~1]
+            // [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
             _ = from_server_proxy::forward_from_ankaios_to_proto(
                 &agent_senders_clone,
                 &mut receiver,

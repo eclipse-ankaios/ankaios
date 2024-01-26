@@ -35,40 +35,40 @@ Allowing dependencies in other direction would cause a cyclic dependency.
 The Common library is a collection of independent units (structures, interfaces) used by other components of Ankaios.
 For this reason it is useless to draw a structural diagram for this library.
 
-### ExecutionCommandChannel
+### FromServerChannel
 
-Simplifies sending and receiving `ExecutionCommand`s. Internally uses a multi-producer, single-consumer channel from Tokio.
+Simplifies sending and receiving `FromServer` messages. Internally uses a multi-producer, single-consumer channel from Tokio.
 
-#### Provide `ExecutionCommandChannel`
-`swdd~execution-command-channel~1`
+#### Provide `FromServerChannel`
+`swdd~from-server-channel~1`
 
 Status: approved
 
-The Common library shall provide an asynchronous communication channel that supports sending and receiving the `ExecutionCommand`.
+The Common library shall provide an asynchronous communication channel that supports sending and receiving the `FromServer` message.
 
 Rationale: The communication channels are especially needed in order to abstract the Communication Middleware.
 
 Tags:
-- ExecutionCommandChannel
+- FromServerChannel
 
 Needs:
 - impl
 
-### StateChangeCommandChannel
+### ToServerChannel
 
-Simplifies sending and receiving `StateChangeCommand`s. Internally uses a multi-producer, single-consumer channel from Tokio.
+Simplifies sending and receiving `ToServer` messages. Internally uses a multi-producer, single-consumer channel from Tokio.
 
-#### Provide `StateChangeCommandChannel`
-`swdd~state-change-command-channel~1`
+#### Provide `ToServerChannel`
+`swdd~to-server-channel~1`
 
 Status: approved
 
-The Common library shall provide an asynchronous communication channel that supports sending and receiving the `StateChangeCommand`.
+The Common library shall provide an asynchronous communication channel that supports sending and receiving the `ToServer` message.
 
 Rationale: The communication channels are especially needed in order to abstract the Communication Middleware.
 
 Tags:
-- StateChangeCommandChannel
+- ToServerChannel
 
 Needs:
 - impl
@@ -76,7 +76,7 @@ Needs:
 ### Objects
 
 Definitions of objects which are needed in all other components of Ankaios.
-These objects especially include objects which needs to be sent through for the `ExecutionCommandChannel` and `StateChangeCommandChannel`.
+These objects especially include objects which needs to be sent through for the `FromServerChannel` and `ToServerChannel`.
 
 #### Provide common object representation
 `swdd~common-object-representation~1`
