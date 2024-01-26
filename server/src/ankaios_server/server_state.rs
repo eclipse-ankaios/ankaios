@@ -20,6 +20,7 @@ use common::{
     commands::{CompleteState, RequestCompleteState},
     objects::{DeletedWorkload, State, WorkloadSpec},
 };
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Display;
 
@@ -217,20 +218,20 @@ impl ServerState {
                 the workload can be deleted immediately and does not need a delete condition */
                 if add_condition == &AddCondition::AddCondRunning {
                     let workload_name = workload_spec.name.clone();
-                    self.delete_graph
-                        .entry(dependency_name.clone())
-                        .and_modify(|e| {
-                            e.insert(
-                                workload_name.clone(),
-                                DeleteCondition::DelCondNotPendingNorRunning,
-                            );
-                        })
-                        .or_insert_with(|| {
-                            HashMap::from([(
+                    match self.delete_graph.entry(dependency_name.clone()) {
+                        Entry::Occupied(workload) => {
+                            workload.into_mut().insert(
                                 workload_name,
                                 DeleteCondition::DelCondNotPendingNorRunning,
-                            )])
-                        });
+                            );
+                        }
+                        Entry::Vacant(new_entry) => {
+                            new_entry.insert(HashMap::from([(
+                                workload_name,
+                                DeleteCondition::DelCondNotPendingNorRunning,
+                            )]));
+                        }
+                    }
                 }
             }
         }
