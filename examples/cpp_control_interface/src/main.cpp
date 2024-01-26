@@ -73,7 +73,7 @@ ankaios::ToServer createRequestForCompleteState()
     return toServer;
 }
 
-/* Reads a Response from the control interface input fifo and outputs it to stdout. */
+/* Reads from the control interface input fifo and prints the workload states. */
 void readFromControlInterface()
 {
     const auto inputFifo = ANKAIOS_CONTROL_INTERFACE_BASE_PATH + "/input";
