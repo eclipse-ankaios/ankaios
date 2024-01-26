@@ -843,6 +843,20 @@ mod tests {
 
     #[test]
     fn utest_server_state_update_state_update_delete_graph() {
+        /*
+            Dependency graph as input           Expected delete graph
+
+            R = ADD_COND_RUNNING
+            S = ADD_COND_SUCCEEDED
+            F = ADD_COND_FAILED
+
+                        5
+                        ^
+                        | R           =>        2 --> 1 (DelCondNotPendingNorRunning)
+            4 --> 1 --> 2 --> 3                 5 --> 2 (DelCondNotPendingNorRunning)
+               F     R     S
+            6 (workload without dependencies)
+        */
         let _ = env_logger::builder().is_test(true).try_init();
 
         let mut workload_1 = generate_test_workload_spec_with_param(
@@ -869,16 +883,33 @@ mod tests {
             RUNTIME.to_string(),
         );
 
+        let mut workload_5 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            "workload_5".to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let mut workload_6 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            "workload_5".to_string(),
+            RUNTIME.to_string(),
+        );
+
         workload_1.dependencies =
             HashMap::from([(workload_2.name.clone(), AddCondition::AddCondRunning)]);
 
-        workload_2.dependencies =
-            HashMap::from([(workload_3.name.clone(), AddCondition::AddCondSucceeded)]);
+        workload_2.dependencies = HashMap::from([
+            (workload_3.name.clone(), AddCondition::AddCondSucceeded),
+            (workload_5.name.clone(), AddCondition::AddCondRunning),
+        ]);
 
-        workload_3.dependencies =
-            HashMap::from([(workload_4.name.clone(), AddCondition::AddCondFailed)]);
+        workload_3.dependencies.clear();
 
-        workload_4.dependencies.clear();
+        workload_4.dependencies =
+            HashMap::from([(workload_1.name.clone(), AddCondition::AddCondFailed)]);
+
+        workload_5.dependencies.clear();
+        workload_6.dependencies.clear();
 
         let new_state = CompleteState {
             current_state: State {
@@ -887,6 +918,8 @@ mod tests {
                     (workload_2.name.clone(), workload_2.clone()),
                     (workload_3.name.clone(), workload_3.clone()),
                     (workload_4.name.clone(), workload_4.clone()),
+                    (workload_5.name.clone(), workload_5.clone()),
+                    (workload_6.name.clone(), workload_6.clone()),
                 ]),
                 ..Default::default()
             },
@@ -898,13 +931,22 @@ mod tests {
         let result = server_state.update(new_state.clone(), vec![]);
         assert!(result.unwrap().is_some());
 
-        let expected_delete_graph = HashMap::from([(
-            workload_2.name.clone(),
-            HashMap::from([(
-                workload_1.name.clone(),
-                DeleteCondition::DelCondNotPendingNorRunning,
-            )]),
-        )]);
+        let expected_delete_graph = HashMap::from([
+            (
+                workload_2.name.clone(),
+                HashMap::from([(
+                    workload_1.name.clone(),
+                    DeleteCondition::DelCondNotPendingNorRunning,
+                )]),
+            ),
+            (
+                workload_5.name.clone(),
+                HashMap::from([(
+                    workload_2.name.clone(),
+                    DeleteCondition::DelCondNotPendingNorRunning,
+                )]),
+            ),
+        ]);
         assert_eq!(expected_delete_graph, server_state.delete_graph);
         assert_eq!(new_state, server_state.state);
         log::info!("{:?}", server_state.delete_graph);
