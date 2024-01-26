@@ -7,7 +7,7 @@ import logging
 
 ANKAIOS_CONTROL_INTERFACE_BASE_PATH = "/run/ankaios/control_interface"
 WAITING_TIME_IN_SEC = 5
-REQUEST_ID = "dynamic_nginx@cpp_control_interface"
+REQUEST_ID = "dynamic_nginx@python_control_interface"
 
 def create_logger():
     """Create a logger with custom format and default log level."""
