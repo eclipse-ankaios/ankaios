@@ -118,7 +118,7 @@ pub async fn forward_from_proto_to_ankaios(
         .await;
 
         if let Err::<(), GrpcMiddlewareError>(error) = try_block {
-            log::debug!("Could not forward execution request: {}", error);
+            log::debug!("Could not forward from server message: {}", error);
         }
     }
 
@@ -130,8 +130,8 @@ pub async fn forward_from_ankaios_to_proto(
     agent_senders: &AgentSendersMap,
     receiver: &mut Receiver<FromServer>,
 ) {
-    while let Some(execution_command) = receiver.recv().await {
-        match execution_command {
+    while let Some(from_server_msg) = receiver.recv().await {
+        match from_server_msg {
             FromServer::UpdateWorkload(method_obj) => {
                 log::trace!("Received UpdateWorkload from server: {:?}.", method_obj);
 
@@ -353,16 +353,16 @@ mod tests {
     }
 
     #[derive(Default, Clone)]
-    struct MockGRPCExecutionRequestStreaming {
+    struct MockGRPCFromServerStreaming {
         msgs: LinkedList<Option<proto::FromServer>>,
     }
-    impl MockGRPCExecutionRequestStreaming {
+    impl MockGRPCFromServerStreaming {
         fn new(msgs: LinkedList<Option<proto::FromServer>>) -> Self {
-            MockGRPCExecutionRequestStreaming { msgs }
+            MockGRPCFromServerStreaming { msgs }
         }
     }
     #[async_trait]
-    impl GRPCStreaming<proto::FromServer> for MockGRPCExecutionRequestStreaming {
+    impl GRPCStreaming<proto::FromServer> for MockGRPCFromServerStreaming {
         async fn message(&mut self) -> Result<Option<proto::FromServer>, tonic::Status> {
             if let Some(msg) = self.msgs.pop_front() {
                 Ok(msg)
@@ -373,7 +373,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_execution_command_forward_from_ankaios_to_proto_update_workload() {
+    async fn utest_from_server_proxy_forward_from_ankaios_to_proto_update_workload() {
         let agent = "agent_X";
         let (to_manager, mut manager_receiver, _, mut agent_rx, agent_senders_map) =
             create_test_setup(agent);
@@ -411,7 +411,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_execution_command_forward_from_ankaios_to_proto_update_workload_state() {
+    async fn utest_from_server_proxy_forward_from_ankaios_to_proto_update_workload_state() {
         let (to_manager, mut manager_receiver, _, mut agent_rx, agent_senders_map) =
             create_test_setup("agent_X");
 
@@ -442,14 +442,14 @@ mod tests {
 
     // [utest->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
     #[tokio::test]
-    async fn utest_execution_command_forward_from_proto_to_ankaios_handles_missing_agent_reply() {
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_handles_missing_agent_reply() {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
             mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
-        // simulate the reception of an update workload grpc execution request
+        // simulate the reception of an update workload grpc from server message
         let mut mock_grpc_ex_request_streaming =
-            MockGRPCExecutionRequestStreaming::new(LinkedList::from([
+            MockGRPCFromServerStreaming::new(LinkedList::from([
                 Some(FromServer {
                     from_server_enum: None,
                 }),
@@ -476,7 +476,7 @@ mod tests {
 
     // [utest->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
     #[tokio::test]
-    async fn utest_execution_command_forward_from_proto_to_ankaios_handles_incorrect_added_workloads(
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_handles_incorrect_added_workloads(
     ) {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
@@ -491,9 +491,9 @@ mod tests {
 
         workload.update_strategy = -1;
 
-        // simulate the reception of an update workload grpc execution request
+        // simulate the reception of an update workload grpc from server message
         let mut mock_grpc_ex_request_streaming =
-            MockGRPCExecutionRequestStreaming::new(LinkedList::from([
+            MockGRPCFromServerStreaming::new(LinkedList::from([
                 Some(FromServer {
                     from_server_enum: Some(FromServerEnum::UpdateWorkload(UpdateWorkload {
                         added_workloads: vec![workload],
@@ -523,7 +523,7 @@ mod tests {
 
     // [utest->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
     #[tokio::test]
-    async fn utest_execution_command_forward_from_proto_to_ankaios_handles_incorrect_deleted_workloads(
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_handles_incorrect_deleted_workloads(
     ) {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
@@ -534,9 +534,9 @@ mod tests {
             dependencies: [("name".into(), -1)].into(),
         };
 
-        // simulate the reception of an update workload grpc execution request
+        // simulate the reception of an update workload grpc from server message
         let mut mock_grpc_ex_request_streaming =
-            MockGRPCExecutionRequestStreaming::new(LinkedList::from([
+            MockGRPCFromServerStreaming::new(LinkedList::from([
                 Some(FromServer {
                     from_server_enum: Some(FromServerEnum::UpdateWorkload(UpdateWorkload {
                         added_workloads: vec![],
@@ -566,14 +566,14 @@ mod tests {
 
     // [utest->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
     #[tokio::test]
-    async fn utest_execution_command_forward_from_proto_to_ankaios_update_workload() {
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_update_workload() {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
             mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
-        // simulate the reception of an update workload grpc execution request
+        // simulate the reception of an update workload grpc from server message
         let mut mock_grpc_ex_request_streaming =
-            MockGRPCExecutionRequestStreaming::new(LinkedList::from([
+            MockGRPCFromServerStreaming::new(LinkedList::from([
                 Some(FromServer {
                     from_server_enum: Some(FromServerEnum::UpdateWorkload(
                         UpdateWorkload::default(),
@@ -606,14 +606,14 @@ mod tests {
 
     // [utest->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
     #[tokio::test]
-    async fn utest_execution_command_forward_from_proto_to_ankaios_update_workload_state() {
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_update_workload_state() {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
             mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
-        // simulate the reception of an update workload state grpc execution request
+        // simulate the reception of an update workload state grpc from server message
         let mut mock_grpc_ex_request_streaming =
-            MockGRPCExecutionRequestStreaming::new(LinkedList::from([
+            MockGRPCFromServerStreaming::new(LinkedList::from([
                 Some(FromServer {
                     from_server_enum: Some(FromServerEnum::UpdateWorkloadState(
                         proto::UpdateWorkloadState::default(),
@@ -662,7 +662,7 @@ mod tests {
 
         let result = agent_rx.recv().await.unwrap().unwrap();
 
-        // shall receive update workload execution request
+        // shall receive update workload from server message
         assert!(matches!(
             result.from_server_enum,
             Some(FromServerEnum::UpdateWorkload(_))
@@ -686,7 +686,7 @@ mod tests {
         ))
         .0;
 
-        // shall not receive any execution request
+        // shall not receive any from server message
         assert!(matches!(agent_rx.try_recv(), Err(TryRecvError::Empty)))
     }
 
@@ -708,7 +708,7 @@ mod tests {
 
         let result = agent_rx.recv().await.unwrap().unwrap();
 
-        // shall receive update workload execution request
+        // shall receive update workload from server message
         assert!(matches!(
             result.from_server_enum,
             Some(FromServerEnum::UpdateWorkloadState(_))
@@ -716,7 +716,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_execution_command_forward_from_ankaios_to_proto_complete_state() {
+    async fn utest_from_server_proxy_forward_from_ankaios_to_proto_complete_state() {
         let agent_name: &str = "agent_X";
         let (to_manager, mut manager_receiver, _, mut agent_rx, agent_senders_map) =
             create_test_setup(agent_name);
@@ -778,7 +778,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_execution_command_forward_from_proto_to_ankaios_handles_incorrect_complete_state(
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_handles_incorrect_complete_state(
     ) {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
@@ -803,9 +803,9 @@ mod tests {
                 workload_states: vec![],
             });
 
-        // simulate the reception of an update workload state grpc execution request
+        // simulate the reception of an update workload state grpc from server message
         let mut mock_grpc_ex_request_streaming =
-            MockGRPCExecutionRequestStreaming::new(LinkedList::from([
+            MockGRPCFromServerStreaming::new(LinkedList::from([
                 Some(FromServer {
                     from_server_enum: Some(FromServerEnum::Response(proto::Response {
                         request_id: my_request_id,
@@ -834,7 +834,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_execution_command_forward_from_proto_to_ankaios_complete_state() {
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_complete_state() {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
             mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
@@ -870,9 +870,9 @@ mod tests {
             )),
         };
 
-        // simulate the reception of an update workload state grpc execution request
+        // simulate the reception of an update workload state grpc from server message
         let mut mock_grpc_ex_request_streaming =
-            MockGRPCExecutionRequestStreaming::new(LinkedList::from([
+            MockGRPCFromServerStreaming::new(LinkedList::from([
                 Some(FromServer {
                     from_server_enum: Some(FromServerEnum::Response(proto_response)),
                 }),

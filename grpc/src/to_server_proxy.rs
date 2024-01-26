@@ -310,7 +310,7 @@ mod tests {
         let agent_name = "fake_agent";
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
-        // simulate the reception of an update workload state grpc execution request
+        // simulate the reception of an update workload state grpc from server message
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([]));
 
@@ -336,7 +336,7 @@ mod tests {
         let agent_name = "fake_agent";
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
-        // simulate the reception of an update workload state grpc execution request
+        // simulate the reception of an update workload state grpc from server message
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(proto::ToServer {
@@ -388,7 +388,7 @@ mod tests {
 
         let ankaios_update_mask = vec!["bla".into()];
 
-        // simulate the reception of an update workload state grpc execution request
+        // simulate the reception of an update workload state grpc from server message
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(proto::ToServer {
@@ -430,7 +430,7 @@ mod tests {
 
         let ankaios_update_mask = vec!["bla".into()];
 
-        // simulate the reception of an update workload state grpc execution request
+        // simulate the reception of an update workload state grpc from server message
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(proto::ToServer {
@@ -482,7 +482,7 @@ mod tests {
             execution_state: ankaios::ExecutionState::ExecRunning as i32,
         };
 
-        // simulate the reception of an update workload state grpc execution request
+        // simulate the reception of an update workload state grpc from server message
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(proto::ToServer {
@@ -521,7 +521,7 @@ mod tests {
         let agent_name = "fake_agent";
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
-        // simulate the reception of an update workload state grpc execution request
+        // simulate the reception of an update workload state grpc from server message
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(proto::ToServer {

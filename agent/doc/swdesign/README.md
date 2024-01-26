@@ -6,14 +6,14 @@ This document describes the Software Design for the Ankaios Agent.
 
 Ankaios is a workload orchestrator supporting a subset of the Kubernetes configurations and is targeted at the automotive use case.
 
-The Ankaios Agent is one of the components of the Ankaios orchestrator and is responsible for running Workloads on the Agent node and forwarding execution requests to the Server.
+The Ankaios Agent is one of the components of the Ankaios orchestrator and is responsible for running Workloads on the Agent node and authorizing forwarding messages from workloads to the Server.
 
 ## Context View
 
 An Ankaios Agent is connected to one single instance of an Ankaios Server. The Agent communicates with the Server to:
 * get list of Workloads scheduled for that particular Agent
 * get execution statuses of Workloads on other Agents
-* forward execution requests from authorized Workloads to the Server
+* forward messages from authorized Workloads to the Server
 
 The following diagram shows a high level view of an Ankaios Agent in its context:
 
@@ -151,7 +151,7 @@ Needs:
 
 Status: approved
 
-The AgentManager shall listen for the execution requests from the Server.
+The AgentManager shall listen for request from the Server.
 
 Tags:
 - AgentManager

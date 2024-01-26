@@ -47,7 +47,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn utest_execution_command_channels_new() {
+    async fn utest_from_server_channels_new() {
         let test_channels = FromServerChannels::new(1024);
 
         let _ = test_channels

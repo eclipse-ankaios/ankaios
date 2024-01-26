@@ -32,7 +32,7 @@ activate manager
 
 grpc_client -> grpc_client ++: start and endless loop \ntrying to (re)connect to the server
 
-manager -> manager ++: start listening for \nexecution requests
+manager -> manager ++: start listening for \nto server messages
 
 grpc_client ->> listen_to_server **: create an async task
 
