@@ -19,7 +19,7 @@ use api::proto::from_server::FromServerEnum;
 use api::proto::{self, response, CompleteState};
 
 use async_trait::async_trait;
-use common::from_server_interface::{AgentInterface, FromServer};
+use common::from_server_interface::{FromServer, FromServerInterface};
 use common::objects::{
     get_workloads_per_agent, DeletedWorkload, DeletedWorkloadCollection, WorkloadCollection,
     WorkloadSpec, WorkloadState,
@@ -313,7 +313,7 @@ mod tests {
     use api::proto::{self, from_server::FromServerEnum, FromServer, UpdateWorkload};
     use async_trait::async_trait;
     use common::commands::CompleteState;
-    use common::from_server_interface::AgentInterface;
+    use common::from_server_interface::FromServerInterface;
     use common::objects::{State, WorkloadSpec};
     use common::test_utils::*;
     use tokio::sync::mpsc::error::TryRecvError;

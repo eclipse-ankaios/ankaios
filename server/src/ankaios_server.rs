@@ -23,7 +23,7 @@ use server_state::ServerState;
 
 use crate::workload_state_db::WorkloadStateDB;
 use common::{
-    from_server_interface::{AgentInterface, FromServer},
+    from_server_interface::{FromServer, FromServerInterface},
     to_server_interface::ToServer,
 };
 

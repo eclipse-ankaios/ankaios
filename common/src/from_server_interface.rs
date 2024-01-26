@@ -23,7 +23,7 @@ pub struct FromServerInterfaceError(String);
 
 impl fmt::Display for FromServerInterfaceError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "AgentInterfaceError: '{}'", self.0)
+        write!(f, "FromServerInterfaceError: '{}'", self.0)
     }
 }
 
@@ -88,7 +88,7 @@ impl TryFrom<FromServer> for proto::FromServer {
 }
 
 #[async_trait]
-pub trait AgentInterface {
+pub trait FromServerInterface {
     async fn update_workload(
         &self,
         added_workloads: Vec<WorkloadSpec>,
@@ -116,7 +116,7 @@ pub type FromServerSender = tokio::sync::mpsc::Sender<FromServer>;
 pub type FromServerReceiver = tokio::sync::mpsc::Receiver<FromServer>;
 
 #[async_trait]
-impl AgentInterface for FromServerSender {
+impl FromServerInterface for FromServerSender {
     async fn update_workload(
         &self,
         added_workloads: Vec<WorkloadSpec>,

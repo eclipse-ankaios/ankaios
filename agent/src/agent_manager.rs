@@ -121,7 +121,7 @@ mod tests {
     use crate::agent_manager::AgentManager;
     use common::{
         commands::{self, Response, ResponseContent},
-        from_server_interface::AgentInterface,
+        from_server_interface::FromServerInterface,
         objects::{ExecutionState, WorkloadState},
         test_utils::generate_test_workload_spec_with_param,
     };
