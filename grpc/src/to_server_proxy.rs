@@ -592,6 +592,6 @@ mod tests {
                     proto::CompleteStateRequest { field_mask },
                 )),
         }))
-        if request_id == request_id && field_mask == field_mask));
+        if request_id == "my_request_id" && field_mask == vec![] as Vec<String>));
     }
 }
