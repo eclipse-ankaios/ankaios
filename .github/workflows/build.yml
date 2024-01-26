@@ -32,6 +32,15 @@ jobs:
       - name: Check licenses
         run: cargo deny check
 
+      - name: Create license report
+        run: |
+          mkdir -p build
+          cargo about generate about.hbs > build/licenses.html
+      - uses: actions/upload-artifact@v3.1.2
+        with:
+          name: licenses
+          path: build/licenses.html
+
       - name: Run tests
         run: RUST_LOG=debug cargo nextest run
 
