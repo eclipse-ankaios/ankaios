@@ -71,7 +71,7 @@ function decode_from_server_response_message(root, data) {
     FromServer = root.lookupType("ankaios.FromServer");
     const decoded_message = FromServer.decodeDelimited(data);
     let requestId = decoded_message.response.requestId;
-    if (requestId == REQUEST_ID) {
+    if (requestId === REQUEST_ID) {
         console.log(`[${new Date().toISOString()}] Receiving Response containing the workload states of the current state:\nFromServer `, util.inspect(decoded_message.toJSON(), { depth: null }));
     } else {
         console.log(`RequestId does not match. Skipping messages from requestId: ${requestId}`);
@@ -86,12 +86,7 @@ function read_from_control_interface(root, decode_func) {
         try {
             decode_func(root, data)
         } catch (e) {
-            if (e instanceof protobuf.util.ProtocolError) {
-                console.error(e);
-            } else {
-                // wire format is invalid
-                console.error(`invalid wire format: `, e);
-            }
+            console.error(`Invalid response, parsing error: `, e.toString());
         }
     });
 }
