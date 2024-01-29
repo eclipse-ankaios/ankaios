@@ -242,7 +242,7 @@ impl ServerState {
                     &new_state.current_state,
                 );
 
-                if let Some((added_workloads, deleted_workloads)) = cmd {
+                if let Some((added_workloads, mut deleted_workloads)) = cmd {
                     let start_nodes: Vec<&String> = added_workloads
                         .iter()
                         .filter_map(|w| {
@@ -268,6 +268,12 @@ impl ServerState {
                     }
 
                     self.update_delete_graph(&added_workloads);
+
+                    for workload in deleted_workloads.iter_mut() {
+                        if let Some(delete_conditions) = self.delete_graph.get(&workload.name) {
+                            workload.dependencies = delete_conditions.clone();
+                        }
+                    }
 
                     self.state = new_state;
                     Ok(Some((added_workloads, deleted_workloads)))
@@ -1021,7 +1027,6 @@ mod tests {
         ]);
         assert_eq!(expected_delete_graph, server_state.delete_graph);
         assert_eq!(new_state, server_state.state);
-        log::info!("{:?}", server_state.delete_graph);
     }
 
     fn generate_test_old_state() -> CompleteState {
