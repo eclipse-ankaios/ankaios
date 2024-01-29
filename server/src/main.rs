@@ -25,7 +25,7 @@ use common::communications_server::CommunicationsServer;
 use common::objects::State;
 use common::std_extensions::GracefulExitResult;
 
-use ankaios_server::{create_execution_channels, create_state_change_channels, AnkaiosServer};
+use ankaios_server::{create_from_server_channel, create_to_server_channel, AnkaiosServer};
 
 use grpc::server::GRPCCommunicationsServer;
 
@@ -56,7 +56,6 @@ async fn main() {
                 state.workloads
             );
             Some(CompleteState {
-                request_id: "".to_string(),
                 current_state: state,
                 ..Default::default()
             })
@@ -65,8 +64,8 @@ async fn main() {
         _ => None,
     };
 
-    let (to_server, server_receiver) = create_state_change_channels(common::CHANNEL_CAPACITY);
-    let (to_agents, agents_receiver) = create_execution_channels(common::CHANNEL_CAPACITY);
+    let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+    let (to_agents, agents_receiver) = create_from_server_channel(common::CHANNEL_CAPACITY);
 
     let mut communications_server = GRPCCommunicationsServer::new(to_server.clone());
     let mut server = AnkaiosServer::new(server_receiver, to_agents.clone());

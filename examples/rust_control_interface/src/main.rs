@@ -12,7 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::proto;
+use api::proto::{
+    request::RequestContent, to_server::ToServerEnum, CompleteState, CompleteStateRequest,
+    FromServer, Request, State, Tag, ToServer, UpdateStateRequest, UpdateStrategy, Workload,
+};
 use prost::Message;
 use std::{
     collections::HashMap,
@@ -27,6 +30,7 @@ use std::{
 const ANKAIOS_CONTROL_INTERFACE_BASE_PATH: &str = "/run/ankaios/control_interface";
 const MAX_VARINT_SIZE: usize = 19;
 const WAITING_TIME_IN_SEC: u64 = 5;
+const REQUEST_ID: &str = "dynamic_nginx@rust_control_interface";
 
 mod logging {
     pub fn log(msg: &str) {
@@ -38,16 +42,19 @@ mod logging {
     }
 }
 
-fn create_update_workload_request() -> proto::StateChangeRequest {
+/// Create the Request containing an UpdateStateRequest
+/// that contains the details for adding the new workload and
+/// the update mask to add only the new workload.
+fn create_request_to_add_new_workload() -> ToServer {
     let new_workloads = HashMap::from([(
         "dynamic_nginx".to_string(),
-        proto::Workload {
+        Workload {
             runtime: "podman".to_string(),
             agent: "agent_A".to_string(),
             restart: false,
-            update_strategy: proto::UpdateStrategy::AtMostOnce.into(),
+            update_strategy: UpdateStrategy::AtMostOnce.into(),
             access_rights: None,
-            tags: vec![proto::Tag {
+            tags: vec![Tag {
                 key: "owner".to_string(),
                 value: "Ankaios team".to_string(),
             }],
@@ -57,36 +64,34 @@ fn create_update_workload_request() -> proto::StateChangeRequest {
         },
     )]);
 
-    proto::StateChangeRequest {
-        state_change_request_enum: Some(
-            proto::state_change_request::StateChangeRequestEnum::UpdateState(
-                proto::UpdateStateRequest {
-                    new_state: Some(proto::CompleteState {
-                        current_state: Some(proto::State {
-                            workloads: new_workloads,
-                            configs: HashMap::default(),
-                            cronjobs: HashMap::default(),
-                        }),
-                        ..Default::default()
+    ToServer {
+        to_server_enum: Some(ToServerEnum::Request(Request {
+            request_id: REQUEST_ID.to_string(),
+            request_content: Some(RequestContent::UpdateStateRequest(UpdateStateRequest {
+                new_state: Some(CompleteState {
+                    current_state: Some(State {
+                        workloads: new_workloads,
+                        configs: HashMap::default(),
+                        cronjobs: HashMap::default(),
                     }),
-                    update_mask: vec!["currentState.workloads.dynamic_nginx".to_string()],
-                },
-            ),
-        ),
+                    ..Default::default()
+                }),
+                update_mask: vec!["currentState.workloads.dynamic_nginx".to_string()],
+            })),
+        })),
     }
 }
 
-fn create_request_complete_state_request() -> proto::StateChangeRequest {
-    proto::StateChangeRequest {
-        state_change_request_enum: Some(
-            proto::state_change_request::StateChangeRequestEnum::RequestCompleteState(
-                proto::RequestCompleteState {
-                    request_id: "request_id".to_string(),
-
-                    field_mask: vec![String::from("workloadStates")],
-                },
-            ),
-        ),
+/// Create a Request to request the CompleteState
+/// for querying the workload states.
+fn create_request_for_complete_state() -> ToServer {
+    ToServer {
+        to_server_enum: Some(ToServerEnum::Request(Request {
+            request_id: REQUEST_ID.to_string(),
+            request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
+                field_mask: vec![String::from("workloadStates")],
+            })),
+        })),
     }
 }
 
@@ -116,6 +121,7 @@ fn read_protobuf_data(file: &mut File) -> Result<Box<[u8]>, io::Error> {
     Ok(buf.into_boxed_slice())
 }
 
+/// Reads from the control interface input fifo and prints the workload states.
 fn read_from_control_interface() {
     let pipes_location = Path::new(ANKAIOS_CONTROL_INTERFACE_BASE_PATH);
     let ex_req_fifo = pipes_location.join("input");
@@ -131,13 +137,37 @@ fn read_from_control_interface() {
 
     loop {
         if let Ok(binary) = read_protobuf_data(&mut ex_req) {
-            let proto = proto::ExecutionRequest::decode(&mut Box::new(binary.as_ref()));
+            match FromServer::decode(&mut Box::new(binary.as_ref())) {
+                Ok(from_server) => {
+                    let Some(api::proto::from_server::FromServerEnum::Response(response)) =
+                        &from_server.from_server_enum
+                    else {
+                        logging::log("No response. Continue.");
+                        continue;
+                    };
 
-            logging::log(&format!("Receiving ExecutionRequest containing the workload states of the current state: {:#?}", proto));
+                    let request_id: &String = &response.request_id;
+                    if request_id == REQUEST_ID {
+                        logging::log(&format!(
+                            "Receiving Response containing the workload states of the current state:\n{:#?}",
+                            from_server
+                        ));
+                    } else {
+                        logging::log(&format!(
+                            "RequestId does not match. Skipping messages from requestId: {}",
+                            request_id
+                        ));
+                    }
+                }
+                Err(err) => logging::log(&format!("Invalid response, parsing error: '{}'", err)),
+            }
         }
     }
 }
 
+/// Writes a Request into the control interface output fifo
+// to add the new workload dynamically and every x sec according to WAITING_TIME_IN_SEC
+// another Request to request the workload states.
 fn write_to_control_interface() {
     let pipes_location = Path::new(ANKAIOS_CONTROL_INTERFACE_BASE_PATH);
     let sc_req_fifo = pipes_location.join("output");
@@ -151,17 +181,23 @@ fn write_to_control_interface() {
         exit(1);
     });
 
-    let protobuf_update_workload_request = create_update_workload_request();
+    let protobuf_update_workload_request = create_request_to_add_new_workload();
 
-    logging::log(format!("Sending StateChangeRequest containing details for adding the dynamic workload \"dynamic_nginx\": {:#?}", protobuf_update_workload_request).as_str());
+    logging::log(format!("Sending Request containing details for adding the dynamic workload \"dynamic_nginx\":\n{:#?}", protobuf_update_workload_request).as_str());
 
     sc_req
         .write_all(&protobuf_update_workload_request.encode_length_delimited_to_vec())
         .unwrap();
 
-    let protobuf_request_complete_state_request = create_request_complete_state_request();
+    let protobuf_request_complete_state_request = create_request_for_complete_state();
     loop {
-        logging::log(format!("Sending StateChangeRequest containing details for requesting all workload states: {:#?}", protobuf_request_complete_state_request).as_str());
+        logging::log(
+            format!(
+                "Sending Request containing details for requesting all workload states:\n{:#?}",
+                protobuf_request_complete_state_request
+            )
+            .as_str(),
+        );
         sc_req
             .write_all(&protobuf_request_complete_state_request.encode_length_delimited_to_vec())
             .unwrap();

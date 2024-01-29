@@ -4,13 +4,13 @@ use std::{
 };
 
 use common::{
-    commands::CompleteState,
+    commands::Response,
     objects::{
         AgentName, DeletedWorkload, WorkloadExecutionInstanceName, WorkloadInstanceName,
         WorkloadSpec,
     },
     request_id_prepending::detach_prefix_from_request_id,
-    state_change_interface::StateChangeSender,
+    to_server_interface::ToServerSender,
 };
 
 #[cfg_attr(test, mockall_double::double)]
@@ -36,12 +36,12 @@ fn flatten(
 pub struct RuntimeManager {
     agent_name: AgentName,
     run_folder: PathBuf,
-    control_interface_tx: StateChangeSender,
+    control_interface_tx: ToServerSender,
     initial_workload_list_received: bool,
     workloads: HashMap<String, Workload>,
     // [impl->swdd~agent-supports-multiple-runtime-connectors~1]
     runtime_map: HashMap<String, Box<dyn RuntimeFacade>>,
-    update_state_tx: StateChangeSender,
+    update_state_tx: ToServerSender,
 }
 
 #[cfg_attr(test, automock)]
@@ -49,9 +49,9 @@ impl RuntimeManager {
     pub fn new(
         agent_name: AgentName,
         run_folder: PathBuf,
-        control_interface_tx: StateChangeSender,
+        control_interface_tx: ToServerSender,
         runtime_map: HashMap<String, Box<dyn RuntimeFacade>>,
-        update_state_tx: StateChangeSender,
+        update_state_tx: ToServerSender,
     ) -> Self {
         RuntimeManager {
             agent_name,
@@ -93,26 +93,24 @@ impl RuntimeManager {
     }
 
     // [impl->swdd~agent-forward-responses-to-control-interface-pipe~1]
-    pub async fn forward_complete_state(&mut self, method_obj: CompleteState) {
+    pub async fn forward_response(&mut self, response: Response) {
         // [impl->swdd~agent-uses-id-prefix-forward-control-interface-response-correct-workload~1]
         // [impl->swdd~agent-remove-id-prefix-forwarding-control-interface-response~1]
-        let (workload_name, request_id) = detach_prefix_from_request_id(&method_obj.request_id);
+        let (workload_name, request_id) = detach_prefix_from_request_id(&response.request_id);
         if let Some(workload) = self.workloads.get_mut(&workload_name) {
-            let payload = CompleteState {
-                request_id,
-                ..method_obj
-            };
-
-            if let Err(err) = workload.send_complete_state(payload).await {
+            if let Err(err) = workload
+                .forward_response(request_id, response.response_content)
+                .await
+            {
                 log::warn!(
-                    "Could not forward complete state to workload '{}': '{}'",
+                    "Could not forward response to workload '{}': '{}'",
                     workload_name,
                     err
                 );
             }
         } else {
             log::warn!(
-                "Could not forward complete state for unknown workload: '{}'",
+                "Could not forward response for unknown workload: '{}'",
                 workload_name
             );
         }
@@ -309,7 +307,7 @@ impl RuntimeManager {
     // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
     fn create_control_interface(
         run_folder: &Path,
-        control_interface_tx: StateChangeSender,
+        control_interface_tx: ToServerSender,
         workload_spec: &WorkloadSpec,
     ) -> Option<PipesChannelContext> {
         log::debug!("Creating control interface pipes for '{:?}'", workload_spec);
@@ -345,14 +343,15 @@ mod tests {
     use crate::control_interface::MockPipesChannelContext;
     use crate::runtime_connectors::{MockRuntimeFacade, RuntimeError};
     use crate::workload::{MockWorkload, WorkloadError};
+    use common::commands::ResponseContent;
     use common::objects::WorkloadExecutionInstanceNameBuilder;
-    use common::test_utils::{generate_test_complete_state, generate_test_deleted_workload};
-    use common::{
-        state_change_interface::StateChangeCommand,
-        test_utils::generate_test_workload_spec_with_param,
+    use common::test_utils::{
+        generate_test_complete_state, generate_test_deleted_workload,
+        generate_test_workload_spec_with_param,
     };
+    use common::to_server_interface::ToServerReceiver;
     use mockall::{predicate, Sequence};
-    use tokio::sync::mpsc::{channel, Receiver};
+    use tokio::sync::mpsc::channel;
 
     const BUFFER_SIZE: usize = 20;
     const RUNTIME_NAME: &str = "runtime1";
@@ -379,7 +378,7 @@ mod tests {
             self
         }
 
-        pub fn build(self) -> (Receiver<StateChangeCommand>, RuntimeManager) {
+        pub fn build(self) -> (ToServerReceiver, RuntimeManager) {
             let (to_server, server_receiver) = channel(BUFFER_SIZE);
             let runtime_manager = RuntimeManager::new(
                 AGENT_NAME.into(),
@@ -990,32 +989,34 @@ mod tests {
 
         let mut mock_workload = MockWorkload::default();
         mock_workload
-            .expect_send_complete_state()
+            .expect_forward_response()
             .once()
-            .withf(|complete_state| {
-                complete_state.request_id == REQUEST_ID
-                    && complete_state
+            .withf(|request_id, response_content| {
+                request_id == REQUEST_ID
+                    && matches!(response_content, ResponseContent::CompleteState(complete_state) if complete_state
                         .workload_states
                         .first()
                         .unwrap()
                         .workload_name
-                        == WORKLOAD_1_NAME
+                        == WORKLOAD_1_NAME)
             })
-            .return_once(move |_| Ok(()));
+            .return_once(move |_, _| Ok(()));
 
         runtime_manager
             .workloads
             .insert(WORKLOAD_1_NAME.to_string(), mock_workload);
 
         runtime_manager
-            .forward_complete_state(generate_test_complete_state(
-                format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                vec![generate_test_workload_spec_with_param(
-                    AGENT_NAME.to_string(),
-                    WORKLOAD_1_NAME.to_string(),
-                    RUNTIME_NAME.to_string(),
-                )],
-            ))
+            .forward_response(Response {
+                request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
+                response_content: ResponseContent::CompleteState(Box::new(
+                    generate_test_complete_state(vec![generate_test_workload_spec_with_param(
+                        AGENT_NAME.to_string(),
+                        WORKLOAD_1_NAME.to_string(),
+                        RUNTIME_NAME.to_string(),
+                    )]),
+                )),
+            })
             .await;
     }
 
@@ -1037,18 +1038,18 @@ mod tests {
 
         let mut mock_workload = MockWorkload::default();
         mock_workload
-            .expect_send_complete_state()
+            .expect_forward_response()
             .once()
-            .withf(|complete_state| {
-                complete_state.request_id == REQUEST_ID
-                    && complete_state
-                        .workload_states
-                        .first()
-                        .unwrap()
-                        .workload_name
-                        == WORKLOAD_1_NAME
+            .withf(|request_id, response_content| {
+                request_id == REQUEST_ID
+                    && matches!(response_content, ResponseContent::CompleteState(complete_state) if complete_state
+                    .workload_states
+                    .first()
+                    .unwrap()
+                    .workload_name
+                    == WORKLOAD_1_NAME)
             })
-            .return_once(move |_| {
+            .return_once(move |_, _| {
                 Err(WorkloadError::CompleteState(
                     "failed to send complete state".to_string(),
                 ))
@@ -1059,14 +1060,16 @@ mod tests {
             .insert(WORKLOAD_1_NAME.to_string(), mock_workload);
 
         runtime_manager
-            .forward_complete_state(generate_test_complete_state(
-                format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                vec![generate_test_workload_spec_with_param(
-                    AGENT_NAME.to_string(),
-                    WORKLOAD_1_NAME.to_string(),
-                    RUNTIME_NAME.to_string(),
-                )],
-            ))
+            .forward_response(Response {
+                request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
+                response_content: ResponseContent::CompleteState(Box::new(
+                    generate_test_complete_state(vec![generate_test_workload_spec_with_param(
+                        AGENT_NAME.to_string(),
+                        WORKLOAD_1_NAME.to_string(),
+                        RUNTIME_NAME.to_string(),
+                    )]),
+                )),
+            })
             .await;
     }
 
@@ -1087,17 +1090,19 @@ mod tests {
             .build();
 
         let mut mock_workload = MockWorkload::default();
-        mock_workload.expect_send_complete_state().never();
+        mock_workload.expect_forward_response().never();
 
         runtime_manager
-            .forward_complete_state(generate_test_complete_state(
-                format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                vec![generate_test_workload_spec_with_param(
-                    AGENT_NAME.to_string(),
-                    WORKLOAD_1_NAME.to_string(),
-                    RUNTIME_NAME.to_string(),
-                )],
-            ))
+            .forward_response(Response {
+                request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
+                response_content: ResponseContent::CompleteState(Box::new(
+                    generate_test_complete_state(vec![generate_test_workload_spec_with_param(
+                        AGENT_NAME.to_string(),
+                        WORKLOAD_1_NAME.to_string(),
+                        RUNTIME_NAME.to_string(),
+                    )]),
+                )),
+            })
             .await;
     }
 }

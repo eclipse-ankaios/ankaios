@@ -15,53 +15,54 @@
 use crate::agent_senders_map::AgentSendersMap;
 use crate::ankaios_streaming::GRPCStreaming;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
-use api::proto;
-use api::proto::execution_request::ExecutionRequestEnum;
+use api::proto::from_server::FromServerEnum;
+use api::proto::{self, response, CompleteState};
 
 use async_trait::async_trait;
-use common::execution_interface::{ExecutionCommand, ExecutionInterface};
+use common::from_server_interface::{
+    FromServer, FromServerInterface, FromServerReceiver, FromServerSender,
+};
 use common::objects::{
     get_workloads_per_agent, DeletedWorkload, DeletedWorkloadCollection, WorkloadCollection,
     WorkloadSpec, WorkloadState,
 };
 use common::request_id_prepending::detach_prefix_from_request_id;
 
-use tokio::sync::mpsc::{Receiver, Sender};
 use tonic::Streaming;
 
-pub struct GRPCExecutionRequestStreaming {
-    inner: Streaming<proto::ExecutionRequest>,
+pub struct GRPCFromServerStreaming {
+    inner: Streaming<proto::FromServer>,
 }
 
-impl GRPCExecutionRequestStreaming {
-    pub fn new(inner: Streaming<proto::ExecutionRequest>) -> Self {
+impl GRPCFromServerStreaming {
+    pub fn new(inner: Streaming<proto::FromServer>) -> Self {
         Self { inner }
     }
 }
 
 #[async_trait]
-impl GRPCStreaming<proto::ExecutionRequest> for GRPCExecutionRequestStreaming {
-    async fn message(&mut self) -> Result<Option<proto::ExecutionRequest>, tonic::Status> {
+impl GRPCStreaming<proto::FromServer> for GRPCFromServerStreaming {
+    async fn message(&mut self) -> Result<Option<proto::FromServer>, tonic::Status> {
         self.inner.message().await
     }
 }
 
-// [impl->swdd~grpc-client-forwards-commands-to-agent~1]
+// [impl->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
 pub async fn forward_from_proto_to_ankaios(
     agent_name: &str,
-    grpc_streaming: &mut impl GRPCStreaming<proto::ExecutionRequest>,
-    agent_tx: &Sender<ExecutionCommand>,
+    grpc_streaming: &mut impl GRPCStreaming<proto::FromServer>,
+    agent_tx: &FromServerSender,
 ) -> Result<(), GrpcMiddlewareError> {
     while let Some(value) = grpc_streaming.message().await? {
         log::trace!("RESPONSE={:?}", value);
 
         let try_block = async {
             match value
-                .execution_request_enum
+                .from_server_enum
                 .ok_or(GrpcMiddlewareError::ReceiveError(
                     "Missing AgentReply.".to_string(),
                 ))? {
-                ExecutionRequestEnum::UpdateWorkload(obj) => {
+                FromServerEnum::UpdateWorkload(obj) => {
                     agent_tx
                         .update_workload(
                             obj.added_workloads
@@ -77,21 +78,40 @@ pub async fn forward_from_proto_to_ankaios(
                         )
                         .await?;
                 }
-                ExecutionRequestEnum::UpdateWorkloadState(obj) => {
+                FromServerEnum::UpdateWorkloadState(obj) => {
                     agent_tx
                         .update_workload_state(
                             obj.workload_states.into_iter().map(|x| x.into()).collect(),
                         )
                         .await?;
                 }
-                ExecutionRequestEnum::CompleteState(complete_state) => {
-                    agent_tx
-                        .complete_state(
-                            complete_state
-                                .try_into()
-                                .map_err(GrpcMiddlewareError::ConversionError)?,
-                        )
-                        .await?;
+                FromServerEnum::Response(response) => {
+                    // [impl->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
+                    let request_id = response.request_id;
+
+                    match response
+                        .response_content
+                        .ok_or(GrpcMiddlewareError::ConversionError(format!(
+                            "Response content empty for response ID: '{}'",
+                            request_id
+                        )))? {
+                        proto::response::ResponseContent::Success(_) => {
+                            agent_tx.success(request_id).await?;
+                        }
+                        proto::response::ResponseContent::Error(error) => {
+                            agent_tx.error(request_id, error.into()).await?;
+                        }
+                        proto::response::ResponseContent::CompleteState(complete_state) => {
+                            agent_tx
+                                .complete_state(
+                                    request_id,
+                                    complete_state
+                                        .try_into()
+                                        .map_err(GrpcMiddlewareError::ConversionError)?,
+                                )
+                                .await?;
+                        }
+                    }
                 }
             }
             Ok(()) as Result<(), GrpcMiddlewareError>
@@ -99,21 +119,21 @@ pub async fn forward_from_proto_to_ankaios(
         .await;
 
         if let Err::<(), GrpcMiddlewareError>(error) = try_block {
-            log::debug!("Could not forward execution request: {}", error);
+            log::debug!("Could not forward from server message: {}", error);
         }
     }
 
     Ok(())
 }
 
-// [impl->swdd~grpc-server-forwards-commands-to-grpc-client~1]
+// [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
 pub async fn forward_from_ankaios_to_proto(
     agent_senders: &AgentSendersMap,
-    receiver: &mut Receiver<ExecutionCommand>,
+    receiver: &mut FromServerReceiver,
 ) {
-    while let Some(execution_command) = receiver.recv().await {
-        match execution_command {
-            ExecutionCommand::UpdateWorkload(method_obj) => {
+    while let Some(from_server_msg) = receiver.recv().await {
+        match from_server_msg {
+            FromServer::UpdateWorkload(method_obj) => {
                 log::trace!("Received UpdateWorkload from server: {:?}.", method_obj);
 
                 distribute_workloads_to_agents(
@@ -123,49 +143,60 @@ pub async fn forward_from_ankaios_to_proto(
                 )
                 .await;
             }
-            ExecutionCommand::UpdateWorkloadState(method_obj) => {
+            FromServer::UpdateWorkloadState(method_obj) => {
                 log::trace!("Received UpdateWorkloadState from server: {:?}", method_obj);
 
                 distribute_workload_states_to_agents(agent_senders, method_obj.workload_states)
                     .await;
             }
-            ExecutionCommand::CompleteState(method_obj) => {
-                log::trace!("Received CompleteState from server: {:?}", method_obj);
+            FromServer::Response(response) => {
                 let (agent_name, request_id) =
-                    detach_prefix_from_request_id(method_obj.request_id.as_ref());
+                    detach_prefix_from_request_id(response.request_id.as_ref());
                 if let Some(sender) = agent_senders.get(&agent_name) {
-                    let complete_state = proto::CompleteState {
-                        request_id,
-                        current_state: Some(method_obj.current_state.into()),
-                        startup_state: Some(method_obj.startup_state.into()),
-                        workload_states: method_obj
-                            .workload_states
-                            .into_iter()
-                            .map(|x| x.into())
-                            .collect(),
+                    let response_content = match response.response_content {
+                        common::commands::ResponseContent::Success => {
+                            response::ResponseContent::Success(proto::Success {})
+                        }
+                        common::commands::ResponseContent::Error(error) => {
+                            response::ResponseContent::Error(error.into())
+                        }
+                        common::commands::ResponseContent::CompleteState(complete_state) => {
+                            response::ResponseContent::CompleteState(CompleteState {
+                                startup_state: Some(complete_state.startup_state.into()),
+                                current_state: Some(complete_state.current_state.into()),
+                                workload_states: complete_state
+                                    .workload_states
+                                    .into_iter()
+                                    .map(|x| x.into())
+                                    .collect(),
+                            })
+                        }
                     };
 
                     log::trace!(
-                        "Sending complete state to agent '{}': {:?}.",
+                        "Sending response to agent '{}': {:?}.",
                         agent_name,
-                        complete_state
+                        response_content
                     );
 
                     let result = sender
-                        .send(Ok(proto::ExecutionRequest {
-                            execution_request_enum: Some(ExecutionRequestEnum::CompleteState(
-                                complete_state,
+                        .send(Ok(proto::FromServer {
+                            from_server_enum: Some(proto::from_server::FromServerEnum::Response(
+                                proto::Response {
+                                    request_id,
+                                    response_content: Some(response_content),
+                                },
                             )),
                         }))
                         .await;
                     if result.is_err() {
-                        log::warn!("Could not send complete state to agent '{}'", agent_name,);
+                        log::warn!("Could not send response to agent '{}'", agent_name,);
                     }
                 } else {
                     log::warn!("Unknown agent with name: '{}'", agent_name);
                 }
             }
-            ExecutionCommand::Stop(_method_obj) => {
+            FromServer::Stop(_method_obj) => {
                 log::debug!("Received Stop from server.");
                 // TODO: handle the call
                 break;
@@ -174,7 +205,7 @@ pub async fn forward_from_ankaios_to_proto(
     }
 }
 
-// [impl->swdd~grpc-server-forwards-commands-to-grpc-client~1]
+// [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
 async fn distribute_workload_states_to_agents(
     agent_senders: &AgentSendersMap,
     workload_state_collection: Vec<WorkloadState>,
@@ -203,8 +234,8 @@ async fn distribute_workload_states_to_agents(
                 filtered_workload_states
             );
             let result = sender
-                .send(Ok(proto::ExecutionRequest {
-                    execution_request_enum: Some(ExecutionRequestEnum::UpdateWorkloadState(
+                .send(Ok(proto::FromServer {
+                    from_server_enum: Some(FromServerEnum::UpdateWorkloadState(
                         proto::UpdateWorkloadState {
                             workload_states: filtered_workload_states,
                         },
@@ -220,7 +251,7 @@ async fn distribute_workload_states_to_agents(
     }
 }
 
-// [impl->swdd~grpc-server-forwards-commands-to-grpc-client~1]
+// [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
 async fn distribute_workloads_to_agents(
     agent_senders: &AgentSendersMap,
     added_workloads: WorkloadCollection,
@@ -231,22 +262,20 @@ async fn distribute_workloads_to_agents(
         get_workloads_per_agent(added_workloads, deleted_workloads)
     {
         if let Some(sender) = agent_senders.get(&agent_name) {
-            log::trace!("Sending added and deleted workloads to agent '{}'.\n\tAdded workloads: {:?}.\n\tDeleted workloads: {:?}.", 
+            log::trace!("Sending added and deleted workloads to agent '{}'.\n\tAdded workloads: {:?}.\n\tDeleted workloads: {:?}.",
                 agent_name, added_workload_vector, deleted_workload_vector);
             let result = sender
-                .send(Ok(proto::ExecutionRequest {
-                    execution_request_enum: Some(ExecutionRequestEnum::UpdateWorkload(
-                        proto::UpdateWorkload {
-                            added_workloads: added_workload_vector
-                                .into_iter()
-                                .map(|x| x.into())
-                                .collect(),
-                            deleted_workloads: deleted_workload_vector
-                                .into_iter()
-                                .map(|x| x.into())
-                                .collect(),
-                        },
-                    )),
+                .send(Ok(proto::FromServer {
+                    from_server_enum: Some(FromServerEnum::UpdateWorkload(proto::UpdateWorkload {
+                        added_workloads: added_workload_vector
+                            .into_iter()
+                            .map(|x| x.into())
+                            .collect(),
+                        deleted_workloads: deleted_workload_vector
+                            .into_iter()
+                            .map(|x| x.into())
+                            .collect(),
+                    })),
                 }))
                 .await;
             if result.is_err() {
@@ -280,13 +309,12 @@ mod tests {
     use std::collections::{HashMap, LinkedList};
 
     use super::{forward_from_ankaios_to_proto, forward_from_proto_to_ankaios};
-    use crate::{agent_senders_map::AgentSendersMap, execution_command_proxy::GRPCStreaming};
-    use api::proto::{
-        self, execution_request::ExecutionRequestEnum, ExecutionRequest, UpdateWorkload,
-    };
+    use crate::{agent_senders_map::AgentSendersMap, from_server_proxy::GRPCStreaming};
+    use api::proto::response;
+    use api::proto::{self, from_server::FromServerEnum, FromServer, UpdateWorkload};
     use async_trait::async_trait;
     use common::commands::CompleteState;
-    use common::execution_interface::{ExecutionCommand, ExecutionInterface};
+    use common::from_server_interface::FromServerInterface;
     use common::objects::{State, WorkloadSpec};
     use common::test_utils::*;
     use tokio::sync::mpsc::error::TryRecvError;
@@ -296,10 +324,10 @@ mod tests {
     };
 
     type TestSetup = (
-        Sender<ExecutionCommand>,
-        Receiver<ExecutionCommand>,
-        Sender<Result<ExecutionRequest, tonic::Status>>,
-        Receiver<Result<ExecutionRequest, tonic::Status>>,
+        Sender<common::from_server_interface::FromServer>,
+        Receiver<common::from_server_interface::FromServer>,
+        Sender<Result<FromServer, tonic::Status>>,
+        Receiver<Result<FromServer, tonic::Status>>,
         AgentSendersMap,
     );
 
@@ -307,10 +335,10 @@ mod tests {
 
     fn create_test_setup(agent_name: &str) -> TestSetup {
         let (to_manager, manager_receiver) =
-            mpsc::channel::<ExecutionCommand>(common::CHANNEL_CAPACITY);
-        let (agent_tx, agent_rx) = tokio::sync::mpsc::channel::<
-            Result<ExecutionRequest, tonic::Status>,
-        >(common::CHANNEL_CAPACITY);
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
+        let (agent_tx, agent_rx) = tokio::sync::mpsc::channel::<Result<FromServer, tonic::Status>>(
+            common::CHANNEL_CAPACITY,
+        );
 
         let agent_senders_map = AgentSendersMap::new();
 
@@ -326,17 +354,17 @@ mod tests {
     }
 
     #[derive(Default, Clone)]
-    struct MockGRPCExecutionRequestStreaming {
-        msgs: LinkedList<Option<proto::ExecutionRequest>>,
+    struct MockGRPCFromServerStreaming {
+        msgs: LinkedList<Option<proto::FromServer>>,
     }
-    impl MockGRPCExecutionRequestStreaming {
-        fn new(msgs: LinkedList<Option<proto::ExecutionRequest>>) -> Self {
-            MockGRPCExecutionRequestStreaming { msgs }
+    impl MockGRPCFromServerStreaming {
+        fn new(msgs: LinkedList<Option<proto::FromServer>>) -> Self {
+            MockGRPCFromServerStreaming { msgs }
         }
     }
     #[async_trait]
-    impl GRPCStreaming<proto::ExecutionRequest> for MockGRPCExecutionRequestStreaming {
-        async fn message(&mut self) -> Result<Option<proto::ExecutionRequest>, tonic::Status> {
+    impl GRPCStreaming<proto::FromServer> for MockGRPCFromServerStreaming {
+        async fn message(&mut self) -> Result<Option<proto::FromServer>, tonic::Status> {
             if let Some(msg) = self.msgs.pop_front() {
                 Ok(msg)
             } else {
@@ -346,7 +374,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_execution_command_forward_from_ankaios_to_proto_update_workload() {
+    async fn utest_from_server_proxy_forward_from_ankaios_to_proto_update_workload() {
         let agent = "agent_X";
         let (to_manager, mut manager_receiver, _, mut agent_rx, agent_senders_map) =
             create_test_setup(agent);
@@ -377,14 +405,14 @@ mod tests {
         let result = agent_rx.recv().await.unwrap().unwrap();
 
         assert!(matches!(
-            result.execution_request_enum,
+            result.from_server_enum,
             // We don't need to check teh exact object, this will be checked in the test for distribute_workloads_to_agents
-            Some(ExecutionRequestEnum::UpdateWorkload(_))
+            Some(FromServerEnum::UpdateWorkload(_))
         ))
     }
 
     #[tokio::test]
-    async fn utest_execution_command_forward_from_ankaios_to_proto_update_workload_state() {
+    async fn utest_from_server_proxy_forward_from_ankaios_to_proto_update_workload_state() {
         let (to_manager, mut manager_receiver, _, mut agent_rx, agent_senders_map) =
             create_test_setup("agent_X");
 
@@ -407,24 +435,24 @@ mod tests {
         let result = agent_rx.recv().await.unwrap().unwrap();
 
         assert!(matches!(
-            result.execution_request_enum,
+            result.from_server_enum,
             // We don't need to check teh exact object, this will be checked in the test for distribute_workloads_to_agents
-            Some(ExecutionRequestEnum::UpdateWorkloadState(_))
+            Some(FromServerEnum::UpdateWorkloadState(_))
         ))
     }
 
-    // [utest->swdd~grpc-client-forwards-commands-to-agent~1]
+    // [utest->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
     #[tokio::test]
-    async fn utest_execution_command_forward_from_proto_to_ankaios_handles_missing_agent_reply() {
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_handles_missing_agent_reply() {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<ExecutionCommand>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
-        // simulate the reception of an update workload grpc execution request
+        // simulate the reception of an update workload grpc from server message
         let mut mock_grpc_ex_request_streaming =
-            MockGRPCExecutionRequestStreaming::new(LinkedList::from([
-                Some(ExecutionRequest {
-                    execution_request_enum: None,
+            MockGRPCFromServerStreaming::new(LinkedList::from([
+                Some(FromServer {
+                    from_server_enum: None,
                 }),
                 None,
             ]));
@@ -441,19 +469,19 @@ mod tests {
         .await;
         assert!(forward_result.is_ok());
 
-        // pick received execution command
+        // pick received from server message
         let result = agent_receiver.recv().await;
 
         assert_eq!(result, None);
     }
 
-    // [utest->swdd~grpc-client-forwards-commands-to-agent~1]
+    // [utest->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
     #[tokio::test]
-    async fn utest_execution_command_forward_from_proto_to_ankaios_handles_incorrect_added_workloads(
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_handles_incorrect_added_workloads(
     ) {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<ExecutionCommand>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
         let mut workload: proto::AddedWorkload = generate_test_workload_spec_with_param(
             agent_name.to_string(),
@@ -464,16 +492,14 @@ mod tests {
 
         workload.update_strategy = -1;
 
-        // simulate the reception of an update workload grpc execution request
+        // simulate the reception of an update workload grpc from server message
         let mut mock_grpc_ex_request_streaming =
-            MockGRPCExecutionRequestStreaming::new(LinkedList::from([
-                Some(ExecutionRequest {
-                    execution_request_enum: Some(ExecutionRequestEnum::UpdateWorkload(
-                        UpdateWorkload {
-                            added_workloads: vec![workload],
-                            deleted_workloads: vec![],
-                        },
-                    )),
+            MockGRPCFromServerStreaming::new(LinkedList::from([
+                Some(FromServer {
+                    from_server_enum: Some(FromServerEnum::UpdateWorkload(UpdateWorkload {
+                        added_workloads: vec![workload],
+                        deleted_workloads: vec![],
+                    })),
                 }),
                 None,
             ]));
@@ -490,35 +516,33 @@ mod tests {
         .await;
         assert!(forward_result.is_ok());
 
-        // pick received execution command
+        // pick received from server message
         let result = agent_receiver.recv().await;
 
         assert_eq!(result, None);
     }
 
-    // [utest->swdd~grpc-client-forwards-commands-to-agent~1]
+    // [utest->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
     #[tokio::test]
-    async fn utest_execution_command_forward_from_proto_to_ankaios_handles_incorrect_deleted_workloads(
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_handles_incorrect_deleted_workloads(
     ) {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<ExecutionCommand>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
         let workload: proto::DeletedWorkload = proto::DeletedWorkload {
             name: "name".into(),
             dependencies: [("name".into(), -1)].into(),
         };
 
-        // simulate the reception of an update workload grpc execution request
+        // simulate the reception of an update workload grpc from server message
         let mut mock_grpc_ex_request_streaming =
-            MockGRPCExecutionRequestStreaming::new(LinkedList::from([
-                Some(ExecutionRequest {
-                    execution_request_enum: Some(ExecutionRequestEnum::UpdateWorkload(
-                        UpdateWorkload {
-                            added_workloads: vec![],
-                            deleted_workloads: vec![workload],
-                        },
-                    )),
+            MockGRPCFromServerStreaming::new(LinkedList::from([
+                Some(FromServer {
+                    from_server_enum: Some(FromServerEnum::UpdateWorkload(UpdateWorkload {
+                        added_workloads: vec![],
+                        deleted_workloads: vec![workload],
+                    })),
                 }),
                 None,
             ]));
@@ -535,24 +559,24 @@ mod tests {
         .await;
         assert!(forward_result.is_ok());
 
-        // pick received execution command
+        // pick received from server message
         let result = agent_receiver.recv().await;
 
         assert_eq!(result, None);
     }
 
-    // [utest->swdd~grpc-client-forwards-commands-to-agent~1]
+    // [utest->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
     #[tokio::test]
-    async fn utest_execution_command_forward_from_proto_to_ankaios_update_workload() {
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_update_workload() {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<ExecutionCommand>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
-        // simulate the reception of an update workload grpc execution request
+        // simulate the reception of an update workload grpc from server message
         let mut mock_grpc_ex_request_streaming =
-            MockGRPCExecutionRequestStreaming::new(LinkedList::from([
-                Some(ExecutionRequest {
-                    execution_request_enum: Some(ExecutionRequestEnum::UpdateWorkload(
+            MockGRPCFromServerStreaming::new(LinkedList::from([
+                Some(FromServer {
+                    from_server_enum: Some(FromServerEnum::UpdateWorkload(
                         UpdateWorkload::default(),
                     )),
                 }),
@@ -571,28 +595,28 @@ mod tests {
         .await;
         assert!(forward_result.is_ok());
 
-        // pick received execution command
+        // pick received from server message
         let result = agent_receiver.recv().await.unwrap();
 
         assert!(matches!(
             result,
             // We don't need to check teh exact object, this will be checked in the test for distribute_workloads_to_agents
-            ExecutionCommand::UpdateWorkload(_)
+            common::from_server_interface::FromServer::UpdateWorkload(_)
         ));
     }
 
-    // [utest->swdd~grpc-client-forwards-commands-to-agent~1]
+    // [utest->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
     #[tokio::test]
-    async fn utest_execution_command_forward_from_proto_to_ankaios_update_workload_state() {
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_update_workload_state() {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<ExecutionCommand>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
-        // simulate the reception of an update workload state grpc execution request
+        // simulate the reception of an update workload state grpc from server message
         let mut mock_grpc_ex_request_streaming =
-            MockGRPCExecutionRequestStreaming::new(LinkedList::from([
-                Some(ExecutionRequest {
-                    execution_request_enum: Some(ExecutionRequestEnum::UpdateWorkloadState(
+            MockGRPCFromServerStreaming::new(LinkedList::from([
+                Some(FromServer {
+                    from_server_enum: Some(FromServerEnum::UpdateWorkloadState(
                         proto::UpdateWorkloadState::default(),
                     )),
                 }),
@@ -611,13 +635,13 @@ mod tests {
         .await;
         assert!(forward_result.is_ok());
 
-        // pick received execution command
+        // pick received from server message
         let result = agent_receiver.recv().await.unwrap();
 
         assert!(matches!(
             result,
             // We don't need to check teh exact object, this will be checked in the test for distribute_workloads_to_agents
-            ExecutionCommand::UpdateWorkloadState(_)
+            common::from_server_interface::FromServer::UpdateWorkloadState(_)
         ));
     }
 
@@ -639,10 +663,10 @@ mod tests {
 
         let result = agent_rx.recv().await.unwrap().unwrap();
 
-        // shall receive update workload execution request
+        // shall receive update workload from server message
         assert!(matches!(
-            result.execution_request_enum,
-            Some(ExecutionRequestEnum::UpdateWorkload(_))
+            result.from_server_enum,
+            Some(FromServerEnum::UpdateWorkload(_))
         ))
     }
 
@@ -663,7 +687,7 @@ mod tests {
         ))
         .0;
 
-        // shall not receive any execution request
+        // shall not receive any from server message
         assert!(matches!(agent_rx.try_recv(), Err(TryRecvError::Empty)))
     }
 
@@ -685,15 +709,15 @@ mod tests {
 
         let result = agent_rx.recv().await.unwrap().unwrap();
 
-        // shall receive update workload execution request
+        // shall receive update workload from server message
         assert!(matches!(
-            result.execution_request_enum,
-            Some(ExecutionRequestEnum::UpdateWorkloadState(_))
+            result.from_server_enum,
+            Some(FromServerEnum::UpdateWorkloadState(_))
         ))
     }
 
     #[tokio::test]
-    async fn utest_execution_command_forward_from_ankaios_to_proto_complete_state() {
+    async fn utest_from_server_proxy_forward_from_ankaios_to_proto_complete_state() {
         let agent_name: &str = "agent_X";
         let (to_manager, mut manager_receiver, _, mut agent_rx, agent_senders_map) =
             create_test_setup(agent_name);
@@ -712,7 +736,6 @@ mod tests {
         let prefixed_my_request_id = format!("{agent_name}@{my_request_id}");
 
         let test_complete_state = CompleteState {
-            request_id: prefixed_my_request_id,
             current_state: State {
                 workloads: startup_workloads.clone(),
                 configs: HashMap::default(),
@@ -726,16 +749,12 @@ mod tests {
             workload_states: vec![],
         };
 
-        let complete_state_result = to_manager.complete_state(test_complete_state.clone()).await;
+        let complete_state_result = to_manager
+            .complete_state(prefixed_my_request_id, test_complete_state.clone())
+            .await;
         assert!(complete_state_result.is_ok());
 
         let handle = forward_from_ankaios_to_proto(&agent_senders_map, &mut manager_receiver);
-        let proto_complete_state = proto::CompleteState {
-            request_id: my_request_id,
-            current_state: Some(test_complete_state.current_state.into()),
-            startup_state: Some(test_complete_state.startup_state.into()),
-            workload_states: vec![],
-        };
 
         // The receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(to_manager);
@@ -745,52 +764,54 @@ mod tests {
         let result = agent_rx.recv().await.unwrap().unwrap();
 
         assert!(matches!(
-            result.execution_request_enum,
-            Some(ExecutionRequestEnum::CompleteState(proto::CompleteState {
+            result.from_server_enum,
+            Some(FromServerEnum::Response(proto::Response {
                 request_id,
-                current_state,
-                startup_state,
-                workload_states
-            })) if request_id == proto_complete_state.request_id
-            && current_state == proto_complete_state.current_state
-            && startup_state == proto_complete_state.startup_state
-            && workload_states == proto_complete_state.workload_states
+                response_content: Some(proto::response::ResponseContent::CompleteState(proto::CompleteState{current_state: Some(current_state),
+                    startup_state: Some(startup_state),
+                    workload_states}))
+
+            })) if request_id == my_request_id
+            && current_state == test_complete_state.current_state.into()
+            && startup_state ==test_complete_state.startup_state.into()
+            && workload_states == vec![]
         ));
     }
 
     #[tokio::test]
-    async fn utest_execution_command_forward_from_proto_to_ankaios_handles_incorrect_complete_state(
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_handles_incorrect_complete_state(
     ) {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<ExecutionCommand>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
         let my_request_id = "my_request_id".to_owned();
 
-        let proto_complete_state = proto::CompleteState {
-            request_id: my_request_id.clone(),
-            current_state: Some(State::default().into()),
-            startup_state: Some(proto::State {
-                workloads: [(
-                    "workload".into(),
-                    proto::Workload {
-                        dependencies: [("workload 2".into(), -1)].into(),
-                        ..Default::default()
-                    },
-                )]
-                .into(),
-                ..Default::default()
-            }),
-            workload_states: vec![],
-        };
+        let proto_complete_state =
+            proto::response::ResponseContent::CompleteState(proto::CompleteState {
+                current_state: Some(State::default().into()),
+                startup_state: Some(proto::State {
+                    workloads: [(
+                        "workload".into(),
+                        proto::Workload {
+                            dependencies: [("workload 2".into(), -1)].into(),
+                            ..Default::default()
+                        },
+                    )]
+                    .into(),
+                    ..Default::default()
+                }),
+                workload_states: vec![],
+            });
 
-        // simulate the reception of an update workload state grpc execution request
+        // simulate the reception of an update workload state grpc from server message
         let mut mock_grpc_ex_request_streaming =
-            MockGRPCExecutionRequestStreaming::new(LinkedList::from([
-                Some(ExecutionRequest {
-                    execution_request_enum: Some(ExecutionRequestEnum::CompleteState(
-                        proto_complete_state,
-                    )),
+            MockGRPCFromServerStreaming::new(LinkedList::from([
+                Some(FromServer {
+                    from_server_enum: Some(FromServerEnum::Response(proto::Response {
+                        request_id: my_request_id,
+                        response_content: Some(proto_complete_state),
+                    })),
                 }),
                 None,
             ]));
@@ -807,17 +828,17 @@ mod tests {
         .await;
         assert!(forward_result.is_ok());
 
-        // pick received execution command
+        // pick received from server message
         let result = agent_receiver.recv().await;
 
         assert_eq!(result, None);
     }
 
     #[tokio::test]
-    async fn utest_execution_command_forward_from_proto_to_ankaios_complete_state() {
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_complete_state() {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
-            mpsc::channel::<ExecutionCommand>(common::CHANNEL_CAPACITY);
+            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
         let mut startup_workloads = HashMap::<String, WorkloadSpec>::new();
         startup_workloads.insert(
@@ -832,26 +853,29 @@ mod tests {
         let my_request_id = "my_request_id".to_owned();
 
         let test_complete_state = CompleteState {
-            request_id: my_request_id.clone(),
             current_state: State::default(),
             startup_state: State::default(),
             workload_states: vec![],
         };
 
         let proto_complete_state = proto::CompleteState {
-            request_id: test_complete_state.request_id.clone(),
             current_state: Some(test_complete_state.current_state.clone().into()),
             startup_state: Some(test_complete_state.startup_state.clone().into()),
             workload_states: vec![],
         };
 
-        // simulate the reception of an update workload state grpc execution request
+        let proto_response = proto::Response {
+            request_id: my_request_id.clone(),
+            response_content: Some(response::ResponseContent::CompleteState(
+                proto_complete_state,
+            )),
+        };
+
+        // simulate the reception of an update workload state grpc from server message
         let mut mock_grpc_ex_request_streaming =
-            MockGRPCExecutionRequestStreaming::new(LinkedList::from([
-                Some(ExecutionRequest {
-                    execution_request_enum: Some(ExecutionRequestEnum::CompleteState(
-                        proto_complete_state,
-                    )),
+            MockGRPCFromServerStreaming::new(LinkedList::from([
+                Some(FromServer {
+                    from_server_enum: Some(FromServerEnum::Response(proto_response)),
                 }),
                 None,
             ]));
@@ -868,18 +892,22 @@ mod tests {
         .await;
         assert!(forward_result.is_ok());
 
-        // pick received execution command
+        // pick received from server message
         let result = agent_receiver.recv().await.unwrap();
 
         let expected_test_complete_state = test_complete_state.clone();
 
         assert!(matches!(
-        result,
-        ExecutionCommand::CompleteState(boxed_complete_state)
-        if boxed_complete_state.request_id == expected_test_complete_state.request_id
-        && boxed_complete_state.current_state == expected_test_complete_state.current_state
-        && boxed_complete_state.startup_state == expected_test_complete_state.startup_state
-        && boxed_complete_state.workload_states == expected_test_complete_state.workload_states
+            result,
+            common::from_server_interface::FromServer::Response(common::commands::Response {
+                request_id,
+                response_content: common::commands::ResponseContent::CompleteState(
+                    boxed_complete_state
+                )
+            }) if request_id == my_request_id &&
+            boxed_complete_state.startup_state == expected_test_complete_state.startup_state &&
+            boxed_complete_state.current_state == expected_test_complete_state.current_state &&
+            boxed_complete_state.workload_states == expected_test_complete_state.workload_states
         ));
     }
 }

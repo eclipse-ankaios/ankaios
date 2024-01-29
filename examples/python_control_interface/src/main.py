@@ -7,6 +7,7 @@ import logging
 
 ANKAIOS_CONTROL_INTERFACE_BASE_PATH = "/run/ankaios/control_interface"
 WAITING_TIME_IN_SEC = 5
+REQUEST_ID = "dynamic_nginx@python_control_interface"
 
 def create_logger():
     """Create a logger with custom format and default log level."""
@@ -20,39 +21,44 @@ def create_logger():
 
 logger = create_logger()
 
-def create_update_workload_request():
-    """Create the StateChangeRequest containing an UpdateStateRequest
+def create_request_to_add_new_workload():
+    """Create the Request containing an UpdateStateRequest
     that contains the details for adding the new workload and
     the update mask to add only the new workload.
     """
 
-    return ank.StateChangeRequest(
-        updateState=ank.UpdateStateRequest(
-                newState=ank.CompleteState(
-                    currentState=ank.State(
-                            workloads={
-                                "dynamic_nginx": ank.Workload(
-                                    agent="agent_A", 
-                                    runtime="podman", 
-                                    restart=True, 
-                                    updateStrategy=ank.AT_MOST_ONCE, 
-                                    runtimeConfig="image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]")
-                }
+    return ank.ToServer(
+        request=ank.Request(
+                requestId=REQUEST_ID,
+                updateStateRequest=ank.UpdateStateRequest(
+                    newState=ank.CompleteState(
+                        currentState=ank.State(
+                                workloads={
+                                    "dynamic_nginx": ank.Workload(
+                                        agent="agent_A",
+                                        runtime="podman",
+                                        restart=True,
+                                        updateStrategy=ank.AT_MOST_ONCE,
+                                        runtimeConfig="image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]")
+                        }
+                    )
+                ),
+                updateMask=["currentState.workloads.dynamic_nginx"]
             )
-        ),
-        updateMask=["currentState.workloads.dynamic_nginx"]
         )
     )
 
-def create_request_complete_state_request():
-    """Create a StateChangeRequest containing a RequestCompleteState
+def create_request_for_complete_state():
+    """Create a Request to request the CompleteState
     for querying the workload states.
     """
 
-    return ank.StateChangeRequest(
-        requestCompleteState=ank.RequestCompleteState(
-            requestId="request_id", 
-            fieldMask=["workloadStates"]
+    return ank.ToServer(
+        request=ank.Request(
+            completeStateRequest=ank.CompleteStateRequest(
+                fieldMask=["workloadStates"]
+            ),
+            requestId=REQUEST_ID,
         )
     )
 
@@ -78,36 +84,46 @@ def read_from_control_interface():
                 if not next_byte:
                     break
                 msg_buf += next_byte
-            execution_request = ank.ExecutionRequest()
-            execution_request.ParseFromString(msg_buf) # Deserialize the received proto msg
-            logger.info(f"Receiving ExecutionRequest containing the workload states of the current state:\nExecutionRequest {{\n{execution_request}}}\n")
+
+            from_server = ank.FromServer()
+            try:
+                from_server.ParseFromString(msg_buf) # Deserialize the received proto msg
+            except Exception as e:
+                logger.info(f"Invalid response, parsing error: '{e}'")
+                continue
+
+            request_id = from_server.response.requestId
+            if from_server.response.requestId == REQUEST_ID:
+                logger.info(f"Receiving Response containing the workload states of the current state:\nFromServer {{\n{from_server}}}\n")
+            else:
+                logger.info(f"RequestId does not match. Skipping messages from requestId: {request_id}")
 
 def write_to_control_interface():
-    """Writes a StateChangeRequest into the control interface output fifo
-    to add the new workload dynamically and every 30 sec another StateChangeRequest
-    to request the workload states.
+    """Writes a Request into the control interface output fifo
+    to add the new workload dynamically and every x sec according to WAITING_TIME_IN_SEC
+    another Request to request the workload states.
     """
 
     with open(f"{ANKAIOS_CONTROL_INTERFACE_BASE_PATH}/output", "ab") as f:
-        update_workload_request = create_update_workload_request()
+        update_workload_request = create_request_to_add_new_workload()
         update_workload_request_byte_len = update_workload_request.ByteSize() # Length of the msg
         proto_update_workload_request_msg = update_workload_request.SerializeToString() # Serialized proto msg
 
-        logger.info(f"Sending StateChangeRequest containing details for adding the dynamic workload \'dynamic_nginx\':\nStateChangeRequest {{\n{update_workload_request}}}\n")
+        logger.info(f'Sending Request containing details for adding the dynamic workload \"dynamic_nginx\":\nToServer {{\n{update_workload_request}}}\n')
         f.write(_VarintBytes(update_workload_request_byte_len)) # Send the byte length of the proto msg
         f.write(proto_update_workload_request_msg) # Send the proto msg itself
         f.flush()
 
-        request_complete_state = create_request_complete_state_request()
+        request_complete_state = create_request_for_complete_state()
         request_complete_state_byte_len = request_complete_state.ByteSize() # Length of the msg
         proto_request_complete_state_msg = request_complete_state.SerializeToString() # Serialized proto msg
 
         while True:
-            logger.info(f"Sending StateChangeRequest containing details for requesting all workload states:\nStateChangeRequest {{{request_complete_state}}}\n")
+            logger.info(f"Sending Request containing details for requesting all workload states:\nToServer {{{request_complete_state}}}\n")
             f.write(_VarintBytes(request_complete_state_byte_len)) # Send the byte length of the proto msg
             f.write(proto_request_complete_state_msg) # Send the proto msg itself
             f.flush()
-            time.sleep(WAITING_TIME_IN_SEC) # Wait until sending the next RequestCompleteState to avoid spamming...
+            time.sleep(WAITING_TIME_IN_SEC) # Wait according to WAITING_TIME_IN_SEC until sending the next Request to server to avoid spamming...
 
 if __name__ == '__main__':
     read_thread = threading.Thread(target=read_from_control_interface)

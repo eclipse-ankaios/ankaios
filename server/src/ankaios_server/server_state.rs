@@ -17,7 +17,7 @@ use crate::state_manipulation::{Object, Path};
 use crate::workload_state_db::WorkloadStateDB;
 use common::std_extensions::IllegalStateResult;
 use common::{
-    commands::{CompleteState, RequestCompleteState},
+    commands::{CompleteState, CompleteStateRequest},
     objects::{DeletedWorkload, State, WorkloadSpec},
 };
 use std::collections::hash_map::Entry;
@@ -155,11 +155,10 @@ pub type AddedDeletedWorkloads = Option<(Vec<WorkloadSpec>, Vec<DeletedWorkload>
 impl ServerState {
     pub fn get_complete_state_by_field_mask(
         &self,
-        request_complete_state: &RequestCompleteState,
+        request_complete_state: &CompleteStateRequest,
         workload_state_db: &WorkloadStateDB,
     ) -> Result<CompleteState, String> {
         let current_complete_state = CompleteState {
-            request_id: request_complete_state.request_id.to_owned(),
             current_state: self.state.current_state.clone(),
             startup_state: self.state.startup_state.clone(),
             workload_states: workload_state_db.get_all_workload_states(),
@@ -171,11 +170,6 @@ impl ServerState {
                 current_complete_state.try_into().unwrap_or_illegal_state();
             let mut return_state = Object::default();
 
-            return_state.set(
-                &"requestId".into(),
-                request_complete_state.request_id.to_owned().into(),
-            )?;
-
             for field in &request_complete_state.field_mask {
                 if let Some(value) = current_complete_state.get(&field.into()) {
                     return_state.set(&field.into(), value.to_owned())?;
@@ -183,9 +177,8 @@ impl ServerState {
                     log::debug!(
                         concat!(
                         "Result for CompleteState incomplete, as requested field does not exist:\n",
-                        "   request_id: {:?}\n",
+
                         "   field: {}"),
-                        request_complete_state.request_id,
                         field
                     );
                     continue;
@@ -299,7 +292,7 @@ mod tests {
     use std::collections::HashMap;
 
     use common::{
-        commands::{CompleteState, RequestCompleteState},
+        commands::{CompleteState, CompleteStateRequest},
         objects::{AddCondition, DeleteCondition, DeletedWorkload, State, WorkloadSpec},
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
     };
@@ -337,18 +330,11 @@ mod tests {
         );
 
         let server_state = ServerState {
-            state: generate_test_complete_state(
-                "".to_string(),
-                vec![w1.clone(), w2.clone(), w3.clone()],
-            ),
+            state: generate_test_complete_state(vec![w1.clone(), w2.clone(), w3.clone()]),
             ..Default::default()
         };
 
-        let request_id = "cli@request_id".to_string();
-        let request_complete_state = RequestCompleteState {
-            request_id: request_id.clone(),
-            field_mask: vec![],
-        };
+        let request_complete_state = CompleteStateRequest { field_mask: vec![] };
 
         let mut workload_state_db = WorkloadStateDB::default();
         workload_state_db.insert(server_state.state.workload_states.clone());
@@ -363,7 +349,6 @@ mod tests {
             .sort_by(|left, right| left.workload_name.cmp(&right.workload_name));
 
         let mut expected_complete_state = server_state.state.clone();
-        expected_complete_state.request_id = request_id;
         expected_complete_state
             .workload_states
             .sort_by(|left, right| left.workload_name.cmp(&right.workload_name));
@@ -391,16 +376,11 @@ mod tests {
         );
 
         let server_state = ServerState {
-            state: generate_test_complete_state(
-                "".to_string(),
-                vec![w1.clone(), w2.clone(), w3.clone()],
-            ),
+            state: generate_test_complete_state(vec![w1.clone(), w2.clone(), w3.clone()]),
             ..Default::default()
         };
 
-        let request_id = "cli@request_id".to_string();
-        let request_complete_state = RequestCompleteState {
-            request_id: request_id.clone(),
+        let request_complete_state = CompleteStateRequest {
             field_mask: vec![
                 format!("currentState.workloads.{}", WORKLOAD_NAME_1),
                 format!("currentState.workloads.{}.agent", WORKLOAD_NAME_3),
@@ -430,7 +410,6 @@ mod tests {
                 },
             ),
         ]);
-        expected_complete_state.request_id = request_id;
         expected_complete_state.workload_states.clear();
         assert_eq!(expected_complete_state, complete_state);
     }
@@ -444,13 +423,11 @@ mod tests {
         );
 
         let server_state = ServerState {
-            state: generate_test_complete_state("".to_string(), vec![w1.clone()]),
+            state: generate_test_complete_state(vec![w1.clone()]),
             ..Default::default()
         };
 
-        let request_id = "cli@request_id".to_string();
-        let request_complete_state = RequestCompleteState {
-            request_id: request_id.clone(),
+        let request_complete_state = CompleteStateRequest {
             field_mask: vec![
                 "workloads.invalidMask".to_string(), // invalid not existing workload
                 format!("currentState.workloads.{}", WORKLOAD_NAME_1),
@@ -472,7 +449,6 @@ mod tests {
         let mut expected_complete_state = server_state.state.clone();
         expected_complete_state.current_state.workloads =
             HashMap::from([(w1.name.clone(), w1.clone())]);
-        expected_complete_state.request_id = request_id;
         expected_complete_state.workload_states.clear();
         assert_eq!(expected_complete_state, complete_state);
     }
@@ -499,10 +475,7 @@ mod tests {
         );
 
         let server_state = ServerState {
-            state: generate_test_complete_state(
-                "".to_string(),
-                vec![w1.clone(), w2.clone(), w3.clone()],
-            ),
+            state: generate_test_complete_state(vec![w1.clone(), w2.clone(), w3.clone()]),
             ..Default::default()
         };
 
@@ -1052,48 +1025,42 @@ mod tests {
     }
 
     fn generate_test_old_state() -> CompleteState {
-        generate_test_complete_state(
-            "request_id".to_owned(),
-            vec![
-                generate_test_workload_spec_with_param(
-                    "agent_A".into(),
-                    "workload_1".into(),
-                    "runtime_1".into(),
-                ),
-                generate_test_workload_spec_with_param(
-                    "agent_A".into(),
-                    "workload_2".into(),
-                    "runtime_2".into(),
-                ),
-                generate_test_workload_spec_with_param(
-                    "agent_B".into(),
-                    "workload_3".into(),
-                    "runtime_1".into(),
-                ),
-            ],
-        )
+        generate_test_complete_state(vec![
+            generate_test_workload_spec_with_param(
+                "agent_A".into(),
+                "workload_1".into(),
+                "runtime_1".into(),
+            ),
+            generate_test_workload_spec_with_param(
+                "agent_A".into(),
+                "workload_2".into(),
+                "runtime_2".into(),
+            ),
+            generate_test_workload_spec_with_param(
+                "agent_B".into(),
+                "workload_3".into(),
+                "runtime_1".into(),
+            ),
+        ])
     }
 
     fn generate_test_update_state() -> CompleteState {
-        generate_test_complete_state(
-            "request_id".to_owned(),
-            vec![
-                generate_test_workload_spec_with_param(
-                    "agent_B".into(),
-                    "workload_1".into(),
-                    "runtime_2".into(),
-                ),
-                generate_test_workload_spec_with_param(
-                    "agent_B".into(),
-                    "workload_3".into(),
-                    "runtime_2".into(),
-                ),
-                generate_test_workload_spec_with_param(
-                    "agent_A".into(),
-                    "workload_4".into(),
-                    "runtime_1".into(),
-                ),
-            ],
-        )
+        generate_test_complete_state(vec![
+            generate_test_workload_spec_with_param(
+                "agent_B".into(),
+                "workload_1".into(),
+                "runtime_2".into(),
+            ),
+            generate_test_workload_spec_with_param(
+                "agent_B".into(),
+                "workload_3".into(),
+                "runtime_2".into(),
+            ),
+            generate_test_workload_spec_with_param(
+                "agent_A".into(),
+                "workload_4".into(),
+                "runtime_1".into(),
+            ),
+        ])
     }
 }

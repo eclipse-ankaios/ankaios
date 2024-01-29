@@ -116,7 +116,6 @@ mod tests {
 
     const AGENT_NAME: &str = "agent_A";
     const RUNTIME: &str = "runtime X";
-    const REQUEST_ID: &str = "request@id";
 
     fn fn_assert_cycle(
         state_builder: StateBuilder,
@@ -586,8 +585,7 @@ mod tests {
     struct StateBuilder(State);
     impl StateBuilder {
         fn default() -> Self {
-            let state =
-                generate_test_complete_state(REQUEST_ID.to_string(), Vec::new()).current_state;
+            let state = generate_test_complete_state(Vec::new()).current_state;
             StateBuilder(state)
         }
 

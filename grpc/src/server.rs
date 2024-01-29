@@ -18,8 +18,6 @@ use common::communications_server::CommunicationsServer;
 
 use tonic::transport::Server;
 
-use tokio::sync::mpsc::{Receiver, Sender};
-
 use std::net::SocketAddr;
 
 use crate::agent_senders_map::AgentSendersMap;
@@ -27,17 +25,17 @@ use crate::grpc_cli_connection::GRPCCliConnection;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 use api::proto::agent_connection_server::AgentConnectionServer;
 
-use crate::execution_command_proxy;
+use crate::from_server_proxy;
 use crate::grpc_agent_connection::GRPCAgentConnection;
 
-use common::execution_interface::ExecutionCommand;
-use common::state_change_interface::StateChangeCommand;
+use common::from_server_interface::FromServerReceiver;
+use common::to_server_interface::ToServerSender;
 
 use async_trait::async_trait;
 
 #[derive(Debug)]
 pub struct GRPCCommunicationsServer {
-    sender: Sender<StateChangeCommand>,
+    sender: ToServerSender,
     agent_senders: AgentSendersMap,
 }
 
@@ -45,7 +43,7 @@ pub struct GRPCCommunicationsServer {
 impl CommunicationsServer for GRPCCommunicationsServer {
     async fn start(
         &mut self,
-        mut receiver: Receiver<ExecutionCommand>,
+        mut receiver: FromServerReceiver,
         addr: SocketAddr,
     ) -> Result<(), CommunicationMiddlewareError> {
         // [impl->swdd~grpc-server-creates-agent-connection~1]
@@ -70,8 +68,8 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                         GrpcMiddlewareError::StartError(format!("{err:?}"))
                     })?
             }
-            // [impl->swdd~grpc-server-forwards-commands-to-grpc-client~1]
-            _ = execution_command_proxy::forward_from_ankaios_to_proto(
+            // [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
+            _ = from_server_proxy::forward_from_ankaios_to_proto(
                 &agent_senders_clone,
                 &mut receiver,
             ) => {
@@ -86,7 +84,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
 }
 
 impl GRPCCommunicationsServer {
-    pub fn new(sender: Sender<StateChangeCommand>) -> Self {
+    pub fn new(sender: ToServerSender) -> Self {
         GRPCCommunicationsServer {
             agent_senders: AgentSendersMap::new(),
             sender,

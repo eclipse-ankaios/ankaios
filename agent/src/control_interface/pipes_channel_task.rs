@@ -16,17 +16,15 @@
 use super::ReopenFile;
 use api::proto;
 use common::{
-    execution_interface::{ExecutionCommand, ExecutionReceiver},
-    state_change_interface::{StateChangeCommand, StateChangeSender},
+    from_server_interface::{FromServer, FromServerReceiver},
+    to_server_interface::{ToServer, ToServerSender},
 };
 
 use prost::Message;
 use tokio::{io, select, task::JoinHandle};
 
-fn decode_state_change_request(
-    protobuf_data: io::Result<Box<[u8]>>,
-) -> io::Result<proto::StateChangeRequest> {
-    Ok(proto::StateChangeRequest::decode(&mut Box::new(
+fn decode_to_server(protobuf_data: io::Result<Box<[u8]>>) -> io::Result<proto::ToServer> {
+    Ok(proto::ToServer::decode(&mut Box::new(
         protobuf_data?.as_ref(),
     ))?)
 }
@@ -34,8 +32,8 @@ fn decode_state_change_request(
 pub struct PipesChannelTask {
     output_stream: ReopenFile,
     input_stream: ReopenFile,
-    input_pipe_receiver: ExecutionReceiver,
-    output_pipe_channel: StateChangeSender,
+    input_pipe_receiver: FromServerReceiver,
+    output_pipe_channel: ToServerSender,
     request_id_prefix: String,
 }
 
@@ -44,8 +42,8 @@ impl PipesChannelTask {
     pub fn new(
         output_stream: ReopenFile,
         input_stream: ReopenFile,
-        input_pipe_receiver: ExecutionReceiver,
-        output_pipe_channel: StateChangeSender,
+        input_pipe_receiver: FromServerReceiver,
+        output_pipe_channel: ToServerSender,
         request_id_prefix: String,
     ) -> Self {
         Self {
@@ -60,22 +58,22 @@ impl PipesChannelTask {
         loop {
             select! {
                 // [impl->swdd~agent-ensures-control-interface-output-pipe-read~1]
-                execution_command = self.input_pipe_receiver.recv() => {
-                    if let Some(execution_command) = execution_command {
-                        let _ = self.forward_execution_command(execution_command).await;
+                from_server = self.input_pipe_receiver.recv() => {
+                    if let Some(from_server) = from_server {
+                        let _ = self.forward_from_server(from_server).await;
                     }
                 }
                 // [impl->swdd~agent-listens-for-requests-from-pipe~1]
                 // [impl->swdd~agent-forward-request-from-control-interface-pipe-to-server~1]
-                state_change_request_binary = self.input_stream.read_protobuf_data() => {
-                    if let Ok(state_change_request) = decode_state_change_request(state_change_request_binary) {
-                        match state_change_request.try_into() {
-                            Ok(StateChangeCommand::RequestCompleteState(mut request_complete_state)) => {
-                                request_complete_state.prefix_request_id(&self.request_id_prefix);
-                                let _ = self.output_pipe_channel.send(StateChangeCommand::RequestCompleteState(request_complete_state)).await;
+                to_server_binary = self.input_stream.read_protobuf_data() => {
+                    if let Ok(to_server) = decode_to_server(to_server_binary) {
+                        match to_server.try_into() {
+                            Ok(ToServer::Request(mut request)) => {
+                                request.prefix_request_id(&self.request_id_prefix);
+                                let _ = self.output_pipe_channel.send(ToServer::Request(request)).await;
                             }
-                            Ok(state_change_command) => {
-                                let _ = self.output_pipe_channel.send(state_change_command).await;
+                            Ok(to_server_message) => {
+                                let _ = self.output_pipe_channel.send(to_server_message).await;
                             }
                             Err(error) => {
                                 log::warn!("Could not convert protobuf in internal data structure: {}", error)
@@ -90,8 +88,8 @@ impl PipesChannelTask {
         tokio::spawn(self.run())
     }
 
-    async fn forward_execution_command(&mut self, command: ExecutionCommand) -> io::Result<()> {
-        if let Ok(proto) = proto::ExecutionRequest::try_from(command) {
+    async fn forward_from_server(&mut self, command: FromServer) -> io::Result<()> {
+        if let Ok(proto) = proto::FromServer::try_from(command) {
             // [impl->swdd~agent-uses-length-delimited-protobuf-for-pipes~1]
             let binary = proto.encode_length_delimited_to_vec();
             self.output_stream.write_all(&binary).await?;
@@ -125,6 +123,7 @@ pub fn generate_test_pipes_channel_task_mock() -> __mock_MockPipesChannelTask::_
 
 #[cfg(test)]
 mod tests {
+    use common::commands;
     use mockall::predicate;
     use tokio::sync::mpsc;
 
@@ -133,18 +132,17 @@ mod tests {
     use crate::control_interface::MockReopenFile;
 
     #[tokio::test]
-    async fn utest_pipes_channel_task_forward_execution_command() {
+    async fn utest_pipes_channel_task_forward_from_server() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
 
-        let test_command =
-            ExecutionCommand::CompleteState(Box::new(common::commands::CompleteState {
-                request_id: "req_id".to_owned(),
-                ..Default::default()
-            }));
+        let test_command = FromServer::Response(commands::Response {
+            request_id: "req_id".to_owned(),
+            response_content: commands::ResponseContent::CompleteState(Default::default()),
+        });
 
-        let test_command_binary = proto::ExecutionRequest::try_from(test_command.clone())
+        let test_command_binary = proto::FromServer::try_from(test_command.clone())
             .unwrap()
             .encode_length_delimited_to_vec();
 
@@ -169,7 +167,7 @@ mod tests {
         );
 
         assert!(pipes_channel_task
-            .forward_execution_command(test_command)
+            .forward_from_server(test_command)
             .await
             .is_ok());
     }
@@ -183,36 +181,32 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let test_output_request = proto::StateChangeRequest {
-            state_change_request_enum: Some(
-                proto::state_change_request::StateChangeRequestEnum::RequestCompleteState(
-                    proto::RequestCompleteState {
-                        request_id: "req_id".to_owned(),
-                        field_mask: vec![],
-                    },
-                ),
-            ),
+        let test_output_request = proto::ToServer {
+            to_server_enum: Some(proto::to_server::ToServerEnum::Request(proto::Request {
+                request_id: "req_id".to_owned(),
+                request_content: Some(proto::request::RequestContent::CompleteStateRequest(
+                    proto::CompleteStateRequest { field_mask: vec![] },
+                )),
+            })),
         };
 
         let test_output_request_binary = test_output_request.encode_to_vec();
 
         let mut input_stream_mock = MockReopenFile::default();
-        let mut x = [0; 10];
+        let mut x = [0; 12];
         x.clone_from_slice(&test_output_request_binary[..]);
         input_stream_mock
             .expect_read_protobuf_data()
             .returning(move || Ok(Box::new(x)));
 
-        let test_input_command =
-            ExecutionCommand::CompleteState(Box::new(common::commands::CompleteState {
-                request_id: "req_id".to_owned(),
-                ..Default::default()
-            }));
+        let test_input_command = FromServer::Response(commands::Response {
+            request_id: "req_id".to_owned(),
+            response_content: commands::ResponseContent::CompleteState(Default::default()),
+        });
 
-        let test_input_command_binary =
-            proto::ExecutionRequest::try_from(test_input_command.clone())
-                .unwrap()
-                .encode_length_delimited_to_vec();
+        let test_input_command_binary = proto::FromServer::try_from(test_input_command.clone())
+            .unwrap()
+            .encode_length_delimited_to_vec();
 
         let mut output_stream_mock = MockReopenFile::default();
         output_stream_mock
@@ -236,12 +230,12 @@ mod tests {
 
         assert!(input_pipe_sender.send(test_input_command).await.is_ok());
         assert_eq!(
-            Some(StateChangeCommand::RequestCompleteState(
-                common::commands::RequestCompleteState {
-                    request_id: "prefix@req_id".to_owned(),
-                    field_mask: vec![],
-                }
-            )),
+            Some(ToServer::Request(commands::Request {
+                request_id: "prefix@req_id".to_owned(),
+                request_content: commands::RequestContent::CompleteStateRequest(
+                    commands::CompleteStateRequest { field_mask: vec![] }
+                )
+            })),
             output_pipe_receiver.recv().await
         );
 

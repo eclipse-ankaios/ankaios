@@ -10,11 +10,11 @@ The Ankaios Server is the main component of the Ankaios orchestrator and is resp
 
 ## Context View
 
-An Ankaios Server is connected to multiple Agents that are deployed on the same or on different nodes. The Server communicates with the Agents to:
+An Ankaios server is connected to multiple agents that are deployed on the same or on different nodes. The server communicates with the agents to:
 
-* send the Agents lists of Workloads scheduled for them
-* forward Workload State between Agents
-* receive execution requests from Workloads running on an Agent
+* send the agents lists of workloads scheduled for them
+* forward workload state between agents
+* receive ToServer messages from workloads running on an agent
 
 The following diagram shows a high level view of an Ankaios Server in its context:
 
@@ -32,7 +32,7 @@ The following diagram shows the structural view of the Ankaios Server:
 
 ### AnkaiosServer
 
-The AnkaiosServer is the main component of the Ankaios Server. It is responsible for the business logic of the Server which, amongst others, includes storing the current state, handling StateChangeRequests from the StateChangeCommandChannel and distributing ExecutionRequests and ExecutionStateUpdates through the ExecutionCommandChannel via the Communication Middleware to the Agents.
+The AnkaiosServer is the main component of the Ankaios Server. It is responsible for the business logic of the Server which, amongst others, includes storing the current state, handling ToServer messages from the ToServerChannel and distributing FromServer messages through the FromServerChannel via the Communication Middleware to the Agents.
 
 For simplicity, the initial setup of the Ankaios Server done in the main.rs is also counted as part of this unit.
 
@@ -45,8 +45,8 @@ The StartupStateLoader loads the initial startup state, parses it and pushes it 
 The Communication Middleware is responsible for:
 
 * establishing the connections to multiple Ankaios Agents.
-* forwarding the ExecutionRequests and ExecutionStateUpdates from AnkaiosServer to the proper Ankaios Agents through the ExecutionCommandChannel.
-* forwarding the StateChangeRequests from connected Agents to the AnkaiosServer.
+* forwarding the FromServer messages from AnkaiosServer to the proper Ankaios Agents through the FromServerChannel.
+* forwarding the ToServer messages from connected Agents to the AnkaiosServer.
 
 ### WorkloadStateDB
 
@@ -251,7 +251,7 @@ Needs:
 
 Status: approved
 
-When startup state is loaded and the state change request AgentHello is received from an agent, the Ankaios Server shall send all Workload States of other connected agents to that agent.
+When startup state is loaded and the ToServer message AgentHello is received from an Ankaios Agent, the Ankaios Server shall send all Workload States of other connected agents to that agent.
 
 Tags:
 - AnkaiosServer
@@ -270,7 +270,7 @@ The following diagram shows the sequence of the distribution and storage of Work
 
 Status: approved
 
-When the state change request UpdateWorkloadState is received by the Ankaios Server from an Agent, the Ankaios Server shall distribute the Execution Request UpdateWorkloadState to all connected agents other than the one which initiated the state change request UpdateWorkloadState.
+When the ToServer message UpdateWorkloadState is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall distribute the FromServer message UpdateWorkloadState to all connected agents other than the one which send the ToServer message UpdateWorkloadState.
 
 Tags:
 - AnkaiosServer
@@ -284,7 +284,7 @@ Needs:
 
 Status: approved
 
-When the state change request UpdateWorkloadState is received by the Ankaios Server from an Agent, the Ankaios Server shall store all the Workload States of that Agent in the WorkloadStateDB.
+When the ToServer message UpdateWorkloadState is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall store all the Workload States of that Ankaios Agent in the WorkloadStateDB.
 
 Tags:
 - AnkaiosServer
@@ -303,7 +303,7 @@ The following diagram shows the sequence of setting the Workload States of an di
 
 Status: approved
 
-When the state change request AgentGone is received by the Ankaios Server from an Agent, the Ankaios Server shall set all the Workload States of that agent to ExecUnknown.
+When the ToServer message AgentGone is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall set all the Workload States of that agent to ExecUnknown.
 
 Tags:
 - AnkaiosServer
@@ -317,7 +317,7 @@ Needs:
 
 Status: approved
 
-When the state change request AgentGone is received by the Ankaios Server from an Agent, the Ankaios Server shall distribute the Workload States of that disconnected agent via the Execution Request UpdateWorkloadState to all remaining agents.
+When the ToServer message AgentGone is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall distribute the Workload States of that disconnected Ankaios Agent via the FromServer message UpdateWorkloadState to all remaining agents.
 
 Tags:
 - AnkaiosServer
@@ -446,8 +446,8 @@ The behavioral diagram of the updating current state is shown in the chapter "Up
 
 Status: approved
 
-When the Ankaios Server gets the `StateChangeCommand` `UpdateState` and detects a change of the state where a workload is present only in the New State,
-the Ankaios Server shall send `ExecutionCommand` to the corresponding Ankaios Agent to add the workload.
+When the Ankaios Server gets the `ToServer` message `UpdateState` and detects a change of the state where a workload is present only in the New State,
+the Ankaios Server shall send a `FromServer` message to the corresponding Ankaios Agent to add the workload.
 
 Tags:
 - AnkaiosServer
@@ -462,8 +462,8 @@ Needs:
 
 Status: approved
 
-When the Ankaios Server gets the `StateChangeCommand` `UpdateState` and detects a change of the state where a workload is present only in the Current State,
-the Ankaios Server shall send `ExecutionCommand` to the corresponding Ankaios Agent to delete the workload.
+When the Ankaios Server gets the `ToServer` message `UpdateState` and detects a change of the state where a workload is present only in the Current State,
+the Ankaios Server shall send a `FromServer` message to the corresponding Ankaios Agent to delete the workload.
 
 Tags:
 - AnkaiosServer
@@ -478,9 +478,9 @@ Needs:
 
 Status: approved
 
-When the Ankaios Server gets the `StateChangeCommand` `UpdateState` and detects a change of the state where a workload is present in both states
+When the Ankaios Server gets the `ToServer` message `UpdateState` and detects a change of the state where a workload is present in both states
 and at least one field of the workload is different,
-the Ankaios Server shall send `ExecutionCommand` to the corresponding Ankaios Agents to delete and add the workload.
+the Ankaios Server shall send a `FromServer` message to the corresponding Ankaios Agents to delete and add the workload.
 
 Tags:
 - AnkaiosServer
