@@ -111,12 +111,12 @@ async function main() {
     protobuf.load("/usr/local/lib/ankaios/ankaios.proto", async function (err, root) {
         if (err) throw err;
 
+        read_from_control_interface(root, decode_from_server_response_message);
+
         // Send request to add the new workload dynamic_nginx to Ankaios Server
         const message = create_request_to_add_new_workload(root);
         console.log(`[${new Date().toISOString()}] Sending Request containing details for adding the dynamic workload "dynamic_nginx":\nToServer `, util.inspect(message.toJSON(), { depth: null }));
         write_to_control_interface(root, message);
-
-        read_from_control_interface(root, decode_from_server_response_message);
 
         const send_request_for_complete_state = async () => {
             // Send the request to request the complete state containing the workload states to Ankaios Server
