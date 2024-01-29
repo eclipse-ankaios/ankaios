@@ -67,14 +67,14 @@ pub async fn forward_from_proto_to_ankaios(
                 // [impl->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
                 let request_id = prepend_request_id(request_id.as_ref(), agent_name.as_ref());
                 match request_content.ok_or(GrpcMiddlewareError::ConversionError(format!(
-                    "Request content empty for request ID: {}",
+                    "Request content empty for request ID: '{}'",
                     request_id
                 )))? {
                     RequestContent::UpdateStateRequest(UpdateStateRequest {
                         new_state,
                         update_mask,
                     }) => {
-                        log::debug!("Received UpdateStateRequest from {}", agent_name);
+                        log::debug!("Received UpdateStateRequest from '{}'", agent_name);
                         match new_state.unwrap_or_default().try_into() {
                             Ok(new_state) => {
                                 sink.update_state(request_id, new_state, update_mask)
@@ -82,14 +82,14 @@ pub async fn forward_from_proto_to_ankaios(
                             }
                             Err(error) => {
                                 return Err(GrpcMiddlewareError::ConversionError(format!(
-                                    "Could not convert UpdateStateRequest for forwarding: {}",
+                                    "Could not convert UpdateStateRequest for forwarding: '{}'",
                                     error
                                 )));
                             }
                         };
                     }
                     RequestContent::CompleteStateRequest(CompleteStateRequest { field_mask }) => {
-                        log::trace!("Received RequestCompleteState from {}", agent_name);
+                        log::trace!("Received RequestCompleteState from '{}'", agent_name);
                         sink.request_complete_state(
                             request_id,
                             proto::CompleteStateRequest { field_mask }.into(),
@@ -100,7 +100,7 @@ pub async fn forward_from_proto_to_ankaios(
             }
 
             ToServerEnum::UpdateWorkloadState(update_workload_state) => {
-                log::trace!("Received UpdateWorkloadState from {}", agent_name);
+                log::trace!("Received UpdateWorkloadState from '{}'", agent_name);
 
                 sink.update_workload_state(
                     update_workload_state
@@ -114,13 +114,13 @@ pub async fn forward_from_proto_to_ankaios(
 
             ToServerEnum::Goodbye(_goodbye) => {
                 log::trace!(
-                    "Received Goodbye from {}. Stopping the control loop.",
+                    "Received Goodbye from '{}'. Stopping the control loop.",
                     agent_name
                 );
                 break;
             }
             unknown_message => {
-                log::warn!("Wrong ToServer message: {:?}", unknown_message);
+                log::warn!("Wrong ToServer message: '{:?}'", unknown_message);
             }
         }
     }
