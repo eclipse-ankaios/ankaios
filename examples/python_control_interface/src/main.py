@@ -84,8 +84,14 @@ def read_from_control_interface():
                 if not next_byte:
                     break
                 msg_buf += next_byte
+
             from_server = ank.FromServer()
-            from_server.ParseFromString(msg_buf) # Deserialize the received proto msg
+            try:
+                from_server.ParseFromString(msg_buf) # Deserialize the received proto msg
+            except Exception as e:
+                logger.info(f"Invalid response, parsing error: '{e}'")
+                continue
+
             request_id = from_server.response.requestId
             if from_server.response.requestId == REQUEST_ID:
                 logger.info(f"Receiving Response containing the workload states of the current state:\nFromServer {{\n{from_server}}}\n")
