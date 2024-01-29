@@ -9,7 +9,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 concurrency:
-  group: "${{ github.workflow }}-${{ github.head_ref || github.ref }}"
+  group: "release-${{ github.head_ref || github.ref }}"
   cancel-in-progress: true
 
 jobs:
