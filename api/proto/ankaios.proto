@@ -183,7 +183,7 @@ message Error {
 */
 message CompleteState {
   State startupState = 1; /// The State information at the startup of the Ankaios System.
-  State currentState = 2; /// The current state information.
+  State desiredState = 2; /// The state the user whant to reach.
   repeated WorkloadState workloadStates = 3; /// The current states of the workloads.
 }
 
@@ -194,7 +194,7 @@ message CompleteState {
 * This is usually answered with a [CompleteState](#completestate) message.
 */
 message CompleteStateRequest {
-  repeated string fieldMask = 1; /// A list of symbolic field paths within the State message structure e.g. 'currentState.workloads.nginx'.
+  repeated string fieldMask = 1; /// A list of symbolic field paths within the State message structure e.g. 'desiredState.workloads.nginx'.
 }
 
 /**
@@ -205,7 +205,7 @@ message CompleteStateRequest {
 */
 message UpdateStateRequest {
   CompleteState newState = 1; /// The new state of the Ankaios system.
-  repeated string updateMask = 2; /// A list of symbolic field paths within the state message structure e.g. 'currentState.workloads.nginx' to specify what to be updated.
+  repeated string updateMask = 2; /// A list of symbolic field paths within the state message structure e.g. 'desiredState.workloads.nginx' to specify what to be updated.
 }
 
 /**

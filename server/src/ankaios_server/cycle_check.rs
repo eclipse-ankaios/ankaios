@@ -585,7 +585,7 @@ mod tests {
     struct StateBuilder(State);
     impl StateBuilder {
         fn default() -> Self {
-            let state = generate_test_complete_state(Vec::new()).current_state;
+            let state = generate_test_complete_state(Vec::new()).desired_state;
             StateBuilder(state)
         }
 

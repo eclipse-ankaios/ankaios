@@ -1,4 +1,4 @@
-currentState:
+desiredState:
   workloads:
     workload_C:
       runtime: podman
@@ -9,10 +9,8 @@ currentState:
         allow: []
         deny: []
       dependencies:
-        workload_D:
-          ADD_COND_SUCCEEDED
-        workload_A:
-          ADD_COND_RUNNING
+        workload_D: ADD_COND_SUCCEEDED
+        workload_A: ADD_COND_RUNNING
       tags:
         - key: owner
           value: Ankaios team

@@ -69,7 +69,7 @@ fn create_request_to_add_new_workload() -> ToServer {
             request_id: REQUEST_ID.to_string(),
             request_content: Some(RequestContent::UpdateStateRequest(UpdateStateRequest {
                 new_state: Some(CompleteState {
-                    current_state: Some(State {
+                    desired_state: Some(State {
                         workloads: new_workloads,
                         configs: HashMap::default(),
                         cronjobs: HashMap::default(),

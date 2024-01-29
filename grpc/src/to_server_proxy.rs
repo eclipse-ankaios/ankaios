@@ -378,7 +378,7 @@ mod tests {
             )])
             .into();
         ankaios_state
-            .current_state
+            .desired_state
             .as_mut()
             .unwrap()
             .workloads

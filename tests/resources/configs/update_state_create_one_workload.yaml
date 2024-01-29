@@ -3,7 +3,7 @@ startupState:
   workloads: {}
   configs: {}
   cronJobs: {}
-currentState:
+desiredState:
   workloads:
     nginx:
       runtime: podman

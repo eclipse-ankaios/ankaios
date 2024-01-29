@@ -195,7 +195,7 @@ mod tests {
         let state = generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
         let complete_state = CompleteState {
             startup_state: state.clone(),
-            current_state: state,
+            desired_state: state,
             workload_states: vec![WorkloadState {
                 workload_name: "workload A".into(),
                 agent_name: "agent".into(),
@@ -221,7 +221,7 @@ mod tests {
             generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
         let expected = CompleteState {
             startup_state: expected_state.clone(),
-            current_state: expected_state,
+            desired_state: expected_state,
             workload_states: vec![WorkloadState {
                 workload_name: "workload A".into(),
                 agent_name: "agent".into(),
@@ -498,7 +498,7 @@ mod tests {
         pub fn generate_test_complete_state() -> Mapping {
             Mapping::default()
                 .entry("startupState", generate_test_state())
-                .entry("currentState", generate_test_state())
+                .entry("desiredState", generate_test_state())
                 .entry(
                     "workloadStates",
                     vec![Mapping::default()

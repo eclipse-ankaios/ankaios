@@ -35,7 +35,7 @@ pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State
 #[cfg(feature = "test_utils")]
 pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> CompleteState {
     CompleteState {
-        current_state: State {
+        desired_state: State {
             workloads: workloads
                 .clone()
                 .into_iter()
@@ -138,18 +138,17 @@ fn generate_test_proto_dependencies() -> HashMap<String, i32> {
 }
 
 fn generate_test_delete_dependencies() -> HashMap<String, DeleteCondition> {
-    HashMap::from([
-        (String::from("workload A"), DeleteCondition::DelCondNotPendingNorRunning),
-    ])
+    HashMap::from([(
+        String::from("workload A"),
+        DeleteCondition::DelCondNotPendingNorRunning,
+    )])
 }
 
 fn generate_test_proto_delete_dependencies() -> HashMap<String, i32> {
-    HashMap::from([
-        (
-            String::from("workload A"),
-            proto::DeleteCondition::DelCondNotPendingNorRunning.into(),
-        )
-    ])
+    HashMap::from([(
+        String::from("workload A"),
+        proto::DeleteCondition::DelCondNotPendingNorRunning.into(),
+    )])
 }
 
 pub fn generate_test_workload_spec_with_param(

@@ -135,7 +135,7 @@ fn create_update_workload_request() -> proto::ToServer {
             request_content: Some(proto::request::RequestContent::UpdateStateRequest(
                 UpdateStateRequest {
                     new_state: Some(proto::CompleteState {
-                        current_state: Some(proto::State {
+                        desired_state: Some(proto::State {
                             workloads: new_workloads,
                             configs: HashMap::default(),
                             cronjobs: HashMap::default(),

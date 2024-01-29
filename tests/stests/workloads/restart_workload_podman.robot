@@ -39,7 +39,7 @@ Test Ankaios Podman restart of a workload on creation failure
     And user triggers "ank delete workload hello1"
     And the workload "hello1" shall have the execution state "Removed" on agent "agent_A" within "30" seconds
     And podman shall not have a container for workload "hello1" on agent "agent_A" within "30" seconds
-    And user triggers "ank set state -f ${new_state_yaml_file} currentState.workloads.hello1"
+    And user triggers "ank set state -f ${new_state_yaml_file} desiredState.workloads.hello1"
     # Asserts
     Then the workload "hello1" shall have the execution state "Running" from agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
@@ -62,9 +62,9 @@ Test Ankaios Podman restart of a workload on creation failure intercepted by upd
     And user triggers "ank delete workload hello1"
     And the workload "hello1" shall have the execution state "Removed" on agent "agent_A" within "30" seconds
     And podman shall not have a container for workload "hello1" on agent "agent_A" within "30" seconds
-    And user triggers "ank set state -f ${new_state_yaml_file} currentState.workloads.hello1"
-    And user updates the state "${new_state_yaml_file}" with "currentState.workloads.hello1.runtimeConfig.commandArgs=['3']"
-    And user triggers "ank set state -f ${new_state_yaml_file} currentState.workloads.hello1"
+    And user triggers "ank set state -f ${new_state_yaml_file} desiredState.workloads.hello1"
+    And user updates the state "${new_state_yaml_file}" with "desiredState.workloads.hello1.runtimeConfig.commandArgs=['3']"
+    And user triggers "ank set state -f ${new_state_yaml_file} desiredState.workloads.hello1"
     # Asserts
     Then the workload "hello1" shall have the execution state "Succeeded" from agent "agent_A" within "30" seconds
     [Teardown]    Clean up Ankaios
@@ -87,7 +87,7 @@ Test Ankaios Podman restart of a workload on creation failure intercepted by del
     And user triggers "ank delete workload hello1"
     And the workload "hello1" shall have the execution state "Removed" on agent "agent_A" within "30" seconds
     And podman shall not have a container for workload "hello1" on agent "agent_A" within "30" seconds
-    And user triggers "ank set state -f ${new_state_yaml_file} currentState.workloads.hello1"
+    And user triggers "ank set state -f ${new_state_yaml_file} desiredState.workloads.hello1"
     And the user waits "1" seconds
     And user triggers "ank delete workload hello1"
     # Asserts

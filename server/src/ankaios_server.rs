@@ -308,7 +308,7 @@ mod tests {
         );
 
         let startup_state = CompleteState {
-            current_state: State {
+            desired_state: State {
                 workloads: HashMap::from([(workload.name.clone(), workload)]),
                 ..Default::default()
             },
@@ -352,7 +352,7 @@ mod tests {
         );
 
         let new_state = CompleteState {
-            current_state: State {
+            desired_state: State {
                 workloads: HashMap::from([(
                     updated_workload.name.clone(),
                     updated_workload.clone(),
@@ -365,10 +365,10 @@ mod tests {
         // fix new state by deleting the dependencies
         let mut fixed_state = new_state.clone();
         updated_workload.dependencies.clear();
-        fixed_state.current_state.workloads =
+        fixed_state.desired_state.workloads =
             HashMap::from([(updated_workload.name.clone(), updated_workload.clone())]);
 
-        let update_mask = vec!["currentState.workloads".to_string()];
+        let update_mask = vec!["desiredState.workloads".to_string()];
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
@@ -450,7 +450,7 @@ mod tests {
         );
 
         let startup_state = CompleteState {
-            current_state: State {
+            desired_state: State {
                 workloads: HashMap::from([(workload.name.clone(), workload.clone())]),
                 ..Default::default()
             },
@@ -669,7 +669,7 @@ mod tests {
         w1.runtime_config = "changed".to_string();
 
         let update_state = CompleteState {
-            current_state: State {
+            desired_state: State {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
                     .into_iter()
                     .collect(),
@@ -682,7 +682,7 @@ mod tests {
         let added_workloads = vec![w1.clone()];
         let deleted_workloads = vec![];
 
-        let update_mask = vec![format!("currentState.workloads.{}", WORKLOAD_NAME_1)];
+        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
         mock_server_state
@@ -737,7 +737,7 @@ mod tests {
         w1.runtime_config = "changed".to_string();
 
         let update_state = CompleteState {
-            current_state: State {
+            desired_state: State {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
                     .into_iter()
                     .collect(),
@@ -746,7 +746,7 @@ mod tests {
             },
             ..Default::default()
         };
-        let update_mask = vec![format!("currentState.workloads.{}", WORKLOAD_NAME_1)];
+        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
         mock_server_state
@@ -794,7 +794,7 @@ mod tests {
         );
 
         let update_state = CompleteState {
-            current_state: State {
+            desired_state: State {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
                     .into_iter()
                     .collect(),
@@ -803,7 +803,7 @@ mod tests {
             },
             ..Default::default()
         };
-        let update_mask = vec![format!("currentState.workloads.{}", WORKLOAD_NAME_1)];
+        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
         mock_server_state
@@ -878,7 +878,7 @@ mod tests {
         configs.insert("key3".to_string(), "value3".to_string());
 
         let current_complete_state = CompleteState {
-            current_state: State {
+            desired_state: State {
                 workloads,
                 configs,
                 cron_jobs: HashMap::default(),
@@ -1078,7 +1078,7 @@ mod tests {
         let mut updated_w1 = w1.clone();
         updated_w1.restart = false;
         let update_state = CompleteState {
-            current_state: State {
+            desired_state: State {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), updated_w1.clone())]
                     .into_iter()
                     .collect(),
@@ -1087,7 +1087,7 @@ mod tests {
             },
             ..Default::default()
         };
-        let update_mask = vec!["currentState.workloads".to_string()];
+        let update_mask = vec!["desiredState.workloads".to_string()];
 
         let added_workloads = vec![updated_w1.clone()];
         let deleted_workloads = vec![DeletedWorkload {
