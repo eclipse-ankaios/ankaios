@@ -13,11 +13,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
-use tokio::sync::mpsc::Sender;
 
 use crate::{
-    communications_error::CommunicationMiddlewareError, execution_interface::ExecutionCommand,
-    state_change_interface::StateChangeReceiver,
+    communications_error::CommunicationMiddlewareError, from_server_interface::FromServerSender,
+    to_server_interface::ToServerReceiver,
 };
 
 // [impl->swdd~common-interface-definitions~1]
@@ -25,7 +24,7 @@ use crate::{
 pub trait CommunicationsClient {
     async fn run(
         &mut self,
-        &mut receiver: StateChangeReceiver,
-        manager_interface: Sender<ExecutionCommand>,
+        &mut receiver: ToServerReceiver,
+        manager_interface: FromServerSender,
     ) -> Result<(), CommunicationMiddlewareError>;
 }

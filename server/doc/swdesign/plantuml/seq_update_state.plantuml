@@ -19,20 +19,20 @@ activate agent1
 agent1 ->> tonic_server--++: UpdateState
 tonic_server ->> server--++: UpdateState
 server -> server_state++: update state
-server_state -> server_state++--: create ExecutionRequest\nfrom comparison of new\nand old CurrentState
+server_state -> server_state++--: create FromServer message\nfrom comparison of new\nand old CurrentState
 alt State valid
-server_state -->> server--: ExecutionRequest
-server ->> grpc_server++: send ExecutionRequests
+server_state -->> server--: FromServer message
+server ->> grpc_server++: send FromServer message
 grpc_server -->> server
 deactivate server
 opt ExuectionsRequests for Agent 1
-grpc_server ->> agent1++:send ExecutionRequests
-agent1 -> agent1++--: execute ExecutionRequests
+grpc_server ->> agent1++:send FromServer message
+agent1 -> agent1++--: apply FromServer message
 deactivate agent1
 end
 opt ExuectionsRequests for Agent 2
-grpc_server ->> agent2++:send ExecutionRequests
-agent2 -> agent2++--: execute ExecutionRequests
+grpc_server ->> agent2++:send FromServer message
+agent2 -> agent2++--: apply FromServer message
 deactivate agent2
 end
 deactivate grpc_server

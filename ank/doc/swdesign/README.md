@@ -67,7 +67,7 @@ This also includes error handling when the user enters unsupported command or fo
 ### CliCommands
 
 The CliCommands implements the commands.
-It uses ExecutionCommand Channel and StateChangeCommand Channel to interact with the server.
+It uses FromServer Channel and ToServer Channel to interact with the server.
 
 ### External Libraries
 
@@ -75,7 +75,7 @@ It uses ExecutionCommand Channel and StateChangeCommand Channel to interact with
 
 The Communication Middleware is responsible for the connection between the Ankaios Server and the Ankaios Agent or the Ankaios CLI.
 
-#### ExecutionCommand Channel, StateChangeCommand Channel
+#### FromServer Channel, ToServer Channel
 
 The channels are defined in the `common` library.
 

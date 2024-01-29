@@ -12,24 +12,24 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::execution_interface::{ExecutionReceiver, ExecutionSender};
+use common::from_server_interface::{FromServerReceiver, FromServerSender};
 use tokio::sync::mpsc;
 
-pub struct ExecutionCommandChannels {
-    sender: ExecutionSender,
-    receiver: ExecutionReceiver,
+pub struct FromServerChannels {
+    sender: FromServerSender,
+    receiver: FromServerReceiver,
 }
 
 #[cfg_attr(test, mockall::automock)]
-impl ExecutionCommandChannels {
+impl FromServerChannels {
     pub fn new(buf_size: usize) -> Self {
         let (sender, receiver) = mpsc::channel(buf_size);
         Self { sender, receiver }
     }
-    pub fn get_sender(&self) -> ExecutionSender {
+    pub fn get_sender(&self) -> FromServerSender {
         self.sender.clone()
     }
-    pub fn move_receiver(self) -> ExecutionReceiver {
+    pub fn move_receiver(self) -> FromServerReceiver {
         self.receiver
     }
 }
@@ -47,19 +47,19 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn utest_execution_command_channels_new() {
-        let test_channels = ExecutionCommandChannels::new(1024);
+    async fn utest_from_server_channels_new() {
+        let test_channels = FromServerChannels::new(1024);
 
         let _ = test_channels
             .get_sender()
-            .send(common::execution_interface::ExecutionCommand::Stop(
+            .send(common::from_server_interface::FromServer::Stop(
                 common::commands::Stop {},
             ))
             .await;
         let mut receiver = test_channels.move_receiver();
         assert!(matches!(
             receiver.recv().await,
-            Some(common::execution_interface::ExecutionCommand::Stop(
+            Some(common::from_server_interface::FromServer::Stop(
                 common::commands::Stop {}
             ))
         ))

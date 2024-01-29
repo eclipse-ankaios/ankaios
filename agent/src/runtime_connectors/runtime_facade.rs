@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use common::{
     objects::{AgentName, WorkloadExecutionInstanceName, WorkloadInstanceName, WorkloadSpec},
-    state_change_interface::StateChangeSender,
+    to_server_interface::ToServerSender,
 };
 #[cfg(test)]
 use mockall::automock;
@@ -29,7 +29,7 @@ pub trait RuntimeFacade: Send + Sync + 'static {
         &self,
         runtime_workload: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
-        update_state_tx: &StateChangeSender,
+        update_state_tx: &ToServerSender,
     ) -> Workload;
 
     fn replace_workload(
@@ -37,14 +37,14 @@ pub trait RuntimeFacade: Send + Sync + 'static {
         existing_workload_name: WorkloadExecutionInstanceName,
         new_workload_spec: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
-        update_state_tx: &StateChangeSender,
+        update_state_tx: &ToServerSender,
     ) -> Workload;
 
     fn resume_workload(
         &self,
         runtime_workload: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
-        update_state_tx: &StateChangeSender,
+        update_state_tx: &ToServerSender,
     ) -> Workload;
 
     fn delete_workload(&self, instance_name: WorkloadExecutionInstanceName);
@@ -91,7 +91,7 @@ impl<
         &self,
         workload_spec: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
-        update_state_tx: &StateChangeSender,
+        update_state_tx: &ToServerSender,
     ) -> Workload {
         let workload_name = workload_spec.name.clone();
         let runtime = self.runtime.to_owned();
@@ -140,7 +140,7 @@ impl<
         old_instance_name: WorkloadExecutionInstanceName,
         new_workload_spec: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
-        update_state_tx: &StateChangeSender,
+        update_state_tx: &ToServerSender,
     ) -> Workload {
         let workload_name = new_workload_spec.name.clone();
         let runtime = self.runtime.to_owned();
@@ -209,7 +209,7 @@ impl<
         &self,
         workload_spec: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
-        update_state_tx: &StateChangeSender,
+        update_state_tx: &ToServerSender,
     ) -> Workload {
         let workload_name = workload_spec.name.clone();
         let runtime = self.runtime.to_owned();
@@ -302,8 +302,8 @@ impl<
 mod tests {
     use common::{
         objects::{WorkloadExecutionInstanceName, WorkloadInstanceName},
-        state_change_interface::StateChangeCommand,
         test_utils::generate_test_workload_spec_with_param,
+        to_server_interface::ToServer,
     };
 
     use crate::{
@@ -377,7 +377,7 @@ mod tests {
         );
 
         let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
+            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -429,7 +429,7 @@ mod tests {
         );
 
         let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
+            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -487,7 +487,7 @@ mod tests {
         );
 
         let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
+            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -539,7 +539,7 @@ mod tests {
         );
 
         let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
+            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -603,7 +603,7 @@ mod tests {
         );
 
         let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
+            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -672,7 +672,7 @@ mod tests {
         );
 
         let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
+            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -743,7 +743,7 @@ mod tests {
         );
 
         let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<StateChangeCommand>(TEST_CHANNEL_BUFFER_SIZE);
+            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();

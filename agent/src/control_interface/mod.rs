@@ -13,18 +13,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 mod directory;
-mod execution_command_channels;
 mod fifo;
 mod filesystem;
+mod from_server_channels;
 mod input_output;
 mod pipes_channel_context;
 mod pipes_channel_task;
 mod reopen_file;
 
 pub use directory::*;
-pub use execution_command_channels::*;
 pub use fifo::*;
 pub use filesystem::*;
+pub use from_server_channels::*;
 pub use input_output::*;
 pub use pipes_channel_context::*;
 pub use pipes_channel_task::*;

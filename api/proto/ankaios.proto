@@ -23,51 +23,58 @@
 *
 * The protocol consists of the following top-level message types:
 *
-* 1. [StateChangeRequest](#statechangerequest): agent/cli -> server
+* 1. [ToServer](#ToServer): agent/cli -> server
 *
-* 2. [ExecutionRequest](#executionrequest): server -> agent/cli
+* 2. [FromServer](#FromServer): server -> agent/cli
 *
 */
 syntax = "proto3";
 package ankaios;
- 
+
 service AgentConnection {
-  rpc ConnectAgent (stream StateChangeRequest) returns (stream ExecutionRequest);
+  rpc ConnectAgent (stream ToServer) returns (stream FromServer);
 }
 
 service CliConnection {
-  rpc ConnectCli (stream StateChangeRequest) returns (stream ExecutionRequest);
+  rpc ConnectCli (stream ToServer) returns (stream FromServer);
 }
 
 /**
 * Messages to the Ankaios server.
 */
-message StateChangeRequest {
-  oneof stateChangeRequestEnum {
+message ToServer {
+  oneof ToServerEnum {
     AgentHello agentHello = 1; /// This message is for internal usage only!
     UpdateWorkloadState updateWorkloadState = 2; /// A message to Ankaios server to update the execution state of a workload.
-    UpdateStateRequest updateState = 3; /// A message to Ankaios server to update the State of one or more agent(s).
-    RequestCompleteState requestCompleteState = 4; /// A message to Ankaios server to request the complete state by the given request id and the optional field mask.
-    Goodbye goodbye = 5;
+    Request request = 3;
+    Goodbye goodbye = 4;
   }
 }
 
 /**
-* Messages to the Ankaios server.
+* Messages from the Ankaios server to e.g. the Ankaios agent.
 */
-message ExecutionRequest {
-  oneof executionRequestEnum {
+message FromServer {
+  oneof FromServerEnum {
     UpdateWorkload updateWorkload = 1; /// A message containing lists of workloads to be added or deleted.
     UpdateWorkloadState updateWorkloadState = 2; /// A message containing list of workload execution states.
-    CompleteState completeState = 3; /// A message containing the complete state (startup state, current state, workload states) of the Anakios system.
+    Response response = 3; /// A message containing a response to a previous request.
   }
 }
 
 /**
-* A message to the Ankaios server to register a new agent. 
+* A message to the Ankaios server to register a new agent.
 */
 message AgentHello {
   string agentName = 1; /// A unique agent name.
+}
+
+message Request {
+  string requestId = 1;
+  oneof RequestContent {
+    UpdateStateRequest updateStateRequest = 2; /// A message to Ankaios server to update the State of one or more agent(s).
+    CompleteStateRequest completeStateRequest = 3; /// A message to Ankaios server to request the complete state by the given request id and the optional field mask.
+  }
 }
 
 /**
@@ -77,7 +84,7 @@ message Goodbye {
 }
 
 /**
-* A message providing information about the workloads to be added and/or deleted. 
+* A message providing information about the workloads to be added and/or deleted.
 */
 message UpdateWorkload {
   repeated AddedWorkload addedWorkloads = 1; /// A list of messages containing information about a workload to be added by an Ankaios agent.
@@ -111,7 +118,7 @@ message DeletedWorkload {
 */
 enum DeleteCondition {
     DEL_COND_RUNNING = 0; /// The workload is operational.
-    DEL_COND_NOT_PENDING_NOR_RUNNING = 1; /// The workload is not scheduled or running.    
+    DEL_COND_NOT_PENDING_NOR_RUNNING = 1; /// The workload is not scheduled or running.
 }
 
 /**
@@ -155,15 +162,29 @@ message UpdateWorkloadState {
   repeated WorkloadState workloadStates = 1; /// A list of workload states.
 }
 
+message Response {
+  string requestId = 1;
+  oneof ResponseContent {
+    Success success = 2;
+    Error error = 3;
+    CompleteState completeState = 4;
+  }
+}
+
+message Success {}
+
+message Error {
+  string message = 1;
+}
+
 /**
 * A message containing the complete state of the Ankaios system.
-* This is a response to the [RequestCompletestate](#requestcompletestate) message.
+* This is a response to the [CompleteStateRequest](#completestaterequest) message.
 */
 message CompleteState {
-  string requestId = 1; /// The request id corresponding to a sent [RequestCompletestate](#requestcompletestate) message.
-  State startupState = 2; /// The State information at the startup of the Ankaios System.
-  State currentState = 3; /// The current state information.
-  repeated WorkloadState workloadStates = 4; /// The current states of the workloads.
+  State startupState = 1; /// The State information at the startup of the Ankaios System.
+  State currentState = 2; /// The current state information.
+  repeated WorkloadState workloadStates = 3; /// The current states of the workloads.
 }
 
 // Common messages
@@ -172,14 +193,13 @@ message CompleteState {
 * A message containing a request for the complete/partial state of the Ankaios system.
 * This is usually answered with a [CompleteState](#completestate) message.
 */
-message RequestCompleteState {
-  string requestId = 1; /// A request id. This can be any string literal.
-  repeated string fieldMask = 2; /// A list of symbolic field paths within the State message structure e.g. 'currentState.workloads.nginx'.
+message CompleteStateRequest {
+  repeated string fieldMask = 1; /// A list of symbolic field paths within the State message structure e.g. 'currentState.workloads.nginx'.
 }
 
 /**
 * A message containing a request to update the state of the Ankaios system.
-* The new state is provided as state object. 
+* The new state is provided as state object.
 * To specify which part(s) of the new state object should be updated
 * a list of update mask (same as field mask) paths needs to be provided.
 */

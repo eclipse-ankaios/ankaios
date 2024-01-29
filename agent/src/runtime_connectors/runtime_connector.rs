@@ -4,7 +4,7 @@ use async_trait::async_trait;
 
 use common::{
     objects::{AgentName, WorkloadExecutionInstanceName, WorkloadSpec},
-    state_change_interface::StateChangeSender,
+    to_server_interface::ToServerSender,
 };
 
 use crate::runtime_connectors::StateChecker;
@@ -50,7 +50,7 @@ where
         &self,
         runtime_workload_config: WorkloadSpec,
         control_interface_path: Option<PathBuf>,
-        update_state_tx: StateChangeSender,
+        update_state_tx: ToServerSender,
     ) -> Result<(WorkloadId, StChecker), RuntimeError>;
 
     async fn get_workload_id(
@@ -62,7 +62,7 @@ where
         &self,
         workload_id: &WorkloadId,
         runtime_workload_config: WorkloadSpec,
-        update_state_tx: StateChangeSender,
+        update_state_tx: ToServerSender,
     ) -> Result<StChecker, RuntimeError>;
 
     async fn delete_workload(&self, workload_id: &WorkloadId) -> Result<(), RuntimeError>;
@@ -102,7 +102,7 @@ pub mod test {
     use async_trait::async_trait;
     use common::{
         objects::{AgentName, ExecutionState, WorkloadExecutionInstanceName, WorkloadSpec},
-        state_change_interface::StateChangeSender,
+        to_server_interface::ToServerSender,
     };
     use tokio::sync::Mutex;
 
@@ -139,7 +139,7 @@ pub mod test {
         fn start_checker(
             _workload_spec: &WorkloadSpec,
             _workload_id: String,
-            _manager_interface: StateChangeSender,
+            _manager_interface: ToServerSender,
             _state_getter: impl RuntimeStateGetter<String>,
         ) -> Self {
             log::info!("Starting the checker ;)");
@@ -169,14 +169,14 @@ pub mod test {
         CreateWorkload(
             WorkloadSpec,
             Option<PathBuf>,
-            StateChangeSender,
+            ToServerSender,
             Result<(String, StubStateChecker), RuntimeError>,
         ),
         GetWorkloadId(WorkloadExecutionInstanceName, Result<String, RuntimeError>),
         StartChecker(
             String,
             WorkloadSpec,
-            StateChangeSender,
+            ToServerSender,
             Result<StubStateChecker, RuntimeError>,
         ),
         DeleteWorkload(String, Result<(), RuntimeError>),
@@ -302,7 +302,7 @@ pub mod test {
             &self,
             runtime_workload_config: WorkloadSpec,
             control_interface_path: Option<PathBuf>,
-            update_state_tx: StateChangeSender,
+            update_state_tx: ToServerSender,
         ) -> Result<(String, StubStateChecker), RuntimeError> {
             match self.get_expected_call().await {
                 RuntimeCall::CreateWorkload(
@@ -344,7 +344,7 @@ pub mod test {
             &self,
             workload_id: &String,
             runtime_workload_config: WorkloadSpec,
-            update_state_tx: StateChangeSender,
+            update_state_tx: ToServerSender,
         ) -> Result<StubStateChecker, RuntimeError> {
             match self.get_expected_call().await {
                 RuntimeCall::StartChecker(

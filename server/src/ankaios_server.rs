@@ -15,42 +15,43 @@
 mod cycle_check;
 mod server_state;
 
-use common::commands::{CompleteState, UpdateWorkload};
+use common::commands::{CompleteState, Request, UpdateWorkload};
+use common::from_server_interface::{FromServerReceiver, FromServerSender};
 use common::std_extensions::IllegalStateResult;
+use common::to_server_interface::{ToServerReceiver, ToServerSender};
 
 #[cfg_attr(test, mockall_double::double)]
 use server_state::ServerState;
 
 use crate::workload_state_db::WorkloadStateDB;
-use common::execution_interface::ExecutionCommand;
-use common::objects::State;
-use common::{execution_interface::ExecutionInterface, state_change_interface::StateChangeCommand};
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use common::{
+    from_server_interface::{FromServer, FromServerInterface},
+    to_server_interface::ToServer,
+};
 
-pub type StateChangeChannels = (Sender<StateChangeCommand>, Receiver<StateChangeCommand>);
-pub type ExecutionChannels = (Sender<ExecutionCommand>, Receiver<ExecutionCommand>);
+use tokio::sync::mpsc::channel;
 
-pub fn create_state_change_channels(capacity: usize) -> StateChangeChannels {
-    channel::<StateChangeCommand>(capacity)
+pub type ToServerChannel = (ToServerSender, ToServerReceiver);
+pub type FromServerChannel = (FromServerSender, FromServerReceiver);
+
+pub fn create_to_server_channel(capacity: usize) -> ToServerChannel {
+    channel::<ToServer>(capacity)
 }
-pub fn create_execution_channels(capacity: usize) -> ExecutionChannels {
-    channel::<ExecutionCommand>(capacity)
+pub fn create_from_server_channel(capacity: usize) -> FromServerChannel {
+    channel::<FromServer>(capacity)
 }
 
 pub struct AnkaiosServer {
     // [impl->swdd~server-uses-async-channels~1]
-    receiver: Receiver<StateChangeCommand>,
+    receiver: ToServerReceiver,
     // [impl->swdd~communication-to-from-server-middleware~1]
-    to_agents: Sender<ExecutionCommand>,
+    to_agents: FromServerSender,
     server_state: ServerState,
     workload_state_db: WorkloadStateDB,
 }
 
 impl AnkaiosServer {
-    pub fn new(
-        receiver: Receiver<StateChangeCommand>,
-        to_agents: Sender<ExecutionCommand>,
-    ) -> Self {
+    pub fn new(receiver: ToServerReceiver, to_agents: FromServerSender) -> Self {
         AnkaiosServer {
             receiver,
             to_agents,
@@ -63,13 +64,13 @@ impl AnkaiosServer {
         if let Some(state) = startup_state {
             match self.server_state.update(state, vec![]) {
                 Ok(Some((added_workloads, deleted_workloads))) => {
-                    let execution_command = ExecutionCommand::UpdateWorkload(UpdateWorkload {
+                    let from_server_command = FromServer::UpdateWorkload(UpdateWorkload {
                         added_workloads,
                         deleted_workloads,
                     });
                     log::info!("Starting...");
                     self.to_agents
-                        .send(execution_command)
+                        .send(from_server_command)
                         .await
                         .unwrap_or_illegal_state();
                 }
@@ -89,9 +90,9 @@ impl AnkaiosServer {
 
     async fn listen_to_agents(&mut self) {
         log::debug!("Start listening to agents...");
-        while let Some(state_change_command) = self.receiver.recv().await {
-            match state_change_command {
-                StateChangeCommand::AgentHello(method_obj) => {
+        while let Some(to_server_command) = self.receiver.recv().await {
+            match to_server_command {
+                ToServer::AgentHello(method_obj) => {
                     log::info!("Received AgentHello from '{}'", method_obj.agent_name);
 
                     // Send this agent all workloads in the current state which are assigned to him
@@ -136,13 +137,13 @@ impl AnkaiosServer {
                         log::debug!("No workload states to send.");
                     }
                 }
-                StateChangeCommand::AgentGone(method_obj) => {
+                ToServer::AgentGone(method_obj) => {
                     log::debug!("Received AgentGone from '{}'", method_obj.agent_name);
                     // [impl->swdd~server-set-workload-state-unknown-on-disconnect~1]
                     self.workload_state_db
                         .mark_all_workload_state_for_agent_unknown(&method_obj.agent_name);
 
-                    // communicate the workload state changes to other agents
+                    // communicate the workload execution states to other agents
                     // [impl->swdd~server-distribute-workload-state-unknown-on-disconnect~1]
                     self.to_agents
                         .update_workload_state(
@@ -153,43 +154,83 @@ impl AnkaiosServer {
                         .unwrap_or_illegal_state();
                 }
                 // [impl->swdd~server-provides-update-current-state-interface~1]
-                StateChangeCommand::UpdateState(update_request) => {
-                    log::debug!(
-                        "Received UpdateState. State '{:?}', update mask '{:?}'",
-                        update_request.state,
-                        update_request.update_mask
-                    );
-
-                    match self
-                        .server_state
-                        .update(update_request.state, update_request.update_mask)
-                    {
-                        Ok(Some((added_workloads, deleted_workloads))) => {
-                            log::info!(
-                                "The update has {} new or updated workloads, {} workloads to delete",
-                                added_workloads.len(),
-                                deleted_workloads.len()
-                            );
-                            let execution_command =
-                                ExecutionCommand::UpdateWorkload(UpdateWorkload {
-                                    added_workloads,
-                                    deleted_workloads,
-                                });
-                            self.to_agents
-                                .send(execution_command)
+                ToServer::Request(Request {
+                    request_id,
+                    request_content,
+                }) => match request_content {
+                    // [impl->swdd~server-provides-interface-get-complete-state~1]
+                    // [impl->swdd~server-includes-id-in-control-interface-response~1]
+                    common::commands::RequestContent::CompleteStateRequest(
+                        complete_state_request,
+                    ) => {
+                        log::debug!(
+                            "Received CompleteStateRequest with id '{}' and field mask: '{:?}'",
+                            request_id,
+                            complete_state_request.field_mask
+                        );
+                        match self.server_state.get_complete_state_by_field_mask(
+                            &complete_state_request,
+                            &self.workload_state_db,
+                        ) {
+                            Ok(complete_state) => self
+                                .to_agents
+                                .complete_state(request_id, complete_state)
                                 .await
-                                .unwrap_or_illegal_state();
-                        }
-                        Ok(None) => log::debug!(
-                            "The current state and new state are identical -> nothing to do"
-                        ),
-                        Err(error_msg) => {
-                            // [impl->swdd~server-continues-on-invalid-updated-state~1]
-                            log::error!("Update rejected: '{error_msg}'",);
+                                .unwrap_or_illegal_state(),
+                            Err(error) => {
+                                log::error!("Failed to get complete state: '{}'", error);
+                                self.to_agents
+                                    .complete_state(
+                                        request_id,
+                                        common::commands::CompleteState {
+                                            ..Default::default()
+                                        },
+                                    )
+                                    .await
+                                    .unwrap_or_illegal_state();
+                            }
                         }
                     }
-                }
-                StateChangeCommand::UpdateWorkloadState(method_obj) => {
+
+                    // [impl->swdd~server-provides-update-current-state-interface~1]
+                    common::commands::RequestContent::UpdateStateRequest(update_state_request) => {
+                        log::debug!(
+                            "Received UpdateState. State '{:?}', update mask '{:?}'",
+                            update_state_request.state,
+                            update_state_request.update_mask
+                        );
+
+                        match self
+                            .server_state
+                            .update(update_state_request.state, update_state_request.update_mask)
+                        {
+                            Ok(Some((added_workloads, deleted_workloads))) => {
+                                log::info!(
+                                        "The update has {} new or updated workloads, {} workloads to delete",
+                                        added_workloads.len(),
+                                        deleted_workloads.len()
+                                    );
+                                let from_server_command =
+                                    FromServer::UpdateWorkload(UpdateWorkload {
+                                        added_workloads,
+                                        deleted_workloads,
+                                    });
+                                self.to_agents
+                                    .send(from_server_command)
+                                    .await
+                                    .unwrap_or_illegal_state();
+                            }
+                            Ok(None) => log::debug!(
+                                "The current state and new state are identical -> nothing to do"
+                            ),
+                            Err(error_msg) => {
+                                // [impl->swdd~server-continues-on-invalid-updated-state~1]
+                                log::error!("Update rejected: '{error_msg}'",);
+                            }
+                        }
+                    }
+                },
+                ToServer::UpdateWorkloadState(method_obj) => {
                     log::debug!(
                         "Received UpdateWorkloadState: '{:?}'",
                         method_obj.workload_states
@@ -205,39 +246,7 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
                 }
-                // [impl->swdd~server-provides-interface-get-complete-state~1]
-                // [impl->swdd~server-includes-id-in-control-interface-response~1]
-                StateChangeCommand::RequestCompleteState(method_obj) => {
-                    log::debug!(
-                        "Received RequestCompleteState with id '{}' and field mask: '{:?}'",
-                        method_obj.request_id,
-                        method_obj.field_mask
-                    );
-
-                    match self
-                        .server_state
-                        .get_complete_state_by_field_mask(&method_obj, &self.workload_state_db)
-                    {
-                        Ok(complete_state) => self
-                            .to_agents
-                            .complete_state(complete_state)
-                            .await
-                            .unwrap_or_illegal_state(),
-                        Err(error) => {
-                            log::error!("Failed to get complete state: '{}'", error);
-                            self.to_agents
-                                .complete_state(common::commands::CompleteState {
-                                    request_id: method_obj.request_id,
-                                    startup_state: State::default(),
-                                    current_state: State::default(),
-                                    workload_states: vec![],
-                                })
-                                .await
-                                .unwrap_or_illegal_state();
-                        }
-                    }
-                }
-                StateChangeCommand::Stop(_method_obj) => {
+                ToServer::Stop(_method_obj) => {
                     log::debug!("Received Stop from communications server");
                     // TODO: handle the call
                     break;
@@ -267,13 +276,12 @@ mod tests {
 
     use super::AnkaiosServer;
     use crate::ankaios_server::server_state::{MockServerState, UpdateStateError};
-    use common::commands::{RequestCompleteState, UpdateWorkload, UpdateWorkloadState};
+    use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
+    use common::commands::{CompleteStateRequest, UpdateWorkload, UpdateWorkloadState};
     use common::objects::{DeletedWorkload, ExecutionState, State, WorkloadState};
     use common::test_utils::generate_test_workload_spec_with_param;
-    use common::{
-        commands::CompleteState, execution_interface::ExecutionCommand,
-        state_change_interface::StateChangeInterface,
-    };
+    use common::to_server_interface::ToServerInterface;
+    use common::{commands::CompleteState, from_server_interface::FromServer};
 
     const AGENT_A: &str = "agent_A";
     const AGENT_B: &str = "agent_B";
@@ -281,16 +289,16 @@ mod tests {
     const WORKLOAD_NAME_2: &str = "workload_2";
     const WORKLOAD_NAME_3: &str = "workload_3";
     const RUNTIME_NAME: &str = "runtime";
+    const REQUEST_ID_A: &str = "agent_A@id1";
 
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-fails-on-invalid-startup-state~1]
     #[tokio::test]
     async fn utest_server_start_fail_on_invalid_startup_config() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (_to_server, server_receiver) =
-            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (_to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            super::create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         // contains a self cycle to workload A
         let workload = generate_test_workload_spec_with_param(
@@ -331,10 +339,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_update_state_continues_on_invalid_new_state() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) =
-            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            super::create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         /* new workload invalidates the state because
         it contains a self cycle in the inter workload dependencies config */
@@ -400,23 +407,27 @@ mod tests {
 
         // send the new invalid state update
         assert!(to_server
-            .update_state(new_state.clone(), update_mask.clone())
+            .update_state(
+                REQUEST_ID_A.to_string(),
+                new_state.clone(),
+                update_mask.clone()
+            )
             .await
             .is_ok());
 
         // send the update with the new clean state again
         assert!(to_server
-            .update_state(fixed_state.clone(), update_mask)
+            .update_state(REQUEST_ID_A.to_string(), fixed_state.clone(), update_mask)
             .await
             .is_ok());
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
-        let expected_execution_command = ExecutionCommand::UpdateWorkload(UpdateWorkload {
+        let expected_from_server_command = FromServer::UpdateWorkload(UpdateWorkload {
             added_workloads,
             deleted_workloads,
         });
-        assert_eq!(execution_command, expected_execution_command);
+        assert_eq!(from_server_command, expected_from_server_command);
 
         // make sure all messages are consumed
         assert!(comm_middle_ware_receiver.try_recv().is_err());
@@ -428,10 +439,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_start_with_valid_startup_config() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (_to_server, server_receiver) =
-            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (_to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            super::create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let workload = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
@@ -468,13 +478,13 @@ mod tests {
 
         let server_task = tokio::spawn(async move { server.start(Some(startup_state)).await });
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
-        let expected_execution_command = ExecutionCommand::UpdateWorkload(UpdateWorkload {
+        let expected_from_server_command = FromServer::UpdateWorkload(UpdateWorkload {
             added_workloads,
             deleted_workloads,
         });
-        assert_eq!(execution_command, expected_execution_command);
+        assert_eq!(from_server_command, expected_from_server_command);
 
         server_task.abort();
     }
@@ -486,10 +496,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) =
-            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            super::create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
 
@@ -528,14 +537,14 @@ mod tests {
         let agent_hello_result = to_server.agent_hello(AGENT_A.to_string()).await;
         assert!(agent_hello_result.is_ok());
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
-            ExecutionCommand::UpdateWorkload(UpdateWorkload {
+            FromServer::UpdateWorkload(UpdateWorkload {
                 added_workloads: vec![w1],
                 deleted_workloads: vec![],
             }),
-            execution_command
+            from_server_command
         );
 
         // [utest->swdd~server-informs-a-newly-connected-agent-workload-states~1]
@@ -551,43 +560,43 @@ mod tests {
             .await;
         assert!(update_workload_state_result.is_ok());
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
-            ExecutionCommand::UpdateWorkloadState(UpdateWorkloadState {
+            FromServer::UpdateWorkloadState(UpdateWorkloadState {
                 workload_states: vec![WorkloadState {
                     workload_name: WORKLOAD_NAME_1.to_string(),
                     agent_name: AGENT_A.to_string(),
                     execution_state: ExecutionState::ExecRunning
                 },]
             }),
-            execution_command
+            from_server_command
         );
 
         let agent_hello_result = to_server.agent_hello(AGENT_B.to_owned()).await;
         assert!(agent_hello_result.is_ok());
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
-            ExecutionCommand::UpdateWorkload(UpdateWorkload {
+            FromServer::UpdateWorkload(UpdateWorkload {
                 added_workloads: vec![w2],
                 deleted_workloads: vec![]
             }),
-            execution_command
+            from_server_command
         );
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
-            ExecutionCommand::UpdateWorkloadState(UpdateWorkloadState {
+            FromServer::UpdateWorkloadState(UpdateWorkloadState {
                 workload_states: vec![WorkloadState {
                     workload_name: WORKLOAD_NAME_1.to_string(),
                     agent_name: AGENT_A.to_string(),
                     execution_state: ExecutionState::ExecRunning
                 }]
             }),
-            execution_command
+            from_server_command
         );
 
         // [utest->swdd~server-forwards-workload-state~1]
@@ -601,17 +610,17 @@ mod tests {
             .await;
         assert!(update_workload_state_result.is_ok());
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
-            ExecutionCommand::UpdateWorkloadState(UpdateWorkloadState {
+            FromServer::UpdateWorkloadState(UpdateWorkloadState {
                 workload_states: vec![WorkloadState {
                     workload_name: WORKLOAD_NAME_2.to_string(),
                     agent_name: AGENT_B.to_string(),
                     execution_state: ExecutionState::ExecSucceeded
                 }]
             }),
-            execution_command
+            from_server_command
         );
 
         // send update_workload_state for first agent again which is then updated in the workload_state_db in ankaios server
@@ -624,17 +633,17 @@ mod tests {
             .await;
         assert!(update_workload_state_result.is_ok());
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
-            ExecutionCommand::UpdateWorkloadState(UpdateWorkloadState {
+            FromServer::UpdateWorkloadState(UpdateWorkloadState {
                 workload_states: vec![WorkloadState {
                     workload_name: WORKLOAD_NAME_1.to_string(),
                     agent_name: AGENT_A.to_string(),
                     execution_state: ExecutionState::ExecSucceeded
                 }]
             }),
-            execution_command
+            from_server_command
         );
 
         server_task.abort();
@@ -648,10 +657,9 @@ mod tests {
     async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_success()
     {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) =
-            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            super::create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut w1 = generate_test_workload_spec_with_param(
             AGENT_A.to_owned(),
@@ -693,17 +701,17 @@ mod tests {
 
         // send new state to server
         let update_state_result = to_server
-            .update_state(update_state.clone(), update_mask.clone())
+            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask)
             .await;
         assert!(update_state_result.is_ok());
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
-            ExecutionCommand::UpdateWorkload(UpdateWorkload {
+            FromServer::UpdateWorkload(UpdateWorkload {
                 added_workloads,
                 deleted_workloads,
             }),
-            execution_command
+            from_server_command
         );
 
         server_task.abort();
@@ -717,10 +725,9 @@ mod tests {
     async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_nothing_todo(
     ) {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) =
-            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            super::create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut w1 = generate_test_workload_spec_with_param(
             AGENT_A.to_owned(),
@@ -755,7 +762,7 @@ mod tests {
 
         // send new state to server
         let update_state_result = to_server
-            .update_state(update_state.clone(), update_mask.clone())
+            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask)
             .await;
         assert!(update_state_result.is_ok());
 
@@ -776,10 +783,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_error() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) =
-            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            super::create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let w1 = generate_test_workload_spec_with_param(
             AGENT_A.to_owned(),
@@ -815,7 +821,7 @@ mod tests {
 
         // send new state to server
         let update_state_result = to_server
-            .update_state(update_state.clone(), update_mask.clone())
+            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask)
             .await;
         assert!(update_state_result.is_ok());
 
@@ -838,10 +844,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_returns_complete_state_when_received_request_complete_state() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) =
-            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            super::create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let w1 = generate_test_workload_spec_with_param(
             AGENT_A.to_owned(),
@@ -887,11 +892,7 @@ mod tests {
             .expect_get_complete_state_by_field_mask()
             .with(
                 mockall::predicate::function(|request_compl_state| {
-                    request_compl_state
-                        == &RequestCompleteState {
-                            request_id: format!("{AGENT_A}@my_request_id"),
-                            field_mask: vec![],
-                        }
+                    request_compl_state == &CompleteStateRequest { field_mask: vec![] }
                 }),
                 mockall::predicate::always(),
             )
@@ -900,21 +901,26 @@ mod tests {
         server.server_state = mock_server_state;
         let server_task = tokio::spawn(async move { server.start(None).await });
 
-        // send command 'RequestCompleteState'
+        // send command 'CompleteStateRequest'
         // CompleteState shall contain the complete state
         let request_complete_state_result = to_server
-            .request_complete_state(RequestCompleteState {
-                request_id,
-                field_mask: vec![],
-            })
+            .request_complete_state(
+                request_id.clone(),
+                CompleteStateRequest { field_mask: vec![] },
+            )
             .await;
         assert!(request_complete_state_result.is_ok());
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
-            ExecutionCommand::CompleteState(Box::new(current_complete_state)),
-            execution_command
+            from_server_command,
+            common::from_server_interface::FromServer::Response(common::commands::Response {
+                request_id,
+                response_content: common::commands::ResponseContent::CompleteState(Box::new(
+                    current_complete_state
+                ))
+            })
         );
 
         server_task.abort();
@@ -929,10 +935,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_returns_complete_state_when_received_request_complete_state_error() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) =
-            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            super::create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
@@ -940,11 +945,7 @@ mod tests {
             .expect_get_complete_state_by_field_mask()
             .with(
                 mockall::predicate::function(|request_compl_state| {
-                    request_compl_state
-                        == &RequestCompleteState {
-                            request_id: format!("{AGENT_A}@my_request_id"),
-                            field_mask: vec![],
-                        }
+                    request_compl_state == &CompleteStateRequest { field_mask: vec![] }
                 }),
                 mockall::predicate::always(),
             )
@@ -954,27 +955,30 @@ mod tests {
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         let request_id = format!("{AGENT_A}@my_request_id");
-        // send command 'RequestCompleteState'
+        // send command 'CompleteStateRequest'
         // CompleteState shall contain the complete state
         let request_complete_state_result = to_server
-            .request_complete_state(RequestCompleteState {
-                request_id: request_id.clone(),
-                field_mask: vec![],
-            })
+            .request_complete_state(
+                request_id.clone(),
+                CompleteStateRequest { field_mask: vec![] },
+            )
             .await;
         assert!(request_complete_state_result.is_ok());
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         let expected_complete_state = CompleteState {
-            request_id,
-            startup_state: State::default(),
-            current_state: State::default(),
-            workload_states: vec![],
+            ..Default::default()
         };
+
         assert_eq!(
-            ExecutionCommand::CompleteState(Box::new(expected_complete_state)),
-            execution_command
+            from_server_command,
+            common::from_server_interface::FromServer::Response(common::commands::Response {
+                request_id,
+                response_content: common::commands::ResponseContent::CompleteState(Box::new(
+                    expected_complete_state
+                ))
+            })
         );
 
         server_task.abort();
@@ -989,10 +993,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_start_distributes_workload_unknown_after_agent_gone() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) =
-            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            super::create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mock_server_state = MockServerState::new();
@@ -1018,16 +1021,16 @@ mod tests {
         drop(to_server);
         tokio::join!(server_handle).0.unwrap();
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
-            ExecutionCommand::UpdateWorkloadState(UpdateWorkloadState {
+            FromServer::UpdateWorkloadState(UpdateWorkloadState {
                 workload_states: vec![WorkloadState {
                     workload_name: WORKLOAD_NAME_1.to_string(),
                     agent_name: AGENT_A.to_string(),
                     execution_state: ExecutionState::ExecRunning,
                 }]
             }),
-            execution_command
+            from_server_command
         );
 
         let workload_states = server
@@ -1041,12 +1044,12 @@ mod tests {
         };
         assert_eq!(vec![expected_workload_state.clone()], workload_states);
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
-            ExecutionCommand::UpdateWorkloadState(UpdateWorkloadState {
+            FromServer::UpdateWorkloadState(UpdateWorkloadState {
                 workload_states: vec![expected_workload_state]
             }),
-            execution_command
+            from_server_command
         );
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
@@ -1056,10 +1059,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_start_calls_agents_in_update_state_command() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) =
-            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
-            super::create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let w1 = generate_test_workload_spec_with_param(
             AGENT_A.to_owned(),
@@ -1129,7 +1131,7 @@ mod tests {
         assert!(agent_hello2_result.is_ok());
 
         let update_state_result = to_server
-            .update_state(update_state, update_mask.clone())
+            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask.clone())
             .await;
         assert!(update_state_result.is_ok());
 
@@ -1139,27 +1141,27 @@ mod tests {
         drop(to_server);
         tokio::join!(server_handle).0.unwrap();
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
-            ExecutionCommand::UpdateWorkload(UpdateWorkload {
+            FromServer::UpdateWorkload(UpdateWorkload {
                 added_workloads: vec![w1.clone()],
                 deleted_workloads: vec![]
             }),
-            execution_command
+            from_server_command
         );
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
-            ExecutionCommand::UpdateWorkload(UpdateWorkload {
+            FromServer::UpdateWorkload(UpdateWorkload {
                 added_workloads: vec![w2],
                 deleted_workloads: vec![]
             }),
-            execution_command
+            from_server_command
         );
 
-        let execution_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
-            ExecutionCommand::UpdateWorkload(UpdateWorkload {
+            FromServer::UpdateWorkload(UpdateWorkload {
                 added_workloads: vec![updated_w1],
                 deleted_workloads: vec![DeletedWorkload {
                     agent: w1.agent.clone(),
@@ -1167,7 +1169,7 @@ mod tests {
                     dependencies: HashMap::new(),
                 }]
             }),
-            execution_command
+            from_server_command
         );
 
         assert!(comm_middle_ware_receiver.try_recv().is_err());
@@ -1178,10 +1180,9 @@ mod tests {
     #[tokio::test]
     async fn utest_server_stop() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (to_server, server_receiver) =
-            super::create_state_change_channels(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, _comm_middle_ware_receiver) =
-            super::create_execution_channels(common::CHANNEL_CAPACITY);
+            create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mock_server_state = MockServerState::new();

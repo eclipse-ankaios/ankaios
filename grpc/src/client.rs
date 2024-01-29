@@ -12,24 +12,24 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::execution_command_proxy;
-use crate::execution_command_proxy::GRPCExecutionRequestStreaming;
+use crate::from_server_proxy;
+use crate::from_server_proxy::GRPCFromServerStreaming;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
-use crate::state_change_proxy;
+use crate::to_server_proxy;
 use api::proto;
 use api::proto::agent_connection_client::AgentConnectionClient;
 use api::proto::cli_connection_client::CliConnectionClient;
-use api::proto::state_change_request::StateChangeRequestEnum;
+use api::proto::to_server::ToServerEnum;
 use api::proto::AgentHello;
 
 use common::communications_client::CommunicationsClient;
 use common::communications_error::CommunicationMiddlewareError;
-use common::execution_interface::ExecutionCommand;
+use common::from_server_interface::FromServerSender;
 
-use common::state_change_interface::StateChangeReceiver;
+use common::to_server_interface::ToServerReceiver;
 
 use tokio::select;
-use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::mpsc::Receiver;
 use tokio_stream::wrappers::ReceiverStream;
 
 use async_trait::async_trait;
@@ -70,8 +70,8 @@ impl GRPCCommunicationsClient {
 impl CommunicationsClient for GRPCCommunicationsClient {
     async fn run(
         &mut self,
-        mut server_rx: StateChangeReceiver,
-        agent_tx: Sender<ExecutionCommand>,
+        mut server_rx: ToServerReceiver,
+        agent_tx: FromServerSender,
     ) -> Result<(), CommunicationMiddlewareError> {
         log::debug!("gRPC Communication Client starts.");
 
@@ -122,22 +122,20 @@ impl GRPCCommunicationsClient {
     /// is interrupted.
     async fn run_internal(
         &self,
-        server_rx: &mut StateChangeReceiver,
-        agent_tx: &Sender<ExecutionCommand>,
+        server_rx: &mut ToServerReceiver,
+        agent_tx: &FromServerSender,
     ) -> Result<(), GrpcMiddlewareError> {
-        // [impl->swdd~grpc-client-creates-state-change-channel~1]
+        // [impl->swdd~grpc-client-creates-to-server-channel~1]
         let (grpc_tx, grpc_rx) =
-            tokio::sync::mpsc::channel::<proto::StateChangeRequest>(common::CHANNEL_CAPACITY);
+            tokio::sync::mpsc::channel::<proto::ToServer>(common::CHANNEL_CAPACITY);
 
         match self.connection_type {
             ConnectionType::Agent => {
                 grpc_tx
-                    .send(proto::StateChangeRequest {
-                        state_change_request_enum: Some(StateChangeRequestEnum::AgentHello(
-                            AgentHello {
-                                agent_name: self.name.to_owned(),
-                            },
-                        )),
+                    .send(proto::ToServer {
+                        to_server_enum: Some(ToServerEnum::AgentHello(AgentHello {
+                            agent_name: self.name.to_owned(),
+                        })),
                     })
                     .await?;
             }
@@ -145,23 +143,23 @@ impl GRPCCommunicationsClient {
         }
 
         // [impl->swdd~grpc-client-connects-with-agent-hello~1]
-        let mut grpc_execution_request_streaming =
-            GRPCExecutionRequestStreaming::new(self.connect_to_server(grpc_rx).await?);
+        let mut grpc_to_server_streaming =
+            GRPCFromServerStreaming::new(self.connect_to_server(grpc_rx).await?);
 
-        // [impl->swdd~grpc-client-forwards-commands-to-agent~1]
-        let forward_exec_from_proto_task = execution_command_proxy::forward_from_proto_to_ankaios(
+        // [impl->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
+        let forward_exec_from_proto_task = from_server_proxy::forward_from_proto_to_ankaios(
             self.name.as_str(),
-            &mut grpc_execution_request_streaming,
+            &mut grpc_to_server_streaming,
             agent_tx,
         );
 
         // [impl->swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1]
-        let forward_state_change_from_ank_task =
-            state_change_proxy::forward_from_ankaios_to_proto(grpc_tx, server_rx);
+        let forward_to_server_from_ank_task =
+            to_server_proxy::forward_from_ankaios_to_proto(grpc_tx, server_rx);
 
         select! {
-            _ = forward_exec_from_proto_task => {log::debug!("Forward execution command from proto to Ankaios task completed");}
-            _ = forward_state_change_from_ank_task => {log::debug!("Forward execution command from Ankaios to proto task completed");}
+            _ = forward_exec_from_proto_task => {log::debug!("Forward from server message from proto to Ankaios task completed");}
+            _ = forward_to_server_from_ank_task => {log::debug!("Forward from server message from Ankaios to proto task completed");}
         };
 
         Ok(())
@@ -169,8 +167,8 @@ impl GRPCCommunicationsClient {
 
     async fn connect_to_server(
         &self,
-        grpc_rx: Receiver<proto::StateChangeRequest>,
-    ) -> Result<tonic::Streaming<proto::ExecutionRequest>, GrpcMiddlewareError> {
+        grpc_rx: Receiver<proto::ToServer>,
+    ) -> Result<tonic::Streaming<proto::FromServer>, GrpcMiddlewareError> {
         match self.connection_type {
             ConnectionType::Agent => {
                 let mut client =

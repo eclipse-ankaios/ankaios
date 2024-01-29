@@ -2,7 +2,7 @@ use async_trait::async_trait;
 
 use common::{
     objects::{ExecutionState, WorkloadSpec},
-    state_change_interface::StateChangeSender,
+    to_server_interface::ToServerSender,
 };
 
 #[cfg(test)]
@@ -28,7 +28,7 @@ where
     fn start_checker(
         workload_spec: &WorkloadSpec,
         workload_id: WorkloadId,
-        manager_interface: StateChangeSender,
+        manager_interface: ToServerSender,
         state_getter: impl RuntimeStateGetter<WorkloadId>,
     ) -> Self;
     async fn stop_checker(self);

@@ -15,10 +15,9 @@
 use std::net::SocketAddr;
 
 use async_trait::async_trait;
-use tokio::sync::mpsc::Receiver;
 
 use crate::{
-    communications_error::CommunicationMiddlewareError, execution_interface::ExecutionCommand,
+    communications_error::CommunicationMiddlewareError, from_server_interface::FromServerReceiver,
 };
 
 // [impl->swdd~common-interface-definitions~1]
@@ -26,7 +25,7 @@ use crate::{
 pub trait CommunicationsServer {
     async fn start(
         &mut self,
-        mut receiver: Receiver<ExecutionCommand>,
+        mut receiver: FromServerReceiver,
         addr: SocketAddr,
     ) -> Result<(), CommunicationMiddlewareError>;
 }

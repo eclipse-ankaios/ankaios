@@ -19,17 +19,17 @@ user-> main ++ : a command
 
 == startup ==
 
-main -> cli ** 
-main -> cli : parse 
+main -> cli **
+main -> cli : parse
 main -> cli_commands ** : init
 cli_commands ->> grpc_client ** : create and start in a new thread
 
 grpc_client -> grpc_client ++: start and endless loop \ntrying to (re)connect to the server
 grpc_client ->> listen_to_server **: create an async task
-listen_to_server -> listen_to_server ++: start listening for \nexecution requests
+listen_to_server -> listen_to_server ++: start listening for \nFromServer messages
 
 grpc_client ->> listen_to_manager **: create an async task
-listen_to_manager -> listen_to_manager ++: start listening for \nstate change requests
+listen_to_manager -> listen_to_manager ++: start listening for \nToServer messages
 
 == command ==
 

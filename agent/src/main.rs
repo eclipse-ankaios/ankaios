@@ -14,7 +14,7 @@
 
 use common::communications_client::CommunicationsClient;
 use common::objects::AgentName;
-use common::state_change_interface::StateChangeCommand;
+use common::to_server_interface::ToServer;
 use generic_polling_state_checker::GenericPollingStateChecker;
 use std::collections::HashMap;
 use tokio::try_join;
@@ -31,7 +31,7 @@ mod generic_polling_state_checker;
 mod runtime_manager;
 mod workload;
 
-use common::execution_interface::ExecutionCommand;
+use common::from_server_interface::FromServer;
 use common::std_extensions::{GracefulExitResult, IllegalStateResult, UnreachableResult};
 use grpc::client::GRPCCommunicationsClient;
 
@@ -61,10 +61,8 @@ async fn main() {
     );
 
     // [impl->swdd~agent-uses-async-channels~1]
-    let (to_manager, manager_receiver) =
-        tokio::sync::mpsc::channel::<ExecutionCommand>(BUFFER_SIZE);
-    let (to_server, server_receiver) =
-        tokio::sync::mpsc::channel::<StateChangeCommand>(BUFFER_SIZE);
+    let (to_manager, manager_receiver) = tokio::sync::mpsc::channel::<FromServer>(BUFFER_SIZE);
+    let (to_server, server_receiver) = tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
 
     let run_directory = args
         .get_run_directory()
@@ -89,7 +87,7 @@ async fn main() {
     >::new(podman_kube_runtime));
     runtime_facade_map.insert(podman_kube_runtime_name, podman_kube_facade);
 
-    // The RuntimeManager currently directly gets the server StateChangeInterface, but it shall get the agent manager interface
+    // The RuntimeManager currently directly gets the server ToServerInterface, but it shall get the agent manager interface
     // This is needed to be able to filter/authorize the commands towards the Ankaios server
     // The pipe connecting the workload to Ankaios must be in the runtime adapter
     let runtime_manager = RuntimeManager::new(
