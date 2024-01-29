@@ -251,7 +251,7 @@ Needs:
 
 Status: approved
 
-When startup state is loaded and the To Server message AgentHello is received from an Ankaios Agent, the Ankaios Server shall send all Workload States of other connected agents to that agent.
+When startup state is loaded and the ToServer message AgentHello is received from an Ankaios Agent, the Ankaios Server shall send all Workload States of other connected agents to that agent.
 
 Tags:
 - AnkaiosServer
@@ -270,7 +270,7 @@ The following diagram shows the sequence of the distribution and storage of Work
 
 Status: approved
 
-When the To Server message UpdateWorkloadState is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall distribute the FromServer message UpdateWorkloadState to all connected agents other than the one which send the To Server message UpdateWorkloadState.
+When the ToServer message UpdateWorkloadState is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall distribute the FromServer message UpdateWorkloadState to all connected agents other than the one which send the ToServer message UpdateWorkloadState.
 
 Tags:
 - AnkaiosServer
@@ -284,7 +284,7 @@ Needs:
 
 Status: approved
 
-When the To Server message UpdateWorkloadState is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall store all the Workload States of that Ankaios Agent in the WorkloadStateDB.
+When the ToServer message UpdateWorkloadState is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall store all the Workload States of that Ankaios Agent in the WorkloadStateDB.
 
 Tags:
 - AnkaiosServer
@@ -303,7 +303,7 @@ The following diagram shows the sequence of setting the Workload States of an di
 
 Status: approved
 
-When the To Server message AgentGone is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall set all the Workload States of that agent to ExecUnknown.
+When the ToServer message AgentGone is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall set all the Workload States of that agent to ExecUnknown.
 
 Tags:
 - AnkaiosServer
@@ -317,7 +317,7 @@ Needs:
 
 Status: approved
 
-When the To Server message AgentGone is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall distribute the Workload States of that disconnected Ankaios Agent via the From Server message UpdateWorkloadState to all remaining agents.
+When the ToServer message AgentGone is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall distribute the Workload States of that disconnected Ankaios Agent via the FromServer message UpdateWorkloadState to all remaining agents.
 
 Tags:
 - AnkaiosServer

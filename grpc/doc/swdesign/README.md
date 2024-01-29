@@ -67,14 +67,14 @@ The gRPC Server also forwards messages from the Ankaios Server to the Agents.
 The Agent Senders Map holds the sink ends of the channels to the Ankaios Agents.
 It also allows concurrent access to the sinks by internal locking.
 
-### From Server Proxy
+### FromServer Proxy
 
-The From Server Proxy provides functions that forward From Server messages to and from Ankaios via gRPC.
+The FromServer Proxy provides functions that forward FromServer messages to and from Ankaios via gRPC.
 The Proxy functions also do conversion of the transferred objects to the appropriate format.
 
-### To Server Proxy
+### ToServer Proxy
 
-The To Server Proxy provides functions that forward To Server messages to and from Ankaios via gRPC.
+The ToServer Proxy provides functions that forward ToServer messages to and from Ankaios via gRPC.
 The Proxy functions also do conversion of the transferred objects to the appropriate format.
 
 ### gRPC Agent Connection
@@ -209,7 +209,7 @@ Needs:
 
 Status: approved
 
-Before connecting to the gRPC Server, the gRPC Client shall create a To Server Channel for sending commands to the gRPC Server.
+Before connecting to the gRPC Server, the gRPC Client shall create a ToServer Channel for sending commands to the gRPC Server.
 
 Tags:
 - gRPC_Client
@@ -223,7 +223,7 @@ Needs:
 
 Status: approved
 
-The gRPC Client shall connect with the gRPC Server by sending `AgentHello` and the receiving side of the To Server Channel.
+The gRPC Client shall connect with the gRPC Server by sending `AgentHello` and the receiving side of the ToServer Channel.
 
 Tags:
 - gRPC_Client
@@ -251,7 +251,7 @@ Needs:
 
 Status: approved
 
-For each received connection request, the gRPC Agent Connection shall create a new From Server Channel for this agent.
+For each received connection request, the gRPC Agent Connection shall create a new FromServer Channel for this agent.
 
 Tags:
 - gRPC_Agent_Connection
@@ -265,7 +265,7 @@ Needs:
 
 Status: approved
 
-For each received connection request, the gRPC Agent Connection shall store the created From Server Channel in the Agent Senders Map.
+For each received connection request, the gRPC Agent Connection shall store the created FromServer Channel in the Agent Senders Map.
 
 Tags:
 - gRPC_Agent_Connection
@@ -279,7 +279,7 @@ Needs:
 
 Status: approved
 
-The gRPC Agent Connection shall respond to the connection request of the gRPC Client with the receiving side of an From Server Channel.
+The gRPC Agent Connection shall respond to the connection request of the gRPC Client with the receiving side of an FromServer Channel.
 
 Tags:
 - gRPCAgentConnection
@@ -311,12 +311,12 @@ The following diagram show how the gRPC Connection Middleware forwards messages 
 
 ![Forwarding messages](plantuml/seq_forward_via_grpc.svg)
 
-#### gRPC Server forwards From Server messages to every gRPC Client in a single call
+#### gRPC Server forwards FromServer messages to every gRPC Client in a single call
 `swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1`
 
 Status: approved
 
-When receiving From Server messages from the Ankaios Agent, for all Agents that are recipients of messages, the gRPC Server shall forward all messages to a particular gRPC Client in a single call.
+When receiving FromServer messages from the Ankaios Agent, for all Agents that are recipients of messages, the gRPC Server shall forward all messages to a particular gRPC Client in a single call.
 
 Tags:
 - gRPC_Server
@@ -341,12 +341,12 @@ Tags:
 Needs:
 - impl
 
-#### gRPC Client forwards From Server messages to Ankaios Agent
+#### gRPC Client forwards FromServer messages to Ankaios Agent
 `swdd~grpc-client-forwards-from-server-messages-to-agent~1`
 
 Status: approved
 
-When receiving From Server messages from the gRPC Server, the gRPC Client shall forward these messages to the Ankaios Agent.
+When receiving FromServer messages from the gRPC Server, the gRPC Client shall forward these messages to the Ankaios Agent.
 
 Tags:
 - gRPC_Client
@@ -356,12 +356,12 @@ Needs:
 - utest
 - itest
 
-#### gRPC Client forwards To Server messages to gRPC Agent Connection
+#### gRPC Client forwards ToServer messages to gRPC Agent Connection
 `swdd~grpc-client-forwards-commands-to-grpc-agent-connection~1`
 
 Status: approved
 
-When receiving To Server messages from the Ankaios Agent, the gRPC Client shall forward these messages to the gRPC Agent Connection.
+When receiving ToServer messages from the Ankaios Agent, the gRPC Client shall forward these messages to the gRPC Agent Connection.
 
 Comment:
 The gRPC Clients must also convert the commands to protobuf in order to forward them to the gRPC Agent Connection.
@@ -374,12 +374,12 @@ Needs:
 - utest
 - itest
 
-#### gRPC Agent Connection forwards To Server messages to Ankaios Server
+#### gRPC Agent Connection forwards ToServer messages to Ankaios Server
 `swdd~grpc-agent-connection-forwards-commands-to-server~1`
 
 Status: approved
 
-When receiving To Server messages from the gRPC Client, the gRPC Agent Connection shall forward these messages to the Ankaios Server.
+When receiving ToServer messages from the gRPC Client, the gRPC Agent Connection shall forward these messages to the Ankaios Server.
 
 Comment:
 The gRPC Agent Connection must also convert the commands from protobuf in order to forward them to the Ankaios Server.
