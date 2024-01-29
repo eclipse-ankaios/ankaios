@@ -1049,7 +1049,7 @@ mod tests {
             Expectation:
             When workload 2, 4 and 5 are removed in an subsequent update,
             the DeletedWorkloads of workload 2 and 5 shall be filled with the
-            correct content of the delete graph above,
+            content of the delete graph above,
             and the DeletedWorkload of workload 4 shall contain an empty
             DeleteDependencies map.
         */
