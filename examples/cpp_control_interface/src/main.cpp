@@ -96,13 +96,23 @@ void readFromControlInterface()
         bool clean_eof = false;
         // read length-delimited protobuf message to output the workload states
         result = google::protobuf::util::ParseDelimitedFromZeroCopyStream(&fromServer, &bufferedInputStream, &clean_eof);
-        if (result)
+        if (!result)
         {
-            logging::log(std::cout,
-                         "Receiving Response containing the workload states of the current state:\n",
-                         "FromServer {\n",
-                         fromServer.DebugString(),
-                         "}\n");
+            logging::log(std::cerr, "Invalid response, parsing error.");
+            continue;
+        }
+
+        const auto requestId = fromServer.response().requestid();
+        if (requestId == REQUEST_ID)
+        {
+        logging::log(std::cout,
+                        "Receiving Response containing the workload states of the current state:\n",
+                        "FromServer {\n",
+                        fromServer.DebugString(),
+                        "}\n");
+        } else
+        {
+            logging::log(std::cout, "RequestId does not match. Skipping messages from requestId: ", requestId);
         }
     } while (result);
 }

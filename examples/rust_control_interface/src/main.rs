@@ -137,12 +137,30 @@ fn read_from_control_interface() {
 
     loop {
         if let Ok(binary) = read_protobuf_data(&mut ex_req) {
-            let from_server = FromServer::decode(&mut Box::new(binary.as_ref()));
+            match FromServer::decode(&mut Box::new(binary.as_ref())) {
+                Ok(from_server) => {
+                    let Some(api::proto::from_server::FromServerEnum::Response(response)) =
+                        &from_server.from_server_enum
+                    else {
+                        logging::log("No response. Continue.");
+                        continue;
+                    };
 
-            logging::log(&format!(
-                "Receiving Response containing the workload states of the current state: {:#?}",
-                from_server
-            ));
+                    let request_id: &String = &response.request_id;
+                    if request_id == REQUEST_ID {
+                        logging::log(&format!(
+                            "Receiving Response containing the workload states of the current state:\n{:#?}",
+                            from_server
+                        ));
+                    } else {
+                        logging::log(&format!(
+                            "RequestId does not match. Skipping messages from requestId: {}",
+                            request_id
+                        ));
+                    }
+                }
+                Err(err) => logging::log(&format!("Invalid response, parsing error: '{}'", err)),
+            }
         }
     }
 }

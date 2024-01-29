@@ -86,7 +86,11 @@ def read_from_control_interface():
                 msg_buf += next_byte
             from_server = ank.FromServer()
             from_server.ParseFromString(msg_buf) # Deserialize the received proto msg
-            logger.info(f"Receiving Response containing the workload states of the current state:\nFromServer {{\n{from_server}}}\n")
+            request_id = from_server.response.requestId
+            if from_server.response.requestId == REQUEST_ID:
+                logger.info(f"Receiving Response containing the workload states of the current state:\nFromServer {{\n{from_server}}}\n")
+            else:
+                logger.info(f"RequestId does not match. Skipping messages from requestId: {request_id}")
 
 def write_to_control_interface():
     """Writes a Request into the control interface output fifo
