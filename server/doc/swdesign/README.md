@@ -568,18 +568,38 @@ Needs:
 - utest
 - stest
 
-#### ServerState inserts delete conditions for workload dependencies with state running into the delete graph
+#### ServerState inserts delete condition for workload dependency with state running into the delete graph
 `swdd~server-state-inserts-delete-condition-for-running-dependency-into-delete-graph~1`
 
 Status: approved
 
 When the ServerState adds a new workload to its State
-and the workload depends on another workload with the AddCondition equal to `ADD_COND_RUNNING`,
-the ServerState shall insert the DeleteCondition `DelCondNotPendingNorRunning` for this workload into its delete graph.
+and the workload has a dependency with the AddCondition equal to `ADD_COND_RUNNING`,
+the ServerState shall insert the DeleteCondition `DelCondNotPendingNorRunning` for the dependency on that workload into its delete graph.
 
-Comment: To prevent the dependent workload from errors or crashes the delete condition shall be the reverse of the AddCondition.
+Comment: The dependency shall only be deleted if the workload depending on it is neither running nor waiting.
 
-Rationale: This prevents workload errors if a workload is deleted that is required by another workload in the `ADD_COND_RUNNING` state.
+Rationale: This prevents a workload that expects a dependency as running from errors or crashes if the dependency is deleted.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+
+#### ServerState inserts no delete condition for deleted workload
+`swdd~server-state-inserts-no-delete-condition-for-succeeded-or-failed-dependency-for-deleted-workloads~1`
+
+Status: approved
+
+When the ServerState deletes a workload from its State,
+and the workload is a dependency of another workload with the AddCondition equal to `ADD_COND_SUCCEEDED` or `ADD_COND_FAILED`,
+the ServerState shall insert no delete condition for the dependency.
+
+Comment: Dependencies that are required as failed or succeeded by other workloads can be unconditionally deleted.
+
+Rationale: A failed or succeeded dependency does not cause a workload depending on it as failing when it is deleted.
 
 Tags:
 - ServerState
@@ -596,10 +616,7 @@ Status: approved
 When the ServerState deletes a workload from its State,
 the ServerState shall insert the DeleteConditions from the delete graph into the deleted workload.
 
-Comment: Each workload shall have DeleteConditions that the Ankaios agent can use to determine when it is allowed to delete the workload.
-
-Rationale: The DeleteConditions allow an Ankaios agent to determine the right time point to delete the workload without causing another workload
-that depends on it to run into an error state.
+Rationale: The DeleteConditions allow an Ankaios agent to determine the correct circumstances when a workload is allowed to be deleted.
 
 Tags:
 - ServerState

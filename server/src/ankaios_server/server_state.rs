@@ -82,6 +82,7 @@ fn extract_added_and_deleted_workloads(
                 deleted_workloads.push(DeletedWorkload {
                     agent: wls.agent.clone(),
                     name: wl_name.clone(),
+                    // [impl->swdd~server-state-inserts-no-delete-condition-for-succeeded-or-failed-dependency-for-deleted-workloads~1]
                     dependencies: HashMap::new(),
                 });
             }
@@ -90,6 +91,7 @@ fn extract_added_and_deleted_workloads(
             deleted_workloads.push(DeletedWorkload {
                 agent: wls.agent.clone(),
                 name: wl_name.clone(),
+                // [impl->swdd~server-state-inserts-no-delete-condition-for-succeeded-or-failed-dependency-for-deleted-workloads~1]
                 dependencies: HashMap::new(),
             });
         }
@@ -1037,6 +1039,7 @@ mod tests {
     }
 
     // [utest->swdd~server-state-inserts-delete-conditions-for-deleted-workload~1]
+    // [utest->swdd~server-state-inserts-no-delete-condition-for-succeeded-or-failed-dependency-for-deleted-workloads~1]
     #[test]
     fn utest_server_state_update_state_add_delete_conditions_for_deleted_workloads() {
         /*
