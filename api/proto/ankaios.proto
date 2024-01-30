@@ -117,8 +117,8 @@ message DeletedWorkload {
 * An enum type describing the conditions for deleting a workload. Used for dependency management, and update strategies.
 */
 enum DeleteCondition {
-    DEL_COND_RUNNING = 0; /// The workload is operational.
-    DEL_COND_NOT_PENDING_NOR_RUNNING = 1; /// The workload is not scheduled or running.
+  DEL_COND_RUNNING = 0; /// The workload is operational.
+  DEL_COND_NOT_PENDING_NOR_RUNNING = 1; /// The workload is not scheduled or running.
 }
 
 /**
@@ -132,15 +132,15 @@ enum AddCondition {
 
 
 message ExecutionState {
-    string additionalInfo = 1; /// The additional info contains more detailed information from the runtime regarding the execution state.
-    oneof ExecutionStateEnum {
-        AgentDisconnected agentDisconnected = 2;
-        Pending pending = 3;
-        Running running = 4;
-        Succeeded succeeded = 5;
-        Failed failed = 6;
-        NotScheduled notScheduled = 7;
-    }
+  string additionalInfo = 1; /// The additional info contains more detailed information from the runtime regarding the execution state.
+  oneof ExecutionStateEnum {
+    AgentDisconnected agentDisconnected = 2; /// The exact state of the workload cannot be determined, e.g., because of a broken connection to the responsible agent.
+    Pending pending = 3; /// The workload is going to be started eventually.
+    Running running = 4; /// The workload is operational.
+    Succeeded succeeded = 5; /// The workload has successfully finished operation.
+    Failed failed = 6; /// The workload has failed or is in a degraded state.
+    NotScheduled notScheduled = 7; /// The workload is not scheduled to run at any agent. This is signalized with an empty agent in the workload specification.
+  }
 }
 
 /**
@@ -157,54 +157,53 @@ message NotScheduled {}
 * The workload is going to be started eventually.
 */
 enum Pending {
-    PENDING_INITAL = 0; /// The workload specification has not yet being received by an agent
-    PENDING_WAITING_TO_START = 1; /// The start of the workload will be triggered once all its dependencies are met.
-    PENDING_STARTING = 2; /// Starting the workload was scheduled at the corresponding runtime.
-    PENDING_STARTING_FAILED = 8; /// The starting of the workload by the runtime failed.
-
+  PENDING_INITAL = 0; /// The workload specification has not yet being received by an agent
+  PENDING_WAITING_TO_START = 1; /// The start of the workload will be triggered once all its dependencies are met.
+  PENDING_STARTING = 2; /// Starting the workload was scheduled at the corresponding runtime.
+  PENDING_STARTING_FAILED = 8; /// The starting of the workload by the runtime failed.
 }
 
 /**
 * The workload is operational.
 */
 enum Running {
-    RUNNING_OK = 0; /// The workload is operational.
-    RUNNING_WAITING_TO_STOP = 1; /// Thhe deletion of the workload will be triggered once no 'pending' or 'running' workload depending on it exists.
-    RUNNING_STOPPING = 2; /// Stopping the workload was scheduled at the corresponding runtimeg.
-    RUNNING_DELETE_FAILED = 8; /// The deletion of the workload by the runtime failed.
+  RUNNING_OK = 0; /// The workload is operational.
+  RUNNING_WAITING_TO_STOP = 1; /// Thhe deletion of the workload will be triggered once no 'pending' or 'running' workload depending on it exists.
+  RUNNING_STOPPING = 2; /// Stopping the workload was scheduled at the corresponding runtimeg.
+  RUNNING_DELETE_FAILED = 8; /// The deletion of the workload by the runtime failed.
 }
 
 /**
 * The workload has successfully finished operation.
 */
 enum Succeeded {
-    SUCCEEDED_OK = 0; /// The workload has successfully finished operation.
-    SUCCEEDED_DELETE_FAILED = 8; /// The deletion of the workload by the runtime failed.
+  SUCCEEDED_OK = 0; /// The workload has successfully finished operation.
+  SUCCEEDED_DELETE_FAILED = 8; /// The deletion of the workload by the runtime failed.
 }
 
 /**
 * The workload has failed or is in a degraded state.
 */
 enum Failed {
-    FAILED_NOK = 0; /// The workload has failed during operation
-    FAILED_UNKNOWN = 1; /// The workload is in an unsupported by Ankaios runtime state. The workload was possibily altered outside of Ankaios.
-    FAILED_LOST = 2; /// The workload cannot be found anymore. The workload was possibily altered outside of Ankaios or was autoremoved by the runtime.
-    FAILED_DELETE_FAILED = 8; /// The deletion of the workload by the runtime failed.
+  FAILED_NOK = 0; /// The workload has failed during operation
+  FAILED_UNKNOWN = 1; /// The workload is in an unsupported by Ankaios runtime state. The workload was possibily altered outside of Ankaios.
+  FAILED_LOST = 2; /// The workload cannot be found anymore. The workload was possibily altered outside of Ankaios or was autoremoved by the runtime.
+  FAILED_DELETE_FAILED = 8; /// The deletion of the workload by the runtime failed.
 }
 
 /**
 * A message containing the information about the workload state.
 */
 message WorkloadState {
-    WorkloadInstanceName workloadInstanceName = 1;
-    string workloadId = 2; /// Normally, the Id provided to the workload by the runtime. The Id may not be available in all execution states.
-    ExecutionState executionState = 3; /// The workload execution state.
+  WorkloadInstanceName workloadInstanceName = 1;
+  string workloadId = 2; /// Normally, the Id provided to the workload by the runtime. The Id may not be available in all execution states.
+  ExecutionState executionState = 3; /// The workload execution state.
 }
 
 message WorkloadInstanceName {
-    string workloadName = 1; /// The name of the workload.
-    string agentName = 2; /// The name of the owning Agent.
-    string configId = 3; // A unique identifier of the runtime config.
+  string workloadName = 1; /// The name of the workload.
+  string agentName = 2; /// The name of the owning Agent.
+  string configId = 3; // A unique identifier of the runtime config.
 }
 
 /**
