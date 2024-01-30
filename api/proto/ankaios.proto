@@ -132,7 +132,7 @@ enum AddCondition {
 
 
 message ExecutionState {
-    string additionalInfo = 1;
+    string additionalInfo = 1; /// The additional info contains more detailed information from the runtime regarding the execution state.
     oneof ExecutionStateEnum {
         AgentDisconnected agentDisconnected = 2;
         Pending pending = 3;
