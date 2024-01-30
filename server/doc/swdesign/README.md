@@ -596,7 +596,7 @@ Status: approved
 When the ServerState deletes a workload from its State,
 the ServerState shall insert the DeleteConditions from the delete graph into the deleted workload.
 
-Comment: Each workload shall have DeleteConditions that the Ankaios agent can use to determine when it can delete the workload.
+Comment: Each workload shall have DeleteConditions that the Ankaios agent can use to determine when it is allowed to delete the workload.
 
 Rationale: The DeleteConditions allow an Ankaios agent to determine the right time point to delete the workload without causing another workload
 that depends on it to run into an error state.
