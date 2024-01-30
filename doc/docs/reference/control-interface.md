@@ -142,7 +142,7 @@ fn create_update_workload_request() -> proto::ToServer {
                         }),
                         ..Default::default()
                     }),
-                    update_mask: vec!["currentState.workloads.dynamic_nginx".to_string()],
+                    update_mask: vec!["desiredState.workloads.dynamic_nginx".to_string()],
                 },
             )),
         })),

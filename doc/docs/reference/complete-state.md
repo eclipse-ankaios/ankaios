@@ -2,7 +2,7 @@
 
 ## CompleteState
 
-The complete state data structure [CompleteState](./_ankaios.proto.md#completestate) is used for building a request to Ankaios server to change or receive the state of the Ankaios system. It contains the `startupState` which describes the states provided at the start of the Ankaios system via the [startup configuration](./startup-configuration.md), the `currentState` which describes the current state of the Ankaios system and the `workloadStates` which gives the information about the execution state of all the workloads. By using of [CompleteState](./_ankaios.proto.md#completestate) in conjunction with the object field mask specific parts of the Ankaios state could be retrieved or updated.
+The complete state data structure [CompleteState](./_ankaios.proto.md#completestate) is used for building a request to Ankaios server to change or receive the state of the Ankaios system. It contains the `startupState` which describes the states provided at the start of the Ankaios system via the [startup configuration](./startup-configuration.md), the `desiredState` which describes the state of the Ankaios system the user wants to have and the `workloadStates` which gives the information about the execution state of all the workloads. By using of [CompleteState](./_ankaios.proto.md#completestate) in conjunction with the object field mask specific parts of the Ankaios state could be retrieved or updated.
 
 Example: `ank get state` returns the complete state of Ankaios system:
 
@@ -12,7 +12,7 @@ startupState:
   workloads: {}
   configs: {}
   cronJobs: {}
-currentState:
+desiredState:
   workloads:
     api_sample:
       agent: agent_A
@@ -102,7 +102,7 @@ workloadStates: []
 It is not necessary to provide the whole structure of the the [CompleteState](./_ankaios.proto.md#completestate) data structure when using it in conjunction with the [object field mask](#object-field-mask). It is sufficient to provide the relevant branch of the [CompleteState](./_ankaios.proto.md#completestate) object. As an example, to change the restart behavior of the nginx workload, only the relevant branch of the [CompleteState](./_ankaios.proto.md#completestate) needs to be provided:
 
 ```bash
-currentState:
+desiredState:
   workloads:
     nginx:
       restart: false
@@ -117,10 +117,10 @@ The object field mask can be constructed using the field names of the [CompleteS
 <top level field name>.<second level field name>.<third level field name>.<...>
 ```
 
-1. Example: `ank get state currentState.workloads.nginx` returns only the information about nginx workload:
+1. Example: `ank get state desiredState.workloads.nginx` returns only the information about nginx workload:
 
    ```yaml
-   currentState:
+   desiredState:
      workloads:
        nginx:
          agent: agent_A
@@ -140,10 +140,10 @@ The object field mask can be constructed using the field names of the [CompleteS
            commandOptions: ["-p", "8081:80"]
    ```
 
-2. Example `ank get state currentState.workloads.nginx.runtimeConfig` returns only the runtime configuration of nginx workload:
+2. Example `ank get state desiredState.workloads.nginx.runtimeConfig` returns only the runtime configuration of nginx workload:
 
    ```yaml
-   currentState:
+   desiredState:
      workloads:
        nginx:
          runtimeConfig: |
@@ -151,10 +151,10 @@ The object field mask can be constructed using the field names of the [CompleteS
            commandOptions: ["-p", "8081:80"]
    ```
 
-3. Example `ank set state -f new-state.yaml currentState.workloads.nginx.restart` changes the restart behavior of nginx workload to `false`:
+3. Example `ank set state -f new-state.yaml desiredState.workloads.nginx.restart` changes the restart behavior of nginx workload to `false`:
 
    ```yaml title="new-state.yaml"
-   currentState:
+   desiredState:
      workloads:
        nginx:
          restart: false

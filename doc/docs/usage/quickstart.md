@@ -62,7 +62,7 @@ startupState:
   workloads: {}
   configs: {}
   cronJobs: {}
-currentState:
+desiredState:
   workloads:
     nginx:
       agent: agent_A
@@ -115,7 +115,7 @@ commandArgs: [ "sh", "-c", "echo $MESSAGE"]'
 ```
 
 We can check the state again with `ank get state` and see, that the workload
-`helloworld` has been added to `currentState.workloads` and the execution
+`helloworld` has been added to `desiredState.workloads` and the execution
 state is available in `workloadStates`.
 
 As the workload had a one time job its state is `ExecSucceeded` and we can
