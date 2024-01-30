@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashSet, fmt, fs, io, time::Duration};
+use std::{collections::HashSet, fmt, io, time::Duration};
 
 #[cfg(not(test))]
 async fn read_file_to_string(file: String) -> std::io::Result<String> {
@@ -188,19 +188,32 @@ fn setup_cli_communication(
     (communications_task, to_server, cli_receiver)
 }
 
-type InputSources = Result<Vec<(String, Box<dyn io::Read>)>, io::Error>;
+#[cfg(not(test))]
+pub fn open_manifest(
+    file_path: &str,
+) -> io::Result<(String, Box<dyn io::Read + Send + Sync + 'static>)> {
+    use std::fs::File;
+    match File::open(file_path) {
+        Ok(open_file) => Ok((file_path.to_owned(), Box::new(open_file))),
+        Err(err) => Err(err),
+    }
+}
+#[cfg(test)]
+use tests::open_manifest_mock as open_manifest;
+// }
+
+type InputSourcePair = (String, Box<dyn io::Read + Send + Sync + 'static>);
+type InputSources = Result<Vec<InputSourcePair>, io::Error>;
 impl ApplyArgs {
-    pub fn get_input_sources(self) -> InputSources {
+    pub fn get_input_sources(&self) -> InputSources {
         if let Some(first_arg) = self.manifest_files.first() {
             match first_arg.as_str() {
                 "-" => Ok(vec![("stdin".to_owned(), Box::new(io::stdin()))]),
                 _ => {
                     let mut res: InputSources = Ok(vec![]);
-                    for file_path in self.manifest_files {
-                        match fs::File::open(&file_path) {
-                            Ok(open_file) => {
-                                res.as_mut().unwrap().push((file_path, Box::new(open_file)))
-                            }
+                    for file_path in self.manifest_files.iter() {
+                        match open_manifest(file_path) {
+                            Ok(open_file) => res.as_mut().unwrap().push(open_file),
                             Err(err) => {
                                 res = Err(err);
                                 break;
@@ -392,15 +405,13 @@ impl CliCommands {
         output_debug!("The table before filtering:\n{:?}", workload_infos);
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-        if agent_name.is_some() {
-            workload_infos.retain(|wi| &wi.agent == agent_name.as_ref().unwrap());
+        if let Some(a) = agent_name {
+            workload_infos.retain(|wi| wi.agent == a);
         }
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-        if state.is_some() {
-            workload_infos.retain(|wi| {
-                wi.execution_state.to_lowercase() == state.as_ref().unwrap().to_lowercase()
-            });
+        if let Some(s) = state {
+            workload_infos.retain(|wi| wi.execution_state.to_lowercase() == s.to_lowercase());
         }
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
@@ -610,6 +621,8 @@ impl CliCommands {
                 } else {
                     let mut update_state_req_obj: State = req_obj.try_into().unwrap();
                     let mut _apply_on_agent = "".to_owned();
+
+                    // No agent name specified through cli!
                     if agent.is_none() {
                         let agent_names: HashSet<String> = HashSet::from_iter(
                             update_state_req_obj
@@ -618,15 +631,27 @@ impl CliCommands {
                                 .into_values()
                                 .map(|wl| wl.agent),
                         );
+                        // Found multiple agent names!
                         if agent_names.len() > 1 {
                             return Err(CliError::ExecutionError(format!("Multiple agent names in manifests detected {:?} -> use '--agent' option to overwrite!", &agent_names)));
-                        } else {
+                        }
+                        // No agent name could be found in any workload spec!
+                        else if agent_names.contains("") {
+                            return Err(CliError::ExecutionError(
+                                "No agent name specified -> use '--agent' option to specify!"
+                                    .to_owned(),
+                            ));
+                        }
+                        // An agent name could be found -> do an agent name overwrite!
+                        else {
                             _apply_on_agent = agent_names.iter().next().unwrap().to_owned();
                             for (_, wl) in &mut update_state_req_obj.workloads.iter_mut() {
                                 wl.agent = _apply_on_agent.to_owned();
                             }
                         }
-                    } else {
+                    }
+                    // An agent name specified through cli -> do an agent name overwrite!
+                    else {
                         _apply_on_agent = agent.as_ref().unwrap().to_owned();
                         for (_, wl) in &mut update_state_req_obj.workloads.iter_mut() {
                             wl.agent = _apply_on_agent.to_owned();
@@ -672,12 +697,12 @@ impl CliCommands {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, io, thread};
+    use std::{io, thread};
 
     use common::{
         commands,
         execution_interface::ExecutionCommand,
-        objects::{Tag, UpdateStrategy, WorkloadSpec},
+        objects::{Tag, WorkloadSpec},
         state_change_interface::{StateChangeCommand, StateChangeReceiver},
         test_utils::{self, generate_test_complete_state},
     };
@@ -687,7 +712,8 @@ mod tests {
     use crate::{
         cli::OutputFormat,
         cli_commands::{
-            generate_compact_state_output, get_filtered_value, update_compact_state, WorkloadInfo,
+            generate_compact_state_output, get_filtered_value, update_compact_state, ApplyArgs,
+            InputSourcePair, WorkloadInfo,
         },
     };
 
@@ -715,6 +741,9 @@ mod tests {
     mockall::lazy_static! {
         pub static ref FAKE_READ_TO_STRING_MOCK_RESULT_LIST: tokio::sync::Mutex<std::collections::VecDeque<io::Result<String>>>  =
         tokio::sync::Mutex::new(std::collections::VecDeque::new());
+
+        pub static ref FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST: std::sync::Mutex<std::collections::VecDeque<io::Result<InputSourcePair>>>  =
+        std::sync::Mutex::new(std::collections::VecDeque::new());
     }
 
     pub async fn read_to_string_mock(_file: String) -> io::Result<String> {
@@ -734,6 +763,16 @@ mod tests {
                 agent_tx: Sender<ExecutionCommand>,
             ) -> Result<(), String>;
         }
+    }
+
+    pub fn open_manifest_mock(
+        _file_path: &str,
+    ) -> io::Result<(String, Box<dyn io::Read + Send + Sync + 'static>)> {
+        FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .pop_front()
+            .unwrap()
     }
 
     fn prepare_server_response(
@@ -1937,35 +1976,66 @@ mod tests {
     }
 
     #[test]
-    fn utest_merge_state_objects_ok() {
-        use common::objects::State;
-        let mut test_state = State::default();
-        let test_state_clone = test_state.clone();
+    fn utest_apply_args_get_input_sources_manifest_files_ok() {
+        let _dummy_content = io::Cursor::new(b"manifest content");
+        for i in 1..3 {
+            FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
+                .lock()
+                .unwrap()
+                .push_back(Ok((
+                    format!("manifest{i}.yml"),
+                    Box::new(_dummy_content.clone()),
+                )));
+        }
 
-        let mut workload_spec1: HashMap<String, WorkloadSpec> = HashMap::new();
-        workload_spec1.insert(
-            "hello".to_string(),
-            WorkloadSpec {
-                name: "wl1".to_string(),
-                agent: "agent1".to_string(),
-                tags: vec![],
-                dependencies: HashMap::default(),
-                update_strategy: UpdateStrategy::Unspecified,
-                restart: true,
-                access_rights: common::objects::AccessRights::default(),
-                runtime: "".to_string(),
-                runtime_config: "".to_string(),
-            },
-        );
-        let other_states = vec![
-            common::objects::State {
-                workloads: workload_spec1,
-                configs: HashMap::default(),
-                cron_jobs: HashMap::default(),
-            },
-            State::default(),
-        ];
-        let _ = merge_state_objects(&other_states, &mut test_state);
-        assert_ne!(test_state_clone, test_state);
+        let args = ApplyArgs {
+            manifest_files: vec!["manifest1.yml".to_owned(), "manifest2.yml".to_owned()],
+            agent_name: None,
+            delete_mode: false,
+        };
+        let expected = vec!["manifest1.yml".to_owned(), "manifest2.yml".to_owned()];
+        let actual = args.get_input_sources().unwrap();
+
+        let get_file_name = |item: &InputSourcePair| -> String { item.0.to_owned() };
+        assert_eq!(
+            expected,
+            actual.iter().map(get_file_name).collect::<Vec<String>>()
+        )
+    }
+
+    #[test]
+    fn utest_apply_args_get_input_sources_manifest_files_error() {
+        let _dummy_content = io::Cursor::new(b"manifest content");
+        FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .push_back(Err(io::Error::other(
+                "Some error occurred during open the manifest file!",
+            )));
+
+        let args = ApplyArgs {
+            manifest_files: vec!["manifest1.yml".to_owned()],
+            agent_name: None,
+            delete_mode: false,
+        };
+
+        assert!(args.get_input_sources().is_err(), "Expected an error");
+    }
+
+    #[test]
+    fn utest_apply_args_get_input_sources_valid_manifest_stdin() {
+        let args = ApplyArgs {
+            manifest_files: vec!["-".to_owned()],
+            agent_name: None,
+            delete_mode: false,
+        };
+        let expected = vec!["stdin".to_owned()];
+        let actual = args.get_input_sources().unwrap();
+
+        let get_file_name = |item: &InputSourcePair| -> String { item.0.to_owned() };
+        assert_eq!(
+            expected,
+            actual.iter().map(get_file_name).collect::<Vec<String>>()
+        )
     }
 }
