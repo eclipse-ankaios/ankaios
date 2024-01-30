@@ -21,7 +21,7 @@ function create_request_to_add_new_workload(root) {
             requestId: REQUEST_ID,
             updateStateRequest: {
                 newState: {
-                    currentState: {
+                    desiredState: {
                         workloads: {
                             dynamic_nginx: {
                                 agent: "agent_A",
@@ -34,7 +34,7 @@ function create_request_to_add_new_workload(root) {
                     },
                 },
                 updateMask: [
-                    "currentState.workloads.dynamic_nginx"
+                    "desiredState.workloads.dynamic_nginx"
                 ]
             }
         }

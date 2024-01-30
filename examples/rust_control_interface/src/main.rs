@@ -76,7 +76,7 @@ fn create_request_to_add_new_workload() -> ToServer {
                     }),
                     ..Default::default()
                 }),
-                update_mask: vec!["currentState.workloads.dynamic_nginx".to_string()],
+                update_mask: vec!["desiredState.workloads.dynamic_nginx".to_string()],
             })),
         })),
     }

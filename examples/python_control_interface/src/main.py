@@ -32,7 +32,7 @@ def create_request_to_add_new_workload():
                 requestId=REQUEST_ID,
                 updateStateRequest=ank.UpdateStateRequest(
                     newState=ank.CompleteState(
-                        currentState=ank.State(
+                        desiredState=ank.State(
                                 workloads={
                                     "dynamic_nginx": ank.Workload(
                                         agent="agent_A",
@@ -43,7 +43,7 @@ def create_request_to_add_new_workload():
                         }
                     )
                 ),
-                updateMask=["currentState.workloads.dynamic_nginx"]
+                updateMask=["desiredState.workloads.dynamic_nginx"]
             )
         )
     )
