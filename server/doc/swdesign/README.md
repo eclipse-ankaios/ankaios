@@ -568,6 +568,46 @@ Needs:
 - utest
 - stest
 
+#### ServerState inserts delete conditions for workload dependencies with state running into the delete graph
+`swdd~server-state-inserts-delete-condition-for-running-dependency-into-delete-graph~1`
+
+Status: approved
+
+When the ServerState adds a new workload to its State
+and the workload depends on another workload with the AddCondition equal to `ADD_COND_RUNNING`,
+the ServerState shall insert the DeleteCondition `DelCondNotPendingNorRunning` for this workload into its delete graph.
+
+Comment: To prevent the dependent workload from errors or crashes the delete condition shall be the reverse of the AddCondition.
+
+Rationale: This prevents workload errors if a workload is deleted that is required by another workload in the `ADD_COND_RUNNING` state.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+
+#### ServerState inserts delete conditions for a deleted workload
+`swdd~server-state-inserts-delete-conditions-for-deleted-workload~1`
+
+Status: approved
+
+When the ServerState deletes a workload from its State,
+the ServerState shall insert the DeleteConditions from the delete graph into the deleted workload.
+
+Comment: Each workload shall have DeleteConditions that the Ankaios agent can use to determine when it can delete the workload.
+
+Rationale: The DeleteConditions allow an Ankaios agent to determine the right time point to delete the workload without causing another workload
+that depends on it to run into an error state.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+
 ## Data view
 
 ## Error management view
