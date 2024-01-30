@@ -787,7 +787,7 @@ mod tests {
             .get(wl_name_to_update)
             .unwrap();
         let wls_update = generate_test_workload_spec_with_param(
-            "agent_B".into(),
+            AGENT_B.into(),
             WORKLOAD_NAME_4.into(),
             "runtime_2".into(),
         );
