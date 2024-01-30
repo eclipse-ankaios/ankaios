@@ -275,8 +275,6 @@ impl ServerState {
                         }
                     }
 
-                    log::info!("delete_graph: {:?}", self.delete_graph);
-
                     self.state = new_state;
                     Ok(Some((added_workloads, deleted_workloads)))
                 } else {
@@ -315,6 +313,9 @@ mod tests {
     const WORKLOAD_NAME_1: &str = "workload_1";
     const WORKLOAD_NAME_2: &str = "workload_2";
     const WORKLOAD_NAME_3: &str = "workload_3";
+    const WORKLOAD_NAME_4: &str = "workload_4";
+    const WORKLOAD_NAME_5: &str = "workload_5";
+    const WORKLOAD_NAME_6: &str = "workload_6";
     const RUNTIME: &str = "runtime";
 
     #[test]
@@ -582,11 +583,11 @@ mod tests {
 
         let mut expected = old_state.clone();
         expected.current_state.workloads.insert(
-            "workload_1".into(),
+            WORKLOAD_NAME_1.into(),
             update_state
                 .current_state
                 .workloads
-                .get("workload_1")
+                .get(WORKLOAD_NAME_1)
                 .unwrap()
                 .clone(),
         );
@@ -609,11 +610,11 @@ mod tests {
 
         let mut expected = old_state.clone();
         expected.current_state.workloads.insert(
-            "workload_4".into(),
+            WORKLOAD_NAME_4.into(),
             update_state
                 .current_state
                 .workloads
-                .get("workload_4")
+                .get(WORKLOAD_NAME_4)
                 .unwrap()
                 .clone(),
         );
@@ -635,7 +636,7 @@ mod tests {
         let update_mask = vec!["currentState.workloads.workload_2".into()];
 
         let mut expected = old_state.clone();
-        expected.current_state.workloads.remove("workload_2");
+        expected.current_state.workloads.remove(WORKLOAD_NAME_2);
 
         let mut server_state = ServerState {
             state: old_state.clone(),
@@ -779,7 +780,7 @@ mod tests {
         let current_complete_state = generate_test_old_state();
         let mut new_state = current_complete_state.current_state.clone();
 
-        let wl_name_to_update = "workload_1";
+        let wl_name_to_update = WORKLOAD_NAME_1;
         let wls_to_update = current_complete_state
             .current_state
             .workloads
@@ -787,7 +788,7 @@ mod tests {
             .unwrap();
         let wls_update = generate_test_workload_spec_with_param(
             "agent_B".into(),
-            "workload_4".into(),
+            WORKLOAD_NAME_4.into(),
             "runtime_2".into(),
         );
         new_state
@@ -860,19 +861,19 @@ mod tests {
 
         let mut workload_4 = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
-            "workload_4".to_string(),
+            WORKLOAD_NAME_4.to_string(),
             RUNTIME.to_string(),
         );
 
         let mut workload_5 = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
-            "workload_5".to_string(),
+            WORKLOAD_NAME_5.to_string(),
             RUNTIME.to_string(),
         );
 
         let mut workload_6 = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
-            "workload_5".to_string(),
+            WORKLOAD_NAME_6.to_string(),
             RUNTIME.to_string(),
         );
 
@@ -969,13 +970,13 @@ mod tests {
 
         let mut workload_4 = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
-            "workload_4".to_string(),
+            WORKLOAD_NAME_4.to_string(),
             RUNTIME.to_string(),
         );
 
         let mut workload_5 = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
-            "workload_5".to_string(),
+            WORKLOAD_NAME_5.to_string(),
             RUNTIME.to_string(),
         );
 
@@ -1041,16 +1042,16 @@ mod tests {
             F = ADD_COND_FAILED
 
                                           =>    2 --> 1 (DelCondNotPendingNorRunning)
-            4 --> 1 --> 2                       5 --> 3 (DelCondNotPendingNorRunning)
-               F     R
+            4 --> 1 --> 2 --> 6                 5 --> 3 (DelCondNotPendingNorRunning)
+               F     R     S
             3 --> 5
                R
 
             Expectation:
-            When workload 2, 4 and 5 are removed in an subsequent update,
+            When workload 2, 4, 5, 6 are removed in an subsequent update,
             the DeletedWorkloads of workload 2 and 5 shall be filled with the
             content of the delete graph above,
-            and the DeletedWorkload of workload 4 shall contain an empty
+            and the DeletedWorkload of workload 4 and 6 shall contain an empty
             DeleteDependencies map.
         */
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1075,20 +1076,27 @@ mod tests {
 
         let mut workload_4 = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
-            "workload_4".to_string(),
+            WORKLOAD_NAME_4.to_string(),
             RUNTIME.to_string(),
         );
 
         let mut workload_5 = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
-            "workload_5".to_string(),
+            WORKLOAD_NAME_5.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let mut workload_6 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_6.to_string(),
             RUNTIME.to_string(),
         );
 
         workload_1.dependencies =
             HashMap::from([(workload_2.name.clone(), AddCondition::AddCondRunning)]);
 
-        workload_2.dependencies.clear();
+        workload_2.dependencies =
+            HashMap::from([(workload_6.name.clone(), AddCondition::AddCondSucceeded)]);
 
         workload_3.dependencies =
             HashMap::from([(workload_5.name.clone(), AddCondition::AddCondRunning)]);
@@ -1097,6 +1105,7 @@ mod tests {
             HashMap::from([(workload_1.name.clone(), AddCondition::AddCondFailed)]);
 
         workload_5.dependencies.clear();
+        workload_6.dependencies.clear();
 
         let current_complete_state = CompleteState {
             current_state: State {
@@ -1106,6 +1115,7 @@ mod tests {
                     (workload_3.name.clone(), workload_3.clone()),
                     (workload_4.name.clone(), workload_4.clone()),
                     (workload_5.name.clone(), workload_5.clone()),
+                    (workload_6.name.clone(), workload_6.clone()),
                 ]),
                 ..Default::default()
             },
@@ -1116,6 +1126,7 @@ mod tests {
         new_state.current_state.workloads.remove(&workload_2.name);
         new_state.current_state.workloads.remove(&workload_4.name);
         new_state.current_state.workloads.remove(&workload_5.name);
+        new_state.current_state.workloads.remove(&workload_6.name);
 
         let mut server_state = ServerState::default();
 
@@ -1164,6 +1175,11 @@ mod tests {
 
         assert_eq!(
             deleted_workloads_map.get(&workload_4.name),
+            Some(&HashMap::new())
+        );
+
+        assert_eq!(
+            deleted_workloads_map.get(&workload_6.name),
             Some(&HashMap::new())
         );
 
