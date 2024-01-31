@@ -594,7 +594,7 @@ Needs:
 Status: approved
 
 When the ServerState deletes a workload from its State,
-the ServerState shall insert the DeleteConditions from the delete graph into the deleted workload.
+the ServerState shall insert the DeleteConditions from the delete graph into the `DeletedWorkload` message.
 
 Rationale: The DeleteConditions allow an Ankaios agent to determine the correct circumstances when a workload is allowed to be deleted.
 
