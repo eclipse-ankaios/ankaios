@@ -568,7 +568,7 @@ Needs:
 - utest
 - stest
 
-#### ServerState inserts delete condition for workload dependency with state running into the delete graph
+#### ServerState stores delete condition into delete graph
 `swdd~server-state-stores-delete-condition~1`
 
 Status: approved
