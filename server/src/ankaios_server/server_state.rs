@@ -82,8 +82,7 @@ fn extract_added_and_deleted_workloads(
                 deleted_workloads.push(DeletedWorkload {
                     agent: wls.agent.clone(),
                     name: wl_name.clone(),
-                    // [impl->swdd~server-state-inserts-no-delete-condition-for-succeeded-or-failed-dependency-for-deleted-workloads~1]
-                    dependencies: HashMap::new(),
+                    ..Default::default()
                 });
             }
         } else {
@@ -91,8 +90,7 @@ fn extract_added_and_deleted_workloads(
             deleted_workloads.push(DeletedWorkload {
                 agent: wls.agent.clone(),
                 name: wl_name.clone(),
-                // [impl->swdd~server-state-inserts-no-delete-condition-for-succeeded-or-failed-dependency-for-deleted-workloads~1]
-                dependencies: HashMap::new(),
+                ..Default::default()
             });
         }
     });
@@ -213,7 +211,7 @@ impl ServerState {
                 the workload can be deleted immediately and does not need a delete condition */
                 if add_condition == &AddCondition::AddCondRunning {
                     let workload_name = workload_spec.name.clone();
-                    // [impl->swdd~server-state-inserts-delete-condition-for-running-dependency-into-delete-graph~1]
+                    // [impl->swdd~server-state-stores-delete-condition~1]
                     match self.delete_graph.entry(dependency_name.clone()) {
                         Entry::Occupied(workload) => {
                             workload.into_mut().insert(
@@ -274,7 +272,7 @@ impl ServerState {
 
                     for workload in deleted_workloads.iter_mut() {
                         if let Some(delete_conditions) = self.delete_graph.get(&workload.name) {
-                            // [impl->swdd~server-state-inserts-delete-conditions-for-deleted-workload~1]
+                            // [impl->swdd~server-state-adds-delete-conditions-for-deleted-workload~1]
                             workload.dependencies = delete_conditions.clone();
                         }
                     }
@@ -938,7 +936,7 @@ mod tests {
         assert_eq!(new_state, server_state.state);
     }
 
-    // [utest->swdd~server-state-inserts-delete-condition-for-running-dependency-into-delete-graph~1]
+    // [utest->swdd~server-state-stores-delete-condition~1]
     #[test]
     fn utest_server_state_update_state_update_delete_graph_separate_graphs() {
         /*
@@ -1038,8 +1036,8 @@ mod tests {
         assert_eq!(new_state, server_state.state);
     }
 
-    // [utest->swdd~server-state-inserts-delete-conditions-for-deleted-workload~1]
-    // [utest->swdd~server-state-inserts-no-delete-condition-for-succeeded-or-failed-dependency-for-deleted-workloads~1]
+    // [utest->swdd~server-state-stores-delete-condition~1]
+    // [utest->swdd~server-state-adds-delete-conditions-for-deleted-workload~1]
     #[test]
     fn utest_server_state_update_state_add_delete_conditions_for_deleted_workloads() {
         /*

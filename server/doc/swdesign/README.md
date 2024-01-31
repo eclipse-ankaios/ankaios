@@ -569,7 +569,7 @@ Needs:
 - stest
 
 #### ServerState inserts delete condition for workload dependency with state running into the delete graph
-`swdd~server-state-inserts-delete-condition-for-running-dependency-into-delete-graph~1`
+`swdd~server-state-stores-delete-condition~1`
 
 Status: approved
 
@@ -588,28 +588,8 @@ Needs:
 - impl
 - utest
 
-#### ServerState inserts no delete condition for deleted workload
-`swdd~server-state-inserts-no-delete-condition-for-succeeded-or-failed-dependency-for-deleted-workloads~1`
-
-Status: approved
-
-When the ServerState deletes a workload from its State,
-and the workload is a dependency of another workload with the AddCondition equal to `ADD_COND_SUCCEEDED` or `ADD_COND_FAILED`,
-the ServerState shall insert no delete condition for the dependency.
-
-Comment: Dependencies that are required as failed or succeeded by other workloads can be unconditionally deleted.
-
-Rationale: A failed or succeeded dependency does not cause a workload depending on it as failing when it is deleted.
-
-Tags:
-- ServerState
-
-Needs:
-- impl
-- utest
-
-#### ServerState inserts delete conditions for a deleted workload
-`swdd~server-state-inserts-delete-conditions-for-deleted-workload~1`
+#### ServerState adds delete conditions for a deleted workload
+`swdd~server-state-adds-delete-conditions-for-deleted-workload~1`
 
 Status: approved
 
