@@ -1,6 +1,7 @@
 # Config file for cargo about
 # For all options see https://embarkstudios.github.io/cargo-about/cli/generate/config.html
 
+# If you add a license in the following section also consider changing deny.toml
 accepted = [
     "Apache-2.0",
     "MIT",
