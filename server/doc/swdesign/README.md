@@ -577,7 +577,7 @@ When the ServerState adds a new workload to its State
 and the workload has a dependency with the AddCondition equal to `ADD_COND_RUNNING`,
 the ServerState shall insert the DeleteCondition `DelCondNotPendingNorRunning` for the dependency on that workload into its delete graph.
 
-Comment: The dependency shall only be deleted if the workload depending on it is neither running nor waiting.
+Comment: The dependency shall only be deleted if the workload depending on it is neither running nor waiting. Workload dependencies with AddCondition `ADD_COND_SUCCEEDED` or `ADD_COND_FAILED` do not need DeleteConditions.
 
 Rationale: This prevents a workload that expects a dependency as running from errors or crashes if the dependency is deleted.
 
