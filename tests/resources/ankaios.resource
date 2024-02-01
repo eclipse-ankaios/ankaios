@@ -63,6 +63,13 @@ Run in foreground
     ${run_result}=    Run Process    @{cmd}    shell=True
     RETURN    ${run_result}
 
+the last command finished with exit code "${exit_code}"
+    ${exit_code_int}=    Convert To Integer    ${exit_code}
+    Should Be Equal    ${CURRENT_RESULT.rc}    ${exit_code_int}
+
+the last command finished with an error
+    Should Not Be Equal    ${CURRENT_RESULT.rc}    ${0}
+
 the command "${cli_command}" finished with exit code "${exit_code}" within "${timeout}" seconds
     ${start_time}=    Get Time Secs
     ${run_result}=    Create Dictionary
@@ -293,3 +300,9 @@ podman shall have a container for workload "${workload_name}" with custom name "
 
 podman shall not have a container for workload "${workload_name}" on agent "${agent_name}"
     podman shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "1" seconds
+
+the last command shall finish with an error
+    the last command finished with an error
+
+the last command shall finish with exit code "${exit_code}"
+    the last command finished with exit code "${exit_code}"
