@@ -204,6 +204,7 @@ impl ServerState {
             .collect()
     }
 
+    // [impl->swdd~server-state-stores-delete-condition~1]
     fn update_delete_graph(&mut self, added_workloads: &[WorkloadSpec]) {
         for workload_spec in added_workloads {
             for (dependency_name, add_condition) in workload_spec.dependencies.iter() {
@@ -211,7 +212,6 @@ impl ServerState {
                 the workload can be deleted immediately and does not need a delete condition */
                 if add_condition == &AddCondition::AddCondRunning {
                     let workload_name = workload_spec.name.clone();
-                    // [impl->swdd~server-state-stores-delete-condition~1]
                     match self.delete_graph.entry(dependency_name.clone()) {
                         Entry::Occupied(workload) => {
                             workload.into_mut().insert(
@@ -227,6 +227,15 @@ impl ServerState {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // [impl->swdd~server-state-adds-delete-conditions-for-deleted-workload~1]
+    fn add_delete_conditions(&self, deleted_workloads: &mut [DeletedWorkload]) {
+        for workload in deleted_workloads.iter_mut() {
+            if let Some(delete_conditions) = self.delete_graph.get(&workload.name) {
+                workload.dependencies = delete_conditions.clone();
             }
         }
     }
@@ -268,14 +277,11 @@ impl ServerState {
                         ));
                     }
 
+                    // [impl->swdd~server-state-stores-delete-condition~1]
                     self.update_delete_graph(&added_workloads);
 
-                    for workload in deleted_workloads.iter_mut() {
-                        if let Some(delete_conditions) = self.delete_graph.get(&workload.name) {
-                            // [impl->swdd~server-state-adds-delete-conditions-for-deleted-workload~1]
-                            workload.dependencies = delete_conditions.clone();
-                        }
-                    }
+                    // [impl->swdd~server-state-adds-delete-conditions-for-deleted-workload~1]
+                    self.add_delete_conditions(&mut deleted_workloads);
 
                     self.state = new_state;
                     Ok(Some((added_workloads, deleted_workloads)))
