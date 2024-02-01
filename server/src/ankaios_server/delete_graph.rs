@@ -14,11 +14,15 @@
 use common::objects::{AddCondition, DeleteCondition, DeletedWorkload, WorkloadSpec};
 use std::collections::{hash_map::Entry, HashMap};
 
+#[cfg(test)]
+use mockall::automock;
+
 #[derive(Default)]
 pub struct DeleteGraph {
     delete_graph: HashMap<String, HashMap<String, DeleteCondition>>,
 }
 
+#[cfg_attr(test, automock)]
 impl DeleteGraph {
     // [impl->swdd~server-state-stores-delete-condition~1]
     pub fn insert(&mut self, new_workloads: &[WorkloadSpec]) {
