@@ -153,7 +153,7 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
                 }
-                // [impl->swdd~server-provides-update-current-state-interface~1]
+                // [impl->swdd~server-provides-update-desired-state-interface~1]
                 ToServer::Request(Request {
                     request_id,
                     request_content,
@@ -192,7 +192,7 @@ impl AnkaiosServer {
                         }
                     }
 
-                    // [impl->swdd~server-provides-update-current-state-interface~1]
+                    // [impl->swdd~server-provides-update-desired-state-interface~1]
                     common::commands::RequestContent::UpdateStateRequest(update_state_request) => {
                         log::debug!(
                             "Received UpdateState. State '{:?}', update mask '{:?}'",
@@ -651,7 +651,7 @@ mod tests {
     }
 
     // [utest->swdd~server-uses-async-channels~1]
-    // [utest->swdd~server-provides-update-current-state-interface~1]
+    // [utest->swdd~server-provides-update-desired-state-interface~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_success()
@@ -719,7 +719,7 @@ mod tests {
     }
 
     // [utest->swdd~server-uses-async-channels~1]
-    // [utest->swdd~server-provides-update-current-state-interface~1]
+    // [utest->swdd~server-provides-update-desired-state-interface~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_nothing_todo(
@@ -778,7 +778,7 @@ mod tests {
     }
 
     // [utest->swdd~server-uses-async-channels~1]
-    // [utest->swdd~server-provides-update-current-state-interface~1]
+    // [utest->swdd~server-provides-update-desired-state-interface~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_error() {

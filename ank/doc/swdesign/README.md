@@ -172,89 +172,89 @@ Needs:
 
 ### `ank get state`
 
-![Get current state](plantuml/seq_get_state.svg)
+![Get desired state](plantuml/seq_get_state.svg)
 
-#### CLI provides the get current state
-`swdd~cli-provides-get-current-state~1`
+#### CLI provides the get desired state
+`swdd~cli-provides-get-desired-state~1`
 
 Status: approved
 
-The Ankaios CLI shall provide a function to get the current state.
+The Ankaios CLI shall provide a function to get the desired state.
 
 Tags:
-- GetCurrentState
+- GetDesiredState
 
 Needs:
 - impl
 - utest
 
-#### CLI blocks until the Ankaios Server responds to the request to get the current state
-`swdd~cli-blocks-until-ankaios-server-responds-get-current-state~1`
+#### CLI blocks until the Ankaios Server responds to the request to get the desired state
+`swdd~cli-blocks-until-ankaios-server-responds-get-desired-state~1`
 
 Status: approved
 
-When the user invokes the CLI with a request to the get current state, the CLI shall block and wait until the response from the Ankaios Server is received.
+When the user invokes the CLI with a request to the get desired state, the CLI shall block and wait until the response from the Ankaios Server is received.
 
 Tags:
-- GetCurrentState
+- GetDesiredState
 
 Needs:
 - impl
 - utest
 
-#### CLI returns the current state from Ankaios Server via CLI communication interface
-`swdd~cli-returns-current-state-from-server~1`
+#### CLI returns the desired state from Ankaios Server via CLI communication interface
+`swdd~cli-returns-desired-state-from-server~1`
 
 Status: approved
 
-When the CLI receives the current state from Ankaios Server, the CLI shall return this response to the user.
+When the CLI receives the desired state from Ankaios Server, the CLI shall return this response to the user.
 
 Tags:
-- GetCurrentState
+- GetDesiredState
 
 Needs:
 - impl
 - utest
 
-#### CLI shall support presenting the current state as JSON
-`swdd~cli-shall-support-current-state-json~1`
+#### CLI shall support presenting the desired state as JSON
+`swdd~cli-shall-support-desired-state-json~1`
 
 Status: approved
 
-When the CLI receives the current state from Ankaios Server via CLI communication interface,
-the CLI shall support the possibility to present the current state as a JSON to the user.
+When the CLI receives the desired state from Ankaios Server via CLI communication interface,
+the CLI shall support the possibility to present the desired state as a JSON to the user.
 
 Tags:
-- GetCurrentState
+- GetDesiredState
 
 Needs:
 - impl
 - utest
 
-#### CLI shall support presenting the current state as YAML
-`swdd~cli-shall-support-current-state-yaml~1`
+#### CLI shall support presenting the desired state as YAML
+`swdd~cli-shall-support-desired-state-yaml~1`
 
 Status: approved
 
-When the CLI receives the current state from Ankaios Server via CLI communication interface,
-the CLI shall support the possibility to present the current state as a YAML to the user.
+When the CLI receives the desired state from Ankaios Server via CLI communication interface,
+the CLI shall support the possibility to present the desired state as a YAML to the user.
 
 Tags:
-- GetCurrentState
+- GetDesiredState
 
 Needs:
 - impl
 - utest
 
-#### CLI provides object field mask as arguments to get only the given parts of current state
-`swdd~cli-provides-object-field-mask-arg-to-get-partial-current-state~1`
+#### CLI provides object field mask as arguments to get only the given parts of desired state
+`swdd~cli-provides-object-field-mask-arg-to-get-partial-desired-state~1`
 
 Status: approved
 
-The Ankaios CLI shall provide an option to request and deliver only a part of the current state.
+The Ankaios CLI shall provide an option to request and deliver only a part of the desired state.
 
 Tags:
-- GetCurrentState
+- GetDesiredState
 
 Needs:
 - impl
@@ -268,7 +268,7 @@ Status: approved
 When an object field mask is provided as additional argument, the Ankaios CLI shall return the compact state containing the values of the given fields.
 
 Tags:
-- GetCurrentState
+- GetDesiredState
 
 Needs:
 - impl
@@ -386,46 +386,46 @@ Needs:
 
 ### `ank set state`
 
-![Set current state](plantuml/seq_set_state.svg)
+![Set desired state](plantuml/seq_set_state.svg)
 
-#### CLI provides a function to set the current state
-`swdd~cli-provides-set-current-state~1`
+#### CLI provides a function to set the desired state
+`swdd~cli-provides-set-desired-state~1`
 
 Status: approved
 
-The Ankaios CLI shall provide a function to set the current state.
+The Ankaios CLI shall provide a function to set the desired state.
 
 Tags:
-- SetCurrentState
+- SetDesiredState
 
 Needs:
 - swdd
 - impl
 - utest
 
-#### CLI blocks until the Ankaios Server responds to the request to set the current state
-`swdd~cli-blocks-until-ankaios-server-responds-set-current-state~1`
+#### CLI blocks until the Ankaios Server responds to the request to set the desired state
+`swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~1`
 
 Status: approved
 
-When the user invokes the CLI with a request to set the current state, the CLI shall block and wait until the response from the Ankaios Server is received.
+When the user invokes the CLI with a request to set the desired state, the CLI shall block and wait until the response from the Ankaios Server is received.
 
 Tags:
-- SetCurrentState
+- SetDesiredState
 
 Needs:
 - impl
 - utest
 
-#### CLI shall support YAML files with the state object to set current state
-`swdd~cli-supports-yaml-to-set-current-state~1`
+#### CLI shall support YAML files with the state object to set desired state
+`swdd~cli-supports-yaml-to-set-desired-state~1`
 
 Status: approved
 
-When the user invokes the CLI with a request to the set current state, the CLI shall support files in YAML format with the state object.
+When the user invokes the CLI with a request to the set desired state, the CLI shall support files in YAML format with the state object.
 
 Tags:
-- SetCurrentState
+- SetDesiredState
 
 Needs:
 - impl

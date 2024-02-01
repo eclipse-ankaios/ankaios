@@ -31,12 +31,12 @@ fn update_state(
     updated_state: CompleteState,
     update_mask: Vec<String>,
 ) -> Result<CompleteState, UpdateStateError> {
-    // [impl->swdd~update-current-state-empty-update-mask~1]
+    // [impl->swdd~update-desired-state-empty-update-mask~1]
     if update_mask.is_empty() {
         return Ok(updated_state);
     }
 
-    // [impl->swdd~update-current-state-with-update-mask~1]
+    // [impl->swdd~update-desired-state-with-update-mask~1]
     let mut new_state: Object = desired_state.try_into().map_err(|err| {
         UpdateStateError::ResultInvalid(format!("Failed to parse current state, '{}'", err))
     })?;
@@ -513,7 +513,7 @@ mod tests {
         assert_eq!(old_state, server_state.state);
     }
 
-    // [utest->swdd~update-current-state-empty-update-mask~1]
+    // [utest->swdd~update-desired-state-empty-update-mask~1]
     #[test]
     fn utest_replace_all_if_update_mask_empty() {
         let old_state = generate_test_old_state();
@@ -526,7 +526,7 @@ mod tests {
         assert_eq!(update_state, server_state.state);
     }
 
-    // [utest->swdd~update-current-state-with-update-mask~1]
+    // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_replace_workload() {
         let old_state = generate_test_old_state();
@@ -552,7 +552,7 @@ mod tests {
         assert_eq!(expected, server_state.state);
     }
 
-    // [utest->swdd~update-current-state-with-update-mask~1]
+    // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_add_workload() {
         let old_state = generate_test_old_state();
@@ -578,7 +578,7 @@ mod tests {
         assert_eq!(expected, server_state.state);
     }
 
-    // [utest->swdd~update-current-state-with-update-mask~1]
+    // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_remove_workload() {
         let old_state = generate_test_old_state();
@@ -596,7 +596,7 @@ mod tests {
         assert_eq!(expected, server_state.state);
     }
 
-    // [utest->swdd~update-current-state-with-update-mask~1]
+    // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_remove_non_existing_workload() {
         let old_state = generate_test_old_state();

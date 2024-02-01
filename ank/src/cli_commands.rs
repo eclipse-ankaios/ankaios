@@ -86,9 +86,9 @@ fn generate_compact_state_output(
 ) -> Result<String, CliError> {
     let convert_to_output = |map: serde_yaml::Value| -> Result<String, CliError> {
         match output_format {
-            // [impl -> swdd~cli-shall-support-current-state-yaml~1]
+            // [impl -> swdd~cli-shall-support-desired-state-yaml~1]
             OutputFormat::Yaml => Ok(serde_yaml::to_string(&map)?),
-            // [impl -> swdd~cli-shall-support-current-state-json~1]
+            // [impl -> swdd~cli-shall-support-desired-state-json~1]
             OutputFormat::Json => Ok(serde_json::to_string_pretty(&map)?),
         }
     };
@@ -307,7 +307,7 @@ impl CliCommands {
                     .unwrap_or_else(|error| {
                         panic!("Could not read the state object file.\nError: {error}")
                     });
-            // [impl -> swdd~cli-supports-yaml-to-set-current-state~1]
+            // [impl -> swdd~cli-supports-yaml-to-set-desired-state~1]
             complete_state_input =
                 serde_yaml::from_str(&state_object_data).unwrap_or_else(|error| {
                     panic!("Error while parsing the state object data.\nError: {error}")
@@ -1068,10 +1068,10 @@ mod tests {
         assert!(test_server_receiver.try_recv().is_err());
     }
 
-    // [utest -> swdd~cli-returns-current-state-from-server~1]
-    // [utest -> swdd~cli-shall-support-current-state-yaml~1]
-    // [utest->swdd~cli-blocks-until-ankaios-server-responds-get-current-state~1]
-    // [utest->swdd~cli-provides-get-current-state~1]
+    // [utest -> swdd~cli-returns-desired-state-from-server~1]
+    // [utest -> swdd~cli-shall-support-desired-state-yaml~1]
+    // [utest->swdd~cli-blocks-until-ankaios-server-responds-get-desired-state~1]
+    // [utest->swdd~cli-provides-get-desired-state~1]
     #[tokio::test]
     async fn get_state_complete_desired_state_yaml() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1124,7 +1124,7 @@ mod tests {
         assert_eq!(cmd_text, expected_text);
     }
 
-    // [utest -> swdd~cli-shall-support-current-state-json~1]
+    // [utest -> swdd~cli-shall-support-desired-state-json~1]
     #[tokio::test]
     async fn get_state_complete_desired_state_json() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1178,7 +1178,7 @@ mod tests {
         assert_eq!(cmd_text, expected_text);
     }
 
-    // [utest -> swdd~cli-returns-current-state-from-server~1]
+    // [utest -> swdd~cli-returns-desired-state-from-server~1]
     #[tokio::test]
     async fn get_state_single_field_of_desired_state() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1239,7 +1239,7 @@ mod tests {
         assert_eq!(cmd_text, expected_single_field_result_text);
     }
 
-    // [utest->swdd~cli-provides-object-field-mask-arg-to-get-partial-current-state~1]
+    // [utest->swdd~cli-provides-object-field-mask-arg-to-get-partial-desired-state~1]
     // [utest->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
     #[tokio::test]
     async fn get_state_multiple_fields_of_desired_state() {
@@ -1301,9 +1301,9 @@ mod tests {
             txt == *"desiredState:\n  workloads:\n    name2:\n      runtime: runtime\n    name1:\n      runtime: runtime\n"));
     }
 
-    // [utest -> swdd~cli-provides-set-current-state~1]
-    // [utest -> swdd~cli-supports-yaml-to-set-current-state~1]
-    // [utest->swdd~cli-blocks-until-ankaios-server-responds-set-current-state~1]
+    // [utest -> swdd~cli-provides-set-desired-state~1]
+    // [utest -> swdd~cli-supports-yaml-to-set-desired-state~1]
+    // [utest->swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~1]
     #[tokio::test]
     async fn set_state_update_state() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
