@@ -76,7 +76,7 @@ Test Ankaios apply worklaod specification overwriting the agent names
     And Ankaios agent is started with name "agent_B"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
-    When user triggers "ank apply --agent_name agent_B ${manifest1_yaml_file}"
+    When user triggers "ank apply --agent agent_B ${manifest1_yaml_file}"
     # Asserts
     Then the workload "nginx_from_manifest1" shall have the execution state "Running" on agent "agent_B" within "30" seconds
     [Teardown]    Clean up Ankaios

@@ -26,7 +26,7 @@ use common::{
     execution_interface::ExecutionCommand,
     objects::{State, Tag, WorkloadSpec},
     state_change_interface::{StateChangeCommand, StateChangeInterface},
-    state_manipulation::Object,
+    state_manipulation::{Object, Path},
 };
 
 #[cfg(not(test))]
@@ -200,15 +200,165 @@ pub fn open_manifest(
 }
 #[cfg(test)]
 use tests::open_manifest_mock as open_manifest;
-// }
 
+// [impl->swdd~cli-supports-ankaios-manifest~1]
+fn parse_manifest(
+    manifest: &mut InputSourcePair,
+) -> Result<(Object, Vec<common::state_manipulation::Path>), CliError> {
+    let mut data = "".to_owned();
+    let _ = manifest.1.read_to_string(&mut data);
+    if data.is_empty() {
+        return Err(CliError::ExecutionError(
+            "Empty manifest provided -> nothing to do!".to_owned(),
+        ));
+    }
+    let mut yaml_nodes = Default::default();
+    match serde_yaml::from_str(&data).and_then(|nodes| {
+        yaml_nodes = nodes;
+        Object::try_from(&yaml_nodes)
+    }) {
+        Err(err) => Err(CliError::ExecutionError(format!(
+            "Error while parsing the manifest data.\nError: {err}"
+        ))),
+        Ok(obj) => {
+            let mut workload_paths: HashSet<common::state_manipulation::Path> = HashSet::new();
+            for path in common::state_manipulation::get_paths_from_yaml_node(&yaml_nodes, false) {
+                let parts = path.parts();
+                if parts.len() > 1 {
+                    let _ = &mut workload_paths.insert(common::state_manipulation::Path::from(
+                        format!("{}.{}", parts[0], parts[1]),
+                    ));
+                }
+            }
+            Ok((obj, workload_paths.into_iter().collect()))
+        }
+    }
+}
+
+// [impl->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
+fn handle_agent_overwrite(
+    desired_agent: &Option<String>,
+    state_obj: &mut State,
+    console_output: &mut String,
+) -> Result<(), CliError> {
+    let mut _apply_on_agent = "".to_owned();
+    // No agent name specified through cli!
+    if desired_agent.is_none() {
+        let agent_names: HashSet<String> =
+            HashSet::from_iter(state_obj.clone().workloads.into_values().map(|wl| wl.agent));
+        // Found multiple agent names!
+        if agent_names.len() > 1 {
+            return Err(CliError::ExecutionError(format!("Multiple agent names in manifests detected {:?} -> use '--agent' option to overwrite!", &agent_names)));
+        }
+        // No agent name could be found in any workload spec!
+        // [impl->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
+        else if agent_names.contains("") {
+            return Err(CliError::ExecutionError(
+                "No agent name specified -> use '--agent' option to specify!".to_owned(),
+            ));
+        }
+        // An agent name could be found -> do an agent name overwrite!
+        else {
+            _apply_on_agent = agent_names.iter().next().unwrap().to_owned();
+            for (_, wl) in &mut state_obj.workloads.iter_mut() {
+                wl.agent = _apply_on_agent.to_owned();
+            }
+        }
+    }
+    // An agent name specified through cli -> do an agent name overwrite!
+    else {
+        _apply_on_agent = desired_agent.as_ref().unwrap().to_owned();
+        for (_, wl) in &mut state_obj.workloads.iter_mut() {
+            wl.agent = _apply_on_agent.to_owned();
+        }
+    }
+
+    console_output.push_str(&format!(
+        "Applying collected manifests on agent '{}' ... ",
+        _apply_on_agent
+    ));
+
+    Ok(())
+}
+
+fn update_request_obj(
+    req_obj: &mut Object,
+    cur_obj: &Object,
+    paths: &[Path],
+    manifest_file_name: &str,
+    delete_mode: bool,
+    console_output: &mut String,
+) -> Result<(), CliError> {
+    let info_collecting = if delete_mode {
+        format!(
+            "Collecting manifest for deletion: '{}' - contained workloads: {{",
+            manifest_file_name
+        )
+    } else {
+        format!(
+            "Collecting manifest: '{}' - contained workloads: {{",
+            manifest_file_name
+        )
+    };
+
+    console_output.push_str(&info_collecting);
+    let workload_path_len = paths.len();
+    for (index, workload_path) in paths.iter().enumerate() {
+        let workload_name = &workload_path.parts()[1];
+        if req_obj.get(workload_path).is_none() {
+            if index == workload_path_len - 1 {
+                console_output.push_str(&format!(" '{}'", workload_name));
+            } else {
+                console_output.push_str(&format!(" '{}',", workload_name));
+            }
+            let _ = req_obj.set(workload_path, cur_obj.get(workload_path).unwrap().clone());
+        } else {
+            let error_str = format!(
+                "Error: Multiple workloads with the same name '{}' found!! }} - NOK",
+                workload_name
+            );
+            output_and_error!("\n{}\n{}", console_output, error_str);
+            return Err(CliError::ExecutionError(error_str));
+        }
+    }
+    console_output.push_str(" } - OK\n");
+
+    Ok(())
+}
+fn create_filter_masks_from_paths(paths: &[Path]) -> Vec<String> {
+    let mut filter_masks = paths
+        .iter()
+        .map(|path| format!("currentState.{}.{}", path.parts()[0], path.parts()[1]))
+        .collect::<Vec<String>>();
+    filter_masks.sort();
+    filter_masks.dedup();
+    filter_masks
+}
+fn print_manifest_files_overview(apply_args: &ApplyArgs, console_output: &mut String) {
+    let line_len = apply_args.manifest_files.iter().max().unwrap().len() + 2;
+    let plot_line = |console_output: &mut String, end_str: &str| {
+        for _ in 1..line_len {
+            console_output.push('-');
+        }
+        console_output.push_str(end_str);
+    };
+    console_output.push_str("Applying manifest files overview:\n");
+    plot_line(console_output, "\n");
+    apply_args.manifest_files.iter().for_each(|file| {
+        console_output.push_str(&format!("{}\n", if "-" != file { file } else { "stdin" }))
+    });
+
+    plot_line(console_output, "\n");
+}
 type InputSourcePair = (String, Box<dyn io::Read + Send + Sync + 'static>);
 type InputSources = Result<Vec<InputSourcePair>, io::Error>;
 impl ApplyArgs {
     pub fn get_input_sources(&self) -> InputSources {
         if let Some(first_arg) = self.manifest_files.first() {
             match first_arg.as_str() {
+                // [impl->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
                 "-" => Ok(vec![("stdin".to_owned(), Box::new(io::stdin()))]),
+                // [impl->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
                 _ => {
                     let mut res: InputSources = Ok(vec![]);
                     for file_path in self.manifest_files.iter() {
@@ -507,170 +657,79 @@ impl CliCommands {
         Ok(())
     }
 
-    // [impl->swdd~cli-provides-apply-multiple-ankaios-manifests~1]
-    pub async fn apply_manifests(&mut self, apply_args: ApplyArgs) -> Result<String, CliError> {
+    // [impl->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
+    // [impl->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
+    fn generate_state_obj_and_filter_masks_from_manifests(
+        &self,
+        manifests: &mut [InputSourcePair],
+        apply_args: &ApplyArgs,
+        console_output: &mut String,
+    ) -> Result<(CompleteState, Vec<String>), CliError> {
         let mut req_obj: Object = State::default().try_into().unwrap();
         let mut req_paths: Vec<common::state_manipulation::Path> = Vec::new();
-        let mut console_output = String::default();
-        let line_len = apply_args.manifest_files.iter().max().unwrap().len() + 2;
-        let plot_line = |console_output: &mut String, end_str: &str| {
-            for _ in 1..line_len {
-                console_output.push('-');
-            }
-            console_output.push_str(end_str);
-        };
-        console_output.push_str("Applying manifest files overview:\n");
-        plot_line(&mut console_output, "\n");
-        apply_args.manifest_files.iter().for_each(|file| {
-            console_output.push_str(&format!("{}\n", if "-" != file { file } else { "stdin" }))
-        });
+        for manifest in manifests.iter_mut() {
+            let (cur_obj, mut cur_workload_paths) = parse_manifest(manifest)?;
 
-        plot_line(&mut console_output, "\n");
-        let delete_mode = apply_args.delete_mode;
-        let agent = apply_args.agent_name.clone();
+            update_request_obj(
+                &mut req_obj,
+                &cur_obj,
+                &cur_workload_paths,
+                &manifest.0,
+                apply_args.delete_mode,
+                console_output,
+            )?;
+
+            req_paths.append(&mut cur_workload_paths);
+        }
+
+        if req_paths.is_empty() {
+            return Err(CliError::ExecutionError(
+                "No workload provided in manifests!".to_owned(),
+            ));
+        }
+        let filter_masks = create_filter_masks_from_paths(&req_paths);
+        output_debug!("\nfilter_masks:\n{:?}\n", filter_masks);
+
+        let complete_state_req_obj = if apply_args.delete_mode {
+            CompleteState {
+                request_id: self.cli_name.to_owned(),
+                ..Default::default()
+            }
+        } else {
+            let mut state_from_req_obj: State = req_obj.try_into().unwrap();
+            handle_agent_overwrite(
+                &apply_args.agent_name,
+                &mut state_from_req_obj,
+                console_output,
+            )?;
+            CompleteState {
+                request_id: self.cli_name.to_owned(),
+                current_state: state_from_req_obj,
+                ..Default::default()
+            }
+        };
+        output_debug!("\nstate_obj:\n{:?}\n", complete_state_req_obj);
+
+        Ok((complete_state_req_obj, filter_masks))
+    }
+
+    // [impl->swdd~cli-provides-apply-multiple-ankaios-manifests~1]
+    pub async fn apply_manifests(&mut self, apply_args: ApplyArgs) -> Result<String, CliError> {
+        let mut console_output = String::default();
+
+        print_manifest_files_overview(&apply_args, &mut console_output);
+
         match apply_args.get_input_sources() {
             Ok(mut manifests) => {
-                for manifest in manifests.iter_mut() {
-                    let mut data = "".to_owned();
-                    let _ = manifest.1.read_to_string(&mut data);
-                    if data.is_empty() {
-                        return Err(CliError::ExecutionError(
-                            "Empty manifest provided -> nothing to do!".to_owned(),
-                        ));
-                    }
-                    let yaml_nodes: serde_yaml::Value =
-                        serde_yaml::from_str(&data).unwrap_or_else(|error| {
-                            let error_out = format!(
-                                "Error while parsing the state object data.\nError: {error}"
-                            );
-                            output_and_error!("{}", error_out);
-                            panic!("{}", error_out)
-                        });
+                let (complete_state_req_obj, filter_masks) = self
+                    .generate_state_obj_and_filter_masks_from_manifests(
+                        &mut manifests,
+                        &apply_args,
+                        &mut console_output,
+                    )?;
 
-                    let cur_obj: Object = Object::try_from(&yaml_nodes).unwrap();
-                    let paths =
-                        common::state_manipulation::get_paths_from_yaml_node(&yaml_nodes, false);
-
-                    let mut workload_paths: HashSet<common::state_manipulation::Path> =
-                        HashSet::new();
-                    for path in paths {
-                        let parts = path.parts();
-                        if parts.len() > 1 {
-                            let _ =
-                                &mut workload_paths.insert(common::state_manipulation::Path::from(
-                                    format!("{}.{}", parts[0], parts[1]),
-                                ));
-
-                            req_paths.push(path);
-                        }
-                    }
-
-                    if req_paths.is_empty() {
-                        return Err(CliError::ExecutionError(
-                            "No workload provided in manifests!".to_owned(),
-                        ));
-                    }
-
-                    let info_collecting = if delete_mode {
-                        format!(
-                            "Collecting manifest for deletion: '{}' - contained workloads: {{",
-                            manifest.0
-                        )
-                    } else {
-                        format!(
-                            "Collecting manifest: '{}' - contained workloads: {{",
-                            manifest.0
-                        )
-                    };
-
-                    console_output.push_str(&info_collecting);
-
-                    let workload_path_len = workload_paths.len();
-                    for (index, workload_path) in workload_paths.iter().enumerate() {
-                        let workload_name = &workload_path.parts()[1];
-                        if req_obj.get(workload_path).is_none() {
-                            if index == workload_path_len - 1 {
-                                console_output.push_str(&format!(" '{}'", workload_name));
-                            } else {
-                                console_output.push_str(&format!(" '{}',", workload_name));
-                            }
-                            let _ = req_obj
-                                .set(workload_path, cur_obj.get(workload_path).unwrap().clone());
-                        } else {
-                            let error_str = format!("Error: Multiple workloads with the same name '{}' found!! }} - NOK",
-                            workload_name);
-                            output_and_error!("\n{}\n{}", console_output, error_str);
-                            return Err(CliError::ExecutionError(error_str));
-                        }
-                    }
-                    console_output.push_str(" } - OK\n");
-                }
-
-                let mut filter_masks = req_paths
-                    .into_iter()
-                    .map(|path| format!("currentState.{}.{}", path.parts()[0], path.parts()[1]))
-                    .collect::<Vec<String>>();
-                filter_masks.sort();
-                filter_masks.dedup();
-
-                let complete_state_req_obj = if delete_mode {
-                    CompleteState {
-                        request_id: self.cli_name.to_owned(),
-                        ..Default::default()
-                    }
-                } else {
-                    let mut update_state_req_obj: State = req_obj.try_into().unwrap();
-                    let mut _apply_on_agent = "".to_owned();
-
-                    // No agent name specified through cli!
-                    if agent.is_none() {
-                        let agent_names: HashSet<String> = HashSet::from_iter(
-                            update_state_req_obj
-                                .clone()
-                                .workloads
-                                .into_values()
-                                .map(|wl| wl.agent),
-                        );
-                        // Found multiple agent names!
-                        if agent_names.len() > 1 {
-                            return Err(CliError::ExecutionError(format!("Multiple agent names in manifests detected {:?} -> use '--agent' option to overwrite!", &agent_names)));
-                        }
-                        // No agent name could be found in any workload spec!
-                        else if agent_names.contains("") {
-                            return Err(CliError::ExecutionError(
-                                "No agent name specified -> use '--agent' option to specify!"
-                                    .to_owned(),
-                            ));
-                        }
-                        // An agent name could be found -> do an agent name overwrite!
-                        else {
-                            _apply_on_agent = agent_names.iter().next().unwrap().to_owned();
-                            for (_, wl) in &mut update_state_req_obj.workloads.iter_mut() {
-                                wl.agent = _apply_on_agent.to_owned();
-                            }
-                        }
-                    }
-                    // An agent name specified through cli -> do an agent name overwrite!
-                    else {
-                        _apply_on_agent = agent.as_ref().unwrap().to_owned();
-                        for (_, wl) in &mut update_state_req_obj.workloads.iter_mut() {
-                            wl.agent = _apply_on_agent.to_owned();
-                        }
-                    }
-
-                    console_output.push_str(&format!(
-                        "Applying collected manifests on agent '{}' ... ",
-                        _apply_on_agent
-                    ));
-
-                    CompleteState {
-                        request_id: self.cli_name.to_owned(),
-                        current_state: update_state_req_obj,
-                        ..Default::default()
-                    }
-                };
-
-                // println!("\n{:?}\n{:?}", complete_state_req_obj, filter_masks);
+                // [impl->swdd~cli-apply-send-update-state~1]
+                // [impl->swdd~cli-apply-send-update-state-for-deletion~1]
                 match self
                     .to_server
                     .update_state(complete_state_req_obj, filter_masks)
@@ -2038,4 +2097,40 @@ mod tests {
             actual.iter().map(get_file_name).collect::<Vec<String>>()
         )
     }
+
+    // #[test]
+    // fn utest_apply_args_apply_valid_manifest_files() {
+    //     let manifest_content = io::Cursor::new(
+    //         b"workloads:
+    //     simple:
+    //       runtime: podman
+    //       agent: agent_A
+    //       restart: true
+    //       updateStrategy: AT_MOST_ONCE
+    //       accessRights:
+    //         allow: []
+    //         deny: []
+    //       tags:
+    //         - key: owner
+    //           value: Ankaios team
+    //       runtimeConfig: |
+    //         image: docker.io/nginx:latest
+    //         commandOptions: [\"-p\", \"8081:80\"]",
+    //     );
+    //     FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
+    //         .lock()
+    //         .unwrap()
+    //         .push_back(Ok((
+    //             "manifest1.yaml".to_owned(),
+    //             Box::new(manifest_content),
+    //         )));
+
+    //     let args = ApplyArgs {
+    //         manifest_files: vec!["manifest1.yaml".to_owned()],
+    //         agent_name: None,
+    //         delete_mode: false,
+    //     };
+
+    //     // assert!(args.get_input_sources().is_err(), "Expected an error");
+    // }
 }

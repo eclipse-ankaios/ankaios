@@ -641,7 +641,6 @@ Status: approved
 Needs:
 - impl
 - utest
-- stest
 
 #### CLI provides a function to generate filter masks from Ankaios manifests
 `swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1`
@@ -655,7 +654,6 @@ Status: approved
 Needs:
 - impl
 - utest
-- stest
 
 #### CLI provides a function to send update state request for `ank apply ...`
 `swdd~cli-apply-send-update-state~1`
@@ -671,7 +669,6 @@ Status: approved
 Needs:
 - impl
 - utest
-- stest
 
 #### CLI provides a function to send update state request for `ank apply -d ...`
 `swdd~cli-apply-send-update-state-for-deletion~1`
@@ -687,7 +684,6 @@ Status: approved
 Needs:
 - impl
 - utest
-- stest
 
 #### CLI provides a function to overwrite the agent names
 `swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1`
