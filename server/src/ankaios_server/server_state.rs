@@ -13,6 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::cycle_check;
+use super::delete_graph::DeleteGraph;
 use crate::state_manipulation::{Object, Path};
 use crate::workload_state_db::WorkloadStateDB;
 use common::std_extensions::IllegalStateResult;
@@ -20,8 +21,6 @@ use common::{
     commands::{CompleteState, CompleteStateRequest},
     objects::{DeletedWorkload, State, WorkloadSpec},
 };
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
 use std::fmt::Display;
 
 #[cfg(test)]
@@ -140,9 +139,6 @@ impl Display for UpdateStateError {
     }
 }
 
-use common::objects::{AddCondition, DeleteCondition};
-pub type DeleteGraph = HashMap<String, HashMap<String, DeleteCondition>>;
-
 #[derive(Default)]
 pub struct ServerState {
     state: CompleteState,
@@ -204,42 +200,6 @@ impl ServerState {
             .collect()
     }
 
-    // [impl->swdd~server-state-stores-delete-condition~1]
-    fn update_delete_graph(&mut self, added_workloads: &[WorkloadSpec]) {
-        for workload_spec in added_workloads {
-            for (dependency_name, add_condition) in workload_spec.dependencies.iter() {
-                /* currently for other add conditions besides AddCondRunning
-                the workload can be deleted immediately and does not need a delete condition */
-                if add_condition == &AddCondition::AddCondRunning {
-                    let workload_name = workload_spec.name.clone();
-                    match self.delete_graph.entry(dependency_name.clone()) {
-                        Entry::Occupied(workload) => {
-                            workload.into_mut().insert(
-                                workload_name,
-                                DeleteCondition::DelCondNotPendingNorRunning,
-                            );
-                        }
-                        Entry::Vacant(new_entry) => {
-                            new_entry.insert(HashMap::from([(
-                                workload_name,
-                                DeleteCondition::DelCondNotPendingNorRunning,
-                            )]));
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // [impl->swdd~server-state-adds-delete-conditions-to-deleted-workload~1]
-    fn add_delete_conditions(&self, deleted_workloads: &mut [DeletedWorkload]) {
-        for workload in deleted_workloads.iter_mut() {
-            if let Some(delete_conditions) = self.delete_graph.get(&workload.name) {
-                workload.dependencies = delete_conditions.clone();
-            }
-        }
-    }
-
     pub fn update(
         &mut self,
         new_state: CompleteState,
@@ -265,10 +225,6 @@ impl ServerState {
                         .collect();
 
                     // [impl->swdd~server-state-rejects-state-with-cyclic-dependencies~1]
-                    log::debug!(
-                        "Execute cyclic dependency check with start_nodes = {:?}",
-                        start_nodes
-                    );
                     if let Some(workload_part_of_cycle) =
                         cycle_check::dfs(&new_state.current_state, Some(start_nodes))
                     {
@@ -278,10 +234,11 @@ impl ServerState {
                     }
 
                     // [impl->swdd~server-state-stores-delete-condition~1]
-                    self.update_delete_graph(&added_workloads);
+                    self.delete_graph.insert(&added_workloads);
 
                     // [impl->swdd~server-state-adds-delete-conditions-to-deleted-workload~1]
-                    self.add_delete_conditions(&mut deleted_workloads);
+                    self.delete_graph
+                        .apply_delete_conditions_to(&mut deleted_workloads);
 
                     self.state = new_state;
                     Ok(Some((added_workloads, deleted_workloads)))
@@ -307,7 +264,7 @@ mod tests {
 
     use common::{
         commands::{CompleteState, CompleteStateRequest},
-        objects::{AddCondition, DeleteCondition, DeletedWorkload, State, WorkloadSpec},
+        objects::{DeletedWorkload, State, WorkloadSpec},
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
     };
 
@@ -322,8 +279,6 @@ mod tests {
     const WORKLOAD_NAME_2: &str = "workload_2";
     const WORKLOAD_NAME_3: &str = "workload_3";
     const WORKLOAD_NAME_4: &str = "workload_4";
-    const WORKLOAD_NAME_5: &str = "workload_5";
-    const WORKLOAD_NAME_6: &str = "workload_6";
     const RUNTIME: &str = "runtime";
 
     #[test]
@@ -829,268 +784,6 @@ mod tests {
         assert_eq!(added_workloads, expected_added_workloads);
         assert_eq!(deleted_workloads, expected_deleted_workloads);
         assert_eq!(server_state.state, new_complete_state);
-    }
-
-    // [utest->swdd~server-state-stores-delete-condition~1]
-    #[test]
-    fn utest_server_state_update_state_update_delete_graph() {
-        /*
-            Dependency graph as input           Expected delete graph
-
-            R = ADD_COND_RUNNING
-            S = ADD_COND_SUCCEEDED
-            F = ADD_COND_FAILED
-
-                                          =>    2 --> 1 (DelCondNotPendingNorRunning)
-            4 --> 1 --> 2                       5 --> 3 (DelCondNotPendingNorRunning)
-               F     R
-            3 --> 5
-               R
-            6 (workload without dependencies)
-        */
-        let _ = env_logger::builder().is_test(true).try_init();
-
-        let mut workload_1 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_1.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        let mut workload_2 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_2.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        let mut workload_3 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_3.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        let mut workload_4 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_4.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        let mut workload_5 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_5.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        let mut workload_6 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_6.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        workload_1.dependencies =
-            HashMap::from([(workload_2.name.clone(), AddCondition::AddCondRunning)]);
-
-        workload_2.dependencies.clear();
-
-        workload_3.dependencies =
-            HashMap::from([(workload_5.name.clone(), AddCondition::AddCondRunning)]);
-
-        workload_4.dependencies =
-            HashMap::from([(workload_1.name.clone(), AddCondition::AddCondFailed)]);
-
-        workload_5.dependencies.clear();
-        workload_6.dependencies.clear();
-
-        let new_state = CompleteState {
-            current_state: State {
-                workloads: HashMap::from([
-                    (workload_1.name.clone(), workload_1.clone()),
-                    (workload_2.name.clone(), workload_2.clone()),
-                    (workload_3.name.clone(), workload_3.clone()),
-                    (workload_4.name.clone(), workload_4.clone()),
-                    (workload_5.name.clone(), workload_5.clone()),
-                ]),
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        let mut server_state = ServerState::default();
-
-        let result = server_state.update(new_state.clone(), vec![]);
-        assert!(result.unwrap().is_some());
-
-        let expected_delete_graph = HashMap::from([
-            (
-                workload_2.name.clone(),
-                HashMap::from([(
-                    workload_1.name.clone(),
-                    DeleteCondition::DelCondNotPendingNorRunning,
-                )]),
-            ),
-            (
-                workload_5.name.clone(),
-                HashMap::from([(
-                    workload_3.name.clone(),
-                    DeleteCondition::DelCondNotPendingNorRunning,
-                )]),
-            ),
-        ]);
-        assert_eq!(expected_delete_graph, server_state.delete_graph);
-        assert_eq!(new_state, server_state.state);
-    }
-
-    // [utest->swdd~server-state-stores-delete-condition~1]
-    // [utest->swdd~server-state-adds-delete-conditions-to-deleted-workload~1]
-    #[test]
-    fn utest_server_state_update_state_add_delete_conditions_for_deleted_workloads() {
-        /*
-            Dependency graph as input           Expected delete graph
-
-            R = ADD_COND_RUNNING
-            S = ADD_COND_SUCCEEDED
-            F = ADD_COND_FAILED
-
-                                          =>    2 --> 1 (DelCondNotPendingNorRunning)
-            4 --> 1 --> 2 --> 6                 5 --> 3 (DelCondNotPendingNorRunning)
-               F     R     S
-            3 --> 5
-               R
-
-            Expectation:
-            When workload 2, 4, 5, 6 are removed in an subsequent update,
-            the DeletedWorkloads of workload 2 and 5 shall be filled with the
-            content of the delete graph above,
-            and the DeletedWorkload of workload 4 and 6 shall contain an empty
-            DeleteDependencies map.
-        */
-        let _ = env_logger::builder().is_test(true).try_init();
-
-        let mut workload_1 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_1.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        let mut workload_2 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_2.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        let mut workload_3 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_3.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        let mut workload_4 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_4.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        let mut workload_5 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_5.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        let mut workload_6 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_6.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        workload_1.dependencies =
-            HashMap::from([(workload_2.name.clone(), AddCondition::AddCondRunning)]);
-
-        workload_2.dependencies =
-            HashMap::from([(workload_6.name.clone(), AddCondition::AddCondSucceeded)]);
-
-        workload_3.dependencies =
-            HashMap::from([(workload_5.name.clone(), AddCondition::AddCondRunning)]);
-
-        workload_4.dependencies =
-            HashMap::from([(workload_1.name.clone(), AddCondition::AddCondFailed)]);
-
-        workload_5.dependencies.clear();
-        workload_6.dependencies.clear();
-
-        let current_complete_state = CompleteState {
-            current_state: State {
-                workloads: HashMap::from([
-                    (workload_1.name.clone(), workload_1.clone()),
-                    (workload_2.name.clone(), workload_2.clone()),
-                    (workload_3.name.clone(), workload_3.clone()),
-                    (workload_4.name.clone(), workload_4.clone()),
-                    (workload_5.name.clone(), workload_5.clone()),
-                    (workload_6.name.clone(), workload_6.clone()),
-                ]),
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        let mut new_state = current_complete_state.clone();
-        new_state.current_state.workloads.remove(&workload_2.name);
-        new_state.current_state.workloads.remove(&workload_4.name);
-        new_state.current_state.workloads.remove(&workload_5.name);
-        new_state.current_state.workloads.remove(&workload_6.name);
-
-        let mut server_state = ServerState::default();
-
-        let initial_state_result = server_state.update(current_complete_state.clone(), vec![]);
-        assert!(initial_state_result.unwrap().is_some());
-
-        let (_added_workloads, deleted_workloads) = server_state
-            .update(
-                new_state.clone(),
-                vec!["currentState.workloads".to_string()],
-            )
-            .unwrap()
-            .unwrap();
-
-        let expected_delete_graph = HashMap::from([
-            (
-                workload_2.name.clone(),
-                HashMap::from([(
-                    workload_1.name.clone(),
-                    DeleteCondition::DelCondNotPendingNorRunning,
-                )]),
-            ),
-            (
-                workload_5.name.clone(),
-                HashMap::from([(
-                    workload_3.name.clone(),
-                    DeleteCondition::DelCondNotPendingNorRunning,
-                )]),
-            ),
-        ]);
-        assert_eq!(expected_delete_graph, server_state.delete_graph);
-
-        let deleted_workloads_map: HashMap<String, HashMap<String, DeleteCondition>> =
-            deleted_workloads
-                .into_iter()
-                .map(|w| (w.name, w.dependencies))
-                .collect();
-
-        let expected_delete_conditions_wl_2 = expected_delete_graph.get(&workload_2.name).cloned();
-        let deleted_wl_2 = deleted_workloads_map.get(&workload_2.name).cloned();
-        assert_eq!(expected_delete_conditions_wl_2, deleted_wl_2);
-
-        let expected_delete_conditions_wl_5 = expected_delete_graph.get(&workload_5.name).cloned();
-        let deleted_wl_5 = deleted_workloads_map.get(&workload_5.name).cloned();
-        assert_eq!(expected_delete_conditions_wl_5, deleted_wl_5);
-
-        assert_eq!(
-            deleted_workloads_map.get(&workload_4.name),
-            Some(&HashMap::new())
-        );
-
-        assert_eq!(
-            deleted_workloads_map.get(&workload_6.name),
-            Some(&HashMap::new())
-        );
     }
 
     fn generate_test_old_state() -> CompleteState {
