@@ -48,7 +48,7 @@ use crate::{
 const BUFFER_SIZE: usize = 20;
 const WAIT_TIME_MS: Duration = Duration::from_millis(3000);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CliError {
     YamlSerialization(String),
     JsonSerialization(String),
@@ -205,15 +205,17 @@ use tests::open_manifest_mock as open_manifest;
 fn parse_manifest(
     manifest: &mut InputSourcePair,
 ) -> Result<(Object, Vec<common::state_manipulation::Path>), CliError> {
-    let mut data = "".to_owned();
+    let mut data = "".to_string();
     let _ = manifest.1.read_to_string(&mut data);
     if data.is_empty() {
         return Err(CliError::ExecutionError(
-            "Empty manifest provided -> nothing to do!".to_owned(),
+            "Empty manifest provided -> nothing to do!".to_string(),
         ));
     }
+    let _state_obj_parsing_check: State = serde_yaml::from_str(&data)?;
+
     let mut yaml_nodes = Default::default();
-    match serde_yaml::from_str(&data).and_then(|nodes| {
+    match serde_yaml::from_str(&data).and_then(|nodes: serde_yaml::Value| {
         yaml_nodes = nodes;
         Object::try_from(&yaml_nodes)
     }) {
@@ -317,7 +319,8 @@ fn update_request_obj(
                 "Error: Multiple workloads with the same name '{}' found!! }} - NOK",
                 workload_name
             );
-            output_and_error!("\n{}\n{}", console_output, error_str);
+            // output_and_error!("\n{}\n{}", console_output, error_str);
+            console_output.push_str(&error_str);
             return Err(CliError::ExecutionError(error_str));
         }
     }
@@ -325,10 +328,11 @@ fn update_request_obj(
 
     Ok(())
 }
-fn create_filter_masks_from_paths(paths: &[Path]) -> Vec<String> {
+
+fn create_filter_masks_from_paths(paths: &[Path], prefix: &str) -> Vec<String> {
     let mut filter_masks = paths
         .iter()
-        .map(|path| format!("currentState.{}.{}", path.parts()[0], path.parts()[1]))
+        .map(|path| format!("{}.{}.{}", prefix, path.parts()[0], path.parts()[1]))
         .collect::<Vec<String>>();
     filter_masks.sort();
     filter_masks.dedup();
@@ -687,7 +691,7 @@ impl CliCommands {
                 "No workload provided in manifests!".to_owned(),
             ));
         }
-        let filter_masks = create_filter_masks_from_paths(&req_paths);
+        let filter_masks = create_filter_masks_from_paths(&req_paths, "currentState");
         output_debug!("\nfilter_masks:\n{:?}\n", filter_masks);
 
         let complete_state_req_obj = if apply_args.delete_mode {
@@ -768,13 +772,18 @@ mod tests {
     use tabled::{settings::Style, Table};
     use tokio::sync::mpsc::Sender;
 
+    use crate::cli_commands::update_request_obj;
+    use crate::cli_commands::Path;
     use crate::{
         cli::OutputFormat,
         cli_commands::{
-            generate_compact_state_output, get_filtered_value, update_compact_state, ApplyArgs,
-            InputSourcePair, WorkloadInfo,
+            create_filter_masks_from_paths, generate_compact_state_output, get_filtered_value,
+            parse_manifest, update_compact_state, ApplyArgs, CliError, InputSourcePair,
+            WorkloadInfo,
         },
     };
+    use common::state_manipulation::Object;
+    use serde_yaml::Value;
 
     use super::CliCommands;
 
@@ -2034,8 +2043,13 @@ mod tests {
         assert_eq!(empty_map, expected_map);
     }
 
-    #[test]
-    fn utest_apply_args_get_input_sources_manifest_files_ok() {
+    // [utest->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
+    #[tokio::test]
+    async fn utest_apply_args_get_input_sources_manifest_files_ok() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
         let _dummy_content = io::Cursor::new(b"manifest content");
         for i in 1..3 {
             FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
@@ -2062,8 +2076,12 @@ mod tests {
         )
     }
 
-    #[test]
-    fn utest_apply_args_get_input_sources_manifest_files_error() {
+    #[tokio::test]
+    async fn utest_apply_args_get_input_sources_manifest_files_error() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
         let _dummy_content = io::Cursor::new(b"manifest content");
         FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
             .lock()
@@ -2081,6 +2099,7 @@ mod tests {
         assert!(args.get_input_sources().is_err(), "Expected an error");
     }
 
+    // [utest->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
     #[test]
     fn utest_apply_args_get_input_sources_valid_manifest_stdin() {
         let args = ApplyArgs {
@@ -2098,39 +2117,166 @@ mod tests {
         )
     }
 
-    // #[test]
-    // fn utest_apply_args_apply_valid_manifest_files() {
-    //     let manifest_content = io::Cursor::new(
-    //         b"workloads:
-    //     simple:
-    //       runtime: podman
-    //       agent: agent_A
-    //       restart: true
-    //       updateStrategy: AT_MOST_ONCE
-    //       accessRights:
-    //         allow: []
-    //         deny: []
-    //       tags:
-    //         - key: owner
-    //           value: Ankaios team
-    //       runtimeConfig: |
-    //         image: docker.io/nginx:latest
-    //         commandOptions: [\"-p\", \"8081:80\"]",
-    //     );
-    //     FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
-    //         .lock()
-    //         .unwrap()
-    //         .push_back(Ok((
-    //             "manifest1.yaml".to_owned(),
-    //             Box::new(manifest_content),
-    //         )));
+    // [utest->swdd~cli-supports-ankaios-manifest~1]
+    #[test]
+    fn utest_parse_manifest_ok() {
+        let manifest_content = io::Cursor::new(
+            b"workloads:
+        simple:
+          runtime: podman
+          agent: agent_A
+          restart: true
+          updateStrategy: AT_MOST_ONCE
+          accessRights:
+            allow: []
+            deny: []
+          tags:
+            - key: owner
+              value: Ankaios team
+          runtimeConfig: |
+            image: docker.io/nginx:latest
+            commandOptions: [\"-p\", \"8081:80\"]",
+        );
 
-    //     let args = ApplyArgs {
-    //         manifest_files: vec!["manifest1.yaml".to_owned()],
-    //         agent_name: None,
-    //         delete_mode: false,
-    //     };
+        assert!(parse_manifest(&mut (
+            "valid_manifest_content".to_string(),
+            Box::new(manifest_content)
+        ))
+        .is_ok());
+    }
 
-    //     // assert!(args.get_input_sources().is_err(), "Expected an error");
-    // }
+    #[test]
+    fn utest_parse_manifest_failed_invalid_manifest_content() {
+        let manifest_content = io::Cursor::new(b"invalid manifest content");
+
+        assert!(parse_manifest(&mut (
+            "invalid_manifest_content".to_string(),
+            Box::new(manifest_content)
+        ))
+        .is_err());
+    }
+    #[test]
+    fn utest_parse_manifest_failed_empty_manifest_content() {
+        let manifest_content = io::Cursor::new(b"");
+
+        assert_eq!(
+            Err(CliError::ExecutionError(
+                "Empty manifest provided -> nothing to do!".to_string(),
+            )),
+            parse_manifest(&mut (
+                "invalid_manifest_content".to_string(),
+                Box::new(manifest_content)
+            ))
+        );
+    }
+
+    #[test]
+    fn utest_update_request_obj_ok() {
+        let mut console_output = "".to_string();
+        let mut req_obj = Object::default();
+        let content_value: Value = serde_yaml::from_str(
+            r#"
+        workloads:
+         simple: {}
+         complex: {}
+        "#,
+        )
+        .unwrap();
+        let cur_obj = Object::try_from(&content_value).unwrap();
+        let paths = vec![
+            Path::from("workloads.simple"),
+            Path::from("workloads.complex"),
+        ];
+        let expected_obj = Object::try_from(&content_value).unwrap();
+
+        assert!(update_request_obj(
+            &mut req_obj,
+            &cur_obj,
+            &paths,
+            "manifest_file_name",
+            false,
+            &mut console_output,
+        )
+        .is_ok());
+        assert_eq!(expected_obj, req_obj);
+        assert_eq!(
+            "Collecting manifest: 'manifest_file_name' - contained workloads: { 'simple', 'complex' } - OK\n"
+                .to_string(),
+            console_output
+        );
+    }
+
+    #[test]
+    fn utest_update_request_obj_failed_same_workload_names() {
+        let mut console_output = "".to_string();
+        let content_value: Value = serde_yaml::from_str(
+            r#"
+        workloads:
+         same_workload_name: {}
+        "#,
+        )
+        .unwrap();
+        let cur_obj = Object::try_from(&content_value).unwrap();
+        // simulates the workload 'same_workload_name' is already there
+        let mut req_obj = Object::try_from(&content_value).unwrap();
+        let paths = vec![Path::from("workloads.same_workload_name")];
+
+        assert!(update_request_obj(
+            &mut req_obj,
+            &cur_obj,
+            &paths,
+            "manifest_file_name",
+            false,
+            &mut console_output,
+        )
+        .is_err());
+        assert_eq!(
+            "Collecting manifest: 'manifest_file_name' - contained workloads: {Error: Multiple workloads with the same name 'same_workload_name' found!! } - NOK".to_string(),
+            console_output
+        );
+    }
+
+    #[test]
+    fn utest_update_request_obj_delete_mode_on_ok() {
+        let mut console_output = "".to_string();
+        let mut req_obj = Object::default();
+        let content_value: Value = serde_yaml::from_str(
+            r#"
+        workloads:
+         simple: {}
+        "#,
+        )
+        .unwrap();
+        let cur_obj = Object::try_from(&content_value).unwrap();
+        let paths = vec![Path::from("workloads.simple")];
+        let expected_obj = Object::try_from(&content_value).unwrap();
+
+        assert!(update_request_obj(
+            &mut req_obj,
+            &cur_obj,
+            &paths,
+            "manifest_file_name",
+            true,
+            &mut console_output,
+        )
+        .is_ok());
+        assert_eq!(expected_obj, req_obj);
+        assert_eq!(
+            "Collecting manifest for deletion: 'manifest_file_name' - contained workloads: { 'simple' } - OK\n"
+                .to_string(),
+            console_output
+        );
+    }
+
+    #[test]
+    fn utest_create_filter_masks_from_paths_unique_ok() {
+        let paths = vec![
+            Path::from("workloads.simple"),
+            Path::from("workloads.simple"),
+        ];
+        assert_eq!(
+            vec!["currentState.workloads.simple"],
+            create_filter_masks_from_paths(&paths, "currentState")
+        );
+    }
 }
