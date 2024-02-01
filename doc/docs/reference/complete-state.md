@@ -7,7 +7,6 @@ The complete state data structure [CompleteState](./_ankaios.proto.md#completest
 Example: `ank get state` returns the complete state of Ankaios system:
 
 ```bash
-requestId: ank-cli
 startupState:
   workloads: {}
   configs: {}

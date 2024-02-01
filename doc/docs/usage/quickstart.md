@@ -57,7 +57,6 @@ ank get state
 which creates:
 
 ```yaml
-requestId: ank-cli
 startupState:
   workloads: {}
   configs: {}

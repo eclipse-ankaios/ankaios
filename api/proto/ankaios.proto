@@ -183,7 +183,7 @@ message Error {
 */
 message CompleteState {
   State startupState = 1; /// The State information at the startup of the Ankaios System.
-  State desiredState = 2; /// The state the user whant to reach.
+  State desiredState = 2; /// The state the user wants to reach.
   repeated WorkloadState workloadStates = 3; /// The current states of the workloads.
 }
 
