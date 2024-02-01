@@ -231,7 +231,7 @@ impl ServerState {
         }
     }
 
-    // [impl->swdd~server-state-adds-delete-conditions-for-deleted-workload~1]
+    // [impl->swdd~server-state-adds-delete-conditions-to-deleted-workload~1]
     fn add_delete_conditions(&self, deleted_workloads: &mut [DeletedWorkload]) {
         for workload in deleted_workloads.iter_mut() {
             if let Some(delete_conditions) = self.delete_graph.get(&workload.name) {
@@ -280,7 +280,7 @@ impl ServerState {
                     // [impl->swdd~server-state-stores-delete-condition~1]
                     self.update_delete_graph(&added_workloads);
 
-                    // [impl->swdd~server-state-adds-delete-conditions-for-deleted-workload~1]
+                    // [impl->swdd~server-state-adds-delete-conditions-to-deleted-workload~1]
                     self.add_delete_conditions(&mut deleted_workloads);
 
                     self.state = new_state;
@@ -940,7 +940,7 @@ mod tests {
     }
 
     // [utest->swdd~server-state-stores-delete-condition~1]
-    // [utest->swdd~server-state-adds-delete-conditions-for-deleted-workload~1]
+    // [utest->swdd~server-state-adds-delete-conditions-to-deleted-workload~1]
     #[test]
     fn utest_server_state_update_state_add_delete_conditions_for_deleted_workloads() {
         /*

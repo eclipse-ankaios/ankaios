@@ -589,7 +589,7 @@ Needs:
 - utest
 
 #### ServerState adds delete conditions for a deleted workload
-`swdd~server-state-adds-delete-conditions-for-deleted-workload~1`
+`swdd~server-state-adds-delete-conditions-to-deleted-workload~1`
 
 Status: approved
 
