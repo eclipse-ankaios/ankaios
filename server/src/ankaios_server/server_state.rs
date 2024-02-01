@@ -535,7 +535,7 @@ mod tests {
 
     // [utest->swdd~update-current-state-empty-update-mask~1]
     #[test]
-    fn utest_replace_all_if_update_mask_empty() {
+    fn utest_server_state_update_state_replace_all_if_update_mask_empty() {
         let _ = env_logger::builder().is_test(true).try_init();
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
@@ -596,7 +596,7 @@ mod tests {
 
     // [utest->swdd~update-current-state-with-update-mask~1]
     #[test]
-    fn utest_replace_workload() {
+    fn utest_server_state_update_state_replace_workload() {
         let _ = env_logger::builder().is_test(true).try_init();
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
@@ -648,7 +648,7 @@ mod tests {
 
     // [utest->swdd~update-current-state-with-update-mask~1]
     #[test]
-    fn utest_add_workload() {
+    fn utest_server_state_update_state_add_workload() {
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
         let update_mask = vec![format!("currentState.workloads.{}", WORKLOAD_NAME_4)];
@@ -690,7 +690,7 @@ mod tests {
 
     // [utest->swdd~update-current-state-with-update-mask~1]
     #[test]
-    fn utest_remove_workload() {
+    fn utest_server_state_update_state_remove_workload() {
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
         let update_mask = vec![format!("currentState.workloads.{}", WORKLOAD_NAME_2)];
@@ -729,7 +729,7 @@ mod tests {
 
     // [utest->swdd~update-current-state-with-update-mask~1]
     #[test]
-    fn utest_remove_non_existing_workload() {
+    fn utest_server_state_update_state_remove_non_existing_workload() {
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
         let update_mask = vec!["currentState.workloads.workload_5".into()];
@@ -752,7 +752,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_remove_fails_from_non_map() {
+    fn utest_server_state_update_state_remove_fails_from_non_map() {
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
         let update_mask = vec!["currentState.workloads.workload_2.tags.x".into()];
@@ -774,7 +774,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_fails_with_update_mask_empty_string() {
+    fn utest_server_state_update_state_fails_with_update_mask_empty_string() {
         let _ = env_logger::builder().is_test(true).try_init();
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
@@ -796,7 +796,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_extract_added_and_deleted_workloads_no_update() {
+    fn utest_server_state_update_state_no_update() {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let mut delete_graph_mock = MockDeleteGraph::new();
@@ -819,7 +819,7 @@ mod tests {
 
     // [utest->swdd~server-detects-new-workload~1]
     #[test]
-    fn utest_extract_added_and_deleted_workloads_new_workloads() {
+    fn utest_server_state_update_state_new_workloads() {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let new_state = generate_test_update_state();
@@ -870,7 +870,7 @@ mod tests {
 
     // [utest->swdd~server-detects-deleted-workload~1]
     #[test]
-    fn utest_extract_added_and_deleted_workloads_deleted_workloads() {
+    fn utest_server_state_update_state_deleted_workloads() {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let current_complete_state = generate_test_old_state();
@@ -925,7 +925,7 @@ mod tests {
 
     // [utest->swdd~server-detects-changed-workload~1]
     #[test]
-    fn utest_extract_added_and_deleted_workloads_updated_workloads() {
+    fn utest_server_state_update_state_updated_workload() {
         let _ = env_logger::builder().is_test(true).try_init();
 
         let current_complete_state = generate_test_old_state();
