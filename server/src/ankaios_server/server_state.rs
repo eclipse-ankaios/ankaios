@@ -236,11 +236,9 @@ impl ServerState {
                         ));
                     }
 
-                    log::info!("added_workloads = {:?}", added_workloads);
                     // [impl->swdd~server-state-stores-delete-condition~1]
                     self.delete_graph.insert(&added_workloads);
 
-                    log::info!("deleted_workloads = {:?}", deleted_workloads);
                     // [impl->swdd~server-state-adds-delete-conditions-to-deleted-workload~1]
                     self.delete_graph
                         .apply_delete_conditions_to(&mut deleted_workloads);
@@ -913,6 +911,65 @@ mod tests {
         );
 
         assert_eq!(server_state.state, new_complete_state);
+    }
+
+    // [utest->swdd~server-state-stores-delete-condition~1]
+    // [utest->swdd~server-state-adds-delete-conditions-to-deleted-workload~1]
+    #[test]
+    fn utest_server_state_update_state_store_and_add_delete_conditions() {
+        let _ = env_logger::builder().is_test(true).try_init();
+
+        let workload = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let current_complete_state = CompleteState {
+            current_state: State {
+                workloads: HashMap::from([(workload.name.clone(), workload.clone())]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let mut new_workload = workload.clone();
+        new_workload.agent = AGENT_B.to_string();
+        let new_complete_state = CompleteState {
+            current_state: State {
+                workloads: HashMap::from([(new_workload.name.clone(), new_workload.clone())]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let update_mask = vec![];
+
+        let mut delete_graph_mock = MockDeleteGraph::new();
+        delete_graph_mock
+            .expect_insert()
+            .with(mockall::predicate::eq(vec![new_workload]))
+            .once()
+            .return_const(());
+        delete_graph_mock
+            .expect_apply_delete_conditions_to()
+            .with(mockall::predicate::eq(vec![DeletedWorkload {
+                name: workload.name.clone(),
+                agent: workload.agent.clone(),
+                dependencies: HashMap::new(),
+            }]))
+            .once()
+            .return_const(());
+
+        let mut server_state = ServerState {
+            state: current_complete_state,
+            delete_graph: delete_graph_mock,
+        };
+
+        let added_deleted_workloads = server_state
+            .update(new_complete_state.clone(), update_mask)
+            .unwrap();
+        assert!(added_deleted_workloads.is_some());
     }
 
     fn generate_test_old_state() -> CompleteState {
