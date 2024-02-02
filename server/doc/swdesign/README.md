@@ -583,6 +583,7 @@ Rationale: This prevents a workload that expects a dependency as running from er
 
 Tags:
 - ServerState
+- DeleteGraph
 
 Needs:
 - impl
@@ -600,6 +601,7 @@ Rationale: The DeleteConditions allow an Ankaios agent to determine the correct 
 
 Tags:
 - ServerState
+- DeleteGraph
 
 Needs:
 - impl
