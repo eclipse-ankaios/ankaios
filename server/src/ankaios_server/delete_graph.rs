@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 use common::objects::{AddCondition, DeleteCondition, DeletedWorkload, WorkloadSpec};
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::HashMap;
 
 #[cfg(test)]
 use mockall::automock;
@@ -32,20 +32,10 @@ impl DeleteGraph {
                 the workload can be deleted immediately and does not need a delete condition */
                 if add_condition == &AddCondition::AddCondRunning {
                     let workload_name = workload_spec.name.clone();
-                    match self.delete_graph.entry(dependency_name.clone()) {
-                        Entry::Occupied(workload) => {
-                            workload.into_mut().insert(
-                                workload_name,
-                                DeleteCondition::DelCondNotPendingNorRunning,
-                            );
-                        }
-                        Entry::Vacant(new_entry) => {
-                            new_entry.insert(HashMap::from([(
-                                workload_name,
-                                DeleteCondition::DelCondNotPendingNorRunning,
-                            )]));
-                        }
-                    }
+                    self.delete_graph
+                        .entry(dependency_name.clone())
+                        .or_default()
+                        .insert(workload_name, DeleteCondition::DelCondNotPendingNorRunning);
                 }
             }
         }
