@@ -258,16 +258,24 @@ mod tests {
         workload_5.dependencies.clear();
         workload_6.dependencies.clear();
 
-        let mut delete_graph = DeleteGraph::default();
-
-        delete_graph.insert(&vec![
-            workload_1.clone(),
-            workload_2.clone(),
-            workload_3.clone(),
-            workload_4.clone(),
-            workload_5.clone(),
-            workload_6.clone(),
-        ]);
+        let delete_graph = DeleteGraph {
+            delete_graph: HashMap::from([
+                (
+                    workload_2.name.clone(),
+                    HashMap::from([(
+                        workload_1.name.clone(),
+                        DeleteCondition::DelCondNotPendingNorRunning,
+                    )]),
+                ),
+                (
+                    workload_5.name.clone(),
+                    HashMap::from([(
+                        workload_3.name.clone(),
+                        DeleteCondition::DelCondNotPendingNorRunning,
+                    )]),
+                ),
+            ]),
+        };
 
         let mut deleted_workloads = vec![
             DeletedWorkload {
