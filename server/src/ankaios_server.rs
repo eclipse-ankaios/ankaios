@@ -97,6 +97,7 @@ impl AnkaiosServer {
                     log::info!("Received AgentHello from '{}'", method_obj.agent_name);
 
                     // Send this agent all workloads in the current state which are assigned to him
+                    // [impl->swdd~agent-from-agent-field~1]
                     let added_workloads = self
                         .server_state
                         .get_workloads_for_agent(&method_obj.agent_name);
@@ -201,6 +202,8 @@ impl AnkaiosServer {
                             update_state_request.update_mask
                         );
 
+                        // [impl->swdd~update-current-state-with-update-mask~1]
+                        // [impl->swdd~update-current-state-empty-update-mask~1]
                         match self
                             .server_state
                             .update(update_state_request.state, update_state_request.update_mask)
@@ -839,7 +842,6 @@ mod tests {
 
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-provides-interface-get-complete-state~1]
-    // [utest->swdd~server-filters-get-complete-state-result~1]
     // [utest->swdd~server-includes-id-in-control-interface-response~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
@@ -930,7 +932,6 @@ mod tests {
 
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-provides-interface-get-complete-state~1]
-    // [utest->swdd~server-filters-get-complete-state-result~1]
     // [utest->swdd~server-includes-id-in-control-interface-response~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
