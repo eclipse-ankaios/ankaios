@@ -61,7 +61,7 @@ Bad:
 
 ```yaml
 ...
-  - uses: actions/checkout@v3
+  - uses: actions/checkout@v4
 ...
 ```
 
@@ -69,7 +69,7 @@ Good:
 
 ```yaml
 ...
-  - uses: actions/checkout@v3.5.3
+  - uses: actions/checkout@v4.1.1
 ...
 ```
 

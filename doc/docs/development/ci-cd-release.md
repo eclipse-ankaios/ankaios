@@ -29,7 +29,6 @@ The script calls another script `tools/create_artifacts.sh` for each platform th
 In addition, it exports the following:
 
 - Coverage report
-- Requirements tracing teport
 - ankaios.proto
 - install.sh (Ankaios installation script)
 
