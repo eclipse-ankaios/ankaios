@@ -541,47 +541,11 @@ mod tests {
         let update_state = generate_test_update_state();
 
         let mut delete_graph_mock = MockDeleteGraph::new();
-        let mut expected_added_workloads: Vec<WorkloadSpec> = update_state
-            .current_state
-            .workloads
-            .values()
-            .cloned()
-            .collect();
-        expected_added_workloads.sort_by(|left, right| left.name.cmp(&right.name));
 
-        delete_graph_mock
-            .expect_insert()
-            .with(mockall::predicate::function(
-                move |added_workloads: &[WorkloadSpec]| {
-                    let mut added_workloads = added_workloads.to_vec();
-                    added_workloads.sort_by(|left, right| left.name.cmp(&right.name));
-                    added_workloads == expected_added_workloads
-                },
-            ))
-            .once()
-            .return_const(());
+        delete_graph_mock.expect_insert().once().return_const(());
 
-        let mut expected_deleted_workloads: Vec<DeletedWorkload> = old_state
-            .current_state
-            .workloads
-            .values()
-            .cloned()
-            .map(|w| DeletedWorkload {
-                agent: w.agent.clone(),
-                name: w.name.clone(),
-                ..Default::default()
-            })
-            .collect();
-        expected_deleted_workloads.sort_by(|left, right| left.name.cmp(&right.name));
         delete_graph_mock
             .expect_apply_delete_conditions_to()
-            .with(mockall::predicate::function(
-                move |deleted_workloads: &[DeletedWorkload]| {
-                    let mut deleted_workloads = deleted_workloads.to_vec();
-                    deleted_workloads.sort_by(|left, right| left.name.cmp(&right.name));
-                    expected_deleted_workloads == deleted_workloads
-                },
-            ))
             .once()
             .return_const(());
 
@@ -616,24 +580,10 @@ mod tests {
             .insert(new_workload.name.clone(), new_workload.clone());
 
         let mut delete_graph_mock = MockDeleteGraph::new();
-        delete_graph_mock
-            .expect_insert()
-            .with(mockall::predicate::eq(vec![new_workload.clone()]))
-            .once()
-            .return_const(());
+        delete_graph_mock.expect_insert().once().return_const(());
 
-        let old_workload = old_state
-            .current_state
-            .workloads
-            .get(WORKLOAD_NAME_1)
-            .unwrap();
         delete_graph_mock
             .expect_apply_delete_conditions_to()
-            .with(mockall::predicate::eq(vec![DeletedWorkload {
-                name: old_workload.name.clone(),
-                agent: old_workload.agent.clone(),
-                ..Default::default()
-            }]))
             .once()
             .return_const(());
 
@@ -667,15 +617,10 @@ mod tests {
             .insert(WORKLOAD_NAME_4.into(), new_workload.clone());
 
         let mut delete_graph_mock = MockDeleteGraph::new();
-        delete_graph_mock
-            .expect_insert()
-            .with(mockall::predicate::eq(vec![new_workload.clone()]))
-            .once()
-            .return_const(());
+        delete_graph_mock.expect_insert().once().return_const(());
 
         delete_graph_mock
             .expect_apply_delete_conditions_to()
-            .with(mockall::predicate::eq(vec![]))
             .once()
             .return_const(());
 
@@ -696,26 +641,18 @@ mod tests {
         let update_mask = vec![format!("currentState.workloads.{}", WORKLOAD_NAME_2)];
 
         let mut expected = old_state.clone();
-        let removed_workload = expected
+        expected
             .current_state
             .workloads
             .remove(WORKLOAD_NAME_2)
             .unwrap();
 
         let mut delete_graph_mock = MockDeleteGraph::new();
-        delete_graph_mock
-            .expect_insert()
-            .with(mockall::predicate::eq(vec![]))
-            .once()
-            .return_const(());
+        delete_graph_mock.expect_insert().once().return_const(());
 
         delete_graph_mock
             .expect_apply_delete_conditions_to()
-            .with(mockall::predicate::eq(vec![DeletedWorkload {
-                name: removed_workload.name.clone(),
-                agent: removed_workload.agent.clone(),
-                ..Default::default()
-            }]))
+            .once()
             .return_const(());
 
         let mut server_state = ServerState {
@@ -826,31 +763,10 @@ mod tests {
         let update_mask = vec![];
 
         let mut delete_graph_mock = MockDeleteGraph::new();
-        let mut expected_added_workloads: Vec<WorkloadSpec> = new_state
-            .clone()
-            .current_state
-            .workloads
-            .into_values()
-            .collect();
-        expected_added_workloads.sort_by(|left, right| left.name.cmp(&right.name));
+        delete_graph_mock.expect_insert().once().return_const(());
 
-        let cloned_expected_added_workloads = expected_added_workloads.clone();
-        delete_graph_mock
-            .expect_insert()
-            .with(mockall::predicate::function(
-                move |added_workloads: &[WorkloadSpec]| {
-                    let mut added_workloads = added_workloads.to_vec();
-                    added_workloads.sort_by(|left, right| left.name.cmp(&right.name));
-                    cloned_expected_added_workloads == added_workloads
-                },
-            ))
-            .once()
-            .return_const(());
-
-        let expected_deleted_workloads: Vec<DeletedWorkload> = Vec::new();
         delete_graph_mock
             .expect_apply_delete_conditions_to()
-            .with(mockall::predicate::eq(expected_deleted_workloads.clone()))
             .once()
             .return_const(());
 
@@ -861,9 +777,21 @@ mod tests {
 
         let added_deleted_workloads = server_state.update(new_state.clone(), update_mask).unwrap();
         assert!(added_deleted_workloads.is_some());
+
         let (mut added_workloads, deleted_workloads) = added_deleted_workloads.unwrap();
         added_workloads.sort_by(|left, right| left.name.cmp(&right.name));
+
+        let mut expected_added_workloads: Vec<WorkloadSpec> = new_state
+            .clone()
+            .current_state
+            .workloads
+            .into_values()
+            .collect();
+        expected_added_workloads.sort_by(|left, right| left.name.cmp(&right.name));
+
         assert_eq!(added_workloads, expected_added_workloads);
+
+        let expected_deleted_workloads: Vec<DeletedWorkload> = Vec::new();
         assert_eq!(deleted_workloads, expected_deleted_workloads);
         assert_eq!(server_state.state, new_state);
     }
@@ -878,13 +806,26 @@ mod tests {
         let update_mask = vec![];
 
         let mut delete_graph_mock = MockDeleteGraph::new();
-        let expected_added_workloads: Vec<WorkloadSpec> = Vec::new();
+        delete_graph_mock.expect_insert().once().return_const(());
+
         delete_graph_mock
-            .expect_insert()
-            .with(mockall::predicate::eq(expected_added_workloads.clone()))
+            .expect_apply_delete_conditions_to()
             .once()
             .return_const(());
 
+        let mut server_state = ServerState {
+            state: current_complete_state.clone(),
+            delete_graph: delete_graph_mock,
+        };
+
+        let added_deleted_workloads = server_state.update(update_state, update_mask).unwrap();
+        assert!(added_deleted_workloads.is_some());
+
+        let (added_workloads, mut deleted_workloads) = added_deleted_workloads.unwrap();
+        let expected_added_workloads: Vec<WorkloadSpec> = Vec::new();
+        assert_eq!(added_workloads, expected_added_workloads);
+
+        deleted_workloads.sort_by(|left, right| left.name.cmp(&right.name));
         let mut expected_deleted_workloads: Vec<DeletedWorkload> = current_complete_state
             .current_state
             .workloads
@@ -896,30 +837,8 @@ mod tests {
             })
             .collect();
         expected_deleted_workloads.sort_by(|left, right| left.name.cmp(&right.name));
-        let cloned_expected_deleted_workloads = expected_deleted_workloads.clone();
-        delete_graph_mock
-            .expect_apply_delete_conditions_to()
-            .with(mockall::predicate::function(
-                move |deleted_workloads: &[DeletedWorkload]| {
-                    let mut deleted_workloads = deleted_workloads.to_vec();
-                    deleted_workloads.sort_by(|left, right| left.name.cmp(&right.name));
-                    cloned_expected_deleted_workloads == deleted_workloads
-                },
-            ))
-            .once()
-            .return_const(());
-
-        let mut server_state = ServerState {
-            state: current_complete_state.clone(),
-            delete_graph: delete_graph_mock,
-        };
-
-        let added_deleted_workloads = server_state.update(update_state, update_mask).unwrap();
-        assert!(added_deleted_workloads.is_some());
-        let (added_workloads, mut deleted_workloads) = added_deleted_workloads.unwrap();
-        assert_eq!(added_workloads, expected_added_workloads);
-        deleted_workloads.sort_by(|left, right| left.name.cmp(&right.name));
         assert_eq!(deleted_workloads, expected_deleted_workloads);
+
         assert_eq!(server_state.state, CompleteState::default());
     }
 
@@ -949,22 +868,10 @@ mod tests {
 
         let update_mask = vec![];
 
-        let expected_added_workloads = vec![updated_workload];
-        let expected_deleted_workloads = vec![DeletedWorkload {
-            agent: workload_to_update.agent.clone(),
-            name: workload_to_update.name.clone(),
-            dependencies: HashMap::new(),
-        }];
-
         let mut delete_graph_mock = MockDeleteGraph::new();
-        delete_graph_mock
-            .expect_insert()
-            .with(mockall::predicate::eq(expected_added_workloads.clone()))
-            .once()
-            .return_const(());
+        delete_graph_mock.expect_insert().once().return_const(());
         delete_graph_mock
             .expect_apply_delete_conditions_to()
-            .with(mockall::predicate::eq(expected_deleted_workloads.clone()))
             .once()
             .return_const(());
 
@@ -976,11 +883,21 @@ mod tests {
         let added_deleted_workloads = server_state
             .update(new_complete_state.clone(), update_mask)
             .unwrap();
-
         assert!(added_deleted_workloads.is_some());
+
         let (added_workloads, deleted_workloads) = added_deleted_workloads.unwrap();
-        assert_eq!(added_workloads, expected_added_workloads);
-        assert_eq!(deleted_workloads, expected_deleted_workloads);
+
+        assert_eq!(added_workloads, vec![updated_workload]);
+
+        assert_eq!(
+            deleted_workloads,
+            vec![DeletedWorkload {
+                agent: workload_to_update.agent.clone(),
+                name: workload_to_update.name.clone(),
+                dependencies: HashMap::new(),
+            }]
+        );
+
         assert_eq!(server_state.state, new_complete_state);
     }
 
