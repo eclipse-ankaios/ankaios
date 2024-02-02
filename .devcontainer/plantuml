@@ -1,0 +1,18 @@
+#!/bin/bash
+
+if [ -n "${JAVA_HOME}" ] && [ -x "${JAVA_HOME}/bin/java" ] ; then
+    JAVA="${JAVA_HOME}/bin/java"
+elif [ -x /usr/bin/java ] ; then
+    JAVA=/usr/bin/java
+    JAVA_HOME=$(dirname $(realpath "${JAVA}"))/..
+else
+    echo Cannot find JVM >&2
+    exit 1
+fi
+
+HEADLESS=
+if [ -z "$DISPLAY" ] || ! [ -e "${JAVA_HOME}/lib/libawt_xawt.so" ] ; then
+    HEADLESS=-Djava.awt.headless=true
+fi
+
+exec "$JAVA" -Djava.net.useSystemProxies=true $HEADLESS -jar /usr/local/bin/plantuml.jar "$@"
