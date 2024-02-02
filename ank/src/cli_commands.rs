@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{fmt, time::Duration};
+use std::{collections::HashSet, fmt, io, time::Duration};
 
 #[cfg(not(test))]
 async fn read_file_to_string(file: String) -> std::io::Result<String> {
@@ -24,7 +24,9 @@ use tests::read_to_string_mock as read_file_to_string;
 use common::{
     commands::{CompleteState, CompleteStateRequest, Response, ResponseContent},
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::{Tag, WorkloadSpec},
+    objects::{State, Tag, WorkloadSpec},
+    state_manipulation::Object,
+    state_manipulation::Path,
     to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
 
@@ -39,12 +41,15 @@ use tests::MockGRPCCommunicationsClient as GRPCCommunicationsClient;
 use tabled::{settings::Style, Table, Tabled};
 use url::Url;
 
-use crate::{cli::OutputFormat, output_and_error, output_debug};
+use crate::{
+    cli::{ApplyArgs, OutputFormat},
+    output_and_error, output_debug,
+};
 
 const BUFFER_SIZE: usize = 20;
 const WAIT_TIME_MS: Duration = Duration::from_millis(3000);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CliError {
     YamlSerialization(String),
     JsonSerialization(String),
@@ -181,6 +186,202 @@ fn setup_cli_communication(
         }
     });
     (communications_task, to_server, cli_receiver)
+}
+
+#[cfg(not(test))]
+pub fn open_manifest(
+    file_path: &str,
+) -> io::Result<(String, Box<dyn io::Read + Send + Sync + 'static>)> {
+    use std::fs::File;
+    match File::open(file_path) {
+        Ok(open_file) => Ok((file_path.to_owned(), Box::new(open_file))),
+        Err(err) => Err(err),
+    }
+}
+#[cfg(test)]
+use tests::open_manifest_mock as open_manifest;
+
+// [impl->swdd~cli-supports-ankaios-manifest~1]
+fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), CliError> {
+    let mut data = "".to_string();
+    let _ = manifest.1.read_to_string(&mut data);
+    if data.is_empty() {
+        return Err(CliError::ExecutionError(
+            "Empty manifest provided -> nothing to do!".to_string(),
+        ));
+    }
+    let _state_obj_parsing_check: State = serde_yaml::from_str(&data)?;
+
+    let mut yaml_nodes = Default::default();
+    match serde_yaml::from_str(&data).and_then(|nodes: serde_yaml::Value| {
+        yaml_nodes = nodes;
+        Object::try_from(&yaml_nodes)
+    }) {
+        Err(err) => Err(CliError::ExecutionError(format!(
+            "Error while parsing the manifest data.\nError: {err}"
+        ))),
+        Ok(obj) => {
+            let mut workload_paths: HashSet<common::state_manipulation::Path> = HashSet::new();
+            for path in common::state_manipulation::get_paths_from_yaml_node(&yaml_nodes, false) {
+                let parts = path.parts();
+                if parts.len() > 1 {
+                    let _ = &mut workload_paths.insert(common::state_manipulation::Path::from(
+                        format!("{}.{}", parts[0], parts[1]),
+                    ));
+                }
+            }
+            Ok((obj, workload_paths.into_iter().collect()))
+        }
+    }
+}
+
+// [impl->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
+fn handle_agent_overwrite(
+    desired_agent: &Option<String>,
+    state_obj: &mut State,
+    console_output: &mut String,
+) -> Result<(), CliError> {
+    let mut _apply_on_agent = "".to_owned();
+    // No agent name specified through cli!
+    if desired_agent.is_none() {
+        let agent_names: HashSet<String> =
+            HashSet::from_iter(state_obj.clone().workloads.into_values().map(|wl| wl.agent));
+        // Found multiple agent names!
+        if agent_names.len() > 1 {
+            return Err(CliError::ExecutionError(format!("Multiple agent names in manifests detected {:?} -> use '--agent' option to overwrite!", &agent_names)));
+        }
+        // No agent name could be found in any workload spec!
+        // [impl->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
+        else if agent_names.contains("") {
+            return Err(CliError::ExecutionError(
+                "No agent name specified -> use '--agent' option to specify!".to_owned(),
+            ));
+        }
+        // An agent name could be found -> do an agent name overwrite!
+        else {
+            _apply_on_agent = agent_names.iter().next().unwrap().to_owned();
+            for (_, wl) in &mut state_obj.workloads.iter_mut() {
+                wl.agent = _apply_on_agent.to_owned();
+            }
+        }
+    }
+    // An agent name specified through cli -> do an agent name overwrite!
+    else {
+        _apply_on_agent = desired_agent.as_ref().unwrap().to_owned();
+        for (_, wl) in &mut state_obj.workloads.iter_mut() {
+            wl.agent = _apply_on_agent.to_owned();
+        }
+    }
+
+    console_output.push_str(&format!(
+        "Applying collected manifests on agent '{}' ... ",
+        _apply_on_agent
+    ));
+
+    Ok(())
+}
+
+fn update_request_obj(
+    req_obj: &mut Object,
+    cur_obj: &Object,
+    paths: &[Path],
+    manifest_file_name: &str,
+    delete_mode: bool,
+    console_output: &mut String,
+) -> Result<(), CliError> {
+    let info_collecting = if delete_mode {
+        format!(
+            "Collecting manifest for deletion: '{}' - contained workloads: {{",
+            manifest_file_name
+        )
+    } else {
+        format!(
+            "Collecting manifest: '{}' - contained workloads: {{",
+            manifest_file_name
+        )
+    };
+
+    console_output.push_str(&info_collecting);
+    let workload_path_len = paths.len();
+    for (index, workload_path) in paths.iter().enumerate() {
+        let workload_name = &workload_path.parts()[1];
+        if req_obj.get(workload_path).is_none() {
+            if index == workload_path_len - 1 {
+                console_output.push_str(&format!(" '{}'", workload_name));
+            } else {
+                console_output.push_str(&format!(" '{}',", workload_name));
+            }
+            let _ = req_obj.set(workload_path, cur_obj.get(workload_path).unwrap().clone());
+        } else {
+            let error_str = format!(
+                "Error: Multiple workloads with the same name '{}' found!! }} - NOK",
+                workload_name
+            );
+            // output_and_error!("\n{}\n{}", console_output, error_str);
+            console_output.push_str(&error_str);
+            return Err(CliError::ExecutionError(error_str));
+        }
+    }
+    console_output.push_str(" } - OK\n");
+
+    Ok(())
+}
+
+fn create_filter_masks_from_paths(
+    paths: &[common::state_manipulation::Path],
+    prefix: &str,
+) -> Vec<String> {
+    let mut filter_masks = paths
+        .iter()
+        .map(|path| format!("{}.{}.{}", prefix, path.parts()[0], path.parts()[1]))
+        .collect::<Vec<String>>();
+    filter_masks.sort();
+    filter_masks.dedup();
+    filter_masks
+}
+fn print_manifest_files_overview(apply_args: &ApplyArgs, console_output: &mut String) {
+    let line_len = apply_args.manifest_files.iter().max().unwrap().len() + 2;
+    let plot_line = |console_output: &mut String, end_str: &str| {
+        for _ in 1..line_len {
+            console_output.push('-');
+        }
+        console_output.push_str(end_str);
+    };
+    console_output.push_str("Applying manifest files overview:\n");
+    plot_line(console_output, "\n");
+    apply_args.manifest_files.iter().for_each(|file| {
+        console_output.push_str(&format!("{}\n", if "-" != file { file } else { "stdin" }))
+    });
+
+    plot_line(console_output, "\n");
+}
+type InputSourcePair = (String, Box<dyn io::Read + Send + Sync + 'static>);
+type InputSources = Result<Vec<InputSourcePair>, io::Error>;
+impl ApplyArgs {
+    pub fn get_input_sources(&self) -> InputSources {
+        if let Some(first_arg) = self.manifest_files.first() {
+            match first_arg.as_str() {
+                // [impl->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
+                "-" => Ok(vec![("stdin".to_owned(), Box::new(io::stdin()))]),
+                // [impl->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
+                _ => {
+                    let mut res: InputSources = Ok(vec![]);
+                    for file_path in self.manifest_files.iter() {
+                        match open_manifest(file_path) {
+                            Ok(open_file) => res.as_mut().unwrap().push(open_file),
+                            Err(err) => {
+                                res = Err(err);
+                                break;
+                            }
+                        }
+                    }
+                    res
+                }
+            }
+        } else {
+            Ok(vec![])
+        }
+    }
 }
 
 #[derive(Debug, Tabled)]
@@ -466,6 +667,95 @@ impl CliCommands {
             .map_err(|err| CliError::ExecutionError(err.to_string()))?;
         Ok(())
     }
+
+    // [impl->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
+    // [impl->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
+    fn generate_state_obj_and_filter_masks_from_manifests(
+        &self,
+        manifests: &mut [InputSourcePair],
+        apply_args: &ApplyArgs,
+        console_output: &mut String,
+    ) -> Result<(CompleteState, Vec<String>), CliError> {
+        let mut req_obj: Object = State::default().try_into().unwrap();
+        let mut req_paths: Vec<common::state_manipulation::Path> = Vec::new();
+        for manifest in manifests.iter_mut() {
+            let (cur_obj, mut cur_workload_paths) = parse_manifest(manifest)?;
+
+            update_request_obj(
+                &mut req_obj,
+                &cur_obj,
+                &cur_workload_paths,
+                &manifest.0,
+                apply_args.delete_mode,
+                console_output,
+            )?;
+
+            req_paths.append(&mut cur_workload_paths);
+        }
+
+        if req_paths.is_empty() {
+            return Err(CliError::ExecutionError(
+                "No workload provided in manifests!".to_owned(),
+            ));
+        }
+        let filter_masks = create_filter_masks_from_paths(&req_paths, "currentState");
+        output_debug!("\nfilter_masks:\n{:?}\n", filter_masks);
+
+        let complete_state_req_obj = if apply_args.delete_mode {
+            CompleteState {
+                ..Default::default()
+            }
+        } else {
+            let mut state_from_req_obj: common::objects::State = req_obj.try_into().unwrap();
+            handle_agent_overwrite(
+                &apply_args.agent_name,
+                &mut state_from_req_obj,
+                console_output,
+            )?;
+            CompleteState {
+                current_state: state_from_req_obj,
+                ..Default::default()
+            }
+        };
+        output_debug!("\nstate_obj:\n{:?}\n", complete_state_req_obj);
+
+        Ok((complete_state_req_obj, filter_masks))
+    }
+
+    // [impl->swdd~cli-provides-apply-multiple-ankaios-manifests~1]
+    pub async fn apply_manifests(&mut self, apply_args: ApplyArgs) -> Result<String, CliError> {
+        let mut console_output = String::default();
+
+        print_manifest_files_overview(&apply_args, &mut console_output);
+
+        match apply_args.get_input_sources() {
+            Ok(mut manifests) => {
+                let (complete_state_req_obj, filter_masks) = self
+                    .generate_state_obj_and_filter_masks_from_manifests(
+                        &mut manifests,
+                        &apply_args,
+                        &mut console_output,
+                    )?;
+
+                let request_id = format!("{}_apply", self.cli_name);
+
+                // [impl->swdd~cli-apply-send-update-state~1]
+                // [impl->swdd~cli-apply-send-update-state-for-deletion~1]
+                match self
+                    .to_server
+                    .update_state(request_id, complete_state_req_obj, filter_masks)
+                    .await
+                {
+                    Ok(_) => {
+                        console_output.push_str("Done.");
+                        Ok(console_output)
+                    }
+                    Err(err) => Err(CliError::ExecutionError(err.to_string())),
+                }
+            }
+            Err(err) => Err(CliError::ExecutionError(err.to_string())),
+        }
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -483,6 +773,7 @@ mod tests {
         commands::{self, Request, RequestContent, Response, ResponseContent},
         from_server_interface::{FromServer, FromServerSender},
         objects::{ExecutionState, Tag, WorkloadSpec, WorkloadState},
+        state_manipulation::Path,
         test_utils::{self, generate_test_complete_state},
         to_server_interface::{ToServer, ToServerReceiver},
     };
@@ -491,9 +782,13 @@ mod tests {
     use crate::{
         cli::OutputFormat,
         cli_commands::{
-            generate_compact_state_output, get_filtered_value, update_compact_state, WorkloadInfo,
+            create_filter_masks_from_paths, generate_compact_state_output, get_filtered_value,
+            parse_manifest, update_compact_state, update_request_obj, ApplyArgs, CliError,
+            InputSourcePair, WorkloadInfo,
         },
     };
+    use common::state_manipulation::Object;
+    use serde_yaml::Value;
 
     use super::CliCommands;
 
@@ -519,6 +814,9 @@ mod tests {
     mockall::lazy_static! {
         pub static ref FAKE_READ_TO_STRING_MOCK_RESULT_LIST: tokio::sync::Mutex<std::collections::VecDeque<io::Result<String>>>  =
         tokio::sync::Mutex::new(std::collections::VecDeque::new());
+
+        pub static ref FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST: std::sync::Mutex<std::collections::VecDeque<io::Result<InputSourcePair>>>  =
+        std::sync::Mutex::new(std::collections::VecDeque::new());
     }
 
     pub async fn read_to_string_mock(_file: String) -> io::Result<String> {
@@ -538,6 +836,16 @@ mod tests {
                 agent_tx: FromServerSender,
             ) -> Result<(), String>;
         }
+    }
+
+    pub fn open_manifest_mock(
+        _file_path: &str,
+    ) -> io::Result<(String, Box<dyn io::Read + Send + Sync + 'static>)> {
+        FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .pop_front()
+            .unwrap()
     }
 
     fn prepare_server_response(
@@ -1809,5 +2117,242 @@ mod tests {
             serde_yaml::Value::Mapping(Default::default()),
         );
         assert_eq!(empty_map, expected_map);
+    }
+
+    // [utest->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
+    #[tokio::test]
+    async fn utest_apply_args_get_input_sources_manifest_files_ok() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let _dummy_content = io::Cursor::new(b"manifest content");
+        for i in 1..3 {
+            FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
+                .lock()
+                .unwrap()
+                .push_back(Ok((
+                    format!("manifest{i}.yml"),
+                    Box::new(_dummy_content.clone()),
+                )));
+        }
+
+        let args = ApplyArgs {
+            manifest_files: vec!["manifest1.yml".to_owned(), "manifest2.yml".to_owned()],
+            agent_name: None,
+            delete_mode: false,
+        };
+        let expected = vec!["manifest1.yml".to_owned(), "manifest2.yml".to_owned()];
+        let actual = args.get_input_sources().unwrap();
+
+        let get_file_name = |item: &InputSourcePair| -> String { item.0.to_owned() };
+        assert_eq!(
+            expected,
+            actual.iter().map(get_file_name).collect::<Vec<String>>()
+        )
+    }
+
+    #[tokio::test]
+    async fn utest_apply_args_get_input_sources_manifest_files_error() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let _dummy_content = io::Cursor::new(b"manifest content");
+        FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .push_back(Err(io::Error::other(
+                "Some error occurred during open the manifest file!",
+            )));
+
+        let args = ApplyArgs {
+            manifest_files: vec!["manifest1.yml".to_owned()],
+            agent_name: None,
+            delete_mode: false,
+        };
+
+        assert!(args.get_input_sources().is_err(), "Expected an error");
+    }
+
+    // [utest->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
+    #[test]
+    fn utest_apply_args_get_input_sources_valid_manifest_stdin() {
+        let args = ApplyArgs {
+            manifest_files: vec!["-".to_owned()],
+            agent_name: None,
+            delete_mode: false,
+        };
+        let expected = vec!["stdin".to_owned()];
+        let actual = args.get_input_sources().unwrap();
+
+        let get_file_name = |item: &InputSourcePair| -> String { item.0.to_owned() };
+        assert_eq!(
+            expected,
+            actual.iter().map(get_file_name).collect::<Vec<String>>()
+        )
+    }
+
+    // [utest->swdd~cli-supports-ankaios-manifest~1]
+    #[test]
+    fn utest_parse_manifest_ok() {
+        let manifest_content = io::Cursor::new(
+            b"workloads:
+        simple:
+          runtime: podman
+          agent: agent_A
+          restart: true
+          updateStrategy: AT_MOST_ONCE
+          accessRights:
+            allow: []
+            deny: []
+          tags:
+            - key: owner
+              value: Ankaios team
+          runtimeConfig: |
+            image: docker.io/nginx:latest
+            commandOptions: [\"-p\", \"8081:80\"]",
+        );
+
+        assert!(parse_manifest(&mut (
+            "valid_manifest_content".to_string(),
+            Box::new(manifest_content)
+        ))
+        .is_ok());
+    }
+
+    #[test]
+    fn utest_parse_manifest_failed_invalid_manifest_content() {
+        let manifest_content = io::Cursor::new(b"invalid manifest content");
+
+        assert!(parse_manifest(&mut (
+            "invalid_manifest_content".to_string(),
+            Box::new(manifest_content)
+        ))
+        .is_err());
+    }
+    #[test]
+    fn utest_parse_manifest_failed_empty_manifest_content() {
+        let manifest_content = io::Cursor::new(b"");
+
+        assert_eq!(
+            Err(CliError::ExecutionError(
+                "Empty manifest provided -> nothing to do!".to_string(),
+            )),
+            parse_manifest(&mut (
+                "invalid_manifest_content".to_string(),
+                Box::new(manifest_content)
+            ))
+        );
+    }
+
+    #[test]
+    fn utest_update_request_obj_ok() {
+        let mut console_output = "".to_string();
+        let mut req_obj = Object::default();
+        let content_value: Value = serde_yaml::from_str(
+            r#"
+        workloads:
+         simple: {}
+         complex: {}
+        "#,
+        )
+        .unwrap();
+        let cur_obj = Object::try_from(&content_value).unwrap();
+        let paths = vec![
+            Path::from("workloads.simple"),
+            Path::from("workloads.complex"),
+        ];
+        let expected_obj = Object::try_from(&content_value).unwrap();
+
+        assert!(update_request_obj(
+            &mut req_obj,
+            &cur_obj,
+            &paths,
+            "manifest_file_name",
+            false,
+            &mut console_output,
+        )
+        .is_ok());
+        assert_eq!(expected_obj, req_obj);
+        assert_eq!(
+            "Collecting manifest: 'manifest_file_name' - contained workloads: { 'simple', 'complex' } - OK\n"
+                .to_string(),
+            console_output
+        );
+    }
+
+    #[test]
+    fn utest_update_request_obj_failed_same_workload_names() {
+        let mut console_output = "".to_string();
+        let content_value: Value = serde_yaml::from_str(
+            r#"
+        workloads:
+         same_workload_name: {}
+        "#,
+        )
+        .unwrap();
+        let cur_obj = Object::try_from(&content_value).unwrap();
+        // simulates the workload 'same_workload_name' is already there
+        let mut req_obj = Object::try_from(&content_value).unwrap();
+        let paths = vec![Path::from("workloads.same_workload_name")];
+
+        assert!(update_request_obj(
+            &mut req_obj,
+            &cur_obj,
+            &paths,
+            "manifest_file_name",
+            false,
+            &mut console_output,
+        )
+        .is_err());
+        assert_eq!(
+            "Collecting manifest: 'manifest_file_name' - contained workloads: {Error: Multiple workloads with the same name 'same_workload_name' found!! } - NOK".to_string(),
+            console_output
+        );
+    }
+
+    #[test]
+    fn utest_update_request_obj_delete_mode_on_ok() {
+        let mut console_output = "".to_string();
+        let mut req_obj = Object::default();
+        let content_value: Value = serde_yaml::from_str(
+            r#"
+        workloads:
+         simple: {}
+        "#,
+        )
+        .unwrap();
+        let cur_obj = Object::try_from(&content_value).unwrap();
+        let paths = vec![Path::from("workloads.simple")];
+        let expected_obj = Object::try_from(&content_value).unwrap();
+
+        assert!(update_request_obj(
+            &mut req_obj,
+            &cur_obj,
+            &paths,
+            "manifest_file_name",
+            true,
+            &mut console_output,
+        )
+        .is_ok());
+        assert_eq!(expected_obj, req_obj);
+        assert_eq!(
+            "Collecting manifest for deletion: 'manifest_file_name' - contained workloads: { 'simple' } - OK\n"
+                .to_string(),
+            console_output
+        );
+    }
+
+    #[test]
+    fn utest_create_filter_masks_from_paths_unique_ok() {
+        let paths = vec![
+            Path::from("workloads.simple"),
+            Path::from("workloads.simple"),
+        ];
+        assert_eq!(
+            vec!["currentState.workloads.simple"],
+            create_filter_masks_from_paths(&paths, "currentState")
+        );
     }
 }

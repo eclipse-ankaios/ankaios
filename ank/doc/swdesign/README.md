@@ -510,6 +510,223 @@ Needs:
 - impl
 - utest
 
+### `ank apply [-d] [--agent agent_name] <manifest.yaml> ...`
+
+#### Ankaios manifest
+
+The Ankaios manifest is a YAML (or a JSON) file composed of a list of workload specifications under the `workloads` keyword.
+
+```yaml
+# Example of a list of two workload specifications with the names 'nginx' and 'hello1'.
+workloads:
+  nginx:
+    agent: agent_A
+    tags:
+      - key: owner
+        value: Ankaios team
+    dependencies: {}
+    updateStrategy: AT_MOST_ONCE
+    restart: true
+    accessRights:
+      allow: []
+      deny: []
+    runtime: podman
+    runtimeConfig: |
+      image: docker.io/nginx:latest
+      commandOptions: ["-p", "8081:80"]
+  hello1:
+    # For this workload the following are not set:
+    # - agent name
+    # - dependencies -> defaults to {}
+    tags: []
+    restart: true
+    updateStrategy: AT_MOST_ONCE
+    accessRights:
+      allow: []
+      deny: []
+    runtime: podman-kube
+    runtimeConfig: |
+      image: alpine:latest
+      commandOptions: [ "--rm"]
+      commandArgs: [ "echo", "Hello Ankaios"]
+```
+
+##### Workload specification
+
+A workload specification consists of the following properties:
+
+| Property | Description | Value | Is required? |
+|----------|:-----------:|:------|:----------:|
+| **workload name** (_as field key_) | It specifies an unique workload name to identify the workload in the Ankaios system. | A string of any characters (if properly quoted by either single quotes 'example' or double quotes "example"). | true |
+| **agent** | It specifies the name of the owning agent which is going to execute the workload. | A string of any characters (if properly quoted by either single quotes 'example' or double quotes "example"). |   false |
+| **tags** | It specifies a list use defined key/value objects. | A list of { `key`: some_string, `value`: some_string} or empty| true |
+| **dependencies** | It specifies inter workload dependencies. | Not specified yet and shall be set to empty.| false |
+| **updateStrategy** | It specifies the update strategy. | One of: `UNSPECIFIED`, `AT_LEAST_ONCE`, `AT_MOST_ONCE` | true |
+| **restart** | It specifies whether the workload shall be restarted when it exits | One of: `true`,`false` | true |
+| **accessRights** | It specifies lists of access rules fpr `allow` and `deny`. | Not fully specified yet and shall be set to empty list for both. | true |
+| **runtime** | It specifies the type of the runtime. | One of: `podman`, `podman-kube`. | true |
+| **runtimeConfig** | It specifies the configuration for the runtime whose configuration structure is specific for each runtime as a _string_ | As a _string_ from one of: [PodmanRuntimeConfig](#podmanruntimeconfig), [PodmanKubeRuntimeConfig](#podmankuberuntimeconfig),  | true |
+
+###### PodmanRuntimeConfig
+
+The runtime configuration for the podman runtime is specified as follows:
+
+```YAML
+generalOptions: [<comma>, <separated>, <options>]
+image: <registry>/<image name>:<version>
+commandOptions: [<comma>, <separated>, <options>]
+commandArgs: [<comma>, <separated>, <arguments>]
+```
+
+###### PodmanKubeRuntimeConfig
+
+The runtime configuration for the podman-kube runtime is specified as follows:
+
+```YAML
+generalOptions: [<comma>, <separated>, <options>]
+play_options: [<comma>, <separated>, <options>]
+down_options: [<comma>, <separated>, <options>]
+manifest: <string containing the K8s manifest>
+```
+
+#### CLI supports Ankaios manifest
+`swdd~cli-supports-ankaios-manifest~1`
+
+Status: approved
+
+The Ankaios CLI shall support the Ankaios manifest file format.
+
+Tags:
+- AnkaiosManifest
+
+Needs:
+- impl
+- utest
+
+#### CLI provides a function to accept a list of Ankaios manifest files
+`swdd~cli-apply-accepts-list-of-ankaios-manifests~1`
+
+Status: approved
+
+**When** the user provides a list of Ankaios manifest files via the CLI command `ank apply [OPTIONS] manifest1.yaml manifest2.yaml ...`,
+
+**Then** the Ankaios CLI shall accept the content of all the given Ankaios manifest files.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI provides a function to accept an Ankaios manifest content from `stdin`
+`swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1`
+
+Status: approved
+
+**When** the user provides the manifest content via the CLI command `ank apply [OPTIONS] -` through `stdin`,
+
+**Then** the Ankaios CLI shall accept the given manifest content from `stdin`.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI provides a function to generate a state object from Ankaios manifests
+`swdd~cli-apply-generates-state-object-from-ankaios-manifests~1`
+
+Status: approved
+
+**Where** the user does not provide the optional argument `-d`,
+
+**When** the Ankaios CLI accepts the manifest content from file(s) or from `stdin`,
+
+**Then** the Ankaios CLI shall parse the manifest content into a state object.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI provides a function to generate filter masks from Ankaios manifests
+`swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1`
+
+Status: approved
+
+**When** the Ankaios CLI accepts the manifest content from file(s) or from `stdin`,
+
+**Then** the Ankaios CLI shall parse the manifest content into a list of filter masks.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI provides a function to send update state request for `ank apply ...`
+`swdd~cli-apply-send-update-state~1`
+
+Status: approved
+
+**When** the Ankaios CLI parses the manifest content into a state object
+
+**And** the Ankaios CLI parses the manifest content into a list of filter masks,
+
+**Then** then Ankaios CLI shall send an update state request to the Ankaios server containing the built state object and filter mask.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI provides a function to send update state request for `ank apply -d ...`
+`swdd~cli-apply-send-update-state-for-deletion~1`
+
+Status: approved
+
+**Where** the user provides the optional argument `-d`,
+
+**When** the Ankaios CLI parses the manifest content into a list of filter masks,
+
+**Then** then Ankaios CLI shall send an update state request to the Ankaios server containing an empty state object and the filter mask.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI provides a function to overwrite the agent names
+`swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1`
+
+Status: approved
+
+**Where** the user provides the optional argument `--agent`,
+
+**When** the Ankaios CLI parses the manifest content into a state object,
+
+**Then** then Ankaios CLI shall overwrite the agent names in the state object, built as specified in the manifest content, with the one given by the argument.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI emits an error on absence of agent name
+`swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1`
+
+Status: approved
+
+**If** the agent name is not specified in a workload specification
+
+**And** the user does not provide the agent name via the optional argument `--agent`,
+
+**When** the user runs the CLI command `ank apply [OPTIONS] ...`,
+
+**Then** the Ankaios CLI shall emit an agent name not specified error.
+
+Needs:
+- impl
+- utest
+- stest
+
 ## Data view
 
 ![Data view](plantuml/class_data-structures.svg)
