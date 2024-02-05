@@ -3,7 +3,7 @@
 ## Introduction
 
 In this tutorial, we will show you how to use Ankaios to set up workloads that publish and subscribe to vehicle signals in accordance with the [Vehicle Signal Specification (VSS)](https://covesa.github.io/vehicle_signal_specification/).
-The central workload will be a databroker from the [Kuksa.val project](https://github.com/eclipse/kuksa.val). It will receive vehicle speed signals published from a speedometer workload. Finally a navigation workload will consume those speed limits.
+The central workload will be a databroker from the [Kuksa.val project](https://github.com/eclipse/kuksa.val). It will receive vehicle speed signals published from a speed provider workload. Finally a speed consumer workload will consume those speed limits.
 
 <figure markdown>
   ![Overview of workloads](../assets/tutorial_vehicle_signals_overview.png)
@@ -70,13 +70,13 @@ $ ank get workloads
  databroker      agent_A   podman    Running
 ```
 
-## Start the speedometer
+## Start the speed provider
 
-Now we want to start a workload that publishes vehicle speed values and call that `speedometer`.
+Now we want to start a workload that publishes vehicle speed values and call that `speed-provider`.
 
-```yaml title="speedometer.yaml"
+```yaml title="speed-provider.yaml"
 workloads:
-  speedometer:
+  speed-provider:
     runtime: podman
     agent: agent_A
     restart: true
@@ -86,11 +86,9 @@ workloads:
       deny: []
     tags: []
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/speedometer:0.1.0
+      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.1
       commandOptions:
         - "--net=host"
-        - "-e"
-        - "SPEEDOMETER_INTERVAL=1"
 ```
 
 The source code for that image is available in the [Anakios repo](https://github.com/eclipse-ankaios/ankaios/tree/main/tools/tutorial_vehicle_signals).
@@ -98,23 +96,30 @@ The source code for that image is available in the [Anakios repo](https://github
 We start the workload with:
 
 ```shell
-ank apply speedometer.yaml
+ank apply speed-provider.yaml
 ```
 
-Now the workload is started and sends a new vehicle speed value every second.
+To check that the workload has been started we call:
 
 ```shell
 $ ank get workloads
  WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE
  databroker      agent_A   podman    Running
- speedometer     agent_A   podman    Running
+ speed-provider  agent_A   podman    Running
 ```
+
+The speed-provider workload provides a web UI that allows the user to enter a speed value that is then sent to the databroker. The web UI is available on <http://127.0.0.1:5000>. If your web browser is running on a different host than the Ankaios agent, replace 127.0.0.1 with the IP address of the host running the Ankaios agent.
+
+<figure markdown>
+  ![Speed provider web UI](../assets/speed-provider.png)
+  <figcaption>Speed provider web UI</figcaption>
+</figure>
 
 ## Add an agent
 
-We currently have an agent running as part of the Ankaios cluster, running the databroker and the speedometer.
-The next workload we want to start is a navigation system that consumes vehicle speed values.
-A navigation system usually runs on a separate node for infotainment. A separate node requires a new Ankaios agent.
+We currently have an agent running as part of the Ankaios cluster, running the databroker and the speed provider.
+The next workload we want to start is a speed consumer that consumes vehicle speed values.
+A speed consumer like for example a navigation system usually runs on a separate node for infotainment. A separate node requires a new Ankaios agent.
 Let's create another Ankaios agent to connect to the existing server.
 For this tutorial we can either use a separate Linux host or use the existing one.
 Start a new agent with:
@@ -137,13 +142,13 @@ Now we have two agents runnings in the Ankaios cluster, `agent_A` and `infotainm
 
 For the next steps we need to keep this terminal untouched in order to keep the agent running.
 
-## Start the navigation
+## Start the speed consumer
 
-Now we can start a navigation workload as vehicle speed consumer on the new agent:
+Now we can start a speed-consumer workload on the new agent:
 
-```yaml title="navigation.yaml"
+```yaml title="speed-consumer.yaml"
 workloads:
-  navigation:
+  speed-consumer:
     runtime: podman
     restart: true
     updateStrategy: AT_MOST_ONCE
@@ -152,20 +157,20 @@ workloads:
       deny: []
     tags: []
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/speed-consumer:0.1.0
+      image: ghcr.io/eclipse-ankaios/speed-consumer:0.1.1
       commandOptions:
         - "--net=host"
         - "-e"
         - "KUKSA_DATA_BROKER_ADDR=127.0.0.1"
 ```
 
-In case the navigation workload is not running on the same host as the databroker you need to adjust the `KUKSA_DATA_BROKER_ADDR`.
+In case the speed-consumer workload is not running on the same host as the databroker you need to adjust the `KUKSA_DATA_BROKER_ADDR`.
 
 Note that this time the image does not specify the agent.
 While we could add `agent: infotainment`, this time we pass the agent name when the workload starts:
 
 ```shell
-ank apply --agent infotainment navigation.yaml
+ank apply --agent infotainment speed-consumer.yaml
 ```
 
 !!! note
@@ -174,42 +179,44 @@ ank apply --agent infotainment navigation.yaml
     on which the Ankaios server is running, you need to add a parameter `-s <SERVER_URL>` like:
 
     ```
-    ank apply -s http://127.0.0.1:25551 --agent infotainment navigation.yaml
+    ank apply -s http://127.0.0.1:25551 --agent infotainment speed-consumer.yaml
     ```
 
     Optionally the server URL can also be provided via environment variable:
 
     ```
     export ANK_SERVER_URL=http://127.0.0.1:25551
-    ank apply --agent infotainment navigation.yaml
+    ank apply --agent infotainment speed-consumer.yaml
     ```
 
 And we check that the new workload is running:
 
 ```shell
 $ ank get workloads
- WORKLOAD NAME   AGENT      RUNTIME   EXECUTION STATE
- databroker      agent_A    podman    Running
- speedometer     agent_A    podman    Running
- navigation      infotainment podman    Running
+ WORKLOAD NAME   AGENT        RUNTIME   EXECUTION STATE
+ databroker      agent_A      podman    Running
+ speedometer     agent_A      podman    Running
+ speed-consumer  infotainment podman    Running
 ```
 
 ## Reading workload logs
 
-The navigation workload subscribes to the vehicle speed signal and prints it to stdout.
+The speed-consumer workload subscribes to the vehicle speed signal and prints it to stdout.
 As the logs are specific for a runtime, we use Podman to read the logs
 
 ```shell
-podman logs -f $(podman ps -a | grep navigation | awk '{print $1}')
+podman logs -f $(podman ps -a | grep speed-consumer | awk '{print $1}')
 ```
+
+Use the web UI of the speed-provider to send a few vehicle speed values and watch the log messages of the speed-consumer.
 
 !!! info
 
-    If you want to see the logs of the databroker or speedometer you need to use `sudo podman` instead of `podman` (two occurences) as those workloads run on podman as root on agent_A.
+    If you want to see the logs of the databroker or speed-provider you need to use `sudo podman` instead of `podman` (two occurences) as those workloads run on podman as root on agent_A.
 
-Now, in the existing file, we want to change the interval for the speedometer:
+Now, we want to change the existing Ankaios manifest of the speed-provider to use auto mode which sends a new speed limit value every second.
 
-```yaml title="speedometer.yaml" hl_lines="16"
+```yaml title="speed-provider.yaml" hl_lines="15 16"
 workloads:
   speedometer:
     runtime: podman
@@ -225,16 +232,16 @@ workloads:
       commandOptions:
         - "--net=host"
         - "-e"
-        - "SPEEDOMETER_INTERVAL=0.5"
+        - "SPEED_PROVIDER_MODE=auto"
 ```
 
 We apply the changes with:
 
 ```shell
-ank apply speedometer.yaml
+ank apply speed-provider.yaml
 ```
 
-and recognize that we get a new speed value every 0.5 seconds.
+and recognize that we get a new speed value every 1 second.
 
 ## Ankaios state
 
@@ -248,7 +255,7 @@ ank get state
 Let's delete all workloads and check the state again:
 
 ```shell
-ank delete workload databroker speedometer navigation
+ank delete workload databroker speed-provider speed-consumer
 ank get state
 ```
 
@@ -285,7 +292,7 @@ workloads:
       image: ghcr.io/eclipse/kuksa.val/databroker:0.4.1
       commandArgs: ["--insecure"]
       commandOptions: ["--net=host"]
-  speedometer:
+  speed-provider:
     runtime: podman
     agent: agent_A
     restart: true
@@ -297,12 +304,12 @@ workloads:
     dependencies:
       databroker: ADD_COND_RUNNING
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/speedometer:0.1.0
+      image: ghcr.io/eclipse-ankaios/speed-provider:0.1.1
       commandOptions:
         - "--net=host"
         - "-e"
-        - "SPEEDOMETER_INTERVAL=1"
-  navigation:
+        - "SPEED_PROVIDER_MODE=auto"
+  speed-consumer:
     runtime: podman
     agent: infotainment
     restart: true
@@ -314,18 +321,18 @@ workloads:
     dependencies:
       databroker: ADD_COND_RUNNING
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/speed-consumer:0.1.0
+      image: ghcr.io/eclipse-ankaios/speed-consumer:0.1.1
       commandOptions:
         - "--net=host"
         - "-e"
         - "KUKSA_DATA_BROKER_ADDR=127.0.0.1"
 ```
 
-As the speedometer and the navigation shall only be started after the databroker is running, we have added dependencies:
+As the speed-provider and the speed-consumer shall only be started after the databroker is running, we have added dependencies:
 
 ```yaml
 dependencies:
-  databroker: running
+  databroker: ADD_COND_RUNNING
 ```
 
 The next time the Ankaios server and the two agents will be started, this startup config will be applied.

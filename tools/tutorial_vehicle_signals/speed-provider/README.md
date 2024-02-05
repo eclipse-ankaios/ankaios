@@ -1,4 +1,4 @@
-# Tutorial example speedometer
+# Tutorial example speed-provider
 
 Provides a container using Kuksa.val SDK to feed vehicle speed values to a databroker.
 
@@ -6,8 +6,8 @@ Provides a container using Kuksa.val SDK to feed vehicle speed values to a datab
 
 ```shell
 # locally
-docker build -t ghcr.io/eclipse-ankaios/speedometer:latest .
+docker build -t ghcr.io/eclipse-ankaios/speed-provider:latest .
 
 # or for multiple platforms (add --push for pushing the image)
-docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/eclipse-ankaios/speedometer:latest .
+docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/eclipse-ankaios/speed-provider:latest .
 ```
