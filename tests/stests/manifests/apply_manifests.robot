@@ -46,7 +46,8 @@ Test Ankaios apply worklaod specifications via Ankaios Manifest files
     # Actions
     When user triggers "ank apply ${manifest1_yaml_file} ${manifest2_yaml_file}"
     # Asserts
-    Then the workload "nginx_from_manifest1" shall have the execution state "Running" on agent "agent_A" within "30" seconds
+    Then the last command shall finish with exit code "0"
+    And the workload "nginx_from_manifest1" shall have the execution state "Running" on agent "agent_A" within "30" seconds
     And the workload "nginx_from_manifest2" shall have the execution state "Running" on agent "agent_A" within "30" seconds
     [Teardown]    Clean up Ankaios
 
@@ -63,7 +64,8 @@ Test Ankaios apply worklaod specifications via Ankaios Manifest content through 
     # Actions
     When user triggers "ank apply -" passing "${manifest1_yaml_file}" through stdin
     # Asserts
-    Then the workload "nginx_from_manifest1" shall have the execution state "Running" on agent "agent_A" within "30" seconds
+    Then the last command shall finish with exit code "0"
+    And the workload "nginx_from_manifest1" shall have the execution state "Running" on agent "agent_A" within "30" seconds
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
@@ -80,7 +82,8 @@ Test Ankaios apply worklaod specification overwriting the agent names
     # Actions
     When user triggers "ank apply --agent agent_B ${manifest1_yaml_file}"
     # Asserts
-    Then the workload "nginx_from_manifest1" shall have the execution state "Running" on agent "agent_B" within "30" seconds
+    Then the last command shall finish with exit code "0"
+    And the workload "nginx_from_manifest1" shall have the execution state "Running" on agent "agent_B" within "30" seconds
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
@@ -113,7 +116,8 @@ Test Ankaios apply worklaod specifications via Ankaios Manifest files for deleti
     # Actions
     When user triggers "ank apply -d ${manifest1_yaml_file} ${manifest2_yaml_file}"
     # Asserts
-    Then the workload "nginx_from_manifest1" shall have the execution state "Removed" on agent "agent_A" within "30" seconds
+    Then the last command shall finish with exit code "0"
+    And the workload "nginx_from_manifest1" shall have the execution state "Removed" on agent "agent_A" within "30" seconds
     And the workload "nginx_from_manifest2" shall have the execution state "Removed" on agent "agent_A" within "30" seconds
     [Teardown]    Clean up Ankaios
 
@@ -129,5 +133,6 @@ Test Ankaios apply worklaod specifications via Ankaios Manifest content through 
     # Actions
     When user triggers "ank apply -d -" passing "${manifest1_yaml_file}" through stdin
     # Asserts
-    Then the workload "nginx_from_manifest1" shall have the execution state "Removed" on agent "agent_A" within "30" seconds
+    Then the last command shall finish with exit code "0"
+    And the workload "nginx_from_manifest1" shall have the execution state "Removed" on agent "agent_A" within "30" seconds
     [Teardown]    Clean up Ankaios
