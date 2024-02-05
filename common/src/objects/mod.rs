@@ -21,7 +21,10 @@ pub use state::State;
 
 mod workload_state;
 #[cfg(any(feature = "test_utils", test))]
-pub use workload_state::{generate_test_workload_state, generate_test_workload_state_with_agent};
+pub use workload_state::{
+    generate_test_workload_state, generate_test_workload_state_with_agent,
+    generate_test_workload_state_with_workload_spec,
+};
 pub use workload_state::{ExecutionState, ExecutionStateEnum, WorkloadState};
 
 mod workload_spec;

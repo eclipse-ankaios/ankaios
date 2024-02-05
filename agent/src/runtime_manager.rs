@@ -997,7 +997,7 @@ mod tests {
                         .workload_states
                         .first()
                         .unwrap()
-                        .workload_name
+                        .instance_name.workload_name()
                         == WORKLOAD_1_NAME)
             })
             .return_once(move |_, _| Ok(()));
@@ -1046,7 +1046,7 @@ mod tests {
                     .workload_states
                     .first()
                     .unwrap()
-                    .workload_name
+                    .instance_name.workload_name()
                     == WORKLOAD_1_NAME)
             })
             .return_once(move |_, _| {

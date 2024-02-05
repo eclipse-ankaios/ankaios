@@ -113,7 +113,7 @@ pub mod test {
     #[async_trait]
     impl RuntimeStateGetter<String> for StubStateChecker {
         async fn get_state(&self, _workload_id: &String) -> ExecutionState {
-            ExecutionState::ExecRunning
+            ExecutionState::running()
         }
     }
 

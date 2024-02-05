@@ -61,30 +61,35 @@ impl ParameterStorage {
 #[cfg(test)]
 mod tests {
     use crate::parameter_storage::ParameterStorage;
-    use common::objects::{ExecutionState, WorkloadState};
+    use common::objects::ExecutionState;
 
     #[test]
     fn utest_update_storage_empty_storage() {
         let mut storage = ParameterStorage::new();
         assert!(storage.states_storage.is_empty());
 
-        let test_update = WorkloadState {
-            workload_name: String::from("test_workload"),
-            agent_name: String::from("test_agent"),
-            execution_state: ExecutionState::ExecRunning,
-        };
+        let test_update = common::objects::generate_test_workload_state_with_agent(
+            "test_workload",
+            "test_agent",
+            ExecutionState::running(),
+        );
         storage.update_workload_state(test_update.clone());
 
         assert_eq!(storage.states_storage.len(), 1);
 
-        let agent_workloads = storage.states_storage.get(&test_update.agent_name).unwrap();
+        let agent_workloads = storage
+            .states_storage
+            .get(test_update.instance_name.agent_name())
+            .unwrap();
         assert_eq!(agent_workloads.len(), 1);
 
-        let storage_record = agent_workloads.get(&test_update.workload_name).unwrap();
-        assert_eq!(storage_record.to_owned(), ExecutionState::ExecRunning);
+        let storage_record = agent_workloads
+            .get(test_update.instance_name.workload_name())
+            .unwrap();
+        assert_eq!(storage_record.to_owned(), ExecutionState::running());
 
         let mut removed_update = test_update.clone();
-        removed_update.execution_state = ExecutionState::ExecRemoved;
+        removed_update.execution_state = ExecutionState::removed();
         storage.update_workload_state(removed_update);
 
         assert!(storage.states_storage.is_empty());
@@ -95,31 +100,42 @@ mod tests {
         let mut storage = ParameterStorage::new();
         assert!(storage.states_storage.is_empty());
 
-        let test_update = WorkloadState {
-            workload_name: String::from("test_workload"),
-            agent_name: String::from("test_agent"),
-            execution_state: ExecutionState::ExecRunning,
-        };
+        let test_update = common::objects::generate_test_workload_state_with_agent(
+            "test_workload",
+            "test_agent",
+            ExecutionState::running(),
+        );
+
         storage.update_workload_state(test_update.clone());
 
         assert_eq!(storage.states_storage.len(), 1);
 
-        let mut agent_workloads = storage.states_storage.get(&test_update.agent_name).unwrap();
+        let mut agent_workloads = storage
+            .states_storage
+            .get(test_update.instance_name.agent_name())
+            .unwrap();
         assert_eq!(agent_workloads.len(), 1);
 
-        let storage_record = agent_workloads.get(&test_update.workload_name).unwrap();
-        assert_eq!(storage_record.to_owned(), ExecutionState::ExecRunning);
+        let storage_record = agent_workloads
+            .get(test_update.instance_name.workload_name())
+            .unwrap();
+        assert_eq!(storage_record.to_owned(), ExecutionState::running());
 
         let mut update_record = test_update.clone();
-        update_record.execution_state = ExecutionState::ExecSucceeded;
+        update_record.execution_state = ExecutionState::succeeded();
 
         storage.update_workload_state(update_record.clone());
 
         assert_eq!(storage.states_storage.len(), 1);
 
-        agent_workloads = storage.states_storage.get(&test_update.agent_name).unwrap();
-        let updated_record = agent_workloads.get(&update_record.workload_name).unwrap();
-        assert_eq!(updated_record.to_owned(), ExecutionState::ExecSucceeded);
+        agent_workloads = storage
+            .states_storage
+            .get(test_update.instance_name.agent_name())
+            .unwrap();
+        let updated_record = agent_workloads
+            .get(update_record.instance_name.workload_name())
+            .unwrap();
+        assert_eq!(updated_record.to_owned(), ExecutionState::succeeded());
     }
 
     #[test]
@@ -132,32 +148,32 @@ mod tests {
         let workload_name_1 = String::from("test_workload_1");
         let workload_name_2 = String::from("test_workload_2");
 
-        let test_update1 = WorkloadState {
-            workload_name: workload_name_1.clone(),
-            agent_name: agent_name_a.clone(),
-            execution_state: ExecutionState::ExecRunning,
-        };
+        let test_update1 = common::objects::generate_test_workload_state_with_agent(
+            &workload_name_1,
+            &agent_name_a,
+            ExecutionState::running(),
+        );
         storage.update_workload_state(test_update1);
 
-        let test_update2 = WorkloadState {
-            workload_name: workload_name_2.clone(),
-            agent_name: agent_name_a.clone(),
-            execution_state: ExecutionState::ExecFailed,
-        };
+        let test_update2 = common::objects::generate_test_workload_state_with_agent(
+            &workload_name_2,
+            &agent_name_a,
+            ExecutionState::failed("Some error"),
+        );
         storage.update_workload_state(test_update2);
 
-        let test_update3 = WorkloadState {
-            workload_name: workload_name_1.clone(),
-            agent_name: agent_name_b.clone(),
-            execution_state: ExecutionState::ExecSucceeded,
-        };
+        let test_update3 = common::objects::generate_test_workload_state_with_agent(
+            &workload_name_1,
+            &agent_name_b,
+            ExecutionState::succeeded(),
+        );
         storage.update_workload_state(test_update3);
 
-        let test_update4 = WorkloadState {
-            workload_name: workload_name_2.clone(),
-            agent_name: agent_name_b.clone(),
-            execution_state: ExecutionState::ExecStarting,
-        };
+        let test_update4 = common::objects::generate_test_workload_state_with_agent(
+            &workload_name_2,
+            &agent_name_b,
+            ExecutionState::starting("Some info"),
+        );
         storage.update_workload_state(test_update4);
 
         assert_eq!(storage.states_storage.len(), 2);
@@ -166,18 +182,24 @@ mod tests {
         assert_eq!(agent_a_workloads.len(), 2);
 
         let storage_record_1 = agent_a_workloads.get(&workload_name_1).unwrap();
-        assert_eq!(storage_record_1.to_owned(), ExecutionState::ExecRunning);
+        assert_eq!(storage_record_1.to_owned(), ExecutionState::running());
 
         let storage_record_2 = agent_a_workloads.get(&workload_name_2).unwrap();
-        assert_eq!(storage_record_2.to_owned(), ExecutionState::ExecFailed);
+        assert_eq!(
+            storage_record_2.to_owned(),
+            ExecutionState::failed("Some error")
+        );
 
         let agent_b_workloads = storage.states_storage.get(&agent_name_b).unwrap();
         assert_eq!(agent_b_workloads.len(), 2);
 
         let storage_record_3 = agent_b_workloads.get(&workload_name_1).unwrap();
-        assert_eq!(storage_record_3.to_owned(), ExecutionState::ExecSucceeded);
+        assert_eq!(storage_record_3.to_owned(), ExecutionState::succeeded());
 
         let storage_record_4 = agent_b_workloads.get(&workload_name_2).unwrap();
-        assert_eq!(storage_record_4.to_owned(), ExecutionState::ExecStarting);
+        assert_eq!(
+            storage_record_4.to_owned(),
+            ExecutionState::starting("Some info")
+        );
     }
 }

@@ -482,7 +482,7 @@ mod tests {
     use common::{
         commands::{self, Request, RequestContent, Response, ResponseContent},
         from_server_interface::{FromServer, FromServerSender},
-        objects::{ExecutionState, Tag, WorkloadSpec, WorkloadState},
+        objects::{ExecutionState, Tag, WorkloadSpec},
         test_utils::{self, generate_test_complete_state},
         to_server_interface::{ToServer, ToServerReceiver},
     };
@@ -650,19 +650,19 @@ mod tests {
                 name: String::from("name1"),
                 agent: String::from("agent_A"),
                 runtime: String::from("runtime"),
-                execution_state: String::from("Running"),
+                execution_state: ExecutionState::running().to_string(),
             },
             WorkloadInfo {
                 name: String::from("name2"),
                 agent: String::from("agent_B"),
                 runtime: String::from("runtime"),
-                execution_state: String::from("Running"),
+                execution_state: ExecutionState::running().to_string(),
             },
             WorkloadInfo {
                 name: String::from("name3"),
                 agent: String::from("agent_B"),
                 runtime: String::from("runtime"),
-                execution_state: String::from("Running"),
+                execution_state: ExecutionState::running().to_string(),
             },
         ];
         let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
@@ -723,7 +723,7 @@ mod tests {
             name: String::from("name1"),
             agent: String::from("agent_A"),
             runtime: String::from("runtime"),
-            execution_state: String::from("Running"),
+            execution_state: ExecutionState::running().to_string(),
         }];
         let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
         assert_eq!(cmd_text.unwrap(), expected_table_text);
@@ -784,13 +784,13 @@ mod tests {
                 name: String::from("name2"),
                 agent: String::from("agent_B"),
                 runtime: String::from("runtime"),
-                execution_state: String::from("Running"),
+                execution_state: ExecutionState::running().to_string(),
             },
             WorkloadInfo {
                 name: String::from("name3"),
                 agent: String::from("agent_B"),
                 runtime: String::from("runtime"),
-                execution_state: String::from("Running"),
+                execution_state: ExecutionState::running().to_string(),
             },
         ];
         let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
@@ -860,11 +860,11 @@ mod tests {
             .await;
 
         let test_data = commands::CompleteState {
-            workload_states: vec![WorkloadState {
-                workload_name: "Workload_1".to_string(),
-                agent_name: "agent_A".to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
+            workload_states: vec![common::objects::generate_test_workload_state_with_agent(
+                "Workload_1",
+                "agent_A",
+                ExecutionState::removed(),
+            )],
             ..Default::default()
         };
 

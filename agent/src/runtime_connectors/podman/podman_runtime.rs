@@ -350,7 +350,7 @@ mod tests {
         list_states_context
             .expect()
             .once()
-            .return_const(Ok(Some(ExecutionState::ExecRunning)))
+            .return_const(Ok(Some(ExecutionState::running())))
             .in_sequence(&mut seq);
 
         let workload_spec = generate_test_workload_spec_with_param(
@@ -378,7 +378,7 @@ mod tests {
         let list_states_context = PodmanCli::list_states_by_id_context();
         list_states_context
             .expect()
-            .return_const(Ok(Some(ExecutionState::ExecRunning)));
+            .return_const(Ok(Some(ExecutionState::running())));
 
         let state_getter = PodmanStateGetter {};
         let execution_state = state_getter
@@ -387,7 +387,7 @@ mod tests {
             })
             .await;
 
-        assert_eq!(execution_state, ExecutionState::ExecRunning);
+        assert_eq!(execution_state, ExecutionState::running());
     }
 
     #[tokio::test]
@@ -504,14 +504,14 @@ mod tests {
         let context = PodmanCli::list_states_by_id_context();
         context
             .expect()
-            .return_const(Ok(Some(ExecutionState::ExecRunning)));
+            .return_const(Ok(Some(ExecutionState::running())));
 
         let workload_id = PodmanWorkloadId {
             id: "test_id".into(),
         };
         let checker = PodmanStateGetter {};
         let res = checker.get_state(&workload_id).await;
-        assert_eq!(res, ExecutionState::ExecRunning);
+        assert_eq!(res, ExecutionState::running());
     }
 
     // [utest->swdd~podman-state-getter-returns-removed-state~1]
@@ -527,7 +527,7 @@ mod tests {
         };
         let checker = PodmanStateGetter {};
         let res = checker.get_state(&workload_id).await;
-        assert_eq!(res, ExecutionState::ExecRemoved);
+        assert_eq!(res, ExecutionState::lost())
     }
 
     // [utest->swdd~podman-state-getter-returns-unknown-state~1]
@@ -543,7 +543,10 @@ mod tests {
         };
         let checker = PodmanStateGetter {};
         let res = checker.get_state(&workload_id).await;
-        assert_eq!(res, ExecutionState::ExecUnknown);
+        assert_eq!(
+            res,
+            ExecutionState::unknown("Error getting state from Podman.")
+        );
     }
 
     // [utest->swdd~podman-delete-workload-stops-and-removes-workload~1]
