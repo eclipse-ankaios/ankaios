@@ -421,7 +421,7 @@ mod tests {
 
     use common::{
         commands::UpdateWorkloadState,
-        objects::{ExecutionState, WorkloadInstanceName, WorkloadState},
+        objects::{ExecutionState, WorkloadInstanceName},
         test_utils::generate_test_workload_spec_with_param,
         to_server_interface::ToServer,
     };
@@ -490,7 +490,7 @@ mod tests {
 
         // Send the update command now. It will be buffered until the await receives it.
         workload_command_sender
-            .update(workload_spec, Some(PIPES_LOCATION.into()))
+            .update(workload_spec.clone(), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
@@ -515,11 +515,13 @@ mod tests {
         .is_ok());
 
         let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
+            workload_states: vec![
+                common::objects::generate_test_workload_state_with_workload_spec(
+                    &workload_spec,
+                    "",
+                    ExecutionState::removed(),
+                ),
+            ],
         };
 
         assert!(matches!(
@@ -570,7 +572,7 @@ mod tests {
 
         // Send the update command now. It will be buffered until the await receives it.
         workload_command_sender
-            .update(workload_spec, Some(PIPES_LOCATION.into()))
+            .update(workload_spec.clone(), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
@@ -595,11 +597,13 @@ mod tests {
         .is_ok());
 
         let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
+            workload_states: vec![
+                common::objects::generate_test_workload_state_with_workload_spec(
+                    &workload_spec,
+                    "",
+                    ExecutionState::removed(),
+                ),
+            ],
         };
 
         assert!(matches!(
@@ -648,7 +652,7 @@ mod tests {
 
         // Send the update command now. It will be buffered until the await receives it.
         workload_command_sender
-            .update(workload_spec, Some(PIPES_LOCATION.into()))
+            .update(workload_spec.clone(), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
@@ -673,11 +677,13 @@ mod tests {
         .is_ok());
 
         let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
+            workload_states: vec![
+                common::objects::generate_test_workload_state_with_workload_spec(
+                    &workload_spec,
+                    "",
+                    ExecutionState::removed(),
+                ),
+            ],
         };
 
         assert!(matches!(
@@ -728,7 +734,7 @@ mod tests {
 
         // Send the update command now. It will be buffered until the await receives it.
         workload_command_sender
-            .update(workload_spec, Some(PIPES_LOCATION.into()))
+            .update(workload_spec.clone(), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
@@ -753,11 +759,13 @@ mod tests {
         .is_ok());
 
         let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
+            workload_states: vec![
+                common::objects::generate_test_workload_state_with_workload_spec(
+                    &workload_spec,
+                    "",
+                    ExecutionState::removed(),
+                ),
+            ],
         };
 
         assert!(matches!(
@@ -817,11 +825,13 @@ mod tests {
         .is_ok());
 
         let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
+            workload_states: vec![
+                common::objects::generate_test_workload_state_with_workload_spec(
+                    &workload_spec,
+                    "",
+                    ExecutionState::removed(),
+                ),
+            ],
         };
 
         assert!(matches!(
@@ -888,11 +898,13 @@ mod tests {
         .is_ok());
 
         let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
+            workload_states: vec![
+                common::objects::generate_test_workload_state_with_workload_spec(
+                    &workload_spec,
+                    "",
+                    ExecutionState::removed(),
+                ),
+            ],
         };
 
         assert!(matches!(
@@ -1273,7 +1285,7 @@ mod tests {
         runtime_mock.expect(runtime_expectations).await;
 
         workload_command_sender
-            .restart(workload_spec, Some(PIPES_LOCATION.into()))
+            .restart(workload_spec.clone(), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
 
@@ -1304,11 +1316,13 @@ mod tests {
         .is_ok());
 
         let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecFailed,
-            }],
+            workload_states: vec![
+                common::objects::generate_test_workload_state_with_workload_spec(
+                    &workload_spec,
+                    "",
+                    ExecutionState::restart_failed_no_retry(),
+                ),
+            ],
         };
 
         assert!(matches!(to_server_rx.try_recv(),

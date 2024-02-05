@@ -122,7 +122,7 @@ mod tests {
     use common::{
         commands::{self, Response, ResponseContent},
         from_server_interface::FromServerInterface,
-        objects::{ExecutionState, WorkloadState},
+        objects::ExecutionState,
         test_utils::generate_test_workload_spec_with_param,
     };
     use mockall::predicate::*;
@@ -204,11 +204,11 @@ mod tests {
             to_server,
         );
 
-        let workload_states = vec![WorkloadState {
-            workload_name: WORKLOAD_1_NAME.into(),
-            agent_name: AGENT_NAME.into(),
-            execution_state: ExecutionState::ExecRunning,
-        }];
+        let workload_states = vec![common::objects::generate_test_workload_state_with_agent(
+            WORKLOAD_1_NAME,
+            AGENT_NAME,
+            ExecutionState::running(),
+        )];
 
         let update_workload_result = to_manager.update_workload_state(workload_states).await;
         assert!(update_workload_result.is_ok());
@@ -225,7 +225,7 @@ mod tests {
 
         assert_eq!(
             workload_states.get(WORKLOAD_1_NAME).unwrap().to_owned(),
-            ExecutionState::ExecRunning
+            ExecutionState::running()
         );
     }
 
@@ -248,11 +248,12 @@ mod tests {
             to_server,
         );
 
-        let initial_workload_states = vec![WorkloadState {
-            workload_name: WORKLOAD_1_NAME.into(),
-            agent_name: AGENT_NAME.into(),
-            execution_state: ExecutionState::ExecRunning,
-        }];
+        let initial_workload_states =
+            vec![common::objects::generate_test_workload_state_with_agent(
+                WORKLOAD_1_NAME,
+                AGENT_NAME,
+                ExecutionState::running(),
+            )];
         let initial_update_workload_result = to_manager
             .update_workload_state(initial_workload_states)
             .await;
@@ -274,7 +275,7 @@ mod tests {
 
         assert_eq!(
             workload_states.get(WORKLOAD_1_NAME).unwrap().to_owned(),
-            ExecutionState::ExecRunning
+            ExecutionState::running()
         );
     }
 

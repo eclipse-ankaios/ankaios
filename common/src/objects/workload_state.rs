@@ -378,6 +378,22 @@ pub fn generate_test_workload_state_with_agent(
         execution_state,
     }
 }
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_workload_state_with_workload_spec(
+    workload_spec: &super::WorkloadSpec,
+    workload_id: &str,
+    execution_state: ExecutionState,
+) -> WorkloadState {
+    WorkloadState {
+        instance_name: WorkloadExecutionInstanceName::builder()
+            .workload_name(workload_spec.name.clone())
+            .agent_name(workload_spec.agent.clone())
+            .config(workload_spec)
+            .build(),
+        workload_id: workload_id.to_string(),
+        execution_state,
+    }
+}
 
 #[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_workload_state(

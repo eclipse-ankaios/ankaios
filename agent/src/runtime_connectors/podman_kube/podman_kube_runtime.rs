@@ -894,7 +894,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::ExecFailed);
+        assert_eq!(execution_state, ExecutionState::failed("1"));
     }
 
     // [utest->swdd~podman-kube-state-getter-maps-state~2]
@@ -918,7 +918,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::ExecStarting);
+        assert_eq!(execution_state, ExecutionState::starting("starting"));
     }
 
     // [utest->swdd~podman-kube-state-getter-maps-state~2]
@@ -940,7 +940,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::ExecUnknown);
+        assert_eq!(execution_state, ExecutionState::unknown("unknown"));
     }
 
     // [utest->swdd~podman-kube-state-getter-maps-state~2]
@@ -961,7 +961,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::ExecUnknown);
+        assert_eq!(execution_state, ExecutionState::unknown("unknown"));
     }
 
     // [utest->swdd~podman-kube-state-getter-maps-state~2]
@@ -978,7 +978,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::ExecRunning);
+        assert_eq!(execution_state, ExecutionState::running());
     }
 
     // [utest->swdd~podman-kube-state-getter-maps-state~2]
@@ -995,7 +995,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::ExecSucceeded);
+        assert_eq!(execution_state, ExecutionState::succeeded());
     }
 
     // [utest->swdd~podman-kube-state-getter-removed-if-no-container~1]
@@ -1012,7 +1012,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::ExecRemoved);
+        assert_eq!(execution_state, ExecutionState::lost())
     }
 
     #[tokio::test]
@@ -1026,7 +1026,10 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::ExecUnknown);
+        assert_eq!(
+            execution_state,
+            ExecutionState::unknown("Error getting state from pod.")
+        );
     }
 
     #[tokio::test]
@@ -1039,7 +1042,10 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&workload_id).await;
 
-        assert_eq!(execution_state, ExecutionState::ExecUnknown);
+        assert_eq!(
+            execution_state,
+            ExecutionState::unknown("No pods for the workload.")
+        );
     }
 
     struct MockContext<'a> {

@@ -33,8 +33,7 @@ where
         let workload_spec = workload_spec.clone();
         let workload_name = workload_spec.name.clone();
         let task_handle = tokio::spawn(async move {
-            let mut last_state =
-                ExecutionState::unknown("Never received an execution state.");
+            let mut last_state = ExecutionState::unknown("Never received an execution state.");
             let mut interval = time::interval(Duration::from_millis(STATUS_CHECK_INTERVAL_MS));
             loop {
                 interval.tick().await;
@@ -96,9 +95,7 @@ mod tests {
     use std::time::Duration;
 
     use common::{
-        commands,
-        objects::{ExecutionState, WorkloadState},
-        test_utils::generate_test_workload_spec_with_param,
+        commands, objects::ExecutionState, test_utils::generate_test_workload_spec_with_param,
         to_server_interface::ToServer,
     };
 
@@ -110,7 +107,7 @@ mod tests {
     const RUNTIME_NAME: &str = "runtime1";
     const AGENT_NAME: &str = "agent_x";
     const WORKLOAD_1_NAME: &str = "workload1";
-    const WORKLOAD_ID: &str = "workload_id_1";
+    const WORKLOAD_ID: &str = "some strange Id";
 
     // [utest->swdd~agent-provides-generic-state-checker-implementation~1]
     #[tokio::test]
@@ -124,16 +121,18 @@ mod tests {
         mock_runtime_getter
             .expect_get_state()
             .times(2)
-            .returning(|_: &String| Box::pin(async { ExecutionState::ExecRunning }));
+            .returning(|_: &String| Box::pin(async { ExecutionState::running() }));
 
         let (state_sender, mut state_receiver) = tokio::sync::mpsc::channel::<ToServer>(20);
 
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
         let generic_state_state_checker = GenericPollingStateChecker::start_checker(
-            &generate_test_workload_spec_with_param(
-                AGENT_NAME.to_string(),
-                WORKLOAD_1_NAME.to_string(),
-                RUNTIME_NAME.to_string(),
-            ),
+            &workload_spec,
             WORKLOAD_ID.to_string(),
             state_sender.clone(),
             mock_runtime_getter,
@@ -146,14 +145,25 @@ mod tests {
         )
         .await;
 
-        let expected_state = vec![WorkloadState {
-            workload_name: WORKLOAD_1_NAME.to_string(),
-            agent_name: AGENT_NAME.to_string(),
-            execution_state: ExecutionState::ExecRunning,
-        }];
+        let expected_state = vec![
+            common::objects::generate_test_workload_state_with_workload_spec(
+                &workload_spec,
+                WORKLOAD_ID,
+                ExecutionState::running(),
+            ),
+        ];
 
         // [utest->swdd~generic-state-checker-sends-workload-state~1]
         let state_update_1 = state_receiver.recv().await.unwrap();
+        if let ToServer::UpdateWorkloadState(commands::UpdateWorkloadState {
+            workload_states: ws,
+        }) = state_update_1.clone()
+        {
+            println!(
+                "workload_states: \n{:?}\nexpected_state:\n{:?}",
+                ws, expected_state
+            );
+        }
         assert!(matches!(
             state_update_1,
             ToServer::UpdateWorkloadState(commands::UpdateWorkloadState{workload_states})
