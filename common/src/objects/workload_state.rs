@@ -336,7 +336,7 @@ impl Display for ExecutionState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.state.main_state_to_string())?;
         if let Some(sub_state) = self.state.sub_state_to_string() {
-            write!(f, ": '{}'", sub_state)?
+            write!(f, "({})", sub_state)?
         }
         if !self.additional_info.is_empty() {
             write!(f, ": '{}'", self.additional_info)
