@@ -18,11 +18,11 @@ activate storage
 
 server ->> listen_to_server ++: UpdateWorkloadState
 note left
-        ""agentName: Node 1""
+        ""agentName: Agent 1""
 end note
-listen_to_server ->> manager ++--: UpdateWorkloadState
+listen_to_server ->> manager --++: UpdateWorkloadState
 
 loop for each workload in the list
-    manager -> storage: update_workload_state
+    manager -> storage --++: update_workload_state
 end
 @enduml
