@@ -362,7 +362,7 @@ impl From<proto::WorkloadState> for WorkloadState {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-#[cfg(test)]
+#[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_workload_state_with_agent(
     workload_name: &str,
     agent_name: &str,
@@ -379,7 +379,7 @@ pub fn generate_test_workload_state_with_agent(
     }
 }
 
-#[cfg(test)]
+#[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_workload_state(
     workload_name: &str,
     execution_state: ExecutionState,
