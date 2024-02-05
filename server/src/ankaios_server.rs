@@ -210,6 +210,13 @@ impl AnkaiosServer {
                                         added_workloads.len(),
                                         deleted_workloads.len()
                                     );
+                                let added_workloads_names =
+                                    added_workloads.iter().map(|x| x.name.to_owned()).collect();
+                                let deleted_workloads_names = deleted_workloads
+                                    .iter()
+                                    .map(|x| x.name.to_owned())
+                                    .collect();
+
                                 let from_server_command =
                                     FromServer::UpdateWorkload(UpdateWorkload {
                                         added_workloads,
@@ -219,13 +226,36 @@ impl AnkaiosServer {
                                     .send(from_server_command)
                                     .await
                                     .unwrap_or_illegal_state();
+                                self.to_agents
+                                    .update_state_success(
+                                        request_id,
+                                        added_workloads_names,
+                                        deleted_workloads_names,
+                                    )
+                                    .await
+                                    .unwrap_or_illegal_state();
                             }
-                            Ok(None) => log::debug!(
+                            Ok(None) => {
+                                log::debug!(
                                 "The current state and new state are identical -> nothing to do"
-                            ),
+                            );
+                                self.to_agents
+                                    .update_state_success(request_id, vec![], vec![])
+                                    .await
+                                    .unwrap_or_illegal_state();
+                            }
                             Err(error_msg) => {
                                 // [impl->swdd~server-continues-on-invalid-updated-state~1]
                                 log::error!("Update rejected: '{error_msg}'",);
+                                self.to_agents
+                                    .error(
+                                        request_id,
+                                        common::commands::Error {
+                                            message: format!("Update rejected: '{error_msg}'"),
+                                        },
+                                    )
+                                    .await
+                                    .unwrap_or_illegal_state();
                             }
                         }
                     }

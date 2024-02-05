@@ -105,6 +105,12 @@ pub trait FromServerInterface {
         complete_state: commands::CompleteState,
     ) -> Result<(), FromServerInterfaceError>;
     async fn success(&self, request_id: String) -> Result<(), FromServerInterfaceError>;
+    async fn update_state_success(
+        &self,
+        request_id: String,
+        added_workloads: Vec<String>,
+        deleted_workloads: Vec<String>,
+    ) -> Result<(), FromServerInterfaceError>;
     async fn error(
         &self,
         request_id: String,
@@ -169,6 +175,26 @@ impl FromServerInterface for FromServerSender {
             }))
             .await?)
     }
+
+    async fn update_state_success(
+        &self,
+        request_id: String,
+        added_workloads: Vec<String>,
+        deleted_workloads: Vec<String>,
+    ) -> Result<(), FromServerInterfaceError> {
+        Ok(self
+            .send(FromServer::Response(commands::Response {
+                request_id,
+                response_content: commands::ResponseContent::UpdateStateSuccess(
+                    commands::UpdateStateSuccess {
+                        added_workloads,
+                        deleted_workloads,
+                    },
+                ),
+            }))
+            .await?)
+    }
+
     async fn error(
         &self,
         request_id: String,
