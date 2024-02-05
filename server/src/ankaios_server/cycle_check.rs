@@ -27,6 +27,11 @@ use std::collections::{HashSet, VecDeque};
 ///                   if [`None`] the search is started from all workloads of the state
 ///
 pub fn dfs(state: &State, start_nodes: Option<Vec<&String>>) -> Option<String> {
+    log::trace!(
+        "Execute cyclic dependency check with start_nodes = {:?}",
+        start_nodes
+    );
+
     /* The stack is used to push the neighbors of a workload inside the dependency graph
     that needs to be visited next and to terminate the search. If a workload is not already visited,
     all neighbor workloads of that workload are pushed on the stack and next round a workload is popped

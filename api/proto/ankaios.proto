@@ -23,9 +23,9 @@
 *
 * The protocol consists of the following top-level message types:
 *
-* 1. [ToServer](#ToServer): agent/cli -> server
+* 1. [ToServer](#toserver): agent/cli -> server
 *
-* 2. [FromServer](#FromServer): server -> agent/cli
+* 2. [FromServer](#fromserver): server -> agent/cli
 *
 */
 syntax = "proto3";
