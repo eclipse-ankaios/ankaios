@@ -202,8 +202,8 @@ impl AnkaiosServer {
                             update_state_request.update_mask
                         );
 
-                        // [impl->swdd~update-current-state-with-update-mask~1]
-                        // [impl->swdd~update-current-state-empty-update-mask~1]
+                        // [impl->swdd~update-desired-state-with-update-mask~1]
+                        // [impl->swdd~update-desired-state-empty-update-mask~1]
                         match self
                             .server_state
                             .update(update_state_request.state, update_state_request.update_mask)
