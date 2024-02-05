@@ -154,6 +154,7 @@ impl ServerState {
         workload_state_db: &WorkloadStateDB,
     ) -> Result<CompleteState, String> {
         let current_complete_state = CompleteState {
+            format_version: self.state.format_version.clone(),
             desired_state: self.state.desired_state.clone(),
             startup_state: self.state.startup_state.clone(),
             workload_states: workload_state_db.get_all_workload_states(),
@@ -164,6 +165,13 @@ impl ServerState {
             let current_complete_state: Object =
                 current_complete_state.try_into().unwrap_or_illegal_state();
             let mut return_state = Object::default();
+
+            let format_version_path: Path = "formatVersion".into();
+            if let Some(format_version) = current_complete_state.get(&format_version_path) {
+                return_state.set(&format_version_path, format_version.to_owned())?;
+            } else {
+                log::warn!("The formatVersion field not found in the current state");
+            }
 
             for field in &request_complete_state.field_mask {
                 if let Some(value) = current_complete_state.get(&field.into()) {

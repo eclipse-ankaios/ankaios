@@ -265,6 +265,7 @@ mod tests {
                     request_id: "req_id".to_owned(),
                     response_content: Some(proto::response::ResponseContent::CompleteState(
                         proto::CompleteState {
+                            format_version: Some(api::proto::Version::default()),
                             desired_state: Some(api::proto::State::default()),
                             startup_state: Some(api::proto::State::default()),
                             workload_states: vec![],

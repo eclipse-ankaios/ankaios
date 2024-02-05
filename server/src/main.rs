@@ -18,7 +18,7 @@ mod state_manipulation;
 mod state_parser;
 mod workload_state_db;
 
-use common::commands::CompleteState;
+use common::commands::{CompleteState, Version};
 use std::fs;
 
 use common::communications_server::CommunicationsServer;
@@ -28,6 +28,8 @@ use common::std_extensions::GracefulExitResult;
 use ankaios_server::{create_from_server_channel, create_to_server_channel, AnkaiosServer};
 
 use grpc::server::GRPCCommunicationsServer;
+
+const COMPLETE_STATE_FORMAT_VERSION: Version = Version { major: 0, minor: 1 };
 
 #[tokio::main]
 async fn main() {
@@ -56,6 +58,7 @@ async fn main() {
                 state.workloads
             );
             Some(CompleteState {
+                format_version: COMPLETE_STATE_FORMAT_VERSION,
                 desired_state: state,
                 ..Default::default()
             })

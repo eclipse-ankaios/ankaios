@@ -232,8 +232,35 @@ impl From<Error> for proto::Error {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+pub struct Version {
+    pub major: u32,
+    pub minor: u32,
+}
+
+impl From<Version> for proto::Version {
+    fn from(item: Version) -> proto::Version {
+        proto::Version {
+            major: item.major,
+            minor: item.minor,
+        }
+    }
+}
+
+impl TryFrom<proto::Version> for Version {
+    type Error = String;
+
+    fn try_from(item: proto::Version) -> Result<Self, Self::Error> {
+        Ok(Version {
+            major: item.major,
+            minor: item.minor,
+        })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CompleteState {
+    pub format_version: Version,
     pub startup_state: State,
     pub desired_state: State,
     pub workload_states: Vec<WorkloadState>,
@@ -242,6 +269,7 @@ pub struct CompleteState {
 impl From<CompleteState> for proto::CompleteState {
     fn from(item: CompleteState) -> proto::CompleteState {
         proto::CompleteState {
+            format_version: Some(proto::Version::from(item.format_version)),
             startup_state: Some(proto::State::from(item.startup_state)),
             desired_state: Some(proto::State::from(item.desired_state)),
             workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
@@ -254,6 +282,7 @@ impl TryFrom<proto::CompleteState> for CompleteState {
 
     fn try_from(item: proto::CompleteState) -> Result<Self, Self::Error> {
         Ok(CompleteState {
+            format_version: item.format_version.unwrap_or_default().try_into()?,
             startup_state: item.startup_state.unwrap_or_default().try_into()?,
             desired_state: item.desired_state.unwrap_or_default().try_into()?,
             workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),

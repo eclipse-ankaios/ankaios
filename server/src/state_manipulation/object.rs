@@ -159,7 +159,7 @@ impl Object {
 #[cfg(test)]
 mod tests {
     use common::{
-        commands::CompleteState,
+        commands::{CompleteState, Version},
         objects::{ExecutionState, State, WorkloadState},
         test_utils::{generate_test_state_from_workloads, generate_test_workload_spec},
     };
@@ -194,6 +194,7 @@ mod tests {
     fn utest_object_from_complete_state() {
         let state = generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
         let complete_state = CompleteState {
+            format_version: Version { major: 1, minor: 0 },
             startup_state: state.clone(),
             desired_state: state,
             workload_states: vec![WorkloadState {
@@ -220,6 +221,7 @@ mod tests {
         let expected_state =
             generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
         let expected = CompleteState {
+            format_version: Version { major: 1, minor: 0 },
             startup_state: expected_state.clone(),
             desired_state: expected_state,
             workload_states: vec![WorkloadState {
@@ -497,6 +499,10 @@ mod tests {
 
         pub fn generate_test_complete_state() -> Mapping {
             Mapping::default()
+                .entry(
+                    "formatVersion",
+                    Mapping::default().entry("major", 1).entry("minor", 0),
+                )
                 .entry("startupState", generate_test_state())
                 .entry("desiredState", generate_test_state())
                 .entry(

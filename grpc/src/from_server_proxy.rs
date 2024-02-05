@@ -162,6 +162,7 @@ pub async fn forward_from_ankaios_to_proto(
                         }
                         common::commands::ResponseContent::CompleteState(complete_state) => {
                             response::ResponseContent::CompleteState(CompleteState {
+                                format_version: Some(complete_state.format_version.into()),
                                 startup_state: Some(complete_state.startup_state.into()),
                                 desired_state: Some(complete_state.desired_state.into()),
                                 workload_states: complete_state
@@ -313,7 +314,7 @@ mod tests {
     use api::proto::response;
     use api::proto::{self, from_server::FromServerEnum, FromServer, UpdateWorkload};
     use async_trait::async_trait;
-    use common::commands::CompleteState;
+    use common::commands::{CompleteState, Version};
     use common::from_server_interface::FromServerInterface;
     use common::objects::{State, WorkloadSpec};
     use common::test_utils::*;
@@ -732,10 +733,13 @@ mod tests {
             ),
         );
 
+        let complete_state_format_version = Version { major: 1, minor: 0 };
+
         let my_request_id = "my_request_id".to_owned();
         let prefixed_my_request_id = format!("{agent_name}@{my_request_id}");
 
         let test_complete_state = CompleteState {
+            format_version: complete_state_format_version,
             desired_state: State {
                 workloads: startup_workloads.clone(),
                 configs: HashMap::default(),
@@ -767,13 +771,16 @@ mod tests {
             result.from_server_enum,
             Some(FromServerEnum::Response(proto::Response {
                 request_id,
-                response_content: Some(proto::response::ResponseContent::CompleteState(proto::CompleteState{desired_state: Some(desired_state),
+                response_content: Some(proto::response::ResponseContent::CompleteState(proto::CompleteState{
+                    format_version: Some(format_version),
+                    desired_state: Some(desired_state),
                     startup_state: Some(startup_state),
                     workload_states}))
 
             })) if request_id == my_request_id
             && desired_state == test_complete_state.desired_state.into()
             && startup_state ==test_complete_state.startup_state.into()
+            && format_version == test_complete_state.format_version.into()
             && workload_states == vec![]
         ));
     }
@@ -787,8 +794,11 @@ mod tests {
 
         let my_request_id = "my_request_id".to_owned();
 
+        let complete_state_format_version = Version { major: 1, minor: 0 };
+
         let proto_complete_state =
             proto::response::ResponseContent::CompleteState(proto::CompleteState {
+                format_version: Some(complete_state_format_version.into()),
                 desired_state: Some(State::default().into()),
                 startup_state: Some(proto::State {
                     workloads: [(
@@ -850,15 +860,19 @@ mod tests {
             ),
         );
 
+        let complete_state_format_version = Version { major: 1, minor: 0 };
+
         let my_request_id = "my_request_id".to_owned();
 
         let test_complete_state = CompleteState {
+            format_version: complete_state_format_version.clone(),
             desired_state: State::default(),
             startup_state: State::default(),
             workload_states: vec![],
         };
 
         let proto_complete_state = proto::CompleteState {
+            format_version: Some(complete_state_format_version.into()),
             desired_state: Some(test_complete_state.desired_state.clone().into()),
             startup_state: Some(test_complete_state.startup_state.clone().into()),
             workload_states: vec![],
