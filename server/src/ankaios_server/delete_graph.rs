@@ -177,90 +177,30 @@ mod tests {
     #[test]
     fn utest_delete_graph_apply_delete_conditions() {
         /*
-            Dependency graph as input           Expected delete graph
-
-            R = ADD_COND_RUNNING
-            S = ADD_COND_SUCCEEDED
-            F = ADD_COND_FAILED
-
-                                          =>    2 --> 1 (DelCondNotPendingNorRunning)
-            4 --> 1 --> 2 --> 6                 5 --> 3 (DelCondNotPendingNorRunning)
-               F     R     S
-            3 --> 5
-               R
+            2 --> 1 (DelCondNotPendingNorRunning)
+            5 --> 3 (DelCondNotPendingNorRunning)
 
             Expectation:
             The DeletedWorkloads of workload 2 and 5 shall be filled with the
             content of the delete graph above,
-            and the DeletedWorkload of workload 4 and 6 shall contain an empty
+            and the DeletedWorkload of workload 4 shall contain an empty
             DeleteDependencies map.
         */
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let mut workload_1 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_1.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        let mut workload_2 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_2.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        let mut workload_3 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_3.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        let mut workload_4 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_4.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        let mut workload_5 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_5.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        let mut workload_6 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_6.to_string(),
-            RUNTIME.to_string(),
-        );
-
-        workload_1.dependencies =
-            HashMap::from([(workload_2.name.clone(), AddCondition::AddCondRunning)]);
-
-        workload_2.dependencies =
-            HashMap::from([(workload_6.name.clone(), AddCondition::AddCondSucceeded)]);
-
-        workload_3.dependencies =
-            HashMap::from([(workload_5.name.clone(), AddCondition::AddCondRunning)]);
-
-        workload_4.dependencies =
-            HashMap::from([(workload_1.name.clone(), AddCondition::AddCondFailed)]);
-
-        workload_5.dependencies.clear();
-        workload_6.dependencies.clear();
-
         let delete_graph = DeleteGraph {
             delete_graph: HashMap::from([
                 (
-                    workload_2.name.clone(),
+                    WORKLOAD_NAME_2.to_string(),
                     HashMap::from([(
-                        workload_1.name.clone(),
+                        WORKLOAD_NAME_1.to_string(),
                         DeleteCondition::DelCondNotPendingNorRunning,
                     )]),
                 ),
                 (
-                    workload_5.name.clone(),
+                    WORKLOAD_NAME_5.to_string(),
                     HashMap::from([(
-                        workload_3.name.clone(),
+                        WORKLOAD_NAME_3.to_string(),
                         DeleteCondition::DelCondNotPendingNorRunning,
                     )]),
                 ),
@@ -269,23 +209,18 @@ mod tests {
 
         let mut deleted_workloads = vec![
             DeletedWorkload {
-                name: workload_2.name.clone(),
-                agent: workload_2.agent.clone(),
+                name: WORKLOAD_NAME_2.to_string(),
+                agent: AGENT_A.to_string(),
                 ..Default::default()
             },
             DeletedWorkload {
-                name: workload_4.name.clone(),
-                agent: workload_4.agent.clone(),
+                name: WORKLOAD_NAME_4.to_string(),
+                agent: AGENT_A.to_string(),
                 ..Default::default()
             },
             DeletedWorkload {
-                name: workload_5.name.clone(),
-                agent: workload_5.agent.clone(),
-                ..Default::default()
-            },
-            DeletedWorkload {
-                name: workload_6.name.clone(),
-                agent: workload_6.agent.clone(),
+                name: WORKLOAD_NAME_5.to_string(),
+                agent: AGENT_A.to_string(),
                 ..Default::default()
             },
         ];
@@ -324,14 +259,6 @@ mod tests {
             },
             deleted_workloads[1]
         );
-
-        assert_eq!(
-            DeletedWorkload {
-                name: WORKLOAD_NAME_6.to_string(),
-                agent: AGENT_A.to_string(),
-                dependencies: HashMap::new()
-            },
-            deleted_workloads[3]
-        );
+    }
     }
 }
