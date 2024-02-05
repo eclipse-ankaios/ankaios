@@ -12,6 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::fmt::Display;
+
 use crate::objects::{DeletedWorkload, State, WorkloadSpec, WorkloadState};
 use api::proto;
 use serde::{Deserialize, Serialize};
@@ -257,6 +259,14 @@ impl TryFrom<proto::Version> for Version {
     }
 }
 
+impl Display for Version {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "'{}.{}'", self.major, self.minor)
+    }
+}
+
+const COMPLETE_STATE_FORMAT_VERSION: Version = Version { major: 0, minor: 1 };
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CompleteState {
@@ -287,6 +297,16 @@ impl TryFrom<proto::CompleteState> for CompleteState {
             desired_state: item.desired_state.unwrap_or_default().try_into()?,
             workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
         })
+    }
+}
+
+impl CompleteState {
+    pub fn get_current_format_version() -> Version {
+        COMPLETE_STATE_FORMAT_VERSION
+    }
+
+    pub fn is_compatible_format(format_version: &Version) -> bool {
+        format_version.major == COMPLETE_STATE_FORMAT_VERSION.major
     }
 }
 

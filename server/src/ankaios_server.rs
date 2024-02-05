@@ -202,6 +202,17 @@ impl AnkaiosServer {
                             update_state_request.update_mask
                         );
 
+                        if CompleteState::is_compatible_format(
+                            &update_state_request.state.format_version,
+                        ) {
+                            log::debug!("The completeState in the request has a compatible version. Received {}, expected {}.",
+                            update_state_request.state.format_version, CompleteState::get_current_format_version());
+                        } else {
+                            log::warn!("The CompleteState in the request has wrong format. Received {}, expected {} -> ignoring the request.",
+                            update_state_request.state.format_version, CompleteState::get_current_format_version());
+                            continue;
+                        }
+
                         // [impl->swdd~update-desired-state-with-update-mask~1]
                         // [impl->swdd~update-desired-state-empty-update-mask~1]
                         match self
