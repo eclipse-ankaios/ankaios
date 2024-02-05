@@ -337,10 +337,10 @@ impl From<OrderedExecutionState> for ExecutionState {
     fn from(value: OrderedExecutionState) -> Self {
         match value {
             OrderedExecutionState::Failed(value) => ExecutionState::failed(value),
-            OrderedExecutionState::Starting => ExecutionState::starting("starting"),
-            OrderedExecutionState::Unknown => ExecutionState::unknown("unknown"),
+            OrderedExecutionState::Starting => ExecutionState::starting("starting container"),
+            OrderedExecutionState::Unknown => ExecutionState::unknown("unknown container state"),
             OrderedExecutionState::Running => ExecutionState::running(),
-            OrderedExecutionState::Stopping => ExecutionState::stopping("stopping"),
+            OrderedExecutionState::Stopping => ExecutionState::stopping("stopping container"),
             OrderedExecutionState::Succeeded => ExecutionState::succeeded(),
             OrderedExecutionState::Lost => ExecutionState::lost(),
         }
