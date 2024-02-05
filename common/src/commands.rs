@@ -182,6 +182,20 @@ pub struct Response {
     pub response_content: ResponseContent,
 }
 
+impl TryFrom<proto::Response> for Response {
+    type Error = String;
+
+    fn try_from(value: proto::Response) -> Result<Self, Self::Error> {
+        Ok(Self {
+            request_id: value.request_id,
+            response_content: value
+                .response_content
+                .ok_or_else(|| "Response has no content".to_string())?
+                .try_into()?,
+        })
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum ResponseContent {
@@ -205,6 +219,22 @@ impl From<ResponseContent> for proto::response::ResponseContent {
             ResponseContent::CompleteState(complete_state) => {
                 proto::response::ResponseContent::CompleteState((*complete_state).into())
             }
+        }
+    }
+}
+
+impl TryFrom<proto::response::ResponseContent> for ResponseContent {
+    type Error = String;
+
+    fn try_from(value: proto::response::ResponseContent) -> Result<Self, String> {
+        match value {
+            proto::response::ResponseContent::Success(_) => Ok(ResponseContent::Success),
+            proto::response::ResponseContent::Error(error) => {
+                Ok(ResponseContent::Error(error.into()))
+            }
+            proto::response::ResponseContent::CompleteState(complete_state) => Ok(
+                ResponseContent::CompleteState(Box::new(complete_state.try_into()?)),
+            ),
         }
     }
 }

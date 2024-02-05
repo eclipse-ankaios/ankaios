@@ -16,9 +16,11 @@ use crate::agent_senders_map::AgentSendersMap;
 use crate::ankaios_streaming::GRPCStreaming;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 use api::proto::from_server::FromServerEnum;
-use api::proto::{self, response, CompleteState};
+use api::proto::response::ResponseContent;
+use api::proto::{self};
 
 use async_trait::async_trait;
+use common::commands::Response;
 use common::from_server_interface::{
     FromServer, FromServerInterface, FromServerReceiver, FromServerSender,
 };
@@ -87,31 +89,10 @@ pub async fn forward_from_proto_to_ankaios(
                 }
                 FromServerEnum::Response(response) => {
                     // [impl->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
-                    let request_id = response.request_id;
-
-                    match response
-                        .response_content
-                        .ok_or(GrpcMiddlewareError::ConversionError(format!(
-                            "Response content empty for response ID: '{}'",
-                            request_id
-                        )))? {
-                        proto::response::ResponseContent::Success(_) => {
-                            agent_tx.success(request_id).await?;
-                        }
-                        proto::response::ResponseContent::Error(error) => {
-                            agent_tx.error(request_id, error.into()).await?;
-                        }
-                        proto::response::ResponseContent::CompleteState(complete_state) => {
-                            agent_tx
-                                .complete_state(
-                                    request_id,
-                                    complete_state
-                                        .try_into()
-                                        .map_err(GrpcMiddlewareError::ConversionError)?,
-                                )
-                                .await?;
-                        }
-                    }
+                    let response: Response = response
+                        .try_into()
+                        .map_err(GrpcMiddlewareError::ConversionError)?;
+                    agent_tx.response(response).await?;
                 }
             }
             Ok(()) as Result<(), GrpcMiddlewareError>
@@ -153,26 +134,7 @@ pub async fn forward_from_ankaios_to_proto(
                 let (agent_name, request_id) =
                     detach_prefix_from_request_id(response.request_id.as_ref());
                 if let Some(sender) = agent_senders.get(&agent_name) {
-                    let response_content = match response.response_content {
-                        common::commands::ResponseContent::Success => {
-                            response::ResponseContent::Success(proto::Success {})
-                        }
-                        common::commands::ResponseContent::Error(error) => {
-                            response::ResponseContent::Error(error.into())
-                        }
-                        common::commands::ResponseContent::CompleteState(complete_state) => {
-                            response::ResponseContent::CompleteState(CompleteState {
-                                startup_state: Some(complete_state.startup_state.into()),
-                                current_state: Some(complete_state.current_state.into()),
-                                workload_states: complete_state
-                                    .workload_states
-                                    .into_iter()
-                                    .map(|x| x.into())
-                                    .collect(),
-                            })
-                        }
-                    };
-
+                    let response_content: ResponseContent = response.response_content.into();
                     log::trace!(
                         "Sending response to agent '{}': {:?}.",
                         agent_name,

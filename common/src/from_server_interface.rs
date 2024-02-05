@@ -98,6 +98,7 @@ pub trait FromServerInterface {
         &self,
         workload_running: Vec<WorkloadState>,
     ) -> Result<(), FromServerInterfaceError>;
+    async fn response(&self, response: commands::Response) -> Result<(), FromServerInterfaceError>;
     async fn complete_state(
         &self,
         request_id: String,
@@ -139,6 +140,10 @@ impl FromServerInterface for FromServerSender {
                 commands::UpdateWorkloadState { workload_states },
             ))
             .await?)
+    }
+
+    async fn response(&self, response: commands::Response) -> Result<(), FromServerInterfaceError> {
+        Ok(self.send(FromServer::Response(response)).await?)
     }
 
     async fn complete_state(
