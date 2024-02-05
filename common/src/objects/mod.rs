@@ -20,7 +20,9 @@ mod state;
 pub use state::State;
 
 mod workload_state;
-pub use workload_state::{ExecutionState, WorkloadState};
+#[cfg(test)]
+pub use workload_state::{generate_test_workload_state, generate_test_workload_state_with_agent};
+pub use workload_state::{ExecutionState, ExecutionStateEnum, WorkloadState};
 
 mod workload_spec;
 pub use workload_spec::{

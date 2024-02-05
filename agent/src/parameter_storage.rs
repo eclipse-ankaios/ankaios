@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::{ExecutionState, WorkloadState};
+use common::objects::{ExecutionStateEnum, WorkloadState};
 use std::collections::HashMap;
 
 type WorkloadStates = HashMap<String, common::objects::ExecutionState>;
@@ -38,13 +38,16 @@ impl ParameterStorage {
     pub fn update_workload_state(&mut self, workload_state: WorkloadState) {
         let agent_workloads = self
             .states_storage
-            .entry(workload_state.agent_name)
+            .entry(workload_state.instance_name.agent_name().to_owned())
             .or_default();
 
-        if workload_state.execution_state != ExecutionState::ExecRemoved {
-            agent_workloads.insert(workload_state.workload_name, workload_state.execution_state);
+        if workload_state.execution_state.state != ExecutionStateEnum::Removed {
+            agent_workloads.insert(
+                workload_state.instance_name.workload_name().to_owned(),
+                workload_state.execution_state,
+            );
         } else {
-            agent_workloads.remove(&workload_state.workload_name);
+            agent_workloads.remove(workload_state.instance_name.workload_name());
         }
         self.remove_empty_hash_maps();
     }

@@ -344,8 +344,8 @@ impl CliCommands {
             .workload_states
             .into_iter()
             .map(|wl_state| WorkloadInfo {
-                name: wl_state.workload_name,
-                agent: wl_state.agent_name,
+                name: wl_state.instance_name.workload_name().into(),
+                agent: wl_state.instance_name.agent_name().into(),
                 runtime: String::new(),
                 execution_state: wl_state.execution_state.to_string(),
             })
@@ -408,7 +408,7 @@ impl CliCommands {
             !workload_names
                 .clone()
                 .into_iter()
-                .any(|wn| wn == ws.workload_name)
+                .any(|wn| wn == ws.instance_name.workload_name())
         });
 
         let update_mask = vec!["currentState".to_string()];

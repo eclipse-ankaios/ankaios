@@ -65,22 +65,22 @@ impl From<PodmanContainerInfo> for ContainerState {
 impl From<PodmanContainerInfo> for ExecutionState {
     fn from(value: PodmanContainerInfo) -> Self {
         match value.state.to_lowercase().as_str() {
-            "created" => ExecutionState::ExecStarting,
-            "configured" => ExecutionState::ExecStarting,
-            "initialized" => ExecutionState::ExecStarting,
-            "exited" if value.exit_code == 0 => ExecutionState::ExecSucceeded,
-            "exited" if value.exit_code != 0 => ExecutionState::ExecFailed,
-            "running" => ExecutionState::ExecRunning,
-            "stopping" => ExecutionState::ExecStopping,
-            "stopped" => ExecutionState::ExecStopping,
-            "removing" => ExecutionState::ExecStopping,
-            "unknown" => ExecutionState::ExecUnknown,
+            "created" => ExecutionState::starting(value.state),
+            "configured" => ExecutionState::starting(value.state),
+            "initialized" => ExecutionState::starting(value.state),
+            "exited" if value.exit_code == 0 => ExecutionState::succeeded(),
+            "exited" if value.exit_code != 0 => ExecutionState::failed(value.exit_code),
+            "running" => ExecutionState::running(),
+            "stopping" => ExecutionState::stopping(value.state),
+            "stopped" => ExecutionState::stopping(value.state),
+            "removing" => ExecutionState::stopping(value.state),
+            "unknown" => ExecutionState::unknown(value.state),
             state => {
                 log::trace!(
                     "Mapping the container state '{}' to the execution state 'ExecUnknown'",
                     state
                 );
-                ExecutionState::ExecUnknown
+                ExecutionState::unknown(state)
             }
         }
     }

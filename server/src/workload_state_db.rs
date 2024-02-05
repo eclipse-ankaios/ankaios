@@ -15,8 +15,11 @@
 use common::objects::{ExecutionState, WorkloadState};
 use std::collections::HashMap;
 
-type WorkloadStatesMap = HashMap<String, common::objects::ExecutionState>;
-type AgentWorkloadStates = HashMap<String, WorkloadStatesMap>;
+type WorkloadName = String;
+type AgentName = String;
+
+type WorkloadStatesMap = HashMap<WorkloadName, Vec<WorkloadState>>;
+type AgentWorkloadStates = HashMap<AgentName, WorkloadStatesMap>;
 
 pub struct WorkloadStateDB {
     stored_states: AgentWorkloadStates,
@@ -30,85 +33,49 @@ impl WorkloadStateDB {
     }
 
     pub fn get_all_workload_states(&self) -> Vec<WorkloadState> {
-        let mut all_workload_states: Vec<WorkloadState> = vec![];
-        for (agent, workload_states) in &self.stored_states {
-            let mut x: Vec<WorkloadState> = workload_states
-                .iter()
-                .map(|(workload_name, state)| WorkloadState {
-                    workload_name: workload_name.clone(),
-                    agent_name: agent.clone(),
-                    execution_state: state.clone(),
-                })
-                .collect();
-            all_workload_states.append(&mut x);
-        }
-
-        all_workload_states
+        self.stored_states
+            .iter()
+            .flat_map(|(_, v)| v.iter().flat_map(|(_, v)| v.to_owned()))
+            .collect()
     }
 
     pub fn get_workload_state_for_agent(&self, agent_name: &str) -> Vec<WorkloadState> {
-        if let Some(workload_states) = self.stored_states.get(agent_name) {
-            return workload_states
-                .clone()
-                .into_iter()
-                .map(|(workload_name, execution_state)| WorkloadState {
-                    workload_name,
-                    agent_name: agent_name.to_owned(),
-                    execution_state,
-                })
-                .collect();
-        }
-
-        Vec::new()
+        self.stored_states
+            .get(agent_name)
+            .map(|x| x.iter().flat_map(|(_, v)| v.to_owned()).collect())
+            .unwrap_or_default()
     }
 
     pub fn get_workload_state_excluding_agent(
         &self,
         excluding_agent_name: &str,
     ) -> Vec<WorkloadState> {
-        let mut output_workload_states = Vec::new();
-        for (agent_name, workload_states) in self.stored_states.iter() {
-            if agent_name != excluding_agent_name {
-                for (workload_name, execution_state) in workload_states.iter() {
-                    output_workload_states.push(WorkloadState {
-                        workload_name: workload_name.clone(),
-                        agent_name: agent_name.clone(),
-                        execution_state: execution_state.clone(),
-                    });
-                }
-            }
-        }
-
-        output_workload_states
+        self.stored_states
+            .iter()
+            .filter(|(k, _)| *k != excluding_agent_name)
+            .flat_map(|(_, v)| v.iter().flat_map(|(_, v)| v.to_owned()))
+            .collect()
     }
 
-    pub fn mark_all_workload_state_for_agent_unknown(&mut self, agent_name: &str) {
-        if let Some(workload_states) = self.stored_states.get_mut(agent_name) {
-            workload_states
-                .iter_mut()
-                .for_each(|(_, execution_state)| *execution_state = ExecutionState::ExecUnknown);
-        }
+    pub fn agent_disconnected(&mut self, agent_name: &str) {
+        self.stored_states.get_mut(agent_name).map(|x| {
+            x.values_mut().map(|y| {
+                y.iter_mut().for_each(|wl_state| {
+                    wl_state.execution_state = ExecutionState::agent_disconnected()
+                })
+            })
+        });
     }
 
     pub fn insert(&mut self, workload_states: Vec<WorkloadState>) {
-        for workload_state in workload_states {
-            if let Some(current_states) = self
-                .stored_states
-                .get_mut(workload_state.agent_name.as_str())
-            {
-                if let Some(old_exec_state) = current_states
-                    .insert(workload_state.workload_name, workload_state.execution_state)
-                {
-                    log::debug!("Replaced old execution state: '{old_exec_state:?}'");
-                }
-            } else {
-                let mut new_current_states = HashMap::new();
-                new_current_states
-                    .insert(workload_state.workload_name, workload_state.execution_state);
-                self.stored_states
-                    .insert(workload_state.agent_name, new_current_states);
-            }
-        }
+        workload_states.into_iter().for_each(|workload_state| {
+            self.stored_states
+                .entry(workload_state.instance_name.agent_name().to_owned())
+                .or_default()
+                .entry(workload_state.instance_name.workload_name().to_owned())
+                .or_default()
+                .push(workload_state);
+        });
     }
 }
 
@@ -218,7 +185,7 @@ mod tests {
             ]
         );
 
-        wls_db.mark_all_workload_state_for_agent_unknown(agent_name_1);
+        wls_db.agent_disconnected(agent_name_1);
         let mut wls_res_marked = wls_db.get_all_workload_states();
         wls_res_marked.sort_by(|a, b| a.workload_name.cmp(&b.workload_name));
 

@@ -83,7 +83,7 @@ impl AgentManager {
                         .into_iter()
                         .for_each(|workload_state| {
                             log::info!("The server reports workload state '{:?}' for the workload '{}' in the agent '{}'", workload_state.execution_state,
-                            workload_state.workload_name, workload_state.agent_name);
+                            workload_state.instance_name.workload_name(), workload_state.instance_name.agent_name());
                             self.parameter_storage.update_workload_state(workload_state)
                         });
                 }

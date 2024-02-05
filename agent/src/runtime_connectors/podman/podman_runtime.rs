@@ -38,6 +38,12 @@ pub struct PodmanWorkloadId {
     pub id: String,
 }
 
+impl ToString for PodmanWorkloadId {
+    fn to_string(&self) -> String {
+        self.id.to_owned()
+    }
+}
+
 #[async_trait]
 // [impl->swdd~podman-implements-runtime-state-getter~1]
 impl RuntimeStateGetter<PodmanWorkloadId> for PodmanStateGetter {
@@ -52,7 +58,7 @@ impl RuntimeStateGetter<PodmanWorkloadId> for PodmanStateGetter {
                 if let Some(state) = state {
                     state
                 } else {
-                    ExecutionState::ExecRemoved
+                    ExecutionState::lost()
                 }
             }
             Err(err) => {
@@ -61,7 +67,7 @@ impl RuntimeStateGetter<PodmanWorkloadId> for PodmanStateGetter {
                     workload_id.id,
                     err
                 );
-                ExecutionState::ExecUnknown
+                ExecutionState::unknown("Error getting state from Podman.")
             }
         };
 

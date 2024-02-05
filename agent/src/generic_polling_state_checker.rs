@@ -4,7 +4,7 @@ use tokio::{task::JoinHandle, time};
 
 use crate::runtime_connectors::{RuntimeStateGetter, StateChecker};
 use common::{
-    objects::{ExecutionState, WorkloadSpec},
+    objects::{ExecutionState, ExecutionStateEnum, WorkloadInstanceName, WorkloadSpec},
     std_extensions::IllegalStateResult,
     to_server_interface::{ToServerInterface, ToServerSender},
 };
@@ -21,7 +21,7 @@ pub struct GenericPollingStateChecker {
 #[async_trait]
 impl<WorkloadId> StateChecker<WorkloadId> for GenericPollingStateChecker
 where
-    WorkloadId: Send + Sync + 'static,
+    WorkloadId: ToString + Send + Sync + 'static,
 {
     // [impl->swdd~agent-provides-generic-state-checker-implementation~1]
     fn start_checker(
@@ -33,7 +33,8 @@ where
         let workload_spec = workload_spec.clone();
         let workload_name = workload_spec.name.clone();
         let task_handle = tokio::spawn(async move {
-            let mut last_state = ExecutionState::ExecUnknown;
+            let mut last_state =
+                ExecutionState::unknown("Never received an execution state.");
             let mut interval = time::interval(Duration::from_millis(STATUS_CHECK_INTERVAL_MS));
             loop {
                 interval.tick().await;
@@ -50,14 +51,14 @@ where
                     // [impl->swdd~generic-state-checker-sends-workload-state~1]
                     manager_interface
                         .update_workload_state(vec![common::objects::WorkloadState {
-                            agent_name: workload_spec.agent.clone(),
-                            workload_name: workload_spec.name.to_string(),
+                            instance_name: workload_spec.instance_name(),
+                            workload_id: workload_id.to_string(),
                             execution_state: current_state,
                         }])
                         .await
                         .unwrap_or_illegal_state();
 
-                    if last_state == ExecutionState::ExecRemoved {
+                    if last_state.state == ExecutionStateEnum::Removed {
                         break;
                     }
                 }

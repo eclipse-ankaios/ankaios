@@ -42,6 +42,16 @@ pub struct PodmanKubeWorkloadId {
     pub down_options: Vec<String>,
 }
 
+impl ToString for PodmanKubeWorkloadId {
+    fn to_string(&self) -> String {
+        if let Some(pods) = &self.pods {
+            sha256::digest(pods.join(""))
+        } else {
+            "no pods running".to_string()
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct PlayKubeOutput {}
 
@@ -278,18 +288,18 @@ impl RuntimeStateGetter<PodmanKubeWorkloadId> for PodmanKubeRuntime {
                     container_states
                         .into_iter()
                         .map(OrderedExecutionState::from)
-                        .fold(OrderedExecutionState::Removed, min)
+                        .fold(OrderedExecutionState::Lost, min)
                         .into()
                 }
 
                 Err(err) => {
                     log::warn!("Could not get state of workload '{}': {}", id.name, err);
-                    ExecutionState::ExecUnknown
+                    ExecutionState::unknown("Error getting state from pod.")
                 }
             }
         } else {
             log::warn!("No pods in the workload '{}'", id.name.workload_name());
-            ExecutionState::ExecUnknown
+            ExecutionState::unknown("No pods for the workload.")
         }
     }
 }
@@ -298,13 +308,13 @@ impl RuntimeStateGetter<PodmanKubeWorkloadId> for PodmanKubeRuntime {
 
 // [impl->swdd~podman-kube-state-getter-removed-if-no-container~1]
 enum OrderedExecutionState {
-    Failed,
+    Failed(u8),
     Starting,
     Unknown,
     Running,
     Stopping,
     Succeeded,
-    Removed,
+    Lost,
 }
 
 // [impl->swdd~podman-kube-state-getter-maps-state~2]
@@ -313,7 +323,7 @@ impl From<podman_cli::ContainerState> for OrderedExecutionState {
         match value {
             podman_cli::ContainerState::Starting => OrderedExecutionState::Starting,
             podman_cli::ContainerState::Exited(0) => OrderedExecutionState::Succeeded,
-            podman_cli::ContainerState::Exited(_) => OrderedExecutionState::Failed,
+            podman_cli::ContainerState::Exited(value) => OrderedExecutionState::Failed(value),
             podman_cli::ContainerState::Paused => OrderedExecutionState::Unknown,
             podman_cli::ContainerState::Running => OrderedExecutionState::Running,
             podman_cli::ContainerState::Stopping => OrderedExecutionState::Stopping,
@@ -326,13 +336,13 @@ impl From<podman_cli::ContainerState> for OrderedExecutionState {
 impl From<OrderedExecutionState> for ExecutionState {
     fn from(value: OrderedExecutionState) -> Self {
         match value {
-            OrderedExecutionState::Failed => ExecutionState::ExecFailed,
-            OrderedExecutionState::Starting => ExecutionState::ExecStarting,
-            OrderedExecutionState::Unknown => ExecutionState::ExecUnknown,
-            OrderedExecutionState::Running => ExecutionState::ExecRunning,
-            OrderedExecutionState::Stopping => ExecutionState::ExecStopping,
-            OrderedExecutionState::Succeeded => ExecutionState::ExecSucceeded,
-            OrderedExecutionState::Removed => ExecutionState::ExecRemoved,
+            OrderedExecutionState::Failed(value) => ExecutionState::failed(value),
+            OrderedExecutionState::Starting => ExecutionState::starting("starting"),
+            OrderedExecutionState::Unknown => ExecutionState::unknown("unknown"),
+            OrderedExecutionState::Running => ExecutionState::running(),
+            OrderedExecutionState::Stopping => ExecutionState::stopping("stopping"),
+            OrderedExecutionState::Succeeded => ExecutionState::succeeded(),
+            OrderedExecutionState::Lost => ExecutionState::lost(),
         }
     }
 }

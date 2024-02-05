@@ -217,7 +217,7 @@ async fn distribute_workload_states_to_agents(
         let filtered_workload_states: Vec<proto::WorkloadState> = workload_state_collection
             .clone()
             .into_iter()
-            .filter(|workload_state| workload_state.agent_name != agent_name)
+            .filter(|workload_state| workload_state.instance_name.agent_name() != agent_name)
             .map(|x| x.into())
             .collect();
         if filtered_workload_states.is_empty() {

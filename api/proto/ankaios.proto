@@ -140,24 +140,36 @@ message ExecutionState {
     Succeeded succeeded = 5; /// The workload has successfully finished operation.
     Failed failed = 6; /// The workload has failed or is in a degraded state.
     NotScheduled notScheduled = 7; /// The workload is not scheduled to run at any agent. This is signalized with an empty agent in the workload specification.
+    Removed removed = 8; /// The workload was removed from Ankaios. This state is used only internally in Ankaios. The the otside world removed states are just not there.
   }
+}
+
+/**
+* The workload was removed from Ankaios. This state is used only internally in Ankaios. The the otside world removed states are just not there.
+*/
+enum Removed {
+    REMOVED = 0;
 }
 
 /**
 * The exact state of the workload cannot be determined, e.g., because of a broken connection to the responsible agent.
 */
-message AgentDisconnected {}
+enum AgentDisconnected {
+    AGENT_DISCONNECTED = 0;
+}
 
 /**
 * The workload is not scheduled to run at any agent. This is signalized with an empty agent in the workload specification.
 */
-message NotScheduled {}
+enum NotScheduled {
+    NOT_SCHEDULED = 0;
+}
 
 /**
 * The workload is going to be started eventually.
 */
 enum Pending {
-  PENDING_INITAL = 0; /// The workload specification has not yet being received by an agent
+  PENDING_INITIAL = 0; /// The workload specification has not yet being received by an agent
   PENDING_WAITING_TO_START = 1; /// The start of the workload will be triggered once all its dependencies are met.
   PENDING_STARTING = 2; /// Starting the workload was scheduled at the corresponding runtime.
   PENDING_STARTING_FAILED = 8; /// The starting of the workload by the runtime failed.
@@ -195,7 +207,7 @@ enum Failed {
 * A message containing the information about the workload state.
 */
 message WorkloadState {
-  WorkloadInstanceName workloadInstanceName = 1;
+  WorkloadInstanceName instanceName = 1;
   string workloadId = 2; /// Normally, the Id provided to the workload by the runtime. The Id may not be available in all execution states.
   ExecutionState executionState = 3; /// The workload execution state.
 }
