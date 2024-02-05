@@ -14,7 +14,7 @@
 
 use std::fmt::Display;
 
-use serde::{Deserialize, Serialize};
+use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
 
 use api::proto;
 
@@ -207,11 +207,36 @@ impl From<proto::execution_state::ExecutionStateEnum> for ExecutionStateEnum {
 // [impl->swdd~common-supported-workload-states~1]
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
+
 pub struct ExecutionState {
     pub additional_info: String,
     pub state: ExecutionStateEnum,
 }
 
+impl ExecutionStateEnum {
+    pub fn main_state_to_string(&self) -> String {
+        match self {
+            ExecutionStateEnum::AgentDisconnected => "AgentDisconnected",
+            ExecutionStateEnum::Pending(_) => "Pending",
+            ExecutionStateEnum::Running(_) => "Running",
+            ExecutionStateEnum::Succeeded(_) => "Succeeded",
+            ExecutionStateEnum::Failed(_) => "Failed",
+            ExecutionStateEnum::NotScheduled => "NotScheduled",
+            ExecutionStateEnum::Removed => "Removed",
+        }
+        .to_string()
+    }
+
+    pub fn sub_state_to_string(&self) -> Option<String> {
+        match self {
+            ExecutionStateEnum::Pending(substate) => Some(substate.to_string()),
+            ExecutionStateEnum::Running(substate) => Some(substate.to_string()),
+            ExecutionStateEnum::Succeeded(substate) => Some(substate.to_string()),
+            ExecutionStateEnum::Failed(substate) => Some(substate.to_string()),
+            _ => None,
+        }
+    }
+}
 impl ExecutionState {
     pub fn agent_disconnected() -> Self {
         ExecutionState {
@@ -309,15 +334,10 @@ impl From<proto::ExecutionState> for ExecutionState {
 
 impl Display for ExecutionState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self.state {
-            ExecutionStateEnum::AgentDisconnected => write!(f, "AgentDisconnected"),
-            ExecutionStateEnum::Pending(substate) => write!(f, "Pending: {substate}"),
-            ExecutionStateEnum::Running(substate) => write!(f, "Running: {substate}"),
-            ExecutionStateEnum::Succeeded(substate) => write!(f, "Succeeded: {substate}"),
-            ExecutionStateEnum::Failed(substate) => write!(f, "Failed: {substate}"),
-            ExecutionStateEnum::NotScheduled => write!(f, "NotScheduled"),
-            ExecutionStateEnum::Removed => write!(f, "Removed"),
-        }?;
+        write!(f, "{}", self.state.main_state_to_string())?;
+        if let Some(sub_state) = self.state.sub_state_to_string() {
+            write!(f, ": '{}'", sub_state)?
+        }
         if !self.additional_info.is_empty() {
             write!(f, ": '{}'", self.additional_info)
         } else {
@@ -326,11 +346,26 @@ impl Display for ExecutionState {
     }
 }
 
+pub fn serialize_execution_state<S>(
+    value: &ExecutionState,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let mut map = serializer.serialize_map(Some(2))?;
+    map.serialize_entry("state", &value.state.main_state_to_string())?;
+    map.serialize_entry("substate", &value.state.sub_state_to_string())?;
+    map.serialize_entry("additional_info", &value.additional_info)?;
+    map.end()
+}
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct WorkloadState {
     pub instance_name: WorkloadExecutionInstanceName,
     pub workload_id: String,
+    #[serde(serialize_with = "serialize_execution_state")]
     pub execution_state: ExecutionState,
 }
 
