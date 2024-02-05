@@ -838,7 +838,7 @@ mod tests {
 
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-provides-interface-get-complete-state~1]
-    // [utest->swdd~server-filters-get-complete-state-result~1]
+    // [utest->swdd~server-filters-get-complete-state-result~2]
     // [utest->swdd~server-includes-id-in-control-interface-response~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
@@ -929,7 +929,7 @@ mod tests {
 
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-provides-interface-get-complete-state~1]
-    // [utest->swdd~server-filters-get-complete-state-result~1]
+    // [utest->swdd~server-filters-get-complete-state-result~2]
     // [utest->swdd~server-includes-id-in-control-interface-response~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
