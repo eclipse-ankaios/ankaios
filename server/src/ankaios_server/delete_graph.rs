@@ -260,5 +260,4 @@ mod tests {
             deleted_workloads[1]
         );
     }
-    }
 }
