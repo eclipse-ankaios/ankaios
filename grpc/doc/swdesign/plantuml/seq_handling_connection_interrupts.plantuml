@@ -19,5 +19,5 @@ activate agent_connection
 == Ankaios Agent not reachable ==
 
 agent_connection ->> agent_connection ++--: stop listening to \n messages from Agent
-agent_connection ->> ankaios_server ++--: AgentGone
+agent_connection ->> ankaios_server --++: AgentGone
 @enduml
