@@ -279,7 +279,8 @@ mod tests {
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
     use common::commands::{CompleteStateRequest, UpdateWorkload, UpdateWorkloadState};
     use common::objects::{
-        DeletedWorkload, ExecutionState, ExecutionStateEnum, State, WorkloadState,
+        generate_test_workload_state, generate_test_workload_state_with_agent, DeletedWorkload,
+        ExecutionState, State,
     };
     use common::test_utils::generate_test_workload_spec_with_param;
     use common::to_server_interface::ToServerInterface;
@@ -965,6 +966,10 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+
+    // TODO the following test tests also the workload state db
+    // This should be avoided, the tests should be 
+
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-stores-workload-state~1]
     // [utest->swdd~server-set-workload-state-unknown-on-disconnect~1]
@@ -983,7 +988,7 @@ mod tests {
 
         // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
         let test_wl_1_state_running =
-            generate_test_workload_state(WORKLOAD_NAME_1, ExecutionState::running());
+            generate_test_workload_state_with_agent(WORKLOAD_NAME_1, AGENT_A, ExecutionState::running());
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_1_state_running.clone()])
             .await;
@@ -1011,8 +1016,11 @@ mod tests {
             .workload_state_db
             .get_workload_state_for_agent(AGENT_A);
 
-        let expected_workload_state =
-            generate_test_workload_state(WORKLOAD_NAME_1, ExecutionState::agent_disconnected());
+        let expected_workload_state = generate_test_workload_state_with_agent(
+            WORKLOAD_NAME_1,
+            AGENT_A,
+            ExecutionState::agent_disconnected(),
+        );
         assert_eq!(vec![expected_workload_state.clone()], workload_states);
 
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
