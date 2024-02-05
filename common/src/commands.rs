@@ -182,6 +182,15 @@ pub struct Response {
     pub response_content: ResponseContent,
 }
 
+impl From<Response> for proto::Response {
+    fn from(value: Response) -> Self {
+        Self {
+            request_id: value.request_id,
+            response_content: Some(value.response_content.into()),
+        }
+    }
+}
+
 impl TryFrom<proto::Response> for Response {
     type Error = String;
 
@@ -202,6 +211,7 @@ pub enum ResponseContent {
     Success,
     Error(Error),
     CompleteState(Box<CompleteState>),
+    UpdateStateSuccess(UpdateStateSuccess),
 }
 
 impl From<ResponseContent> for proto::response::ResponseContent {
@@ -219,6 +229,9 @@ impl From<ResponseContent> for proto::response::ResponseContent {
             ResponseContent::CompleteState(complete_state) => {
                 proto::response::ResponseContent::CompleteState((*complete_state).into())
             }
+            ResponseContent::UpdateStateSuccess(update_state_success) => {
+                proto::response::ResponseContent::UpdateStateSuccess(update_state_success.into())
+            }
         }
     }
 }
@@ -234,6 +247,9 @@ impl TryFrom<proto::response::ResponseContent> for ResponseContent {
             }
             proto::response::ResponseContent::CompleteState(complete_state) => Ok(
                 ResponseContent::CompleteState(Box::new(complete_state.try_into()?)),
+            ),
+            proto::response::ResponseContent::UpdateStateSuccess(update_state_success) => Ok(
+                ResponseContent::UpdateStateSuccess(update_state_success.into()),
             ),
         }
     }
@@ -288,6 +304,31 @@ impl TryFrom<proto::CompleteState> for CompleteState {
             current_state: item.current_state.unwrap_or_default().try_into()?,
             workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
         })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[serde(default, rename_all = "camelCase")]
+pub struct UpdateStateSuccess {
+    pub added_workloads: Vec<String>,
+    pub deleted_workloads: Vec<String>,
+}
+
+impl From<UpdateStateSuccess> for proto::UpdateStateSuccess {
+    fn from(value: UpdateStateSuccess) -> Self {
+        Self {
+            added_workloads: value.added_workloads,
+            deleted_workloads: value.deleted_workloads,
+        }
+    }
+}
+
+impl From<proto::UpdateStateSuccess> for UpdateStateSuccess {
+    fn from(value: proto::UpdateStateSuccess) -> Self {
+        Self {
+            added_workloads: value.added_workloads,
+            deleted_workloads: value.deleted_workloads,
+        }
     }
 }
 
