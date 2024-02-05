@@ -27,16 +27,20 @@ ${new_state_yaml_file}          ${EMPTY}
 
 
 *** Test Cases ***
-# [itest->swdd~cli-standalone-application~1]
-# [itest->swdd~server-handle-cli-communication~1]
 Test Ankaios observes the inter-workload dependencies when creating workloads
     [Setup]    Run Keywords    Setup Ankaios
     # Preconditions
-    Given Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
+    Given Ankaios server is started with config "${CONFIGS_DIR}/create_workloads_with_dependencies_config.yaml"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And Ankaios agent is started with name "agent_B"
     # Actions
     # Asserts
-    Then the workload "nginx" shall have the execution state "Running" on agent "agent_A" within "30" seconds
-    And the command "curl localhost:8082" shall finish with exit code "0" within "10" seconds
+    Then the workload "logger" shall have the execution state "WaitingToStart" on agent "agent_A"
+    And Then the workload "error_notifier" shall have the execution state "WaitingToStart" on agent "agent_A"
+    And the workload "storage_provider" shall have the execution state "WaitingToStart" on agent "agent_B"
+    And the workload "filesystem_init" shall have the execution state "Succeeded" on agent "agent_B"
+    And the workload "storage_provider" shall have the execution state "Running" on agent "agent_B"
+    And the workload "logger" shall have the execution state "Running" on agent "agent_B"
+    And the workload "logger" shall have the execution state "Failed" on agent "agent_B"
+    And the workload "error_notifier" shall have the execution state "Running" on agent "agent_B"
     [Teardown]    Clean up Ankaios

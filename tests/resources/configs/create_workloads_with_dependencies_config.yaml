@@ -16,10 +16,10 @@ workloads:
     runtimeConfig: |
       image: alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sleep" ]
-      commandArgs: [ "2 && false" ]
+      commandArgs: [ "1 && false" ]
   storage_provider:
     runtime: podman
-    agent: agent_A
+    agent: agent_B
     restart: true
     updateStrategy: AT_MOST_ONCE
     accessRights:
@@ -34,10 +34,10 @@ workloads:
     runtimeConfig: |
       image: alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sleep" ]
-      commandArgs: [ "5 && false" ]
+      commandArgs: [ "2 && false" ]
   filesystem_init:
     runtime: podman
-    agent: agent_A
+    agent: agent_B
     restart: true
     updateStrategy: AT_MOST_ONCE
     accessRights:
@@ -49,7 +49,7 @@ workloads:
     runtimeConfig: |
       image: alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sleep" ]
-      commandArgs: [ "2" ]
+      commandArgs: [ "1" ]
   error_notifier:
     runtime: podman
     agent: agent_A
@@ -59,7 +59,7 @@ workloads:
       allow: []
       deny: []
     dependencies:
-      logger:
+      storage_provider:
         ADD_COND_FAILED
     tags:
       - key: owner
