@@ -44,7 +44,8 @@ pub use access_rights::{AccessRights, AccessRightsRule, PatchOperation};
 
 mod workload_execution_instance_name;
 pub use workload_execution_instance_name::{
-    WorkloadExecutionInstanceName, WorkloadExecutionInstanceNameBuilder, WorkloadInstanceName,
+    ConfigHash, WorkloadExecutionInstanceName, WorkloadExecutionInstanceNameBuilder,
+    WorkloadInstanceName,
 };
 
 mod agent_name;
