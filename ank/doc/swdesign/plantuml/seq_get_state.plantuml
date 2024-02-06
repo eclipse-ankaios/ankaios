@@ -39,5 +39,6 @@ destroy listen_to_server
 main -> main ++: print text
 user <- main -- : exit
 deactivate main
+destroy main
 
 @enduml

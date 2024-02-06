@@ -50,5 +50,6 @@ destroy listen_to_manager
 destroy listen_to_server
 
 user <- main -- : exit
+destroy main
 
 @enduml
