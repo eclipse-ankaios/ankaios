@@ -233,10 +233,16 @@ impl From<Error> for proto::Error {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct Version {
     pub major: u32,
     pub minor: u32,
+}
+
+impl Default for Version {
+    fn default() -> Self {
+        Self { major: 1, minor: 0 }
+    }
 }
 
 impl From<Version> for proto::Version {
@@ -264,8 +270,6 @@ impl Display for Version {
         write!(f, "'{}.{}'", self.major, self.minor)
     }
 }
-
-const COMPLETE_STATE_FORMAT_VERSION: Version = Version { major: 1, minor: 0 };
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
@@ -301,12 +305,8 @@ impl TryFrom<proto::CompleteState> for CompleteState {
 }
 
 impl CompleteState {
-    pub fn get_current_format_version() -> Version {
-        COMPLETE_STATE_FORMAT_VERSION
-    }
-
     pub fn is_compatible_format(format_version: &Version) -> bool {
-        format_version.major == COMPLETE_STATE_FORMAT_VERSION.major
+        format_version.major == Version::default().major
     }
 }
 

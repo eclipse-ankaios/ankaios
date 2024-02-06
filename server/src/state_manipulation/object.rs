@@ -159,7 +159,7 @@ impl Object {
 #[cfg(test)]
 mod tests {
     use common::{
-        commands::{CompleteState, Version},
+        commands::CompleteState,
         objects::{ExecutionState, State, WorkloadState},
         test_utils::{generate_test_state_from_workloads, generate_test_workload_spec},
     };
@@ -194,7 +194,6 @@ mod tests {
     fn utest_object_from_complete_state() {
         let state = generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
         let complete_state = CompleteState {
-            format_version: Version { major: 1, minor: 0 },
             startup_state: state.clone(),
             desired_state: state,
             workload_states: vec![WorkloadState {
@@ -202,6 +201,7 @@ mod tests {
                 agent_name: "agent".into(),
                 execution_state: ExecutionState::ExecRunning,
             }],
+            ..Default::default()
         };
 
         let expected = Object {
@@ -221,7 +221,6 @@ mod tests {
         let expected_state =
             generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
         let expected = CompleteState {
-            format_version: Version { major: 1, minor: 0 },
             startup_state: expected_state.clone(),
             desired_state: expected_state,
             workload_states: vec![WorkloadState {
@@ -229,6 +228,7 @@ mod tests {
                 agent_name: "agent".into(),
                 execution_state: ExecutionState::ExecRunning,
             }],
+            ..Default::default()
         };
         let actual: CompleteState = object.try_into().unwrap();
 

@@ -226,6 +226,7 @@ mod tests {
                     proto::UpdateStateRequest {
                         update_mask: vec!["test_update_mask_field".to_owned()],
                         new_state: Some(proto::CompleteState {
+                            format_version: Some(common::commands::Version::default().into()),
                             desired_state: Some(proto::State {
                                 workloads: HashMap::from([(
                                     "test_workload".to_owned(),

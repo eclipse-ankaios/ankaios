@@ -56,7 +56,6 @@ async fn main() {
                 state.workloads
             );
             Some(CompleteState {
-                format_version: CompleteState::get_current_format_version(),
                 desired_state: state,
                 ..Default::default()
             })

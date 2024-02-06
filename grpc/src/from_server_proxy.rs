@@ -733,13 +733,10 @@ mod tests {
             ),
         );
 
-        let complete_state_format_version = Version { major: 1, minor: 0 };
-
         let my_request_id = "my_request_id".to_owned();
         let prefixed_my_request_id = format!("{agent_name}@{my_request_id}");
 
         let test_complete_state = CompleteState {
-            format_version: complete_state_format_version,
             desired_state: State {
                 workloads: startup_workloads.clone(),
                 configs: HashMap::default(),
@@ -751,6 +748,7 @@ mod tests {
                 cron_jobs: HashMap::default(),
             },
             workload_states: vec![],
+            ..Default::default()
         };
 
         let complete_state_result = to_manager
@@ -794,11 +792,9 @@ mod tests {
 
         let my_request_id = "my_request_id".to_owned();
 
-        let complete_state_format_version = Version { major: 1, minor: 0 };
-
         let proto_complete_state =
             proto::response::ResponseContent::CompleteState(proto::CompleteState {
-                format_version: Some(complete_state_format_version.into()),
+                format_version: Some(Version::default().into()),
                 desired_state: Some(State::default().into()),
                 startup_state: Some(proto::State {
                     workloads: [(

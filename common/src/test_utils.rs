@@ -35,7 +35,6 @@ pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State
 #[cfg(feature = "test_utils")]
 pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> CompleteState {
     CompleteState {
-        format_version: CompleteState::get_current_format_version(),
         desired_state: State {
             workloads: workloads
                 .clone()

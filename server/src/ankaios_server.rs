@@ -16,7 +16,7 @@ mod cycle_check;
 mod delete_graph;
 mod server_state;
 
-use common::commands::{CompleteState, Request, UpdateWorkload};
+use common::commands::{CompleteState, Request, UpdateWorkload, Version};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
@@ -206,10 +206,10 @@ impl AnkaiosServer {
                             &update_state_request.state.format_version,
                         ) {
                             log::debug!("The completeState in the request has a compatible version. Received {}, expected {}.",
-                            update_state_request.state.format_version, CompleteState::get_current_format_version());
+                            update_state_request.state.format_version, Version::default());
                         } else {
                             log::warn!("The CompleteState in the request has wrong format. Received {}, expected {} -> ignoring the request.",
-                            update_state_request.state.format_version, CompleteState::get_current_format_version());
+                            update_state_request.state.format_version, Version::default());
                             continue;
                         }
 
@@ -367,7 +367,6 @@ mod tests {
         );
 
         let new_state = CompleteState {
-            format_version: CompleteState::get_current_format_version(),
             desired_state: State {
                 workloads: HashMap::from([(
                     updated_workload.name.clone(),
@@ -685,7 +684,6 @@ mod tests {
         w1.runtime_config = "changed".to_string();
 
         let update_state = CompleteState {
-            format_version: CompleteState::get_current_format_version(),
             desired_state: State {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
                     .into_iter()
@@ -1093,7 +1091,6 @@ mod tests {
         let mut updated_w1 = w1.clone();
         updated_w1.restart = false;
         let update_state = CompleteState {
-            format_version: CompleteState::get_current_format_version(),
             desired_state: State {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), updated_w1.clone())]
                     .into_iter()
