@@ -38,7 +38,7 @@ Test Ankaios Podman create kube workload
     # Actions
     When Ankaios agent is started with name "agent_A"
     # Asserts
-    Then the workload "hello-k8s" shall have the execution state "Running" on agent "agent_A" within "30" seconds
+    Then the workload "hello-k8s" shall have the execution state "Running(Ok)" on agent "agent_A" within "30" seconds
     And podman shall have a container for workload "hello-pod-hello-container" with custom name "hello-pod-hello-container" on agent "agent_A"
     And volumes for "hello-k8s" shall exist on "agent_A"
     [Teardown]    Clean up Ankaios
