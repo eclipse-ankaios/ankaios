@@ -307,7 +307,10 @@ mod tests {
     use super::AnkaiosServer;
     use crate::ankaios_server::server_state::{MockServerState, UpdateStateError};
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
-    use common::commands::{CompleteStateRequest, UpdateWorkload, UpdateWorkloadState};
+    use common::commands::{
+        CompleteStateRequest, Response, ResponseContent, UpdateStateSuccess, UpdateWorkload,
+        UpdateWorkloadState,
+    };
     use common::objects::{DeletedWorkload, ExecutionState, State, WorkloadState};
     use common::test_utils::generate_test_workload_spec_with_param;
     use common::to_server_interface::ToServerInterface;
@@ -445,6 +448,14 @@ mod tests {
             .await
             .is_ok());
 
+        assert!(matches!(
+            comm_middle_ware_receiver.recv().await.unwrap(),
+            FromServer::Response(Response {
+                request_id,
+                response_content: ResponseContent::Error(_)
+            }) if request_id == REQUEST_ID_A
+        ));
+
         // send the update with the new clean state again
         assert!(to_server
             .update_state(REQUEST_ID_A.to_string(), fixed_state.clone(), update_mask)
@@ -458,6 +469,14 @@ mod tests {
             deleted_workloads,
         });
         assert_eq!(from_server_command, expected_from_server_command);
+
+        assert!(matches!(
+            comm_middle_ware_receiver.recv().await.unwrap(),
+            FromServer::Response(Response {
+                request_id,
+                response_content: ResponseContent::UpdateStateSuccess(UpdateStateSuccess { added_workloads, deleted_workloads })
+            }) if request_id == REQUEST_ID_A && added_workloads == vec!["workload A"] && deleted_workloads.is_empty()
+        ));
 
         // make sure all messages are consumed
         assert!(comm_middle_ware_receiver.try_recv().is_err());
@@ -735,13 +754,27 @@ mod tests {
             .await;
         assert!(update_state_result.is_ok());
 
-        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let update_workload_message = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::UpdateWorkload(UpdateWorkload {
-                added_workloads,
-                deleted_workloads,
+                added_workloads: added_workloads.clone(),
+                deleted_workloads: deleted_workloads.clone(),
             }),
-            from_server_command
+            update_workload_message
+        );
+
+        let update_state_success_message = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            FromServer::Response(Response {
+                request_id: REQUEST_ID_A.to_string(),
+                response_content: common::commands::ResponseContent::UpdateStateSuccess(
+                    UpdateStateSuccess {
+                        added_workloads: added_workloads.into_iter().map(|x| x.name).collect(),
+                        deleted_workloads: deleted_workloads.into_iter().map(|x| x.name).collect()
+                    }
+                )
+            }),
+            update_state_success_message
         );
 
         server_task.abort();
@@ -795,6 +828,17 @@ mod tests {
             .update_state(REQUEST_ID_A.to_string(), update_state, update_mask)
             .await;
         assert!(update_state_result.is_ok());
+
+        assert!(matches!(
+            comm_middle_ware_receiver.recv().await.unwrap(),
+            FromServer::Response(Response {
+                request_id,
+                response_content: ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
+                    added_workloads,
+                    deleted_workloads
+                })
+            }) if request_id == REQUEST_ID_A && added_workloads.is_empty() && deleted_workloads.is_empty()
+        ));
 
         assert!(tokio::time::timeout(
             tokio::time::Duration::from_millis(200),
@@ -854,6 +898,14 @@ mod tests {
             .update_state(REQUEST_ID_A.to_string(), update_state, update_mask)
             .await;
         assert!(update_state_result.is_ok());
+
+        assert!(matches!(
+            comm_middle_ware_receiver.recv().await.unwrap(),
+            FromServer::Response(common::commands::Response {
+                request_id,
+                response_content: common::commands::ResponseContent::Error(_)
+            }) if request_id == REQUEST_ID_A
+        ));
 
         assert!(tokio::time::timeout(
             tokio::time::Duration::from_millis(200),
@@ -1201,6 +1253,17 @@ mod tests {
             }),
             from_server_command
         );
+
+        assert!(matches!(
+            comm_middle_ware_receiver.recv().await.unwrap(),
+            FromServer::Response(Response {
+                request_id,
+                response_content: ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
+                    added_workloads,
+                    deleted_workloads
+                })
+            }) if request_id == REQUEST_ID_A && added_workloads == vec!["workload_1"] && deleted_workloads == vec!["workload_1"]
+        ));
 
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
