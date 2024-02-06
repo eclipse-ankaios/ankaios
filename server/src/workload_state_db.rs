@@ -222,7 +222,6 @@ mod tests {
 
     #[test]
     fn utest_get_workload_state_for_agent_returns_workload_state_of_existing_agent_name() {
-        let agent_name = "test_agent";
         let wls_db = create_test_setup();
 
         let mut wls_res = wls_db.get_workload_state_for_agent(AGENT_A);
