@@ -32,7 +32,7 @@ note left server
         ""  executionState: ExecSucceeded""
 end note
 
-server -> server : store workload states in WorkloadStateDB
+server -> server ++--: store workload states in WorkloadStateDB
 
 server ->> grpc_server --++: UpdateWorkloadState
 grpc_server ->> agent2 --++: UpdateWorkloadState
