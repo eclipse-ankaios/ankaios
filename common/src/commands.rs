@@ -265,7 +265,7 @@ impl Display for Version {
     }
 }
 
-const COMPLETE_STATE_FORMAT_VERSION: Version = Version { major: 0, minor: 1 };
+const COMPLETE_STATE_FORMAT_VERSION: Version = Version { major: 1, minor: 0 };
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]

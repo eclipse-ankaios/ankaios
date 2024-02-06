@@ -1,4 +1,6 @@
-requestId: ank-cli
+formatVersion:
+  major: 1
+  minor: 0
 startupState:
   workloads: {}
   configs: {}

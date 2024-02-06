@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use api::proto;
 use serde::{Serialize, Serializer};
 
-use crate::commands::{CompleteState, Version};
+use crate::commands::CompleteState;
 use crate::objects::{
     AccessRights, AddCondition, Cronjob, DeleteCondition, DeletedWorkload, Interval, State, Tag,
     UpdateStrategy, WorkloadSpec, WorkloadState,
@@ -35,7 +35,7 @@ pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State
 #[cfg(feature = "test_utils")]
 pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> CompleteState {
     CompleteState {
-        format_version: Version { major: 1, minor: 0 },
+        format_version: CompleteState::get_current_format_version(),
         desired_state: State {
             workloads: workloads
                 .clone()

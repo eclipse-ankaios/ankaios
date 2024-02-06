@@ -367,6 +367,7 @@ mod tests {
         );
 
         let new_state = CompleteState {
+            format_version: CompleteState::get_current_format_version(),
             desired_state: State {
                 workloads: HashMap::from([(
                     updated_workload.name.clone(),
@@ -684,6 +685,7 @@ mod tests {
         w1.runtime_config = "changed".to_string();
 
         let update_state = CompleteState {
+            format_version: CompleteState::get_current_format_version(),
             desired_state: State {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
                     .into_iter()
@@ -1091,6 +1093,7 @@ mod tests {
         let mut updated_w1 = w1.clone();
         updated_w1.restart = false;
         let update_state = CompleteState {
+            format_version: CompleteState::get_current_format_version(),
             desired_state: State {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), updated_w1.clone())]
                     .into_iter()
