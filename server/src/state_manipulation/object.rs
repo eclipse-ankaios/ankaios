@@ -505,17 +505,19 @@ mod tests {
                         .entry(
                             "instanceName",
                             Mapping::default()
-                                .entry("workload_name", "workload A")
+                                .entry("workloadName", "workload A")
                                 .entry("agentName", "agent")
-                                .entry("hash", ""),
+                                .entry("hash", "b79606fb3afea5bd1609ed40b622142f1c98125abcfe89a76a661b0e8e343910"),
                         )
                         .entry("workloadId", "some strange Id")
                         .entry(
                             "executionState",
-                            Mapping::default()
-                                .entry("state", "Running")
-                                .entry("substate", "Ok")
-                                .entry("additional_info", ""),
+                            Mapping::default().entry("additionalInfo", "").entry(
+                                "state",
+                                Mapping::default()
+                                    .entry("mainState", "Running")
+                                    .entry("subState", "Ok"),
+                            ),
                         )],
                 )
         }

@@ -14,7 +14,7 @@
 
 use std::fmt::Display;
 
-use serde::{ser::SerializeMap, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 use api::proto;
 
@@ -135,6 +135,7 @@ impl Display for FailedSubstate {
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "mainState", content = "subState")]
 pub enum ExecutionStateEnum {
     AgentDisconnected,
     Pending(PendingSubstate),
@@ -213,30 +214,6 @@ pub struct ExecutionState {
     pub state: ExecutionStateEnum,
 }
 
-impl ExecutionStateEnum {
-    pub fn main_state_to_string(&self) -> String {
-        match self {
-            ExecutionStateEnum::AgentDisconnected => "AgentDisconnected",
-            ExecutionStateEnum::Pending(_) => "Pending",
-            ExecutionStateEnum::Running(_) => "Running",
-            ExecutionStateEnum::Succeeded(_) => "Succeeded",
-            ExecutionStateEnum::Failed(_) => "Failed",
-            ExecutionStateEnum::NotScheduled => "NotScheduled",
-            ExecutionStateEnum::Removed => "Removed",
-        }
-        .to_string()
-    }
-
-    pub fn sub_state_to_string(&self) -> Option<String> {
-        match self {
-            ExecutionStateEnum::Pending(substate) => Some(substate.to_string()),
-            ExecutionStateEnum::Running(substate) => Some(substate.to_string()),
-            ExecutionStateEnum::Succeeded(substate) => Some(substate.to_string()),
-            ExecutionStateEnum::Failed(substate) => Some(substate.to_string()),
-            _ => None,
-        }
-    }
-}
 impl ExecutionState {
     pub fn agent_disconnected() -> Self {
         ExecutionState {
@@ -334,10 +311,17 @@ impl From<proto::ExecutionState> for ExecutionState {
 
 impl Display for ExecutionState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.state.main_state_to_string())?;
-        if let Some(sub_state) = self.state.sub_state_to_string() {
-            write!(f, "({})", sub_state)?
-        }
+        match &self.state {
+            ExecutionStateEnum::AgentDisconnected => write!(f, "AgentDisconnected"),
+            ExecutionStateEnum::Pending(substate) => write!(f, "Pending({substate})"),
+            ExecutionStateEnum::Running(substate) => write!(f, "Running({substate})"),
+            ExecutionStateEnum::Succeeded(substate) => {
+                write!(f, "Succeeded({substate})")
+            }
+            ExecutionStateEnum::Failed(substate) => write!(f, "Failed({substate})"),
+            ExecutionStateEnum::NotScheduled => write!(f, "NotScheduled"),
+            ExecutionStateEnum::Removed => write!(f, "Removed"),
+        }?;
         if !self.additional_info.is_empty() {
             write!(f, ": '{}'", self.additional_info)
         } else {
@@ -346,33 +330,13 @@ impl Display for ExecutionState {
     }
 }
 
-fn serialize_execution_state<S>(value: &ExecutionState, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let mut map = serializer.serialize_map(Some(2))?;
-    map.serialize_entry("state", &value.state.main_state_to_string())?;
-    map.serialize_entry("substate", &value.state.sub_state_to_string())?;
-    map.serialize_entry("additional_info", &value.additional_info)?;
-    map.end()
-}
-
-fn deserialize_execution_state<'a, D>(deserializer: D) -> Result<ExecutionState, D::Error>
-where
-    D: Deserializer<'a>,
-{
-    let _buf = String::deserialize(deserializer)?;
-    //TODO
-    Ok(ExecutionState::default())
-}
-
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct WorkloadState {
     pub instance_name: WorkloadExecutionInstanceName,
     pub workload_id: String,
-    #[serde(serialize_with = "serialize_execution_state")]
-    #[serde(deserialize_with = "deserialize_execution_state")]
+    // #[serde(serialize_with = "serialize_execution_state")]
+    // #[serde(deserialize_with = "deserialize_execution_state")]
     pub execution_state: ExecutionState,
 }
 
@@ -455,8 +419,9 @@ mod tests {
 
     #[test]
     fn utest_converts_to_proto_workload_state() {
+        let additional_info = "some additional info";
         let ankaios_wl_state = WorkloadState {
-            execution_state: ExecutionState::running(),
+            execution_state: ExecutionState::starting(additional_info),
             instance_name: WorkloadExecutionInstanceName::builder()
                 .workload_name("john")
                 .agent_name("strange")
@@ -465,7 +430,12 @@ mod tests {
         };
 
         let proto_wl_state = proto::WorkloadState {
-            execution_state: proto::ExecutionState::ExecRunning.into(),
+            execution_state: Some(proto::ExecutionState {
+                additional_info: additional_info.to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
+                    proto::Pending::Starting.into(),
+                )),
+            }),
             instance_name: Some(WorkloadInstanceName {
                 workload_name: "john".to_string(),
                 agent_name: "strange".to_string(),

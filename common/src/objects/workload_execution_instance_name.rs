@@ -50,6 +50,7 @@ pub const INSTANCE_NAME_PARTS_COUNT: usize = 3;
 pub const INSTANCE_NAME_SEPARATOR: &str = ".";
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default, rename_all = "camelCase")]
 pub struct WorkloadExecutionInstanceName {
     agent_name: String,
     workload_name: String,
