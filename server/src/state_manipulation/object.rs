@@ -499,10 +499,7 @@ mod tests {
 
         pub fn generate_test_complete_state() -> Mapping {
             Mapping::default()
-                .entry(
-                    "formatVersion",
-                    Mapping::default().entry("major", 1).entry("minor", 0),
-                )
+                .entry("formatVersion", Mapping::default().entry("version", "v0.1"))
                 .entry("startupState", generate_test_state())
                 .entry("desiredState", generate_test_state())
                 .entry(

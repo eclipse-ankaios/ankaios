@@ -178,8 +178,7 @@ message Error {
 }
 
 message ApiVersion {
-    uint32 major = 1;
-    uint32 minor = 2;
+    string version = 1;
 }
 
 /**

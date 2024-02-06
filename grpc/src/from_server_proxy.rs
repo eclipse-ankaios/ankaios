@@ -856,19 +856,17 @@ mod tests {
             ),
         );
 
-        let complete_state_format_version = ApiVersion { major: 1, minor: 0 };
-
         let my_request_id = "my_request_id".to_owned();
 
         let test_complete_state = CompleteState {
-            format_version: complete_state_format_version.clone(),
+            format_version: ApiVersion::default(),
             desired_state: State::default(),
             startup_state: State::default(),
             workload_states: vec![],
         };
 
         let proto_complete_state = proto::CompleteState {
-            format_version: Some(complete_state_format_version.into()),
+            format_version: Some(ApiVersion::default().into()),
             desired_state: Some(test_complete_state.desired_state.clone().into()),
             startup_state: Some(test_complete_state.startup_state.clone().into()),
             workload_states: vec![],

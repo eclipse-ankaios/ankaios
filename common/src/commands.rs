@@ -235,21 +235,21 @@ impl From<Error> for proto::Error {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct ApiVersion {
-    pub major: u32,
-    pub minor: u32,
+    pub version: String,
 }
 
 impl Default for ApiVersion {
     fn default() -> Self {
-        Self { major: 1, minor: 0 }
+        Self {
+            version: "v0.1".to_string(),
+        }
     }
 }
 
 impl From<ApiVersion> for proto::ApiVersion {
     fn from(item: ApiVersion) -> proto::ApiVersion {
         proto::ApiVersion {
-            major: item.major,
-            minor: item.minor,
+            version: item.version,
         }
     }
 }
@@ -259,15 +259,14 @@ impl TryFrom<proto::ApiVersion> for ApiVersion {
 
     fn try_from(item: proto::ApiVersion) -> Result<Self, Self::Error> {
         Ok(ApiVersion {
-            major: item.major,
-            minor: item.minor,
+            version: item.version,
         })
     }
 }
 
 impl Display for ApiVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "'{}.{}'", self.major, self.minor)
+        write!(f, "'{}'", self.version)
     }
 }
 
@@ -306,7 +305,7 @@ impl TryFrom<proto::CompleteState> for CompleteState {
 
 impl CompleteState {
     pub fn is_compatible_format(format_version: &ApiVersion) -> bool {
-        format_version.major == ApiVersion::default().major
+        *format_version == ApiVersion::default()
     }
 }
 

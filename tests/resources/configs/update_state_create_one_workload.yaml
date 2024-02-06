@@ -1,6 +1,5 @@
 formatVersion:
-  major: 1
-  minor: 0
+  version: "v0.1"
 startupState:
   workloads: {}
   configs: {}
