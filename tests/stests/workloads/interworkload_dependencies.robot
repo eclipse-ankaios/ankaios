@@ -49,12 +49,13 @@ Test Ankaios observes the inter-workload dependencies when creating workloads
 Test Ankaios observes the inter-workload dependencies when deleting workloads
     [Setup]    Run Keywords    Setup Ankaios
     # Preconditions
-    Given Ankaios server is started with config "${CONFIGS_DIR}/create_workloads_with_dependencies_config.yaml"
+    Given Ankaios server is started with config "${CONFIGS_DIR}/delete_workloads_with_dependencies.yaml"
     And Ankaios agent is started with name "agent_A"
-    And Ankaios agent is started with name "agent_B"
+    And all workloads of agent "agent_A" have an initial execution state
     # Actions
-    When user triggers "ank delete workload storage_provider"
+    When user triggers "ank delete workload backend"
+    And the workload "backend" shall have the execution state "WaitingToStop" on agent "agent_A"
+    And user triggers "ank delete workload frontend"
     # Asserts
-    Then the workload "storage_provider" shall have the execution state "WaitingToStop" on agent "agent_B"
-    And the workload "storage_provider" shall not exist
+    Then the workload "backend" shall not exist
     [Teardown]    Clean up Ankaios
