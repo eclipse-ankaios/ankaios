@@ -119,10 +119,10 @@ Ankaios agent is started with name "${name}"
     ...    env:RUST_LOG=debug
 
 Podman has deleted all existing containers
-    Run Process    podman    rm    -a    -f    timeout=20    shell=True
+    Run Process    podman    stop    -a    --timeout    0    &&    podman    rm    -a    timeout=20    shell=True
 
 Podman has deleted all existing pods
-    Run Process    podman    pod    stop    -a    &&    podman    pod    rm    -a    -f    timeout=20    shell=True
+    Run Process    podman    pod    stop    -a    --timeout    0    &&    podman    pod    rm    -a    -f    timeout=20    shell=True
 
 Podman has deleted all existing volumes
     Run Process    podman    volume    rm    -a    timeout=20    shell=True
