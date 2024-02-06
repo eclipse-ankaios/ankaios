@@ -20,7 +20,8 @@ user-> main ++ : a command
 == startup ==
 
 main -> cli **
-main -> cli : parse
+main -> cli ++: parse
+cli ->> main --
 main -> cli_commands ** : init
 activate cli_commands
 cli_commands ->> grpc_client ** : create and start in a new thread

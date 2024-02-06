@@ -28,7 +28,7 @@ listen_to_manager ->> server --++ : request update state
 cli_commands -> cli_commands ++: wait for the response
 
 listen_to_server <<- server --++: response
-listen_to_server ->> cli_commands --++: response
+listen_to_server ->> cli_commands --: response
 main <<-- cli_commands --
 deactivate cli_commands
 
