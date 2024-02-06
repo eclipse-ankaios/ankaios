@@ -513,12 +513,10 @@ mod tests {
                         .entry("workloadId", "some strange Id")
                         .entry(
                             "executionState",
-                            Mapping::default().entry("additionalInfo", "").entry(
-                                "state",
-                                Mapping::default()
-                                    .entry("mainState", "Running")
-                                    .entry("subState", "Ok"),
-                            ),
+                            Mapping::default()
+                                .entry("state", "Running")
+                                .entry("subState", "Ok")
+                                .entry("additionalInfo", ""),
                         )],
                 )
         }
