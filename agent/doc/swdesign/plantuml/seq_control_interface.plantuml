@@ -39,8 +39,9 @@ deactivate pipes_task
 listen_to_manager ->> server--++: request
 server ->> listen_to_server--++: response
 listen_to_server ->> manager--++: response
-manager -> manager: extract workload name\nfrom requeset ID
-manager ->> input--: write response
+manager -> manager ++: extract workload name\nfrom requeset ID
+deactivate manager
+manager ->> input --: write response
 workload <<-- input--
 end
 
