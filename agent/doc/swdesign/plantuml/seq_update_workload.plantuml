@@ -32,6 +32,8 @@ loop for each worload
     activate control
     control -> control ++: create input-output pipe pair per Workload
     control -> control_task **: start Control Interface task
+    deactivate control
+    deactivate control
     runtime_manager -> runtime_manager ++: store Control Interface Instance
     runtime_manager -> runtime_manager ++: store Workload to runtime mapping
 
