@@ -197,7 +197,7 @@ enum Succeeded {
 * The workload has failed or is in a degraded state.
 */
 enum Failed {
-  FAILED_NOK = 0; /// The workload has failed during operation
+  FAILED_EXEC_FAILED = 0; /// The workload has failed during operation
   FAILED_UNKNOWN = 1; /// The workload is in an unsupported by Ankaios runtime state. The workload was possibily altered outside of Ankaios.
   FAILED_LOST = 2; /// The workload cannot be found anymore. The workload was possibily altered outside of Ankaios or was autoremoved by the runtime.
   FAILED_DELETE_FAILED = 8; /// The deletion of the workload by the runtime failed.

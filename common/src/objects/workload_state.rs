@@ -106,7 +106,7 @@ impl Display for SucceededSubstate {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum FailedSubstate {
-    Nok = 0,
+    ExecFailed = 0,
     Unknown = 1,
     Lost = 2,
     DeleteFailed = 8,
@@ -115,7 +115,7 @@ pub enum FailedSubstate {
 impl From<i32> for FailedSubstate {
     fn from(x: i32) -> Self {
         match x {
-            x if x == FailedSubstate::Nok as i32 => FailedSubstate::Nok,
+            x if x == FailedSubstate::ExecFailed as i32 => FailedSubstate::ExecFailed,
             x if x == FailedSubstate::Unknown as i32 => FailedSubstate::Unknown,
             x if x == FailedSubstate::Lost as i32 => FailedSubstate::Lost,
             _ => FailedSubstate::DeleteFailed,
@@ -126,7 +126,7 @@ impl From<i32> for FailedSubstate {
 impl Display for FailedSubstate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FailedSubstate::Nok => write!(f, "Nok"),
+            FailedSubstate::ExecFailed => write!(f, "ExecFailed"),
             FailedSubstate::Unknown => write!(f, "Unknown"),
             FailedSubstate::Lost => write!(f, "Lost"),
             FailedSubstate::DeleteFailed => write!(f, "DeleteFailed"),
@@ -253,7 +253,7 @@ impl ExecutionState {
 
     pub fn failed(additional_info: impl ToString) -> Self {
         ExecutionState {
-            state: ExecutionStateEnum::Failed(FailedSubstate::Nok),
+            state: ExecutionStateEnum::Failed(FailedSubstate::ExecFailed),
             additional_info: additional_info.to_string(),
         }
     }
@@ -532,7 +532,7 @@ mod tests {
             proto::ExecutionState {
                 additional_info: additional_info.to_string(),
                 execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Failed(
-                    proto::Failed::Nok.into(),
+                    proto::Failed::ExecFailed.into(),
                 )),
             },
             ExecutionState::failed(additional_info).into(),
@@ -638,7 +638,7 @@ mod tests {
             proto::ExecutionState {
                 additional_info: additional_info.to_string(),
                 execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Failed(
-                    proto::Failed::Nok.into(),
+                    proto::Failed::ExecFailed.into(),
                 )),
             }
             .into(),
@@ -712,7 +712,7 @@ mod tests {
         );
         assert_eq!(
             ExecutionState::failed(additional_info).to_string(),
-            format!("Failed(Nok): '{additional_info}'")
+            format!("Failed(ExecFailed): '{additional_info}'")
         );
         assert_eq!(
             ExecutionState::succeeded().to_string(),
