@@ -44,3 +44,17 @@ Test Ankaios observes the inter-workload dependencies when creating workloads
     And the workload "storage_provider" shall have the execution state "Failed" on agent "agent_B"
     And the workload "error_notifier" shall have the execution state "Running" on agent "agent_B"
     [Teardown]    Clean up Ankaios
+
+
+Test Ankaios observes the inter-workload dependencies when deleting workloads
+    [Setup]    Run Keywords    Setup Ankaios
+    # Preconditions
+    Given Ankaios server is started with config "${CONFIGS_DIR}/create_workloads_with_dependencies_config.yaml"
+    And Ankaios agent is started with name "agent_A"
+    And Ankaios agent is started with name "agent_B"
+    # Actions
+    When user triggers "ank delete workload storage_provider"
+    # Asserts
+    Then the workload "storage_provider" shall have the execution state "WaitingToStop" on agent "agent_B"
+    And the workload "storage_provider" shall not exist
+    [Teardown]    Clean up Ankaios

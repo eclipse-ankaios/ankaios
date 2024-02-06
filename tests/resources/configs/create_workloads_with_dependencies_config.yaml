@@ -16,7 +16,7 @@ workloads:
     runtimeConfig: |
       image: alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sleep" ]
-      commandArgs: [ "1 && false" ]
+      commandArgs: [ "1" ]
   storage_provider:
     runtime: podman
     agent: agent_B
