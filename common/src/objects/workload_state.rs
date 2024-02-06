@@ -135,7 +135,7 @@ impl Display for FailedSubstate {
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(tag = "mainState", content = "subState")]
+#[serde(tag = "state", content = "subState")]
 pub enum ExecutionStateEnum {
     AgentDisconnected,
     Pending(PendingSubstate),
@@ -210,8 +210,9 @@ impl From<proto::execution_state::ExecutionStateEnum> for ExecutionStateEnum {
 #[serde(default, rename_all = "camelCase")]
 
 pub struct ExecutionState {
-    pub additional_info: String,
+    #[serde(flatten)]
     pub state: ExecutionStateEnum,
+    pub additional_info: String,
 }
 
 impl ExecutionState {
@@ -335,8 +336,6 @@ impl Display for ExecutionState {
 pub struct WorkloadState {
     pub instance_name: WorkloadExecutionInstanceName,
     pub workload_id: String,
-    // #[serde(serialize_with = "serialize_execution_state")]
-    // #[serde(deserialize_with = "deserialize_execution_state")]
     pub execution_state: ExecutionState,
 }
 
@@ -459,7 +458,12 @@ mod tests {
         };
 
         let proto_wl_state = proto::WorkloadState {
-            execution_state: proto::ExecutionState::ExecRunning.into(),
+            execution_state: Some(proto::ExecutionState {
+                additional_info: "".to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Running(
+                    proto::Running::Ok.into(),
+                )),
+            }),
             instance_name: Some(WorkloadInstanceName {
                 workload_name: "john".to_string(),
                 agent_name: "strange".to_string(),
@@ -473,62 +477,146 @@ mod tests {
 
     // [utest->// [impl->swdd~common-supported-workload-states~1]]
     #[test]
-    fn utest_execution_state_from_int_mapping() {
-        assert_eq!(ExecutionState::ExecUnknown, ExecutionState::from(0));
-        assert_eq!(ExecutionState::ExecPending, ExecutionState::from(1));
-        assert_eq!(ExecutionState::ExecWaitingToStart, ExecutionState::from(2));
-        assert_eq!(ExecutionState::ExecStarting, ExecutionState::from(3));
-        assert_eq!(ExecutionState::ExecRunning, ExecutionState::from(4));
-        assert_eq!(ExecutionState::ExecSucceeded, ExecutionState::from(5));
-        assert_eq!(ExecutionState::ExecFailed, ExecutionState::from(6));
-        assert_eq!(ExecutionState::ExecWaitingToStop, ExecutionState::from(7));
-        assert_eq!(ExecutionState::ExecStopping, ExecutionState::from(8));
-        assert_eq!(ExecutionState::ExecRemoved, ExecutionState::from(10));
-        assert_eq!(ExecutionState::ExecUnknown, ExecutionState::from(100));
+    fn utest_execution_state_from_proto_mapping() {
+        let additional_info = "some additional info";
+
+        assert_eq!(
+            proto::ExecutionState {
+                additional_info: "".to_string(),
+                execution_state_enum: Some(
+                    proto::execution_state::ExecutionStateEnum::AgentDisconnected(
+                        proto::AgentDisconnected::AgentDisconnected.into(),
+                    )
+                ),
+            },
+            ExecutionState::agent_disconnected().into(),
+        );
+        assert_eq!(
+            proto::ExecutionState {
+                additional_info: "No more retries.".to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
+                    proto::Pending::StartingFailed.into(),
+                )),
+            },
+            ExecutionState::restart_failed_no_retry().into(),
+        );
+        assert_eq!(
+            proto::ExecutionState {
+                additional_info: "".to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Removed(
+                    proto::Removed::Removed.into(),
+                )),
+            },
+            ExecutionState::removed().into(),
+        );
+
+        assert_eq!(
+            proto::ExecutionState {
+                additional_info: additional_info.to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Failed(
+                    proto::Failed::Unknown.into(),
+                )),
+            },
+            ExecutionState::unknown(additional_info).into(),
+        );
+        assert_eq!(
+            proto::ExecutionState {
+                additional_info: additional_info.to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
+                    proto::Pending::Starting.into(),
+                )),
+            },
+            ExecutionState::starting(additional_info).into(),
+        );
+        assert_eq!(
+            proto::ExecutionState {
+                additional_info: additional_info.to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Failed(
+                    proto::Failed::Nok.into(),
+                )),
+            },
+            ExecutionState::failed(additional_info).into(),
+        );
+        assert_eq!(
+            proto::ExecutionState {
+                additional_info: "".to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Succeeded(
+                    proto::Succeeded::Ok.into(),
+                )),
+            },
+            ExecutionState::succeeded().into(),
+        );
+        assert_eq!(
+            proto::ExecutionState {
+                additional_info: "".to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Running(
+                    proto::Running::Ok.into(),
+                )),
+            },
+            ExecutionState::running().into(),
+        );
+        assert_eq!(
+            proto::ExecutionState {
+                additional_info: additional_info.to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Running(
+                    proto::Running::Stopping.into(),
+                )),
+            },
+            ExecutionState::stopping(additional_info).into(),
+        );
+        assert_eq!(
+            proto::ExecutionState {
+                additional_info: "".to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Failed(
+                    proto::Failed::Lost.into(),
+                )),
+            },
+            ExecutionState::lost().into(),
+        );
     }
 
-    // [utest->// [impl->swdd~common-supported-workload-states~1]]
-    #[test]
-    fn utest_execution_state_to_string_basic_mapping() {
-        assert_eq!(
-            ExecutionState::ExecPending.to_string(),
-            String::from("Pending")
-        );
-        assert_eq!(
-            ExecutionState::ExecWaitingToStart.to_string(),
-            String::from("WaitingToStart")
-        );
-        assert_eq!(
-            ExecutionState::ExecStarting.to_string(),
-            String::from("Starting")
-        );
-        assert_eq!(
-            ExecutionState::ExecRunning.to_string(),
-            String::from("Running")
-        );
-        assert_eq!(
-            ExecutionState::ExecSucceeded.to_string(),
-            String::from("Succeeded")
-        );
-        assert_eq!(
-            ExecutionState::ExecFailed.to_string(),
-            String::from("Failed")
-        );
-        assert_eq!(
-            ExecutionState::ExecWaitingToStop.to_string(),
-            String::from("WaitingToStop")
-        );
-        assert_eq!(
-            ExecutionState::ExecRemoved.to_string(),
-            String::from("Removed")
-        );
-        assert_eq!(
-            ExecutionState::ExecStopping.to_string(),
-            String::from("Stopping")
-        );
-        assert_eq!(
-            ExecutionState::ExecUnknown.to_string(),
-            String::from("Unknown")
-        );
-    }
+    // // [utest->// [impl->swdd~common-supported-workload-states~1]]
+    // #[test]
+    // fn utest_execution_state_to_string_basic_mapping() {
+    //     assert_eq!(
+    //         ExecutionState::ExecPending.to_string(),
+    //         String::from("Pending")
+    //     );
+    //     assert_eq!(
+    //         ExecutionState::ExecWaitingToStart.to_string(),
+    //         String::from("WaitingToStart")
+    //     );
+    //     assert_eq!(
+    //         ExecutionState::ExecStarting.to_string(),
+    //         String::from("Starting")
+    //     );
+    //     assert_eq!(
+    //         ExecutionState::ExecRunning.to_string(),
+    //         String::from("Running")
+    //     );
+    //     assert_eq!(
+    //         ExecutionState::ExecSucceeded.to_string(),
+    //         String::from("Succeeded")
+    //     );
+    //     assert_eq!(
+    //         ExecutionState::ExecFailed.to_string(),
+    //         String::from("Failed")
+    //     );
+    //     assert_eq!(
+    //         ExecutionState::ExecWaitingToStop.to_string(),
+    //         String::from("WaitingToStop")
+    //     );
+    //     assert_eq!(
+    //         ExecutionState::ExecRemoved.to_string(),
+    //         String::from("Removed")
+    //     );
+    //     assert_eq!(
+    //         ExecutionState::ExecStopping.to_string(),
+    //         String::from("Stopping")
+    //     );
+    //     assert_eq!(
+    //         ExecutionState::ExecUnknown.to_string(),
+    //         String::from("Unknown")
+    //     );
+    // }
 }
