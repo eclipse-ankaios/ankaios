@@ -16,7 +16,7 @@ mod cycle_check;
 mod delete_graph;
 mod server_state;
 
-use common::commands::{CompleteState, Request, UpdateWorkload, Version};
+use common::commands::{ApiVersion, CompleteState, Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
@@ -206,10 +206,10 @@ impl AnkaiosServer {
                             &update_state_request.state.format_version,
                         ) {
                             log::debug!("The completeState in the request has a compatible version. Received {}, expected {}.",
-                            update_state_request.state.format_version, Version::default());
+                            update_state_request.state.format_version, ApiVersion::default());
                         } else {
                             log::warn!("The CompleteState in the request has wrong format. Received {}, expected {} -> ignoring the request.",
-                            update_state_request.state.format_version, Version::default());
+                            update_state_request.state.format_version, ApiVersion::default());
                             continue;
                         }
 

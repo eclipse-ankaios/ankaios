@@ -314,7 +314,7 @@ mod tests {
     use api::proto::response;
     use api::proto::{self, from_server::FromServerEnum, FromServer, UpdateWorkload};
     use async_trait::async_trait;
-    use common::commands::{CompleteState, Version};
+    use common::commands::{ApiVersion, CompleteState};
     use common::from_server_interface::FromServerInterface;
     use common::objects::{State, WorkloadSpec};
     use common::test_utils::*;
@@ -794,7 +794,7 @@ mod tests {
 
         let proto_complete_state =
             proto::response::ResponseContent::CompleteState(proto::CompleteState {
-                format_version: Some(Version::default().into()),
+                format_version: Some(ApiVersion::default().into()),
                 desired_state: Some(State::default().into()),
                 startup_state: Some(proto::State {
                     workloads: [(
@@ -856,7 +856,7 @@ mod tests {
             ),
         );
 
-        let complete_state_format_version = Version { major: 1, minor: 0 };
+        let complete_state_format_version = ApiVersion { major: 1, minor: 0 };
 
         let my_request_id = "my_request_id".to_owned();
 

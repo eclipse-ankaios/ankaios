@@ -177,7 +177,7 @@ message Error {
   string message = 1;
 }
 
-message Version {
+message ApiVersion {
     uint32 major = 1;
     uint32 minor = 2;
 }
@@ -187,7 +187,7 @@ message Version {
 * This is a response to the [CompleteStateRequest](#completestaterequest) message.
 */
 message CompleteState {
-  Version format_version = 1;
+  ApiVersion format_version = 1;
   State startupState = 2; /// The State information at the startup of the Ankaios System.
   State desiredState = 3; /// The state the user wants to reach.
   repeated WorkloadState workloadStates = 4; /// The current states of the workloads.

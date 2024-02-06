@@ -234,38 +234,38 @@ impl From<Error> for proto::Error {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct Version {
+pub struct ApiVersion {
     pub major: u32,
     pub minor: u32,
 }
 
-impl Default for Version {
+impl Default for ApiVersion {
     fn default() -> Self {
         Self { major: 1, minor: 0 }
     }
 }
 
-impl From<Version> for proto::Version {
-    fn from(item: Version) -> proto::Version {
-        proto::Version {
+impl From<ApiVersion> for proto::ApiVersion {
+    fn from(item: ApiVersion) -> proto::ApiVersion {
+        proto::ApiVersion {
             major: item.major,
             minor: item.minor,
         }
     }
 }
 
-impl TryFrom<proto::Version> for Version {
+impl TryFrom<proto::ApiVersion> for ApiVersion {
     type Error = String;
 
-    fn try_from(item: proto::Version) -> Result<Self, Self::Error> {
-        Ok(Version {
+    fn try_from(item: proto::ApiVersion) -> Result<Self, Self::Error> {
+        Ok(ApiVersion {
             major: item.major,
             minor: item.minor,
         })
     }
 }
 
-impl Display for Version {
+impl Display for ApiVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "'{}.{}'", self.major, self.minor)
     }
@@ -274,7 +274,7 @@ impl Display for Version {
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CompleteState {
-    pub format_version: Version,
+    pub format_version: ApiVersion,
     pub startup_state: State,
     pub desired_state: State,
     pub workload_states: Vec<WorkloadState>,
@@ -283,7 +283,7 @@ pub struct CompleteState {
 impl From<CompleteState> for proto::CompleteState {
     fn from(item: CompleteState) -> proto::CompleteState {
         proto::CompleteState {
-            format_version: Some(proto::Version::from(item.format_version)),
+            format_version: Some(proto::ApiVersion::from(item.format_version)),
             startup_state: Some(proto::State::from(item.startup_state)),
             desired_state: Some(proto::State::from(item.desired_state)),
             workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
@@ -305,8 +305,8 @@ impl TryFrom<proto::CompleteState> for CompleteState {
 }
 
 impl CompleteState {
-    pub fn is_compatible_format(format_version: &Version) -> bool {
-        format_version.major == Version::default().major
+    pub fn is_compatible_format(format_version: &ApiVersion) -> bool {
+        format_version.major == ApiVersion::default().major
     }
 }
 
