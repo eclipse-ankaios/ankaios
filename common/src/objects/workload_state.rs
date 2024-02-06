@@ -14,7 +14,7 @@
 
 use std::fmt::Display;
 
-use serde::{ser::SerializeMap, Deserialize, Serialize, Serializer};
+use serde::{ser::SerializeMap, Deserialize, Deserializer, Serialize, Serializer};
 
 use api::proto;
 
@@ -346,10 +346,7 @@ impl Display for ExecutionState {
     }
 }
 
-pub fn serialize_execution_state<S>(
-    value: &ExecutionState,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
+fn serialize_execution_state<S>(value: &ExecutionState, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
@@ -360,12 +357,22 @@ where
     map.end()
 }
 
+fn deserialize_execution_state<'a, D>(deserializer: D) -> Result<ExecutionState, D::Error>
+where
+    D: Deserializer<'a>,
+{
+    let _buf = String::deserialize(deserializer)?;
+    //TODO
+    Ok(ExecutionState::default())
+}
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct WorkloadState {
     pub instance_name: WorkloadExecutionInstanceName,
     pub workload_id: String,
     #[serde(serialize_with = "serialize_execution_state")]
+    #[serde(deserialize_with = "deserialize_execution_state")]
     pub execution_state: ExecutionState,
 }
 
