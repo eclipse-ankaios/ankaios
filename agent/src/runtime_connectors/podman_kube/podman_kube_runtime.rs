@@ -918,7 +918,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::starting("starting"));
+        assert_eq!(execution_state, ExecutionState::starting("starting container"));
     }
 
     // [utest->swdd~podman-kube-state-getter-maps-state~2]
@@ -940,7 +940,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::unknown("unknown"));
+        assert_eq!(execution_state, ExecutionState::unknown("unknown container state"));
     }
 
     // [utest->swdd~podman-kube-state-getter-maps-state~2]
@@ -961,7 +961,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::unknown("unknown"));
+        assert_eq!(execution_state, ExecutionState::unknown("unknown container state"));
     }
 
     // [utest->swdd~podman-kube-state-getter-maps-state~2]
