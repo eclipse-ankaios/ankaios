@@ -210,7 +210,6 @@ impl From<proto::execution_state::ExecutionStateEnum> for ExecutionStateEnum {
 // [impl->swdd~common-workload-states-supported-states~1]
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
-
 pub struct ExecutionState {
     #[serde(flatten)]
     pub state: ExecutionStateEnum,

@@ -35,7 +35,7 @@ impl WorkloadStateDB {
     pub fn get_all_workload_states(&self) -> Vec<WorkloadState> {
         self.stored_states
             .iter()
-            .flat_map(|(_, v)| v.iter().flat_map(|(_, v)| v.to_owned()))
+            .flat_map(|(_, workload_states)| workload_states.iter().flat_map(|(_, workload_state)| workload_state.to_owned()))
             .collect()
     }
 
@@ -52,8 +52,8 @@ impl WorkloadStateDB {
     ) -> Vec<WorkloadState> {
         self.stored_states
             .iter()
-            .filter(|(k, _)| *k != excluding_agent_name)
-            .flat_map(|(_, v)| v.iter().flat_map(|(_, v)| v.to_owned()))
+            .filter(|(agent_name, _)| *agent_name != excluding_agent_name)
+            .flat_map(|(_, workload_states)| workload_states.iter().flat_map(|(_, workload_state)| workload_state.to_owned()))
             .collect()
     }
 

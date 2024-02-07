@@ -137,10 +137,10 @@ The Following diagram shows all Ankaios workload states and the possible transit
 
 Status: approved
 
-Ankaios shall support additional information for the workload execution state.
+Ankaios shall support a string with additional information for the workload execution state.
 
 Rationale:
-The additional information is could be provided by the runtime and is helpful for debugging purposes.
+The additional information could be provided by the runtime and is helpful for debugging purposes.
 
 Tags:
 - Objects

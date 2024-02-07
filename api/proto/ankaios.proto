@@ -137,15 +137,15 @@ message ExecutionState {
     AgentDisconnected agentDisconnected = 2; /// The exact state of the workload cannot be determined, e.g., because of a broken connection to the responsible agent.
     Pending pending = 3; /// The workload is going to be started eventually.
     Running running = 4; /// The workload is operational.
-    Succeeded succeeded = 5; /// The workload has successfully finished operation.
+    Succeeded succeeded = 5; /// The workload has successfully finished its operation.
     Failed failed = 6; /// The workload has failed or is in a degraded state.
     NotScheduled notScheduled = 7; /// The workload is not scheduled to run at any agent. This is signalized with an empty agent in the workload specification.
-    Removed removed = 8; /// The workload was removed from Ankaios. This state is used only internally in Ankaios. The the otside world removed states are just not there.
+    Removed removed = 8; /// The workload was removed from Ankaios. This state is used only internally in Ankaios. The outside world removed states are just not there.
   }
 }
 
 /**
-* The workload was removed from Ankaios. This state is used only internally in Ankaios. The the otside world removed states are just not there.
+* The workload was removed from Ankaios. This state is used only internally in Ankaios. The outside world removed states are just not there.
 */
 enum Removed {
     REMOVED = 0;
@@ -180,8 +180,8 @@ enum Pending {
 */
 enum Running {
   RUNNING_OK = 0; /// The workload is operational.
-  RUNNING_WAITING_TO_STOP = 1; /// Thhe deletion of the workload will be triggered once no 'pending' or 'running' workload depending on it exists.
-  RUNNING_STOPPING = 2; /// Stopping the workload was scheduled at the corresponding runtimeg.
+  RUNNING_WAITING_TO_STOP = 1; /// The deletion of the workload will be triggered once neither 'pending' nor 'running' workload depending on it exists.
+  RUNNING_STOPPING = 2; /// Stopping the workload was scheduled at the corresponding runtime.
   RUNNING_DELETE_FAILED = 8; /// The deletion of the workload by the runtime failed.
 }
 
@@ -198,8 +198,8 @@ enum Succeeded {
 */
 enum Failed {
   FAILED_EXEC_FAILED = 0; /// The workload has failed during operation
-  FAILED_UNKNOWN = 1; /// The workload is in an unsupported by Ankaios runtime state. The workload was possibily altered outside of Ankaios.
-  FAILED_LOST = 2; /// The workload cannot be found anymore. The workload was possibily altered outside of Ankaios or was autoremoved by the runtime.
+  FAILED_UNKNOWN = 1; /// The workload is in an unsupported by Ankaios runtime state. The workload was possibly altered outside of Ankaios.
+  FAILED_LOST = 2; /// The workload cannot be found anymore. The workload was possibly altered outside of Ankaios or was auto-removed by the runtime.
   FAILED_DELETE_FAILED = 8; /// The deletion of the workload by the runtime failed.
 }
 
@@ -208,7 +208,7 @@ enum Failed {
 */
 message WorkloadState {
   WorkloadInstanceName instanceName = 1;
-  string workloadId = 2; /// Normally, the Id provided to the workload by the runtime. The Id may not be available in all execution states.
+  string workloadId = 2; /// Normally, the Id is provided to the workload by the runtime. The Id may not be available in all execution states.
   ExecutionState executionState = 3; /// The workload execution state.
 }
 
