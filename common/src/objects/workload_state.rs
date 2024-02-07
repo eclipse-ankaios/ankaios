@@ -218,6 +218,10 @@ pub struct ExecutionState {
 }
 
 impl ExecutionState {
+    pub fn is_removed(&self) -> bool {
+        ExecutionStateEnum::Removed == self.state
+    }
+
     pub fn agent_disconnected() -> Self {
         ExecutionState {
             state: ExecutionStateEnum::AgentDisconnected,
@@ -752,5 +756,4 @@ mod tests {
             String::from("Failed(Lost)")
         );
     }
-
 }

@@ -35,7 +35,11 @@ impl WorkloadStateDB {
     pub fn get_all_workload_states(&self) -> Vec<WorkloadState> {
         self.stored_states
             .iter()
-            .flat_map(|(_, workload_states)| workload_states.iter().flat_map(|(_, workload_state)| workload_state.to_owned()))
+            .flat_map(|(_, workload_states)| {
+                workload_states
+                    .iter()
+                    .flat_map(|(_, workload_state)| workload_state.to_owned())
+            })
             .collect()
     }
 
@@ -53,7 +57,11 @@ impl WorkloadStateDB {
         self.stored_states
             .iter()
             .filter(|(agent_name, _)| *agent_name != excluding_agent_name)
-            .flat_map(|(_, workload_states)| workload_states.iter().flat_map(|(_, workload_state)| workload_state.to_owned()))
+            .flat_map(|(_, workload_states)| {
+                workload_states
+                    .iter()
+                    .flat_map(|(_, workload_state)| workload_state.to_owned())
+            })
             .collect()
     }
 
@@ -67,14 +75,33 @@ impl WorkloadStateDB {
         }
     }
 
+    pub fn remove(&mut self, state_to_remove: WorkloadState) {
+        if let Some(agent_states) = self
+            .stored_states
+            .get_mut(state_to_remove.instance_name.agent_name())
+        {
+            if state_to_remove.workload_id.is_empty() {
+                agent_states.remove(state_to_remove.instance_name.workload_name());
+            } else if let Some(wl_states) =
+                agent_states.get_mut(state_to_remove.instance_name.workload_name())
+            {
+                wl_states.retain(|wl_state| wl_state.workload_id != state_to_remove.workload_id)
+            }
+        }
+    }
+
     pub fn insert(&mut self, workload_states: Vec<WorkloadState>) {
         workload_states.into_iter().for_each(|workload_state| {
-            self.stored_states
-                .entry(workload_state.instance_name.agent_name().to_owned())
-                .or_default()
-                .entry(workload_state.instance_name.workload_name().to_owned())
-                .or_default()
-                .push(workload_state);
+            if workload_state.execution_state.is_removed() {
+                self.remove(workload_state);
+            } else {
+                self.stored_states
+                    .entry(workload_state.instance_name.agent_name().to_owned())
+                    .or_default()
+                    .entry(workload_state.instance_name.workload_name().to_owned())
+                    .or_default()
+                    .push(workload_state);
+            }
         });
     }
 }
