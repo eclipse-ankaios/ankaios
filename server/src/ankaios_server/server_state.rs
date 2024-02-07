@@ -314,7 +314,7 @@ mod tests {
         let request_complete_state = CompleteStateRequest { field_mask: vec![] };
 
         let mut workload_state_db = WorkloadStateDB::default();
-        workload_state_db.insert(server_state.state.workload_states.clone());
+        workload_state_db.proccess_new_states(server_state.state.workload_states.clone());
 
         let mut complete_state = server_state
             .get_complete_state_by_field_mask(&request_complete_state, &workload_state_db)
@@ -372,7 +372,7 @@ mod tests {
         };
 
         let mut workload_state_db = WorkloadStateDB::default();
-        workload_state_db.insert(server_state.state.workload_states.clone());
+        workload_state_db.proccess_new_states(server_state.state.workload_states.clone());
 
         let mut complete_state = server_state
             .get_complete_state_by_field_mask(&request_complete_state, &workload_state_db)
@@ -422,7 +422,7 @@ mod tests {
         };
 
         let mut workload_state_db = WorkloadStateDB::default();
-        workload_state_db.insert(server_state.state.workload_states.clone());
+        workload_state_db.proccess_new_states(server_state.state.workload_states.clone());
 
         let mut complete_state = server_state
             .get_complete_state_by_field_mask(&request_complete_state, &workload_state_db)

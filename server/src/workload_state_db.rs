@@ -90,7 +90,7 @@ impl WorkloadStateDB {
         }
     }
 
-    pub fn insert(&mut self, workload_states: Vec<WorkloadState>) {
+    pub fn proccess_new_states(&mut self, workload_states: Vec<WorkloadState>) {
         workload_states.into_iter().for_each(|workload_state| {
             if workload_state.execution_state.is_removed() {
                 self.remove(workload_state);
@@ -282,5 +282,41 @@ mod tests {
             wls_db.get_workload_state_for_agent("non_existing_agent"),
             vec![]
         );
+    }
+
+    #[test]
+    fn utest_workload_states_deletes_removed() {
+        let mut wls_db = create_test_setup();
+
+        let mut wl_state_1 = generate_test_workload_state_with_agent(
+            WORKLOAD_NAME_1,
+            AGENT_A,
+            ExecutionState::removed(),
+        );
+        wl_state_1.workload_id = "".to_string();
+
+        let wl_state_3 = generate_test_workload_state_with_agent(
+            WORKLOAD_NAME_3,
+            AGENT_B,
+            ExecutionState::removed(),
+        );
+
+        wls_db.proccess_new_states(vec![wl_state_1, wl_state_3]);
+
+        let mut wls_res = wls_db.get_all_workload_states();
+        wls_res.sort_by(|a, b| {
+            a.instance_name
+                .workload_name()
+                .cmp(b.instance_name.workload_name())
+        });
+
+        assert_eq!(
+            wls_res,
+            vec![generate_test_workload_state_with_agent(
+                WORKLOAD_NAME_2,
+                AGENT_A,
+                ExecutionState::starting("additional_info"),
+            )]
+        )
     }
 }
