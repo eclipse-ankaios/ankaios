@@ -1,4 +1,4 @@
-@startuml seq_set_wl_state_unknown_update
+@startuml seq_set_wl_state_lost_update
 !include ../../../../resources/doc/plantuml/clean.skin
 
 box "Ankaios Server"
