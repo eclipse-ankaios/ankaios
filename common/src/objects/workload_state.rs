@@ -18,6 +18,8 @@ use serde::{Deserialize, Serialize};
 
 use api::proto;
 
+use crate::std_extensions::UnreachableOption;
+
 use super::WorkloadExecutionInstanceName;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -354,9 +356,17 @@ impl From<WorkloadState> for proto::WorkloadState {
 impl From<proto::WorkloadState> for WorkloadState {
     fn from(item: proto::WorkloadState) -> Self {
         WorkloadState {
-            instance_name: item.instance_name.unwrap_or_default().into(),
+            instance_name: item.instance_name.unwrap_or_unreachable().into(),
             workload_id: item.workload_id,
-            execution_state: item.execution_state.unwrap_or_default().into(),
+            execution_state: item
+                .execution_state
+                .unwrap_or(proto::ExecutionState {
+                    additional_info: "Cannot covert, proceeding with unknown".to_owned(),
+                    execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Failed(
+                        proto::Failed::Unknown as i32,
+                    )),
+                })
+                .into(),
         }
     }
 }
