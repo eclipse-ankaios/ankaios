@@ -141,7 +141,7 @@ impl AnkaiosServer {
                 }
                 ToServer::AgentGone(method_obj) => {
                     log::debug!("Received AgentGone from '{}'", method_obj.agent_name);
-                    // [impl->swdd~server-set-workload-state-unknown-on-disconnect~1]
+                    // [impl->swdd~server-set-workload-state-lost-on-disconnect~1]
                     self.workload_state_db
                         .agent_disconnected(&method_obj.agent_name);
 
@@ -968,13 +968,12 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
-
     // TODO the following test tests also the workload state db
-    // This should be avoided, the tests should be 
+    // This should be avoided, the tests should be
 
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-stores-workload-state~1]
-    // [utest->swdd~server-set-workload-state-unknown-on-disconnect~1]
+    // [utest->swdd~server-set-workload-state-lost-on-disconnect~1]
     // [utest->swdd~server-distribute-workload-state-unknown-on-disconnect~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
@@ -989,8 +988,11 @@ mod tests {
         server.server_state = mock_server_state;
 
         // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
-        let test_wl_1_state_running =
-            generate_test_workload_state_with_agent(WORKLOAD_NAME_1, AGENT_A, ExecutionState::running());
+        let test_wl_1_state_running = generate_test_workload_state_with_agent(
+            WORKLOAD_NAME_1,
+            AGENT_A,
+            ExecutionState::running(),
+        );
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_1_state_running.clone()])
             .await;

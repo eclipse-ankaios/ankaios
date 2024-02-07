@@ -15,12 +15,12 @@ end box
 ...Two agents are connected to Ankiaos Server...
 agent1 ->> tonic_server ++--: AgentGone
 tonic_server ->> server ++--: AgentGone
-server -> server : set workload states to ExecUnknown\n in WorkloadStateDB\n(Agent1)
+server -> server : set workload states to Lost\nin WorkloadStateDB\n(Agent1)
 note left server
         ""workloadStates:""
         ""- workload: Workload 1""
         ""  node: Node 1""
-        ""  executionState: ExecUnknown""
+        ""  executionState: Lost""
 end note
 
 server ->> grpc_server ++--: UpdateWorkloadState
@@ -29,7 +29,7 @@ note right agent2
         ""workloadStates:""
         ""- workload: Workload 1""
         ""  node: Node 1""
-        ""  executionState: ExecUnknown""
+        ""  executionState: Lost""
 end note
 
 

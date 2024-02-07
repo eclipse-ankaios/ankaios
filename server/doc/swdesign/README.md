@@ -293,17 +293,17 @@ Needs:
 - impl
 - utest
 
-### ExecUnknown Workload State of disconnected agents
-The following diagram shows the sequence of setting the Workload States of an disconnected agent to ExecUnknown and the distribution of its Workload States to other connected agents:
+### Workload State Lost of disconnected agents
+The following diagram shows the sequence of setting the Workload States of an disconnected agent to Lost and the distribution of its Workload States to other connected agents:
 
-![Set Workload States to ExecUnknown and distribute sequence](plantuml/seq_set_wl_state_unknown_update.svg)
+![Set Workload States to Lost and distribute sequence](plantuml/seq_set_wl_state_lost_update.svg)
 
-#### Server sets Workload State to ExecUnknown when an agent disconnects
-`swdd~server-set-workload-state-unknown-on-disconnect~1`
+#### Server sets Workload State to Lost when an agent disconnects
+`swdd~server-set-workload-state-lost-on-disconnect~1`
 
 Status: approved
 
-When the ToServer message AgentGone is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall set all the Workload States of that agent to ExecUnknown.
+When the ToServer message AgentGone is received by the Ankaios server from an Ankaios agent, the Ankaios server shall set all the Workload States of that agent to Lost.
 
 Tags:
 - AnkaiosServer
@@ -317,7 +317,7 @@ Needs:
 
 Status: approved
 
-When the ToServer message AgentGone is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall distribute the Workload States of that disconnected Ankaios Agent via the FromServer message UpdateWorkloadState to all remaining agents.
+When the ToServer message AgentGone is received by the Ankaios server from an Ankaios Agent, the Ankaios server shall distribute the Workload States of that disconnected Ankaios agent via the FromServer message UpdateWorkloadState to all remaining agents.
 
 Tags:
 - AnkaiosServer
