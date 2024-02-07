@@ -305,8 +305,8 @@ impl From<proto::ExecutionState> for ExecutionState {
             additional_info: item.additional_info,
             state: item
                 .execution_state_enum
-                .unwrap_or(proto::execution_state::ExecutionStateEnum::NotScheduled(
-                    proto::NotScheduled::NotScheduled as i32,
+                .unwrap_or(proto::execution_state::ExecutionStateEnum::Failed(
+                    proto::Failed::Unknown as i32,
                 ))
                 .into(),
         }
@@ -753,4 +753,5 @@ mod tests {
             String::from("Failed(Lost)")
         );
     }
+
 }
