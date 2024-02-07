@@ -918,7 +918,10 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::starting("starting container"));
+        assert_eq!(
+            execution_state,
+            ExecutionState::starting("starting container")
+        );
     }
 
     // [utest->swdd~podman-kube-state-getter-maps-state~2]
@@ -940,7 +943,10 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::unknown("unknown container state"));
+        assert_eq!(
+            execution_state,
+            ExecutionState::unknown("unknown container state")
+        );
     }
 
     // [utest->swdd~podman-kube-state-getter-maps-state~2]
@@ -961,7 +967,10 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::unknown("unknown container state"));
+        assert_eq!(
+            execution_state,
+            ExecutionState::unknown("unknown container state")
+        );
     }
 
     // [utest->swdd~podman-kube-state-getter-maps-state~2]
@@ -1083,11 +1092,11 @@ mod tests {
                 .return_const(volumes);
         }
 
-        fn store_data<'b>(
-            &'b self,
+        fn store_data(
+            &self,
             volume_name: String,
             data: impl Into<String>,
-        ) -> ReturnsStruct<impl FnOnce(Result<(), String>) + 'b> {
+        ) -> ReturnsStruct<impl FnOnce(Result<(), String>) + '_> {
             let store_data = &self.store_data;
             let data = data.into();
             ReturnsStruct {
@@ -1101,12 +1110,12 @@ mod tests {
             }
         }
 
-        fn play_kube<'b>(
-            &'b self,
+        fn play_kube(
+            &self,
             general_options: impl std::iter::IntoIterator<Item = impl ToString>,
             additional_options: impl std::iter::IntoIterator<Item = impl ToString>,
             kube_yml: impl ToString,
-        ) -> ReturnsStruct<impl FnOnce(Result<Vec<String>, String>) + 'b> {
+        ) -> ReturnsStruct<impl FnOnce(Result<Vec<String>, String>) + '_> {
             let general_options: Vec<String> =
                 general_options.into_iter().map(|x| x.to_string()).collect();
             let additional_options: Vec<String> = additional_options
@@ -1126,10 +1135,10 @@ mod tests {
             }
         }
 
-        fn read_data<'b>(
-            &'b self,
+        fn read_data(
+            &self,
             volume_name: impl ToString,
-        ) -> ReturnsStruct<impl FnOnce(Result<String, String>) + 'b> {
+        ) -> ReturnsStruct<impl FnOnce(Result<String, String>) + '_> {
             let read_data = &self.read_data;
             let volume_name = volume_name.to_string();
             ReturnsStruct {
@@ -1143,11 +1152,11 @@ mod tests {
             }
         }
 
-        fn down_kube<'b>(
-            &'b self,
+        fn down_kube(
+            &self,
             additional_options: impl std::iter::IntoIterator<Item = impl ToString>,
             kube_yml: impl ToString,
-        ) -> ReturnsStruct<impl FnOnce(Result<(), String>) + 'b> {
+        ) -> ReturnsStruct<impl FnOnce(Result<(), String>) + '_> {
             let down_kube = &self.down_kube;
             let additional_options: Vec<String> = additional_options
                 .into_iter()
@@ -1165,10 +1174,10 @@ mod tests {
             }
         }
 
-        fn remove_volume<'b>(
-            &'b self,
+        fn remove_volume(
+            &self,
             volume_name: String,
-        ) -> ReturnsStruct<impl FnOnce(Result<(), String>) + 'b> {
+        ) -> ReturnsStruct<impl FnOnce(Result<(), String>) + '_> {
             let remove_volume = &self.remove_volume;
             ReturnsStruct {
                 function: |result| {
@@ -1181,10 +1190,10 @@ mod tests {
             }
         }
 
-        fn list_states_from_pods<'b>(
-            &'b self,
+        fn list_states_from_pods(
+            &self,
             pods: impl IntoIterator<Item = impl ToString>,
-        ) -> ReturnsStruct<impl FnOnce(Result<Vec<ContainerState>, String>) + 'b> {
+        ) -> ReturnsStruct<impl FnOnce(Result<Vec<ContainerState>, String>) + '_> {
             let list_states_from_pods = &self.list_states_from_pods;
             let pods: Vec<String> = pods.into_iter().map(|x| x.to_string()).collect();
             ReturnsStruct {
