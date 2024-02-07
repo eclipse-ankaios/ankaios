@@ -313,7 +313,7 @@ Needs:
 - utest
 
 #### Server distributes Workload State when an agent disconnects
-`swdd~server-distribute-workload-state-unknown-on-disconnect~1`
+`swdd~server-distribute-workload-state-lost-on-disconnect~1`
 
 Status: approved
 

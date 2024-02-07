@@ -146,7 +146,7 @@ impl AnkaiosServer {
                         .agent_disconnected(&method_obj.agent_name);
 
                     // communicate the workload execution states to other agents
-                    // [impl->swdd~server-distribute-workload-state-unknown-on-disconnect~1]
+                    // [impl->swdd~server-distribute-workload-state-lost-on-disconnect~1]
                     self.to_agents
                         .update_workload_state(
                             self.workload_state_db
@@ -974,7 +974,7 @@ mod tests {
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-stores-workload-state~1]
     // [utest->swdd~server-set-workload-state-lost-on-disconnect~1]
-    // [utest->swdd~server-distribute-workload-state-unknown-on-disconnect~1]
+    // [utest->swdd~server-distribute-workload-state-lost-on-disconnect~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
     async fn utest_server_start_distributes_workload_states_after_agent_disconnect() {
