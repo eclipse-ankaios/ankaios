@@ -93,22 +93,33 @@ Needs:
 - utest
 
 #### Ankaios supported workload states
-`swdd~common-supported-workload-states~1`
+`swdd~common-workload-states-supported-states~1`
 
 Status: approved
 
-Ankaios shall support the following execution states for a workload:
+Ankaios shall support the following execution states with substates for a workload:
 
+- agent disconnected
 - pending
-- waiting_to_start
-- starting
+    * initial
+    * starting
+    * waiting to start
+    * starting failed
 - running
+    * ok
+    * waiting to stop
+    * stopping
+    * delete failed
 - succeeded
+    * ok
+    * delete failed
 - failed
-- waiting_to_stop
-- stopping
+    * exec failed
+    * unknown
+    * lost
+    * delete failed
+- not scheduled
 - removed
-- unknown
 
 Tags:
 - Objects
@@ -120,6 +131,45 @@ Needs:
 The Following diagram shows all Ankaios workload states and the possible transitions between them:
 
 ![Workload states](plantuml/state_workload_execution_states.svg)
+
+#### Ankaios workload execution state additional information
+`swdd~common-workload-state-additional-information~1`
+
+Status: approved
+
+Ankaios shall support additional information for the workload execution state.
+
+Rationale:
+The additional information is could be provided by the runtime and is helpful for debugging purposes.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+
+#### Ankaios workload execution state identification
+`swdd~common-workload-state-identification~1`
+
+Status: approved
+
+Ankaios shall support workload execution state identification by the combination of:
+
+- workload name
+- assigned agent name
+- runtime config hash
+- workload id (optional depending on the execution state as provided by the runtime)
+
+Rationale:
+The workload id is additionally needed for identification to support restarts of workloads with 'at least once' update strategy.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
 
 #### Workload add conditions for dependencies
 `swdd~workload-add-conditions-for-dependencies~1`

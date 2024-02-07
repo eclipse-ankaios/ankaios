@@ -205,13 +205,14 @@ impl From<proto::execution_state::ExecutionStateEnum> for ExecutionStateEnum {
     }
 }
 
-// [impl->swdd~common-supported-workload-states~1]
+// [impl->swdd~common-workload-states-supported-states~1]
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
 
 pub struct ExecutionState {
     #[serde(flatten)]
     pub state: ExecutionStateEnum,
+    // [impl->swdd~common-workload-state-additional-information~1]
     pub additional_info: String,
 }
 
@@ -334,6 +335,7 @@ impl Display for ExecutionState {
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct WorkloadState {
+    // [impl->swdd~common-workload-state-identification~1s]
     pub instance_name: WorkloadExecutionInstanceName,
     pub workload_id: String,
     pub execution_state: ExecutionState,
@@ -416,6 +418,7 @@ mod tests {
 
     use crate::objects::{ExecutionState, WorkloadExecutionInstanceName, WorkloadState};
 
+    // [utest->swdd~common-workload-state-identification~1]
     #[test]
     fn utest_converts_to_proto_workload_state() {
         let additional_info = "some additional info";
@@ -446,6 +449,7 @@ mod tests {
         assert_eq!(proto::WorkloadState::from(ankaios_wl_state), proto_wl_state);
     }
 
+    // [utest->swdd~common-workload-state-identification~1]
     #[test]
     fn utest_converts_to_ankaios_workload_state() {
         let ankaios_wl_state = WorkloadState {
@@ -475,7 +479,8 @@ mod tests {
         assert_eq!(WorkloadState::from(proto_wl_state), ankaios_wl_state);
     }
 
-    // [utest->// [impl->swdd~common-supported-workload-states~1]]
+    // [utest->swdd~common-workload-state-additional-information~1]
+    // [utest->swdd~common-workload-states-supported-states~1]
     #[test]
     fn utest_execution_state_to_proto_mapping() {
         let additional_info = "some additional info";
@@ -575,7 +580,8 @@ mod tests {
         );
     }
 
-    // [utest->// [impl->swdd~common-supported-workload-states~1]]
+    // [utest->swdd~common-workload-state-additional-information~1]
+    // [utest->swdd~common-workload-states-supported-states~1]
     #[test]
     fn utest_execution_state_from_proto_mapping() {
         let additional_info = "some additional info";
@@ -685,7 +691,8 @@ mod tests {
         );
     }
 
-    // [utest->// [impl->swdd~common-supported-workload-states~1]]
+    // [utest->swdd~common-workload-state-additional-information~1]
+    // [utest->swdd~common-workload-states-supported-states~1]
     #[test]
     fn utest_execution_state_to_string_basic_mapping() {
         let additional_info = "some additional info";
