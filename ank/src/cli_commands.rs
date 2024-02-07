@@ -192,6 +192,8 @@ struct WorkloadInfo {
     runtime: String,
     #[tabled(rename = "EXECUTION STATE")]
     execution_state: String,
+    #[tabled(rename = "ADDITIONAL INFO")]
+    additional_info: String,
 }
 
 pub struct CliCommands {
@@ -343,11 +345,17 @@ impl CliCommands {
         let mut workload_infos: Vec<WorkloadInfo> = res_complete_state
             .workload_states
             .into_iter()
-            .map(|wl_state| WorkloadInfo {
-                name: wl_state.instance_name.workload_name().into(),
-                agent: wl_state.instance_name.agent_name().into(),
-                runtime: String::new(),
-                execution_state: wl_state.execution_state.to_string(),
+            .map(|wl_state| -> WorkloadInfo {
+                let execution_state_complex = wl_state.execution_state.to_string();
+                let (execution_state, additional_info) =
+                    execution_state_complex.split_once(':').unwrap_or(("", ""));
+                WorkloadInfo {
+                    name: wl_state.instance_name.workload_name().into(),
+                    agent: wl_state.instance_name.agent_name().into(),
+                    runtime: String::new(),
+                    execution_state: execution_state.to_string(),
+                    additional_info: additional_info.to_string(),
+                }
             })
             .collect();
 

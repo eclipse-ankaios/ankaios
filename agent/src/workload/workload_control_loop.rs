@@ -252,7 +252,7 @@ impl WorkloadControlLoop {
                     .update_workload_state(vec![common::objects::WorkloadState {
                         instance_name: control_loop_state.instance_name.to_owned(),
                         execution_state: ExecutionState::removed(),
-                        workload_id: Default::default(), //TODO: old_id.to_string(),
+                        workload_id: old_id.to_string(),
                     }])
                     .await
                     .unwrap_or_illegal_state();
@@ -518,16 +518,16 @@ mod tests {
             workload_states: vec![
                 common::objects::generate_test_workload_state_with_workload_spec(
                     &workload_spec,
-                    "",
+                    WORKLOAD_ID,
                     ExecutionState::removed(),
                 ),
             ],
         };
 
-        assert!(matches!(
+        assert_eq!(
             timeout(Duration::from_millis(200), to_server_rx.recv()).await,
-            Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
-        if workload_state == expected_state));
+            Ok(Some(ToServer::UpdateWorkloadState(expected_state)))
+        );
 
         runtime_mock.assert_all_expectations().await;
     }
@@ -600,16 +600,16 @@ mod tests {
             workload_states: vec![
                 common::objects::generate_test_workload_state_with_workload_spec(
                     &workload_spec,
-                    "",
+                    WORKLOAD_ID,
                     ExecutionState::removed(),
                 ),
             ],
         };
 
-        assert!(matches!(
+        assert_eq!(
             timeout(Duration::from_millis(200), to_server_rx.recv()).await,
-            Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
-        if workload_state == expected_state));
+            Ok(Some(ToServer::UpdateWorkloadState(expected_state)))
+        );
 
         runtime_mock.assert_all_expectations().await;
     }
@@ -680,16 +680,16 @@ mod tests {
             workload_states: vec![
                 common::objects::generate_test_workload_state_with_workload_spec(
                     &workload_spec,
-                    "",
+                    OLD_WORKLOAD_ID,
                     ExecutionState::removed(),
                 ),
             ],
         };
 
-        assert!(matches!(
+        assert_eq!(
             timeout(Duration::from_millis(200), to_server_rx.recv()).await,
-            Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
-        if workload_state == expected_state));
+            Ok(Some(ToServer::UpdateWorkloadState(expected_state)))
+        );
 
         runtime_mock.assert_all_expectations().await;
     }
@@ -828,16 +828,16 @@ mod tests {
             workload_states: vec![
                 common::objects::generate_test_workload_state_with_workload_spec(
                     &workload_spec,
-                    "",
+                    OLD_WORKLOAD_ID,
                     ExecutionState::removed(),
                 ),
             ],
         };
 
-        assert!(matches!(
+        assert_eq!(
             timeout(Duration::from_millis(200), to_server_rx.recv()).await,
-            Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
-        if workload_state == expected_state));
+            Ok(Some(ToServer::UpdateWorkloadState(expected_state)))
+        );
 
         runtime_mock.assert_all_expectations().await;
     }
@@ -901,16 +901,16 @@ mod tests {
             workload_states: vec![
                 common::objects::generate_test_workload_state_with_workload_spec(
                     &workload_spec,
-                    "",
+                    OLD_WORKLOAD_ID,
                     ExecutionState::removed(),
                 ),
             ],
         };
 
-        assert!(matches!(
+        assert_eq!(
             timeout(Duration::from_millis(200), to_server_rx.recv()).await,
-            Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
-        if workload_state == expected_state));
+            Ok(Some(ToServer::UpdateWorkloadState(expected_state)))
+        );
 
         runtime_mock.assert_all_expectations().await;
     }
@@ -1095,7 +1095,7 @@ mod tests {
         };
 
         assert!(timeout(
-            Duration::from_millis(150),
+            Duration::from_millis(200),
             WorkloadControlLoop::run(control_loop_state)
         )
         .await
