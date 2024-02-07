@@ -68,6 +68,7 @@ impl From<DeletedWorkload> for proto::DeletedWorkload {
 #[serde(default, rename_all = "camelCase")]
 pub struct WorkloadSpec {
     pub agent: String,
+    #[serde(skip_serializing)]
     pub name: String,
     pub tags: Vec<Tag>,
     #[serde(serialize_with = "serialize_to_ordered_map")]

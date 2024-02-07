@@ -1553,7 +1553,6 @@ mod tests {
                 "workloads": {
                     "name1": {
                     "agent": "agent_A",
-                    "name": "name1",
                     "tags": [
                         {
                         "key": "key",
@@ -1614,7 +1613,6 @@ mod tests {
                 "workloads": {
                     "name1": {
                         "agent": "agent_A",
-                        "name": "name1",
                         "tags": [
                             {
                             "key": "key",

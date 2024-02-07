@@ -530,7 +530,6 @@ mod tests {
                                     .entry("deny", vec![] as Vec<Value>),
                             )
                             .entry("runtime", "runtime")
-                            .entry("name", "name")
                             .entry("restart", true)
                             .entry(
                                 "tags",
