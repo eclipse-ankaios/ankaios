@@ -202,14 +202,25 @@ impl AnkaiosServer {
                             update_state_request.update_mask
                         );
 
-                        if CompleteState::is_compatible_format(
+                        if !CompleteState::is_compatible_format(
                             &update_state_request.state.format_version,
                         ) {
-                            log::debug!("The completeState in the request has a compatible version. Received {}, expected {}.",
-                            update_state_request.state.format_version, ApiVersion::default());
-                        } else {
                             log::warn!("The CompleteState in the request has wrong format. Received {}, expected {} -> ignoring the request.",
-                            update_state_request.state.format_version, ApiVersion::default());
+                                update_state_request.state.format_version, ApiVersion::default());
+
+                            self.to_agents
+                                .error(
+                                    request_id,
+                                    common::commands::Error {
+                                        message: format!(
+                                            "Unsupported API version. Received {}, expected {}",
+                                            update_state_request.state.format_version,
+                                            ApiVersion::default()
+                                        ),
+                                    },
+                                )
+                                .await
+                                .unwrap_or_illegal_state();
                             continue;
                         }
 
