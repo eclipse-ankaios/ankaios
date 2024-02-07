@@ -313,9 +313,9 @@ impl From<proto::ExecutionState> for ExecutionState {
     }
 }
 
-impl Display for ExecutionState {
+impl Display for ExecutionStateEnum {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self.state {
+        match &self {
             ExecutionStateEnum::AgentDisconnected => write!(f, "AgentDisconnected"),
             ExecutionStateEnum::Pending(substate) => write!(f, "Pending({substate})"),
             ExecutionStateEnum::Running(substate) => write!(f, "Running({substate})"),
@@ -325,11 +325,16 @@ impl Display for ExecutionState {
             ExecutionStateEnum::Failed(substate) => write!(f, "Failed({substate})"),
             ExecutionStateEnum::NotScheduled => write!(f, "NotScheduled"),
             ExecutionStateEnum::Removed => write!(f, "Removed"),
-        }?;
+        }
+    }
+}
+
+impl Display for ExecutionState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if !self.additional_info.is_empty() {
-            write!(f, ": '{}'", self.additional_info)
+            write!(f, "{}: '{}'", self.state, self.additional_info)
         } else {
-            Ok(())
+            write!(f, "{}", self.state)
         }
     }
 }
