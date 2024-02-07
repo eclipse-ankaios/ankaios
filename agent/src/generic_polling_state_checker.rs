@@ -155,15 +155,6 @@ mod tests {
 
         // [utest->swdd~generic-state-checker-sends-workload-state~1]
         let state_update_1 = state_receiver.recv().await.unwrap();
-        if let ToServer::UpdateWorkloadState(commands::UpdateWorkloadState {
-            workload_states: ws,
-        }) = state_update_1.clone()
-        {
-            println!(
-                "workload_states: \n{:?}\nexpected_state:\n{:?}",
-                ws, expected_state
-            );
-        }
         assert!(matches!(
             state_update_1,
             ToServer::UpdateWorkloadState(commands::UpdateWorkloadState{workload_states})
