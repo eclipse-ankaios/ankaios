@@ -437,6 +437,22 @@ Comment: If one field from the update_mask is not present in the DesiredState, t
 
 If one field from the update_mask is not present in the newState, this field is deleted from the DesiredState.
 
+##### UpdateState interface with invalid version
+`swdd~update-desired-state-with-invalid-version~1`
+
+Status: approved
+
+When the Ankaios Server gets an UpdateStateRequest with an API version which is not identical to the API version expected by the Ankaios Server,
+the Ankaios Server shall reject the request and keep on listening for incoming requests.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
+- stest
+
 ### Update Current State
 
 The behavioral diagram of the updating current state is shown in the chapter "UpdateState interface".
