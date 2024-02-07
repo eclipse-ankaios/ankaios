@@ -18,6 +18,8 @@ use crate::objects::{DeletedWorkload, State, WorkloadSpec, WorkloadState};
 use api::proto;
 use serde::{Deserialize, Serialize};
 
+const CURRENT_API_VERSION: &str = "v0.1";
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AgentHello {
     pub agent_name: String,
@@ -241,7 +243,7 @@ pub struct ApiVersion {
 impl Default for ApiVersion {
     fn default() -> Self {
         Self {
-            version: "v0.1".to_string(),
+            version: CURRENT_API_VERSION.to_string(),
         }
     }
 }
