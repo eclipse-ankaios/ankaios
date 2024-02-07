@@ -202,6 +202,7 @@ impl AnkaiosServer {
                             update_state_request.update_mask
                         );
 
+                        // [impl->swdd~update-desired-state-with-invalid-version~1]
                         if !CompleteState::is_compatible_format(
                             &update_state_request.state.format_version,
                         ) {
@@ -303,7 +304,9 @@ mod tests {
     use super::AnkaiosServer;
     use crate::ankaios_server::server_state::{MockServerState, UpdateStateError};
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
-    use common::commands::{CompleteStateRequest, UpdateWorkload, UpdateWorkloadState};
+    use common::commands::{
+        self, ApiVersion, CompleteStateRequest, UpdateWorkload, UpdateWorkloadState,
+    };
     use common::objects::{DeletedWorkload, ExecutionState, State, WorkloadState};
     use common::test_utils::generate_test_workload_spec_with_param;
     use common::to_server_interface::ToServerInterface;
@@ -1222,5 +1225,66 @@ mod tests {
         if !server_task.is_finished() {
             server_task.abort();
         }
+    }
+
+    // [utest->swdd~update-desired-state-with-invalid-version~1]
+    #[tokio::test]
+    async fn utest_server_rejects_update_state_with_incompatible_version() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let update_state = CompleteState {
+            format_version: ApiVersion {
+                version: "incompatible_version".to_string(),
+            },
+            ..Default::default()
+        };
+
+        let added_workloads = vec![];
+        let deleted_workloads = vec![];
+
+        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_update()
+            .with(
+                mockall::predicate::eq(update_state.clone()),
+                mockall::predicate::eq(update_mask.clone()),
+            )
+            .once()
+            .return_const(Ok(Some((
+                added_workloads.clone(),
+                deleted_workloads.clone(),
+            ))));
+        server.server_state = mock_server_state;
+        let server_task = tokio::spawn(async move { server.start(None).await });
+
+        // send new state to server
+        let update_state_result = to_server
+            .update_state(REQUEST_ID_A.to_string(), update_state.clone(), update_mask)
+            .await;
+        assert!(update_state_result.is_ok());
+
+        let error_message = format!(
+            "Unsupported API version. Received {}, expected {}",
+            update_state.format_version,
+            ApiVersion::default()
+        );
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            FromServer::Response(commands::Response {
+                request_id: REQUEST_ID_A.to_string(),
+                response_content: commands::ResponseContent::Error(commands::Error {
+                    message: error_message
+                }),
+            }),
+            from_server_command
+        );
+
+        server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 }

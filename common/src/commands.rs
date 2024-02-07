@@ -327,10 +327,14 @@ pub struct Stop {}
 
 #[cfg(test)]
 mod tests {
+
     use api::proto;
 
     use crate::{
-        commands::{CompleteStateRequest, Request, RequestContent, UpdateWorkloadState},
+        commands::{
+            ApiVersion, CompleteState, CompleteStateRequest, Request, RequestContent,
+            UpdateWorkloadState,
+        },
         objects::{ExecutionState, WorkloadState},
     };
 
@@ -394,5 +398,28 @@ mod tests {
         ankaios_request_complete_state.prefix_request_id("prefix@");
 
         assert_eq!("prefix@42", ankaios_request_complete_state.request_id);
+    }
+
+    #[test]
+    fn utest_complete_state_accepts_compatible_state() {
+        let complete_state_compatible_version = CompleteState {
+            ..Default::default()
+        };
+        assert!(CompleteState::is_compatible_format(
+            &complete_state_compatible_version.format_version
+        ));
+    }
+
+    #[test]
+    fn utest_complete_state_rejects_incompatible_state() {
+        let complete_state_incompatible_version = CompleteState {
+            format_version: ApiVersion {
+                version: "incompatible_version".to_string(),
+            },
+            ..Default::default()
+        };
+        assert!(!CompleteState::is_compatible_format(
+            &complete_state_incompatible_version.format_version
+        ));
     }
 }

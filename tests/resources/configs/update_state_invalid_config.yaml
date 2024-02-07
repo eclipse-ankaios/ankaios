@@ -1,0 +1,25 @@
+formatVersion:
+  version: "invalidVersion"
+startupState:
+  workloads: {}
+  configs: {}
+  cronJobs: {}
+desiredState:
+  workloads:
+    nginx:
+      runtime: podman
+      agent: agent_A
+      restart: true
+      updateStrategy: AT_MOST_ONCE
+      accessRights:
+        allow: []
+        deny: []
+      tags:
+        - key: owner
+          value: Ankaios team
+      runtimeConfig: |
+        image: docker.io/nginx:latest
+        commandOptions: ["-p", "8081:80", "--name", "test_workload1"]
+  configs: {}
+  cronJobs: {}
+workloadStates: []

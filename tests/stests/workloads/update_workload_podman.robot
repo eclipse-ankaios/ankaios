@@ -62,3 +62,21 @@ Test Ankaios Podman update workload from empty state
     When user triggers "ank set state --file ${CONFIGS_DIR}/update_state_create_one_workload.yaml desiredState.workloads"
     Then the workload "nginx" shall have the execution state "Running" on agent "agent_A" within "30" seconds
     [Teardown]    Clean up Ankaios
+
+# [stest->swdd~update-desired-state-with-invalid-version~1]
+Test Ankaios Podman Update workload with invalid config
+    [Setup]    Run Keywords    Setup Ankaios
+
+    # Preconditions
+    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    And Ankaios server is started without config
+    And Ankaios agent is started with name "agent_A"
+    # Actions
+    When user triggers "ank get workloads"
+    Then list of workloads shall be empty
+    When user triggers "ank set state --file ${CONFIGS_DIR}/update_state_invalid_config.yaml desiredState.workloads"
+    And user triggers "ank get workloads"
+    Then list of workloads shall be empty
+
+    [Teardown]    Clean up Ankaios
