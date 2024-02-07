@@ -294,7 +294,7 @@ Needs:
 - utest
 
 ### Workload State Lost of disconnected agents
-The following diagram shows the sequence of setting the Workload States of an disconnected agent to Lost and the distribution of its Workload States to other connected agents:
+The following diagram shows the sequence of setting the Workload States of an disconnected agent to `Lost` and the distribution of its Workload States to other connected agents:
 
 ![Set Workload States to Lost and distribute sequence](plantuml/seq_set_wl_state_lost_update.svg)
 
@@ -303,7 +303,7 @@ The following diagram shows the sequence of setting the Workload States of an di
 
 Status: approved
 
-When the ToServer message AgentGone is received by the Ankaios server from an Ankaios agent, the Ankaios server shall set all the Workload States of that agent to Lost.
+When the ToServer message AgentGone is received by the Ankaios server from an Ankaios agent, the Ankaios server shall set all the Workload States of that agent to `Lost`.
 
 Tags:
 - AnkaiosServer
