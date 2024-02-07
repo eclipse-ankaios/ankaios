@@ -654,21 +654,21 @@ mod tests {
                 agent: String::from("agent_A"),
                 runtime: String::from("runtime"),
                 execution_state: ExecutionState::running().state.to_string(),
-                ..Default::default()
+                additional_info: Default::default(),
             },
             WorkloadInfo {
                 name: String::from("name2"),
                 agent: String::from("agent_B"),
                 runtime: String::from("runtime"),
                 execution_state: ExecutionState::running().state.to_string(),
-                ..Default::default()
+                additional_info: Default::default(),
             },
             WorkloadInfo {
                 name: String::from("name3"),
                 agent: String::from("agent_B"),
                 runtime: String::from("runtime"),
                 execution_state: ExecutionState::running().state.to_string(),
-                ..Default::default()
+                additional_info: Default::default(),
             },
         ];
         let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
@@ -730,7 +730,7 @@ mod tests {
             agent: String::from("agent_A"),
             runtime: String::from("runtime"),
             execution_state: ExecutionState::running().state.to_string(),
-            ..Default::default()
+            additional_info: Default::default(),
         }];
         let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
         assert_eq!(cmd_text.unwrap(), expected_table_text);
@@ -792,14 +792,14 @@ mod tests {
                 agent: String::from("agent_B"),
                 runtime: String::from("runtime"),
                 execution_state: ExecutionState::running().state.to_string(),
-                ..Default::default()
+                additional_info: Default::default(),
             },
             WorkloadInfo {
                 name: String::from("name3"),
                 agent: String::from("agent_B"),
                 runtime: String::from("runtime"),
                 execution_state: ExecutionState::running().state.to_string(),
-                ..Default::default()
+                additional_info: Default::default(),
             },
         ];
         let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
@@ -906,7 +906,7 @@ mod tests {
             agent: String::from("agent_A"),
             runtime: String::new(),
             execution_state: String::from("Removed"),
-            ..Default::default()
+            additional_info: Default::default(),
         }];
         let expected_table_text = Table::new(expected_empty_table)
             .with(Style::blank())
