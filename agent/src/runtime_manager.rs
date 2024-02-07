@@ -16,6 +16,7 @@ use common::{
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::PipesChannelContext;
 
+use crate::parameter_storage::ParameterStorage;
 use crate::runtime_connectors::RuntimeFacade;
 
 #[cfg_attr(test, mockall_double::double)]
@@ -63,6 +64,8 @@ impl RuntimeManager {
             update_state_tx,
         }
     }
+
+    pub async fn state_update(&self, parameter_storage: &ParameterStorage) {}
 
     pub async fn handle_update_workload(
         &mut self,

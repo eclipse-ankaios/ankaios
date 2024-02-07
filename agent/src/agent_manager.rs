@@ -14,7 +14,8 @@
 
 use common::{
     from_server_interface::{FromServer, FromServerReceiver},
-    to_server_interface::ToServerSender,
+    std_extensions::{IllegalStateResult, UnreachableOption},
+    to_server_interface::{ToServer, ToServerInterface, ToServerReceiver, ToServerSender},
 };
 
 use crate::parameter_storage::ParameterStorage;
@@ -27,7 +28,8 @@ pub struct AgentManager {
     runtime_manager: RuntimeManager,
     // [impl->swdd~communication-to-from-agent-middleware~1]
     receiver: FromServerReceiver,
-    _to_server: ToServerSender,
+    to_server: ToServerSender,
+    workload_state_receiver: ToServerReceiver,
     parameter_storage: ParameterStorage,
 }
 
@@ -36,49 +38,78 @@ impl AgentManager {
         agent_name: String,
         receiver: FromServerReceiver,
         runtime_manager: RuntimeManager,
-        _to_server: ToServerSender,
+        to_server: ToServerSender,
+        workload_state_receiver: ToServerReceiver,
     ) -> AgentManager {
         AgentManager {
             agent_name,
             runtime_manager,
             receiver,
-            _to_server,
+            to_server,
+            workload_state_receiver,
             parameter_storage: ParameterStorage::new(),
         }
     }
 
     pub async fn start(&mut self) {
         log::info!("Starting ...");
-        self.listen_to_server().await
+        self.listen().await
+    }
+
+    async fn listen(&mut self) {
+        tokio::select! {
+            from_server_msg = self.receiver.recv() => {
+                log::debug!("Start listening to server.");
+                match self.execute_command(from_server_msg).await {
+                    Ok(Some(())) => {},
+                    Ok(None) => {},
+                    Err(err) => { log::error!("Abort: '{err}'"); }
+                }
+            }
+            to_server_msg = self.workload_state_receiver.recv() => {
+                let to_server_msg = to_server_msg.unwrap_or_unreachable();
+                let ToServer::UpdateWorkloadState(common::commands::UpdateWorkloadState { workload_states }) = to_server_msg else {
+                    std::unreachable!("expected UpdateWorkloadState msg.");
+                };
+                workload_states.iter().for_each(|workload_state| {
+                    self.parameter_storage.update_workload_state(workload_state.clone());
+                });
+
+                self.to_server.update_workload_state(workload_states).await.unwrap_or_illegal_state();
+                self.runtime_manager.state_update(&self.parameter_storage).await;
+            }
+        }
     }
 
     // [impl->swdd~agent-manager-listens-requests-from-server~1]
-    async fn listen_to_server(&mut self) {
-        log::debug!("Start listening to server.");
-        while let Some(x) = self.receiver.recv().await {
-            match x {
-                FromServer::UpdateWorkload(method_obj) => {
-                    log::debug!("Agent '{}' received UpdateWorkload:\n\tAdded workloads: {:?}\n\tDeleted workloads: {:?}",
+    async fn execute_command(
+        &mut self,
+        from_server_msg: Option<FromServer>,
+    ) -> Result<Option<()>, String> {
+        match from_server_msg {
+            Some(FromServer::UpdateWorkload(method_obj)) => {
+                log::debug!("Agent '{}' received UpdateWorkload:\n\tAdded workloads: {:?}\n\tDeleted workloads: {:?}",
                     self.agent_name,
                     method_obj.added_workloads,
                     method_obj.deleted_workloads);
 
-                    self.runtime_manager
-                        .handle_update_workload(
-                            method_obj.added_workloads,
-                            method_obj.deleted_workloads,
-                        )
-                        .await;
-                }
-                FromServer::UpdateWorkloadState(method_obj) => {
-                    log::debug!(
-                        "Agent '{}' received UpdateWorkloadState: {:?}",
-                        self.agent_name,
-                        method_obj
-                    );
-
-                    // [impl->swdd~agent-manager-stores-all-workload-states~1]
+                self.runtime_manager
+                    .handle_update_workload(
+                        method_obj.added_workloads,
+                        method_obj.deleted_workloads,
+                    )
+                    .await;
+                Ok(Some(()))
+            }
+            Some(FromServer::UpdateWorkloadState(method_obj)) => {
+                log::debug!(
+                    "Agent '{}' received UpdateWorkloadState: {:?}",
+                    self.agent_name,
                     method_obj
+                );
+
+                // [impl->swdd~agent-manager-stores-all-workload-states~1]
+                method_obj
                         .workload_states
                         .into_iter()
                         .for_each(|workload_state| {
@@ -86,23 +117,25 @@ impl AgentManager {
                             workload_state.workload_name, workload_state.agent_name);
                             self.parameter_storage.update_workload_state(workload_state)
                         });
-                }
-                FromServer::Response(method_obj) => {
-                    log::debug!(
-                        "Agent '{}' received Response: {:?}",
-                        self.agent_name,
-                        method_obj
-                    );
-
-                    // [impl->swdd~agent-forward-responses-to-control-interface-pipe~1]
-                    self.runtime_manager.forward_response(method_obj).await;
-                }
-                FromServer::Stop(_method_obj) => {
-                    log::debug!("Agent '{}' received Stop from server", self.agent_name);
-
-                    break;
-                }
+                Ok(Some(()))
             }
+            Some(FromServer::Response(method_obj)) => {
+                log::debug!(
+                    "Agent '{}' received Response: {:?}",
+                    self.agent_name,
+                    method_obj
+                );
+
+                // [impl->swdd~agent-forward-responses-to-control-interface-pipe~1]
+                self.runtime_manager.forward_response(method_obj).await;
+                Ok(Some(()))
+            }
+            Some(FromServer::Stop(_method_obj)) => {
+                log::debug!("Agent '{}' received Stop from server", self.agent_name);
+
+                Ok(None)
+            }
+            None => Err("Invalid FromServerCommand".to_string()),
         }
     }
 }

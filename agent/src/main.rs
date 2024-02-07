@@ -63,6 +63,8 @@ async fn main() {
     // [impl->swdd~agent-uses-async-channels~1]
     let (to_manager, manager_receiver) = tokio::sync::mpsc::channel::<FromServer>(BUFFER_SIZE);
     let (to_server, server_receiver) = tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
+    let (workload_state_sender, workload_state_receiver) =
+        tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
 
     let run_directory = args
         .get_run_directory()
@@ -95,7 +97,7 @@ async fn main() {
         run_directory.get_path(),
         to_server.clone(),
         runtime_facade_map,
-        to_server.clone(),
+        workload_state_sender,
     );
 
     let mut grpc_communications_client =
@@ -106,6 +108,7 @@ async fn main() {
         manager_receiver,
         runtime_manager,
         to_server,
+        workload_state_receiver,
     );
 
     let manager_task = tokio::spawn(async move { agent_manager.start().await });
