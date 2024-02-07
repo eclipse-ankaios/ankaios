@@ -422,7 +422,7 @@ impl PodmanCli {
             .map_err(|err| format!("Could not decoded volume information as JSON: {}", err))?;
         let res = base64::engine::general_purpose::STANDARD_NO_PAD
             .decode(
-                &res.get(0)
+                &res.first()
                     .ok_or_else(|| "No volume returned".to_string())?
                     .labels
                     .data,
