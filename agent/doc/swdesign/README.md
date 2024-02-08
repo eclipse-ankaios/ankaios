@@ -1727,7 +1727,7 @@ Needs:
 - impl
 - utest
 
-##### PodmanStateGetter returns removed state
+##### PodmanStateGetter returns lost state
 `swdd~podman-state-getter-returns-lost-state~1`
 
 Status: approved
