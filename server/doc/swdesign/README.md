@@ -453,6 +453,21 @@ Needs:
 - utest
 - stest
 
+##### UpdateState interface with missing version
+`swdd~update-desired-state-with-missing-version~1`
+
+Status: approved
+
+When the Ankaios Server gets an UpdateStateRequest without set API version,
+the Ankaios Server shall reject the request and keep on listening for incoming requests.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- stest
+
 ### Update Current State
 
 The behavioral diagram of the updating current state is shown in the chapter "UpdateState interface".

@@ -203,6 +203,7 @@ impl AnkaiosServer {
                         );
 
                         // [impl->swdd~update-desired-state-with-invalid-version~1]
+                        // [impl->swdd~update-desired-state-with-missing-version~1]
                         if !CompleteState::is_compatible_format(
                             &update_state_request.state.format_version,
                         ) {

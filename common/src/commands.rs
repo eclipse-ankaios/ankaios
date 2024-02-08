@@ -282,6 +282,7 @@ pub struct CompleteState {
     pub workload_states: Vec<WorkloadState>,
 }
 
+// [impl->swdd~update-desired-state-with-missing-version~1]
 fn default_api_value_serialization() -> ApiVersion {
     ApiVersion {
         version: "unknown_api_version".to_string(),
