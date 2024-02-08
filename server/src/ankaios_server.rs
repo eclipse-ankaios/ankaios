@@ -141,7 +141,7 @@ impl AnkaiosServer {
                 }
                 ToServer::AgentGone(method_obj) => {
                     log::debug!("Received AgentGone from '{}'", method_obj.agent_name);
-                    // [impl->swdd~server-set-workload-state-lost-on-disconnect~1]
+                    // [impl->swdd~server-set-workload-state-on-disconnect~1]
                     self.workload_state_db
                         .agent_disconnected(&method_obj.agent_name);
 
@@ -973,7 +973,7 @@ mod tests {
 
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-stores-workload-state~1]
-    // [utest->swdd~server-set-workload-state-lost-on-disconnect~1]
+    // [utest->swdd~server-set-workload-state-on-disconnect~1]
     // [utest->swdd~server-distribute-workload-state-lost-on-disconnect~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]

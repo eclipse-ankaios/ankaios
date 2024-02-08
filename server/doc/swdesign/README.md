@@ -293,17 +293,17 @@ Needs:
 - impl
 - utest
 
-### Workload State Lost of disconnected agents
-The following diagram shows the sequence of setting the Workload States of an disconnected agent to `Lost` and the distribution of its Workload States to other connected agents:
+### Workload State update on disconnected agents
+The following diagram shows the sequence of updating the Workload States of a disconnected agent and the distribution of its Workload States to other connected agents:
 
 ![Set Workload States to Lost and distribute sequence](plantuml/seq_set_wl_state_lost_update.svg)
 
 #### Server sets Workload State to Lost when an agent disconnects
-`swdd~server-set-workload-state-lost-on-disconnect~1`
+`swdd~server-set-workload-state-on-disconnect~1`
 
 Status: approved
 
-When the ToServer message AgentGone is received by the Ankaios server from an Ankaios agent, the Ankaios server shall set all the Workload States of that agent to `Lost`.
+When the ToServer message AgentGone is received by the Ankaios server from an Ankaios agent, the Ankaios server shall set all the Workload States of that agent to `agent disconnected`.
 
 Tags:
 - AnkaiosServer
