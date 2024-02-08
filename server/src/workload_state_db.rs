@@ -80,7 +80,7 @@ impl WorkloadStateDB {
     }
 
     // [impl->swdd~server-deletes-removed-workload-state~1]
-    pub fn remove(&mut self, state_to_remove: WorkloadState) {
+    fn remove(&mut self, state_to_remove: WorkloadState) {
         if let Some(agent_states) = self
             .stored_states
             .get_mut(state_to_remove.instance_name.agent_name())
