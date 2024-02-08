@@ -14,7 +14,7 @@
 
 use common::{
     from_server_interface::{FromServer, FromServerReceiver},
-    std_extensions::{IllegalStateResult, UnreachableOption},
+    std_extensions::IllegalStateResult,
     to_server_interface::{ToServer, ToServerInterface, ToServerReceiver, ToServerSender},
 };
 
@@ -53,41 +53,29 @@ impl AgentManager {
 
     pub async fn start(&mut self) {
         log::info!("Starting ...");
-        self.listen().await
-    }
-
-    async fn listen(&mut self) {
-        tokio::select! {
-            from_server_msg = self.receiver.recv() => {
-                log::debug!("Start listening to server.");
-                match self.execute_command(from_server_msg).await {
-                    Ok(Some(())) => {},
-                    Ok(None) => {},
-                    Err(err) => { log::error!("Abort: '{err}'"); }
+        loop {
+            tokio::select! {
+                from_server_msg = self.receiver.recv() => {
+                    if let Some(from_server) = from_server_msg {
+                        if self.execute_from_server_command(from_server).await.is_none() {
+                            break
+                        }
+                    }
                 }
-            }
-            to_server_msg = self.workload_state_receiver.recv() => {
-                let to_server_msg = to_server_msg.unwrap_or_unreachable();
-                let ToServer::UpdateWorkloadState(common::commands::UpdateWorkloadState { workload_states }) = to_server_msg else {
-                    std::unreachable!("expected UpdateWorkloadState msg.");
-                };
-                workload_states.iter().for_each(|workload_state| {
-                    self.parameter_storage.update_workload_state(workload_state.clone());
-                });
-
-                self.to_server.update_workload_state(workload_states).await.unwrap_or_illegal_state();
-                self.runtime_manager.state_update(&self.parameter_storage).await;
+                to_server_msg = self.workload_state_receiver.recv() => {
+                    if let Some(workload_states_msg) = to_server_msg {
+                        self.on_own_workload_state(workload_states_msg).await;
+                    }
+                }
             }
         }
     }
 
     // [impl->swdd~agent-manager-listens-requests-from-server~1]
-    async fn execute_command(
-        &mut self,
-        from_server_msg: Option<FromServer>,
-    ) -> Result<Option<()>, String> {
+    async fn execute_from_server_command(&mut self, from_server_msg: FromServer) -> Option<()> {
+        log::debug!("Start listening to server.");
         match from_server_msg {
-            Some(FromServer::UpdateWorkload(method_obj)) => {
+            FromServer::UpdateWorkload(method_obj) => {
                 log::debug!("Agent '{}' received UpdateWorkload:\n\tAdded workloads: {:?}\n\tDeleted workloads: {:?}",
                     self.agent_name,
                     method_obj.added_workloads,
@@ -99,9 +87,9 @@ impl AgentManager {
                         method_obj.deleted_workloads,
                     )
                     .await;
-                Ok(Some(()))
+                Some(())
             }
-            Some(FromServer::UpdateWorkloadState(method_obj)) => {
+            FromServer::UpdateWorkloadState(method_obj) => {
                 log::debug!(
                     "Agent '{}' received UpdateWorkloadState: {:?}",
                     self.agent_name,
@@ -117,9 +105,9 @@ impl AgentManager {
                             workload_state.workload_name, workload_state.agent_name);
                             self.parameter_storage.update_workload_state(workload_state)
                         });
-                Ok(Some(()))
+                Some(())
             }
-            Some(FromServer::Response(method_obj)) => {
+            FromServer::Response(method_obj) => {
                 log::debug!(
                     "Agent '{}' received Response: {:?}",
                     self.agent_name,
@@ -128,15 +116,35 @@ impl AgentManager {
 
                 // [impl->swdd~agent-forward-responses-to-control-interface-pipe~1]
                 self.runtime_manager.forward_response(method_obj).await;
-                Ok(Some(()))
-            }
-            Some(FromServer::Stop(_method_obj)) => {
-                log::debug!("Agent '{}' received Stop from server", self.agent_name);
 
-                Ok(None)
+                Some(())
             }
-            None => Err("Invalid FromServerCommand".to_string()),
+            FromServer::Stop(_method_obj) => {
+                log::debug!("Agent '{}' received Stop from server", self.agent_name);
+                None
+            }
         }
+    }
+
+    async fn on_own_workload_state(&mut self, to_server_msg: ToServer) {
+        let ToServer::UpdateWorkloadState(common::commands::UpdateWorkloadState {
+            workload_states,
+        }) = to_server_msg
+        else {
+            std::unreachable!("expected UpdateWorkloadState msg.");
+        };
+        workload_states.iter().for_each(|workload_state| {
+            self.parameter_storage
+                .update_workload_state(workload_state.clone());
+        });
+
+        self.to_server
+            .update_workload_state(workload_states)
+            .await
+            .unwrap_or_illegal_state();
+        self.runtime_manager
+            .state_update(&self.parameter_storage)
+            .await;
     }
 }
 
