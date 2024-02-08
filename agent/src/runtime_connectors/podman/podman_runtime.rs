@@ -52,7 +52,7 @@ impl RuntimeStateGetter<PodmanWorkloadId> for PodmanStateGetter {
 
         // [impl->swdd~podman-state-getter-returns-unknown-state~1]
         // [impl->swdd~podman-state-getter-uses-podmancli~1]
-        // [impl->swdd~podman-state-getter-returns-removed-state~1]
+        // [impl->swdd~podman-state-getter-returns-lost-state~1]
         let exec_state = match PodmanCli::list_states_by_id(workload_id.id.as_str()).await {
             Ok(state) => {
                 if let Some(state) = state {
@@ -514,7 +514,7 @@ mod tests {
         assert_eq!(res, ExecutionState::running());
     }
 
-    // [utest->swdd~podman-state-getter-returns-removed-state~1]
+    // [utest->swdd~podman-state-getter-returns-lost-state~1]
     #[tokio::test]
     async fn utest_get_state_returns_removed_on_missing_state() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
