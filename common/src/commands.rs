@@ -282,7 +282,6 @@ pub struct CompleteState {
     pub workload_states: Vec<WorkloadState>,
 }
 
-// [impl->swdd~update-desired-state-with-missing-version~1]
 fn default_api_value_serialization() -> ApiVersion {
     ApiVersion {
         version: "unknown_api_version".to_string(),
@@ -434,5 +433,25 @@ mod tests {
         assert!(!CompleteState::is_compatible_format(
             &complete_state_incompatible_version.format_version
         ));
+    }
+
+    #[test]
+    fn utest_complete_state_rejects_state_without_format_version() {
+        let complete_state_proto = proto::CompleteState {
+            ..Default::default()
+        };
+        let complete_state_ankaios: CompleteState =
+            CompleteState::try_from(complete_state_proto).unwrap();
+
+        assert_eq!(
+            complete_state_ankaios.format_version.version,
+            "unknown_api_version".to_string()
+        );
+
+        let empty_complete_state_deserialized: CompleteState = serde_yaml::from_str("").unwrap();
+        assert_eq!(
+            empty_complete_state_deserialized.format_version.version,
+            "unknown_api_version".to_string()
+        );
     }
 }

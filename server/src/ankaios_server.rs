@@ -300,6 +300,7 @@ impl AnkaiosServer {
 
 #[cfg(test)]
 mod tests {
+    use api::proto;
     use std::collections::HashMap;
 
     use super::AnkaiosServer;
@@ -1231,7 +1232,6 @@ mod tests {
     // [utest->swdd~update-desired-state-with-invalid-version~1]
     #[tokio::test]
     async fn utest_server_rejects_update_state_with_incompatible_version() {
-        let _ = env_logger::builder().is_test(true).try_init();
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
@@ -1270,8 +1270,70 @@ mod tests {
         assert!(update_state_result.is_ok());
 
         let error_message = format!(
-            "Unsupported API version. Received {}, expected {}",
-            update_state.format_version,
+            "Unsupported API version. Received 'incompatible_version', expected {}",
+            ApiVersion::default()
+        );
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            FromServer::Response(commands::Response {
+                request_id: REQUEST_ID_A.to_string(),
+                response_content: commands::ResponseContent::Error(commands::Error {
+                    message: error_message
+                }),
+            }),
+            from_server_command
+        );
+
+        server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    // [utest->swdd~update-desired-state-with-missing-version~1]
+    #[tokio::test]
+    async fn utest_server_rejects_update_state_without_format_version() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let update_state_proto_no_version = proto::CompleteState {
+            ..Default::default()
+        };
+        let update_state_ankaios_no_version: CompleteState =
+            CompleteState::try_from(update_state_proto_no_version).unwrap();
+
+        let added_workloads = vec![];
+        let deleted_workloads = vec![];
+
+        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_update()
+            .with(
+                mockall::predicate::eq(update_state_ankaios_no_version.clone()),
+                mockall::predicate::eq(update_mask.clone()),
+            )
+            .once()
+            .return_const(Ok(Some((
+                added_workloads.clone(),
+                deleted_workloads.clone(),
+            ))));
+        server.server_state = mock_server_state;
+        let server_task = tokio::spawn(async move { server.start(None).await });
+
+        // send new state to server
+        let update_state_result = to_server
+            .update_state(
+                REQUEST_ID_A.to_string(),
+                update_state_ankaios_no_version.clone(),
+                update_mask,
+            )
+            .await;
+        assert!(update_state_result.is_ok());
+
+        let error_message = format!(
+            "Unsupported API version. Received 'unknown_api_version', expected {}",
             ApiVersion::default()
         );
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();

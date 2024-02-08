@@ -80,6 +80,7 @@ dependencies = [
 name = "ank-server"
 version = "0.3.0-pre"
 dependencies = [
+ "api",
  "async-stream",
  "async-trait",
  "clap",
