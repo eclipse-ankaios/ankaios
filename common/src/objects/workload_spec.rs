@@ -21,6 +21,8 @@ use crate::helpers::serialize_to_ordered_map;
 use crate::objects::AccessRights;
 use crate::objects::Tag;
 
+use super::ExecutionState;
+
 pub type WorkloadCollection = Vec<WorkloadSpec>;
 pub type DeletedWorkloadCollection = Vec<DeletedWorkload>;
 // [impl->swdd~common-object-serialization~1]
@@ -220,6 +222,16 @@ impl TryFrom<i32> for AddCondition {
             _ => Err(format!(
                 "Received an unknown value '{value}' as AddCondition."
             )),
+        }
+    }
+}
+
+impl From<AddCondition> for ExecutionState {
+    fn from(value: AddCondition) -> Self {
+        match value {
+            AddCondition::AddCondRunning => ExecutionState::ExecRunning,
+            AddCondition::AddCondSucceeded => ExecutionState::ExecSucceeded,
+            AddCondition::AddCondFailed => ExecutionState::ExecFailed,
         }
     }
 }

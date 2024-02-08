@@ -7,7 +7,7 @@ use common::{
     commands::Response,
     objects::{
         AgentName, DeletedWorkload, WorkloadExecutionInstanceName, WorkloadInstanceName,
-        WorkloadSpec,
+        WorkloadSpec, WorkloadState,
     },
     request_id_prepending::detach_prefix_from_request_id,
     to_server_interface::ToServerSender,
@@ -16,8 +16,8 @@ use common::{
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::PipesChannelContext;
 
-use crate::parameter_storage::ParameterStorage;
 use crate::runtime_connectors::RuntimeFacade;
+use crate::{dependency_manager::DependencyScheduler, parameter_storage::ParameterStorage};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
@@ -43,6 +43,8 @@ pub struct RuntimeManager {
     // [impl->swdd~agent-supports-multiple-runtime-connectors~1]
     runtime_map: HashMap<String, Box<dyn RuntimeFacade>>,
     update_state_tx: ToServerSender,
+    parameter_storage: ParameterStorage,
+    dependency_scheduler: DependencyScheduler,
 }
 
 #[cfg_attr(test, automock)]
@@ -62,10 +64,26 @@ impl RuntimeManager {
             workloads: HashMap::new(),
             runtime_map,
             update_state_tx,
+            parameter_storage: ParameterStorage::new(),
+            dependency_scheduler: DependencyScheduler::new(),
         }
     }
 
-    pub async fn state_update(&self, parameter_storage: &ParameterStorage) {}
+    pub async fn update_workload_state(&mut self, new_workload_state: WorkloadState) {
+        self.parameter_storage
+            .update_workload_state(new_workload_state);
+
+        let added_workloads = self
+            .dependency_scheduler
+            .next_workloads_to_start(&self.parameter_storage);
+
+        let deleted_workloads = self
+            .dependency_scheduler
+            .next_workloads_to_delete(&self.parameter_storage);
+
+        self.handle_update_workload(added_workloads, deleted_workloads)
+            .await;
+    }
 
     pub async fn handle_update_workload(
         &mut self,
@@ -78,6 +96,14 @@ impl RuntimeManager {
             deleted_workloads.len()
         );
 
+        let workloads_without_dependencies =
+            self.dependency_scheduler.schedule_start(added_workloads);
+
+        log::info!(
+            "workloads_without_dependencies = {:?}",
+            workloads_without_dependencies
+        );
+
         if !self.initial_workload_list_received {
             self.initial_workload_list_received = true;
             if !deleted_workloads.is_empty() {
@@ -88,10 +114,17 @@ impl RuntimeManager {
             }
 
             // [impl->swdd~agent-initial-list-existing-workloads~1]
-            self.handle_initial_update_workload(added_workloads).await;
-        } else {
-            self.handle_subsequent_update_workload(added_workloads, deleted_workloads)
+            self.handle_initial_update_workload(workloads_without_dependencies)
                 .await;
+        } else {
+            let deleted_workloads_without_dependencies =
+                self.dependency_scheduler.schedule_stop(deleted_workloads);
+
+            self.handle_subsequent_update_workload(
+                workloads_without_dependencies,
+                deleted_workloads_without_dependencies,
+            )
+            .await;
         }
     }
 

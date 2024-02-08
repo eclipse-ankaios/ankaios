@@ -18,8 +18,6 @@ use common::{
     to_server_interface::{ToServer, ToServerInterface, ToServerReceiver, ToServerSender},
 };
 
-use crate::parameter_storage::ParameterStorage;
-
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_manager::RuntimeManager;
 // [impl->swdd~agent-shall-use-interfaces-to-server~1]
@@ -30,7 +28,6 @@ pub struct AgentManager {
     from_server_receiver: FromServerReceiver,
     to_server: ToServerSender,
     workload_state_receiver: ToServerReceiver,
-    parameter_storage: ParameterStorage,
 }
 
 impl AgentManager {
@@ -47,7 +44,6 @@ impl AgentManager {
             from_server_receiver,
             to_server,
             workload_state_receiver,
-            parameter_storage: ParameterStorage::new(),
         }
     }
 
@@ -97,14 +93,13 @@ impl AgentManager {
                 );
 
                 // [impl->swdd~agent-manager-stores-all-workload-states~1]
-                method_obj
-                        .workload_states
-                        .into_iter()
-                        .for_each(|workload_state| {
-                            log::info!("The server reports workload state '{:?}' for the workload '{}' in the agent '{}'", workload_state.execution_state,
-                            workload_state.workload_name, workload_state.agent_name);
-                            self.parameter_storage.update_workload_state(workload_state)
-                        });
+                for new_workload_state in method_obj.workload_states {
+                    log::info!("The server reports workload state '{:?}' for the workload '{}' in the agent '{}'", new_workload_state.execution_state,
+                    new_workload_state.workload_name, new_workload_state.agent_name);
+                    self.runtime_manager
+                        .update_workload_state(new_workload_state)
+                        .await;
+                }
                 Some(())
             }
             FromServer::Response(method_obj) => {
@@ -133,18 +128,17 @@ impl AgentManager {
         else {
             std::unreachable!("expected UpdateWorkloadState msg.");
         };
-        workload_states.iter().for_each(|workload_state| {
-            self.parameter_storage
-                .update_workload_state(workload_state.clone());
-        });
+
+        for new_workload_state in &workload_states {
+            self.runtime_manager
+                .update_workload_state(new_workload_state.clone())
+                .await;
+        }
 
         self.to_server
             .update_workload_state(workload_states)
             .await
             .unwrap_or_illegal_state();
-        self.runtime_manager
-            .state_update(&self.parameter_storage)
-            .await;
     }
 }
 
