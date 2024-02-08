@@ -64,7 +64,7 @@ impl AgentManager {
                 }
                 to_server_msg = self.workload_state_receiver.recv() => {
                     if let Some(workload_states_msg) = to_server_msg {
-                        self.on_own_workload_state(workload_states_msg).await;
+                        self.store_and_forward_own_workload_states(workload_states_msg).await;
                     }
                 }
             }
@@ -126,7 +126,7 @@ impl AgentManager {
         }
     }
 
-    async fn on_own_workload_state(&mut self, to_server_msg: ToServer) {
+    async fn store_and_forward_own_workload_states(&mut self, to_server_msg: ToServer) {
         let ToServer::UpdateWorkloadState(common::commands::UpdateWorkloadState {
             workload_states,
         }) = to_server_msg
