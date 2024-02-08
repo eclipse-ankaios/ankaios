@@ -27,7 +27,7 @@ pub struct AgentManager {
     agent_name: String,
     runtime_manager: RuntimeManager,
     // [impl->swdd~communication-to-from-agent-middleware~1]
-    receiver: FromServerReceiver,
+    from_server_receiver: FromServerReceiver,
     to_server: ToServerSender,
     workload_state_receiver: ToServerReceiver,
     parameter_storage: ParameterStorage,
@@ -36,7 +36,7 @@ pub struct AgentManager {
 impl AgentManager {
     pub fn new(
         agent_name: String,
-        receiver: FromServerReceiver,
+        from_server_receiver: FromServerReceiver,
         runtime_manager: RuntimeManager,
         to_server: ToServerSender,
         workload_state_receiver: ToServerReceiver,
@@ -44,7 +44,7 @@ impl AgentManager {
         AgentManager {
             agent_name,
             runtime_manager,
-            receiver,
+            from_server_receiver,
             to_server,
             workload_state_receiver,
             parameter_storage: ParameterStorage::new(),
@@ -55,7 +55,7 @@ impl AgentManager {
         log::info!("Starting ...");
         loop {
             tokio::select! {
-                from_server_msg = self.receiver.recv() => {
+                from_server_msg = self.from_server_receiver.recv() => {
                     if let Some(from_server) = from_server_msg {
                         if self.execute_from_server_command(from_server).await.is_none() {
                             break
@@ -220,7 +220,7 @@ mod tests {
         assert!(update_workload_result.is_ok());
 
         let handle = agent_manager.start();
-        // The receiver in the agent receives the message and terminates the infinite waiting-loop.
+        // The from_server_receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(to_manager);
         join!(handle);
     }
@@ -255,7 +255,7 @@ mod tests {
         assert!(update_workload_result.is_ok());
 
         let handle = agent_manager.start();
-        // The receiver in the agent receives the message and terminates the infinite waiting-loop.
+        // The from_server_receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(to_manager);
         join!(handle);
 
@@ -304,7 +304,7 @@ mod tests {
         assert!(update_workload_result.is_ok());
 
         let handle = agent_manager.start();
-        // The receiver in the agent receives the message and terminates the infinite waiting-loop.
+        // The from_server_receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(to_manager);
         join!(handle);
 
@@ -358,7 +358,7 @@ mod tests {
 
         let handle = agent_manager.start();
 
-        // The receiver in the agent receives the message and terminates the infinite waiting-loop.
+        // The from_server_receiver in the agent receives the message and terminates the infinite waiting-loop.
         drop(to_manager);
         join!(handle);
     }
