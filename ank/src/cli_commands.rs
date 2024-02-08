@@ -314,7 +314,10 @@ impl CliCommands {
                 });
         }
 
-        output_debug!("Send UpdateState request ...");
+        output_debug!(
+            "Send UpdateState request with the CompleteState {:?}",
+            complete_state_input.clone()
+        );
         // send update request
         self.to_server
             .update_state(
@@ -1349,6 +1352,8 @@ mod tests {
             .lock()
             .await
             .push_back(Ok(r#"
+            formatVersion:
+               version: "v0.1"
             desiredState:
                workloads:
                   name3:
