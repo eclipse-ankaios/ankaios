@@ -139,10 +139,10 @@ async fn main() {
             None => unreachable!("Unreachable code."),
         },
         cli::Commands::Apply(apply_args) => {
-            let res = cmd.apply_manifests(apply_args).await;
+            let res = cmd.apply_manifests(apply_args, args.verbose).await;
             match res {
                 Ok(output) => output_and_exit!("{}", output),
-                Err(err) => output_and_error!("{:?}", err),
+                Err(err) => output_and_error!("{}", err),
             }
         }
     }
