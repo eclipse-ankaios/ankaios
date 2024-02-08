@@ -32,6 +32,7 @@ impl WorkloadStateDB {
         }
     }
 
+    // [impl->swdd~server-provides-interface-get-complete-state~1]
     pub fn get_all_workload_states(&self) -> Vec<WorkloadState> {
         self.stored_states
             .iter()
@@ -43,6 +44,7 @@ impl WorkloadStateDB {
             .collect()
     }
 
+    // [impl->swdd~server-distribute-workload-state-on-disconnect~1]
     pub fn get_workload_state_for_agent(&self, agent_name: &str) -> Vec<WorkloadState> {
         self.stored_states
             .get(agent_name)
@@ -50,6 +52,7 @@ impl WorkloadStateDB {
             .unwrap_or_default()
     }
 
+    // [impl->swdd~server-informs-a-newly-connected-agent-workload-states~1]
     pub fn get_workload_state_excluding_agent(
         &self,
         excluding_agent_name: &str,
@@ -65,6 +68,7 @@ impl WorkloadStateDB {
             .collect()
     }
 
+    // [impl->swdd~server-set-workload-state-on-disconnect~1]
     pub fn agent_disconnected(&mut self, agent_name: &str) {
         if let Some(agent_states) = self.stored_states.get_mut(agent_name) {
             agent_states.iter_mut().for_each(|(_, states)| {
@@ -75,6 +79,7 @@ impl WorkloadStateDB {
         }
     }
 
+    // [impl->swdd~server-deletes-removed-workload-state~1]
     pub fn remove(&mut self, state_to_remove: WorkloadState) {
         if let Some(agent_states) = self
             .stored_states
@@ -90,6 +95,7 @@ impl WorkloadStateDB {
         }
     }
 
+    // [impl->swdd~server-stores-workload-state~1]
     pub fn proccess_new_states(&mut self, workload_states: Vec<WorkloadState>) {
         workload_states.into_iter().for_each(|workload_state| {
             if workload_state.execution_state.is_removed() {
@@ -132,6 +138,7 @@ mod tests {
     const WORKLOAD_NAME_1: &str = "workload_1";
     const WORKLOAD_NAME_2: &str = "workload_2";
     const WORKLOAD_NAME_3: &str = "workload_3";
+    const WORKLOAD_NAME_4: &str = "workload_4";
 
     fn create_test_setup() -> WorkloadStateDB {
         let mut wls_db = WorkloadStateDB::new();
@@ -173,6 +180,7 @@ mod tests {
         wls_db
     }
 
+    // [utest->swdd~server-provides-interface-get-complete-state~1]
     #[test]
     fn utest_get_all_workload_states_returns_correct() {
         let wls_db = create_test_setup();
@@ -206,8 +214,81 @@ mod tests {
         )
     }
 
+    // [utest->swdd~server-stores-workload-state~1]
     #[test]
-    fn utest_mark_all_workload_state_for_agent_unknown() {
+    fn utest_workload_states_store_new() {
+        let mut wls_db = create_test_setup();
+
+        let wl_state_4 = generate_test_workload_state_with_agent(
+            WORKLOAD_NAME_4,
+            AGENT_A,
+            ExecutionState::starting("test info"),
+        );
+
+        wls_db.proccess_new_states(vec![wl_state_4.clone()]);
+
+        let mut wls_res = wls_db.get_all_workload_states();
+        wls_res.sort_by(|a, b| {
+            a.instance_name
+                .workload_name()
+                .cmp(b.instance_name.workload_name())
+        });
+
+        assert_eq!(
+            wls_res,
+            vec![
+                generate_test_workload_state_with_agent(
+                    WORKLOAD_NAME_1,
+                    AGENT_A,
+                    ExecutionState::succeeded()
+                ),
+                generate_test_workload_state_with_agent(
+                    WORKLOAD_NAME_2,
+                    AGENT_A,
+                    ExecutionState::starting("additional_info"),
+                ),
+                generate_test_workload_state_with_agent(
+                    WORKLOAD_NAME_3,
+                    AGENT_B,
+                    ExecutionState::running()
+                ),
+                wl_state_4
+            ]
+        )
+    }
+
+    // [utest->swdd~server-informs-a-newly-connected-agent-workload-states~1]
+    #[test]
+    fn utest_get_workload_states_excluding_agent_returns_correct() {
+        let wls_db = create_test_setup();
+
+        let mut wls_res = wls_db.get_workload_state_excluding_agent(AGENT_B);
+        wls_res.sort_by(|a, b| {
+            a.instance_name
+                .workload_name()
+                .cmp(b.instance_name.workload_name())
+        });
+
+        assert_eq!(
+            wls_res,
+            vec![
+                generate_test_workload_state_with_agent(
+                    WORKLOAD_NAME_1,
+                    AGENT_A,
+                    ExecutionState::succeeded()
+                ),
+                generate_test_workload_state_with_agent(
+                    WORKLOAD_NAME_2,
+                    AGENT_A,
+                    ExecutionState::starting("additional_info"),
+                ),
+            ]
+        )
+    }
+
+    // [utest->swdd~server-set-workload-state-on-disconnect~1]
+    #[test]
+    fn utest_mark_all_workload_state_for_agent_disconnected() {
         let mut wls_db = create_test_setup();
 
         let mut wls_res = wls_db.get_all_workload_states();
@@ -247,6 +328,7 @@ mod tests {
         )
     }
 
+    // [utest->swdd~server-distribute-workload-state-on-disconnect~1]
     #[test]
     fn utest_get_workload_state_for_agent_returns_workload_state_of_existing_agent_name() {
         let wls_db = create_test_setup();
@@ -275,6 +357,7 @@ mod tests {
         )
     }
 
+    // [utest->swdd~server-distribute-workload-state-on-disconnect~1]
     #[test]
     fn utest_get_workload_state_for_agent_returns_empty_list_of_non_existing_agent_name() {
         let wls_db = create_test_setup();
@@ -284,6 +367,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~server-deletes-removed-workload-state~1]
     #[test]
     fn utest_workload_states_deletes_removed() {
         let mut wls_db = create_test_setup();

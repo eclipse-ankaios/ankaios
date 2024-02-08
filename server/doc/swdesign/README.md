@@ -218,20 +218,6 @@ Needs:
 - impl
 - utest
 
-#### AnkaiosServer sends all Workload States on Agent connect
-`swdd~server-sends-all-workload-states-on-agent-connect~1`
-
-Status: approved
-
-When an Agent connects to the Server, the Ankaios Server shall send all Workload States to the Agent.
-
-Tags:
-- AnkaiosServer
-
-Needs:
-- impl
-- utest
-
 #### Agent selection based on `agent` field
 `swdd~agent-from-agent-field~1`
 
@@ -255,6 +241,7 @@ When startup state is loaded and the ToServer message AgentHello is received fro
 
 Tags:
 - AnkaiosServer
+- WorkloadStateDB
 
 Needs:
 - impl
@@ -288,6 +275,21 @@ When the ToServer message UpdateWorkloadState is received by the Ankaios Server 
 
 Tags:
 - AnkaiosServer
+- WorkloadStateDB
+
+Needs:
+- impl
+- utest
+
+#### Server deletes removed Workload State
+`swdd~server-deletes-removed-workload-state~1`
+
+Status: approved
+
+When the WorkloadStateDB receives a workload state stating a workload was removed, the WorkloadStateDB shall delete that state from its storage.
+
+Tags:
+- WorkloadStateDB
 
 Needs:
 - impl
@@ -296,9 +298,9 @@ Needs:
 ### Workload State update on disconnected agents
 The following diagram shows the sequence of updating the Workload States of a disconnected agent and the distribution of its Workload States to other connected agents:
 
-![Set Workload States to Lost and distribute sequence](plantuml/seq_set_wl_state_lost_update.svg)
+![Set Workload States to agent disconnected and distribute sequence](plantuml/seq_set_wl_state_on_disconnected.svg)
 
-#### Server sets Workload State to Lost when an agent disconnects
+#### Server sets Workload State to agent disconnects on connection loss
 `swdd~server-set-workload-state-on-disconnect~1`
 
 Status: approved
@@ -307,13 +309,14 @@ When the ToServer message AgentGone is received by the Ankaios server from an An
 
 Tags:
 - AnkaiosServer
+- WorkloadStateDB
 
 Needs:
 - impl
 - utest
 
 #### Server distributes Workload State when an agent disconnects
-`swdd~server-distribute-workload-state-lost-on-disconnect~1`
+`swdd~server-distribute-workload-state-on-disconnect~1`
 
 Status: approved
 
@@ -348,7 +351,10 @@ The CompleteState includes:
 - WorkloadState
 
 Tags:
+- AnkaiosServer
 - ControlInterface
+- WorkloadStateDB
+- ServerState
 
 Needs:
 - impl

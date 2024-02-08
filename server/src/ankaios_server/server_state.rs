@@ -150,6 +150,8 @@ pub type AddedDeletedWorkloads = Option<(Vec<WorkloadSpec>, Vec<DeletedWorkload>
 
 #[cfg_attr(test, automock)]
 impl ServerState {
+    // [impl->swdd~server-provides-interface-get-complete-state~1]
+    // [impl->swdd~server-filters-get-complete-state-result~1]
     pub fn get_complete_state_by_field_mask(
         &self,
         request_complete_state: &CompleteStateRequest,
@@ -285,6 +287,7 @@ mod tests {
     const WORKLOAD_NAME_4: &str = "workload_4";
     const RUNTIME: &str = "runtime";
 
+    // [utest->swdd~server-provides-interface-get-complete-state~1]
     // [utest->swdd~server-filters-get-complete-state-result~1]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask_empty_mask() {
@@ -338,6 +341,7 @@ mod tests {
         assert_eq!(expected_complete_state, complete_state);
     }
 
+    // [utest->swdd~server-provides-interface-get-complete-state~1]
     // [utest->swdd~server-filters-get-complete-state-result~1]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask() {
@@ -400,6 +404,7 @@ mod tests {
         assert_eq!(expected_complete_state, complete_state);
     }
 
+    // [utest->swdd~server-provides-interface-get-complete-state~1]
     // [utest->swdd~server-filters-get-complete-state-result~1]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask_continue_on_invalid_mask() {
