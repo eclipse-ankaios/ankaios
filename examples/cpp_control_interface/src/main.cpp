@@ -41,7 +41,11 @@ ankaios::ToServer createRequestToAddNewWorkload()
     ankaios::State *state{new ankaios::State};
     state->mutable_workloads()->insert({"dynamic_nginx", std::move(newWorkload)});
 
+    ankaios::ApiVersion *apiVersion{new ankaios::ApiVersion};
+    apiVersion->set_version("v0.1");
+
     ankaios::CompleteState *completeState{new ankaios::CompleteState};
+    completeState->set_allocated_format_version(apiVersion);
     completeState->set_allocated_desiredstate(state);
 
     ankaios::UpdateStateRequest *updateStateRequest{new ankaios::UpdateStateRequest};
