@@ -275,10 +275,17 @@ impl Display for ApiVersion {
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CompleteState {
+    #[serde(default = "default_api_value_serialization")]
     pub format_version: ApiVersion,
     pub startup_state: State,
     pub desired_state: State,
     pub workload_states: Vec<WorkloadState>,
+}
+
+fn default_api_value_serialization() -> ApiVersion {
+    ApiVersion {
+        version: "unknown_api_version".to_string(),
+    }
 }
 
 impl From<CompleteState> for proto::CompleteState {
@@ -297,7 +304,12 @@ impl TryFrom<proto::CompleteState> for CompleteState {
 
     fn try_from(item: proto::CompleteState) -> Result<Self, Self::Error> {
         Ok(CompleteState {
-            format_version: item.format_version.unwrap_or_default().try_into()?,
+            format_version: item
+                .format_version
+                .unwrap_or_else(|| proto::ApiVersion {
+                    version: "unknown_api_version".to_string(),
+                })
+                .try_into()?,
             startup_state: item.startup_state.unwrap_or_default().try_into()?,
             desired_state: item.desired_state.unwrap_or_default().try_into()?,
             workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
