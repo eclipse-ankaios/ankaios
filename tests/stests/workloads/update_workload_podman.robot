@@ -75,7 +75,7 @@ Test Ankaios Podman Update workload with invalid config
     # Actions
     When user triggers "ank get workloads"
     Then list of workloads shall be empty
-    When user triggers "ank set state --file ${CONFIGS_DIR}/update_state_invalid_config.yaml desiredState.workloads"
+    When user triggers "ank set state --file ${CONFIGS_DIR}/update_state_invalid_format.yaml desiredState.workloads"
     And user triggers "ank get workloads"
     Then list of workloads shall be empty
 
