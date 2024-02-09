@@ -31,6 +31,24 @@ pub struct DependencyScheduler {
     delete_queue: DeleteWorkloadQueue,
 }
 
+fn split_by_condition<T, P>(container: Vec<T>, predicate: P) -> (Vec<T>, Vec<T>)
+where
+    P: Fn(&T) -> bool,
+{
+    let mut items_matching_condition = Vec::new();
+    let mut items_not_matching_condition = Vec::new();
+
+    for item in container {
+        if predicate(&item) {
+            items_matching_condition.push(item);
+        } else {
+            items_not_matching_condition.push(item);
+        }
+    }
+
+    (items_matching_condition, items_not_matching_condition)
+}
+
 impl DependencyScheduler {
     pub fn new() -> Self {
         DependencyScheduler {
@@ -42,16 +60,8 @@ impl DependencyScheduler {
     pub fn split_workloads_to_ready_and_waiting(
         new_workloads: Vec<WorkloadSpec>,
     ) -> (ReadyWorkloads, WaitingWorkloads) {
-        let mut ready_to_start_workloads = Vec::new();
-        let mut waiting_to_start_workloads = Vec::new();
-
-        for workload in new_workloads {
-            if workload.dependencies.is_empty() {
-                ready_to_start_workloads.push(workload);
-            } else {
-                waiting_to_start_workloads.push(workload);
-            }
-        }
+        let (ready_to_start_workloads, waiting_to_start_workloads) =
+            split_by_condition(new_workloads, |workload| workload.dependencies.is_empty());
         (ready_to_start_workloads, waiting_to_start_workloads)
     }
 
@@ -66,16 +76,11 @@ impl DependencyScheduler {
     pub fn split_deleted_workloads_to_ready_and_waiting(
         deleted_workloads: Vec<DeletedWorkload>,
     ) -> (ReadyDeletedWorkloads, WaitingDeletedWorkloads) {
-        let mut ready_to_delete_workloads = Vec::new();
-        let mut waiting_to_delete_workloads = Vec::new();
+        let (ready_to_delete_workloads, waiting_to_delete_workloads) =
+            split_by_condition(deleted_workloads, |workload| {
+                workload.dependencies.is_empty()
+            });
 
-        for workload in deleted_workloads {
-            if workload.dependencies.is_empty() {
-                ready_to_delete_workloads.push(workload);
-            } else {
-                waiting_to_delete_workloads.push(workload);
-            }
-        }
         (ready_to_delete_workloads, waiting_to_delete_workloads)
     }
 
