@@ -218,7 +218,7 @@ async fn distribute_workload_states_to_agents(
         let filtered_workload_states: Vec<proto::WorkloadState> = workload_state_collection
             .clone()
             .into_iter()
-            .filter(|workload_state| workload_state.agent_name != agent_name)
+            .filter(|workload_state| workload_state.instance_name.agent_name() != agent_name)
             .map(|x| x.into())
             .collect();
         if filtered_workload_states.is_empty() {
@@ -418,11 +418,13 @@ mod tests {
             create_test_setup("agent_X");
 
         let update_workload_state_result = to_manager
-            .update_workload_state(vec![common::objects::WorkloadState {
-                agent_name: "other_agent".into(),
-                workload_name: WORKLOAD_NAME.into(),
-                execution_state: common::objects::ExecutionState::ExecRunning,
-            }])
+            .update_workload_state(vec![
+                common::objects::generate_test_workload_state_with_agent(
+                    WORKLOAD_NAME,
+                    "other_agent",
+                    common::objects::ExecutionState::running(),
+                ),
+            ])
             .await;
         assert!(update_workload_state_result.is_ok());
 
@@ -700,11 +702,11 @@ mod tests {
 
         join!(super::distribute_workload_states_to_agents(
             &agent_senders,
-            vec![common::objects::WorkloadState {
-                agent_name: "other_agent".to_string(),
-                workload_name: "workload1".to_string(),
-                execution_state: common::objects::ExecutionState::ExecRunning
-            }],
+            vec![common::objects::generate_test_workload_state_with_agent(
+                "workload1",
+                "other_agent",
+                common::objects::ExecutionState::running()
+            )],
         ))
         .0;
 

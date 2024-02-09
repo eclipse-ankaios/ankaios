@@ -17,10 +17,9 @@ use std::collections::HashMap;
 use api::proto;
 use serde::{Serialize, Serializer};
 
-use crate::commands::CompleteState;
 use crate::objects::{
     AccessRights, AddCondition, Cronjob, DeleteCondition, DeletedWorkload, Interval, State, Tag,
-    UpdateStrategy, WorkloadSpec, WorkloadState,
+    UpdateStrategy, WorkloadSpec,
 };
 
 #[cfg(feature = "test_utils")]
@@ -33,7 +32,14 @@ pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State
 }
 
 #[cfg(feature = "test_utils")]
-pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> CompleteState {
+pub fn generate_test_complete_state(
+    workloads: Vec<WorkloadSpec>,
+) -> crate::commands::CompleteState {
+    use crate::{
+        commands::CompleteState,
+        objects::{ExecutionState, WorkloadExecutionInstanceName, WorkloadState},
+    };
+
     CompleteState {
         desired_state: State {
             workloads: workloads
@@ -47,9 +53,13 @@ pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> CompleteSta
         workload_states: workloads
             .into_iter()
             .map(|v| WorkloadState {
-                workload_name: v.name.clone(),
-                agent_name: v.agent,
-                execution_state: crate::objects::ExecutionState::ExecRunning,
+                instance_name: WorkloadExecutionInstanceName::builder()
+                    .workload_name(&v.name)
+                    .agent_name(&v.agent)
+                    .config(&v.runtime_config)
+                    .build(),
+                workload_id: "some strange Id".to_string(),
+                execution_state: ExecutionState::running(),
             })
             .collect(),
         ..Default::default()

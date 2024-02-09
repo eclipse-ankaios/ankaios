@@ -160,17 +160,19 @@ impl ToServerInterface for ToServerSender {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-#[cfg(feature = "test_utils")]
+#[cfg(test)]
 pub fn generate_test_failed_update_workload_state(
     agent_name: &str,
     workload_name: &str,
 ) -> ToServer {
+    use crate::objects::ExecutionState;
+
     ToServer::UpdateWorkloadState(commands::UpdateWorkloadState {
-        workload_states: vec![crate::objects::WorkloadState {
-            workload_name: workload_name.to_string(),
-            agent_name: agent_name.to_string(),
-            execution_state: crate::objects::ExecutionState::ExecFailed,
-        }],
+        workload_states: vec![crate::objects::generate_test_workload_state_with_agent(
+            workload_name,
+            agent_name,
+            ExecutionState::failed("additional_info"),
+        )],
     })
 }
 

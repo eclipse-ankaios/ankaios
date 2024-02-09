@@ -347,10 +347,10 @@ Status: approved
 
 When the CLI receives the list of workloads from the Ankaios Server via CLI communication interface, the CLI shall present the list as a table with following columns:
 
-| WORKLOAD NAME | AGENT | RUNTIME | EXECUTION STATE |
-| ------------- | ----- | ------- | --------------- |
-| workload1     | agent | runtime | state           |
-| workload2     | agent | runtime | state           |
+| WORKLOAD NAME | AGENT | RUNTIME | EXECUTION STATE | ADDITIONAL INFO    |
+| ------------- | ----- | ------- | --------------- | ------------------ |
+| workload1     | agent | runtime | state           | state related info |
+| workload2     | agent | runtime | state           | state related info |
 
 Note:
 The column runtime is not filled when the workload has been deleted.

@@ -25,7 +25,9 @@ pub use directory::*;
 pub use fifo::*;
 pub use filesystem::*;
 pub use from_server_channels::*;
+#[cfg(test)]
 pub use input_output::*;
 pub use pipes_channel_context::*;
+#[cfg(test)]
 pub use pipes_channel_task::*;
 pub use reopen_file::*;
