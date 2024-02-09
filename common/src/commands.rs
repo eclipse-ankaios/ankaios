@@ -34,32 +34,6 @@ pub struct AgentGone {
     pub agent_name: String,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct UpdateStateRequest {
-    pub state: CompleteState,
-    pub update_mask: Vec<String>,
-}
-
-impl From<UpdateStateRequest> for proto::UpdateStateRequest {
-    fn from(value: UpdateStateRequest) -> Self {
-        Self {
-            new_state: Some(value.state.into()),
-            update_mask: value.update_mask,
-        }
-    }
-}
-
-impl TryFrom<proto::UpdateStateRequest> for UpdateStateRequest {
-    type Error = String;
-
-    fn try_from(item: proto::UpdateStateRequest) -> Result<Self, Self::Error> {
-        Ok(UpdateStateRequest {
-            state: item.new_state.unwrap_or_default().try_into()?,
-            update_mask: item.update_mask,
-        })
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct UpdateWorkloadState {
     pub workload_states: Vec<crate::objects::WorkloadState>,
@@ -109,7 +83,7 @@ impl TryFrom<proto::Request> for Request {
             request_id: value.request_id,
             request_content: value
                 .request_content
-                .ok_or_else(|| "Received Request without content".to_string())?
+                .ok_or_else(|| "Request has no content".to_string())?
                 .try_into()?,
         })
     }
@@ -169,6 +143,32 @@ impl From<proto::CompleteStateRequest> for CompleteStateRequest {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct UpdateStateRequest {
+    pub state: CompleteState,
+    pub update_mask: Vec<String>,
+}
+
+impl From<UpdateStateRequest> for proto::UpdateStateRequest {
+    fn from(value: UpdateStateRequest) -> Self {
+        Self {
+            new_state: Some(value.state.into()),
+            update_mask: value.update_mask,
+        }
+    }
+}
+
+impl TryFrom<proto::UpdateStateRequest> for UpdateStateRequest {
+    type Error = String;
+
+    fn try_from(item: proto::UpdateStateRequest) -> Result<Self, Self::Error> {
+        Ok(UpdateStateRequest {
+            state: item.new_state.unwrap_or_default().try_into()?,
+            update_mask: item.update_mask,
+        })
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct UpdateWorkload {
     pub added_workloads: Vec<WorkloadSpec>,
@@ -221,11 +221,7 @@ impl From<ResponseContent> for proto::response::ResponseContent {
                 proto::response::ResponseContent::Success(proto::Success {})
             }
 
-            ResponseContent::Error(message) => {
-                proto::response::ResponseContent::Error(proto::Error {
-                    message: message.message,
-                })
-            }
+            ResponseContent::Error(error) => proto::response::ResponseContent::Error(error.into()),
             ResponseContent::CompleteState(complete_state) => {
                 proto::response::ResponseContent::CompleteState((*complete_state).into())
             }
@@ -348,30 +344,170 @@ pub struct Stop {}
 
 #[cfg(test)]
 mod tests {
-    use api::proto;
+    mod proto {
+        pub use api::proto::{
+            request::RequestContent, response::ResponseContent, CompleteState,
+            CompleteStateRequest, Error, ExecutionState, Request, Response, State, Success,
+            UpdateStateRequest, UpdateStateSuccess, UpdateWorkloadState, Workload, WorkloadState,
+        };
+    }
 
-    use crate::{
-        commands::{CompleteStateRequest, Request, RequestContent, UpdateWorkloadState},
-        objects::{ExecutionState, WorkloadState},
-    };
+    mod ankaios {
+        pub use crate::{
+            commands::{
+                CompleteState, CompleteStateRequest, Error, Request, RequestContent, Response,
+                ResponseContent, UpdateStateRequest, UpdateStateSuccess, UpdateWorkloadState,
+            },
+            objects::{ExecutionState, State, WorkloadState},
+        };
+    }
+
+    const REQUEST_ID: &str = "request_id";
+    const FIELD_1: &str = "field_1";
+    const FIELD_2: &str = "field_2";
+    const AGENT_NAME: &str = "agent_1";
+    const WORKLOAD_NAME_1: &str = "workload_name_1";
+    const WORKLOAD_NAME_2: &str = "workload_name_2";
+    const WORKLOAD_NAME_3: &str = "workload_name_3";
+    const ERROR_MESSAGE: &str = "error_message";
+
+    macro_rules! update_workload_state {
+        ($expression:path) => {{
+            use $expression::{ExecutionState, UpdateWorkloadState, WorkloadState};
+
+            UpdateWorkloadState {
+                workload_states: vec![WorkloadState {
+                    workload_name: "john".to_string(),
+                    agent_name: "doe".to_string(),
+                    execution_state: ExecutionState::ExecRunning.into(),
+                }],
+            }
+        }};
+    }
+
+    macro_rules! complete_state_request {
+        ($expression:path) => {{
+            use $expression::{CompleteStateRequest, Request, RequestContent};
+
+            Request {
+                request_id: REQUEST_ID.into(),
+                request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
+                    field_mask: vec![FIELD_1.into(), FIELD_2.into()],
+                })
+                .into(),
+            }
+        }};
+    }
+
+    #[rustfmt::skip]
+    macro_rules! update_state_request {
+        ($expression:ident) => {{
+            $expression::Request {
+                request_id: REQUEST_ID.into(),
+                request_content: update_state_request_enum!($expression).into(),
+            }
+        }};
+    }
+
+    macro_rules! update_state_request_enum {
+        (proto) => {
+            proto::RequestContent::UpdateStateRequest(proto::UpdateStateRequest {
+                new_state: complete_state!(proto).into(),
+                update_mask: vec![FIELD_1.into(), FIELD_2.into()],
+            })
+        };
+        (ankaios) => {
+            ankaios::RequestContent::UpdateStateRequest(Box::new(ankaios::UpdateStateRequest {
+                state: complete_state!(ankaios),
+                update_mask: vec![FIELD_1.into(), FIELD_2.into()],
+            }))
+        };
+    }
+
+    macro_rules! success_response {
+        (proto) => {
+            proto::Response {
+                request_id: REQUEST_ID.into(),
+                response_content: proto::ResponseContent::Success(proto::Success {}).into(),
+            }
+        };
+        (ankaios) => {
+            ankaios::Response {
+                request_id: REQUEST_ID.into(),
+                response_content: ankaios::ResponseContent::Success,
+            }
+        };
+    }
+
+    macro_rules! error_response {
+        ($expression:path) => {{
+            use $expression::{Error, Response, ResponseContent};
+            Response {
+                request_id: REQUEST_ID.into(),
+                response_content: ResponseContent::Error(Error {
+                    message: ERROR_MESSAGE.into(),
+                })
+                .into(),
+            }
+        }};
+    }
+
+    macro_rules! complete_state_response {
+        ($expression:path) => {{
+            use $expression::{Response, ResponseContent};
+            Response {
+                request_id: REQUEST_ID.into(),
+                response_content: ResponseContent::CompleteState(
+                    complete_state!($expression).into(),
+                )
+                .into(),
+            }
+        }};
+    }
+
+    macro_rules! complete_state {
+        // Use extra block as scope for the `use`
+        ($expression:path) => {{
+            use $expression::{CompleteState, ExecutionState, State, WorkloadState};
+            CompleteState {
+                startup_state: State {
+                    configs: [("startup".into(), "state".into())].into(),
+                    ..Default::default()
+                }
+                .into(),
+                current_state: State {
+                    configs: [("current".into(), "state".into())].into(),
+                    ..Default::default()
+                }
+                .into(),
+                workload_states: vec![WorkloadState {
+                    workload_name: WORKLOAD_NAME_1.into(),
+                    agent_name: AGENT_NAME.into(),
+                    execution_state: ExecutionState::ExecRunning.into(),
+                }],
+            }
+        }};
+    }
+
+    macro_rules! update_state_success_response {
+        ($expression:path) => {{
+            use $expression::{Response, ResponseContent, UpdateStateSuccess};
+
+            Response {
+                request_id: REQUEST_ID.into(),
+                response_content: ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
+                    added_workloads: vec![WORKLOAD_NAME_1.into()],
+                    deleted_workloads: vec![WORKLOAD_NAME_2.into(), WORKLOAD_NAME_3.into()],
+                })
+                .into(),
+            }
+        }};
+    }
 
     #[test]
     fn utest_converts_to_proto_update_workload_state() {
-        let ankaios_update_wl_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: "john".to_string(),
-                agent_name: "doe".to_string(),
-                execution_state: ExecutionState::ExecRunning,
-            }],
-        };
-
-        let proto_update_wl_state = proto::UpdateWorkloadState {
-            workload_states: vec![proto::WorkloadState {
-                workload_name: "john".to_string(),
-                agent_name: "doe".to_string(),
-                execution_state: proto::ExecutionState::ExecRunning.into(),
-            }],
-        };
+        let ankaios_update_wl_state = update_workload_state!(ankaios);
+        let proto_update_wl_state = update_workload_state!(proto);
 
         assert_eq!(
             proto::UpdateWorkloadState::from(ankaios_update_wl_state),
@@ -380,22 +516,20 @@ mod tests {
     }
 
     #[test]
-    fn utest_converts_to_proto_request_complete_state() {
-        let ankaios_request_complete_state = Request {
-            request_id: "42".to_string(),
-            request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
-                field_mask: vec!["1".to_string(), "2".to_string()],
-            }),
-        };
+    fn utest_converts_from_proto_update_workload_state() {
+        let proto_update_wl_state = update_workload_state!(proto);
+        let ankaios_update_wl_state = update_workload_state!(ankaios);
 
-        let proto_request_complete_state = proto::Request {
-            request_id: "42".to_string(),
-            request_content: Some(proto::request::RequestContent::CompleteStateRequest(
-                proto::CompleteStateRequest {
-                    field_mask: vec!["1".to_string(), "2".to_string()],
-                },
-            )),
-        };
+        assert_eq!(
+            ankaios::UpdateWorkloadState::from(proto_update_wl_state),
+            ankaios_update_wl_state,
+        );
+    }
+
+    #[test]
+    fn utest_converts_to_proto_complete_state_request() {
+        let ankaios_request_complete_state = complete_state_request!(ankaios);
+        let proto_request_complete_state = complete_state_request!(proto);
 
         assert_eq!(
             proto::Request::from(ankaios_request_complete_state),
@@ -404,12 +538,346 @@ mod tests {
     }
 
     #[test]
+    fn utest_converts_from_proto_complete_state_request() {
+        let proto_request_complete_state = complete_state_request!(proto);
+        let ankaios_request_complete_state = complete_state_request!(ankaios);
+
+        assert_eq!(
+            ankaios::Request::try_from(proto_request_complete_state).unwrap(),
+            ankaios_request_complete_state
+        );
+    }
+
+    #[test]
+    fn utest_converts_to_proto_update_state_request() {
+        let ankaios_request_complete_state = update_state_request!(ankaios);
+        let proto_request_complete_state = update_state_request!(proto);
+
+        assert_eq!(
+            proto::Request::from(ankaios_request_complete_state),
+            proto_request_complete_state
+        );
+    }
+
+    #[test]
+    fn utest_converts_from_proto_update_state_request() {
+        let proto_request_complete_state = update_state_request!(proto);
+        let ankaios_request_complete_state = update_state_request!(ankaios);
+
+        assert_eq!(
+            ankaios::Request::try_from(proto_request_complete_state).unwrap(),
+            ankaios_request_complete_state
+        );
+    }
+
+    #[test]
+    fn utest_converts_from_proto_update_state_request_with_empty_states() {
+        let mut proto_request_complete_state = update_state_request!(proto);
+        let mut ankaios_request_complete_state = update_state_request!(ankaios);
+
+        let proto::RequestContent::UpdateStateRequest(proto_request_content) =
+            proto_request_complete_state
+                .request_content
+                .as_mut()
+                .unwrap()
+        else {
+            unreachable!()
+        };
+        proto_request_content.new_state = None;
+
+        let ankaios::RequestContent::UpdateStateRequest(ankaios_request_content) =
+            &mut ankaios_request_complete_state.request_content
+        else {
+            unreachable!()
+        };
+        ankaios_request_content.state = Default::default();
+
+        assert_eq!(
+            ankaios::Request::try_from(proto_request_complete_state).unwrap(),
+            ankaios_request_complete_state
+        );
+    }
+
+    #[test]
+    fn utest_converts_from_proto_update_state_request_inner_state_with_empty_states() {
+        let mut proto_request_complete_state = update_state_request!(proto);
+        let mut ankaios_request_complete_state = update_state_request!(ankaios);
+
+        let proto::RequestContent::UpdateStateRequest(proto_request_content) =
+            proto_request_complete_state
+                .request_content
+                .as_mut()
+                .unwrap()
+        else {
+            unreachable!()
+        };
+        proto_request_content
+            .new_state
+            .as_mut()
+            .unwrap()
+            .startup_state = None;
+        proto_request_content
+            .new_state
+            .as_mut()
+            .unwrap()
+            .current_state = None;
+
+        let ankaios::RequestContent::UpdateStateRequest(ankaios_request_content) =
+            &mut ankaios_request_complete_state.request_content
+        else {
+            unreachable!()
+        };
+        ankaios_request_content.state.startup_state = Default::default();
+        ankaios_request_content.state.current_state = Default::default();
+
+        assert_eq!(
+            ankaios::Request::try_from(proto_request_complete_state).unwrap(),
+            ankaios_request_complete_state
+        );
+    }
+
+    #[test]
+    fn utest_converts_from_proto_update_state_request_fails_invalid_startup_state() {
+        let mut proto_request_complete_state = update_state_request!(proto);
+
+        let proto::RequestContent::UpdateStateRequest(proto_request_content) =
+            proto_request_complete_state
+                .request_content
+                .as_mut()
+                .unwrap()
+        else {
+            unreachable!()
+        };
+        proto_request_content
+            .new_state
+            .as_mut()
+            .unwrap()
+            .startup_state
+            .as_mut()
+            .unwrap()
+            .workloads
+            .insert(
+                WORKLOAD_NAME_1.into(),
+                proto::Workload {
+                    update_strategy: -1,
+                    ..Default::default()
+                },
+            );
+
+        assert!(ankaios::Request::try_from(proto_request_complete_state).is_err());
+    }
+
+    #[test]
+    fn utest_converts_from_proto_update_state_request_fails_invalid_current_state() {
+        let mut proto_request_complete_state = update_state_request!(proto);
+
+        let proto::RequestContent::UpdateStateRequest(proto_request_content) =
+            proto_request_complete_state
+                .request_content
+                .as_mut()
+                .unwrap()
+        else {
+            unreachable!()
+        };
+        proto_request_content
+            .new_state
+            .as_mut()
+            .unwrap()
+            .current_state
+            .as_mut()
+            .unwrap()
+            .workloads
+            .insert(
+                WORKLOAD_NAME_1.into(),
+                proto::Workload {
+                    update_strategy: -1,
+                    ..Default::default()
+                },
+            );
+
+        assert!(ankaios::Request::try_from(proto_request_complete_state).is_err());
+    }
+
+    #[test]
+    fn utest_converts_from_proto_request_fails_empty_request_content() {
+        let proto_request = proto::Request {
+            request_id: REQUEST_ID.into(),
+            request_content: None,
+        };
+
+        assert_eq!(
+            ankaios::Request::try_from(proto_request).unwrap_err(),
+            "Request has no content"
+        );
+    }
+
+    #[test]
+    fn utest_converts_to_proto_success_response() {
+        let ankaios_success_response = success_response!(ankaios);
+        let proto_success_response = success_response!(proto);
+
+        assert_eq!(
+            proto::Response::from(ankaios_success_response),
+            proto_success_response
+        );
+    }
+
+    #[test]
+    fn utest_converts_from_proto_success_response() {
+        let proto_success_response = success_response!(proto);
+        let ankaios_success_response = success_response!(ankaios);
+
+        assert_eq!(
+            ankaios::Response::try_from(proto_success_response).unwrap(),
+            ankaios_success_response
+        );
+    }
+
+    #[test]
+    fn utest_converts_to_proto_error_response() {
+        let ankaios_error_response = error_response!(ankaios);
+        let proto_error_response = error_response!(proto);
+
+        assert_eq!(
+            proto::Response::from(ankaios_error_response),
+            proto_error_response
+        );
+    }
+
+    #[test]
+    fn utest_converts_from_proto_error_response() {
+        let proto_error_response = error_response!(proto);
+        let ankaios_error_response = error_response!(ankaios);
+
+        assert_eq!(
+            ankaios::Response::try_from(proto_error_response).unwrap(),
+            ankaios_error_response,
+        );
+    }
+
+    #[test]
+    fn utest_converts_to_proto_complete_state_response() {
+        let ankaios_complete_state_response = complete_state_response!(ankaios);
+        let proto_complete_state_response = complete_state_response!(proto);
+
+        assert_eq!(
+            proto::Response::from(ankaios_complete_state_response),
+            proto_complete_state_response
+        );
+    }
+
+    #[test]
+    fn utest_converts_from_proto_complete_state_response() {
+        let proto_complete_state_response = complete_state_response!(proto);
+        let ankaios_complete_state_response = complete_state_response!(ankaios);
+
+        assert_eq!(
+            ankaios::Response::try_from(proto_complete_state_response).unwrap(),
+            ankaios_complete_state_response
+        );
+    }
+
+    #[test]
+    fn utest_converts_from_proto_complete_state_response_with_empty_states() {
+        let mut proto_complete_state_response = complete_state_response!(proto);
+        let mut ankaios_complete_state_response = complete_state_response!(ankaios);
+
+        let proto::ResponseContent::CompleteState(proto_content) = proto_complete_state_response
+            .response_content
+            .as_mut()
+            .unwrap()
+        else {
+            unreachable!()
+        };
+        proto_content.startup_state = None;
+        proto_content.current_state = None;
+
+        let ankaios::ResponseContent::CompleteState(ankaios_content) =
+            &mut ankaios_complete_state_response.response_content
+        else {
+            unreachable!()
+        };
+        ankaios_content.startup_state = Default::default();
+        ankaios_content.current_state = Default::default();
+
+        assert_eq!(
+            ankaios::Response::try_from(proto_complete_state_response).unwrap(),
+            ankaios_complete_state_response
+        );
+    }
+
+    #[test]
+    fn utest_converts_from_proto_complete_state_response_fails_invalid_startup_state() {
+        let mut proto_complete_state_response = complete_state_response!(proto);
+
+        let proto::ResponseContent::CompleteState(proto_request_content) =
+            proto_complete_state_response
+                .response_content
+                .as_mut()
+                .unwrap()
+        else {
+            unreachable!()
+        };
+
+        proto_request_content
+            .startup_state
+            .as_mut()
+            .unwrap()
+            .workloads
+            .insert(
+                WORKLOAD_NAME_1.into(),
+                proto::Workload {
+                    update_strategy: -1,
+                    ..Default::default()
+                },
+            );
+
+        assert!(ankaios::Response::try_from(proto_complete_state_response).is_err());
+    }
+
+    #[test]
+    fn utest_converts_to_proto_update_state_success_response() {
+        let ankaios_complete_state_response = update_state_success_response!(ankaios);
+        let proto_complete_state_response = update_state_success_response!(proto);
+
+        assert_eq!(
+            proto::Response::from(ankaios_complete_state_response),
+            proto_complete_state_response
+        );
+    }
+
+    #[test]
+    fn utest_converts_from_proto_update_state_success_response() {
+        let proto_complete_state_response = update_state_success_response!(proto);
+        let ankaios_complete_state_response = update_state_success_response!(ankaios);
+
+        assert_eq!(
+            ankaios::Response::try_from(proto_complete_state_response).unwrap(),
+            ankaios_complete_state_response
+        );
+    }
+
+    #[test]
+    fn utest_converts_from_proto_reponse_fails_empty_request_content() {
+        let proto_response = proto::Response {
+            request_id: REQUEST_ID.into(),
+            response_content: None,
+        };
+
+        assert_eq!(
+            ankaios::Response::try_from(proto_response).unwrap_err(),
+            "Response has no content"
+        );
+    }
+    #[test]
     fn utest_request_complete_state_prefix_request_id() {
-        let mut ankaios_request_complete_state = Request {
+        let mut ankaios_request_complete_state = ankaios::Request {
             request_id: "42".to_string(),
-            request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
-                field_mask: vec!["1".to_string(), "2".to_string()],
-            }),
+            request_content: ankaios::RequestContent::CompleteStateRequest(
+                ankaios::CompleteStateRequest {
+                    field_mask: vec!["1".to_string(), "2".to_string()],
+                },
+            ),
         };
 
         ankaios_request_complete_state.prefix_request_id("prefix@");
