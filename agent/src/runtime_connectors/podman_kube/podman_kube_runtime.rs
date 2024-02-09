@@ -47,7 +47,7 @@ impl ToString for PodmanKubeWorkloadId {
         if let Some(pods) = &self.pods {
             sha256::digest(pods.join(""))
         } else {
-            "no pods running".to_string()
+            String::new()
         }
     }
 }
