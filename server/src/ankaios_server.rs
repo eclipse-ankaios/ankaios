@@ -96,6 +96,27 @@ impl AnkaiosServer {
                 ToServer::AgentHello(method_obj) => {
                     log::info!("Received AgentHello from '{}'", method_obj.agent_name);
 
+                    // [impl->swdd~server-informs-a-newly-connected-agent-workload-states~1]
+                    // [impl->swdd~server-sends-all-workload-states-on-agent-connect~1]
+                    let workload_states = self
+                        .workload_state_db
+                        .get_workload_state_excluding_agent(&method_obj.agent_name);
+
+                    if !workload_states.is_empty() {
+                        log::debug!(
+                            "Sending initial UpdateWorkloadState to agent '{}' with workload states: '{:?}'",
+                            method_obj.agent_name,
+                            workload_states,
+                        );
+
+                        self.to_agents
+                            .update_workload_state(workload_states)
+                            .await
+                            .unwrap_or_illegal_state();
+                    } else {
+                        log::debug!("No workload states to send.");
+                    }
+
                     // Send this agent all workloads in the current state which are assigned to him
                     // [impl->swdd~agent-from-agent-field~1]
                     let added_workloads = self
@@ -117,27 +138,6 @@ impl AnkaiosServer {
                         )
                         .await
                         .unwrap_or_illegal_state();
-
-                    // [impl->swdd~server-informs-a-newly-connected-agent-workload-states~1]
-                    // [impl->swdd~server-sends-all-workload-states-on-agent-connect~1]
-                    let workload_states = self
-                        .workload_state_db
-                        .get_workload_state_excluding_agent(&method_obj.agent_name);
-
-                    if !workload_states.is_empty() {
-                        log::debug!(
-                            "Sending initial UpdateWorkloadState to agent '{}' with workload states: '{:?}'",
-                            method_obj.agent_name,
-                            workload_states,
-                        );
-
-                        self.to_agents
-                            .update_workload_state(workload_states)
-                            .await
-                            .unwrap_or_illegal_state();
-                    } else {
-                        log::debug!("No workload states to send.");
-                    }
                 }
                 ToServer::AgentGone(method_obj) => {
                     log::debug!("Received AgentGone from '{}'", method_obj.agent_name);
