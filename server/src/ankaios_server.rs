@@ -705,7 +705,7 @@ mod tests {
     // [utest->swdd~server-provides-update-current-state-interface~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
-    async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_nothing_todo(
+    async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_nothing_to_do(
     ) {
         let _ = env_logger::builder().is_test(true).try_init();
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
@@ -965,9 +965,6 @@ mod tests {
         server_task.abort();
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
-
-    // TODO the following test tests also the workload state db
-    // This should be avoided, the tests should be
 
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-stores-workload-state~1]
