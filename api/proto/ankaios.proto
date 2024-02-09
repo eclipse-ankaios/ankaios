@@ -178,7 +178,7 @@ message Error {
 }
 
 message ApiVersion {
-    string version = 1;
+    string version = 1; /// The current version of the API.
 }
 
 /**
@@ -186,7 +186,7 @@ message ApiVersion {
 * This is a response to the [CompleteStateRequest](#completestaterequest) message.
 */
 message CompleteState {
-  ApiVersion format_version = 1;
+  ApiVersion format_version = 1; /// The current version of the API.
   State startupState = 2; /// The State information at the startup of the Ankaios System.
   State desiredState = 3; /// The state the user wants to reach.
   repeated WorkloadState workloadStates = 4; /// The current states of the workloads.

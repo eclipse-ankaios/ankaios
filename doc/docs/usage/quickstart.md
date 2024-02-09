@@ -57,6 +57,8 @@ ank get state
 which creates:
 
 ```yaml
+formatVersion:
+  version: v0.1
 startupState:
   workloads: {}
   configs: {}
