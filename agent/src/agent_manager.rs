@@ -78,10 +78,7 @@ impl AgentManager {
                     method_obj.deleted_workloads);
 
                 self.runtime_manager
-                    .handle_update_workload(
-                        method_obj.added_workloads,
-                        method_obj.deleted_workloads,
-                    )
+                    .schedule_workloads(method_obj.added_workloads, method_obj.deleted_workloads)
                     .await;
                 Some(())
             }
@@ -130,6 +127,13 @@ impl AgentManager {
         };
 
         for new_workload_state in &workload_states {
+            log::info!(
+                "The agent reports workload state '{:?}' for the workload '{}' in the agent '{}'",
+                new_workload_state.execution_state,
+                new_workload_state.workload_name,
+                new_workload_state.agent_name
+            );
+
             self.runtime_manager
                 .update_workload_state(new_workload_state.clone())
                 .await;

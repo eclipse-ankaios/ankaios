@@ -81,11 +81,36 @@ impl RuntimeManager {
             .dependency_scheduler
             .next_workloads_to_delete(&self.parameter_storage);
 
+        log::info!("triggering dependencies: {:?}", added_workloads);
+
         self.handle_update_workload(added_workloads, deleted_workloads)
             .await;
     }
 
-    pub async fn handle_update_workload(
+    pub async fn schedule_workloads(
+        &mut self,
+        added_workloads: Vec<WorkloadSpec>,
+        deleted_workloads: Vec<DeletedWorkload>,
+    ) {
+        let workloads_without_dependencies =
+            self.dependency_scheduler.schedule_start(added_workloads);
+
+        log::info!(
+            "workloads_without_dependencies = {:?}",
+            workloads_without_dependencies
+        );
+
+        let deleted_workloads_without_dependencies =
+            self.dependency_scheduler.schedule_stop(deleted_workloads);
+
+        self.handle_update_workload(
+            workloads_without_dependencies,
+            deleted_workloads_without_dependencies,
+        )
+        .await;
+    }
+
+    async fn handle_update_workload(
         &mut self,
         added_workloads: Vec<WorkloadSpec>,
         deleted_workloads: Vec<DeletedWorkload>,
@@ -94,14 +119,6 @@ impl RuntimeManager {
             "Received a new desired state with '{}' added and '{}' deleted workloads.",
             added_workloads.len(),
             deleted_workloads.len()
-        );
-
-        let workloads_without_dependencies =
-            self.dependency_scheduler.schedule_start(added_workloads);
-
-        log::info!(
-            "workloads_without_dependencies = {:?}",
-            workloads_without_dependencies
         );
 
         if !self.initial_workload_list_received {
@@ -114,17 +131,10 @@ impl RuntimeManager {
             }
 
             // [impl->swdd~agent-initial-list-existing-workloads~1]
-            self.handle_initial_update_workload(workloads_without_dependencies)
-                .await;
+            self.handle_initial_update_workload(added_workloads).await;
         } else {
-            let deleted_workloads_without_dependencies =
-                self.dependency_scheduler.schedule_stop(deleted_workloads);
-
-            self.handle_subsequent_update_workload(
-                workloads_without_dependencies,
-                deleted_workloads_without_dependencies,
-            )
-            .await;
+            self.handle_subsequent_update_workload(added_workloads, deleted_workloads)
+                .await;
         }
     }
 
