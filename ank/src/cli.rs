@@ -175,13 +175,13 @@ pub enum RunCommands {
 /// Apply Ankaios manifest content or file(s)
 #[derive(clap::Args, Debug)]
 pub struct ApplyArgs {
-    #[arg(value_name = "Ankaios manifest file", required = false)]
+    #[arg(value_name = "Ankaios manifest file(s) or '-' for stdin")]
     pub manifest_files: Vec<String>,
     /// Specify on which agent to apply the Ankaios manifests.
-    /// If not specified, the agent must be specified in the Ankaios manifests.
+    /// If not specified, the agent(s) must be specified in the Ankaios manifest(s)
     #[arg(long = "agent")]
     pub agent_name: Option<String>,
-    /// Delete mode activated.
+    /// Delete mode activated
     #[arg(short)]
     pub delete_mode: bool,
 }
