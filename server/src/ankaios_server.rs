@@ -580,8 +580,10 @@ mod tests {
         // [utest->swdd~server-informs-a-newly-connected-agent-workload-states~1]
         // [utest->swdd~server-starts-without-startup-config~1]
         // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
-        let test_wl_1_state_running =
-            generate_test_workload_state(WORKLOAD_NAME_1, ExecutionState::running());
+        let test_wl_1_state_running = common::objects::generate_test_workload_state(
+            WORKLOAD_NAME_1,
+            ExecutionState::running(),
+        );
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_1_state_running.clone()])
             .await;
@@ -620,8 +622,10 @@ mod tests {
 
         // [utest->swdd~server-forwards-workload-state~1]
         // send update_workload_state for second agent which is then stored in the workload_state_db in ankaios server
-        let test_wl_2_state_succeeded =
-            generate_test_workload_state(WORKLOAD_NAME_2, ExecutionState::succeeded());
+        let test_wl_2_state_succeeded = common::objects::generate_test_workload_state(
+            WORKLOAD_NAME_2,
+            ExecutionState::succeeded(),
+        );
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_2_state_succeeded.clone()])
             .await;
@@ -637,8 +641,10 @@ mod tests {
         );
 
         // send update_workload_state for first agent again which is then updated in the workload_state_db in ankaios server
-        let test_wl_1_state_succeeded =
-            generate_test_workload_state(WORKLOAD_NAME_2, ExecutionState::succeeded());
+        let test_wl_1_state_succeeded = common::objects::generate_test_workload_state(
+            WORKLOAD_NAME_2,
+            ExecutionState::succeeded(),
+        );
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_1_state_succeeded.clone()])
             .await;
@@ -1007,7 +1013,7 @@ mod tests {
         server.server_state = mock_server_state;
 
         // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
-        let test_wl_1_state_running = generate_test_workload_state_with_agent(
+        let test_wl_1_state_running = common::objects::generate_test_workload_state_with_agent(
             WORKLOAD_NAME_1,
             AGENT_A,
             ExecutionState::running(),
@@ -1039,7 +1045,7 @@ mod tests {
             .workload_state_db
             .get_workload_state_for_agent(AGENT_A);
 
-        let expected_workload_state = generate_test_workload_state_with_agent(
+        let expected_workload_state = common::objects::generate_test_workload_state_with_agent(
             WORKLOAD_NAME_1,
             AGENT_A,
             ExecutionState::agent_disconnected(),
