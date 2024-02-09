@@ -17,7 +17,7 @@ use common::{
 use crate::control_interface::PipesChannelContext;
 
 use crate::runtime_connectors::RuntimeFacade;
-use crate::{dependency_manager::DependencyScheduler, parameter_storage::ParameterStorage};
+use crate::{dependency_scheduler::DependencyScheduler, parameter_storage::ParameterStorage};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;

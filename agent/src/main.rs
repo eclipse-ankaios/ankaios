@@ -27,7 +27,7 @@ mod runtime_connectors;
 #[cfg(test)]
 pub mod test_helper;
 
-mod dependency_manager;
+mod dependency_scheduler;
 mod generic_polling_state_checker;
 mod runtime_manager;
 mod workload;
