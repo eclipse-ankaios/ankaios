@@ -69,7 +69,9 @@ impl From<PodmanContainerInfo> for ExecutionState {
             "configured" => ExecutionState::starting(value.state),
             "initialized" => ExecutionState::starting(value.state),
             "exited" if value.exit_code == 0 => ExecutionState::succeeded(),
-            "exited" if value.exit_code != 0 => ExecutionState::failed(value.exit_code),
+            "exited" if value.exit_code != 0 => {
+                ExecutionState::failed(format!("Exit code: '{}'", value.exit_code))
+            }
             "running" => ExecutionState::running(),
             "stopping" => ExecutionState::stopping(value.state),
             "stopped" => ExecutionState::stopping(value.state),
@@ -1177,7 +1179,7 @@ mod tests {
         );
 
         let res = PodmanCli::list_states_by_id("test_id").await;
-        assert_eq!(res, Ok(Some(ExecutionState::failed("1"))));
+        assert_eq!(res, Ok(Some(ExecutionState::failed("Exit code: '1'"))));
     }
 
     // [utest->swdd~podman-state-getter-maps-state~3]

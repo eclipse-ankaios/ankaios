@@ -294,12 +294,12 @@ impl RuntimeStateGetter<PodmanKubeWorkloadId> for PodmanKubeRuntime {
 
                 Err(err) => {
                     log::warn!("Could not get state of workload '{}': {}", id.name, err);
-                    ExecutionState::unknown("Error getting state from pod.")
+                    ExecutionState::unknown("Error getting state from pods.")
                 }
             }
         } else {
             log::warn!("No pods in the workload '{}'", id.name.workload_name());
-            ExecutionState::unknown("No pods for the workload.")
+            ExecutionState::succeeded()
         }
     }
 }
@@ -308,7 +308,7 @@ impl RuntimeStateGetter<PodmanKubeWorkloadId> for PodmanKubeRuntime {
 
 // [impl->swdd~podman-kube-state-getter-removed-if-no-container~1]
 enum OrderedExecutionState {
-    Failed(u8),
+    Failed(String),
     Starting,
     Unknown,
     Running,
@@ -323,7 +323,9 @@ impl From<podman_cli::ContainerState> for OrderedExecutionState {
         match value {
             podman_cli::ContainerState::Starting => OrderedExecutionState::Starting,
             podman_cli::ContainerState::Exited(0) => OrderedExecutionState::Succeeded,
-            podman_cli::ContainerState::Exited(value) => OrderedExecutionState::Failed(value),
+            podman_cli::ContainerState::Exited(value) => {
+                OrderedExecutionState::Failed(format!("Exit code: '{value}'"))
+            }
             podman_cli::ContainerState::Paused => OrderedExecutionState::Unknown,
             podman_cli::ContainerState::Running => OrderedExecutionState::Running,
             podman_cli::ContainerState::Stopping => OrderedExecutionState::Stopping,
@@ -894,7 +896,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::failed("1"));
+        assert_eq!(execution_state, ExecutionState::failed("Exit code: '1'"));
     }
 
     // [utest->swdd~podman-kube-state-getter-maps-state~2]
@@ -1037,7 +1039,7 @@ mod tests {
 
         assert_eq!(
             execution_state,
-            ExecutionState::unknown("Error getting state from pod.")
+            ExecutionState::unknown("Error getting state from pods.")
         );
     }
 
@@ -1051,10 +1053,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&workload_id).await;
 
-        assert_eq!(
-            execution_state,
-            ExecutionState::unknown("No pods for the workload.")
-        );
+        assert_eq!(execution_state, ExecutionState::succeeded());
     }
 
     struct MockContext<'a> {
