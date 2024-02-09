@@ -99,7 +99,18 @@ fn generate_compact_state_output(
         return convert_to_output(deserialized_state);
     }
 
+    // [impl->swdd~cli-returns-format-version-with-desired-state~1]
     let mut compact_state = serde_yaml::Value::Mapping(Default::default());
+    if let Some(filtered_format_version) =
+        get_filtered_value(&deserialized_state, &["formatVersion"])
+    {
+        update_compact_state(
+            &mut compact_state,
+            &["formatVersion"],
+            filtered_format_version.to_owned(),
+        );
+    }
+
     for mask in object_field_mask {
         let splitted_masks: Vec<&str> = mask.split('.').collect();
         if let Some(filtered_mapping) = get_filtered_value(&deserialized_state, &splitted_masks) {
@@ -1182,6 +1193,7 @@ mod tests {
     }
 
     // [utest -> swdd~cli-returns-desired-state-from-server~1]
+    // [utest->swdd~cli-returns-format-version-with-desired-state~1]
     #[tokio::test]
     async fn get_state_single_field_of_desired_state() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1234,16 +1246,14 @@ mod tests {
             .await
             .unwrap();
 
-        let expected_single_field_result_text = serde_yaml::to_string(&serde_json::json!(
-            {"desiredState": {"workloads": {"name3": { "runtime": "runtime"}}}}
-        ))
-        .unwrap();
+        let expected_single_field_result_text = "formatVersion:\n  version: v0.1\ndesiredState:\n  workloads:\n    name3:\n      runtime: runtime\n";
 
         assert_eq!(cmd_text, expected_single_field_result_text);
     }
 
     // [utest->swdd~cli-provides-object-field-mask-arg-to-get-partial-desired-state~1]
     // [utest->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
+    // [utest->swdd~cli-returns-format-version-with-desired-state~1]
     #[tokio::test]
     async fn get_state_multiple_fields_of_desired_state() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1300,8 +1310,8 @@ mod tests {
             .await
             .unwrap();
         assert!(matches!(cmd_text,
-            txt if txt == *"desiredState:\n  workloads:\n    name1:\n      runtime: runtime\n    name2:\n      runtime: runtime\n" ||
-            txt == *"desiredState:\n  workloads:\n    name2:\n      runtime: runtime\n    name1:\n      runtime: runtime\n"));
+            txt if txt == *"formatVersion:\n  version: v0.1\ndesiredState:\n  workloads:\n    name1:\n      runtime: runtime\n    name2:\n      runtime: runtime\n" ||
+            txt == *"formatVersion:\n  version: v0.1\ndesiredState:\n  workloads:\n    name2:\n      runtime: runtime\n    name1:\n      runtime: runtime\n"));
     }
 
     // [utest -> swdd~cli-provides-set-desired-state~1]
@@ -1554,6 +1564,9 @@ mod tests {
         ]);
 
         let expected_state = r#"{
+            "formatVersion": {
+                "version": "v0.1"
+            },
             "desiredState": {
                 "workloads": {
                     "name1": {
@@ -1615,6 +1628,9 @@ mod tests {
         ]);
 
         let expected_state = r#"{
+            "formatVersion": {
+                "version": "v0.1"
+            },
             "desiredState": {
                 "workloads": {
                     "name1": {

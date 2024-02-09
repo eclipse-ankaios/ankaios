@@ -274,6 +274,25 @@ Needs:
 - impl
 - utest
 
+#### CLI returns `formatVersion` with the desired state
+`swdd~cli-returns-format-version-with-desired-state~1`
+
+Status: approved
+
+When the user invokes the CLI with a request to the get desired state,
+the CLI shall always display the field `formatVersion` together with the requested desired state.
+
+Rationale:
+Output of the `ank get state` can be (and it is meant to be) used as input for the command `ank set state`.
+The `ank set state` requires the formatVersion, therefore the `ank get state` must display `formatVersion` too.
+
+Tags:
+- GetDesiredState
+
+Needs:
+- impl
+- utest
+
 ### `ank get workload`
 
 ![Get a list of Workloads](plantuml/seq_get_workload.svg)
