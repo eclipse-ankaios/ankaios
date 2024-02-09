@@ -174,8 +174,9 @@ the workload "${workload_name}" shall not exist
     Dictionary Should Not Contain Key    ${workload_table}    ${workload_name}
 
 the workload "${workload_name}" shall not exist on agent "${expected_agent_name}" within "${timeout}" seconds
+    Should Be True    ${timeout} >= 0    msg='timeout' must be greater than or equal to 0!
     @{list_result}=    Create List
-    IF    ${timeout} > 0
+    IF    ${timeout} >= 0
         @{list_result}=    Wait For Workload Removal
         ...    %{ANK_BIN_DIR}${/}ank get workloads
         ...    ${workload_name}
