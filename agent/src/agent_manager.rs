@@ -128,10 +128,10 @@ impl AgentManager {
 
         for new_workload_state in &workload_states {
             log::info!(
-                "The agent reports workload state '{:?}' for the workload '{}' in the agent '{}'",
+                "The agent '{}' reports workload state '{:?}' for the workload '{}'",
+                new_workload_state.agent_name,
                 new_workload_state.execution_state,
                 new_workload_state.workload_name,
-                new_workload_state.agent_name
             );
 
             self.runtime_manager
