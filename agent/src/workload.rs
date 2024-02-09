@@ -18,7 +18,9 @@ pub mod workload_control_loop;
 
 // public api exports
 pub use workload_command_channel::WorkloadCommandSender;
-pub use workload_control_loop::{ControlLoopState, RestartCounter, WorkloadControlLoop};
+#[cfg(test)]
+pub use workload_control_loop::WorkloadControlLoop;
+pub use workload_control_loop::{ControlLoopState, RestartCounter};
 
 use std::{fmt::Display, path::PathBuf};
 

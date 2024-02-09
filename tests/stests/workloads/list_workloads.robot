@@ -30,8 +30,8 @@ Test Ankaios CLI get workloads
     # Actions
     When user triggers "ank get workloads"
     # Asserts
-    Then the workload "nginx" shall have the execution state "Running" on agent "agent_A"
-    And the workload "hello1" shall have the execution state "Removed" from agent "agent_B"
-    And the workload "hello2" shall have the execution state "Succeeded" on agent "agent_B"
-    And the workload "hello3" shall have the execution state "Succeeded" on agent "agent_B"
+    Then the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A"
+    And the workload "hello1" shall have the execution state "Failed(Lost)" from agent "agent_B"
+    And the workload "hello2" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
+    And the workload "hello3" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
     [Teardown]    Clean up Ankaios

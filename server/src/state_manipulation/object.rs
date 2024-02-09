@@ -160,7 +160,7 @@ impl Object {
 mod tests {
     use common::{
         commands::CompleteState,
-        objects::{ExecutionState, State, WorkloadState},
+        objects::State,
         test_utils::{generate_test_state_from_workloads, generate_test_workload_spec},
     };
     use serde_yaml::Value;
@@ -196,11 +196,11 @@ mod tests {
         let complete_state = CompleteState {
             startup_state: state.clone(),
             current_state: state,
-            workload_states: vec![WorkloadState {
-                workload_name: "workload A".into(),
-                agent_name: "agent".into(),
-                execution_state: ExecutionState::ExecRunning,
-            }],
+            workload_states: vec![common::objects::generate_test_workload_state_with_agent(
+                "workload A",
+                "agent",
+                common::objects::ExecutionState::running(),
+            )],
         };
 
         let expected = Object {
@@ -222,11 +222,11 @@ mod tests {
         let expected = CompleteState {
             startup_state: expected_state.clone(),
             current_state: expected_state,
-            workload_states: vec![WorkloadState {
-                workload_name: "workload A".into(),
-                agent_name: "agent".into(),
-                execution_state: ExecutionState::ExecRunning,
-            }],
+            workload_states: vec![common::objects::generate_test_workload_state_with_agent(
+                "workload A",
+                "agent",
+                common::objects::ExecutionState::running(),
+            )],
         };
         let actual: CompleteState = object.try_into().unwrap();
 
@@ -496,15 +496,28 @@ mod tests {
         use serde_yaml::Value;
 
         pub fn generate_test_complete_state() -> Mapping {
+            let config_hash: &dyn common::objects::ConfigHash = &"config".to_string();
             Mapping::default()
                 .entry("startupState", generate_test_state())
                 .entry("currentState", generate_test_state())
                 .entry(
                     "workloadStates",
                     vec![Mapping::default()
-                        .entry("workloadName", "workload A")
-                        .entry("agentName", "agent")
-                        .entry("executionState", "ExecRunning")],
+                        .entry(
+                            "instanceName",
+                            Mapping::default()
+                                .entry("agentName", "agent")
+                                .entry("workloadName", "workload A")
+                                .entry("hash", config_hash.hash_config()),
+                        )
+                        .entry("workloadId", "some strange Id")
+                        .entry(
+                            "executionState",
+                            Mapping::default()
+                                .entry("state", "Running")
+                                .entry("subState", "Ok")
+                                .entry("additionalInfo", ""),
+                        )],
                 )
         }
 
@@ -516,22 +529,7 @@ mod tests {
                         "name",
                         Mapping::default()
                             .entry("agent", "agent")
-                            .entry(
-                                "dependencies",
-                                Mapping::default()
-                                    .entry("workload A", "ADD_COND_RUNNING")
-                                    .entry("workload C", "ADD_COND_SUCCEEDED"),
-                            )
-                            .entry("updateStrategy", "UNSPECIFIED")
-                            .entry(
-                                "accessRights",
-                                Mapping::default()
-                                    .entry("allow", vec![] as Vec<Value>)
-                                    .entry("deny", vec![] as Vec<Value>),
-                            )
-                            .entry("runtime", "runtime")
                             .entry("name", "name")
-                            .entry("restart", true)
                             .entry(
                                 "tags",
                                 vec![Mapping::default()
@@ -539,6 +537,21 @@ mod tests {
                                     .entry("value", "value")
                                     .into()] as Vec<Value>,
                             )
+                            .entry(
+                                "dependencies",
+                                Mapping::default()
+                                    .entry("workload A", "ADD_COND_RUNNING")
+                                    .entry("workload C", "ADD_COND_SUCCEEDED"),
+                            )
+                            .entry("updateStrategy", "UNSPECIFIED")
+                            .entry("restart", true)
+                            .entry(
+                                "accessRights",
+                                Mapping::default()
+                                    .entry("allow", vec![] as Vec<Value>)
+                                    .entry("deny", vec![] as Vec<Value>),
+                            )
+                            .entry("runtime", "runtime")
                             .entry("runtimeConfig", "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"),
                     ),
                 )

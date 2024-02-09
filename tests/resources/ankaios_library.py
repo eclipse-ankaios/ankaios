@@ -39,7 +39,7 @@ def table_to_list(raw):
     while index > -1:
         while index < len(header) and header[index] == ' ':
             index += 1
-        
+
         columns.append(index)
         next_start_index = index + 1
         index = header.find("  ", next_start_index)
@@ -133,6 +133,21 @@ def wait_for_execution_state(command, workload_name, expected_state, timeout=10,
             table = table_to_list(res.stdout if res else "")
             logger.trace(table)
         return list()
+
+def wait_for_workload_removal(command, workload_name, expected_agent_name, timeout=10, next_try_in_sec=1):
+        start_time = get_time_secs()
+        res = run_command(command)
+        table = table_to_list(res.stdout if res else "")
+        logger.trace(table)
+        while (get_time_secs() - start_time) < timeout:
+            if table and any([row["AGENT"].strip() == expected_agent_name for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name, table)]):
+                time.sleep(next_try_in_sec)
+                res = run_command(command)
+                table = table_to_list(res.stdout if res else "")
+                logger.trace(table)
+            else:
+                return list()
+        return table
 
 def replace_key(data, match, func):
     if isinstance(data, dict):

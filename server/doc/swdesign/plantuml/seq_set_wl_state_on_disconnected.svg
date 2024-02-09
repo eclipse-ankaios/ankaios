@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentStyleType="text/css" height="625px" preserveAspectRatio="none" style="width:1197px;height:625px;background:#FFFFFF;" version="1.1" viewBox="0 0 1197 625" width="1197px" zoomAndPan="magnify"><defs/><g><rect fill="#EEEEEE" height="606.6563" style="stroke:#D3D3D3;stroke-width:0.5;" width="491" x="256" y="6"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing" textLength="110" x="446.5" y="18.0669">Ankaios Server</text><rect fill="#EEEEEE" height="606.6563" style="stroke:#D3D3D3;stroke-width:0.5;" width="146" x="769" y="6"/><text fill="#000000" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacing" textLength="115" x="784.5" y="18.0669">Ankaios Agents</text><rect fill="#FFFFFF" height="257.1953" style="stroke:#181818;stroke-width:1.0;" width="10" x="311" y="203.7969"/><rect fill="#FFFFFF" height="89.1328" style="stroke:#181818;stroke-width:1.0;" width="10" x="484" y="430.9922"/><rect fill="#FFFFFF" height="89.1328" style="stroke:#181818;stroke-width:1.0;" width="10" x="669.5" y="144.6641"/><rect fill="#FFFFFF" height="119.5313" style="stroke:#181818;stroke-width:1.0;" width="10" x="874" y="490.125"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="316" x2="316" y1="72.7266" y2="82.7266"/><line style="stroke:#383838;stroke-width:1.0;stroke-dasharray:1.0,4.0;" x1="316" x2="316" y1="82.7266" y2="123.5313"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="316" x2="316" y1="123.5313" y2="618.6563"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="489" x2="489" y1="72.7266" y2="82.7266"/><line style="stroke:#383838;stroke-width:1.0;stroke-dasharray:1.0,4.0;" x1="489" x2="489" y1="82.7266" y2="123.5313"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="489" x2="489" y1="123.5313" y2="618.6563"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="674" x2="674" y1="72.7266" y2="82.7266"/><line style="stroke:#383838;stroke-width:1.0;stroke-dasharray:1.0,4.0;" x1="674" x2="674" y1="82.7266" y2="123.5313"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="674" x2="674" y1="123.5313" y2="618.6563"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="805" x2="805" y1="72.7266" y2="82.7266"/><line style="stroke:#383838;stroke-width:1.0;stroke-dasharray:1.0,4.0;" x1="805" x2="805" y1="82.7266" y2="123.5313"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="805" x2="805" y1="123.5313" y2="618.6563"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="879" x2="879" y1="72.7266" y2="82.7266"/><line style="stroke:#383838;stroke-width:1.0;stroke-dasharray:1.0,4.0;" x1="879" x2="879" y1="82.7266" y2="123.5313"/><line style="stroke:#181818;stroke-width:0.5;stroke-dasharray:5.0,5.0;" x1="879" x2="879" y1="123.5313" y2="618.6563"/><rect fill="#E3E3E3" height="46.5938" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="112" x="260" y="25.1328"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="93" x="269.5" y="45.1279">&lt;&lt;thread&gt;&gt;</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="98" x="267" y="61.4248">AnkaiosServer</text><rect fill="#E3E3E3" height="46.5938" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="214" x="382" y="25.1328"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="93" x="442.5" y="45.1279">&lt;&lt;thread&gt;&gt;</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="200" x="389" y="61.4248">GRPCCommunicationsServer</text><rect fill="#E3E3E3" height="46.5938" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="137" x="606" y="25.1328"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="93" x="628" y="45.1279">&lt;&lt;thread&gt;&gt;</text><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="123" x="613" y="61.4248">tonic gRPC server</text><rect fill="#E3E3E3" height="30.2969" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="64" x="773" y="41.4297"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="50" x="780" y="61.4248">Agent1</text><rect fill="#E3E3E3" height="30.2969" rx="2.5" ry="2.5" style="stroke:#181818;stroke-width:0.5;" width="64" x="847" y="41.4297"/><text fill="#000000" font-family="sans-serif" font-size="14" lengthAdjust="spacing" textLength="50" x="854" y="61.4248">Agent2</text><rect fill="#FFFFFF" height="257.1953" style="stroke:#181818;stroke-width:1.0;" width="10" x="311" y="203.7969"/><rect fill="#FFFFFF" height="89.1328" style="stroke:#181818;stroke-width:1.0;" width="10" x="484" y="430.9922"/><rect fill="#FFFFFF" height="89.1328" style="stroke:#181818;stroke-width:1.0;" width="10" x="669.5" y="144.6641"/><rect fill="#FFFFFF" height="119.5313" style="stroke:#181818;stroke-width:1.0;" width="10" x="874" y="490.125"/><text fill="#000000" font-family="sans-serif" font-size="11" lengthAdjust="spacing" textLength="256" x="469.5" y="106.937">Two agents are connected to Ankiaos Server</text><line style="stroke:#181818;stroke-width:1.0;" x1="680.5" x2="690.5" y1="144.6641" y2="140.6641"/><line style="stroke:#181818;stroke-width:1.0;" x1="680.5" x2="690.5" y1="144.6641" y2="148.6641"/><line style="stroke:#181818;stroke-width:1.0;" x1="679.5" x2="804" y1="144.6641" y2="144.6641"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="72" x="696.5" y="139.5981">AgentGone</text><line style="stroke:#181818;stroke-width:1.0;" x1="322" x2="332" y1="203.7969" y2="199.7969"/><line style="stroke:#181818;stroke-width:1.0;" x1="322" x2="332" y1="203.7969" y2="207.7969"/><line style="stroke:#181818;stroke-width:1.0;" x1="321" x2="668.5" y1="203.7969" y2="203.7969"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="72" x="338" y="198.731">AgentGone</text><line style="stroke:#181818;stroke-width:1.0;" x1="321" x2="363" y1="308.3281" y2="308.3281"/><line style="stroke:#181818;stroke-width:1.0;" x1="363" x2="363" y1="308.3281" y2="321.3281"/><line style="stroke:#181818;stroke-width:1.0;" x1="322" x2="363" y1="321.3281" y2="321.3281"/><polygon fill="#181818" points="332,317.3281,322,321.3281,332,325.3281" style="stroke:#181818;stroke-width:1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="141" x="328" y="257.8638">set workload states to</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="140" x="328" y="272.9966">`agent disconnected`</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="127" x="328" y="288.1294">in WorkloadStateDB</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="56" x="328" y="303.2622">(Agent1)</text><path d="M5,334.3281 L5,404.3281 L306,404.3281 L306,344.3281 L296,334.3281 L5,334.3281 " fill="#FFFFFF" style="stroke:#181818;stroke-width:0.5;"/><path d="M296,334.3281 L296,344.3281 L306,344.3281 L296,334.3281 " fill="#FFFFFF" style="stroke:#181818;stroke-width:0.5;"/><text fill="#000000" font-family="monospace" font-size="13" lengthAdjust="spacing" textLength="120" x="11" y="351.395">workloadStates:</text><text fill="#000000" font-family="monospace" font-size="13" lengthAdjust="spacing" textLength="176" x="11" y="366.5278">- workload: Workload 1</text><text fill="#000000" font-family="monospace" font-size="13" lengthAdjust="spacing" textLength="96" x="27" y="381.6606">node: Node 1</text><text fill="#000000" font-family="monospace" font-size="13" lengthAdjust="spacing" textLength="264" x="27" y="396.7935">executionState: AgentDisconnected</text><line style="stroke:#181818;stroke-width:1.0;" x1="482" x2="472" y1="430.9922" y2="426.9922"/><line style="stroke:#181818;stroke-width:1.0;" x1="482" x2="472" y1="430.9922" y2="434.9922"/><line style="stroke:#181818;stroke-width:1.0;" x1="321" x2="483" y1="430.9922" y2="430.9922"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="140" x="328" y="425.9263">UpdateWorkloadState</text><line style="stroke:#181818;stroke-width:1.0;" x1="872" x2="862" y1="490.125" y2="486.125"/><line style="stroke:#181818;stroke-width:1.0;" x1="872" x2="862" y1="490.125" y2="494.125"/><line style="stroke:#181818;stroke-width:1.0;" x1="494" x2="873" y1="490.125" y2="490.125"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacing" textLength="140" x="501" y="485.0591">UpdateWorkloadState</text><path d="M889,533.125 L889,603.125 L1190,603.125 L1190,543.125 L1180,533.125 L889,533.125 " fill="#FFFFFF" style="stroke:#181818;stroke-width:0.5;"/><path d="M1180,533.125 L1180,543.125 L1190,543.125 L1180,533.125 " fill="#FFFFFF" style="stroke:#181818;stroke-width:0.5;"/><text fill="#000000" font-family="monospace" font-size="13" lengthAdjust="spacing" textLength="120" x="895" y="550.1919">workloadStates:</text><text fill="#000000" font-family="monospace" font-size="13" lengthAdjust="spacing" textLength="176" x="895" y="565.3247">- workload: Workload 1</text><text fill="#000000" font-family="monospace" font-size="13" lengthAdjust="spacing" textLength="96" x="911" y="580.4575">node: Node 1</text><text fill="#000000" font-family="monospace" font-size="13" lengthAdjust="spacing" textLength="264" x="911" y="595.5903">executionState: AgentDisconnected</text><!--MD5=[e21129168db6630257b96f24d7adcfe2]
+@startuml seq_set_wl_state_on_disconnected
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "Ankaios Server"
+participant "<<thread>>\nAnkaiosServer" as server
+participant "<<thread>>\nGRPCCommunicationsServer" as grpc_server
+participant "<<thread>>\ntonic gRPC server" as tonic_server
+end box
+
+box "Ankaios Agents"
+participant "Agent1" as agent1
+participant "Agent2" as agent2
+end box
+
+...Two agents are connected to Ankiaos Server...
+agent1 ->> tonic_server ++- -: AgentGone
+tonic_server ->> server ++- -: AgentGone
+server -> server : set workload states to \n`agent disconnected`\nin WorkloadStateDB\n(Agent1)
+note left server
+        ""workloadStates:""
+        ""- workload: Workload 1""
+        ""  node: Node 1""
+        ""  executionState: AgentDisconnected""
+end note
+
+server ->> grpc_server ++- -: UpdateWorkloadState
+grpc_server ->> agent2 ++- -: UpdateWorkloadState
+note right agent2
+        ""workloadStates:""
+        ""- workload: Workload 1""
+        ""  node: Node 1""
+        ""  executionState: AgentDisconnected""
+end note
+
+
+
+@enduml
+
+@startuml seq_set_wl_state_on_disconnected
+skinparam monochrome true
+skinparam guillemet true
+skinparam style strictuml
+hide empty members
+hide empty methods
+
+skinparam class {
+    BorderColor<<logical entity>> grey
+    FontColor<<logical entity>> grey
+    StereotypeFontColor<<logical entity>> grey
+}
+
+skinparam sequenceBox {
+    BorderColor #LightGrey
+    BackgroundColor #EEEEEE
+    FontColor #777777
+}
+
+skinparam BoxPadding 10
+
+skinparam note {
+    BackgroundColor #FFFFFF
+}
+
+skinparam nodesep 30
+skinparam ranksep 30
+
+box "Ankaios Server"
+participant "<<thread>>\nAnkaiosServer" as server
+participant "<<thread>>\nGRPCCommunicationsServer" as grpc_server
+participant "<<thread>>\ntonic gRPC server" as tonic_server
+end box
+
+box "Ankaios Agents"
+participant "Agent1" as agent1
+participant "Agent2" as agent2
+end box
+
+...Two agents are connected to Ankiaos Server...
+agent1 ->> tonic_server ++- -: AgentGone
+tonic_server ->> server ++- -: AgentGone
+server -> server : set workload states to \n`agent disconnected`\nin WorkloadStateDB\n(Agent1)
+note left server
+        ""workloadStates:""
+        ""- workload: Workload 1""
+        ""  node: Node 1""
+        ""  executionState: AgentDisconnected""
+end note
+
+server ->> grpc_server ++- -: UpdateWorkloadState
+grpc_server ->> agent2 ++- -: UpdateWorkloadState
+note right agent2
+        ""workloadStates:""
+        ""- workload: Workload 1""
+        ""  node: Node 1""
+        ""  executionState: AgentDisconnected""
+end note
+
+
+
+@enduml
+
+PlantUML version 1.2022.7(Mon Aug 22 17:01:30 UTC 2022)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Default Encoding: ANSI_X3.4-1968
+Language: en
+Country: US
+--></g></svg>

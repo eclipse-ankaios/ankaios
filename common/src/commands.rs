@@ -279,27 +279,22 @@ pub struct Stop {}
 mod tests {
     use api::proto;
 
-    use crate::{
-        commands::{CompleteStateRequest, Request, RequestContent, UpdateWorkloadState},
-        objects::{ExecutionState, WorkloadState},
-    };
+    use crate::commands::{CompleteStateRequest, Request, RequestContent, UpdateWorkloadState};
 
     #[test]
     fn utest_converts_to_proto_update_workload_state() {
+        let workload_state = crate::objects::generate_test_workload_state_with_agent(
+            "test_workload",
+            "test_agent",
+            crate::objects::ExecutionState::running(),
+        );
+
         let ankaios_update_wl_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: "john".to_string(),
-                agent_name: "doe".to_string(),
-                execution_state: ExecutionState::ExecRunning,
-            }],
+            workload_states: vec![workload_state.clone()],
         };
 
         let proto_update_wl_state = proto::UpdateWorkloadState {
-            workload_states: vec![proto::WorkloadState {
-                workload_name: "john".to_string(),
-                agent_name: "doe".to_string(),
-                execution_state: proto::ExecutionState::ExecRunning.into(),
-            }],
+            workload_states: vec![workload_state.into()],
         };
 
         assert_eq!(
