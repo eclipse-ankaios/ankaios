@@ -202,6 +202,10 @@ pub fn get_workloads_per_agent(
     agent_workloads
 }
 
+pub trait FulfilledBy<T> {
+    fn fulfilled_by(&self, other: &T) -> bool;
+}
+
 // [impl->swdd~workload-add-conditions-for-dependencies~1]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -209,6 +213,16 @@ pub enum AddCondition {
     AddCondRunning = 0,
     AddCondSucceeded = 1,
     AddCondFailed = 2,
+}
+
+impl FulfilledBy<ExecutionState> for AddCondition {
+    fn fulfilled_by(&self, other: &ExecutionState) -> bool {
+        match self {
+            AddCondition::AddCondRunning => *other == ExecutionState::ExecRunning,
+            AddCondition::AddCondSucceeded => *other == ExecutionState::ExecSucceeded,
+            AddCondition::AddCondFailed => *other == ExecutionState::ExecFailed,
+        }
+    }
 }
 
 impl TryFrom<i32> for AddCondition {
@@ -226,22 +240,23 @@ impl TryFrom<i32> for AddCondition {
     }
 }
 
-impl From<AddCondition> for ExecutionState {
-    fn from(value: AddCondition) -> Self {
-        match value {
-            AddCondition::AddCondRunning => ExecutionState::ExecRunning,
-            AddCondition::AddCondSucceeded => ExecutionState::ExecSucceeded,
-            AddCondition::AddCondFailed => ExecutionState::ExecFailed,
-        }
-    }
-}
-
 // [impl->swdd~workload-delete-conditions-for-dependencies~1]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DeleteCondition {
     DelCondRunning = 0,
     DelCondNotPendingNorRunning = 1,
+}
+
+impl FulfilledBy<ExecutionState> for DeleteCondition {
+    fn fulfilled_by(&self, other: &ExecutionState) -> bool {
+        match self {
+            DeleteCondition::DelCondNotPendingNorRunning => {
+                *other != ExecutionState::ExecPending && *other != ExecutionState::ExecRunning
+            }
+            DeleteCondition::DelCondRunning => *other == ExecutionState::ExecRunning,
+        }
+    }
 }
 
 impl TryFrom<i32> for DeleteCondition {

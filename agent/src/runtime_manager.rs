@@ -92,22 +92,22 @@ impl RuntimeManager {
         added_workloads: Vec<WorkloadSpec>,
         deleted_workloads: Vec<DeletedWorkload>,
     ) {
-        let workloads_without_dependencies =
-            self.dependency_scheduler.schedule_start(added_workloads);
+        let (ready_workloads, waiting_workloads) =
+            DependencyScheduler::split_workloads_to_ready_and_waiting(added_workloads);
 
-        log::info!(
-            "workloads_without_dependencies = {:?}",
-            workloads_without_dependencies
-        );
+        log::debug!("waiting_workloads = {:?}", waiting_workloads);
 
-        let deleted_workloads_without_dependencies =
-            self.dependency_scheduler.schedule_stop(deleted_workloads);
+        self.dependency_scheduler
+            .put_on_waiting_queue(waiting_workloads);
 
-        self.handle_update_workload(
-            workloads_without_dependencies,
-            deleted_workloads_without_dependencies,
-        )
-        .await;
+        let (ready_deleted_workloads, waiting_deleted_workloads) =
+            DependencyScheduler::split_deleted_workloads_to_ready_and_waiting(deleted_workloads);
+
+        self.dependency_scheduler
+            .put_on_delete_waiting_queue(waiting_deleted_workloads);
+
+        self.handle_update_workload(ready_workloads, ready_deleted_workloads)
+            .await;
     }
 
     async fn handle_update_workload(

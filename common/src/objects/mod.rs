@@ -25,7 +25,7 @@ pub use workload_state::{ExecutionState, WorkloadState};
 mod workload_spec;
 pub use workload_spec::{
     get_workloads_per_agent, AddCondition, DeleteCondition, DeletedWorkload,
-    DeletedWorkloadCollection, UpdateStrategy, WorkloadCollection, WorkloadSpec,
+    DeletedWorkloadCollection, FulfilledBy, UpdateStrategy, WorkloadCollection, WorkloadSpec,
 };
 
 mod cronjob;
