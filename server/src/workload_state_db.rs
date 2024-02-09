@@ -12,13 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::{ExecutionState, WorkloadState};
+use common::objects::{ExecutionState, WorkloadExecutionInstanceName, WorkloadState};
 use std::collections::HashMap;
 
-type WorkloadName = String;
 type AgentName = String;
 
-type WorkloadStatesMap = HashMap<WorkloadName, Vec<WorkloadState>>;
+type WorkloadStatesMap = HashMap<WorkloadExecutionInstanceName, Vec<WorkloadState>>;
 type AgentWorkloadStates = HashMap<AgentName, WorkloadStatesMap>;
 
 pub struct WorkloadStateDB {
@@ -86,9 +85,9 @@ impl WorkloadStateDB {
             .get_mut(state_to_remove.instance_name.agent_name())
         {
             if state_to_remove.workload_id.is_empty() {
-                agent_states.remove(state_to_remove.instance_name.workload_name());
+                agent_states.remove(&state_to_remove.instance_name);
             } else if let Some(wl_states) =
-                agent_states.get_mut(state_to_remove.instance_name.workload_name())
+                agent_states.get_mut(&state_to_remove.instance_name)
             {
                 wl_states.retain(|wl_state| wl_state.workload_id != state_to_remove.workload_id)
             }
@@ -101,12 +100,24 @@ impl WorkloadStateDB {
             if workload_state.execution_state.is_removed() {
                 self.remove(workload_state);
             } else {
-                self.stored_states
+                match self
+                    .stored_states
                     .entry(workload_state.instance_name.agent_name().to_owned())
                     .or_default()
-                    .entry(workload_state.instance_name.workload_name().to_owned())
-                    .or_default()
-                    .push(workload_state);
+                    .entry(workload_state.instance_name.to_owned())
+                {
+                    std::collections::hash_map::Entry::Occupied(mut existing_entry) => {
+                        let existing_states = existing_entry.get_mut();
+                        // Remove all entries not having an Id and or with Id equal to the one for the new state
+                        existing_states.retain(|x| {
+                            !x.workload_id.is_empty() && x.workload_id != workload_state.workload_id
+                        });
+                        existing_states.push(workload_state);
+                    }
+                    std::collections::hash_map::Entry::Vacant(new_entry) => {
+                        new_entry.insert(vec![workload_state]);
+                    }
+                }
             }
         });
     }
@@ -161,18 +172,18 @@ mod tests {
 
         let mut wls = HashMap::new();
         wls.insert(
-            wl_1_state.instance_name.workload_name().to_owned(),
+            wl_1_state.instance_name.to_owned(),
             vec![wl_1_state],
         );
         wls.insert(
-            wl_2_state.instance_name.workload_name().to_owned(),
+            wl_2_state.instance_name.to_owned(),
             vec![wl_2_state],
         );
         wls_db.stored_states.insert(AGENT_A.to_string(), wls);
 
         let mut wls_2 = HashMap::new();
         wls_2.insert(
-            wl_3_state.instance_name.workload_name().to_owned(),
+            wl_3_state.instance_name.to_owned(),
             vec![wl_3_state],
         );
         wls_db.stored_states.insert(AGENT_B.to_string(), wls_2);
@@ -253,6 +264,44 @@ mod tests {
                     ExecutionState::running()
                 ),
                 wl_state_4
+            ]
+        )
+    }
+
+    // [utest->swdd~server-stores-workload-state~1]
+    #[test]
+    fn utest_workload_states_store_update() {
+        let mut wls_db = create_test_setup();
+
+        let wl_state_2_update = generate_test_workload_state_with_agent(
+            WORKLOAD_NAME_2,
+            AGENT_A,
+            ExecutionState::running(),
+        );
+
+        wls_db.proccess_new_states(vec![wl_state_2_update.clone()]);
+
+        let mut wls_res = wls_db.get_all_workload_states();
+        wls_res.sort_by(|a, b| {
+            a.instance_name
+                .workload_name()
+                .cmp(b.instance_name.workload_name())
+        });
+
+        assert_eq!(
+            wls_res,
+            vec![
+                generate_test_workload_state_with_agent(
+                    WORKLOAD_NAME_1,
+                    AGENT_A,
+                    ExecutionState::succeeded()
+                ),
+                wl_state_2_update,
+                generate_test_workload_state_with_agent(
+                    WORKLOAD_NAME_3,
+                    AGENT_B,
+                    ExecutionState::running()
+                )
             ]
         )
     }
