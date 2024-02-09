@@ -516,7 +516,7 @@ mod tests {
 
     // [utest->swdd~podman-state-getter-returns-lost-state~1]
     #[tokio::test]
-    async fn utest_get_state_returns_removed_on_missing_state() {
+    async fn utest_get_state_returns_lost_on_missing_state() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
         let context = PodmanCli::list_states_by_id_context();
