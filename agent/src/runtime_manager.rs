@@ -81,10 +81,10 @@ impl RuntimeManager {
             .dependency_scheduler
             .next_workloads_to_delete(&self.parameter_storage);
 
-        log::info!("triggering dependencies: {:?}", added_workloads);
-
-        self.handle_update_workload(added_workloads, deleted_workloads)
-            .await;
+        if !added_workloads.is_empty() || !deleted_workloads.is_empty() {
+            self.handle_update_workload(added_workloads, deleted_workloads)
+                .await;
+        }
     }
 
     pub async fn schedule_workloads(
@@ -95,13 +95,14 @@ impl RuntimeManager {
         let (ready_workloads, waiting_workloads) =
             DependencyScheduler::split_workloads_to_ready_and_waiting(added_workloads);
 
-        log::debug!("waiting_workloads = {:?}", waiting_workloads);
-
         self.dependency_scheduler
             .put_on_waiting_queue(waiting_workloads);
 
         let (ready_deleted_workloads, waiting_deleted_workloads) =
-            DependencyScheduler::split_deleted_workloads_to_ready_and_waiting(deleted_workloads);
+            DependencyScheduler::split_deleted_workloads_to_ready_and_waiting(
+                deleted_workloads,
+                &self.parameter_storage,
+            );
 
         self.dependency_scheduler
             .put_on_delete_waiting_queue(waiting_deleted_workloads);

@@ -75,10 +75,22 @@ impl DependencyScheduler {
 
     pub fn split_deleted_workloads_to_ready_and_waiting(
         deleted_workloads: Vec<DeletedWorkload>,
+        workload_state_db: &ParameterStorage,
     ) -> (ReadyDeletedWorkloads, WaitingDeletedWorkloads) {
         let (ready_to_delete_workloads, waiting_to_delete_workloads) =
             split_by_condition(deleted_workloads, |workload| {
-                workload.dependencies.is_empty()
+                workload
+                    .dependencies
+                    .iter()
+                    .all(|(dependency_name, delete_condition)| {
+                        if let Some(wl_state) =
+                            workload_state_db.get_workload_state(dependency_name)
+                        {
+                            delete_condition.fulfilled_by(wl_state)
+                        } else {
+                            false
+                        }
+                    })
             });
 
         (ready_to_delete_workloads, waiting_to_delete_workloads)
@@ -96,22 +108,25 @@ impl DependencyScheduler {
         &mut self,
         workload_state_db: &ParameterStorage,
     ) -> ReadyWorkloads {
-        let mut ready_workloads = Vec::new();
-        for workload_spec in self.start_queue.values() {
-            if workload_spec
-                .dependencies
-                .iter()
-                .all(|(dependency_name, add_condition)| {
-                    if let Some(wl_state) = workload_state_db.get_workload_state(dependency_name) {
-                        add_condition.fulfilled_by(wl_state)
-                    } else {
-                        false
-                    }
-                })
-            {
-                ready_workloads.push(workload_spec.clone());
-            }
-        }
+        let ready_workloads: ReadyWorkloads = self
+            .start_queue
+            .values()
+            .filter_map(|workload_spec| {
+                workload_spec
+                    .dependencies
+                    .iter()
+                    .all(|(dependency_name, add_condition)| {
+                        if let Some(wl_state) =
+                            workload_state_db.get_workload_state(dependency_name)
+                        {
+                            add_condition.fulfilled_by(wl_state)
+                        } else {
+                            false
+                        }
+                    })
+                    .then_some(workload_spec.clone())
+            })
+            .collect();
 
         for workload in ready_workloads.iter() {
             self.start_queue.remove(&workload.name);
@@ -124,22 +139,25 @@ impl DependencyScheduler {
         &mut self,
         workload_state_db: &ParameterStorage,
     ) -> ReadyDeletedWorkloads {
-        let mut ready_workloads = Vec::new();
-        for deleted_workload in self.delete_queue.values() {
-            if deleted_workload
-                .dependencies
-                .iter()
-                .all(|(dependency_name, delete_condition)| {
-                    if let Some(wl_state) = workload_state_db.get_workload_state(dependency_name) {
-                        delete_condition.fulfilled_by(wl_state)
-                    } else {
-                        false
-                    }
-                })
-            {
-                ready_workloads.push(deleted_workload.clone());
-            }
-        }
+        let ready_workloads: ReadyDeletedWorkloads = self
+            .delete_queue
+            .values()
+            .filter_map(|deleted_workload| {
+                deleted_workload
+                    .dependencies
+                    .iter()
+                    .all(|(dependency_name, delete_condition)| {
+                        if let Some(wl_state) =
+                            workload_state_db.get_workload_state(dependency_name)
+                        {
+                            delete_condition.fulfilled_by(wl_state)
+                        } else {
+                            false
+                        }
+                    })
+                    .then_some(deleted_workload.clone())
+            })
+            .collect();
 
         for workload in ready_workloads.iter() {
             self.delete_queue.remove(&workload.name);
