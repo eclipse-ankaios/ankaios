@@ -15,7 +15,7 @@ workloads:
         value: Ankaios team
     runtimeConfig: |
       image: docker.io/nginx:latest
-      commandOptions: ["-p", "8082:80"]
+      commandOptions: ["-p", "8081:80"]
   backend:
     runtime: podman
     agent: agent_A
@@ -24,12 +24,9 @@ workloads:
     accessRights:
       allow: []
       deny: []
-    dependencies:
-      storage_provider:
-        ADD_COND_RUNNING
     tags:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
       image: docker.io/nginx:latest
-      commandOptions: ["-p", "8081:80"]
+      commandOptions: ["-p", "8082:80"]

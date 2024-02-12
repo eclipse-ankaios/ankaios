@@ -34,7 +34,7 @@ workloads:
     runtimeConfig: |
       image: alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sh" ]
-      commandArgs: [ "-c", "sleep 10; exit 1" ]
+      commandArgs: [ "-c", "sleep 2; exit 1" ]
   filesystem_init:
     runtime: podman
     agent: agent_B

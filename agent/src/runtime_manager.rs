@@ -6,11 +6,12 @@ use std::{
 use common::{
     commands::Response,
     objects::{
-        AgentName, DeletedWorkload, WorkloadExecutionInstanceName, WorkloadInstanceName,
-        WorkloadSpec, WorkloadState,
+        AgentName, DeletedWorkload, ExecutionState, WorkloadExecutionInstanceName,
+        WorkloadInstanceName, WorkloadSpec, WorkloadState,
     },
     request_id_prepending::detach_prefix_from_request_id,
-    to_server_interface::ToServerSender,
+    std_extensions::IllegalStateResult,
+    to_server_interface::{ToServerInterface, ToServerSender},
 };
 
 #[cfg_attr(test, mockall_double::double)]
@@ -87,6 +88,37 @@ impl RuntimeManager {
         }
     }
 
+    async fn report_pending_state_for_waiting_workloads(&self, waiting_workloads: &[WorkloadSpec]) {
+        for workload in waiting_workloads.iter() {
+            self.update_state_tx
+                .update_workload_state(vec![WorkloadState {
+                    instance_name: workload.instance_name(),
+                    execution_state: ExecutionState::waiting_to_start(),
+                    ..Default::default()
+                }])
+                .await
+                .unwrap_or_illegal_state();
+        }
+    }
+
+    async fn report_pending_delete_state_for_waiting_workloads(
+        &self,
+        waiting_workloads: &[DeletedWorkload],
+    ) {
+        for workload in waiting_workloads.iter() {
+            if let Some(wl) = self.workloads.get(&workload.name) {
+                self.update_state_tx
+                    .update_workload_state(vec![WorkloadState {
+                        instance_name: wl.instance_name(),
+                        execution_state: ExecutionState::waiting_to_stop(),
+                        ..Default::default()
+                    }])
+                    .await
+                    .unwrap_or_illegal_state();
+            }
+        }
+    }
+
     pub async fn handle_update_workload(
         &mut self,
         added_workloads: Vec<WorkloadSpec>,
@@ -113,6 +145,9 @@ impl RuntimeManager {
             let (ready_workloads, waiting_workloads) =
                 DependencyScheduler::split_workloads_to_ready_and_waiting(added_workloads);
 
+            self.report_pending_state_for_waiting_workloads(&waiting_workloads)
+                .await;
+
             self.dependency_scheduler
                 .put_on_waiting_queue(waiting_workloads);
 
@@ -122,8 +157,12 @@ impl RuntimeManager {
                     &self.parameter_storage,
                 );
 
+            self.report_pending_delete_state_for_waiting_workloads(&waiting_deleted_workloads)
+                .await;
+
             self.dependency_scheduler
                 .put_on_delete_waiting_queue(waiting_deleted_workloads);
+
             self.handle_subsequent_update_workload(ready_workloads, ready_deleted_workloads)
                 .await;
         }
@@ -280,6 +319,9 @@ impl RuntimeManager {
             DependencyScheduler::split_workloads_to_ready_and_waiting(flatten(
                 added_workloads_per_runtime,
             ));
+
+        self.report_pending_state_for_waiting_workloads(&waiting_workloads)
+            .await;
 
         self.dependency_scheduler
             .put_on_waiting_queue(waiting_workloads);

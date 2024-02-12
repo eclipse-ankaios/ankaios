@@ -307,6 +307,20 @@ impl ExecutionState {
             ..Default::default()
         }
     }
+
+    pub fn waiting_to_start() -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Pending(PendingSubstate::WaitingToStart),
+            additional_info: "waiting for workload dependencies.".to_string(),
+        }
+    }
+
+    pub fn waiting_to_stop() -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Running(RunningSubstate::WaitingToStop),
+            additional_info: "waiting for workload dependencies.".to_string(),
+        }
+    }
 }
 
 impl From<ExecutionState> for proto::ExecutionState {

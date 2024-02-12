@@ -79,6 +79,12 @@ impl DependencyScheduler {
         workload_state_db: &ParameterStorage,
     ) -> bool {
         if let Some(wl_state) = workload_state_db.get_workload_state(dependency_name) {
+            // log::debug!(
+            //     "delete condition is '{:?} and workload state is '{}' for dependency '{}'",
+            //     delete_condition,
+            //     wl_state,
+            //     dependency_name
+            // );
             delete_condition.fulfilled_by(wl_state)
         } else {
             false
@@ -185,6 +191,10 @@ impl DependencyScheduler {
                     .dependencies
                     .iter()
                     .all(|(dependency_name, delete_condition)| {
+                        // log::debug!(
+                        //     "checking delete condition for workload '{}'",
+                        //     deleted_workload.name
+                        // );
                         Self::delete_condition_fulfilled(
                             dependency_name,
                             delete_condition,
