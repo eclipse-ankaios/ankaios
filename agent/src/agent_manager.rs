@@ -78,7 +78,10 @@ impl AgentManager {
                     method_obj.deleted_workloads);
 
                 self.runtime_manager
-                    .schedule_workloads(method_obj.added_workloads, method_obj.deleted_workloads)
+                    .handle_update_workload(
+                        method_obj.added_workloads,
+                        method_obj.deleted_workloads,
+                    )
                     .await;
                 Some(())
             }

@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::{DeletedWorkload, FulfilledBy, WorkloadSpec};
+use common::objects::{AddCondition, DeleteCondition, DeletedWorkload, FulfilledBy, WorkloadSpec};
 
 use std::collections::HashMap;
 
@@ -73,6 +73,18 @@ impl DependencyScheduler {
         );
     }
 
+    fn delete_condition_fulfilled(
+        dependency_name: &String,
+        delete_condition: &DeleteCondition,
+        workload_state_db: &ParameterStorage,
+    ) -> bool {
+        if let Some(wl_state) = workload_state_db.get_workload_state(dependency_name) {
+            delete_condition.fulfilled_by(wl_state)
+        } else {
+            false
+        }
+    }
+
     pub fn split_deleted_workloads_to_ready_and_waiting(
         deleted_workloads: Vec<DeletedWorkload>,
         workload_state_db: &ParameterStorage,
@@ -83,13 +95,11 @@ impl DependencyScheduler {
                     .dependencies
                     .iter()
                     .all(|(dependency_name, delete_condition)| {
-                        if let Some(wl_state) =
-                            workload_state_db.get_workload_state(dependency_name)
-                        {
-                            delete_condition.fulfilled_by(wl_state)
-                        } else {
-                            false
-                        }
+                        Self::delete_condition_fulfilled(
+                            dependency_name,
+                            delete_condition,
+                            workload_state_db,
+                        )
                     })
             });
 
@@ -104,35 +114,63 @@ impl DependencyScheduler {
         );
     }
 
-    pub fn next_workloads_to_start(
-        &mut self,
+    fn start_condition_fulfilled(
+        dependency_name: &String,
+        add_condition: &AddCondition,
+        workload_state_db: &ParameterStorage,
+    ) -> bool {
+        if let Some(wl_state) = workload_state_db.get_workload_state(dependency_name) {
+            add_condition.fulfilled_by(wl_state)
+        } else {
+            false
+        }
+    }
+
+    pub fn dependency_states_for_start_fulfilled(
+        workload_spec: &WorkloadSpec,
+        workload_state_db: &ParameterStorage,
+    ) -> bool {
+        workload_spec
+            .dependencies
+            .iter()
+            .all(|(dependency_name, add_condition)| {
+                Self::start_condition_fulfilled(dependency_name, add_condition, workload_state_db)
+            })
+    }
+
+    fn next_workloads(
+        queue: &mut StartWorkloadQueue,
         workload_state_db: &ParameterStorage,
     ) -> ReadyWorkloads {
-        let ready_workloads: ReadyWorkloads = self
-            .start_queue
+        let ready_workloads: ReadyWorkloads = queue
             .values()
             .filter_map(|workload_spec| {
                 workload_spec
                     .dependencies
                     .iter()
                     .all(|(dependency_name, add_condition)| {
-                        if let Some(wl_state) =
-                            workload_state_db.get_workload_state(dependency_name)
-                        {
-                            add_condition.fulfilled_by(wl_state)
-                        } else {
-                            false
-                        }
+                        Self::start_condition_fulfilled(
+                            dependency_name,
+                            add_condition,
+                            workload_state_db,
+                        )
                     })
                     .then_some(workload_spec.clone())
             })
             .collect();
 
         for workload in ready_workloads.iter() {
-            self.start_queue.remove(&workload.name);
+            queue.remove(&workload.name);
         }
 
         ready_workloads
+    }
+
+    pub fn next_workloads_to_start(
+        &mut self,
+        workload_state_db: &ParameterStorage,
+    ) -> ReadyWorkloads {
+        Self::next_workloads(&mut self.start_queue, workload_state_db)
     }
 
     pub fn next_workloads_to_delete(
@@ -147,13 +185,11 @@ impl DependencyScheduler {
                     .dependencies
                     .iter()
                     .all(|(dependency_name, delete_condition)| {
-                        if let Some(wl_state) =
-                            workload_state_db.get_workload_state(dependency_name)
-                        {
-                            delete_condition.fulfilled_by(wl_state)
-                        } else {
-                            false
-                        }
+                        Self::delete_condition_fulfilled(
+                            dependency_name,
+                            delete_condition,
+                            workload_state_db,
+                        )
                     })
                     .then_some(deleted_workload.clone())
             })

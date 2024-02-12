@@ -82,36 +82,12 @@ impl RuntimeManager {
             .next_workloads_to_delete(&self.parameter_storage);
 
         if !added_workloads.is_empty() || !deleted_workloads.is_empty() {
-            self.handle_update_workload(added_workloads, deleted_workloads)
+            self.handle_subsequent_update_workload(added_workloads, deleted_workloads)
                 .await;
         }
     }
 
-    pub async fn schedule_workloads(
-        &mut self,
-        added_workloads: Vec<WorkloadSpec>,
-        deleted_workloads: Vec<DeletedWorkload>,
-    ) {
-        let (ready_workloads, waiting_workloads) =
-            DependencyScheduler::split_workloads_to_ready_and_waiting(added_workloads);
-
-        self.dependency_scheduler
-            .put_on_waiting_queue(waiting_workloads);
-
-        let (ready_deleted_workloads, waiting_deleted_workloads) =
-            DependencyScheduler::split_deleted_workloads_to_ready_and_waiting(
-                deleted_workloads,
-                &self.parameter_storage,
-            );
-
-        self.dependency_scheduler
-            .put_on_delete_waiting_queue(waiting_deleted_workloads);
-
-        self.handle_update_workload(ready_workloads, ready_deleted_workloads)
-            .await;
-    }
-
-    async fn handle_update_workload(
+    pub async fn handle_update_workload(
         &mut self,
         added_workloads: Vec<WorkloadSpec>,
         deleted_workloads: Vec<DeletedWorkload>,
@@ -134,7 +110,21 @@ impl RuntimeManager {
             // [impl->swdd~agent-initial-list-existing-workloads~1]
             self.handle_initial_update_workload(added_workloads).await;
         } else {
-            self.handle_subsequent_update_workload(added_workloads, deleted_workloads)
+            let (ready_workloads, waiting_workloads) =
+                DependencyScheduler::split_workloads_to_ready_and_waiting(added_workloads);
+
+            self.dependency_scheduler
+                .put_on_waiting_queue(waiting_workloads);
+
+            let (ready_deleted_workloads, waiting_deleted_workloads) =
+                DependencyScheduler::split_deleted_workloads_to_ready_and_waiting(
+                    deleted_workloads,
+                    &self.parameter_storage,
+                );
+
+            self.dependency_scheduler
+                .put_on_delete_waiting_queue(waiting_deleted_workloads);
+            self.handle_subsequent_update_workload(ready_workloads, ready_deleted_workloads)
                 .await;
         }
     }
@@ -203,33 +193,78 @@ impl RuntimeManager {
                         {
                             let new_instance_name: WorkloadExecutionInstanceName =
                                 new_workload_spec.instance_name();
-                            // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-                            let control_interface = Self::create_control_interface(
-                                &self.run_folder,
-                                self.control_interface_tx.clone(),
-                                &new_workload_spec,
-                            );
+
                             // We have a running workload that matches a new added workload; check if the config is updated
                             // [impl->swdd~agent-stores-running-workload~1]
-                            self.workloads.insert(
-                                new_workload_spec.name.to_string(),
-                                if new_instance_name == instance_name {
-                                    // [impl->swdd~agent-existing-workloads-resume-existing~1]
+                            if new_instance_name == instance_name {
+                                // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
+                                let control_interface = Self::create_control_interface(
+                                    &self.run_folder,
+                                    self.control_interface_tx.clone(),
+                                    &new_workload_spec,
+                                );
+
+                                log::info!(
+                                    "Resuming workload '{}'",
+                                    new_instance_name.workload_name()
+                                );
+                                // [impl->swdd~agent-existing-workloads-resume-existing~1]
+                                self.workloads.insert(
+                                    new_workload_spec.name.to_string(),
                                     runtime.resume_workload(
                                         new_workload_spec,
                                         control_interface,
                                         &self.update_state_tx,
-                                    )
+                                    ),
+                                );
+                            } else {
+                                // [impl->swdd~agent-existing-workloads-replace-updated~1]
+
+                                /* If all the dependencies for this workload are on another agent and fulfilled,
+                                 the workload could be replaced immediately.
+                                If the workload has dependencies on this agent,
+                                the workload is put on the waiting queue and started
+                                when the execution states of this agent are received and all dependencies are fulfilled.
+                                Reason: get_reusable_running_workloads(..) does not return the execution states for existing workloads */
+                                if DependencyScheduler::dependency_states_for_start_fulfilled(
+                                    &new_workload_spec,
+                                    &self.parameter_storage,
+                                ) {
+                                    // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
+                                    let control_interface = Self::create_control_interface(
+                                        &self.run_folder,
+                                        self.control_interface_tx.clone(),
+                                        &new_workload_spec,
+                                    );
+
+                                    log::info!(
+                                        "Replacing workload '{}'",
+                                        new_instance_name.workload_name()
+                                    );
+
+                                    self.workloads.insert(
+                                        new_workload_spec.name.to_string(),
+                                        runtime.replace_workload(
+                                            new_instance_name,
+                                            new_workload_spec,
+                                            control_interface,
+                                            &self.update_state_tx,
+                                        ),
+                                    );
                                 } else {
-                                    // [impl->swdd~agent-existing-workloads-replace-updated~1]
-                                    runtime.replace_workload(
-                                        instance_name,
-                                        new_workload_spec,
-                                        control_interface,
-                                        &self.update_state_tx,
-                                    )
-                                },
-                            );
+                                    /* prevent that the workload that shall be replaced
+                                    exists with the old state on the runtime until it is replaced. */
+
+                                    log::info!("Deleting existing workload '{}'. It is created when its dependencies are fulfilled."
+                                        , instance_name.workload_name()
+                                    );
+
+                                    runtime.delete_workload(instance_name);
+
+                                    self.dependency_scheduler
+                                        .put_on_waiting_queue(vec![new_workload_spec]);
+                                }
+                            }
                         } else {
                             // No added workload matches the found running one => delete it
                             // [impl->swdd~agent-existing-workloads-delete-unneeded~1]
@@ -241,8 +276,16 @@ impl RuntimeManager {
             }
         }
 
-        // now start all workloads that did not exist
-        for workload_spec in flatten(added_workloads_per_runtime) {
+        let (ready_workloads, waiting_workloads) =
+            DependencyScheduler::split_workloads_to_ready_and_waiting(flatten(
+                added_workloads_per_runtime,
+            ));
+
+        self.dependency_scheduler
+            .put_on_waiting_queue(waiting_workloads);
+
+        // now start all workloads that did not exist and do not have to wait for dependencies
+        for workload_spec in ready_workloads {
             // [impl->swdd~agent-existing-workloads-starts-new-if-not-found~1]
             self.add_workload(workload_spec).await;
         }
