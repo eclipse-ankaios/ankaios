@@ -120,11 +120,6 @@ impl DependencyScheduler {
         workload_state_db: &ParameterStorage,
     ) -> bool {
         if let Some(wl_state) = workload_state_db.get_workload_state(dependency_name) {
-            log::info!(
-                "############### dependency '{}' has state: '{}'",
-                dependency_name,
-                wl_state
-            );
             add_condition.fulfilled_by(wl_state)
         } else {
             false

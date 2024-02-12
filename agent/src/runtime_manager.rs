@@ -81,8 +81,6 @@ impl RuntimeManager {
             .dependency_scheduler
             .next_workloads_to_delete(&self.parameter_storage);
 
-        log::info!("triggering dependencies = {:?}", added_workloads);
-
         if !added_workloads.is_empty() || !deleted_workloads.is_empty() {
             self.handle_subsequent_update_workload(added_workloads, deleted_workloads)
                 .await;
