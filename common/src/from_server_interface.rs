@@ -195,7 +195,7 @@ mod tests {
     use crate::{
         commands,
         from_server_interface::FromServer,
-        objects::{ExecutionState, WorkloadSpec, WorkloadState},
+        objects::WorkloadSpec,
         test_utils::{generate_test_deleted_workload, generate_test_proto_deleted_workload},
     };
 
@@ -230,21 +230,19 @@ mod tests {
 
     #[test]
     fn utest_convert_from_server_to_proto_update_workload_state() {
+        let workload_state = crate::objects::generate_test_workload_state_with_agent(
+            "test_workload",
+            "test_agent",
+            crate::objects::ExecutionState::running(),
+        );
+
         let test_ex_com = FromServer::UpdateWorkloadState(commands::UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                agent_name: "test_agent".to_owned(),
-                workload_name: "test_workload".to_owned(),
-                execution_state: ExecutionState::ExecRunning,
-            }],
+            workload_states: vec![workload_state.clone()],
         });
         let expected_ex_com = Ok(proto::FromServer {
             from_server_enum: Some(FromServerEnum::UpdateWorkloadState(
                 proto::UpdateWorkloadState {
-                    workload_states: vec![api::proto::WorkloadState {
-                        agent_name: "test_agent".to_owned(),
-                        workload_name: "test_workload".to_owned(),
-                        execution_state: ExecutionState::ExecRunning as i32,
-                    }],
+                    workload_states: vec![workload_state.into()],
                 },
             )),
         });

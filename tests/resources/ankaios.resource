@@ -173,6 +173,20 @@ the workload "${workload_name}" shall not exist
     &{workload_table}=    table to dict    ${list_result}    WORKLOAD NAME
     Dictionary Should Not Contain Key    ${workload_table}    ${workload_name}
 
+the workload "${workload_name}" shall not exist on agent "${expected_agent_name}" within "${timeout}" seconds
+    Should Be True    ${timeout} >= 0    msg='timeout' must be greater than or equal to 0!
+    @{list_result}=    Create List
+    IF    ${timeout} >= 0
+        @{list_result}=    Wait For Workload Removal
+        ...    %{ANK_BIN_DIR}${/}ank get workloads
+        ...    ${workload_name}
+        ...    ${expected_agent_name}
+        ...    ${timeout}
+    END
+    Should Be Empty
+    ...    ${list_result}
+    ...    msg=Timeout: Workload '${workload_name}' found on agent '${expected_agent_name}'!
+
 user executes system app "${cli_command}"
     ${cmd}=    Split Command Line    ${cli_command}    escaping=True
     ${CURRENT_RESULT}=    Run Process    @{cmd}    timeout=20    shell=True
@@ -204,7 +218,7 @@ volumes for "${workload_name}" shall exist on "${agent_name}" within "${timeout}
     ...    1
     ...    msg=Volume '${workload_name}.{hash}.${agent_name}.pods' not found in podman!
 
-volumes for "${workload_name}" shall not exists on "${agent_name}" within "${timeout}" seconds
+volumes for "${workload_name}" shall not exist on "${agent_name}" within "${timeout}" seconds
     ${start_time}=    Get Time Secs
     ${volume_names}=    Create List
     ${workload_dot_agent}=    To X Dot Y Format    ${workload_name}    ${agent_name}

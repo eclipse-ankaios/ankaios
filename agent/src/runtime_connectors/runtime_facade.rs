@@ -51,7 +51,7 @@ pub trait RuntimeFacade: Send + Sync + 'static {
 }
 
 pub struct GenericRuntimeFacade<
-    WorkloadId: Send + Sync + 'static,
+    WorkloadId: ToString + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync,
 > {
     runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>,
@@ -59,7 +59,7 @@ pub struct GenericRuntimeFacade<
 
 impl<WorkloadId, StChecker> GenericRuntimeFacade<WorkloadId, StChecker>
 where
-    WorkloadId: Send + Sync + 'static,
+    WorkloadId: ToString + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
     pub fn new(runtime: Box<dyn OwnableRuntime<WorkloadId, StChecker>>) -> Self {
@@ -69,7 +69,7 @@ where
 
 #[async_trait]
 impl<
-        WorkloadId: Send + Sync + 'static,
+        WorkloadId: ToString + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     > RuntimeFacade for GenericRuntimeFacade<WorkloadId, StChecker>
 {

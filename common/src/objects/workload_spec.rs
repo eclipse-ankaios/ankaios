@@ -218,9 +218,9 @@ pub enum AddCondition {
 impl FulfilledBy<ExecutionState> for AddCondition {
     fn fulfilled_by(&self, other: &ExecutionState) -> bool {
         match self {
-            AddCondition::AddCondRunning => *other == ExecutionState::ExecRunning,
-            AddCondition::AddCondSucceeded => *other == ExecutionState::ExecSucceeded,
-            AddCondition::AddCondFailed => *other == ExecutionState::ExecFailed,
+            AddCondition::AddCondRunning => (*other).is_running(),
+            AddCondition::AddCondSucceeded => (*other).is_succeeded(),
+            AddCondition::AddCondFailed => (*other).is_failed(),
         }
     }
 }
@@ -252,9 +252,9 @@ impl FulfilledBy<ExecutionState> for DeleteCondition {
     fn fulfilled_by(&self, other: &ExecutionState) -> bool {
         match self {
             DeleteCondition::DelCondNotPendingNorRunning => {
-                *other != ExecutionState::ExecPending && *other != ExecutionState::ExecRunning
+                !(*other).is_pending() && !(*other).is_running()
             }
-            DeleteCondition::DelCondRunning => *other == ExecutionState::ExecRunning,
+            DeleteCondition::DelCondRunning => (*other).is_running(),
         }
     }
 }

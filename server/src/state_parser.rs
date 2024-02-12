@@ -71,7 +71,6 @@ fn from_stored_workloads(
             restart: stored_workload.restart,
             access_rights: stored_workload.access_rights,
         };
-        // TODO: What happens when there are two agents with the same name?
         workload_specs.insert(name, workload);
     }
     workload_specs

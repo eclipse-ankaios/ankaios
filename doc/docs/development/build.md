@@ -6,7 +6,10 @@ The repo provides a Visual Studio Code [dev container](https://code.visualstudio
 
 ### Prerequisites
 
+As prerequisites, you need to have the following tools set up:
+
 - Docker ([Installation instructions](https://docs.docker.com/engine/install))
+- Visual Studio Code ([Installation instructions](https://code.visualstudio.com/download))
 - Microsoft's Visual Studio Code Extension [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
 
 ## Build Ankaios

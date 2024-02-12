@@ -42,6 +42,16 @@ pub struct PodmanKubeWorkloadId {
     pub down_options: Vec<String>,
 }
 
+impl ToString for PodmanKubeWorkloadId {
+    fn to_string(&self) -> String {
+        if let Some(pods) = &self.pods {
+            sha256::digest(pods.join(""))
+        } else {
+            String::new()
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct PlayKubeOutput {}
 
@@ -278,18 +288,18 @@ impl RuntimeStateGetter<PodmanKubeWorkloadId> for PodmanKubeRuntime {
                     container_states
                         .into_iter()
                         .map(OrderedExecutionState::from)
-                        .fold(OrderedExecutionState::Removed, min)
+                        .fold(OrderedExecutionState::Lost, min)
                         .into()
                 }
 
                 Err(err) => {
                     log::warn!("Could not get state of workload '{}': {}", id.name, err);
-                    ExecutionState::ExecUnknown
+                    ExecutionState::unknown("Error getting state from pods.")
                 }
             }
         } else {
             log::warn!("No pods in the workload '{}'", id.name.workload_name());
-            ExecutionState::ExecUnknown
+            ExecutionState::succeeded()
         }
     }
 }
@@ -298,13 +308,13 @@ impl RuntimeStateGetter<PodmanKubeWorkloadId> for PodmanKubeRuntime {
 
 // [impl->swdd~podman-kube-state-getter-removed-if-no-container~1]
 enum OrderedExecutionState {
-    Failed,
+    Failed(String),
     Starting,
     Unknown,
     Running,
     Stopping,
     Succeeded,
-    Removed,
+    Lost,
 }
 
 // [impl->swdd~podman-kube-state-getter-maps-state~2]
@@ -313,7 +323,9 @@ impl From<podman_cli::ContainerState> for OrderedExecutionState {
         match value {
             podman_cli::ContainerState::Starting => OrderedExecutionState::Starting,
             podman_cli::ContainerState::Exited(0) => OrderedExecutionState::Succeeded,
-            podman_cli::ContainerState::Exited(_) => OrderedExecutionState::Failed,
+            podman_cli::ContainerState::Exited(value) => {
+                OrderedExecutionState::Failed(format!("Exit code: '{value}'"))
+            }
             podman_cli::ContainerState::Paused => OrderedExecutionState::Unknown,
             podman_cli::ContainerState::Running => OrderedExecutionState::Running,
             podman_cli::ContainerState::Stopping => OrderedExecutionState::Stopping,
@@ -326,13 +338,13 @@ impl From<podman_cli::ContainerState> for OrderedExecutionState {
 impl From<OrderedExecutionState> for ExecutionState {
     fn from(value: OrderedExecutionState) -> Self {
         match value {
-            OrderedExecutionState::Failed => ExecutionState::ExecFailed,
-            OrderedExecutionState::Starting => ExecutionState::ExecStarting,
-            OrderedExecutionState::Unknown => ExecutionState::ExecUnknown,
-            OrderedExecutionState::Running => ExecutionState::ExecRunning,
-            OrderedExecutionState::Stopping => ExecutionState::ExecStopping,
-            OrderedExecutionState::Succeeded => ExecutionState::ExecSucceeded,
-            OrderedExecutionState::Removed => ExecutionState::ExecRemoved,
+            OrderedExecutionState::Failed(value) => ExecutionState::failed(value),
+            OrderedExecutionState::Starting => ExecutionState::starting("starting container"),
+            OrderedExecutionState::Unknown => ExecutionState::unknown("unknown container state"),
+            OrderedExecutionState::Running => ExecutionState::running(),
+            OrderedExecutionState::Stopping => ExecutionState::stopping("stopping container"),
+            OrderedExecutionState::Succeeded => ExecutionState::succeeded(),
+            OrderedExecutionState::Lost => ExecutionState::lost(),
         }
     }
 }
@@ -884,7 +896,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::ExecFailed);
+        assert_eq!(execution_state, ExecutionState::failed("Exit code: '1'"));
     }
 
     // [utest->swdd~podman-kube-state-getter-maps-state~2]
@@ -908,7 +920,10 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::ExecStarting);
+        assert_eq!(
+            execution_state,
+            ExecutionState::starting("starting container")
+        );
     }
 
     // [utest->swdd~podman-kube-state-getter-maps-state~2]
@@ -930,7 +945,10 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::ExecUnknown);
+        assert_eq!(
+            execution_state,
+            ExecutionState::unknown("unknown container state")
+        );
     }
 
     // [utest->swdd~podman-kube-state-getter-maps-state~2]
@@ -951,7 +969,10 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::ExecUnknown);
+        assert_eq!(
+            execution_state,
+            ExecutionState::unknown("unknown container state")
+        );
     }
 
     // [utest->swdd~podman-kube-state-getter-maps-state~2]
@@ -968,7 +989,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::ExecRunning);
+        assert_eq!(execution_state, ExecutionState::running());
     }
 
     // [utest->swdd~podman-kube-state-getter-maps-state~2]
@@ -985,7 +1006,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::ExecSucceeded);
+        assert_eq!(execution_state, ExecutionState::succeeded());
     }
 
     // [utest->swdd~podman-kube-state-getter-removed-if-no-container~1]
@@ -1002,7 +1023,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::ExecRemoved);
+        assert_eq!(execution_state, ExecutionState::lost())
     }
 
     #[tokio::test]
@@ -1016,7 +1037,10 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&WORKLOAD_ID).await;
 
-        assert_eq!(execution_state, ExecutionState::ExecUnknown);
+        assert_eq!(
+            execution_state,
+            ExecutionState::unknown("Error getting state from pods.")
+        );
     }
 
     #[tokio::test]
@@ -1029,7 +1053,7 @@ mod tests {
         let runtime = PodmanKubeRuntime {};
         let execution_state = runtime.get_state(&workload_id).await;
 
-        assert_eq!(execution_state, ExecutionState::ExecUnknown);
+        assert_eq!(execution_state, ExecutionState::succeeded());
     }
 
     struct MockContext<'a> {
@@ -1067,11 +1091,11 @@ mod tests {
                 .return_const(volumes);
         }
 
-        fn store_data<'b>(
-            &'b self,
+        fn store_data(
+            &self,
             volume_name: String,
             data: impl Into<String>,
-        ) -> ReturnsStruct<impl FnOnce(Result<(), String>) + 'b> {
+        ) -> ReturnsStruct<impl FnOnce(Result<(), String>) + '_> {
             let store_data = &self.store_data;
             let data = data.into();
             ReturnsStruct {
@@ -1085,12 +1109,12 @@ mod tests {
             }
         }
 
-        fn play_kube<'b>(
-            &'b self,
+        fn play_kube(
+            &self,
             general_options: impl std::iter::IntoIterator<Item = impl ToString>,
             additional_options: impl std::iter::IntoIterator<Item = impl ToString>,
             kube_yml: impl ToString,
-        ) -> ReturnsStruct<impl FnOnce(Result<Vec<String>, String>) + 'b> {
+        ) -> ReturnsStruct<impl FnOnce(Result<Vec<String>, String>) + '_> {
             let general_options: Vec<String> =
                 general_options.into_iter().map(|x| x.to_string()).collect();
             let additional_options: Vec<String> = additional_options
@@ -1110,10 +1134,10 @@ mod tests {
             }
         }
 
-        fn read_data<'b>(
-            &'b self,
+        fn read_data(
+            &self,
             volume_name: impl ToString,
-        ) -> ReturnsStruct<impl FnOnce(Result<String, String>) + 'b> {
+        ) -> ReturnsStruct<impl FnOnce(Result<String, String>) + '_> {
             let read_data = &self.read_data;
             let volume_name = volume_name.to_string();
             ReturnsStruct {
@@ -1127,11 +1151,11 @@ mod tests {
             }
         }
 
-        fn down_kube<'b>(
-            &'b self,
+        fn down_kube(
+            &self,
             additional_options: impl std::iter::IntoIterator<Item = impl ToString>,
             kube_yml: impl ToString,
-        ) -> ReturnsStruct<impl FnOnce(Result<(), String>) + 'b> {
+        ) -> ReturnsStruct<impl FnOnce(Result<(), String>) + '_> {
             let down_kube = &self.down_kube;
             let additional_options: Vec<String> = additional_options
                 .into_iter()
@@ -1149,10 +1173,10 @@ mod tests {
             }
         }
 
-        fn remove_volume<'b>(
-            &'b self,
+        fn remove_volume(
+            &self,
             volume_name: String,
-        ) -> ReturnsStruct<impl FnOnce(Result<(), String>) + 'b> {
+        ) -> ReturnsStruct<impl FnOnce(Result<(), String>) + '_> {
             let remove_volume = &self.remove_volume;
             ReturnsStruct {
                 function: |result| {
@@ -1165,10 +1189,10 @@ mod tests {
             }
         }
 
-        fn list_states_from_pods<'b>(
-            &'b self,
+        fn list_states_from_pods(
+            &self,
             pods: impl IntoIterator<Item = impl ToString>,
-        ) -> ReturnsStruct<impl FnOnce(Result<Vec<ContainerState>, String>) + 'b> {
+        ) -> ReturnsStruct<impl FnOnce(Result<Vec<ContainerState>, String>) + '_> {
             let list_states_from_pods = &self.list_states_from_pods;
             let pods: Vec<String> = pods.into_iter().map(|x| x.to_string()).collect();
             ReturnsStruct {
