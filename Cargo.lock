@@ -69,6 +69,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "sha256",
  "tempfile",
  "tokio",
  "tokio-stream",
@@ -595,9 +596,9 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.3.22"
+version = "0.3.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d6250322ef6e60f93f9a2162799302cd6f68f79f6e5d85c8c16f14d1d958178"
+checksum = "bb2c4422095b67ee78da96fbb51a4cc413b3b25883c7717ff7ca1ab31022c9c9"
 dependencies = [
  "bytes",
  "fnv",
@@ -1322,9 +1323,9 @@ dependencies = [
 
 [[package]]
 name = "sha256"
-version = "1.4.0"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7895c8ae88588ccead14ff438b939b0c569cd619116f14b4d13fdff7b8333386"
+checksum = "18278f6a914fa3070aa316493f7d2ddfb9ac86ebc06fa3b83bffda487e9065b0"
 dependencies = [
  "async-trait",
  "bytes",
