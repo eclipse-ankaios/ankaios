@@ -151,7 +151,7 @@ pub type AddedDeletedWorkloads = Option<(Vec<WorkloadSpec>, Vec<DeletedWorkload>
 #[cfg_attr(test, automock)]
 impl ServerState {
     // [impl->swdd~server-provides-interface-get-complete-state~1]
-    // [impl->swdd~server-filters-get-complete-state-result~1]
+    // [impl->swdd~server-filters-get-complete-state-result~2]
     pub fn get_complete_state_by_field_mask(
         &self,
         request_complete_state: &CompleteStateRequest,
@@ -164,7 +164,6 @@ impl ServerState {
             workload_states: workload_state_db.get_all_workload_states(),
         };
 
-        // [impl->swdd~server-filters-get-complete-state-result~2]
         if !request_complete_state.field_mask.is_empty() {
             let current_complete_state: Object =
                 current_complete_state.try_into().unwrap_or_illegal_state();
