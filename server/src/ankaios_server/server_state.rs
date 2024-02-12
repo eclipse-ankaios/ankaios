@@ -150,6 +150,8 @@ pub type AddedDeletedWorkloads = Option<(Vec<WorkloadSpec>, Vec<DeletedWorkload>
 
 #[cfg_attr(test, automock)]
 impl ServerState {
+    // [impl->swdd~server-provides-interface-get-complete-state~1]
+    // [impl->swdd~server-filters-get-complete-state-result~1]
     pub fn get_complete_state_by_field_mask(
         &self,
         request_complete_state: &CompleteStateRequest,
@@ -285,6 +287,7 @@ mod tests {
     const WORKLOAD_NAME_4: &str = "workload_4";
     const RUNTIME: &str = "runtime";
 
+    // [utest->swdd~server-provides-interface-get-complete-state~1]
     // [utest->swdd~server-filters-get-complete-state-result~1]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask_empty_mask() {
@@ -314,24 +317,31 @@ mod tests {
         let request_complete_state = CompleteStateRequest { field_mask: vec![] };
 
         let mut workload_state_db = WorkloadStateDB::default();
-        workload_state_db.insert(server_state.state.workload_states.clone());
+        workload_state_db.proccess_new_states(server_state.state.workload_states.clone());
 
         let mut complete_state = server_state
             .get_complete_state_by_field_mask(&request_complete_state, &workload_state_db)
             .unwrap();
 
         // result must be sorted because inside WorkloadStateDB the order of workload states is not preserved
-        complete_state
-            .workload_states
-            .sort_by(|left, right| left.workload_name.cmp(&right.workload_name));
+        complete_state.workload_states.sort_by(|left, right| {
+            left.instance_name
+                .workload_name()
+                .cmp(right.instance_name.workload_name())
+        });
 
         let mut expected_complete_state = server_state.state.clone();
         expected_complete_state
             .workload_states
-            .sort_by(|left, right| left.workload_name.cmp(&right.workload_name));
+            .sort_by(|left, right| {
+                left.instance_name
+                    .workload_name()
+                    .cmp(right.instance_name.workload_name())
+            });
         assert_eq!(expected_complete_state, complete_state);
     }
 
+    // [utest->swdd~server-provides-interface-get-complete-state~1]
     // [utest->swdd~server-filters-get-complete-state-result~1]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask() {
@@ -366,16 +376,18 @@ mod tests {
         };
 
         let mut workload_state_db = WorkloadStateDB::default();
-        workload_state_db.insert(server_state.state.workload_states.clone());
+        workload_state_db.proccess_new_states(server_state.state.workload_states.clone());
 
         let mut complete_state = server_state
             .get_complete_state_by_field_mask(&request_complete_state, &workload_state_db)
             .unwrap();
 
         // result must be sorted because inside WorkloadStateDB the order of workload states is not preserved
-        complete_state
-            .workload_states
-            .sort_by(|left, right| left.workload_name.cmp(&right.workload_name));
+        complete_state.workload_states.sort_by(|left, right| {
+            left.instance_name
+                .workload_name()
+                .cmp(right.instance_name.workload_name())
+        });
 
         let mut expected_complete_state = server_state.state.clone();
         expected_complete_state.current_state.workloads = HashMap::from([
@@ -392,6 +404,7 @@ mod tests {
         assert_eq!(expected_complete_state, complete_state);
     }
 
+    // [utest->swdd~server-provides-interface-get-complete-state~1]
     // [utest->swdd~server-filters-get-complete-state-result~1]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask_continue_on_invalid_mask() {
@@ -414,16 +427,18 @@ mod tests {
         };
 
         let mut workload_state_db = WorkloadStateDB::default();
-        workload_state_db.insert(server_state.state.workload_states.clone());
+        workload_state_db.proccess_new_states(server_state.state.workload_states.clone());
 
         let mut complete_state = server_state
             .get_complete_state_by_field_mask(&request_complete_state, &workload_state_db)
             .unwrap();
 
         // result must be sorted because inside WorkloadStateDB the order of workload states is not preserved
-        complete_state
-            .workload_states
-            .sort_by(|left, right| left.workload_name.cmp(&right.workload_name));
+        complete_state.workload_states.sort_by(|left, right| {
+            left.instance_name
+                .workload_name()
+                .cmp(right.instance_name.workload_name())
+        });
 
         let mut expected_complete_state = server_state.state.clone();
         expected_complete_state.current_state.workloads =

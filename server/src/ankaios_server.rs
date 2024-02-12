@@ -119,7 +119,6 @@ impl AnkaiosServer {
                         .unwrap_or_illegal_state();
 
                     // [impl->swdd~server-informs-a-newly-connected-agent-workload-states~1]
-                    // [impl->swdd~server-sends-all-workload-states-on-agent-connect~1]
                     let workload_states = self
                         .workload_state_db
                         .get_workload_state_excluding_agent(&method_obj.agent_name);
@@ -141,12 +140,12 @@ impl AnkaiosServer {
                 }
                 ToServer::AgentGone(method_obj) => {
                     log::debug!("Received AgentGone from '{}'", method_obj.agent_name);
-                    // [impl->swdd~server-set-workload-state-unknown-on-disconnect~1]
+                    // [impl->swdd~server-set-workload-state-on-disconnect~1]
                     self.workload_state_db
-                        .mark_all_workload_state_for_agent_unknown(&method_obj.agent_name);
+                        .agent_disconnected(&method_obj.agent_name);
 
                     // communicate the workload execution states to other agents
-                    // [impl->swdd~server-distribute-workload-state-unknown-on-disconnect~1]
+                    // [impl->swdd~server-distribute-workload-state-on-disconnect~1]
                     self.to_agents
                         .update_workload_state(
                             self.workload_state_db
@@ -242,7 +241,7 @@ impl AnkaiosServer {
 
                     // [impl->swdd~server-stores-workload-state~1]
                     self.workload_state_db
-                        .insert(method_obj.workload_states.clone());
+                        .proccess_new_states(method_obj.workload_states.clone());
 
                     // [impl->swdd~server-forwards-workload-state~1]
                     self.to_agents
@@ -282,7 +281,10 @@ mod tests {
     use crate::ankaios_server::server_state::{MockServerState, UpdateStateError};
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
     use common::commands::{CompleteStateRequest, UpdateWorkload, UpdateWorkloadState};
-    use common::objects::{DeletedWorkload, ExecutionState, State, WorkloadState};
+    use common::objects::{
+        generate_test_workload_state, generate_test_workload_state_with_agent, DeletedWorkload,
+        ExecutionState, State,
+    };
     use common::test_utils::generate_test_workload_spec_with_param;
     use common::to_server_interface::ToServerInterface;
     use common::{commands::CompleteState, from_server_interface::FromServer};
@@ -552,15 +554,12 @@ mod tests {
         );
 
         // [utest->swdd~server-informs-a-newly-connected-agent-workload-states~1]
-        // [utest->swdd~server-sends-all-workload-states-on-agent-connect~1]
         // [utest->swdd~server-starts-without-startup-config~1]
         // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
+        let test_wl_1_state_running =
+            generate_test_workload_state(WORKLOAD_NAME_1, ExecutionState::running());
         let update_workload_state_result = to_server
-            .update_workload_state(vec![WorkloadState {
-                agent_name: AGENT_A.to_string(),
-                workload_name: WORKLOAD_NAME_1.to_string(),
-                execution_state: ExecutionState::ExecRunning,
-            }])
+            .update_workload_state(vec![test_wl_1_state_running.clone()])
             .await;
         assert!(update_workload_state_result.is_ok());
 
@@ -568,11 +567,7 @@ mod tests {
 
         assert_eq!(
             FromServer::UpdateWorkloadState(UpdateWorkloadState {
-                workload_states: vec![WorkloadState {
-                    workload_name: WORKLOAD_NAME_1.to_string(),
-                    agent_name: AGENT_A.to_string(),
-                    execution_state: ExecutionState::ExecRunning
-                },]
+                workload_states: vec![test_wl_1_state_running.clone()]
             }),
             from_server_command
         );
@@ -594,23 +589,17 @@ mod tests {
 
         assert_eq!(
             FromServer::UpdateWorkloadState(UpdateWorkloadState {
-                workload_states: vec![WorkloadState {
-                    workload_name: WORKLOAD_NAME_1.to_string(),
-                    agent_name: AGENT_A.to_string(),
-                    execution_state: ExecutionState::ExecRunning
-                }]
+                workload_states: vec![test_wl_1_state_running]
             }),
             from_server_command
         );
 
         // [utest->swdd~server-forwards-workload-state~1]
         // send update_workload_state for second agent which is then stored in the workload_state_db in ankaios server
+        let test_wl_2_state_succeeded =
+            generate_test_workload_state(WORKLOAD_NAME_2, ExecutionState::succeeded());
         let update_workload_state_result = to_server
-            .update_workload_state(vec![common::objects::WorkloadState {
-                agent_name: AGENT_B.to_string(),
-                workload_name: WORKLOAD_NAME_2.to_string(),
-                execution_state: ExecutionState::ExecSucceeded,
-            }])
+            .update_workload_state(vec![test_wl_2_state_succeeded.clone()])
             .await;
         assert!(update_workload_state_result.is_ok());
 
@@ -618,22 +607,16 @@ mod tests {
 
         assert_eq!(
             FromServer::UpdateWorkloadState(UpdateWorkloadState {
-                workload_states: vec![WorkloadState {
-                    workload_name: WORKLOAD_NAME_2.to_string(),
-                    agent_name: AGENT_B.to_string(),
-                    execution_state: ExecutionState::ExecSucceeded
-                }]
+                workload_states: vec![test_wl_2_state_succeeded.clone()]
             }),
             from_server_command
         );
 
         // send update_workload_state for first agent again which is then updated in the workload_state_db in ankaios server
+        let test_wl_1_state_succeeded =
+            generate_test_workload_state(WORKLOAD_NAME_2, ExecutionState::succeeded());
         let update_workload_state_result = to_server
-            .update_workload_state(vec![WorkloadState {
-                agent_name: AGENT_A.to_string(),
-                workload_name: WORKLOAD_NAME_1.to_string(),
-                execution_state: ExecutionState::ExecSucceeded,
-            }])
+            .update_workload_state(vec![test_wl_1_state_succeeded.clone()])
             .await;
         assert!(update_workload_state_result.is_ok());
 
@@ -641,11 +624,7 @@ mod tests {
 
         assert_eq!(
             FromServer::UpdateWorkloadState(UpdateWorkloadState {
-                workload_states: vec![WorkloadState {
-                    workload_name: WORKLOAD_NAME_1.to_string(),
-                    agent_name: AGENT_A.to_string(),
-                    execution_state: ExecutionState::ExecSucceeded
-                }]
+                workload_states: vec![test_wl_1_state_succeeded.clone()]
             }),
             from_server_command
         );
@@ -726,7 +705,7 @@ mod tests {
     // [utest->swdd~server-provides-update-current-state-interface~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
-    async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_nothing_todo(
+    async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_nothing_to_do(
     ) {
         let _ = env_logger::builder().is_test(true).try_init();
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
@@ -989,11 +968,11 @@ mod tests {
 
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-stores-workload-state~1]
-    // [utest->swdd~server-set-workload-state-unknown-on-disconnect~1]
-    // [utest->swdd~server-distribute-workload-state-unknown-on-disconnect~1]
+    // [utest->swdd~server-set-workload-state-on-disconnect~1]
+    // [utest->swdd~server-distribute-workload-state-on-disconnect~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
-    async fn utest_server_start_distributes_workload_unknown_after_agent_gone() {
+    async fn utest_server_start_distributes_workload_states_after_agent_disconnect() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
@@ -1004,12 +983,13 @@ mod tests {
         server.server_state = mock_server_state;
 
         // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
+        let test_wl_1_state_running = generate_test_workload_state_with_agent(
+            WORKLOAD_NAME_1,
+            AGENT_A,
+            ExecutionState::running(),
+        );
         let update_workload_state_result = to_server
-            .update_workload_state(vec![WorkloadState {
-                agent_name: AGENT_A.to_string(),
-                workload_name: WORKLOAD_NAME_1.to_string(),
-                execution_state: ExecutionState::ExecRunning,
-            }])
+            .update_workload_state(vec![test_wl_1_state_running.clone()])
             .await;
         assert!(update_workload_state_result.is_ok());
 
@@ -1026,11 +1006,7 @@ mod tests {
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::UpdateWorkloadState(UpdateWorkloadState {
-                workload_states: vec![WorkloadState {
-                    workload_name: WORKLOAD_NAME_1.to_string(),
-                    agent_name: AGENT_A.to_string(),
-                    execution_state: ExecutionState::ExecRunning,
-                }]
+                workload_states: vec![test_wl_1_state_running.clone()]
             }),
             from_server_command
         );
@@ -1039,11 +1015,11 @@ mod tests {
             .workload_state_db
             .get_workload_state_for_agent(AGENT_A);
 
-        let expected_workload_state = WorkloadState {
-            workload_name: WORKLOAD_NAME_1.to_string(),
-            agent_name: AGENT_A.to_string(),
-            execution_state: ExecutionState::ExecUnknown,
-        };
+        let expected_workload_state = generate_test_workload_state_with_agent(
+            WORKLOAD_NAME_1,
+            AGENT_A,
+            ExecutionState::agent_disconnected(),
+        );
         assert_eq!(vec![expected_workload_state.clone()], workload_states);
 
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();

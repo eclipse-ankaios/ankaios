@@ -13,7 +13,7 @@ use mockall::automock;
 #[cfg_attr(test, automock)]
 pub trait RuntimeStateGetter<WorkloadId>: Send + Sync + 'static
 where
-    WorkloadId: Send + Sync + 'static,
+    WorkloadId: ToString + Send + Sync + 'static,
 {
     // [impl->swdd~allowed-workload-states~2]
     async fn get_state(&self, workload_id: &WorkloadId) -> ExecutionState;
@@ -23,7 +23,7 @@ where
 #[async_trait]
 pub trait StateChecker<WorkloadId>
 where
-    WorkloadId: Send + Sync + 'static,
+    WorkloadId: ToString + Send + Sync + 'static,
 {
     fn start_checker(
         workload_spec: &WorkloadSpec,

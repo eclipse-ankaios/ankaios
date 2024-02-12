@@ -3,6 +3,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use api::proto;
+use serde::{Deserialize, Serialize};
+
 use super::WorkloadSpec;
 
 pub trait ConfigHash {
@@ -46,11 +49,32 @@ pub enum InstanceNameParts {
 pub const INSTANCE_NAME_PARTS_COUNT: usize = 3;
 pub const INSTANCE_NAME_SEPARATOR: &str = ".";
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(default, rename_all = "camelCase")]
 pub struct WorkloadExecutionInstanceName {
     agent_name: String,
     workload_name: String,
     hash: String,
+}
+
+impl From<proto::WorkloadInstanceName> for WorkloadExecutionInstanceName {
+    fn from(item: proto::WorkloadInstanceName) -> Self {
+        WorkloadExecutionInstanceName {
+            workload_name: item.workload_name,
+            agent_name: item.agent_name,
+            hash: item.config_id,
+        }
+    }
+}
+
+impl From<WorkloadExecutionInstanceName> for proto::WorkloadInstanceName {
+    fn from(item: WorkloadExecutionInstanceName) -> Self {
+        proto::WorkloadInstanceName {
+            workload_name: item.workload_name,
+            agent_name: item.agent_name,
+            config_id: item.hash,
+        }
+    }
 }
 
 impl WorkloadExecutionInstanceName {

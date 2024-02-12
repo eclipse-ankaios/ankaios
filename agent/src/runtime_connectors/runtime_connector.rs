@@ -37,7 +37,7 @@ impl Display for RuntimeError {
 pub trait RuntimeConnector<WorkloadId, StChecker>: Sync + Send
 where
     StChecker: StateChecker<WorkloadId> + Send + Sync,
-    WorkloadId: Send + Sync + 'static,
+    WorkloadId: ToString + Send + Sync + 'static,
 {
     fn name(&self) -> String;
 
@@ -71,7 +71,7 @@ where
 pub trait OwnableRuntime<WorkloadId, StChecker>: RuntimeConnector<WorkloadId, StChecker>
 where
     StChecker: StateChecker<WorkloadId> + Send + Sync,
-    WorkloadId: Send + Sync + 'static,
+    WorkloadId: ToString + Send + Sync + 'static,
 {
     fn to_owned(&self) -> Box<dyn RuntimeConnector<WorkloadId, StChecker>>;
 }
@@ -80,7 +80,7 @@ impl<R, WorkloadId, StChecker> OwnableRuntime<WorkloadId, StChecker> for R
 where
     R: RuntimeConnector<WorkloadId, StChecker> + Clone + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync,
-    WorkloadId: Send + Sync + 'static,
+    WorkloadId: ToString + Send + Sync + 'static,
 {
     fn to_owned(&self) -> Box<dyn RuntimeConnector<WorkloadId, StChecker>> {
         Box::new(self.clone())
@@ -113,7 +113,7 @@ pub mod test {
     #[async_trait]
     impl RuntimeStateGetter<String> for StubStateChecker {
         async fn get_state(&self, _workload_id: &String) -> ExecutionState {
-            ExecutionState::ExecRunning
+            ExecutionState::running()
         }
     }
 

@@ -1,14 +1,16 @@
 {
     "cSpell.words": [
         "ankaios",
-        "Comms",
-        "VecDeque",
-        "Northstar",
-        "protobuf",
-        "swdd",
         "automock",
+        "Comms",
+        "Elektrobit",
         "mockall",
-        "Elektrobit"
+        "Northstar",
+        "proto",
+        "protobuf",
+        "Substate",
+        "swdd",
+        "VecDeque"
     ],
     "markdown-preview-github-styles.colorTheme": "light",
     "hediet.vscode-drawio.theme": "min",

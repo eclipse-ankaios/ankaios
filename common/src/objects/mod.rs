@@ -20,7 +20,12 @@ mod state;
 pub use state::State;
 
 mod workload_state;
-pub use workload_state::{ExecutionState, WorkloadState};
+#[cfg(any(feature = "test_utils", test))]
+pub use workload_state::{
+    generate_test_workload_state, generate_test_workload_state_with_agent,
+    generate_test_workload_state_with_workload_spec,
+};
+pub use workload_state::{ExecutionState, ExecutionStateEnum, WorkloadState};
 
 mod workload_spec;
 pub use workload_spec::{
@@ -39,7 +44,8 @@ pub use access_rights::{AccessRights, AccessRightsRule, PatchOperation};
 
 mod workload_execution_instance_name;
 pub use workload_execution_instance_name::{
-    WorkloadExecutionInstanceName, WorkloadExecutionInstanceNameBuilder, WorkloadInstanceName,
+    ConfigHash, WorkloadExecutionInstanceName, WorkloadExecutionInstanceNameBuilder,
+    WorkloadInstanceName,
 };
 
 mod agent_name;

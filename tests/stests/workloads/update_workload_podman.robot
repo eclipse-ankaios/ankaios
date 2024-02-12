@@ -43,7 +43,7 @@ Test Ankaios CLI update workload
     And user updates the state "${new_state_yaml_file}" with "currentState.workloads.nginx.runtimeConfig.commandOptions=['-p', '8082:80']"
     And user triggers "ank set state -f ${new_state_yaml_file} currentState.workloads.nginx"
     # Asserts
-    Then the workload "nginx" shall have the execution state "Running" on agent "agent_A" within "30" seconds
+    Then the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "30" seconds
     And the command "curl localhost:8082" shall finish with exit code "0" within "10" seconds
     [Teardown]    Clean up Ankaios
 
@@ -60,5 +60,5 @@ Test Ankaios Podman update workload from empty state
     When user triggers "ank get workloads"
     Then list of workloads shall be empty
     When user triggers "ank set state --file ${CONFIGS_DIR}/update_state_create_one_workload.yaml currentState.workloads"
-    Then the workload "nginx" shall have the execution state "Running" on agent "agent_A" within "30" seconds
+    Then the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "30" seconds
     [Teardown]    Clean up Ankaios
