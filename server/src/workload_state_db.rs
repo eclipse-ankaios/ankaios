@@ -86,10 +86,11 @@ impl WorkloadStateDB {
         {
             if state_to_remove.workload_id.is_empty() {
                 agent_states.remove(&state_to_remove.instance_name);
-            } else if let Some(wl_states) =
-                agent_states.get_mut(&state_to_remove.instance_name)
-            {
-                wl_states.retain(|wl_state| wl_state.workload_id != state_to_remove.workload_id)
+            } else if let Some(wl_states) = agent_states.get_mut(&state_to_remove.instance_name) {
+                wl_states.retain(|wl_state| {
+                    wl_state.workload_id != state_to_remove.workload_id
+                        && !wl_state.workload_id.is_empty()
+                })
             }
         }
     }
@@ -112,6 +113,12 @@ impl WorkloadStateDB {
                         existing_states.retain(|x| {
                             !x.workload_id.is_empty() && x.workload_id != workload_state.workload_id
                         });
+
+                        if workload_state.execution_state.is_waiting_to_stop()
+                            || workload_state.execution_state.is_waiting_to_start()
+                        {
+                            existing_states.clear();
+                        }
                         existing_states.push(workload_state);
                     }
                     std::collections::hash_map::Entry::Vacant(new_entry) => {
@@ -120,6 +127,11 @@ impl WorkloadStateDB {
                 }
             }
         });
+
+        log::info!(
+            "After receiving new workload states in server: {:#?}",
+            self.stored_states
+        );
     }
 }
 
@@ -171,21 +183,12 @@ mod tests {
         );
 
         let mut wls = HashMap::new();
-        wls.insert(
-            wl_1_state.instance_name.to_owned(),
-            vec![wl_1_state],
-        );
-        wls.insert(
-            wl_2_state.instance_name.to_owned(),
-            vec![wl_2_state],
-        );
+        wls.insert(wl_1_state.instance_name.to_owned(), vec![wl_1_state]);
+        wls.insert(wl_2_state.instance_name.to_owned(), vec![wl_2_state]);
         wls_db.stored_states.insert(AGENT_A.to_string(), wls);
 
         let mut wls_2 = HashMap::new();
-        wls_2.insert(
-            wl_3_state.instance_name.to_owned(),
-            vec![wl_3_state],
-        );
+        wls_2.insert(wl_3_state.instance_name.to_owned(), vec![wl_3_state]);
         wls_db.stored_states.insert(AGENT_B.to_string(), wls_2);
 
         wls_db

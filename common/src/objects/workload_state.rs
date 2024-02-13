@@ -238,6 +238,14 @@ impl ExecutionState {
         ExecutionStateEnum::Failed(FailedSubstate::ExecFailed) == self.state
     }
 
+    pub fn is_waiting_to_start(&self) -> bool {
+        ExecutionStateEnum::Pending(PendingSubstate::WaitingToStart) == self.state
+    }
+
+    pub fn is_waiting_to_stop(&self) -> bool {
+        ExecutionStateEnum::Running(RunningSubstate::WaitingToStop) == self.state
+    }
+
     pub fn agent_disconnected() -> Self {
         ExecutionState {
             state: ExecutionStateEnum::AgentDisconnected,
