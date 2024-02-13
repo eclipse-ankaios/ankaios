@@ -119,6 +119,25 @@ impl RuntimeManager {
         }
     }
 
+    async fn enqueue_waiting_workloads(&mut self, waiting_workloads: Vec<WorkloadSpec>) {
+        self.report_pending_state_for_waiting_workloads(&waiting_workloads)
+            .await;
+
+        self.dependency_scheduler
+            .put_on_waiting_queue(waiting_workloads);
+    }
+
+    async fn enqueue_waiting_deleted_workloads(
+        &mut self,
+        waiting_deleted_workloads: Vec<DeletedWorkload>,
+    ) {
+        self.report_pending_delete_state_for_waiting_workloads(&waiting_deleted_workloads)
+            .await;
+
+        self.dependency_scheduler
+            .put_on_delete_waiting_queue(waiting_deleted_workloads);
+    }
+
     pub async fn handle_update_workload(
         &mut self,
         added_workloads: Vec<WorkloadSpec>,
@@ -145,11 +164,7 @@ impl RuntimeManager {
             let (ready_workloads, waiting_workloads) =
                 DependencyScheduler::split_workloads_to_ready_and_waiting(added_workloads);
 
-            self.report_pending_state_for_waiting_workloads(&waiting_workloads)
-                .await;
-
-            self.dependency_scheduler
-                .put_on_waiting_queue(waiting_workloads);
+            self.enqueue_waiting_workloads(waiting_workloads).await;
 
             let (ready_deleted_workloads, waiting_deleted_workloads) =
                 DependencyScheduler::split_deleted_workloads_to_ready_and_waiting(
@@ -157,11 +172,8 @@ impl RuntimeManager {
                     &self.parameter_storage,
                 );
 
-            self.report_pending_delete_state_for_waiting_workloads(&waiting_deleted_workloads)
+            self.enqueue_waiting_deleted_workloads(waiting_deleted_workloads)
                 .await;
-
-            self.dependency_scheduler
-                .put_on_delete_waiting_queue(waiting_deleted_workloads);
 
             self.handle_subsequent_update_workload(ready_workloads, ready_deleted_workloads)
                 .await;
@@ -320,11 +332,7 @@ impl RuntimeManager {
                 added_workloads_per_runtime,
             ));
 
-        self.report_pending_state_for_waiting_workloads(&waiting_workloads)
-            .await;
-
-        self.dependency_scheduler
-            .put_on_waiting_queue(waiting_workloads);
+        self.enqueue_waiting_workloads(waiting_workloads).await;
 
         // now start all workloads that did not exist and do not have to wait for dependencies
         for workload_spec in ready_workloads {
