@@ -17,7 +17,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::helpers::serialize_to_ordered_map;
-use crate::objects::Cronjob;
 use crate::objects::WorkloadSpec;
 use api::proto;
 // [impl->swdd~common-object-representation~1]#[accessible_by_field_name]
@@ -27,8 +26,6 @@ use api::proto;
 pub struct State {
     #[serde(serialize_with = "serialize_to_ordered_map")]
     pub workloads: HashMap<String, WorkloadSpec>,
-    #[serde(serialize_with = "serialize_to_ordered_map")]
-    pub cron_jobs: HashMap<String, Cronjob>,
 }
 
 impl From<State> for proto::State {
@@ -36,11 +33,6 @@ impl From<State> for proto::State {
         proto::State {
             workloads: item
                 .workloads
-                .into_iter()
-                .map(|(k, v)| (k, v.into()))
-                .collect(),
-            cronjobs: item
-                .cron_jobs
                 .into_iter()
                 .map(|(k, v)| (k, v.into()))
                 .collect(),
@@ -58,11 +50,6 @@ impl TryFrom<proto::State> for State {
                 .into_iter()
                 .map(|(k, v)| Ok((k.to_owned(), (k, v).try_into()?)))
                 .collect::<Result<HashMap<String, WorkloadSpec>, String>>()?,
-            cron_jobs: item
-                .cronjobs
-                .into_iter()
-                .map(|(k, v)| (k, v.into()))
-                .collect(),
         })
     }
 }
@@ -118,9 +105,5 @@ mod tests {
             index_workload1 < index_workload2,
             "expected sorted workloads."
         );
-
-        let index_cron1 = sorted_state_string.find("cronjob1").unwrap();
-        let index_cron2 = sorted_state_string.find("cronjob2").unwrap();
-        assert!(index_cron1 < index_cron2, "expected sorted cronjobs.");
     }
 }

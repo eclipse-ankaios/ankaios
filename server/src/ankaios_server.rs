@@ -686,7 +686,6 @@ mod tests {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
                     .into_iter()
                     .collect(),
-                cron_jobs: HashMap::default(),
             },
             ..Default::default()
         };
@@ -753,7 +752,6 @@ mod tests {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
                     .into_iter()
                     .collect(),
-                cron_jobs: HashMap::default(),
             },
             ..Default::default()
         };
@@ -809,7 +807,6 @@ mod tests {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
                     .into_iter()
                     .collect(),
-                cron_jobs: HashMap::default(),
             },
             ..Default::default()
         };
@@ -882,10 +879,7 @@ mod tests {
         ]);
 
         let current_complete_state = CompleteState {
-            desired_state: State {
-                workloads,
-                cron_jobs: HashMap::default(),
-            },
+            desired_state: State { workloads },
             ..Default::default()
         };
         let request_id = format!("{AGENT_A}@my_request_id");
@@ -1081,7 +1075,6 @@ mod tests {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), updated_w1.clone())]
                     .into_iter()
                     .collect(),
-                cron_jobs: HashMap::default(),
             },
             ..Default::default()
         };

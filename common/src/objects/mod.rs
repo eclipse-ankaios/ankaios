@@ -33,9 +33,6 @@ pub use workload_spec::{
     DeletedWorkloadCollection, UpdateStrategy, WorkloadCollection, WorkloadSpec,
 };
 
-mod cronjob;
-pub use cronjob::{Cronjob, Interval};
-
 mod tag;
 pub use tag::Tag;
 

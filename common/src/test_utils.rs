@@ -18,15 +18,14 @@ use api::proto;
 use serde::{Serialize, Serializer};
 
 use crate::objects::{
-    AccessRights, AddCondition, Cronjob, DeleteCondition, DeletedWorkload, Interval, State, Tag,
-    UpdateStrategy, WorkloadSpec,
+    AccessRights, AddCondition, DeleteCondition, DeletedWorkload, State, Tag, UpdateStrategy,
+    WorkloadSpec,
 };
 
 #[cfg(feature = "test_utils")]
 pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State {
     State {
         workloads: workloads.into_iter().map(|v| (v.name.clone(), v)).collect(),
-        cron_jobs: HashMap::new(),
     }
 }
 
@@ -46,7 +45,6 @@ pub fn generate_test_complete_state(
                 .into_iter()
                 .map(|v| (v.name.clone(), v))
                 .collect(),
-            cron_jobs: HashMap::new(),
         },
         workload_states: workloads
             .into_iter()
@@ -67,8 +65,6 @@ pub fn generate_test_complete_state(
 pub fn generate_test_state() -> State {
     let workload_name_1 = "workload_name_1".to_string();
     let workload_name_2 = "workload_name_2".to_string();
-    let cronjob_name_1 = "cronjob1".to_string();
-    let cronjob_name_2 = "cronjob2".to_string();
 
     let mut ankaios_workloads = HashMap::new();
 
@@ -80,32 +76,22 @@ pub fn generate_test_state() -> State {
 
     ankaios_workloads.insert(workload_name_1, workload_1);
     ankaios_workloads.insert(workload_name_2, workload_2);
-    let mut ankaios_cronjobs = HashMap::new();
-    ankaios_cronjobs.insert(cronjob_name_1, generate_test_cronjob());
-    ankaios_cronjobs.insert(cronjob_name_2, generate_test_cronjob());
 
     State {
         workloads: ankaios_workloads,
-        cron_jobs: ankaios_cronjobs,
     }
 }
 
 pub fn generate_test_proto_state() -> proto::State {
     let workload_name_1 = "workload_name_1".to_string();
     let workload_name_2 = "workload_name_2".to_string();
-    let cronjob_name_1 = "cronjob1".to_string();
-    let cronjob_name_2 = "cronjob2".to_string();
 
     let mut proto_workloads = HashMap::new();
     proto_workloads.insert(workload_name_1, generate_test_proto_workload());
     proto_workloads.insert(workload_name_2, generate_test_proto_workload());
-    let mut proto_cronjobs = HashMap::new();
-    proto_cronjobs.insert(cronjob_name_1, generate_test_proto_cronjob());
-    proto_cronjobs.insert(cronjob_name_2, generate_test_proto_cronjob());
 
     proto::State {
         workloads: proto_workloads,
-        cronjobs: proto_cronjobs,
     }
 }
 
@@ -208,38 +194,6 @@ pub fn generate_test_proto_deleted_workload() -> proto::DeletedWorkload {
     }
 }
 
-pub fn generate_test_cronjob() -> Cronjob {
-    Cronjob {
-        workload: String::from("some job"),
-        interval: Interval {
-            hours: 4,
-            minutes: 3,
-            seconds: 42,
-        },
-    }
-}
-
-pub fn generate_test_proto_cronjob() -> proto::Cronjob {
-    proto::Cronjob {
-        workload: String::from("some job"),
-        interval: Some(proto::Interval {
-            hours: 4,
-            minutes: 3,
-            seconds: 42,
-        }),
-    }
-}
-
-pub fn generate_test_cronjob_empty_interval() -> Cronjob {
-    Cronjob {
-        workload: String::from("some job"),
-        interval: Interval {
-            hours: 0,
-            minutes: 0,
-            seconds: 0,
-        },
-    }
-}
 pub struct MockAllContextSync {
     mutex_tokio: tokio::sync::Mutex<()>,
     mutex_std: std::sync::Mutex<()>,

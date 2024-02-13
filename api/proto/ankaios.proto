@@ -281,7 +281,6 @@ message UpdateStateRequest {
 */
 message State {
   map<string, Workload> workloads = 1; /// A mapping from workload names to workload configurations.
-  map<string, Cronjob> cronjobs = 2; /// A mapping from workload names to cron job configurations.
 }
 
 /**
@@ -339,21 +338,4 @@ enum PatchOperation {
   REPLACE = 0; /// The replace operation.
   ADD = 1; /// The add operation.
   REMOVE =2; /// the remove operation.
-}
-
-/**
-* A message containing the cron job information.
-*/
-message Cronjob {
-  string workload = 1; /// The name of the workload.
-  Interval interval = 2; /// The interval of the cron job.
-}
-
-/**
-* A message containing the interval information for the cron job.
-*/
-message Interval {
-  uint32 hours = 1; /// The number of hours.
-  uint32 minutes = 2; /// The number of minutes.
-  uint32 seconds = 3; /// The number of seconds.
 }
