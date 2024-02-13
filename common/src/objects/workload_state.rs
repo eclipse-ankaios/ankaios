@@ -238,6 +238,10 @@ impl ExecutionState {
         ExecutionStateEnum::Failed(FailedSubstate::ExecFailed) == self.state
     }
 
+    pub fn is_not_pending_nor_running(&self) -> bool {
+        !self.is_pending() && !self.is_running()
+    }
+
     pub fn is_waiting_to_start(&self) -> bool {
         ExecutionStateEnum::Pending(PendingSubstate::WaitingToStart) == self.state
     }
