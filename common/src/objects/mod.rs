@@ -30,7 +30,7 @@ pub use workload_state::{ExecutionState, ExecutionStateEnum, WorkloadState};
 mod workload_spec;
 pub use workload_spec::{
     get_workloads_per_agent, AddCondition, DeleteCondition, DeletedWorkload,
-    DeletedWorkloadCollection, UpdateStrategy, WorkloadCollection, WorkloadSpec,
+    DeletedWorkloadCollection, WorkloadCollection, WorkloadSpec,
 };
 
 mod tag;

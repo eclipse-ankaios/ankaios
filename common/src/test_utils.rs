@@ -18,8 +18,7 @@ use api::proto;
 use serde::{Serialize, Serializer};
 
 use crate::objects::{
-    AccessRights, AddCondition, DeleteCondition, DeletedWorkload, State, Tag, UpdateStrategy,
-    WorkloadSpec,
+    AccessRights, AddCondition, DeleteCondition, DeletedWorkload, State, Tag, WorkloadSpec,
 };
 
 #[cfg(feature = "test_utils")]
@@ -136,7 +135,6 @@ pub fn generate_test_workload_spec_with_param(
 ) -> crate::objects::WorkloadSpec {
     WorkloadSpec {
         dependencies: generate_test_dependencies(),
-        update_strategy: UpdateStrategy::Unspecified,
         restart: true,
         access_rights: AccessRights::default(),
         runtime: runtime_name,
@@ -164,7 +162,6 @@ pub fn generate_test_proto_workload() -> proto::Workload {
         agent: String::from("agent"),
         dependencies: generate_test_proto_dependencies(),
         restart: true,
-        update_strategy: proto::UpdateStrategy::Unspecified.into(),
         access_rights: None,
         runtime: String::from("runtime"),
         runtime_config: "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"

@@ -1592,7 +1592,6 @@ mod tests {
                         "workload A": "ADD_COND_RUNNING",
                         "workload C": "ADD_COND_SUCCEEDED"
                     },
-                    "updateStrategy": "UNSPECIFIED",
                     "restart": true,
                     "accessRights": {
                         "allow": [],
@@ -1656,7 +1655,6 @@ mod tests {
                             "workload A": "ADD_COND_RUNNING",
                             "workload C": "ADD_COND_SUCCEEDED"
                         },
-                        "updateStrategy": "UNSPECIFIED",
                         "restart": true,
                         "accessRights": {
                             "allow": [],

@@ -72,7 +72,6 @@ pub struct WorkloadSpec {
     pub tags: Vec<Tag>,
     #[serde(serialize_with = "serialize_to_ordered_map")]
     pub dependencies: HashMap<String, AddCondition>,
-    pub update_strategy: UpdateStrategy,
     pub restart: bool,
     pub access_rights: AccessRights,
     pub runtime: String,
@@ -89,7 +88,6 @@ impl TryFrom<(String, proto::AddedWorkload)> for WorkloadSpec {
                 .into_iter()
                 .map(|(k, v)| Ok((k, v.try_into()?)))
                 .collect::<Result<HashMap<String, AddCondition>, String>>()?,
-            update_strategy: workload.update_strategy.try_into()?,
             restart: workload.restart,
             access_rights: workload.access_rights.unwrap_or_default().try_into()?,
             runtime: workload.runtime,
@@ -111,7 +109,6 @@ impl TryFrom<(String, proto::Workload)> for WorkloadSpec {
                 .into_iter()
                 .map(|(k, v)| Ok((k, v.try_into()?)))
                 .collect::<Result<HashMap<String, AddCondition>, String>>()?,
-            update_strategy: workload.update_strategy.try_into()?,
             restart: workload.restart,
             access_rights: workload.access_rights.unwrap_or_default().try_into()?,
             runtime: workload.runtime,
@@ -133,7 +130,6 @@ impl From<WorkloadSpec> for proto::Workload {
                 .map(|(k, v)| (k, v as i32))
                 .collect(),
             restart: workload.restart,
-            update_strategy: workload.update_strategy as i32,
             access_rights: if workload.access_rights.is_empty() {
                 None
             } else {
@@ -156,7 +152,6 @@ impl From<WorkloadSpec> for proto::AddedWorkload {
                 .map(|(k, v)| (k, v as i32))
                 .collect(),
             restart: workload.restart,
-            update_strategy: workload.update_strategy as i32,
             access_rights: if workload.access_rights.is_empty() {
                 None
             } else {
@@ -248,30 +243,6 @@ impl TryFrom<i32> for DeleteCondition {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum UpdateStrategy {
-    #[default]
-    Unspecified = 0,
-    AtLeastOnce,
-    AtMostOnce,
-}
-
-impl TryFrom<i32> for UpdateStrategy {
-    type Error = String;
-
-    fn try_from(value: i32) -> Result<Self, Self::Error> {
-        match value {
-            x if x == UpdateStrategy::Unspecified as i32 => Ok(UpdateStrategy::Unspecified),
-            x if x == UpdateStrategy::AtLeastOnce as i32 => Ok(UpdateStrategy::AtLeastOnce),
-            x if x == UpdateStrategy::AtMostOnce as i32 => Ok(UpdateStrategy::AtMostOnce),
-            _ => Err(format!(
-                "Received an unknown value '{value}' as UpdateStrategy."
-            )),
-        }
-    }
-}
-
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -340,7 +311,6 @@ mod tests {
                 ),
             ]),
             restart: true,
-            update_strategy: proto::UpdateStrategy::Unspecified.into(),
             access_rights: None,
             runtime: String::from("runtime"),
             runtime_config: workload.runtime_config.clone(),
@@ -369,7 +339,6 @@ mod tests {
                 (String::from("workload A"), AddCondition::AddCondRunning),
                 (String::from("workload C"), AddCondition::AddCondSucceeded),
             ]),
-            update_strategy: UpdateStrategy::Unspecified,
             restart: true,
             access_rights: AccessRights {
                 allow: vec![],
@@ -395,7 +364,6 @@ mod tests {
                 ),
             ]),
             restart: true,
-            update_strategy: proto::UpdateStrategy::Unspecified.into(),
             access_rights: None,
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
@@ -424,7 +392,6 @@ mod tests {
                 ),
             ]),
             restart: true,
-            update_strategy: proto::UpdateStrategy::Unspecified.into(),
             access_rights: None,
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
@@ -441,7 +408,6 @@ mod tests {
                 (String::from("workload A"), AddCondition::AddCondRunning),
                 (String::from("workload C"), AddCondition::AddCondSucceeded),
             ]),
-            update_strategy: UpdateStrategy::Unspecified,
             restart: true,
             access_rights: AccessRights {
                 allow: vec![],
@@ -467,7 +433,6 @@ mod tests {
                 ),
             ]),
             restart: true,
-            update_strategy: proto::UpdateStrategy::Unspecified.into(),
             access_rights: None,
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
@@ -496,7 +461,6 @@ mod tests {
                 ),
             ]),
             restart: true,
-            update_strategy: proto::UpdateStrategy::Unspecified.into(),
             access_rights: None,
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
@@ -609,28 +573,6 @@ mod tests {
             DeleteCondition::try_from(100),
             Err::<DeleteCondition, String>(
                 "Received an unknown value '100' as DeleteCondition.".to_string()
-            )
-        );
-    }
-
-    #[test]
-    fn utest_update_strategy_from_int() {
-        assert_eq!(
-            UpdateStrategy::try_from(0).unwrap(),
-            UpdateStrategy::Unspecified
-        );
-        assert_eq!(
-            UpdateStrategy::try_from(1).unwrap(),
-            UpdateStrategy::AtLeastOnce
-        );
-        assert_eq!(
-            UpdateStrategy::try_from(2).unwrap(),
-            UpdateStrategy::AtMostOnce
-        );
-        assert_eq!(
-            UpdateStrategy::try_from(100),
-            Err::<UpdateStrategy, String>(
-                "Received an unknown value '100' as UpdateStrategy.".to_string()
             )
         );
     }

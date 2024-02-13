@@ -493,7 +493,10 @@ mod tests {
         )
         .into();
 
-        workload.update_strategy = -1;
+        *workload
+            .dependencies
+            .get_mut(&String::from("workload A"))
+            .unwrap() = -1;
 
         // simulate the reception of an update workload grpc from server message
         let mut mock_grpc_ex_request_streaming =

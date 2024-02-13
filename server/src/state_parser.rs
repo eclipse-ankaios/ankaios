@@ -30,7 +30,6 @@ struct StoredWorkloadSpec {
     pub restart: bool,
     #[serde(default)]
     pub dependencies: HashMap<String, ankaios::AddCondition>,
-    pub update_strategy: ankaios::UpdateStrategy,
     pub access_rights: ankaios::AccessRights,
     #[serde(default)]
     pub tags: Vec<ankaios::Tag>,
@@ -61,7 +60,6 @@ fn from_stored_workloads(
             runtime_config: stored_workload.runtime_config,
             runtime: stored_workload.runtime,
             dependencies: stored_workload.dependencies,
-            update_strategy: stored_workload.update_strategy,
             restart: stored_workload.restart,
             access_rights: stored_workload.access_rights,
         };
@@ -80,7 +78,7 @@ fn from_stored_workloads(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::objects::{Tag, UpdateStrategy};
+    use common::objects::Tag;
     // [utest->swdd~stored-workload-spec-parses-yaml~1]
     #[test]
     fn utest_reads_start_config() {
@@ -89,7 +87,6 @@ mod tests {
             runtime: podman
             agent: agent_A
             restart: true
-            updateStrategy: AT_MOST_ONCE
             accessRights:
               allow: []
               deny: []
@@ -103,7 +100,6 @@ mod tests {
             runtime: podman
             agent: agent_B
             restart: false
-            updateStrategy: AT_LEAST_ONCE
             accessRights:
               allow: []
               deny: []
@@ -125,10 +121,6 @@ mod tests {
         assert_eq!(workload_spec_nginx.agent, "agent_A");
         assert_eq!(workload_spec_nginx.name, "nginx");
         assert!(workload_spec_nginx.restart);
-        assert_eq!(
-            workload_spec_nginx.update_strategy,
-            UpdateStrategy::AtMostOnce
-        );
         assert_eq!(workload_spec_nginx.access_rights.allow.len(), 0);
         assert_eq!(workload_spec_nginx.access_rights.deny.len(), 0);
         assert_eq!(workload_spec_nginx.tags.len(), 1);
@@ -151,10 +143,6 @@ mod tests {
         assert_eq!(workload_spec_hello.agent, "agent_B");
         assert_eq!(workload_spec_hello.name, "hello");
         assert!(!workload_spec_hello.restart);
-        assert_eq!(
-            workload_spec_hello.update_strategy,
-            UpdateStrategy::AtLeastOnce
-        );
         assert_eq!(workload_spec_hello.access_rights.allow.len(), 0);
         assert_eq!(workload_spec_hello.access_rights.deny.len(), 0);
         assert_eq!(workload_spec_hello.tags.len(), 0);

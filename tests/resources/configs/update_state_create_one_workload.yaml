@@ -8,7 +8,6 @@ desiredState:
       runtime: podman
       agent: agent_A
       restart: true
-      updateStrategy: AT_MOST_ONCE
       accessRights:
         allow: []
         deny: []

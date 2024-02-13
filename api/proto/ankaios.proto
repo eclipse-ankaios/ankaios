@@ -99,10 +99,9 @@ message AddedWorkload {
   string runtime = 2; /// The name of the runtime, e.g., podman.
   map<string, AddCondition> dependencies = 3; /// A list of dependencies to other workloads with their corresponding, expected states. Can be used to enable a synchronized start of a workload.
   bool restart = 4; /// A flag indicating to restart the workload in case of an intentional or an unintentional stop of the workload.
-  UpdateStrategy updateStrategy = 5; /// An enum to specify the update strategy.
-  AccessRights accessRights = 6; /// Lists of authorizations of the workload.
-  repeated Tag tags = 7; /// A list of tags.
-  string runtimeConfig = 8; /// The configuration information specific to the runtime.
+  AccessRights accessRights = 5; /// Lists of authorizations of the workload.
+  repeated Tag tags = 6; /// A list of tags.
+  string runtimeConfig = 7; /// The configuration information specific to the runtime.
 }
 
 /**
@@ -290,20 +289,10 @@ message Workload {
   string agent = 1; /// The name of the owning Agent.
   bool restart = 2; /// A flag indicating to restart the workload in case of an intentional or an unintentional stop of the workload.
   map<string, AddCondition> dependencies = 3; /// A map of workload names and expected states to enable a synchronized start of the workload.
-  UpdateStrategy updateStrategy = 4; /// An enum to specify the update strategy.
-  repeated Tag tags = 5; /// A list of tag names.
-  AccessRights accessRights = 6; /// Lists of authorizations of the workload.
-  string runtime = 7; /// The name of the runtime e.g. podman.
-  string runtimeConfig  = 8; /// The configuration information specific to the runtime.
-}
-
-/**
-* An enum type for specifing the update strategy.
-*/
-enum UpdateStrategy {
-    UNSPECIFIED = 0; /// The update order is irrelevant.
-    AT_LEAST_ONCE = 1; /// At least one instance shall be running - start the new before stopping the old one.
-    AT_MOST_ONCE = 2; /// At most one instance shall be running - stop the old before starting the new one.
+  repeated Tag tags = 4; /// A list of tag names.
+  AccessRights accessRights = 5; /// Lists of authorizations of the workload.
+  string runtime = 6; /// The name of the runtime e.g. podman.
+  string runtimeConfig  = 7; /// The configuration information specific to the runtime.
 }
 
 /**

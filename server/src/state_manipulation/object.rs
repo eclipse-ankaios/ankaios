@@ -277,7 +277,7 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = actual.set(&"workloads.name.updateStrategy.key".into(), "value".into());
+        let res = actual.set(&"workloads.name.runtime.key".into(), "value".into());
 
         assert!(res.is_err());
         assert_eq!(actual, expected);
@@ -466,10 +466,10 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = data.get(&"workloads.name.updateStrategy".into());
+        let res = data.get(&"workloads.name.runtime".into());
 
         assert!(res.is_some());
-        assert_eq!(res.expect(""), "UNSPECIFIED");
+        assert_eq!(res.expect(""), "runtime");
     }
 
     #[test]
@@ -546,7 +546,6 @@ mod tests {
                                     .entry("workload A", "ADD_COND_RUNNING")
                                     .entry("workload C", "ADD_COND_SUCCEEDED"),
                             )
-                            .entry("updateStrategy", "UNSPECIFIED")
                             .entry("restart", true)
                             .entry(
                                 "accessRights",
