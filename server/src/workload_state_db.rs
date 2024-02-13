@@ -89,7 +89,8 @@ impl WorkloadStateDB {
             } else if let Some(wl_states) = agent_states.get_mut(&state_to_remove.instance_name) {
                 wl_states.retain(|wl_state| {
                     wl_state.workload_id != state_to_remove.workload_id
-                        && !wl_state.workload_id.is_empty()
+                        && !wl_state.workload_id.is_empty() /* todo: remove the temporary fix for testing,
+                        avoids WaitingToStop states visible after remove of the workload */
                 })
             }
         }
@@ -114,6 +115,9 @@ impl WorkloadStateDB {
                             !x.workload_id.is_empty() && x.workload_id != workload_state.workload_id
                         });
 
+                        // todo: remove this temporary fix for testing
+                        // avoid multiple states in the db for WaitingToStop workloads
+                        // not having a workload id at the time of sending the state
                         if workload_state.execution_state.is_waiting_to_stop() {
                             existing_states.clear();
                         }
