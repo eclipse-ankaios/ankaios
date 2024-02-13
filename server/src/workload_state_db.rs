@@ -114,9 +114,7 @@ impl WorkloadStateDB {
                             !x.workload_id.is_empty() && x.workload_id != workload_state.workload_id
                         });
 
-                        if workload_state.execution_state.is_waiting_to_stop()
-                            || workload_state.execution_state.is_waiting_to_start()
-                        {
+                        if workload_state.execution_state.is_waiting_to_stop() {
                             existing_states.clear();
                         }
                         existing_states.push(workload_state);
@@ -127,11 +125,6 @@ impl WorkloadStateDB {
                 }
             }
         });
-
-        log::info!(
-            "After receiving new workload states in server: {:#?}",
-            self.stored_states
-        );
     }
 }
 
