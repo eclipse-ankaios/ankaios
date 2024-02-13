@@ -238,6 +238,7 @@ mod apply_manifests {
                         ));
                     }
                 }
+
                 Ok((obj, workload_paths.into_iter().collect()))
             }
         }
@@ -249,43 +250,40 @@ mod apply_manifests {
         state_obj: &mut State,
         console_output: &mut String,
     ) -> Result<(), String> {
-        let mut _apply_on_agent = "".to_owned();
+        let mut agent_names: HashSet<String> =
+            HashSet::from_iter(state_obj.clone().workloads.into_values().map(|wl| wl.agent));
         // No agent name specified through cli!
         if desired_agent.is_none() {
-            let agent_names: HashSet<String> =
-                HashSet::from_iter(state_obj.clone().workloads.into_values().map(|wl| wl.agent));
-            // Found multiple agent names!
-            if agent_names.len() > 1 {
-                let mut agent_names: Vec<String> = agent_names.into_iter().collect();
-                agent_names.sort();
-                return Err(format!("Multiple agent names in manifests detected {:?} -> use '--agent' option to overwrite!", &agent_names));
-            }
-            // No agent name could be found in any workload spec!
+            // Agent name not specified in a workload spec!
             // [impl->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
-            else if agent_names.contains("") {
+            if agent_names.is_empty() || agent_names.contains("") {
                 return Err(
                     "No agent name specified -> use '--agent' option to specify!".to_owned(),
                 );
             }
-            // An agent name could be found -> do an agent name overwrite!
-            else {
-                _apply_on_agent = agent_names.iter().next().unwrap().to_owned();
-                for (_, wl) in &mut state_obj.workloads.iter_mut() {
-                    wl.agent = _apply_on_agent.to_owned();
-                }
-            }
         }
         // An agent name specified through cli -> do an agent name overwrite!
         else {
-            _apply_on_agent = desired_agent.as_ref().unwrap().to_owned();
+            let desired_agent_name = desired_agent.as_ref().unwrap().to_string();
             for (_, wl) in &mut state_obj.workloads.iter_mut() {
-                wl.agent = _apply_on_agent.to_owned();
+                wl.agent = desired_agent_name.to_string();
             }
+            agent_names.insert(desired_agent_name);
         }
 
         console_output.push_str(&format!(
             "Applying collected manifests on agent '{}' ... ",
-            _apply_on_agent
+            agent_names
+                .into_iter()
+                .fold("".to_string(), |acc: String, n: String| {
+                    if acc.is_empty() {
+                        n
+                    } else if n.is_empty() {
+                        acc
+                    } else {
+                        format!("{}, {}", acc, n)
+                    }
+                })
         ));
 
         Ok(())
@@ -2616,7 +2614,7 @@ mod tests {
         ]);
 
         assert_eq!(
-            Err("Multiple agent names in manifests detected [\"agent_name_1\", \"agent_name_2\"] -> use '--agent' option to overwrite!".to_string()),
+            Ok(()),
             handle_agent_overwrite(&None, &mut state, &mut console_output)
         );
     }
