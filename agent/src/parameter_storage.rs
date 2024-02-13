@@ -35,7 +35,20 @@ impl ParameterStorage {
         self.states_storage.get(agent_name)
     }
 
-    pub fn get_workload_state(&self, workload_name: &String) -> Option<&ExecutionState> {
+    pub fn get_workload_state(
+        &self,
+        agent_name: &str,
+        workload_name: &str,
+    ) -> Option<&ExecutionState> {
+        self.states_storage
+            .get(agent_name)
+            .and_then(|wl_states| wl_states.get(workload_name))
+    }
+
+    pub fn get_workload_state_by_workload_name(
+        &self,
+        workload_name: &String,
+    ) -> Option<&ExecutionState> {
         for per_workload_states in self.states_storage.values() {
             let workload_state = per_workload_states.get(workload_name);
             if workload_state.is_some() {

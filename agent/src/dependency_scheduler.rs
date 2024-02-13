@@ -78,7 +78,9 @@ impl DependencyScheduler {
         delete_condition: &DeleteCondition,
         workload_state_db: &ParameterStorage,
     ) -> bool {
-        if let Some(wl_state) = workload_state_db.get_workload_state(dependency_name) {
+        if let Some(wl_state) =
+            workload_state_db.get_workload_state_by_workload_name(dependency_name)
+        {
             delete_condition.fulfilled_by(wl_state)
         } else {
             true
@@ -119,7 +121,9 @@ impl DependencyScheduler {
         add_condition: &AddCondition,
         workload_state_db: &ParameterStorage,
     ) -> bool {
-        if let Some(wl_state) = workload_state_db.get_workload_state(dependency_name) {
+        if let Some(wl_state) =
+            workload_state_db.get_workload_state_by_workload_name(dependency_name)
+        {
             add_condition.fulfilled_by(wl_state)
         } else {
             false

@@ -106,15 +106,24 @@ impl RuntimeManager {
         waiting_workloads: &[DeletedWorkload],
     ) {
         for workload in waiting_workloads.iter() {
-            if let Some(wl) = self.workloads.get(&workload.name) {
-                self.update_state_tx
-                    .update_workload_state(vec![WorkloadState {
-                        instance_name: wl.instance_name(),
-                        execution_state: ExecutionState::waiting_to_stop(),
-                        ..Default::default()
-                    }])
-                    .await
-                    .unwrap_or_illegal_state();
+            // todo: refactor and simplify conditions when WorkloadExecutionInstanceName is part of ParameterStorage entry
+            // a transition to state Running(WaitingToStop) is only allowed if the workload was in the Running(Ok) state before
+            if self
+                .parameter_storage
+                .get_workload_state(self.agent_name.get(), &workload.name)
+                .map(|execution_state| execution_state.is_running())
+                .is_some()
+            {
+                if let Some(wl) = self.workloads.get(&workload.name) {
+                    self.update_state_tx
+                        .update_workload_state(vec![WorkloadState {
+                            instance_name: wl.instance_name(),
+                            execution_state: ExecutionState::waiting_to_stop(),
+                            ..Default::default()
+                        }])
+                        .await
+                        .unwrap_or_illegal_state();
+                }
             }
         }
     }
