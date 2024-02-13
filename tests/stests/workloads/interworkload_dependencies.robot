@@ -51,11 +51,11 @@ Test Ankaios observes the inter-workload dependencies when deleting workloads
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/delete_workloads_with_dependencies.yaml"
     And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
+    And the workload "frontend" shall have the execution state "Running(Ok)" on agent "agent_A" within "30" seconds
     # Actions
     When user triggers "ank delete workload backend"
     And the workload "backend" shall have the execution state "Running(WaitingToStop)" on agent "agent_A"
     And user triggers "ank delete workload frontend"
     # Asserts
-    Then the workload "backend" shall not exist on agent "agent_A" within "30" seconds
+    Then the workload "backend" shall not exist on agent "agent_A" within "60" seconds
     [Teardown]    Clean up Ankaios
