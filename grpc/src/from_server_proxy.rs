@@ -741,12 +741,10 @@ mod tests {
         let test_complete_state = CompleteState {
             desired_state: State {
                 workloads: startup_workloads.clone(),
-                configs: HashMap::default(),
                 cron_jobs: HashMap::default(),
             },
             startup_state: State {
                 workloads: startup_workloads.clone(),
-                configs: HashMap::default(),
                 cron_jobs: HashMap::default(),
             },
             workload_states: vec![],

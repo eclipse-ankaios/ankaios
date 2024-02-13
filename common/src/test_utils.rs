@@ -26,7 +26,6 @@ use crate::objects::{
 pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State {
     State {
         workloads: workloads.into_iter().map(|v| (v.name.clone(), v)).collect(),
-        configs: HashMap::new(),
         cron_jobs: HashMap::new(),
     }
 }
@@ -47,7 +46,6 @@ pub fn generate_test_complete_state(
                 .into_iter()
                 .map(|v| (v.name.clone(), v))
                 .collect(),
-            configs: HashMap::new(),
             cron_jobs: HashMap::new(),
         },
         workload_states: workloads
@@ -69,10 +67,6 @@ pub fn generate_test_complete_state(
 pub fn generate_test_state() -> State {
     let workload_name_1 = "workload_name_1".to_string();
     let workload_name_2 = "workload_name_2".to_string();
-    let config_key_1 = "key1".to_string();
-    let config_value_1 = "value1".to_string();
-    let config_key_2 = "key2".to_string();
-    let config_value_2 = "value2".to_string();
     let cronjob_name_1 = "cronjob1".to_string();
     let cronjob_name_2 = "cronjob2".to_string();
 
@@ -86,16 +80,12 @@ pub fn generate_test_state() -> State {
 
     ankaios_workloads.insert(workload_name_1, workload_1);
     ankaios_workloads.insert(workload_name_2, workload_2);
-    let mut ankaios_configs = HashMap::new();
-    ankaios_configs.insert(config_key_1, config_value_1);
-    ankaios_configs.insert(config_key_2, config_value_2);
     let mut ankaios_cronjobs = HashMap::new();
     ankaios_cronjobs.insert(cronjob_name_1, generate_test_cronjob());
     ankaios_cronjobs.insert(cronjob_name_2, generate_test_cronjob());
 
     State {
         workloads: ankaios_workloads,
-        configs: ankaios_configs,
         cron_jobs: ankaios_cronjobs,
     }
 }
@@ -103,26 +93,18 @@ pub fn generate_test_state() -> State {
 pub fn generate_test_proto_state() -> proto::State {
     let workload_name_1 = "workload_name_1".to_string();
     let workload_name_2 = "workload_name_2".to_string();
-    let config_key_1 = "key1".to_string();
-    let config_value_1 = "value1".to_string();
-    let config_key_2 = "key2".to_string();
-    let config_value_2 = "value2".to_string();
     let cronjob_name_1 = "cronjob1".to_string();
     let cronjob_name_2 = "cronjob2".to_string();
 
     let mut proto_workloads = HashMap::new();
     proto_workloads.insert(workload_name_1, generate_test_proto_workload());
     proto_workloads.insert(workload_name_2, generate_test_proto_workload());
-    let mut proto_configs = HashMap::new();
-    proto_configs.insert(config_key_1, config_value_1);
-    proto_configs.insert(config_key_2, config_value_2);
     let mut proto_cronjobs = HashMap::new();
     proto_cronjobs.insert(cronjob_name_1, generate_test_proto_cronjob());
     proto_cronjobs.insert(cronjob_name_2, generate_test_proto_cronjob());
 
     proto::State {
         workloads: proto_workloads,
-        configs: proto_configs,
         cronjobs: proto_cronjobs,
     }
 }

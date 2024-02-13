@@ -308,7 +308,7 @@ mod tests {
     use common::commands::{
         self, ApiVersion, CompleteStateRequest, UpdateWorkload, UpdateWorkloadState,
     };
-    use common::objects::{DeletedWorkload, ExecutionState, State, WorkloadState};
+    use common::objects::{DeletedWorkload, ExecutionState, State};
     use common::test_utils::generate_test_workload_spec_with_param;
     use common::to_server_interface::ToServerInterface;
     use common::{commands::CompleteState, from_server_interface::FromServer};
@@ -686,7 +686,6 @@ mod tests {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
                     .into_iter()
                     .collect(),
-                configs: HashMap::default(),
                 cron_jobs: HashMap::default(),
             },
             ..Default::default()
@@ -754,7 +753,6 @@ mod tests {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
                     .into_iter()
                     .collect(),
-                configs: HashMap::default(),
                 cron_jobs: HashMap::default(),
             },
             ..Default::default()
@@ -811,7 +809,6 @@ mod tests {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
                     .into_iter()
                     .collect(),
-                configs: HashMap::default(),
                 cron_jobs: HashMap::default(),
             },
             ..Default::default()
@@ -884,15 +881,9 @@ mod tests {
             (w3.name.clone(), w3),
         ]);
 
-        let mut configs = HashMap::new();
-        configs.insert("key1".to_string(), "value1".to_string());
-        configs.insert("key2".to_string(), "value2".to_string());
-        configs.insert("key3".to_string(), "value3".to_string());
-
         let current_complete_state = CompleteState {
             desired_state: State {
                 workloads,
-                configs,
                 cron_jobs: HashMap::default(),
             },
             ..Default::default()
@@ -1090,7 +1081,6 @@ mod tests {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), updated_w1.clone())]
                     .into_iter()
                     .collect(),
-                configs: HashMap::default(),
                 cron_jobs: HashMap::default(),
             },
             ..Default::default()

@@ -28,8 +28,6 @@ pub struct State {
     #[serde(serialize_with = "serialize_to_ordered_map")]
     pub workloads: HashMap<String, WorkloadSpec>,
     #[serde(serialize_with = "serialize_to_ordered_map")]
-    pub configs: HashMap<String, String>,
-    #[serde(serialize_with = "serialize_to_ordered_map")]
     pub cron_jobs: HashMap<String, Cronjob>,
 }
 
@@ -41,7 +39,6 @@ impl From<State> for proto::State {
                 .into_iter()
                 .map(|(k, v)| (k, v.into()))
                 .collect(),
-            configs: item.configs,
             cronjobs: item
                 .cron_jobs
                 .into_iter()
@@ -61,7 +58,6 @@ impl TryFrom<proto::State> for State {
                 .into_iter()
                 .map(|(k, v)| Ok((k.to_owned(), (k, v).try_into()?)))
                 .collect::<Result<HashMap<String, WorkloadSpec>, String>>()?,
-            configs: item.configs,
             cron_jobs: item
                 .cronjobs
                 .into_iter()
@@ -122,10 +118,6 @@ mod tests {
             index_workload1 < index_workload2,
             "expected sorted workloads."
         );
-
-        let index_config1 = sorted_state_string.find("key1").unwrap();
-        let index_config2 = sorted_state_string.find("key2").unwrap();
-        assert!(index_config1 < index_config2, "expected sorted configs.");
 
         let index_cron1 = sorted_state_string.find("cronjob1").unwrap();
         let index_cron2 = sorted_state_string.find("cronjob2").unwrap();

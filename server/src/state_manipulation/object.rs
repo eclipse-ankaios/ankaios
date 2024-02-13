@@ -558,7 +558,6 @@ mod tests {
                             .entry("runtimeConfig", "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"),
                     ),
                 )
-                .entry("configs", Mapping::default())
                 .entry("cronJobs", Mapping::default())
         }
 

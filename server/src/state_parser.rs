@@ -21,8 +21,6 @@ use std::collections::HashMap;
 struct StoredState {
     pub workloads: HashMap<String, StoredWorkloadSpec>,
     #[serde(default)]
-    pub configs: HashMap<String, String>,
-    #[serde(default)]
     pub cron_jobs: HashMap<String, ankaios::Cronjob>,
 }
 
@@ -50,7 +48,6 @@ pub fn parse(state_yaml: String) -> Result<ankaios::State, Box<dyn std::error::E
 fn from_stored_state(stored_state: StoredState) -> ankaios::State {
     ankaios::State {
         workloads: from_stored_workloads(stored_state.workloads),
-        configs: stored_state.configs,
         cron_jobs: stored_state.cron_jobs,
     }
 }
@@ -124,7 +121,6 @@ mod tests {
 
         assert_eq!(state.workloads.len(), 2);
         assert_eq!(state.cron_jobs.len(), 0);
-        assert_eq!(state.configs.len(), 0);
 
         // asserts workload nginx
         assert!(state.workloads.contains_key("nginx"));

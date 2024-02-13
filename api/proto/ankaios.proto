@@ -281,8 +281,7 @@ message UpdateStateRequest {
 */
 message State {
   map<string, Workload> workloads = 1; /// A mapping from workload names to workload configurations.
-  map<string, string> configs = 2; /// A key value storage for reusable configuration items.
-  map<string, Cronjob> cronjobs = 3; /// A mapping from workload names to cron job configurations.
+  map<string, Cronjob> cronjobs = 2; /// A mapping from workload names to cron job configurations.
 }
 
 /**
