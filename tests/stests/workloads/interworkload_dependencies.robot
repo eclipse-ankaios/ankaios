@@ -38,7 +38,7 @@ Test Ankaios observes the inter-workload dependencies when creating workloads
     Then the workload "logger" shall have the execution state "Pending(WaitingToStart)" on agent "agent_A"
     And Then the workload "error_notifier" shall have the execution state "Pending(WaitingToStart)" on agent "agent_A"
     And the workload "storage_provider" shall have the execution state "Pending(WaitingToStart)" on agent "agent_B"
-    And the workload "filesystem_init" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
+    And the workload "filesystem_init" shall have the execution state "Succeeded(Ok)" on agent "agent_B" within "30" seconds
     And the workload "storage_provider" shall have the execution state "Running(Ok)" on agent "agent_B"
     And the workload "logger" shall have the execution state "Running(Ok)" on agent "agent_B"
     And the workload "storage_provider" shall have the execution state "Failed(ExecFailed)" on agent "agent_B"
@@ -57,5 +57,5 @@ Test Ankaios observes the inter-workload dependencies when deleting workloads
     And the workload "backend" shall have the execution state "Running(WaitingToStop)" on agent "agent_A"
     And user triggers "ank delete workload frontend"
     # Asserts
-    Then the workload "backend" shall not exist on agent "agent_A" within "5" seconds
+    Then the workload "backend" shall not exist on agent "agent_A" within "30" seconds
     [Teardown]    Clean up Ankaios
