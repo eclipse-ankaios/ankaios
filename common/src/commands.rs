@@ -344,11 +344,14 @@ pub struct Stop {}
 
 #[cfg(test)]
 mod tests {
+    use crate::objects::ConfigHash;
+
     mod proto {
         pub use api::proto::{
-            request::RequestContent, response::ResponseContent, CompleteState,
-            CompleteStateRequest, Error, ExecutionState, Request, Response, State, Success,
-            UpdateStateRequest, UpdateStateSuccess, UpdateWorkloadState, Workload, WorkloadState,
+            execution_state::ExecutionStateEnum, request::RequestContent,
+            response::ResponseContent, CompleteState, CompleteStateRequest, Error, ExecutionState,
+            Request, Response, Running, State, Success, UpdateStateRequest, UpdateStateSuccess,
+            UpdateWorkloadState, Workload, WorkloadInstanceName, WorkloadState,
         };
     }
 
@@ -358,7 +361,10 @@ mod tests {
                 CompleteState, CompleteStateRequest, Error, Request, RequestContent, Response,
                 ResponseContent, UpdateStateRequest, UpdateStateSuccess, UpdateWorkloadState,
             },
-            objects::{ExecutionState, State, WorkloadState},
+            objects::{
+                ExecutionState, ExecutionStateEnum, State, WorkloadExecutionInstanceName,
+                WorkloadState,
+            },
         };
     }
 
@@ -369,37 +375,32 @@ mod tests {
     const WORKLOAD_NAME_1: &str = "workload_name_1";
     const WORKLOAD_NAME_2: &str = "workload_name_2";
     const WORKLOAD_NAME_3: &str = "workload_name_3";
+    const HASH: &str = "hash_1";
+    const WORKLOAD_ID: &str = "workload_id_1";
     const ERROR_MESSAGE: &str = "error_message";
 
     macro_rules! update_workload_state {
-        ($expression:path) => {{
-            use $expression::{ExecutionState, UpdateWorkloadState, WorkloadState};
-
-            UpdateWorkloadState {
-                workload_states: vec![WorkloadState {
-                    workload_name: "john".to_string(),
-                    agent_name: "doe".to_string(),
-                    execution_state: ExecutionState::ExecRunning.into(),
-                }],
+        ($expression:ident) => {
+            $expression::UpdateWorkloadState {
+                workload_states: vec![workload_state!($expression)],
             }
-        }};
+        };
     }
 
     macro_rules! complete_state_request {
-        ($expression:path) => {{
-            use $expression::{CompleteStateRequest, Request, RequestContent};
-
-            Request {
+        ($expression:ident) => {{
+            $expression::Request {
                 request_id: REQUEST_ID.into(),
-                request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
-                    field_mask: vec![FIELD_1.into(), FIELD_2.into()],
-                })
+                request_content: $expression::RequestContent::CompleteStateRequest(
+                    $expression::CompleteStateRequest {
+                        field_mask: vec![FIELD_1.into(), FIELD_2.into()],
+                    },
+                )
                 .into(),
             }
         }};
     }
 
-    #[rustfmt::skip]
     macro_rules! update_state_request {
         ($expression:ident) => {{
             $expression::Request {
@@ -440,11 +441,10 @@ mod tests {
     }
 
     macro_rules! error_response {
-        ($expression:path) => {{
-            use $expression::{Error, Response, ResponseContent};
-            Response {
+        ($expression:ident) => {{
+            $expression::Response {
                 request_id: REQUEST_ID.into(),
-                response_content: ResponseContent::Error(Error {
+                response_content: $expression::ResponseContent::Error($expression::Error {
                     message: ERROR_MESSAGE.into(),
                 })
                 .into(),
@@ -453,11 +453,10 @@ mod tests {
     }
 
     macro_rules! complete_state_response {
-        ($expression:path) => {{
-            use $expression::{Response, ResponseContent};
-            Response {
+        ($expression:ident) => {{
+            $expression::Response {
                 request_id: REQUEST_ID.into(),
-                response_content: ResponseContent::CompleteState(
+                response_content: $expression::ResponseContent::CompleteState(
                     complete_state!($expression).into(),
                 )
                 .into(),
@@ -466,39 +465,73 @@ mod tests {
     }
 
     macro_rules! complete_state {
-        // Use extra block as scope for the `use`
-        ($expression:path) => {{
-            use $expression::{CompleteState, ExecutionState, State, WorkloadState};
-            CompleteState {
-                startup_state: State {
+        ($expression:ident) => {
+            $expression::CompleteState {
+                startup_state: $expression::State {
                     configs: [("startup".into(), "state".into())].into(),
                     ..Default::default()
                 }
                 .into(),
-                current_state: State {
+                current_state: $expression::State {
                     configs: [("current".into(), "state".into())].into(),
                     ..Default::default()
                 }
                 .into(),
-                workload_states: vec![WorkloadState {
-                    workload_name: WORKLOAD_NAME_1.into(),
-                    agent_name: AGENT_NAME.into(),
-                    execution_state: ExecutionState::ExecRunning.into(),
-                }],
+                workload_states: vec![workload_state!($expression)],
+            }
+        };
+    }
+
+    macro_rules! workload_state {
+        (ankaios) => {{
+            struct HashableString(String);
+
+            impl ConfigHash for HashableString {
+                fn hash_config(&self) -> String {
+                    self.0.clone()
+                }
+            }
+            ankaios::WorkloadState {
+                instance_name: ankaios::WorkloadExecutionInstanceName::builder()
+                    .workload_name(WORKLOAD_NAME_1)
+                    .config(&HashableString(HASH.into()))
+                    .agent_name(AGENT_NAME)
+                    .build(),
+                workload_id: WORKLOAD_ID.into(),
+                execution_state: ankaios::ExecutionState::running(),
             }
         }};
+        (proto) => {
+            proto::WorkloadState {
+                instance_name: proto::WorkloadInstanceName {
+                    workload_name: WORKLOAD_NAME_1.into(),
+                    agent_name: AGENT_NAME.into(),
+                    config_id: HASH.into(),
+                }
+                .into(),
+                workload_id: WORKLOAD_ID.into(),
+                execution_state: proto::ExecutionState {
+                    execution_state_enum: proto::ExecutionStateEnum::Running(
+                        proto::Running::Ok.into(),
+                    )
+                    .into(),
+                    ..Default::default()
+                }
+                .into(),
+            }
+        };
     }
 
     macro_rules! update_state_success_response {
-        ($expression:path) => {{
-            use $expression::{Response, ResponseContent, UpdateStateSuccess};
-
-            Response {
+        ($expression:ident) => {{
+            $expression::Response {
                 request_id: REQUEST_ID.into(),
-                response_content: ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
-                    added_workloads: vec![WORKLOAD_NAME_1.into()],
-                    deleted_workloads: vec![WORKLOAD_NAME_2.into(), WORKLOAD_NAME_3.into()],
-                })
+                response_content: $expression::ResponseContent::UpdateStateSuccess(
+                    $expression::UpdateStateSuccess {
+                        added_workloads: vec![WORKLOAD_NAME_1.into()],
+                        deleted_workloads: vec![WORKLOAD_NAME_2.into(), WORKLOAD_NAME_3.into()],
+                    },
+                )
                 .into(),
             }
         }};

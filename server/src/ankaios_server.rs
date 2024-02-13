@@ -314,7 +314,10 @@ mod tests {
         CompleteStateRequest, Response, ResponseContent, UpdateStateSuccess, UpdateWorkload,
         UpdateWorkloadState,
     };
-    use common::objects::{DeletedWorkload, ExecutionState, State, WorkloadState};
+    use common::objects::{
+        generate_test_workload_state, generate_test_workload_state_with_agent, DeletedWorkload,
+        ExecutionState, State,
+    };
     use common::test_utils::generate_test_workload_spec_with_param;
     use common::to_server_interface::ToServerInterface;
     use common::{commands::CompleteState, from_server_interface::FromServer};
