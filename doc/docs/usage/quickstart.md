@@ -16,10 +16,6 @@ workloads:
     runtime: podman
     agent: agent_A
     restart: true
-    updateStrategy: AT_MOST_ONCE
-    accessRights:
-      allow: []
-      deny: []
     tags:
       - key: owner
         value: Ankaios team
@@ -61,8 +57,6 @@ formatVersion:
   version: v0.1
 startupState:
   workloads: {}
-  configs: {}
-  cronJobs: {}
 desiredState:
   workloads:
     nginx:
@@ -72,21 +66,21 @@ desiredState:
       - key: owner
         value: Ankaios team
       dependencies: {}
-      updateStrategy: AT_MOST_ONCE
       restart: true
-      accessRights:
-        allow: []
-        deny: []
       runtime: podman
       runtimeConfig: |
         image: docker.io/nginx:latest
         commandOptions: ["-p", "8081:80"]
-  configs: {}
-  cronJobs: {}
 workloadStates:
-- workloadName: nginx
-  agentName: agent_A
-  executionState: ExecRunning
+- instanceName:
+    agentName: agent_A
+    workloadName: nginx
+    hash: 7d6ea2b79cea1e401beee1553a9d3d7b5bcbb37f1cfdb60db1fbbcaa140eb17d
+  workloadId: 90996c5fb5393c07c784d5f27ea9c29a81e5604f48e6592913bfac2c89fe1413
+  executionState:
+    state: Running
+    subState: Ok
+    additionalInfo: ''
 ```
 
 or
@@ -98,8 +92,8 @@ ank get workloads
 which results in:
 
 ```text
- WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE
- nginx           agent_A   podman    Running
+WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE   ADDITIONAL INFO
+ nginx           agent_A   podman    Running(Ok)
 ```
 
 Ankaios also supports adding and removing workloads dynamically.
@@ -119,7 +113,7 @@ We can check the state again with `ank get state` and see, that the workload
 `helloworld` has been added to `desiredState.workloads` and the execution
 state is available in `workloadStates`.
 
-As the workload had a one time job its state is `ExecSucceeded` and we can
+As the workload had a one time job its state is `Succeeded(Ok)` and we can
 delete it from the state again with:
 
 ```shell

@@ -11,92 +11,73 @@ formatVersion:
   version: v0.1
 startupState:
   workloads: {}
-  configs: {}
-  cronJobs: {}
 desiredState:
   workloads:
-    api_sample:
-      agent: agent_A
-      dependencies: {}
-      updateStrategy: AT_MOST_ONCE
-      accessRights:
-        allow: []
-        deny: []
-      runtime: podman
-      name: api_sample
-      restart: true
-      tags:
-      - key: owner
-        value: Ankaios team
-      runtimeConfig: |
-        image: ankaios_workload_api_example
-    hello3:
+    hello-pod:
       agent: agent_B
-      dependencies: {}
-      updateStrategy: AT_MOST_ONCE
-      accessRights:
-        allow: []
-        deny: []
-      runtime: podman
-      name: hello3
-      restart: true
+      name: hello-pod
       tags:
       - key: owner
         value: Ankaios team
+      dependencies: {}
+      restart: true
+      runtime: podman-kube
       runtimeConfig: |
-        image: alpine:latest
-        commandArgs: [ "echo", "Hello Ankaios"]
+        manifest: |
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: hello-pod
+          spec:
+            restartPolicy: Never
+            containers:
+            - name: looper
+              image: alpine:latest
+              command:
+              - sleep
+              - 50000
+            - name: greater
+              image: alpine:latest
+              command:
+              - echo
+              - "Hello from a container in a pod"
     hello1:
       agent: agent_B
-      dependencies: {}
-      updateStrategy: AT_MOST_ONCE
-      accessRights:
-        allow: []
-        deny: []
-      runtime: podman
       name: hello1
-      restart: true
       tags:
       - key: owner
         value: Ankaios team
+      dependencies: {}
+      restart: true
+      runtime: podman
       runtimeConfig: |
         image: alpine:latest
         commandOptions: [ "--rm"]
         commandArgs: [ "echo", "Hello Ankaios"]
-    nginx:
-      agent: agent_A
-      dependencies: {}
-      updateStrategy: AT_MOST_ONCE
-      accessRights:
-        allow: []
-        deny: []
-      runtime: podman
-      name: nginx
-      restart: true
-      tags:
-      - key: owner
-        value: Ankaios team
-      runtimeConfig: |
-        image: docker.io/nginx:latest
-        commandOptions: ["-p", "8081:80"]
     hello2:
       agent: agent_B
-      dependencies: {}
-      updateStrategy: AT_MOST_ONCE
-      accessRights:
-        allow: []
-        deny: []
-      runtime: podman
       name: hello2
-      restart: true
       tags:
       - key: owner
         value: Ankaios team
+      dependencies: {}
+      restart: true
+      runtime: podman
       runtimeConfig: |
         image: alpine:latest
         commandArgs: [ "echo", "Hello Ankaios"]
-  configs: {}
-  cronJobs: {}
+    nginx:
+      agent: agent_A
+      name: nginx
+      tags:
+      - key: owner
+        value: Ankaios team
+      dependencies: {}
+      restart: true
+      runtime: podman
+      runtimeConfig: |
+        image: docker.io/nginx:latest
+        commandOptions: ["-p", "8081:80"]
 workloadStates: []
 ```
 
@@ -123,26 +104,22 @@ The object field mask can be constructed using the field names of the [CompleteS
 1. Example: `ank get state desiredState.workloads.nginx` returns only the information about nginx workload:
 
    ```yaml
-   formatVersion:
-     version: v0.1
-   desiredState:
-     workloads:
-       nginx:
-         agent: agent_A
-         dependencies: {}
-         updateStrategy: AT_MOST_ONCE
-          accessRights:
-           allow: []
-           deny: []
-         runtime: podman
-         name: nginx
-         restart: true
-         tags:
-         - key: owner
+    formatVersion:
+      version: v0.1
+    desiredState:
+      workloads:
+        nginx:
+          agent: agent_A
+          name: nginx
+          tags:
+          - key: owner
             value: Ankaios team
-         runtimeConfig: |
-           image: docker.io/nginx:latest
-           commandOptions: ["-p", "8081:80"]
+          dependencies: {}
+          restart: true
+          runtime: podman
+          runtimeConfig: |
+            image: docker.io/nginx:latest
+            commandOptions: ["-p", "8081:80"]
    ```
 
 2. Example `ank get state desiredState.workloads.nginx.runtimeConfig` returns only the runtime configuration of nginx workload:

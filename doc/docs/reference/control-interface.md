@@ -118,8 +118,6 @@ fn create_update_workload_request() -> proto::ToServer {
             runtime: "podman".to_string(),
             agent: "agent_A".to_string(),
             restart: false,
-            update_strategy: proto::UpdateStrategy::AtMostOnce.into(),
-            access_rights: None,
             tags: vec![proto::Tag {
                 key: "owner".to_string(),
                 value: "Ankaios team".to_string(),
@@ -141,8 +139,6 @@ fn create_update_workload_request() -> proto::ToServer {
                         }),
                         desired_state: Some(proto::State {
                             workloads: new_workloads,
-                            configs: HashMap::default(),
-                            cronjobs: HashMap::default(),
                         }),
                         ..Default::default()
                     }),
