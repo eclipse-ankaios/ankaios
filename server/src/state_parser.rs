@@ -144,7 +144,7 @@ mod tests {
     #[test]
     fn utest_reports_error_on_missing_workloads() {
         use std::str::FromStr;
-        let input = String::from_str("cronJob:\n  someJob: xxx").unwrap();
+        let input = String::from_str("unsupportedKey:\n  someKey: xxx").unwrap();
         let result = parse(input);
 
         result.expect_err("Missing workloads must result in error.");

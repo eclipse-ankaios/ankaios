@@ -259,10 +259,7 @@ mod tests {
             data: Value::String("not object".into()),
         };
 
-        let res = actual.set(
-            &"workloads.workload_1.update_strategy.key".into(),
-            "value".into(),
-        );
+        let res = actual.set(&"workloads.workload_1.runtime.key".into(), "value".into());
 
         assert!(res.is_err());
         assert_eq!(actual, expected);
@@ -291,7 +288,7 @@ mod tests {
         if let Value::Mapping(state) = &mut expected.data {
             if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
                 if let Some(Value::Mapping(workload_1)) = workloads.get_mut("name") {
-                    workload_1.insert("update_strategy".into(), "AT_MOST_ONCE".into());
+                    workload_1.insert("runtime".into(), "runtime".into());
                 }
             }
         }
@@ -300,17 +297,12 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = actual.set(
-            &"workloads.name.update_strategy".into(),
-            "AT_MOST_ONCE".into(),
-        );
+        let res = actual.set(&"workloads.name.runtime".into(), "runtime".into());
 
         assert!(res.is_ok());
         assert_eq!(
-            actual
-                .get(&"workloads.name.update_strategy".into())
-                .unwrap(),
-            "AT_MOST_ONCE"
+            actual.get(&"workloads.name.runtime".into()).unwrap(),
+            "runtime"
         );
         assert_eq!(actual, expected);
     }
@@ -373,14 +365,14 @@ mod tests {
     }
 
     #[test]
-    fn utest_obbject_remove_existing() {
+    fn utest_object_remove_existing() {
         let mut expected = Object {
             data: object::generate_test_state().into(),
         };
         if let Value::Mapping(state) = &mut expected.data {
             if let Some(Value::Mapping(worklaods)) = state.get_mut("workloads") {
                 if let Some(Value::Mapping(workload_1)) = worklaods.get_mut("name") {
-                    workload_1.remove("access_rights");
+                    workload_1.remove("runtime");
                 }
             }
         }
@@ -389,10 +381,10 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = actual.remove(&"workloads.name.access_rights".into());
+        let res = actual.remove(&"workloads.name.runtime".into());
 
         assert!(res.is_ok());
-        assert!(actual.get(&"workloads.name.access_rights".into()).is_none());
+        assert!(actual.get(&"workloads.name.runtime".into()).is_none());
         assert_eq!(actual, expected);
     }
 
@@ -422,7 +414,7 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = actual.remove(&"workloads.non_existing.access_rights".into());
+        let res = actual.remove(&"workloads.non_existing.runtime".into());
 
         assert!(res.is_err());
         assert_eq!(actual, expected);
