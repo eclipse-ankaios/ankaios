@@ -18,6 +18,9 @@ use std::collections::HashMap;
 
 use crate::parameter_storage::ParameterStorage;
 
+#[cfg(test)]
+use mockall::automock;
+
 pub type ReadyWorkloads = Vec<WorkloadSpec>;
 pub type WaitingWorkloads = Vec<WorkloadSpec>;
 pub type ReadyDeletedWorkloads = Vec<DeletedWorkload>;
@@ -49,6 +52,7 @@ where
     (items_matching_condition, items_not_matching_condition)
 }
 
+#[cfg_attr(test, automock)]
 impl DependencyScheduler {
     pub fn new() -> Self {
         DependencyScheduler {

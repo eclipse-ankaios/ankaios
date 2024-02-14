@@ -17,8 +17,11 @@ use common::{
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::PipesChannelContext;
 
+#[cfg_attr(test, mockall_double::double)]
+use crate::dependency_scheduler::DependencyScheduler;
+
+use crate::parameter_storage::ParameterStorage;
 use crate::runtime_connectors::RuntimeFacade;
-use crate::{dependency_scheduler::DependencyScheduler, parameter_storage::ParameterStorage};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
@@ -490,6 +493,7 @@ impl RuntimeManager {
 mod tests {
     use super::*;
     use crate::control_interface::MockPipesChannelContext;
+    use crate::dependency_scheduler::MockDependencyScheduler;
     use crate::runtime_connectors::{MockRuntimeFacade, RuntimeError};
     use crate::workload::{MockWorkload, WorkloadError};
     use common::commands::ResponseContent;
@@ -554,6 +558,19 @@ mod tests {
             .times(2)
             .returning(move |_, _, _| Ok(MockPipesChannelContext::default()));
 
+        let mut mock_dependency_scheduler = MockDependencyScheduler::default();
+
+        mock_dependency_scheduler
+            .expect_put_on_waiting_queue()
+            .once()
+            .return_const(());
+
+        let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
+        mock_dependency_scheduler_context
+            .expect()
+            .once()
+            .return_once(|| mock_dependency_scheduler);
+
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
             .expect_get_reusable_running_workloads()
@@ -599,6 +616,14 @@ mod tests {
                 RUNTIME_NAME_2.to_string(),
             ),
         ];
+
+        let dependency_scheduler_context =
+            MockDependencyScheduler::split_workloads_to_ready_and_waiting_context();
+        dependency_scheduler_context
+            .expect()
+            .once()
+            .return_const((added_workloads.clone(), vec![]));
+
         runtime_manager
             .handle_update_workload(added_workloads, vec![])
             .await;
@@ -621,6 +646,19 @@ mod tests {
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
 
+        let mut mock_dependency_scheduler = MockDependencyScheduler::default();
+
+        mock_dependency_scheduler
+            .expect_put_on_waiting_queue()
+            .once()
+            .return_const(());
+
+        let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
+        mock_dependency_scheduler_context
+            .expect()
+            .once()
+            .return_once(|| mock_dependency_scheduler);
+
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
             .expect_get_reusable_running_workloads()
@@ -641,6 +679,14 @@ mod tests {
             WORKLOAD_1_NAME.to_string(),
             "unknown_runtime1".to_string(),
         )];
+
+        let dependency_scheduler_context =
+            MockDependencyScheduler::split_workloads_to_ready_and_waiting_context();
+        dependency_scheduler_context
+            .expect()
+            .once()
+            .return_const((added_workloads.clone(), vec![]));
+
         runtime_manager
             .handle_update_workload(added_workloads, vec![])
             .await;
@@ -661,6 +707,19 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+
+        let mut mock_dependency_scheduler = MockDependencyScheduler::default();
+
+        mock_dependency_scheduler
+            .expect_put_on_waiting_queue()
+            .once()
+            .return_const(());
+
+        let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
+        mock_dependency_scheduler_context
+            .expect()
+            .once()
+            .return_once(|| mock_dependency_scheduler);
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
@@ -696,6 +755,14 @@ mod tests {
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         )];
+
+        let dependency_scheduler_context =
+            MockDependencyScheduler::split_workloads_to_ready_and_waiting_context();
+        dependency_scheduler_context
+            .expect()
+            .once()
+            .return_const((added_workloads.clone(), vec![]));
+
         runtime_manager
             .handle_update_workload(added_workloads, vec![])
             .await;
@@ -719,6 +786,19 @@ mod tests {
             .expect()
             .once()
             .returning(move |_, _, _| Ok(MockPipesChannelContext::default()));
+
+        let mut mock_dependency_scheduler = MockDependencyScheduler::default();
+
+        mock_dependency_scheduler
+            .expect_put_on_waiting_queue()
+            .once()
+            .return_const(());
+
+        let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
+        mock_dependency_scheduler_context
+            .expect()
+            .once()
+            .return_once(|| mock_dependency_scheduler);
 
         let existing_workload1 = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -747,6 +827,13 @@ mod tests {
             )
             .build();
 
+        let dependency_scheduler_context =
+            MockDependencyScheduler::split_workloads_to_ready_and_waiting_context();
+        dependency_scheduler_context
+            .expect()
+            .once()
+            .return_const((vec![], vec![]));
+
         let added_workloads = vec![existing_workload1];
         runtime_manager
             .handle_update_workload(added_workloads, vec![])
@@ -769,6 +856,19 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+
+        let mut mock_dependency_scheduler = MockDependencyScheduler::default();
+
+        mock_dependency_scheduler
+            .expect_put_on_waiting_queue()
+            .once()
+            .return_const(());
+
+        let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
+        mock_dependency_scheduler_context
+            .expect()
+            .once()
+            .return_once(|| mock_dependency_scheduler);
 
         let existing_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -801,6 +901,20 @@ mod tests {
             )
             .build();
 
+        let dependency_scheduler_context =
+            MockDependencyScheduler::split_workloads_to_ready_and_waiting_context();
+        dependency_scheduler_context
+            .expect()
+            .once()
+            .return_const((vec![], vec![]));
+
+        let dependency_scheduler_start_context =
+            MockDependencyScheduler::dependency_states_for_start_fulfilled_context();
+        dependency_scheduler_start_context
+            .expect()
+            .once()
+            .return_const(true);
+
         let added_workloads = vec![existing_workload];
         runtime_manager
             .handle_update_workload(added_workloads, vec![])
@@ -816,6 +930,19 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+
+        let mut mock_dependency_scheduler = MockDependencyScheduler::default();
+
+        mock_dependency_scheduler
+            .expect_put_on_waiting_queue()
+            .once()
+            .return_const(());
+
+        let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
+        mock_dependency_scheduler_context
+            .expect()
+            .once()
+            .return_once(|| mock_dependency_scheduler);
 
         let existing_workload_with_other_config = WorkloadExecutionInstanceNameBuilder::default()
             .workload_name(WORKLOAD_1_NAME)
@@ -841,6 +968,13 @@ mod tests {
             )
             .build();
 
+        let dependency_scheduler_context =
+            MockDependencyScheduler::split_workloads_to_ready_and_waiting_context();
+        dependency_scheduler_context
+            .expect()
+            .once()
+            .return_const((vec![], vec![]));
+
         runtime_manager.handle_update_workload(vec![], vec![]).await;
 
         assert!(runtime_manager.initial_workload_list_received);
@@ -859,6 +993,24 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+
+        let mut mock_dependency_scheduler = MockDependencyScheduler::default();
+
+        mock_dependency_scheduler
+            .expect_put_on_waiting_queue()
+            .once()
+            .return_const(());
+
+        mock_dependency_scheduler
+            .expect_put_on_delete_waiting_queue()
+            .once()
+            .return_const(());
+
+        let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
+        mock_dependency_scheduler_context
+            .expect()
+            .once()
+            .return_once(|| mock_dependency_scheduler);
 
         let runtime_facade_mock = MockRuntimeFacade::new();
         let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
@@ -888,19 +1040,34 @@ mod tests {
             .workloads
             .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
 
+        let added_workloads = vec![generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        )];
+
+        let dependency_scheduler_context =
+            MockDependencyScheduler::split_workloads_to_ready_and_waiting_context();
+        dependency_scheduler_context
+            .expect()
+            .once()
+            .return_const((added_workloads.clone(), vec![]));
+
+        let deleted_workloads = vec![generate_test_deleted_workload(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+        )];
+
+        let dependency_scheduler_delete_context =
+            MockDependencyScheduler::split_deleted_workloads_to_ready_and_waiting_context();
+        dependency_scheduler_delete_context
+            .expect()
+            .once()
+            .return_const((deleted_workloads.clone(), vec![]));
+
         // workload is in added and deleted workload vec
         runtime_manager
-            .handle_update_workload(
-                vec![generate_test_workload_spec_with_param(
-                    AGENT_NAME.to_string(),
-                    WORKLOAD_1_NAME.to_string(),
-                    RUNTIME_NAME.to_string(),
-                )],
-                vec![generate_test_deleted_workload(
-                    AGENT_NAME.to_string(),
-                    WORKLOAD_1_NAME.to_string(),
-                )],
-            )
+            .handle_update_workload(added_workloads, deleted_workloads)
             .await;
 
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
@@ -919,6 +1086,24 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+
+        let mut mock_dependency_scheduler = MockDependencyScheduler::default();
+
+        mock_dependency_scheduler
+            .expect_put_on_waiting_queue()
+            .once()
+            .return_const(());
+
+        mock_dependency_scheduler
+            .expect_put_on_delete_waiting_queue()
+            .once()
+            .return_const(());
+
+        let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
+        mock_dependency_scheduler_context
+            .expect()
+            .once()
+            .return_once(|| mock_dependency_scheduler);
 
         let mut delete_before_add_seq = Sequence::new();
 
@@ -954,18 +1139,33 @@ mod tests {
             .workloads
             .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
 
+        let added_workloads = vec![generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_2_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        )];
+
+        let dependency_scheduler_context =
+            MockDependencyScheduler::split_workloads_to_ready_and_waiting_context();
+        dependency_scheduler_context
+            .expect()
+            .once()
+            .return_const((added_workloads.clone(), vec![]));
+
+        let deleted_workloads = vec![generate_test_deleted_workload(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+        )];
+
+        let dependency_scheduler_delete_context =
+            MockDependencyScheduler::split_deleted_workloads_to_ready_and_waiting_context();
+        dependency_scheduler_delete_context
+            .expect()
+            .once()
+            .return_const((deleted_workloads.clone(), vec![]));
+
         runtime_manager
-            .handle_update_workload(
-                vec![generate_test_workload_spec_with_param(
-                    AGENT_NAME.to_string(),
-                    WORKLOAD_2_NAME.to_string(),
-                    RUNTIME_NAME.to_string(),
-                )],
-                vec![generate_test_deleted_workload(
-                    AGENT_NAME.to_string(),
-                    WORKLOAD_1_NAME.to_string(),
-                )],
-            )
+            .handle_update_workload(added_workloads, deleted_workloads)
             .await;
         server_receiver.close();
 
@@ -986,6 +1186,24 @@ mod tests {
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
 
+        let mut mock_dependency_scheduler = MockDependencyScheduler::default();
+
+        mock_dependency_scheduler
+            .expect_put_on_waiting_queue()
+            .once()
+            .return_const(());
+
+        mock_dependency_scheduler
+            .expect_put_on_delete_waiting_queue()
+            .once()
+            .return_const(());
+
+        let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
+        mock_dependency_scheduler_context
+            .expect()
+            .once()
+            .return_once(|| mock_dependency_scheduler);
+
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
             .expect_create_workload()
@@ -999,20 +1217,35 @@ mod tests {
             )
             .build();
 
+        let added_workloads = vec![generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        )];
+
+        let dependency_scheduler_context =
+            MockDependencyScheduler::split_workloads_to_ready_and_waiting_context();
+        dependency_scheduler_context
+            .expect()
+            .once()
+            .return_const((added_workloads.clone(), vec![]));
+
+        let deleted_workloads = vec![generate_test_deleted_workload(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+        )];
+
+        let dependency_scheduler_delete_context =
+            MockDependencyScheduler::split_deleted_workloads_to_ready_and_waiting_context();
+        dependency_scheduler_delete_context
+            .expect()
+            .once()
+            .return_const((deleted_workloads.clone(), vec![]));
+
         runtime_manager.initial_workload_list_received = true;
 
         runtime_manager
-            .handle_update_workload(
-                vec![generate_test_workload_spec_with_param(
-                    AGENT_NAME.to_string(),
-                    WORKLOAD_1_NAME.to_string(),
-                    RUNTIME_NAME.to_string(),
-                )],
-                vec![generate_test_deleted_workload(
-                    AGENT_NAME.to_string(),
-                    WORKLOAD_1_NAME.to_string(),
-                )],
-            )
+            .handle_update_workload(added_workloads, deleted_workloads)
             .await;
 
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
@@ -1030,6 +1263,24 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+
+        let mut mock_dependency_scheduler = MockDependencyScheduler::default();
+
+        mock_dependency_scheduler
+            .expect_put_on_waiting_queue()
+            .once()
+            .return_const(());
+
+        mock_dependency_scheduler
+            .expect_put_on_delete_waiting_queue()
+            .once()
+            .return_const(());
+
+        let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
+        mock_dependency_scheduler_context
+            .expect()
+            .once()
+            .return_once(|| mock_dependency_scheduler);
 
         let runtime_facade_mock = MockRuntimeFacade::new();
         let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
@@ -1054,15 +1305,28 @@ mod tests {
             .workloads
             .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
 
+        let added_workloads = vec![generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        )];
+
+        let dependency_scheduler_context =
+            MockDependencyScheduler::split_workloads_to_ready_and_waiting_context();
+        dependency_scheduler_context
+            .expect()
+            .once()
+            .return_const((added_workloads.clone(), vec![]));
+
+        let dependency_scheduler_delete_context =
+            MockDependencyScheduler::split_deleted_workloads_to_ready_and_waiting_context();
+        dependency_scheduler_delete_context
+            .expect()
+            .once()
+            .return_const((vec![], vec![]));
+
         runtime_manager
-            .handle_update_workload(
-                vec![generate_test_workload_spec_with_param(
-                    AGENT_NAME.to_string(),
-                    WORKLOAD_1_NAME.to_string(),
-                    RUNTIME_NAME.to_string(),
-                )],
-                vec![],
-            )
+            .handle_update_workload(added_workloads, vec![])
             .await;
 
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
@@ -1083,6 +1347,24 @@ mod tests {
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
 
+        let mut mock_dependency_scheduler = MockDependencyScheduler::default();
+
+        mock_dependency_scheduler
+            .expect_put_on_waiting_queue()
+            .once()
+            .return_const(());
+
+        mock_dependency_scheduler
+            .expect_put_on_delete_waiting_queue()
+            .once()
+            .return_const(());
+
+        let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
+        mock_dependency_scheduler_context
+            .expect()
+            .once()
+            .return_once(|| mock_dependency_scheduler);
+
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
             .expect_create_workload()
@@ -1101,17 +1383,30 @@ mod tests {
             )
             .build();
 
+        let added_workloads = vec![generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        )];
+
+        let dependency_scheduler_context =
+            MockDependencyScheduler::split_workloads_to_ready_and_waiting_context();
+        dependency_scheduler_context
+            .expect()
+            .once()
+            .return_const((added_workloads.clone(), vec![]));
+
+        let dependency_scheduler_delete_context =
+            MockDependencyScheduler::split_deleted_workloads_to_ready_and_waiting_context();
+        dependency_scheduler_delete_context
+            .expect()
+            .once()
+            .return_const((vec![], vec![]));
+
         runtime_manager.initial_workload_list_received = true;
 
         runtime_manager
-            .handle_update_workload(
-                vec![generate_test_workload_spec_with_param(
-                    AGENT_NAME.to_string(),
-                    WORKLOAD_1_NAME.to_string(),
-                    RUNTIME_NAME.to_string(),
-                )],
-                vec![],
-            )
+            .handle_update_workload(added_workloads, vec![])
             .await;
         server_receiver.close();
 
@@ -1126,6 +1421,12 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+
+        let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
+        mock_dependency_scheduler_context
+            .expect()
+            .once()
+            .return_once(MockDependencyScheduler::default);
 
         let runtime_facade_mock = MockRuntimeFacade::new();
 
@@ -1175,6 +1476,12 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+
+        let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
+        mock_dependency_scheduler_context
+            .expect()
+            .once()
+            .return_once(MockDependencyScheduler::default);
 
         let runtime_facade_mock = MockRuntimeFacade::new();
 
@@ -1228,6 +1535,12 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+
+        let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
+        mock_dependency_scheduler_context
+            .expect()
+            .once()
+            .return_once(MockDependencyScheduler::default);
 
         let runtime_facade_mock = MockRuntimeFacade::new();
 

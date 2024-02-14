@@ -579,9 +579,8 @@ mod tests {
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
-            FromServer::UpdateWorkload(UpdateWorkload {
-                added_workloads: vec![w2],
-                deleted_workloads: vec![]
+            FromServer::UpdateWorkloadState(UpdateWorkloadState {
+                workload_states: vec![test_wl_1_state_running]
             }),
             from_server_command
         );
@@ -589,8 +588,9 @@ mod tests {
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
-            FromServer::UpdateWorkloadState(UpdateWorkloadState {
-                workload_states: vec![test_wl_1_state_running]
+            FromServer::UpdateWorkload(UpdateWorkload {
+                added_workloads: vec![w2],
+                deleted_workloads: vec![]
             }),
             from_server_command
         );
