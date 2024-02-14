@@ -16,6 +16,7 @@ use common::objects::{AddCondition, DeleteCondition, DeletedWorkload, FulfilledB
 
 use std::collections::HashMap;
 
+#[cfg_attr(test, mockall_double::double)]
 use crate::parameter_storage::ParameterStorage;
 
 #[cfg(test)]
@@ -85,7 +86,7 @@ impl DependencyScheduler {
         if let Some(wl_state) =
             workload_state_db.get_workload_state_by_workload_name(dependency_name)
         {
-            delete_condition.fulfilled_by(wl_state)
+            delete_condition.fulfilled_by(&wl_state)
         } else {
             true
         }
@@ -128,7 +129,7 @@ impl DependencyScheduler {
         if let Some(wl_state) =
             workload_state_db.get_workload_state_by_workload_name(dependency_name)
         {
-            add_condition.fulfilled_by(wl_state)
+            add_condition.fulfilled_by(&wl_state)
         } else {
             false
         }
@@ -201,5 +202,374 @@ impl DependencyScheduler {
             self.delete_queue.remove(&workload.name);
         }
         ready_workloads
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use common::{
+        objects::{AddCondition, ExecutionState},
+        test_utils::{
+            generate_test_deleted_workload, generate_test_workload_spec_with_dependencies,
+            generate_test_workload_spec_with_param,
+        },
+    };
+
+    use crate::dependency_scheduler::{DeleteWorkloadQueue, StartWorkloadQueue};
+
+    use super::DependencyScheduler;
+    use crate::parameter_storage::MockParameterStorage;
+
+    const AGENT_A: &str = "agent_A";
+    const WORKLOAD_NAME_1: &str = "workload_1";
+    const RUNTIME: &str = "runtime";
+
+    #[test]
+    fn utest_dependency_scheduler_split_workloads_to_ready_and_waiting() {
+        let workload_with_dependencies = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let mut workload_without_dependencies = workload_with_dependencies.clone();
+        workload_without_dependencies.dependencies.clear();
+
+        let (ready_workloads, waiting_workloads) =
+            DependencyScheduler::split_workloads_to_ready_and_waiting(vec![
+                workload_with_dependencies.clone(),
+                workload_without_dependencies.clone(),
+            ]);
+
+        assert_eq!(vec![workload_without_dependencies], ready_workloads);
+        assert_eq!(vec![workload_with_dependencies], waiting_workloads);
+    }
+
+    #[test]
+    fn utest_dependency_scheduler_put_on_waiting_queue() {
+        let mut dependency_scheduler = DependencyScheduler::new();
+        let new_workload = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        dependency_scheduler.put_on_waiting_queue(vec![new_workload.clone()]);
+
+        assert_eq!(
+            StartWorkloadQueue::from([(new_workload.name.clone(), new_workload)]),
+            dependency_scheduler.start_queue
+        );
+    }
+
+    #[test]
+    fn utest_dependency_scheduler_put_on_delete_waiting_queue() {
+        let mut dependency_scheduler = DependencyScheduler::new();
+        let new_workload =
+            generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
+
+        dependency_scheduler.put_on_delete_waiting_queue(vec![new_workload.clone()]);
+
+        assert_eq!(
+            DeleteWorkloadQueue::from([(new_workload.name.clone(), new_workload)]),
+            dependency_scheduler.delete_queue
+        );
+    }
+
+    #[test]
+    fn utest_dependency_scheduler_split_deleted_workloads_to_ready_and_waiting() {
+        let workload_with_dependencies =
+            generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
+
+        let mut workload_without_dependencies = workload_with_dependencies.clone();
+        workload_without_dependencies.dependencies.clear();
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state_by_workload_name()
+            .once()
+            .return_const(Some(ExecutionState::running()));
+
+        let (ready_workloads, waiting_workloads) =
+            DependencyScheduler::split_deleted_workloads_to_ready_and_waiting(
+                vec![
+                    workload_with_dependencies.clone(),
+                    workload_without_dependencies.clone(),
+                ],
+                &parameter_storage_mock,
+            );
+
+        assert_eq!(vec![workload_without_dependencies], ready_workloads);
+        assert_eq!(vec![workload_with_dependencies], waiting_workloads);
+    }
+
+    #[test]
+    fn utest_dependency_scheduler_split_deleted_workloads_to_ready_and_waiting_ready_to_delete() {
+        let workload_with_dependencies =
+            generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state_by_workload_name()
+            .once()
+            .return_const(Some(ExecutionState::succeeded()));
+
+        let (ready_workloads, waiting_workloads) =
+            DependencyScheduler::split_deleted_workloads_to_ready_and_waiting(
+                vec![workload_with_dependencies.clone()],
+                &parameter_storage_mock,
+            );
+
+        assert_eq!(vec![workload_with_dependencies], ready_workloads);
+        assert!(waiting_workloads.is_empty());
+    }
+
+    #[test]
+    fn utest_dependency_scheduler_split_deleted_workloads_to_ready_and_waiting_no_workload_state() {
+        let workload_with_dependencies =
+            generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state_by_workload_name()
+            .once()
+            .return_const(None);
+
+        let (ready_workloads, waiting_workloads) =
+            DependencyScheduler::split_deleted_workloads_to_ready_and_waiting(
+                vec![workload_with_dependencies.clone()],
+                &parameter_storage_mock,
+            );
+
+        assert_eq!(vec![workload_with_dependencies], ready_workloads);
+        assert!(waiting_workloads.is_empty());
+    }
+
+    #[test]
+    fn utest_dependency_scheduler_dependency_states_for_start_fulfilled() {
+        let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
+            HashMap::from([(WORKLOAD_NAME_1.to_string(), AddCondition::AddCondRunning)]),
+        );
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state_by_workload_name()
+            .once()
+            .return_const(Some(ExecutionState::running()));
+
+        assert!(DependencyScheduler::dependency_states_for_start_fulfilled(
+            &workload_with_dependencies,
+            &parameter_storage_mock
+        ));
+    }
+
+    #[test]
+    fn utest_dependency_scheduler_dependency_states_for_start_not_fulfilled() {
+        let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
+            HashMap::from([(WORKLOAD_NAME_1.to_string(), AddCondition::AddCondRunning)]),
+        );
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state_by_workload_name()
+            .once()
+            .return_const(Some(ExecutionState::removed()));
+
+        assert!(!DependencyScheduler::dependency_states_for_start_fulfilled(
+            &workload_with_dependencies,
+            &parameter_storage_mock
+        ));
+    }
+
+    #[test]
+    fn utest_dependency_scheduler_dependency_states_for_start_fulfilled_no_workload_state() {
+        let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
+            HashMap::from([(WORKLOAD_NAME_1.to_string(), AddCondition::AddCondRunning)]),
+        );
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state_by_workload_name()
+            .once()
+            .return_const(None);
+
+        assert!(!DependencyScheduler::dependency_states_for_start_fulfilled(
+            &workload_with_dependencies,
+            &parameter_storage_mock
+        ));
+    }
+
+    #[test]
+    fn utest_dependency_scheduler_next_workloads_to_start_fulfilled() {
+        let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
+            HashMap::from([(WORKLOAD_NAME_1.to_string(), AddCondition::AddCondSucceeded)]),
+        );
+
+        let mut dependency_scheduler = DependencyScheduler::new();
+        dependency_scheduler.start_queue.insert(
+            workload_with_dependencies.name.clone(),
+            workload_with_dependencies.clone(),
+        );
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state_by_workload_name()
+            .once()
+            .return_const(Some(ExecutionState::succeeded()));
+
+        let ready_workloads = dependency_scheduler.next_workloads_to_start(&parameter_storage_mock);
+        assert_eq!(vec![workload_with_dependencies], ready_workloads);
+    }
+
+    #[test]
+    fn utest_dependency_scheduler_next_workloads_to_start_not_fulfilled() {
+        let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
+            HashMap::from([(WORKLOAD_NAME_1.to_string(), AddCondition::AddCondFailed)]),
+        );
+
+        let mut dependency_scheduler = DependencyScheduler::new();
+        dependency_scheduler.start_queue.insert(
+            workload_with_dependencies.name.clone(),
+            workload_with_dependencies.clone(),
+        );
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state_by_workload_name()
+            .once()
+            .return_const(Some(ExecutionState::running()));
+
+        let ready_workloads = dependency_scheduler.next_workloads_to_start(&parameter_storage_mock);
+        assert!(ready_workloads.is_empty());
+    }
+
+    #[test]
+    fn utest_dependency_scheduler_next_workloads_to_start_no_workload_state() {
+        let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
+            HashMap::from([(WORKLOAD_NAME_1.to_string(), AddCondition::AddCondRunning)]),
+        );
+
+        let mut dependency_scheduler = DependencyScheduler::new();
+        dependency_scheduler.start_queue.insert(
+            workload_with_dependencies.name.clone(),
+            workload_with_dependencies.clone(),
+        );
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state_by_workload_name()
+            .once()
+            .return_const(None);
+
+        let ready_workloads = dependency_scheduler.next_workloads_to_start(&parameter_storage_mock);
+        assert!(ready_workloads.is_empty());
+    }
+
+    #[test]
+    fn utest_dependency_scheduler_next_workloads_to_start_on_empty_queue() {
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state_by_workload_name()
+            .never();
+
+        let mut dependency_scheduler = DependencyScheduler::new();
+
+        assert!(dependency_scheduler.start_queue.is_empty());
+        let ready_workloads = dependency_scheduler.next_workloads_to_start(&parameter_storage_mock);
+        assert!(ready_workloads.is_empty());
+    }
+
+    #[test]
+    fn utest_dependency_scheduler_next_workloads_to_delete_fulfilled() {
+        let workload_with_dependencies =
+            generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
+
+        let mut dependency_scheduler = DependencyScheduler::new();
+        dependency_scheduler.delete_queue.insert(
+            workload_with_dependencies.name.clone(),
+            workload_with_dependencies.clone(),
+        );
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state_by_workload_name()
+            .once()
+            .return_const(Some(ExecutionState::succeeded()));
+
+        let ready_workloads =
+            dependency_scheduler.next_workloads_to_delete(&parameter_storage_mock);
+        assert_eq!(vec![workload_with_dependencies], ready_workloads);
+    }
+
+    #[test]
+    fn utest_dependency_scheduler_next_workloads_to_delete_not_fulfilled() {
+        let workload_with_dependencies =
+            generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
+
+        let mut dependency_scheduler = DependencyScheduler::new();
+        dependency_scheduler.delete_queue.insert(
+            workload_with_dependencies.name.clone(),
+            workload_with_dependencies.clone(),
+        );
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state_by_workload_name()
+            .once()
+            .return_const(Some(ExecutionState::running()));
+
+        let ready_workloads =
+            dependency_scheduler.next_workloads_to_delete(&parameter_storage_mock);
+        assert!(ready_workloads.is_empty());
+    }
+
+    #[test]
+    fn utest_dependency_scheduler_next_workloads_to_delete_on_empty_queue() {
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state_by_workload_name()
+            .never();
+
+        let mut dependency_scheduler = DependencyScheduler::new();
+
+        assert!(dependency_scheduler.delete_queue.is_empty());
+        let ready_workloads =
+            dependency_scheduler.next_workloads_to_delete(&parameter_storage_mock);
+
+        assert!(ready_workloads.is_empty());
+    }
+
+    #[test]
+    fn utest_dependency_scheduler_next_workloads_to_delete_removed_from_queue() {
+        let workload_with_dependencies =
+            generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
+
+        let mut dependency_scheduler = DependencyScheduler::new();
+        dependency_scheduler.delete_queue.insert(
+            workload_with_dependencies.name.clone(),
+            workload_with_dependencies.clone(),
+        );
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state_by_workload_name()
+            .once()
+            .return_const(None);
+
+        let _ = dependency_scheduler.next_workloads_to_delete(&parameter_storage_mock);
+
+        assert!(!dependency_scheduler
+            .delete_queue
+            .contains_key(WORKLOAD_NAME_1));
     }
 }

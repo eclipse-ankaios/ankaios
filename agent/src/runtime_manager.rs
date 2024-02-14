@@ -20,6 +20,7 @@ use crate::control_interface::PipesChannelContext;
 #[cfg_attr(test, mockall_double::double)]
 use crate::dependency_scheduler::DependencyScheduler;
 
+#[cfg_attr(test, mockall_double::double)]
 use crate::parameter_storage::ParameterStorage;
 use crate::runtime_connectors::RuntimeFacade;
 
@@ -494,6 +495,7 @@ mod tests {
     use super::*;
     use crate::control_interface::MockPipesChannelContext;
     use crate::dependency_scheduler::MockDependencyScheduler;
+    use crate::parameter_storage::MockParameterStorage;
     use crate::runtime_connectors::{MockRuntimeFacade, RuntimeError};
     use crate::workload::{MockWorkload, WorkloadError};
     use common::commands::ResponseContent;
@@ -557,6 +559,12 @@ mod tests {
             .expect()
             .times(2)
             .returning(move |_, _, _| Ok(MockPipesChannelContext::default()));
+
+        let parameter_storage_mock = MockParameterStorage::new_context();
+        parameter_storage_mock
+            .expect()
+            .once()
+            .return_once(MockParameterStorage::default);
 
         let mut mock_dependency_scheduler = MockDependencyScheduler::default();
 
@@ -646,6 +654,12 @@ mod tests {
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
 
+        let parameter_storage_mock = MockParameterStorage::new_context();
+        parameter_storage_mock
+            .expect()
+            .once()
+            .return_once(MockParameterStorage::default);
+
         let mut mock_dependency_scheduler = MockDependencyScheduler::default();
 
         mock_dependency_scheduler
@@ -707,6 +721,12 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+
+        let parameter_storage_mock = MockParameterStorage::new_context();
+        parameter_storage_mock
+            .expect()
+            .once()
+            .return_once(MockParameterStorage::default);
 
         let mut mock_dependency_scheduler = MockDependencyScheduler::default();
 
@@ -787,6 +807,12 @@ mod tests {
             .once()
             .returning(move |_, _, _| Ok(MockPipesChannelContext::default()));
 
+        let parameter_storage_mock = MockParameterStorage::new_context();
+        parameter_storage_mock
+            .expect()
+            .once()
+            .return_once(MockParameterStorage::default);
+
         let mut mock_dependency_scheduler = MockDependencyScheduler::default();
 
         mock_dependency_scheduler
@@ -856,6 +882,12 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+
+        let parameter_storage_mock = MockParameterStorage::new_context();
+        parameter_storage_mock
+            .expect()
+            .once()
+            .return_once(MockParameterStorage::default);
 
         let mut mock_dependency_scheduler = MockDependencyScheduler::default();
 
@@ -931,6 +963,12 @@ mod tests {
             .get_lock_async()
             .await;
 
+        let parameter_storage_mock = MockParameterStorage::new_context();
+        parameter_storage_mock
+            .expect()
+            .once()
+            .return_once(MockParameterStorage::default);
+
         let mut mock_dependency_scheduler = MockDependencyScheduler::default();
 
         mock_dependency_scheduler
@@ -993,6 +1031,12 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+
+        let parameter_storage_mock = MockParameterStorage::new_context();
+        parameter_storage_mock
+            .expect()
+            .once()
+            .return_once(MockParameterStorage::default);
 
         let mut mock_dependency_scheduler = MockDependencyScheduler::default();
 
@@ -1086,6 +1130,12 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+
+        let parameter_storage_mock = MockParameterStorage::new_context();
+        parameter_storage_mock
+            .expect()
+            .once()
+            .return_once(MockParameterStorage::default);
 
         let mut mock_dependency_scheduler = MockDependencyScheduler::default();
 
@@ -1186,6 +1236,12 @@ mod tests {
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
 
+        let parameter_storage_mock = MockParameterStorage::new_context();
+        parameter_storage_mock
+            .expect()
+            .once()
+            .return_once(MockParameterStorage::default);
+
         let mut mock_dependency_scheduler = MockDependencyScheduler::default();
 
         mock_dependency_scheduler
@@ -1263,6 +1319,12 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+
+        let parameter_storage_mock = MockParameterStorage::new_context();
+        parameter_storage_mock
+            .expect()
+            .once()
+            .return_once(MockParameterStorage::default);
 
         let mut mock_dependency_scheduler = MockDependencyScheduler::default();
 
@@ -1347,6 +1409,12 @@ mod tests {
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
 
+        let parameter_storage_mock = MockParameterStorage::new_context();
+        parameter_storage_mock
+            .expect()
+            .once()
+            .return_once(MockParameterStorage::default);
+
         let mut mock_dependency_scheduler = MockDependencyScheduler::default();
 
         mock_dependency_scheduler
@@ -1422,6 +1490,12 @@ mod tests {
             .get_lock_async()
             .await;
 
+        let parameter_storage_mock = MockParameterStorage::new_context();
+        parameter_storage_mock
+            .expect()
+            .once()
+            .return_once(MockParameterStorage::default);
+
         let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
         mock_dependency_scheduler_context
             .expect()
@@ -1476,6 +1550,12 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+
+        let parameter_storage_mock = MockParameterStorage::new_context();
+        parameter_storage_mock
+            .expect()
+            .once()
+            .return_once(MockParameterStorage::default);
 
         let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
         mock_dependency_scheduler_context
@@ -1535,6 +1615,12 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+
+        let parameter_storage_mock = MockParameterStorage::new_context();
+        parameter_storage_mock
+            .expect()
+            .once()
+            .return_once(MockParameterStorage::default);
 
         let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
         mock_dependency_scheduler_context

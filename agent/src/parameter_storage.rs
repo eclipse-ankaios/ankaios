@@ -15,6 +15,9 @@
 use common::objects::{ExecutionState, WorkloadState};
 use std::collections::HashMap;
 
+#[cfg(test)]
+use mockall::automock;
+
 type WorkloadStates = HashMap<String, common::objects::ExecutionState>;
 type AgentWorkloadStates = HashMap<String, WorkloadStates>;
 
@@ -22,6 +25,7 @@ pub struct ParameterStorage {
     states_storage: AgentWorkloadStates,
 }
 
+#[cfg_attr(test, automock)]
 impl ParameterStorage {
     pub fn new() -> Self {
         Self {
@@ -29,30 +33,25 @@ impl ParameterStorage {
         }
     }
 
-    // Currently used only in tests. Update tests if you have another "public getter".
-    #[allow(dead_code)]
-    pub fn get_workload_states(&self, agent_name: &String) -> Option<&WorkloadStates> {
-        self.states_storage.get(agent_name)
-    }
-
     pub fn get_workload_state(
         &self,
         agent_name: &str,
         workload_name: &str,
-    ) -> Option<&ExecutionState> {
+    ) -> Option<ExecutionState> {
         self.states_storage
             .get(agent_name)
             .and_then(|wl_states| wl_states.get(workload_name))
+            .cloned()
     }
 
     pub fn get_workload_state_by_workload_name(
         &self,
         workload_name: &String,
-    ) -> Option<&ExecutionState> {
+    ) -> Option<ExecutionState> {
         for per_workload_states in self.states_storage.values() {
             let workload_state = per_workload_states.get(workload_name);
             if workload_state.is_some() {
-                return workload_state;
+                return workload_state.cloned();
             }
         }
         None
@@ -83,7 +82,7 @@ impl ParameterStorage {
 
 #[cfg(test)]
 mod tests {
-    use crate::parameter_storage::ParameterStorage;
+    use super::ParameterStorage;
     use common::objects::ExecutionState;
 
     #[test]

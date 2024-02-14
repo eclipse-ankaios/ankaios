@@ -191,6 +191,14 @@ pub fn generate_test_workload_spec() -> WorkloadSpec {
     )
 }
 
+pub fn generate_test_workload_spec_with_dependencies(
+    dependencies: HashMap<String, AddCondition>,
+) -> WorkloadSpec {
+    let mut workload_spec = generate_test_workload_spec();
+    workload_spec.dependencies = dependencies;
+    workload_spec
+}
+
 pub fn generate_test_proto_workload() -> proto::Workload {
     proto::Workload {
         agent: String::from("agent"),
