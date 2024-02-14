@@ -14,7 +14,7 @@
 
 use common::{
     from_server_interface::{FromServer, FromServerReceiver},
-    std_extensions::IllegalStateResult,
+    std_extensions::{GracefulExitResult, IllegalStateResult},
     to_server_interface::{ToServer, ToServerInterface, ToServerReceiver, ToServerSender},
 };
 
@@ -52,16 +52,20 @@ impl AgentManager {
         loop {
             tokio::select! {
                 from_server_msg = self.from_server_receiver.recv() => {
-                    if let Some(from_server) = from_server_msg {
-                        if self.execute_from_server_command(from_server).await.is_none() {
-                            break
-                        }
+                    let from_server = from_server_msg
+                        .ok_or("Channel to listen to server closed.".to_string())
+                        .unwrap_or_exit("Abort");
+
+                    if self.execute_from_server_command(from_server).await.is_none() {
+                        break;
                     }
                 }
                 to_server_msg = self.workload_state_receiver.recv() => {
-                    if let Some(workload_states_msg) = to_server_msg {
-                        self.store_and_forward_own_workload_states(workload_states_msg).await;
-                    }
+                    let workload_states_msg = to_server_msg
+                        .ok_or("Channel to listen to own workload states closed.".to_string())
+                        .unwrap_or_exit("Abort");
+
+                    self.store_and_forward_own_workload_states(workload_states_msg).await;
                 }
             }
         }
@@ -69,7 +73,8 @@ impl AgentManager {
 
     // [impl->swdd~agent-manager-listens-requests-from-server~1]
     async fn execute_from_server_command(&mut self, from_server_msg: FromServer) -> Option<()> {
-        log::debug!("Start listening to server.");
+        log::debug!("Process command received from server.");
+
         match from_server_msg {
             FromServer::UpdateWorkload(method_obj) => {
                 log::debug!("Agent '{}' received UpdateWorkload:\n\tAdded workloads: {:?}\n\tDeleted workloads: {:?}",
@@ -122,6 +127,8 @@ impl AgentManager {
     }
 
     async fn store_and_forward_own_workload_states(&mut self, to_server_msg: ToServer) {
+        log::debug!("Storing and forwarding own workload states.");
+
         let ToServer::UpdateWorkloadState(common::commands::UpdateWorkloadState {
             workload_states,
         }) = to_server_msg
@@ -142,10 +149,12 @@ impl AgentManager {
                 .await;
         }
 
-        self.to_server
-            .update_workload_state(workload_states)
-            .await
-            .unwrap_or_illegal_state();
+        if !workload_states.is_empty() {
+            self.to_server
+                .update_workload_state(workload_states)
+                .await
+                .unwrap_or_illegal_state();
+        }
     }
 }
 
@@ -162,7 +171,7 @@ mod tests {
     use super::*;
     use crate::agent_manager::AgentManager;
     use common::{
-        commands::{self, Response, ResponseContent},
+        commands::{self, Response, ResponseContent, UpdateWorkloadState},
         from_server_interface::FromServerInterface,
         objects::ExecutionState,
         test_utils::generate_test_workload_spec_with_param,
@@ -187,6 +196,7 @@ mod tests {
 
         let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
         let (to_server, _) = channel(BUFFER_SIZE);
+        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
         let mut mock_runtime_manager = RuntimeManager::default();
         mock_runtime_manager
             .expect_handle_update_workload()
@@ -198,6 +208,7 @@ mod tests {
             manager_receiver,
             mock_runtime_manager,
             to_server,
+            workload_state_receiver,
         );
 
         let workload_spec_1 = generate_test_workload_spec_with_param(
@@ -212,6 +223,8 @@ mod tests {
             RUNTIME_NAME.into(),
         );
 
+        let handle = tokio::spawn(async move { agent_manager.start().await });
+
         let update_workload_result = to_manager
             .update_workload(
                 vec![workload_spec_1.clone(), workload_spec_2.clone()],
@@ -220,10 +233,9 @@ mod tests {
             .await;
         assert!(update_workload_result.is_ok());
 
-        let handle = agent_manager.start();
-        // The from_server_receiver in the agent receives the message and terminates the infinite waiting-loop.
-        drop(to_manager);
-        join!(handle);
+        // Terminate the infinite receiver loop
+        to_manager.stop().await.unwrap();
+        assert!(join!(handle).0.is_ok());
     }
 
     // [utest->swdd~agent-manager-listens-requests-from-server~1]
@@ -237,88 +249,39 @@ mod tests {
 
         let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
         let (to_server, _) = channel(BUFFER_SIZE);
-        let mut mock_runtime_manager = RuntimeManager::default();
-        mock_runtime_manager.expect_handle_update_workload().never();
-        let mut agent_manager = AgentManager::new(
-            AGENT_NAME.to_string(),
-            manager_receiver,
-            mock_runtime_manager,
-            to_server,
-        );
+        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
 
-        let workload_states = vec![common::objects::generate_test_workload_state_with_agent(
+        let workload_state = common::objects::generate_test_workload_state_with_agent(
             WORKLOAD_1_NAME,
             AGENT_NAME,
             ExecutionState::running(),
-        )];
-
-        let update_workload_result = to_manager.update_workload_state(workload_states).await;
-        assert!(update_workload_result.is_ok());
-
-        let handle = agent_manager.start();
-        // The from_server_receiver in the agent receives the message and terminates the infinite waiting-loop.
-        drop(to_manager);
-        join!(handle);
-
-        let workload_states = agent_manager
-            .parameter_storage
-            .get_workload_states(&AGENT_NAME.into())
-            .expect("expected workload states for agent");
-
-        assert_eq!(
-            workload_states.get(WORKLOAD_1_NAME).unwrap().to_owned(),
-            ExecutionState::running()
         );
-    }
 
-    // [utest->swdd~agent-manager-listens-requests-from-server~1]
-    // [utest->swdd~agent-uses-async-channels~1]
-    #[tokio::test]
-    async fn utest_agent_manager_no_update_on_empty_workload_states() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
-        let (to_server, _) = channel(BUFFER_SIZE);
         let mut mock_runtime_manager = RuntimeManager::default();
+
         mock_runtime_manager.expect_handle_update_workload().never();
+        mock_runtime_manager
+            .expect_update_workload_state()
+            .with(mockall::predicate::eq(workload_state.clone()))
+            .once()
+            .return_const(());
+
         let mut agent_manager = AgentManager::new(
             AGENT_NAME.to_string(),
             manager_receiver,
             mock_runtime_manager,
             to_server,
+            workload_state_receiver,
         );
 
-        let initial_workload_states =
-            vec![common::objects::generate_test_workload_state_with_agent(
-                WORKLOAD_1_NAME,
-                AGENT_NAME,
-                ExecutionState::running(),
-            )];
-        let initial_update_workload_result = to_manager
-            .update_workload_state(initial_workload_states)
-            .await;
-        assert!(initial_update_workload_result.is_ok());
+        let handle = tokio::spawn(async move { agent_manager.start().await });
 
-        let new_empty_states = vec![];
-        let update_workload_result = to_manager.update_workload_state(new_empty_states).await;
+        let update_workload_result = to_manager.update_workload_state(vec![workload_state]).await;
         assert!(update_workload_result.is_ok());
 
-        let handle = agent_manager.start();
-        // The from_server_receiver in the agent receives the message and terminates the infinite waiting-loop.
-        drop(to_manager);
-        join!(handle);
-
-        let workload_states = agent_manager
-            .parameter_storage
-            .get_workload_states(&AGENT_NAME.into())
-            .expect("expected workload states for agent");
-
-        assert_eq!(
-            workload_states.get(WORKLOAD_1_NAME).unwrap().to_owned(),
-            ExecutionState::running()
-        );
+        // Terminate the infinite receiver loop
+        to_manager.stop().await.unwrap();
+        assert!(join!(handle).0.is_ok());
     }
 
     // [utest->swdd~agent-manager-listens-requests-from-server~1]
@@ -332,6 +295,7 @@ mod tests {
 
         let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
         let (to_server, _) = channel(BUFFER_SIZE);
+        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
 
         let request_id = format!("{WORKLOAD_1_NAME}@{REQUEST_ID}");
         let complete_state: commands::CompleteState = Default::default();
@@ -353,15 +317,74 @@ mod tests {
             manager_receiver,
             mock_runtime_manager,
             to_server,
+            workload_state_receiver,
         );
+
+        let handle = tokio::spawn(async move { agent_manager.start().await });
 
         let complete_state_result = to_manager.complete_state(request_id, complete_state).await;
         assert!(complete_state_result.is_ok());
 
-        let handle = agent_manager.start();
+        // Terminate the infinite receiver loop
+        to_manager.stop().await.unwrap();
+        assert!(join!(handle).0.is_ok());
+    }
 
-        // The from_server_receiver in the agent receives the message and terminates the infinite waiting-loop.
-        drop(to_manager);
-        join!(handle);
+    // [utest->swdd~agent-manager-listens-requests-from-server~1]
+    // [utest->swdd~agent-uses-async-channels~1]
+    #[tokio::test]
+    async fn utest_agent_manager_receives_own_workload_states() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
+        let (to_server, mut to_server_receiver) = channel(BUFFER_SIZE);
+        let (workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+
+        let workload_state = common::objects::generate_test_workload_state_with_agent(
+            WORKLOAD_1_NAME,
+            AGENT_NAME,
+            ExecutionState::running(),
+        );
+
+        let mut mock_runtime_manager = RuntimeManager::default();
+        mock_runtime_manager
+            .expect_update_workload_state()
+            .with(mockall::predicate::eq(workload_state.clone()))
+            .once()
+            .return_const(());
+
+        let mut agent_manager = AgentManager::new(
+            AGENT_NAME.to_string(),
+            manager_receiver,
+            mock_runtime_manager,
+            to_server,
+            workload_state_receiver,
+        );
+
+        let handle = tokio::spawn(async move { agent_manager.start().await });
+
+        let workload_states = vec![workload_state.clone()];
+        assert!(workload_state_sender
+            .update_workload_state(workload_states.clone())
+            .await
+            .is_ok());
+
+        let expected_workload_states =
+            ToServer::UpdateWorkloadState(UpdateWorkloadState { workload_states });
+        assert_eq!(
+            Ok(Some(expected_workload_states)),
+            tokio::time::timeout(
+                tokio::time::Duration::from_millis(200),
+                to_server_receiver.recv()
+            )
+            .await
+        );
+
+        // Terminate the infinite receiver loop
+        to_manager.stop().await.unwrap();
+        assert!(join!(handle).0.is_ok());
     }
 }
