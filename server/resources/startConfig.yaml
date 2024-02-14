@@ -3,9 +3,6 @@ workloads:
     runtime: podman
     agent: agent_A
     restart: true
-    accessRights:
-      allow: []
-      deny: []
     tags:
       - key: owner
         value: Ankaios team
@@ -16,9 +13,6 @@ workloads:
     runtime: podman
     agent: agent_B
     restart: true
-    accessRights:
-      allow: []
-      deny: []
     tags:
       - key: owner
         value: Ankaios team
@@ -30,9 +24,6 @@ workloads:
     runtime: podman
     agent: agent_B
     restart: true
-    accessRights:
-      allow: []
-      deny: []
     tags:
       - key: owner
         value: Ankaios team
@@ -43,9 +34,6 @@ workloads:
     runtime: podman-kube
     agent: agent_B
     restart: true
-    accessRights:
-      allow: []
-      deny: []
     tags:
       - key: owner
         value: Ankaios team

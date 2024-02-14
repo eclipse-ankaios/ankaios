@@ -18,7 +18,6 @@ use std::collections::HashMap;
 use api::proto;
 
 use crate::helpers::serialize_to_ordered_map;
-use crate::objects::AccessRights;
 use crate::objects::Tag;
 
 pub type WorkloadCollection = Vec<WorkloadSpec>;
@@ -73,7 +72,6 @@ pub struct WorkloadSpec {
     #[serde(serialize_with = "serialize_to_ordered_map")]
     pub dependencies: HashMap<String, AddCondition>,
     pub restart: bool,
-    pub access_rights: AccessRights,
     pub runtime: String,
     pub runtime_config: String,
 }
@@ -89,7 +87,6 @@ impl TryFrom<(String, proto::AddedWorkload)> for WorkloadSpec {
                 .map(|(k, v)| Ok((k, v.try_into()?)))
                 .collect::<Result<HashMap<String, AddCondition>, String>>()?,
             restart: workload.restart,
-            access_rights: workload.access_rights.unwrap_or_default().try_into()?,
             runtime: workload.runtime,
             name: workload.name,
             agent,
@@ -110,7 +107,6 @@ impl TryFrom<(String, proto::Workload)> for WorkloadSpec {
                 .map(|(k, v)| Ok((k, v.try_into()?)))
                 .collect::<Result<HashMap<String, AddCondition>, String>>()?,
             restart: workload.restart,
-            access_rights: workload.access_rights.unwrap_or_default().try_into()?,
             runtime: workload.runtime,
             name,
             agent: workload.agent,
@@ -130,11 +126,6 @@ impl From<WorkloadSpec> for proto::Workload {
                 .map(|(k, v)| (k, v as i32))
                 .collect(),
             restart: workload.restart,
-            access_rights: if workload.access_rights.is_empty() {
-                None
-            } else {
-                Some(workload.access_rights.into())
-            },
             runtime: workload.runtime,
             runtime_config: workload.runtime_config,
             tags: workload.tags.into_iter().map(|x| x.into()).collect(),
@@ -152,11 +143,6 @@ impl From<WorkloadSpec> for proto::AddedWorkload {
                 .map(|(k, v)| (k, v as i32))
                 .collect(),
             restart: workload.restart,
-            access_rights: if workload.access_rights.is_empty() {
-                None
-            } else {
-                Some(workload.access_rights.into())
-            },
             runtime: workload.runtime,
             runtime_config: workload.runtime_config,
             tags: workload.tags.into_iter().map(|x| x.into()).collect(),
@@ -311,7 +297,6 @@ mod tests {
                 ),
             ]),
             restart: true,
-            access_rights: None,
             runtime: String::from("runtime"),
             runtime_config: workload.runtime_config.clone(),
             tags: vec![proto::Tag {
@@ -340,10 +325,6 @@ mod tests {
                 (String::from("workload C"), AddCondition::AddCondSucceeded),
             ]),
             restart: true,
-            access_rights: AccessRights {
-                allow: vec![],
-                deny: vec![],
-            },
             runtime: String::from("runtime"),
             name: String::from("name"),
             agent: String::from("agent"),
@@ -364,7 +345,6 @@ mod tests {
                 ),
             ]),
             restart: true,
-            access_rights: None,
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
             tags: vec![],
@@ -392,7 +372,6 @@ mod tests {
                 ),
             ]),
             restart: true,
-            access_rights: None,
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
             tags: vec![],
@@ -409,10 +388,6 @@ mod tests {
                 (String::from("workload C"), AddCondition::AddCondSucceeded),
             ]),
             restart: true,
-            access_rights: AccessRights {
-                allow: vec![],
-                deny: vec![],
-            },
             runtime: String::from("runtime"),
             name: String::from("name"),
             agent: String::from("agent"),
@@ -433,7 +408,6 @@ mod tests {
                 ),
             ]),
             restart: true,
-            access_rights: None,
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
             tags: vec![],
@@ -461,7 +435,6 @@ mod tests {
                 ),
             ]),
             restart: true,
-            access_rights: None,
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
             tags: vec![],

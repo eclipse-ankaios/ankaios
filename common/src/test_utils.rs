@@ -17,9 +17,7 @@ use std::collections::HashMap;
 use api::proto;
 use serde::{Serialize, Serializer};
 
-use crate::objects::{
-    AccessRights, AddCondition, DeleteCondition, DeletedWorkload, State, Tag, WorkloadSpec,
-};
+use crate::objects::{AddCondition, DeleteCondition, DeletedWorkload, State, Tag, WorkloadSpec};
 
 #[cfg(feature = "test_utils")]
 pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State {
@@ -136,7 +134,6 @@ pub fn generate_test_workload_spec_with_param(
     WorkloadSpec {
         dependencies: generate_test_dependencies(),
         restart: true,
-        access_rights: AccessRights::default(),
         runtime: runtime_name,
         name: workload_name,
         agent: agent_name,
@@ -162,7 +159,6 @@ pub fn generate_test_proto_workload() -> proto::Workload {
         agent: String::from("agent"),
         dependencies: generate_test_proto_dependencies(),
         restart: true,
-        access_rights: None,
         runtime: String::from("runtime"),
         runtime_config: "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
             .to_string(),

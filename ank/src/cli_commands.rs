@@ -1593,10 +1593,6 @@ mod tests {
                         "workload C": "ADD_COND_SUCCEEDED"
                     },
                     "restart": true,
-                    "accessRights": {
-                        "allow": [],
-                        "deny": []
-                    },
                     "runtime": "podman",
                     "runtimeConfig": "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
                     }
@@ -1656,10 +1652,6 @@ mod tests {
                             "workload C": "ADD_COND_SUCCEEDED"
                         },
                         "restart": true,
-                        "accessRights": {
-                            "allow": [],
-                            "deny": []
-                        },
                         "runtime": "podman",
                         "runtimeConfig": "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
                     },

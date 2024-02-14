@@ -4,9 +4,6 @@ desiredState:
       runtime: podman
       agent: agent_B
       restart: true
-      accessRights:
-        allow: []
-        deny: []
       dependencies:
         workload_D: ADD_COND_SUCCEEDED
         workload_A: ADD_COND_RUNNING

@@ -3,9 +3,6 @@ workloads:
     runtime: podman-kube
     agent: agent_A
     restart: true
-    accessRights:
-      allow: []
-      deny: []
     tags:
       - key: owner
         value: Ankaios team

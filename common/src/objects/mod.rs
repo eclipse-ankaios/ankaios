@@ -36,9 +36,6 @@ pub use workload_spec::{
 mod tag;
 pub use tag::Tag;
 
-mod access_rights;
-pub use access_rights::{AccessRights, AccessRightsRule, PatchOperation};
-
 mod workload_execution_instance_name;
 pub use workload_execution_instance_name::{
     ConfigHash, WorkloadExecutionInstanceName, WorkloadExecutionInstanceNameBuilder,

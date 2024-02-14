@@ -547,12 +547,6 @@ mod tests {
                                     .entry("workload C", "ADD_COND_SUCCEEDED"),
                             )
                             .entry("restart", true)
-                            .entry(
-                                "accessRights",
-                                Mapping::default()
-                                    .entry("allow", vec![] as Vec<Value>)
-                                    .entry("deny", vec![] as Vec<Value>),
-                            )
                             .entry("runtime", "runtime")
                             .entry("runtimeConfig", "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"),
                     ),

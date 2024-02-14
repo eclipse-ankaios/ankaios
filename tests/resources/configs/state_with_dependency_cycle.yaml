@@ -3,9 +3,6 @@ workloads:
     runtime: podman
     agent: agent_A
     restart: true
-    accessRights:
-      allow: []
-      deny: []
     dependencies:
       workload_B: ADD_COND_SUCCEEDED
     tags:
@@ -18,9 +15,6 @@ workloads:
     runtime: podman
     agent: agent_B
     restart: true
-    accessRights:
-      allow: []
-      deny: []
     dependencies:
       workload_A: ADD_COND_RUNNING
       workload_C: ADD_COND_SUCCEEDED
@@ -34,9 +28,6 @@ workloads:
     runtime: podman
     agent: agent_B
     restart: true
-    accessRights:
-      allow: []
-      deny: []
     tags:
       - key: owner
         value: Ankaios team

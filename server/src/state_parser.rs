@@ -30,7 +30,6 @@ struct StoredWorkloadSpec {
     pub restart: bool,
     #[serde(default)]
     pub dependencies: HashMap<String, ankaios::AddCondition>,
-    pub access_rights: ankaios::AccessRights,
     #[serde(default)]
     pub tags: Vec<ankaios::Tag>,
     pub runtime_config: String,
@@ -61,7 +60,6 @@ fn from_stored_workloads(
             runtime: stored_workload.runtime,
             dependencies: stored_workload.dependencies,
             restart: stored_workload.restart,
-            access_rights: stored_workload.access_rights,
         };
         workload_specs.insert(name, workload);
     }
@@ -87,9 +85,6 @@ mod tests {
             runtime: podman
             agent: agent_A
             restart: true
-            accessRights:
-              allow: []
-              deny: []
             tags:
             - key: owner
               value: Ankaios team 1
@@ -100,9 +95,6 @@ mod tests {
             runtime: podman
             agent: agent_B
             restart: false
-            accessRights:
-              allow: []
-              deny: []
             runtimeConfig: |
               image: alpine:latest
               commandArgs: [ \"echo\", \"Hello Ankaios\"]
@@ -121,8 +113,6 @@ mod tests {
         assert_eq!(workload_spec_nginx.agent, "agent_A");
         assert_eq!(workload_spec_nginx.name, "nginx");
         assert!(workload_spec_nginx.restart);
-        assert_eq!(workload_spec_nginx.access_rights.allow.len(), 0);
-        assert_eq!(workload_spec_nginx.access_rights.deny.len(), 0);
         assert_eq!(workload_spec_nginx.tags.len(), 1);
         assert_eq!(
             workload_spec_nginx.tags[0],
@@ -143,8 +133,6 @@ mod tests {
         assert_eq!(workload_spec_hello.agent, "agent_B");
         assert_eq!(workload_spec_hello.name, "hello");
         assert!(!workload_spec_hello.restart);
-        assert_eq!(workload_spec_hello.access_rights.allow.len(), 0);
-        assert_eq!(workload_spec_hello.access_rights.deny.len(), 0);
         assert_eq!(workload_spec_hello.tags.len(), 0);
 
         assert_eq!(
