@@ -187,7 +187,7 @@ fn setup_cli_communication(
 }
 
 mod apply_manifests {
-    use crate::cli_commands::State;
+    use crate::cli_commands::{ApplyManifestTableDisplay, State};
     use crate::{cli::ApplyArgs, output_debug};
     use common::commands::CompleteState;
     use common::state_manipulation::{Object, Path};
@@ -400,6 +400,7 @@ mod apply_manifests {
         if req_paths.is_empty() {
             return Err("No workload provided in manifests!".to_owned());
         }
+
         let filter_masks = create_filter_masks_from_paths(&req_paths, "currentState");
         output_debug!("\nfilter_masks:\n{:?}\n", filter_masks);
 
@@ -458,15 +459,67 @@ mod apply_manifests {
 }
 #[derive(Debug, Tabled)]
 #[tabled(rename_all = "UPPERCASE")]
-struct WorkloadInfo {
+struct WorkloadBaseTableDisplay {
     #[tabled(rename = "WORKLOAD NAME")]
     name: String,
     agent: String,
+}
+
+impl WorkloadBaseTableDisplay {
+    fn new(name: &str, agent: &str) -> Self {
+        WorkloadBaseTableDisplay {
+            name: name.to_string(),
+            agent: agent.to_string(),
+        }
+    }
+}
+#[derive(Debug, Tabled)]
+#[tabled(rename_all = "UPPERCASE")]
+struct GetWorkloadTableDisplay {
+    #[tabled(inline)]
+    base_info: WorkloadBaseTableDisplay,
     runtime: String,
     #[tabled(rename = "EXECUTION STATE")]
     execution_state: String,
     #[tabled(rename = "ADDITIONAL INFO")]
     additional_info: String,
+}
+
+impl GetWorkloadTableDisplay {
+    fn new(
+        name: &str,
+        agent: &str,
+        runtime: &str,
+        execution_state: &str,
+        additional_info: &str,
+    ) -> Self {
+        GetWorkloadTableDisplay {
+            base_info: WorkloadBaseTableDisplay::new(name, agent),
+            runtime: runtime.to_string(),
+            execution_state: execution_state.to_string(),
+            additional_info: additional_info.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Tabled)]
+#[tabled(rename_all = "UPPERCASE")]
+struct ApplyManifestTableDisplay {
+    #[tabled(inline)]
+    base_info: WorkloadBaseTableDisplay,
+    status: String,
+    #[tabled(rename = "FILE")]
+    manifest_file: String,
+}
+
+impl ApplyManifestTableDisplay {
+    fn new(name: &str, agent: &str, status: &str, manifest_file: &str) -> Self {
+        ApplyManifestTableDisplay {
+            base_info: WorkloadBaseTableDisplay::new(name, agent),
+            status: status.to_string(),
+            manifest_file: manifest_file.to_string(),
+        }
+    }
 }
 
 pub struct CliCommands {
@@ -615,15 +668,17 @@ impl CliCommands {
         // [impl->swdd~cli-returns-list-of-workloads-from-server~1]
         let res_complete_state = self.get_complete_state(&Vec::new()).await?;
 
-        let mut workload_infos: Vec<WorkloadInfo> = res_complete_state
+        let mut workload_infos: Vec<GetWorkloadTableDisplay> = res_complete_state
             .workload_states
             .into_iter()
-            .map(|wl_state| WorkloadInfo {
-                name: wl_state.instance_name.workload_name().into(),
-                agent: wl_state.instance_name.agent_name().into(),
-                runtime: String::new(),
-                execution_state: wl_state.execution_state.state.to_string(),
-                additional_info: wl_state.execution_state.additional_info.to_string(),
+            .map(|wl_state| {
+                GetWorkloadTableDisplay::new(
+                    wl_state.instance_name.workload_name(),
+                    wl_state.instance_name.agent_name(),
+                    Default::default(),
+                    &wl_state.execution_state.state.to_string(),
+                    &wl_state.execution_state.additional_info.to_string(),
+                )
             })
             .collect();
 
@@ -633,7 +688,9 @@ impl CliCommands {
                 .current_state
                 .workloads
                 .iter()
-                .find(|&(wl_name, wl_spec)| *wl_name == wi.name && wl_spec.agent == wi.agent)
+                .find(|&(wl_name, wl_spec)| {
+                    *wl_name == wi.base_info.name && wl_spec.agent == wi.base_info.agent
+                })
             {
                 wi.runtime = found_wl_spec.runtime.clone();
             }
@@ -642,7 +699,7 @@ impl CliCommands {
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
         if let Some(agent_name) = agent_name {
-            workload_infos.retain(|wi| wi.agent == agent_name);
+            workload_infos.retain(|wi| wi.base_info.agent == agent_name);
         }
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
@@ -652,12 +709,12 @@ impl CliCommands {
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
         if !workload_name.is_empty() {
-            workload_infos.retain(|wi| workload_name.iter().any(|wn| wn == &wi.name));
+            workload_infos.retain(|wi| workload_name.iter().any(|wn| wn == &wi.base_info.name));
         }
 
         // The order of workloads in RequestCompleteState is not sable -> make sure that the user sees always the same order.
         // [impl->swdd~cli-shall-sort-list-of-workloads~1]
-        workload_infos.sort_by_key(|wi| wi.name.clone());
+        workload_infos.sort_by_key(|wi| wi.base_info.name.clone());
 
         output_debug!("The table after filtering:\n{:?}", workload_infos);
 
@@ -753,7 +810,15 @@ impl CliCommands {
 
         let mut console_output = String::default();
 
-        print_manifest_files_overview(&apply_args, &mut console_output);
+        // print_manifest_files_overview(&apply_args, &mut console_output);
+        // console_output.push_str(
+        //     &Table::new(vec![
+        //         ApplyManifestTableDisplay::new("wl1", "agent1", "OK", "manifest1.yaml"),
+        //         ApplyManifestTableDisplay::new("wl2", "agent2", "Error", "manifest2.yaml"),
+        //     ])
+        //     .with(Style::blank())
+        //     .to_string(),
+        // );
 
         match apply_args.get_input_sources() {
             Ok(mut manifests) => {
@@ -783,9 +848,9 @@ impl CliCommands {
                                         response_content: _,
                                     })) if req_id == request_id => {
                                         return {
-                                            console_output.clone().push_str("Done.");
+                                            // console_output.clone().push_str("Done.");
                                             Ok(console_output.clone())
-                                        }
+                                        };
                                     }
                                     None => return Err("Channel preliminary closed."),
                                     Some(_) => (),
@@ -802,7 +867,7 @@ impl CliCommands {
                             //     "Failed get response from server in time (timeout={WAIT_TIME_MS:?})."
                             // ))),
                             _ => {
-                                console_output.push_str("Done.");
+                                // console_output.push_str("Done.");
                                 Ok(console_output)
                             }
                         }
@@ -858,7 +923,7 @@ mod tests {
         cli::OutputFormat,
         cli_commands::{
             generate_compact_state_output, get_filtered_value, update_compact_state, ApplyArgs,
-            WorkloadInfo,
+            GetWorkloadTableDisplay,
         },
     };
     use common::commands::CompleteState;
@@ -969,7 +1034,7 @@ mod tests {
         let cmd_text = cmd.get_workloads(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
-        let expected_empty_table: Vec<WorkloadInfo> = Vec::new();
+        let expected_empty_table: Vec<GetWorkloadTableDisplay> = Vec::new();
         let expected_table_text = Table::new(expected_empty_table)
             .with(Style::blank())
             .to_string();
@@ -1029,28 +1094,28 @@ mod tests {
         let cmd_text = cmd.get_workloads(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
-        let expected_table: Vec<WorkloadInfo> = vec![
-            WorkloadInfo {
-                name: String::from("name1"),
-                agent: String::from("agent_A"),
-                runtime: String::from("runtime"),
-                execution_state: ExecutionState::running().state.to_string(),
-                additional_info: Default::default(),
-            },
-            WorkloadInfo {
-                name: String::from("name2"),
-                agent: String::from("agent_B"),
-                runtime: String::from("runtime"),
-                execution_state: ExecutionState::running().state.to_string(),
-                additional_info: Default::default(),
-            },
-            WorkloadInfo {
-                name: String::from("name3"),
-                agent: String::from("agent_B"),
-                runtime: String::from("runtime"),
-                execution_state: ExecutionState::running().state.to_string(),
-                additional_info: Default::default(),
-            },
+        let expected_table: Vec<GetWorkloadTableDisplay> = vec![
+            GetWorkloadTableDisplay::new(
+                "name1",
+                "agent_A",
+                "runtime",
+                &ExecutionState::running().state.to_string(),
+                Default::default(),
+            ),
+            GetWorkloadTableDisplay::new(
+                "name2",
+                "agent_B",
+                "runtime",
+                &ExecutionState::running().state.to_string(),
+                Default::default(),
+            ),
+            GetWorkloadTableDisplay::new(
+                "name3",
+                "agent_B",
+                "runtime",
+                &ExecutionState::running().state.to_string(),
+                Default::default(),
+            ),
         ];
         let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
         assert_eq!(cmd_text.unwrap(), expected_table_text);
@@ -1106,13 +1171,13 @@ mod tests {
             .await;
         assert!(cmd_text.is_ok());
 
-        let expected_table: Vec<WorkloadInfo> = vec![WorkloadInfo {
-            name: String::from("name1"),
-            agent: String::from("agent_A"),
-            runtime: String::from("runtime"),
-            execution_state: ExecutionState::running().state.to_string(),
-            additional_info: Default::default(),
-        }];
+        let expected_table: Vec<GetWorkloadTableDisplay> = vec![GetWorkloadTableDisplay::new(
+            "name1",
+            "agent_A",
+            "runtime",
+            &ExecutionState::running().state.to_string(),
+            Default::default(),
+        )];
         let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
         assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
@@ -1167,21 +1232,21 @@ mod tests {
             .await;
         assert!(cmd_text.is_ok());
 
-        let expected_table: Vec<WorkloadInfo> = vec![
-            WorkloadInfo {
-                name: String::from("name2"),
-                agent: String::from("agent_B"),
-                runtime: String::from("runtime"),
-                execution_state: ExecutionState::running().state.to_string(),
-                additional_info: Default::default(),
-            },
-            WorkloadInfo {
-                name: String::from("name3"),
-                agent: String::from("agent_B"),
-                runtime: String::from("runtime"),
-                execution_state: ExecutionState::running().state.to_string(),
-                additional_info: Default::default(),
-            },
+        let expected_table: Vec<GetWorkloadTableDisplay> = vec![
+            GetWorkloadTableDisplay::new(
+                "name2",
+                "agent_B",
+                "runtime",
+                &ExecutionState::running().state.to_string(),
+                Default::default(),
+            ),
+            GetWorkloadTableDisplay::new(
+                "name3",
+                "agent_B",
+                "runtime",
+                &ExecutionState::running().state.to_string(),
+                Default::default(),
+            ),
         ];
         let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
         assert_eq!(cmd_text.unwrap(), expected_table_text);
@@ -1237,7 +1302,7 @@ mod tests {
             .await;
         assert!(cmd_text.is_ok());
 
-        let expected_table: Vec<WorkloadInfo> = Vec::new();
+        let expected_table: Vec<GetWorkloadTableDisplay> = Vec::new();
         let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
         assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
@@ -1282,13 +1347,14 @@ mod tests {
         let cmd_text = cmd.get_workloads(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
-        let expected_empty_table: Vec<WorkloadInfo> = vec![WorkloadInfo {
-            name: String::from("Workload_1"),
-            agent: String::from("agent_A"),
-            runtime: String::new(),
-            execution_state: String::from("Removed"),
-            additional_info: Default::default(),
-        }];
+        let expected_empty_table: Vec<GetWorkloadTableDisplay> =
+            vec![GetWorkloadTableDisplay::new(
+                "Workload_1",
+                "agent_A",
+                Default::default(),
+                "Removed",
+                Default::default(),
+            )];
         let expected_table_text = Table::new(expected_empty_table)
             .with(Style::blank())
             .to_string();
