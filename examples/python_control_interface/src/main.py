@@ -41,7 +41,6 @@ def create_request_to_add_new_workload():
                                         agent="agent_A",
                                         runtime="podman",
                                         restart=True,
-                                        updateStrategy=ank.AT_MOST_ONCE,
                                         runtimeConfig="image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]")
                         }
                     )

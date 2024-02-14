@@ -3,9 +3,6 @@ workloads:
     runtime: podman
     agent: agent_A
     restart: true
-    accessRights:
-      allow: []
-      deny: []
     tags:
       - key: owner
         value: Ankaios team

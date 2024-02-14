@@ -14,8 +14,7 @@
 
 use api::proto::{
     request::RequestContent, to_server::ToServerEnum, ApiVersion, CompleteState,
-    CompleteStateRequest, FromServer, Request, State, Tag, ToServer, UpdateStateRequest,
-    UpdateStrategy, Workload,
+    CompleteStateRequest, FromServer, Request, State, Tag, ToServer, UpdateStateRequest, Workload,
 };
 use prost::Message;
 use std::{
@@ -53,8 +52,6 @@ fn create_request_to_add_new_workload() -> ToServer {
             runtime: "podman".to_string(),
             agent: "agent_A".to_string(),
             restart: false,
-            update_strategy: UpdateStrategy::AtMostOnce.into(),
-            access_rights: None,
             tags: vec![Tag {
                 key: "owner".to_string(),
                 value: "Ankaios team".to_string(),
@@ -75,8 +72,6 @@ fn create_request_to_add_new_workload() -> ToServer {
                     }),
                     desired_state: Some(State {
                         workloads: new_workloads,
-                        configs: HashMap::default(),
-                        cronjobs: HashMap::default(),
                     }),
                     ..Default::default()
                 }),

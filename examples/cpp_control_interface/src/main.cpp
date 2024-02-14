@@ -35,7 +35,6 @@ ankaios::ToServer createRequestToAddNewWorkload()
     newWorkload.set_agent("agent_A");
     newWorkload.set_runtime("podman");
     newWorkload.set_restart(true);
-    newWorkload.set_updatestrategy(ankaios::UpdateStrategy::AT_MOST_ONCE);
     newWorkload.set_runtimeconfig("image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]");
 
     ankaios::State *state{new ankaios::State};

@@ -7,7 +7,6 @@ const REQUEST_ID = "dynamic_nginx@nodejs_control_interface"
 
 let ToServer;
 let FromServer;
-let UpdateStrategyEnum;
 
 function create_request_to_add_new_workload(root) {
     /* Create the Request containing an UpdateStateRequest
@@ -15,7 +14,6 @@ function create_request_to_add_new_workload(root) {
     the update mask to add only the new workload. */
 
     ToServer = root.lookupType("ankaios.ToServer");
-    UpdateStrategyEnum = root.lookupEnum("ankaios.UpdateStrategy");
     let payload = {
         request: {
             requestId: REQUEST_ID,
@@ -30,7 +28,6 @@ function create_request_to_add_new_workload(root) {
                                 agent: "agent_A",
                                 runtime: "podman",
                                 restart: true,
-                                updateStrategy: UpdateStrategyEnum.AT_MOST_ONCE,
                                 runtimeConfig: "image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]"
                             }
                         }
