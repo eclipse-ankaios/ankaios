@@ -142,11 +142,12 @@ impl DependencyScheduler {
             })
     }
 
-    fn next_workloads(
-        queue: &mut StartWorkloadQueue,
+    pub fn next_workloads_to_start(
+        &mut self,
         workload_state_db: &ParameterStorage,
     ) -> ReadyWorkloads {
-        let ready_workloads: ReadyWorkloads = queue
+        let ready_workloads: ReadyWorkloads = self
+            .start_queue
             .values()
             .filter_map(|workload_spec| {
                 workload_spec
@@ -164,17 +165,10 @@ impl DependencyScheduler {
             .collect();
 
         for workload in ready_workloads.iter() {
-            queue.remove(&workload.name);
+            self.start_queue.remove(&workload.name);
         }
 
         ready_workloads
-    }
-
-    pub fn next_workloads_to_start(
-        &mut self,
-        workload_state_db: &ParameterStorage,
-    ) -> ReadyWorkloads {
-        Self::next_workloads(&mut self.start_queue, workload_state_db)
     }
 
     pub fn next_workloads_to_delete(
