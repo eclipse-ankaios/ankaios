@@ -232,6 +232,7 @@ mod tests {
 
     const AGENT_A: &str = "agent_A";
     const WORKLOAD_NAME_1: &str = "workload_1";
+    const WORKLOAD_NAME_2: &str = "workload_2";
     const RUNTIME: &str = "runtime";
 
     #[test]
@@ -358,7 +359,10 @@ mod tests {
     #[test]
     fn utest_dependency_states_for_start_fulfilled() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
-            HashMap::from([(WORKLOAD_NAME_1.to_string(), AddCondition::AddCondRunning)]),
+            AGENT_A,
+            WORKLOAD_NAME_1,
+            RUNTIME,
+            HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondRunning)]),
         );
 
         let mut parameter_storage_mock = MockParameterStorage::default();
@@ -376,7 +380,10 @@ mod tests {
     #[test]
     fn utest_dependency_states_for_start_not_fulfilled() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
-            HashMap::from([(WORKLOAD_NAME_1.to_string(), AddCondition::AddCondRunning)]),
+            AGENT_A,
+            WORKLOAD_NAME_1,
+            RUNTIME,
+            HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondRunning)]),
         );
 
         let mut parameter_storage_mock = MockParameterStorage::default();
@@ -394,7 +401,10 @@ mod tests {
     #[test]
     fn utest_dependency_states_for_start_fulfilled_no_workload_state() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
-            HashMap::from([(WORKLOAD_NAME_1.to_string(), AddCondition::AddCondRunning)]),
+            AGENT_A,
+            WORKLOAD_NAME_1,
+            RUNTIME,
+            HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondRunning)]),
         );
 
         let mut parameter_storage_mock = MockParameterStorage::default();
@@ -412,7 +422,10 @@ mod tests {
     #[test]
     fn utest_next_workloads_to_start_fulfilled() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
-            HashMap::from([(WORKLOAD_NAME_1.to_string(), AddCondition::AddCondSucceeded)]),
+            AGENT_A,
+            WORKLOAD_NAME_1,
+            RUNTIME,
+            HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondSucceeded)]),
         );
 
         let mut dependency_scheduler = DependencyScheduler::new();
@@ -434,7 +447,10 @@ mod tests {
     #[test]
     fn utest_next_workloads_to_start_not_fulfilled() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
-            HashMap::from([(WORKLOAD_NAME_1.to_string(), AddCondition::AddCondFailed)]),
+            AGENT_A,
+            WORKLOAD_NAME_1,
+            RUNTIME,
+            HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondFailed)]),
         );
 
         let mut dependency_scheduler = DependencyScheduler::new();
@@ -456,7 +472,10 @@ mod tests {
     #[test]
     fn utest_next_workloads_to_start_no_workload_state() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
-            HashMap::from([(WORKLOAD_NAME_1.to_string(), AddCondition::AddCondRunning)]),
+            AGENT_A,
+            WORKLOAD_NAME_1,
+            RUNTIME,
+            HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondRunning)]),
         );
 
         let mut dependency_scheduler = DependencyScheduler::new();

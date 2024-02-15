@@ -192,9 +192,16 @@ pub fn generate_test_workload_spec() -> WorkloadSpec {
 }
 
 pub fn generate_test_workload_spec_with_dependencies(
+    agent_name: &str,
+    workload_name: &str,
+    runtime_name: &str,
     dependencies: HashMap<String, AddCondition>,
 ) -> WorkloadSpec {
-    let mut workload_spec = generate_test_workload_spec();
+    let mut workload_spec = generate_test_workload_spec_with_param(
+        agent_name.to_owned(),
+        workload_name.to_owned(),
+        runtime_name.to_owned(),
+    );
     workload_spec.dependencies = dependencies;
     workload_spec
 }
