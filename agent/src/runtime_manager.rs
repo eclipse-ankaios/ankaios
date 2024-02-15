@@ -572,7 +572,7 @@ mod tests {
 
         mock_dependency_scheduler
             .expect_put_on_waiting_queue()
-            .once()
+            .times(2)
             .return_const(());
 
         let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
@@ -666,7 +666,7 @@ mod tests {
 
         mock_dependency_scheduler
             .expect_put_on_waiting_queue()
-            .once()
+            .times(2)
             .return_const(());
 
         let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
@@ -734,7 +734,7 @@ mod tests {
 
         mock_dependency_scheduler
             .expect_put_on_waiting_queue()
-            .once()
+            .times(2)
             .return_const(());
 
         let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
@@ -819,7 +819,7 @@ mod tests {
 
         mock_dependency_scheduler
             .expect_put_on_waiting_queue()
-            .once()
+            .times(2)
             .return_const(());
 
         let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
@@ -895,7 +895,7 @@ mod tests {
 
         mock_dependency_scheduler
             .expect_put_on_waiting_queue()
-            .once()
+            .times(2)
             .return_const(());
 
         let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
@@ -975,7 +975,7 @@ mod tests {
 
         mock_dependency_scheduler
             .expect_put_on_waiting_queue()
-            .once()
+            .times(2)
             .return_const(());
 
         let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
