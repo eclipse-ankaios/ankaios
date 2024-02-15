@@ -282,6 +282,8 @@ pub struct CompleteState {
     pub workload_states: Vec<WorkloadState>,
 }
 
+// This function returns intentionally the string different from the "official/default version".
+// This way Ankaios can catch and reject the CompleteState without format_version.
 fn default_api_value_serialization() -> ApiVersion {
     ApiVersion {
         version: "unknown_api_version".to_string(),
@@ -432,14 +434,14 @@ mod tests {
 
     #[test]
     fn utest_complete_state_rejects_state_without_format_version() {
-        let complete_state_proto = proto::CompleteState {
+        let complete_state_proto_no_version = proto::CompleteState {
             ..Default::default()
         };
-        let complete_state_ankaios: CompleteState =
-            CompleteState::try_from(complete_state_proto).unwrap();
+        let complete_state_ankaios_no_version: CompleteState =
+            CompleteState::try_from(complete_state_proto_no_version).unwrap();
 
         assert_eq!(
-            complete_state_ankaios.format_version.version,
+            complete_state_ankaios_no_version.format_version.version,
             "unknown_api_version".to_string()
         );
 
