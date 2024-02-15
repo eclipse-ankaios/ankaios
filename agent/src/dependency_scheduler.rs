@@ -235,7 +235,7 @@ mod tests {
     const RUNTIME: &str = "runtime";
 
     #[test]
-    fn utest_dependency_scheduler_split_workloads_to_ready_and_waiting() {
+    fn utest_split_workloads_to_ready_and_waiting() {
         let workload_with_dependencies = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
             WORKLOAD_NAME_1.to_string(),
@@ -256,7 +256,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_dependency_scheduler_put_on_waiting_queue() {
+    fn utest_put_on_waiting_queue() {
         let mut dependency_scheduler = DependencyScheduler::new();
         let new_workload = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
@@ -273,7 +273,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_dependency_scheduler_put_on_delete_waiting_queue() {
+    fn utest_put_on_delete_waiting_queue() {
         let mut dependency_scheduler = DependencyScheduler::new();
         let new_workload =
             generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
@@ -287,7 +287,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_dependency_scheduler_split_deleted_workloads_to_ready_and_waiting() {
+    fn utest_split_deleted_workloads_to_ready_and_waiting() {
         let workload_with_dependencies =
             generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
 
@@ -314,7 +314,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_dependency_scheduler_split_deleted_workloads_to_ready_and_waiting_ready_to_delete() {
+    fn utest_split_deleted_workloads_to_ready_and_waiting_ready_to_delete() {
         let workload_with_dependencies =
             generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
 
@@ -335,7 +335,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_dependency_scheduler_split_deleted_workloads_to_ready_and_waiting_no_workload_state() {
+    fn utest_split_deleted_workloads_to_ready_and_waiting_no_workload_state() {
         let workload_with_dependencies =
             generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
 
@@ -356,7 +356,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_dependency_scheduler_dependency_states_for_start_fulfilled() {
+    fn utest_dependency_states_for_start_fulfilled() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
             HashMap::from([(WORKLOAD_NAME_1.to_string(), AddCondition::AddCondRunning)]),
         );
@@ -374,7 +374,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_dependency_scheduler_dependency_states_for_start_not_fulfilled() {
+    fn utest_dependency_states_for_start_not_fulfilled() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
             HashMap::from([(WORKLOAD_NAME_1.to_string(), AddCondition::AddCondRunning)]),
         );
@@ -392,7 +392,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_dependency_scheduler_dependency_states_for_start_fulfilled_no_workload_state() {
+    fn utest_dependency_states_for_start_fulfilled_no_workload_state() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
             HashMap::from([(WORKLOAD_NAME_1.to_string(), AddCondition::AddCondRunning)]),
         );
@@ -410,7 +410,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_dependency_scheduler_next_workloads_to_start_fulfilled() {
+    fn utest_next_workloads_to_start_fulfilled() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
             HashMap::from([(WORKLOAD_NAME_1.to_string(), AddCondition::AddCondSucceeded)]),
         );
@@ -432,7 +432,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_dependency_scheduler_next_workloads_to_start_not_fulfilled() {
+    fn utest_next_workloads_to_start_not_fulfilled() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
             HashMap::from([(WORKLOAD_NAME_1.to_string(), AddCondition::AddCondFailed)]),
         );
@@ -454,7 +454,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_dependency_scheduler_next_workloads_to_start_no_workload_state() {
+    fn utest_next_workloads_to_start_no_workload_state() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
             HashMap::from([(WORKLOAD_NAME_1.to_string(), AddCondition::AddCondRunning)]),
         );
@@ -476,7 +476,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_dependency_scheduler_next_workloads_to_start_on_empty_queue() {
+    fn utest_next_workloads_to_start_on_empty_queue() {
         let mut parameter_storage_mock = MockParameterStorage::default();
         parameter_storage_mock
             .expect_get_workload_state_by_workload_name()
@@ -490,7 +490,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_dependency_scheduler_next_workloads_to_delete_fulfilled() {
+    fn utest_next_workloads_to_delete_fulfilled() {
         let workload_with_dependencies =
             generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
 
@@ -512,7 +512,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_dependency_scheduler_next_workloads_to_delete_not_fulfilled() {
+    fn utest_next_workloads_to_delete_not_fulfilled() {
         let workload_with_dependencies =
             generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
 
@@ -534,7 +534,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_dependency_scheduler_next_workloads_to_delete_on_empty_queue() {
+    fn utest_next_workloads_to_delete_on_empty_queue() {
         let mut parameter_storage_mock = MockParameterStorage::default();
         parameter_storage_mock
             .expect_get_workload_state_by_workload_name()
@@ -550,7 +550,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_dependency_scheduler_next_workloads_to_delete_removed_from_queue() {
+    fn utest_next_workloads_to_delete_removed_from_queue() {
         let workload_with_dependencies =
             generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
 
