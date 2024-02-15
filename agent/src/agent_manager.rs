@@ -171,7 +171,7 @@ mod tests {
     use super::*;
     use crate::agent_manager::AgentManager;
     use common::{
-        commands::{self, Response, ResponseContent, UpdateWorkloadState},
+        commands::{self, Goodbye, Response, ResponseContent, UpdateWorkloadState},
         from_server_interface::FromServerInterface,
         objects::ExecutionState,
         test_utils::generate_test_workload_spec_with_param,
@@ -330,7 +330,6 @@ mod tests {
         assert!(join!(handle).0.is_ok());
     }
 
-    // [utest->swdd~agent-manager-listens-requests-from-server~1]
     // [utest->swdd~agent-uses-async-channels~1]
     #[tokio::test]
     async fn utest_agent_manager_receives_own_workload_states() {
@@ -386,5 +385,32 @@ mod tests {
         // Terminate the infinite receiver loop
         to_manager.stop().await.unwrap();
         assert!(join!(handle).0.is_ok());
+    }
+
+    #[tokio::test]
+    #[should_panic]
+    async fn utest_agent_manager_receives_own_workload_states_panic_on_wrong_response() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (_to_manager, manager_receiver) = channel(BUFFER_SIZE);
+        let (to_server, _to_server_receiver) = channel(BUFFER_SIZE);
+        let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
+
+        let mock_runtime_manager = RuntimeManager::default();
+        let mut agent_manager = AgentManager::new(
+            AGENT_NAME.to_string(),
+            manager_receiver,
+            mock_runtime_manager,
+            to_server,
+            workload_state_receiver,
+        );
+
+        // shall panic because of wrong passed message
+        agent_manager
+            .store_and_forward_own_workload_states(ToServer::Goodbye(Goodbye {}))
+            .await;
     }
 }
