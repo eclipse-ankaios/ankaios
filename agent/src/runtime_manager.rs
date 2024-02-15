@@ -236,6 +236,7 @@ impl RuntimeManager {
             }
         }
 
+        let mut waiting_reused_workloads = Vec::new();
         // Go through each runtime and find the still running workloads
         // [impl->swdd~agent-existing-workloads-finds-list~1]
         for (runtime_name, runtime) in &self.runtime_map {
@@ -324,16 +325,7 @@ impl RuntimeManager {
                                     );
 
                                     runtime.delete_workload(instance_name);
-                                    let waiting_workloads: Vec<WorkloadSpec> =
-                                        vec![new_workload_spec];
-
-                                    self.report_pending_state_for_waiting_workloads(
-                                        &waiting_workloads,
-                                    )
-                                    .await;
-
-                                    self.dependency_scheduler
-                                        .put_on_waiting_queue(waiting_workloads);
+                                    waiting_reused_workloads.push(new_workload_spec);
                                 }
                             }
                         } else {
@@ -347,12 +339,15 @@ impl RuntimeManager {
             }
         }
 
-        let (ready_workloads, waiting_workloads) =
+        self.enqueue_waiting_workloads(waiting_reused_workloads)
+            .await;
+
+        let (ready_workloads, new_waiting_workloads) =
             DependencyScheduler::split_workloads_to_ready_and_waiting(flatten(
                 added_workloads_per_runtime,
             ));
 
-        self.enqueue_waiting_workloads(waiting_workloads).await;
+        self.enqueue_waiting_workloads(new_waiting_workloads).await;
 
         // now start all workloads that did not exist and do not have to wait for dependencies
         for workload_spec in ready_workloads {
