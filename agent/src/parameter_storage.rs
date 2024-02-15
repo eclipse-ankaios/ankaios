@@ -82,6 +82,8 @@ impl ParameterStorage {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::ParameterStorage;
     use common::objects::ExecutionState;
 
@@ -223,5 +225,72 @@ mod tests {
             storage_record_4.to_owned(),
             ExecutionState::starting("Some info")
         );
+    }
+
+    #[test]
+    fn utest_get_workload_state() {
+        let mut parameter_storage = ParameterStorage::new();
+        parameter_storage.states_storage.insert(
+            "agent_A".to_owned(),
+            HashMap::from([("workload_1".to_owned(), ExecutionState::running())]),
+        );
+
+        assert_eq!(
+            Some(ExecutionState::running()),
+            parameter_storage.get_workload_state("agent_A", "workload_1")
+        );
+    }
+
+    #[test]
+    fn utest_get_workload_state_agent_not_found() {
+        let mut parameter_storage = ParameterStorage::new();
+        parameter_storage.states_storage.insert(
+            "agent_A".to_owned(),
+            HashMap::from([("workload_1".to_owned(), ExecutionState::running())]),
+        );
+
+        assert!(parameter_storage
+            .get_workload_state("unknown agent", "workload_1")
+            .is_none());
+    }
+
+    #[test]
+    fn utest_get_workload_state_workload_not_found() {
+        let mut parameter_storage = ParameterStorage::new();
+        parameter_storage.states_storage.insert(
+            "agent_A".to_owned(),
+            HashMap::from([("workload_1".to_owned(), ExecutionState::running())]),
+        );
+
+        assert!(parameter_storage
+            .get_workload_state("agent_A", "unknown workload")
+            .is_none());
+    }
+
+    #[test]
+    fn utest_get_workload_state_by_workload_name() {
+        let mut parameter_storage = ParameterStorage::new();
+        parameter_storage.states_storage.insert(
+            "agent_A".to_owned(),
+            HashMap::from([("workload_1".to_owned(), ExecutionState::running())]),
+        );
+
+        assert_eq!(
+            Some(ExecutionState::running()),
+            parameter_storage.get_workload_state_by_workload_name(&"workload_1".to_owned())
+        );
+    }
+
+    #[test]
+    fn utest_get_workload_state_by_workload_name_not_existing_workload() {
+        let mut parameter_storage = ParameterStorage::new();
+        parameter_storage.states_storage.insert(
+            "agent_A".to_owned(),
+            HashMap::from([("workload_1".to_owned(), ExecutionState::running())]),
+        );
+
+        assert!(parameter_storage
+            .get_workload_state_by_workload_name(&"unknown workload".to_owned())
+            .is_none());
     }
 }
