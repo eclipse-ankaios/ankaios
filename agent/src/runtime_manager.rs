@@ -324,9 +324,16 @@ impl RuntimeManager {
                                     );
 
                                     runtime.delete_workload(instance_name);
+                                    let waiting_workloads: Vec<WorkloadSpec> =
+                                        vec![new_workload_spec];
+
+                                    self.report_pending_state_for_waiting_workloads(
+                                        &waiting_workloads,
+                                    )
+                                    .await;
 
                                     self.dependency_scheduler
-                                        .put_on_waiting_queue(vec![new_workload_spec]);
+                                        .put_on_waiting_queue(waiting_workloads);
                                 }
                             }
                         } else {
