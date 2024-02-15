@@ -196,7 +196,7 @@ mod tests {
         let instance_name = WorkloadExecutionInstanceName::builder()
             .agent_name(AGENT_NAME.to_owned())
             .workload_name(WORKLOAD_1_NAME.to_owned())
-            .config(&"runtimeConfig".to_owned().hash_config())
+            .config(&String::from("config"))
             .build();
 
         let (workload_command_sender, _) = WorkloadCommandSender::new();
