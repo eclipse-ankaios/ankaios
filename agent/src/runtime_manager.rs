@@ -500,7 +500,7 @@ mod tests {
     use crate::parameter_storage::MockParameterStorage;
     use crate::runtime_connectors::{MockRuntimeFacade, RuntimeError};
     use crate::workload::{MockWorkload, WorkloadError};
-    use common::commands::ResponseContent;
+    use common::commands::{ResponseContent, UpdateWorkloadState};
     use common::objects::{
         generate_test_workload_state, AddCondition, WorkloadExecutionInstanceNameBuilder,
     };
@@ -508,7 +508,7 @@ mod tests {
         generate_test_complete_state, generate_test_deleted_workload,
         generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
     };
-    use common::to_server_interface::ToServerReceiver;
+    use common::to_server_interface::{ToServer, ToServerReceiver};
     use mockall::{predicate, Sequence};
     use tokio::sync::mpsc::channel;
 
@@ -958,6 +958,100 @@ mod tests {
 
         assert!(runtime_manager.initial_workload_list_received);
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+    }
+
+    // todo linkage
+    #[tokio::test]
+    async fn utest_handle_update_workload_initial_call_replace_workload_with_not_fulfilled_dependencies(
+    ) {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let parameter_storage_mock = MockParameterStorage::new_context();
+        parameter_storage_mock
+            .expect()
+            .once()
+            .return_once(MockParameterStorage::default);
+
+        let existing_workload = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let mut mock_dependency_scheduler = MockDependencyScheduler::default();
+
+        let reused_waiting_workloads = vec![existing_workload.clone()];
+        mock_dependency_scheduler
+            .expect_put_on_waiting_queue()
+            .once()
+            .with(predicate::eq(reused_waiting_workloads))
+            .return_const(());
+
+        let waiting_new_workloads = vec![];
+        mock_dependency_scheduler
+            .expect_put_on_waiting_queue()
+            .once()
+            .with(predicate::eq(waiting_new_workloads))
+            .return_const(());
+
+        let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
+        mock_dependency_scheduler_context
+            .expect()
+            .once()
+            .return_once(|| mock_dependency_scheduler);
+
+        let dependency_scheduler_context =
+            MockDependencyScheduler::split_workloads_to_ready_and_waiting_context();
+        dependency_scheduler_context
+            .expect()
+            .once()
+            .return_const((vec![], vec![]));
+
+        let dependency_scheduler_start_context =
+            MockDependencyScheduler::dependency_states_for_start_fulfilled_context();
+        dependency_scheduler_start_context
+            .expect()
+            .once()
+            .return_const(false);
+
+        // create workload with different config string to simulate a replace of a existing workload
+        let existing_workload_with_other_config = WorkloadExecutionInstanceNameBuilder::default()
+            .workload_name(WORKLOAD_1_NAME)
+            .config(&String::from("different config"))
+            .agent_name(AGENT_NAME)
+            .build();
+
+        let mut runtime_facade_mock = MockRuntimeFacade::new();
+        let existing_instance_name = existing_workload_with_other_config.clone();
+        runtime_facade_mock
+            .expect_get_reusable_running_workloads()
+            .once()
+            .return_once(|_| Box::pin(async { Ok(vec![existing_workload_with_other_config]) }));
+
+        runtime_facade_mock
+            .expect_delete_workload()
+            .once()
+            .with(predicate::eq(existing_instance_name))
+            .return_const(());
+
+        let (mut server_receiver, mut runtime_manager) = RuntimeManagerBuilder::default()
+            .with_runtime(
+                RUNTIME_NAME,
+                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+            )
+            .build();
+
+        let added_workloads = vec![existing_workload];
+        runtime_manager
+            .handle_update_workload(added_workloads, vec![])
+            .await;
+
+        server_receiver.close();
+
+        assert!(runtime_manager.initial_workload_list_received);
+        assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
     // [utest->swdd~agent-existing-workloads-delete-unneeded~1]
@@ -1905,5 +1999,324 @@ mod tests {
         server_receiver.close();
 
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+    }
+
+    #[tokio::test]
+    async fn utest_report_workload_state_waiting_to_start_for_waiting_workloads() {
+        let parameter_storage_mock_context = MockParameterStorage::new_context();
+        parameter_storage_mock_context
+            .expect()
+            .once()
+            .return_once(MockParameterStorage::default);
+
+        let mut mock_dependency_scheduler = MockDependencyScheduler::default();
+        mock_dependency_scheduler
+            .expect_put_on_waiting_queue()
+            .once()
+            .return_const(());
+
+        let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
+        mock_dependency_scheduler_context
+            .expect()
+            .once()
+            .return_once(|| mock_dependency_scheduler);
+
+        let (mut server_receiver, mut runtime_manager) = RuntimeManagerBuilder::default()
+            .with_runtime(
+                RUNTIME_NAME,
+                Box::new(MockRuntimeFacade::new()) as Box<dyn RuntimeFacade>,
+            )
+            .build();
+
+        let workload = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_owned(),
+            WORKLOAD_1_NAME.to_owned(),
+            RUNTIME_NAME.to_owned(),
+        );
+        let instance_name = workload.instance_name();
+
+        let waiting_workloads = vec![workload];
+
+        runtime_manager
+            .enqueue_waiting_workloads(waiting_workloads)
+            .await;
+
+        let expected_update_workload_state_msg =
+            ToServer::UpdateWorkloadState(UpdateWorkloadState {
+                workload_states: vec![WorkloadState {
+                    instance_name,
+                    execution_state: ExecutionState::waiting_to_start(),
+                    ..Default::default()
+                }],
+            });
+
+        assert_eq!(
+            Ok(Some(expected_update_workload_state_msg)),
+            tokio::time::timeout(
+                tokio::time::Duration::from_millis(100),
+                server_receiver.recv(),
+            )
+            .await
+        );
+    }
+
+    #[tokio::test]
+    async fn utest_report_workload_state_waiting_to_stop_for_waiting_deleted_workloads() {
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state()
+            .once()
+            .with(
+                predicate::eq(AGENT_NAME.to_owned()),
+                predicate::eq(WORKLOAD_1_NAME.to_owned()),
+            )
+            .return_once(|_, _| Some(ExecutionState::running()));
+
+        let parameter_storage_mock_context = MockParameterStorage::new_context();
+        parameter_storage_mock_context
+            .expect()
+            .once()
+            .return_once(|| parameter_storage_mock);
+
+        let mut mock_dependency_scheduler = MockDependencyScheduler::default();
+        mock_dependency_scheduler
+            .expect_put_on_delete_waiting_queue()
+            .once()
+            .return_const(());
+
+        let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
+        mock_dependency_scheduler_context
+            .expect()
+            .once()
+            .return_once(|| mock_dependency_scheduler);
+
+        let (mut server_receiver, mut runtime_manager) = RuntimeManagerBuilder::default()
+            .with_runtime(
+                RUNTIME_NAME,
+                Box::new(MockRuntimeFacade::new()) as Box<dyn RuntimeFacade>,
+            )
+            .build();
+
+        let deleted_workload =
+            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+
+        let instance_name = WorkloadExecutionInstanceName::builder()
+            .agent_name(deleted_workload.agent.clone())
+            .workload_name(deleted_workload.name.clone())
+            .config(&String::from("config"))
+            .build();
+
+        let mut workload_mock = MockWorkload::default();
+        workload_mock
+            .expect_instance_name()
+            .once()
+            .return_const(instance_name.clone());
+
+        runtime_manager
+            .workloads
+            .insert(deleted_workload.name.clone(), workload_mock);
+
+        let waiting_workloads = vec![deleted_workload];
+
+        runtime_manager
+            .enqueue_waiting_deleted_workloads(waiting_workloads)
+            .await;
+
+        let expected_update_workload_state_msg =
+            ToServer::UpdateWorkloadState(UpdateWorkloadState {
+                workload_states: vec![WorkloadState {
+                    instance_name,
+                    execution_state: ExecutionState::waiting_to_stop(),
+                    ..Default::default()
+                }],
+            });
+
+        assert_eq!(
+            Ok(Some(expected_update_workload_state_msg)),
+            tokio::time::timeout(
+                tokio::time::Duration::from_millis(100),
+                server_receiver.recv(),
+            )
+            .await
+        );
+    }
+
+    #[tokio::test]
+    async fn utest_report_no_workload_state_waiting_to_stop_for_not_running_workloads() {
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state()
+            .once()
+            .return_once(|_, _| Some(ExecutionState::succeeded()));
+
+        let parameter_storage_mock_context = MockParameterStorage::new_context();
+        parameter_storage_mock_context
+            .expect()
+            .once()
+            .return_once(|| parameter_storage_mock);
+
+        let mut mock_dependency_scheduler = MockDependencyScheduler::default();
+        mock_dependency_scheduler
+            .expect_put_on_delete_waiting_queue()
+            .once()
+            .return_const(());
+
+        let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
+        mock_dependency_scheduler_context
+            .expect()
+            .once()
+            .return_once(|| mock_dependency_scheduler);
+
+        let (mut server_receiver, mut runtime_manager) = RuntimeManagerBuilder::default()
+            .with_runtime(
+                RUNTIME_NAME,
+                Box::new(MockRuntimeFacade::new()) as Box<dyn RuntimeFacade>,
+            )
+            .build();
+
+        let deleted_workload =
+            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+
+        let instance_name = WorkloadExecutionInstanceName::builder()
+            .agent_name(deleted_workload.agent.clone())
+            .workload_name(deleted_workload.name.clone())
+            .config(&String::from("config"))
+            .build();
+
+        let mut workload_mock = MockWorkload::default();
+        workload_mock
+            .expect_instance_name()
+            .once()
+            .return_const(instance_name.clone());
+
+        runtime_manager
+            .workloads
+            .insert(deleted_workload.name.clone(), workload_mock);
+
+        let waiting_workloads = vec![deleted_workload];
+
+        runtime_manager
+            .enqueue_waiting_deleted_workloads(waiting_workloads)
+            .await;
+
+        assert!(server_receiver.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_report_no_workload_state_waiting_to_stop_for_not_existing_workload_state() {
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state()
+            .once()
+            .return_const(None);
+
+        let parameter_storage_mock_context = MockParameterStorage::new_context();
+        parameter_storage_mock_context
+            .expect()
+            .once()
+            .return_once(|| parameter_storage_mock);
+
+        let mut mock_dependency_scheduler = MockDependencyScheduler::default();
+        mock_dependency_scheduler
+            .expect_put_on_delete_waiting_queue()
+            .once()
+            .return_const(());
+
+        let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
+        mock_dependency_scheduler_context
+            .expect()
+            .once()
+            .return_once(|| mock_dependency_scheduler);
+
+        let (mut server_receiver, mut runtime_manager) = RuntimeManagerBuilder::default()
+            .with_runtime(
+                RUNTIME_NAME,
+                Box::new(MockRuntimeFacade::new()) as Box<dyn RuntimeFacade>,
+            )
+            .build();
+
+        let deleted_workload =
+            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+
+        let instance_name = WorkloadExecutionInstanceName::builder()
+            .agent_name(deleted_workload.agent.clone())
+            .workload_name(deleted_workload.name.clone())
+            .config(&String::from("config"))
+            .build();
+
+        let mut workload_mock = MockWorkload::default();
+        workload_mock
+            .expect_instance_name()
+            .once()
+            .return_const(instance_name.clone());
+
+        runtime_manager
+            .workloads
+            .insert(deleted_workload.name.clone(), workload_mock);
+
+        let waiting_workloads = vec![deleted_workload];
+
+        runtime_manager
+            .enqueue_waiting_deleted_workloads(waiting_workloads)
+            .await;
+
+        assert!(server_receiver.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_report_no_workload_state_waiting_to_stop_for_not_existing_workload() {
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state()
+            .once()
+            .return_once(|_, _| Some(ExecutionState::running()));
+
+        let parameter_storage_mock_context = MockParameterStorage::new_context();
+        parameter_storage_mock_context
+            .expect()
+            .once()
+            .return_once(|| parameter_storage_mock);
+
+        let mut mock_dependency_scheduler = MockDependencyScheduler::default();
+        mock_dependency_scheduler
+            .expect_put_on_delete_waiting_queue()
+            .once()
+            .return_const(());
+
+        let mock_dependency_scheduler_context = MockDependencyScheduler::new_context();
+        mock_dependency_scheduler_context
+            .expect()
+            .once()
+            .return_once(|| mock_dependency_scheduler);
+
+        let (mut server_receiver, mut runtime_manager) = RuntimeManagerBuilder::default()
+            .with_runtime(
+                RUNTIME_NAME,
+                Box::new(MockRuntimeFacade::new()) as Box<dyn RuntimeFacade>,
+            )
+            .build();
+
+        let deleted_workload =
+            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+
+        let instance_name = WorkloadExecutionInstanceName::builder()
+            .agent_name(deleted_workload.agent.clone())
+            .workload_name(deleted_workload.name.clone())
+            .config(&String::from("config"))
+            .build();
+
+        let mut workload_mock = MockWorkload::default();
+        workload_mock
+            .expect_instance_name()
+            .once()
+            .return_const(instance_name.clone());
+
+        let waiting_workloads = vec![deleted_workload];
+
+        runtime_manager
+            .enqueue_waiting_deleted_workloads(waiting_workloads)
+            .await;
+
+        assert!(server_receiver.try_recv().is_err());
     }
 }
