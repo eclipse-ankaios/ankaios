@@ -680,4 +680,25 @@ mod tests {
             "expected ordered dependencies."
         );
     }
+
+    #[test]
+    fn utest_add_condition_fulfilled_by_fulfilled() {
+        let add_condition = AddCondition::AddCondRunning;
+        assert!(add_condition.fulfilled_by(&ExecutionState::running()));
+
+        let add_condition = AddCondition::AddCondSucceeded;
+        assert!(add_condition.fulfilled_by(&ExecutionState::succeeded()));
+
+        let add_condition = AddCondition::AddCondFailed;
+        assert!(add_condition.fulfilled_by(&ExecutionState::failed("some failure".to_string())));
+    }
+
+    #[test]
+    fn utest_delete_condition_fulfilled_by() {
+        let delete_condition = DeleteCondition::DelCondNotPendingNorRunning;
+        assert!(delete_condition.fulfilled_by(&ExecutionState::succeeded()));
+
+        let delete_condition = DeleteCondition::DelCondRunning;
+        assert!(delete_condition.fulfilled_by(&ExecutionState::running()));
+    }
 }
