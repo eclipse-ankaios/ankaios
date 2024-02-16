@@ -126,7 +126,6 @@ pub fn generate_test_proto_state() -> proto::State {
         cronjobs: proto_cronjobs,
     }
 }
-
 fn generate_test_dependencies() -> HashMap<String, AddCondition> {
     HashMap::from([
         (String::from("workload A"), AddCondition::AddCondRunning),
