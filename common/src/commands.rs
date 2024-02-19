@@ -309,7 +309,7 @@ impl TryFrom<proto::CompleteState> for CompleteState {
                 .unwrap_or_else(|| proto::ApiVersion {
                     version: "unknown_api_version".to_string(),
                 })
-                .try_into()?,
+                .into(),
             startup_state: item.startup_state.unwrap_or_default().try_into()?,
             desired_state: item.desired_state.unwrap_or_default().try_into()?,
             workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
@@ -319,7 +319,7 @@ impl TryFrom<proto::CompleteState> for CompleteState {
 
 impl CompleteState {
     pub fn is_compatible_format(format_version: &ApiVersion) -> bool {
-        *format_version == CURRENT_API_VERSION
+        format_version.version == CURRENT_API_VERSION
     }
 }
 
