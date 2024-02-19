@@ -229,6 +229,7 @@ impl AnkaiosServer {
                                     .send(from_server_command)
                                     .await
                                     .unwrap_or_illegal_state();
+                                log::debug!("Send UpdateStateSuccess for request '{}'", request_id);
                                 self.to_agents
                                     .update_state_success(
                                         request_id,
