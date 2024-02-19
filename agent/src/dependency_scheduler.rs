@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::{AddCondition, DeleteCondition, DeletedWorkload, FulfilledBy, WorkloadSpec};
+use common::objects::{DeletedWorkload, FulfilledBy, WorkloadSpec};
 
 use std::collections::HashMap;
 
@@ -64,9 +64,12 @@ impl DependencyScheduler {
 
     pub fn split_workloads_to_ready_and_waiting(
         new_workloads: Vec<WorkloadSpec>,
+        workload_state_db: &ParameterStorage,
     ) -> (ReadyWorkloads, WaitingWorkloads) {
         let (ready_to_start_workloads, waiting_to_start_workloads) =
-            split_by_condition(new_workloads, |workload| workload.dependencies.is_empty());
+            split_by_condition(new_workloads, |workload| {
+                Self::dependencies_for_workload_fulfilled(workload, workload_state_db)
+            });
         (ready_to_start_workloads, waiting_to_start_workloads)
     }
 
@@ -78,18 +81,22 @@ impl DependencyScheduler {
         );
     }
 
-    fn delete_condition_fulfilled(
-        dependency_name: &String,
-        delete_condition: &DeleteCondition,
+    fn dependencies_for_deleted_workload_fulfilled(
+        workload: &DeletedWorkload,
         workload_state_db: &ParameterStorage,
     ) -> bool {
-        if let Some(wl_state) =
-            workload_state_db.get_workload_state_by_workload_name(dependency_name)
-        {
-            delete_condition.fulfilled_by(&wl_state)
-        } else {
-            true
-        }
+        workload
+            .dependencies
+            .iter()
+            .all(|(dependency_name, delete_condition)| {
+                if let Some(wl_state) =
+                    workload_state_db.get_workload_state_by_workload_name(dependency_name)
+                {
+                    delete_condition.fulfilled_by(&wl_state)
+                } else {
+                    true
+                }
+            })
     }
 
     pub fn split_deleted_workloads_to_ready_and_waiting(
@@ -98,16 +105,7 @@ impl DependencyScheduler {
     ) -> (ReadyDeletedWorkloads, WaitingDeletedWorkloads) {
         let (ready_to_delete_workloads, waiting_to_delete_workloads) =
             split_by_condition(deleted_workloads, |workload| {
-                workload
-                    .dependencies
-                    .iter()
-                    .all(|(dependency_name, delete_condition)| {
-                        Self::delete_condition_fulfilled(
-                            dependency_name,
-                            delete_condition,
-                            workload_state_db,
-                        )
-                    })
+                Self::dependencies_for_deleted_workload_fulfilled(workload, workload_state_db)
             });
 
         (ready_to_delete_workloads, waiting_to_delete_workloads)
@@ -121,21 +119,7 @@ impl DependencyScheduler {
         );
     }
 
-    fn start_condition_fulfilled(
-        dependency_name: &String,
-        add_condition: &AddCondition,
-        workload_state_db: &ParameterStorage,
-    ) -> bool {
-        if let Some(wl_state) =
-            workload_state_db.get_workload_state_by_workload_name(dependency_name)
-        {
-            add_condition.fulfilled_by(&wl_state)
-        } else {
-            false
-        }
-    }
-
-    pub fn dependency_states_for_start_fulfilled(
+    pub fn dependencies_for_workload_fulfilled(
         workload_spec: &WorkloadSpec,
         workload_state_db: &ParameterStorage,
     ) -> bool {
@@ -143,7 +127,13 @@ impl DependencyScheduler {
             .dependencies
             .iter()
             .all(|(dependency_name, add_condition)| {
-                Self::start_condition_fulfilled(dependency_name, add_condition, workload_state_db)
+                if let Some(wl_state) =
+                    workload_state_db.get_workload_state_by_workload_name(dependency_name)
+                {
+                    add_condition.fulfilled_by(&wl_state)
+                } else {
+                    false
+                }
             })
     }
 
@@ -155,16 +145,7 @@ impl DependencyScheduler {
             .start_queue
             .values()
             .filter_map(|workload_spec| {
-                workload_spec
-                    .dependencies
-                    .iter()
-                    .all(|(dependency_name, add_condition)| {
-                        Self::start_condition_fulfilled(
-                            dependency_name,
-                            add_condition,
-                            workload_state_db,
-                        )
-                    })
+                Self::dependencies_for_workload_fulfilled(workload_spec, workload_state_db)
                     .then_some(workload_spec.clone())
             })
             .collect();
@@ -184,17 +165,11 @@ impl DependencyScheduler {
             .delete_queue
             .values()
             .filter_map(|deleted_workload| {
-                deleted_workload
-                    .dependencies
-                    .iter()
-                    .all(|(dependency_name, delete_condition)| {
-                        Self::delete_condition_fulfilled(
-                            dependency_name,
-                            delete_condition,
-                            workload_state_db,
-                        )
-                    })
-                    .then_some(deleted_workload.clone())
+                Self::dependencies_for_deleted_workload_fulfilled(
+                    deleted_workload,
+                    workload_state_db,
+                )
+                .then_some(deleted_workload.clone())
             })
             .collect();
 
@@ -218,7 +193,7 @@ mod tests {
     use std::collections::HashMap;
 
     use common::{
-        objects::{AddCondition, ExecutionState},
+        objects::{AddCondition, ExecutionState, WorkloadSpec},
         test_utils::{
             generate_test_deleted_workload, generate_test_workload_spec_with_dependencies,
             generate_test_workload_spec_with_param,
@@ -237,23 +212,67 @@ mod tests {
 
     #[test]
     fn utest_split_workloads_to_ready_and_waiting() {
-        let workload_with_dependencies = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_1.to_string(),
-            RUNTIME.to_string(),
+        let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
+            AGENT_A,
+            WORKLOAD_NAME_1,
+            RUNTIME,
+            HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondFailed)]),
         );
 
         let mut workload_without_dependencies = workload_with_dependencies.clone();
         workload_without_dependencies.dependencies.clear();
 
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state_by_workload_name()
+            .once()
+            .return_once(|_| Some(ExecutionState::running()));
+
         let (ready_workloads, waiting_workloads) =
-            DependencyScheduler::split_workloads_to_ready_and_waiting(vec![
-                workload_with_dependencies.clone(),
-                workload_without_dependencies.clone(),
-            ]);
+            DependencyScheduler::split_workloads_to_ready_and_waiting(
+                vec![
+                    workload_with_dependencies.clone(),
+                    workload_without_dependencies.clone(),
+                ],
+                &parameter_storage_mock,
+            );
 
         assert_eq!(vec![workload_without_dependencies], ready_workloads);
         assert_eq!(vec![workload_with_dependencies], waiting_workloads);
+    }
+
+    #[test]
+    fn utest_split_workloads_to_ready_and_waiting_dependencies_already_fulfilled() {
+        let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
+            AGENT_A,
+            WORKLOAD_NAME_1,
+            RUNTIME,
+            HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondSucceeded)]),
+        );
+
+        let mut workload_without_dependencies = workload_with_dependencies.clone();
+        workload_without_dependencies.dependencies.clear();
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state_by_workload_name()
+            .once()
+            .return_once(|_| Some(ExecutionState::succeeded()));
+
+        let (ready_workloads, waiting_workloads) =
+            DependencyScheduler::split_workloads_to_ready_and_waiting(
+                vec![
+                    workload_with_dependencies.clone(),
+                    workload_without_dependencies.clone(),
+                ],
+                &parameter_storage_mock,
+            );
+
+        assert_eq!(
+            vec![workload_with_dependencies, workload_without_dependencies],
+            ready_workloads
+        );
+        assert_eq!(Vec::<WorkloadSpec>::new(), waiting_workloads);
     }
 
     #[test]
@@ -371,7 +390,7 @@ mod tests {
             .once()
             .return_const(Some(ExecutionState::running()));
 
-        assert!(DependencyScheduler::dependency_states_for_start_fulfilled(
+        assert!(DependencyScheduler::dependencies_for_workload_fulfilled(
             &workload_with_dependencies,
             &parameter_storage_mock
         ));
@@ -392,7 +411,7 @@ mod tests {
             .once()
             .return_const(Some(ExecutionState::removed()));
 
-        assert!(!DependencyScheduler::dependency_states_for_start_fulfilled(
+        assert!(!DependencyScheduler::dependencies_for_workload_fulfilled(
             &workload_with_dependencies,
             &parameter_storage_mock
         ));
@@ -413,7 +432,7 @@ mod tests {
             .once()
             .return_const(None);
 
-        assert!(!DependencyScheduler::dependency_states_for_start_fulfilled(
+        assert!(!DependencyScheduler::dependencies_for_workload_fulfilled(
             &workload_with_dependencies,
             &parameter_storage_mock
         ));

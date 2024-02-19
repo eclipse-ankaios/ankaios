@@ -124,7 +124,6 @@ impl RuntimeManager {
         waiting_workloads: &[DeletedWorkload],
     ) {
         for workload in waiting_workloads.iter() {
-            // todo: refactor and simplify conditions when WorkloadExecutionInstanceName is part of ParameterStorage entry
             // a transition to state Running(WaitingToStop) is only allowed if the workload was in the Running(Ok) state before
             if self
                 .parameter_storage
@@ -188,7 +187,10 @@ impl RuntimeManager {
             self.handle_initial_update_workload(added_workloads).await;
         } else {
             let (ready_workloads, waiting_workloads) =
-                DependencyScheduler::split_workloads_to_ready_and_waiting(added_workloads);
+                DependencyScheduler::split_workloads_to_ready_and_waiting(
+                    added_workloads,
+                    &self.parameter_storage,
+                );
 
             self.enqueue_waiting_workloads(waiting_workloads).await;
 
@@ -304,7 +306,7 @@ impl RuntimeManager {
                                 the workload is put on the waiting queue and started
                                 when the execution states of this agent are received and all dependencies are fulfilled.
                                 Reason: get_reusable_running_workloads(..) does not return the execution states for existing workloads */
-                                if DependencyScheduler::dependency_states_for_start_fulfilled(
+                                if DependencyScheduler::dependencies_for_workload_fulfilled(
                                     &new_workload_spec,
                                     &self.parameter_storage,
                                 ) {
@@ -356,9 +358,10 @@ impl RuntimeManager {
             .await;
 
         let (ready_workloads, new_waiting_workloads) =
-            DependencyScheduler::split_workloads_to_ready_and_waiting(flatten(
-                added_workloads_per_runtime,
-            ));
+            DependencyScheduler::split_workloads_to_ready_and_waiting(
+                flatten(added_workloads_per_runtime),
+                &self.parameter_storage,
+            );
 
         self.enqueue_waiting_workloads(new_waiting_workloads).await;
 
@@ -958,7 +961,7 @@ mod tests {
             .return_const((vec![], vec![]));
 
         let dependency_scheduler_start_context =
-            MockDependencyScheduler::dependency_states_for_start_fulfilled_context();
+            MockDependencyScheduler::dependencies_for_workload_fulfilled_context();
         dependency_scheduler_start_context
             .expect()
             .once()
@@ -1023,7 +1026,7 @@ mod tests {
             .return_const((vec![], vec![]));
 
         let dependency_scheduler_start_context =
-            MockDependencyScheduler::dependency_states_for_start_fulfilled_context();
+            MockDependencyScheduler::dependencies_for_workload_fulfilled_context();
         dependency_scheduler_start_context
             .expect()
             .once()
