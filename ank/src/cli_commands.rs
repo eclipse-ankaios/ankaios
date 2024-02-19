@@ -480,12 +480,12 @@ impl CliCommands {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, io, thread};
+    use std::{io, thread};
 
     use common::{
         commands::{self, Request, RequestContent, Response, ResponseContent},
         from_server_interface::{FromServer, FromServerSender},
-        objects::{AddCondition, ExecutionState, Tag, WorkloadSpec},
+        objects::{ExecutionState, Tag, WorkloadSpec},
         test_utils::{self, generate_test_complete_state},
         to_server_interface::{ToServer, ToServerReceiver},
     };
@@ -1541,14 +1541,10 @@ mod tests {
     #[test]
     fn utest_generate_compact_state_output_single_filter_mask() {
         let input_state = generate_test_complete_state(vec![
-            test_utils::generate_test_workload_spec_with_dependencies(
-                "agent_A",
-                "name1",
-                "podman",
-                HashMap::from([
-                    ("workload A".to_owned(), AddCondition::AddCondRunning),
-                    ("workload C".to_owned(), AddCondition::AddCondSucceeded),
-                ]),
+            test_utils::generate_test_workload_spec_with_param(
+                "agent_A".to_string(),
+                "name1".to_string(),
+                "podman".to_string(),
             ),
             test_utils::generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
@@ -1606,14 +1602,10 @@ mod tests {
     #[test]
     fn utest_generate_compact_state_output_multiple_filter_masks() {
         let input_state = generate_test_complete_state(vec![
-            test_utils::generate_test_workload_spec_with_dependencies(
-                "agent_A",
-                "name1",
-                "podman",
-                HashMap::from([
-                    ("workload A".to_owned(), AddCondition::AddCondRunning),
-                    ("workload C".to_owned(), AddCondition::AddCondSucceeded),
-                ]),
+            test_utils::generate_test_workload_spec_with_param(
+                "agent_A".to_string(),
+                "name1".to_string(),
+                "podman".to_string(),
             ),
             test_utils::generate_test_workload_spec_with_param(
                 "agent_B".to_string(),

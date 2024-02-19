@@ -35,6 +35,24 @@ pub struct DependencyScheduler {
     delete_queue: DeleteWorkloadQueue,
 }
 
+fn split_by_condition<T, P>(container: Vec<T>, predicate: P) -> (Vec<T>, Vec<T>)
+where
+    P: Fn(&T) -> bool,
+{
+    let mut items_matching_condition = Vec::new();
+    let mut items_not_matching_condition = Vec::new();
+
+    for item in container {
+        if predicate(&item) {
+            items_matching_condition.push(item);
+        } else {
+            items_not_matching_condition.push(item);
+        }
+    }
+
+    (items_matching_condition, items_not_matching_condition)
+}
+
 #[cfg_attr(test, automock)]
 impl DependencyScheduler {
     pub fn new() -> Self {
@@ -42,6 +60,14 @@ impl DependencyScheduler {
             start_queue: StartWorkloadQueue::new(),
             delete_queue: DeleteWorkloadQueue::new(),
         }
+    }
+
+    pub fn split_workloads_to_ready_and_waiting(
+        new_workloads: Vec<WorkloadSpec>,
+    ) -> (ReadyWorkloads, WaitingWorkloads) {
+        let (ready_to_start_workloads, waiting_to_start_workloads) =
+            split_by_condition(new_workloads, |workload| workload.dependencies.is_empty());
+        (ready_to_start_workloads, waiting_to_start_workloads)
     }
 
     pub fn put_on_waiting_queue(&mut self, workloads: WaitingWorkloads) {
@@ -64,6 +90,27 @@ impl DependencyScheduler {
         } else {
             true
         }
+    }
+
+    pub fn split_deleted_workloads_to_ready_and_waiting(
+        deleted_workloads: Vec<DeletedWorkload>,
+        workload_state_db: &ParameterStorage,
+    ) -> (ReadyDeletedWorkloads, WaitingDeletedWorkloads) {
+        let (ready_to_delete_workloads, waiting_to_delete_workloads) =
+            split_by_condition(deleted_workloads, |workload| {
+                workload
+                    .dependencies
+                    .iter()
+                    .all(|(dependency_name, delete_condition)| {
+                        Self::delete_condition_fulfilled(
+                            dependency_name,
+                            delete_condition,
+                            workload_state_db,
+                        )
+                    })
+            });
+
+        (ready_to_delete_workloads, waiting_to_delete_workloads)
     }
 
     pub fn put_on_delete_waiting_queue(&mut self, workloads: WaitingDeletedWorkloads) {
@@ -189,6 +236,27 @@ mod tests {
     const RUNTIME: &str = "runtime";
 
     #[test]
+    fn utest_split_workloads_to_ready_and_waiting() {
+        let workload_with_dependencies = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let mut workload_without_dependencies = workload_with_dependencies.clone();
+        workload_without_dependencies.dependencies.clear();
+
+        let (ready_workloads, waiting_workloads) =
+            DependencyScheduler::split_workloads_to_ready_and_waiting(vec![
+                workload_with_dependencies.clone(),
+                workload_without_dependencies.clone(),
+            ]);
+
+        assert_eq!(vec![workload_without_dependencies], ready_workloads);
+        assert_eq!(vec![workload_with_dependencies], waiting_workloads);
+    }
+
+    #[test]
     fn utest_put_on_waiting_queue() {
         let mut dependency_scheduler = DependencyScheduler::new();
         let new_workload = generate_test_workload_spec_with_param(
@@ -217,6 +285,75 @@ mod tests {
             DeleteWorkloadQueue::from([(new_workload.name.clone(), new_workload)]),
             dependency_scheduler.delete_queue
         );
+    }
+
+    #[test]
+    fn utest_split_deleted_workloads_to_ready_and_waiting() {
+        let workload_with_dependencies =
+            generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
+
+        let mut workload_without_dependencies = workload_with_dependencies.clone();
+        workload_without_dependencies.dependencies.clear();
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state_by_workload_name()
+            .once()
+            .return_const(Some(ExecutionState::running()));
+
+        let (ready_workloads, waiting_workloads) =
+            DependencyScheduler::split_deleted_workloads_to_ready_and_waiting(
+                vec![
+                    workload_with_dependencies.clone(),
+                    workload_without_dependencies.clone(),
+                ],
+                &parameter_storage_mock,
+            );
+
+        assert_eq!(vec![workload_without_dependencies], ready_workloads);
+        assert_eq!(vec![workload_with_dependencies], waiting_workloads);
+    }
+
+    #[test]
+    fn utest_split_deleted_workloads_to_ready_and_waiting_ready_to_delete() {
+        let workload_with_dependencies =
+            generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state_by_workload_name()
+            .once()
+            .return_const(Some(ExecutionState::succeeded()));
+
+        let (ready_workloads, waiting_workloads) =
+            DependencyScheduler::split_deleted_workloads_to_ready_and_waiting(
+                vec![workload_with_dependencies.clone()],
+                &parameter_storage_mock,
+            );
+
+        assert_eq!(vec![workload_with_dependencies], ready_workloads);
+        assert!(waiting_workloads.is_empty());
+    }
+
+    #[test]
+    fn utest_split_deleted_workloads_to_ready_and_waiting_no_workload_state() {
+        let workload_with_dependencies =
+            generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_workload_state_by_workload_name()
+            .once()
+            .return_const(None);
+
+        let (ready_workloads, waiting_workloads) =
+            DependencyScheduler::split_deleted_workloads_to_ready_and_waiting(
+                vec![workload_with_dependencies.clone()],
+                &parameter_storage_mock,
+            );
+
+        assert_eq!(vec![workload_with_dependencies], ready_workloads);
+        assert!(waiting_workloads.is_empty());
     }
 
     #[test]
