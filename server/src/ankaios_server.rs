@@ -1205,24 +1205,8 @@ mod tests {
             ..Default::default()
         };
 
-        let added_workloads = vec![];
-        let deleted_workloads = vec![];
-
         let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
-        let mut mock_server_state = MockServerState::new();
-        mock_server_state
-            .expect_update()
-            .with(
-                mockall::predicate::eq(update_state.clone()),
-                mockall::predicate::eq(update_mask.clone()),
-            )
-            .once()
-            .return_const(Ok(Some((
-                added_workloads.clone(),
-                deleted_workloads.clone(),
-            ))));
-        server.server_state = mock_server_state;
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         // send new state to server
@@ -1264,24 +1248,8 @@ mod tests {
         let update_state_ankaios_no_version: CompleteState =
             CompleteState::try_from(update_state_proto_no_version).unwrap();
 
-        let added_workloads = vec![];
-        let deleted_workloads = vec![];
-
         let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
-        let mut mock_server_state = MockServerState::new();
-        mock_server_state
-            .expect_update()
-            .with(
-                mockall::predicate::eq(update_state_ankaios_no_version.clone()),
-                mockall::predicate::eq(update_mask.clone()),
-            )
-            .once()
-            .return_const(Ok(Some((
-                added_workloads.clone(),
-                deleted_workloads.clone(),
-            ))));
-        server.server_state = mock_server_state;
         let server_task = tokio::spawn(async move { server.start(None).await });
 
         // send new state to server

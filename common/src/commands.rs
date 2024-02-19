@@ -256,13 +256,11 @@ impl From<ApiVersion> for proto::ApiVersion {
     }
 }
 
-impl TryFrom<proto::ApiVersion> for ApiVersion {
-    type Error = String;
-
-    fn try_from(item: proto::ApiVersion) -> Result<Self, Self::Error> {
-        Ok(ApiVersion {
+impl From<proto::ApiVersion> for ApiVersion {
+    fn from(item: proto::ApiVersion) -> Self {
+        ApiVersion {
             version: item.version,
-        })
+        }
     }
 }
 
@@ -321,7 +319,7 @@ impl TryFrom<proto::CompleteState> for CompleteState {
 
 impl CompleteState {
     pub fn is_compatible_format(format_version: &ApiVersion) -> bool {
-        *format_version == ApiVersion::default()
+        *format_version == CURRENT_API_VERSION
     }
 }
 
