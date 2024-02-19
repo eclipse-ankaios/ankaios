@@ -476,13 +476,16 @@ mod tests {
         });
         assert_eq!(from_server_command, expected_from_server_command);
 
-        assert!(matches!(
+        assert_eq!(
             comm_middle_ware_receiver.recv().await.unwrap(),
             FromServer::Response(Response {
-                request_id,
-                response_content: ResponseContent::UpdateStateSuccess(UpdateStateSuccess { added_workloads, deleted_workloads })
-            }) if request_id == REQUEST_ID_A && added_workloads == vec!["workload A"] && deleted_workloads.is_empty()
-        ));
+                request_id: REQUEST_ID_A.into(),
+                response_content: ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
+                    added_workloads: vec!["workload A".into()],
+                    deleted_workloads: Vec::new(),
+                }),
+            })
+        );
 
         // make sure all messages are consumed
         assert!(comm_middle_ware_receiver.try_recv().is_err());
