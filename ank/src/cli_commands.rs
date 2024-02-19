@@ -248,7 +248,6 @@ mod apply_manifests {
     pub fn handle_agent_overwrite(
         desired_agent: &Option<String>,
         state_obj: &mut State,
-        console_output: &mut String,
     ) -> Result<(), String> {
         let mut agent_names: HashSet<String> =
             HashSet::from_iter(state_obj.clone().workloads.into_values().map(|wl| wl.agent));
@@ -271,21 +270,6 @@ mod apply_manifests {
             agent_names.insert(desired_agent_name);
         }
 
-        console_output.push_str(&format!(
-            "Applying collected manifests on agent '{}' ... ",
-            agent_names
-                .into_iter()
-                .fold("".to_string(), |acc: String, n: String| {
-                    if acc.is_empty() {
-                        n
-                    } else if n.is_empty() {
-                        acc
-                    } else {
-                        format!("{}, {}", acc, n)
-                    }
-                })
-        ));
-
         Ok(())
     }
 
@@ -294,51 +278,47 @@ mod apply_manifests {
         cur_obj: &Object,
         paths: &[Path],
         manifest_file_name: &str,
-        apply_args: &ApplyArgs,
-        is_verbose: bool,
+        delete_mode: bool,
         console_output: &mut String,
     ) -> Result<(), String> {
-        let info_collecting = if apply_args.delete_mode {
-            format!(
-                "Collecting manifest for deletion: '{}' - contained workloads: {{",
-                manifest_file_name
-            )
-        } else {
-            format!(
-                "Collecting manifest: '{}' - contained workloads: {{",
-                manifest_file_name
-            )
-        };
+        let mut table_output = Vec::<ApplyManifestTableDisplay>::default();
 
-        console_output.push_str(&info_collecting);
-        let workload_path_len = paths.len();
-        let fold_len = 5;
-        let mut is_folded = false;
-        for (index, workload_path) in paths.iter().enumerate() {
+        for workload_path in paths.iter() {
             let workload_name = &workload_path.parts()[1];
+            let cur_workload_spec = cur_obj.get(workload_path).unwrap().clone();
             if req_obj.get(workload_path).is_none() {
-                if is_verbose || index < fold_len {
-                    if index == workload_path_len - 1 {
-                        console_output.push_str(&format!(" '{}'", workload_name));
+                let _ = req_obj.set(workload_path, cur_workload_spec.clone());
+
+                table_output.push(ApplyManifestTableDisplay::new(
+                    workload_name,
+                    cur_workload_spec
+                        .as_mapping()
+                        .unwrap_or(&serde_yaml::Mapping::default())
+                        .get("agent")
+                        .unwrap_or(&serde_yaml::Value::default())
+                        .as_str()
+                        .unwrap_or_default(),
+                    if delete_mode {
+                        super::ApplyManifestOperation::Remove
                     } else {
-                        console_output.push_str(&format!(" '{}',", workload_name));
-                    }
-                } else if !is_folded {
-                    let remainder = workload_path_len - fold_len;
-                    console_output.push_str(&format!(" '... {} more'", remainder));
-                    is_folded = true
-                }
-                let _ = req_obj.set(workload_path, cur_obj.get(workload_path).unwrap().clone());
+                        super::ApplyManifestOperation::AddOrUpdate
+                    },
+                    "OK",
+                    manifest_file_name,
+                ));
             } else {
-                let error_str = format!(
-                    "Error: Multiple workloads with the same name '{}' found!! }} - NOK",
+                return Err(format!(
+                    "Multiple workloads with the same name '{}' found!",
                     workload_name
-                );
-                console_output.push_str(&error_str);
-                return Err(error_str);
+                ));
             }
         }
-        console_output.push_str(" } - OK\n");
+
+        console_output.push_str(
+            &tabled::Table::new(table_output)
+                .with(tabled::settings::Style::blank())
+                .to_string(),
+        );
 
         Ok(())
     }
@@ -355,28 +335,11 @@ mod apply_manifests {
         filter_masks.dedup();
         filter_masks
     }
-    pub fn print_manifest_files_overview(apply_args: &ApplyArgs, console_output: &mut String) {
-        let line_len = apply_args.manifest_files.iter().max().unwrap().len() + 2;
-        let plot_line = |console_output: &mut String, end_str: &str| {
-            for _ in 1..line_len {
-                console_output.push('-');
-            }
-            console_output.push_str(end_str);
-        };
-        console_output.push_str("Applying manifest files overview:\n");
-        plot_line(console_output, "\n");
-        apply_args.manifest_files.iter().for_each(|file| {
-            console_output.push_str(&format!("{}\n", if "-" != file { file } else { "stdin" }))
-        });
-
-        plot_line(console_output, "\n");
-    }
     // [impl->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
     // [impl->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
     pub fn generate_state_obj_and_filter_masks_from_manifests(
         manifests: &mut [InputSourcePair],
         apply_args: &ApplyArgs,
-        is_verbose: bool,
         console_output: &mut String,
     ) -> Result<(CompleteState, Vec<String>), String> {
         let mut req_obj: Object = State::default().try_into().unwrap();
@@ -389,8 +352,7 @@ mod apply_manifests {
                 &cur_obj,
                 &cur_workload_paths,
                 &manifest.0,
-                apply_args,
-                is_verbose,
+                apply_args.delete_mode,
                 console_output,
             )?;
 
@@ -410,11 +372,7 @@ mod apply_manifests {
             }
         } else {
             let mut state_from_req_obj: common::objects::State = req_obj.try_into().unwrap();
-            handle_agent_overwrite(
-                &apply_args.agent_name,
-                &mut state_from_req_obj,
-                console_output,
-            )?;
+            handle_agent_overwrite(&apply_args.agent_name, &mut state_from_req_obj)?;
             CompleteState {
                 current_state: state_from_req_obj,
                 ..Default::default()
@@ -457,7 +415,7 @@ mod apply_manifests {
         }
     }
 }
-#[derive(Debug, Tabled)]
+#[derive(Debug, Tabled, Clone)]
 #[tabled(rename_all = "UPPERCASE")]
 struct WorkloadBaseTableDisplay {
     #[tabled(rename = "WORKLOAD NAME")]
@@ -502,20 +460,43 @@ impl GetWorkloadTableDisplay {
     }
 }
 
-#[derive(Debug, Tabled)]
+#[derive(Debug, Clone)]
+enum ApplyManifestOperation {
+    AddOrUpdate,
+    Remove,
+}
+
+impl fmt::Display for ApplyManifestOperation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ApplyManifestOperation::AddOrUpdate => write!(f, "Add/Update"),
+            ApplyManifestOperation::Remove => write!(f, "Remove"),
+        }
+    }
+}
+
+#[derive(Debug, Tabled, Clone)]
 #[tabled(rename_all = "UPPERCASE")]
 struct ApplyManifestTableDisplay {
     #[tabled(inline)]
     base_info: WorkloadBaseTableDisplay,
+    operation: ApplyManifestOperation,
     status: String,
     #[tabled(rename = "FILE")]
     manifest_file: String,
 }
 
 impl ApplyManifestTableDisplay {
-    fn new(name: &str, agent: &str, status: &str, manifest_file: &str) -> Self {
+    fn new(
+        workload_name: &str,
+        agent_name: &str,
+        operation: ApplyManifestOperation,
+        status: &str,
+        manifest_file: &str,
+    ) -> Self {
         ApplyManifestTableDisplay {
-            base_info: WorkloadBaseTableDisplay::new(name, agent),
+            base_info: WorkloadBaseTableDisplay::new(workload_name, agent_name),
+            operation,
             status: status.to_string(),
             manifest_file: manifest_file.to_string(),
         }
@@ -529,6 +510,7 @@ pub struct CliCommands {
     task: tokio::task::JoinHandle<()>,
     to_server: ToServerSender,
     from_server: FromServerReceiver,
+    console_output: String,
 }
 
 impl CliCommands {
@@ -541,6 +523,7 @@ impl CliCommands {
             task,
             to_server,
             from_server,
+            console_output: String::default(),
         }
     }
 
@@ -801,42 +784,24 @@ impl CliCommands {
     }
 
     // [impl->swdd~cli-provides-apply-multiple-ankaios-manifests~1]
-    pub async fn apply_manifests(
-        &mut self,
-        apply_args: ApplyArgs,
-        is_verbose: bool,
-    ) -> Result<String, String> {
+    pub async fn apply_manifests(&mut self, apply_args: ApplyArgs) -> Result<String, String> {
         use apply_manifests::*;
-
-        let mut console_output = String::default();
-
-        // print_manifest_files_overview(&apply_args, &mut console_output);
-        // console_output.push_str(
-        //     &Table::new(vec![
-        //         ApplyManifestTableDisplay::new("wl1", "agent1", "OK", "manifest1.yaml"),
-        //         ApplyManifestTableDisplay::new("wl2", "agent2", "Error", "manifest2.yaml"),
-        //     ])
-        //     .with(Style::blank())
-        //     .to_string(),
-        // );
-
         match apply_args.get_input_sources() {
             Ok(mut manifests) => {
                 let (complete_state_req_obj, filter_masks) =
                     generate_state_obj_and_filter_masks_from_manifests(
                         &mut manifests,
                         &apply_args,
-                        is_verbose,
-                        &mut console_output,
+                        &mut self.console_output,
                     )?;
 
-                let request_id = self.cli_name.clone();
+                let request_id: &str = &self.cli_name;
 
                 // [impl->swdd~cli-apply-send-update-state~1]
                 // [impl->swdd~cli-apply-send-update-state-for-deletion~1]
                 match self
                     .to_server
-                    .update_state(request_id.clone(), complete_state_req_obj, filter_masks)
+                    .update_state(request_id.to_string(), complete_state_req_obj, filter_masks)
                     .await
                 {
                     Ok(_) => {
@@ -847,10 +812,7 @@ impl CliCommands {
                                         request_id: req_id,
                                         response_content: _,
                                     })) if req_id == request_id => {
-                                        return {
-                                            // console_output.clone().push_str("Done.");
-                                            Ok(console_output.clone())
-                                        };
+                                        return Ok(self.console_output.clone());
                                     }
                                     None => return Err("Channel preliminary closed."),
                                     Some(_) => (),
@@ -866,10 +828,7 @@ impl CliCommands {
                             // Err(_) => Err(CliError::ExecutionError(format!(
                             //     "Failed get response from server in time (timeout={WAIT_TIME_MS:?})."
                             // ))),
-                            _ => {
-                                // console_output.push_str("Done.");
-                                Ok(console_output)
-                            }
+                            _ => Ok(self.console_output.clone()),
                         }
                     }
                     Err(err) => Err(err.to_string()),
@@ -881,18 +840,29 @@ impl CliCommands {
 }
 
 #[cfg(test)]
-fn generate_test_apply_args(
-    manifest_files: Vec<String>,
-    agent_name: Option<String>,
-    delete_mode: bool,
-) -> ApplyArgs {
-    ApplyArgs {
-        manifest_files,
-        agent_name,
-        delete_mode,
-    }
+fn generate_multiple_test_apply_manifest_table_display(
+    operation: ApplyManifestOperation,
+    status: &str,
+) -> String {
+    return tabled::Table::new(vec![
+        ApplyManifestTableDisplay::new(
+            "simple",
+            "agent1",
+            operation.clone(),
+            status,
+            "manifest_file_name",
+        ),
+        ApplyManifestTableDisplay::new(
+            "complex",
+            "agent1",
+            operation,
+            status,
+            "manifest_file_name",
+        ),
+    ])
+    .with(tabled::settings::Style::blank())
+    .to_string();
 }
-
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -916,14 +886,13 @@ mod tests {
 
     use super::apply_manifests::{
         create_filter_masks_from_paths, generate_state_obj_and_filter_masks_from_manifests,
-        handle_agent_overwrite, parse_manifest, print_manifest_files_overview, update_request_obj,
-        InputSourcePair,
+        handle_agent_overwrite, parse_manifest, update_request_obj, InputSourcePair,
     };
     use crate::{
         cli::OutputFormat,
         cli_commands::{
-            generate_compact_state_output, get_filtered_value, update_compact_state, ApplyArgs,
-            GetWorkloadTableDisplay,
+            generate_compact_state_output, generate_multiple_test_apply_manifest_table_display,
+            get_filtered_value, update_compact_state, ApplyArgs, GetWorkloadTableDisplay,
         },
     };
     use common::commands::CompleteState;
@@ -2400,8 +2369,10 @@ mod tests {
         let content_value: Value = serde_yaml::from_str(
             r#"
         workloads:
-         simple: {}
-         complex: {}
+         simple:
+            agent: agent1
+         complex:
+            agent: agent1
         "#,
         )
         .unwrap();
@@ -2411,23 +2382,22 @@ mod tests {
             Path::from("workloads.complex"),
         ];
         let expected_obj = Object::try_from(&content_value).unwrap();
+        let expected_output = generate_multiple_test_apply_manifest_table_display(
+            super::ApplyManifestOperation::AddOrUpdate,
+            "OK",
+        );
 
         assert!(update_request_obj(
             &mut req_obj,
             &cur_obj,
             &paths,
             "manifest_file_name",
-            &super::generate_test_apply_args(vec![], None, false),
             false,
             &mut console_output,
         )
         .is_ok());
         assert_eq!(expected_obj, req_obj);
-        assert_eq!(
-            "Collecting manifest: 'manifest_file_name' - contained workloads: { 'simple', 'complex' } - OK\n"
-                .to_string(),
-            console_output
-        );
+        assert_eq!(expected_output, console_output);
     }
 
     #[test]
@@ -2441,8 +2411,10 @@ mod tests {
         )
         .unwrap();
         let cur_obj = Object::try_from(&content_value).unwrap();
+
         // simulates the workload 'same_workload_name' is already there
         let mut req_obj = Object::try_from(&content_value).unwrap();
+
         let paths = vec![Path::from("workloads.same_workload_name")];
 
         assert!(update_request_obj(
@@ -2450,15 +2422,10 @@ mod tests {
             &cur_obj,
             &paths,
             "manifest_file_name",
-            &super::generate_test_apply_args(vec![], None, false),
             false,
             &mut console_output,
         )
         .is_err());
-        assert_eq!(
-            "Collecting manifest: 'manifest_file_name' - contained workloads: {Error: Multiple workloads with the same name 'same_workload_name' found!! } - NOK".to_string(),
-            console_output
-        );
     }
 
     #[test]
@@ -2468,124 +2435,33 @@ mod tests {
         let content_value: Value = serde_yaml::from_str(
             r#"
         workloads:
-         simple: {}
-        "#,
-        )
-        .unwrap();
-        let cur_obj = Object::try_from(&content_value).unwrap();
-        let paths = vec![Path::from("workloads.simple")];
-        let expected_obj = Object::try_from(&content_value).unwrap();
-
-        assert!(update_request_obj(
-            &mut req_obj,
-            &cur_obj,
-            &paths,
-            "manifest_file_name",
-            &super::generate_test_apply_args(vec![], None, true),
-            false,
-            &mut console_output,
-        )
-        .is_ok());
-        assert_eq!(expected_obj, req_obj);
-        assert_eq!(
-            "Collecting manifest for deletion: 'manifest_file_name' - contained workloads: { 'simple' } - OK\n"
-                .to_string(),
-            console_output
-        );
-    }
-
-    #[test]
-    fn utest_update_request_obj_verbose_mode_on_ok() {
-        let mut console_output = "".to_string();
-        let mut req_obj = Object::default();
-        let content_value: Value = serde_yaml::from_str(
-            r#"
-        workloads:
-         simple1: {}
-         simple2: {}
-         simple3: {}
-         simple4: {}
-         simple5: {}
-         simple6: {}
-         simple7: {}
+         simple:
+            agent: agent1
+         complex:
+            agent: agent1
         "#,
         )
         .unwrap();
         let cur_obj = Object::try_from(&content_value).unwrap();
         let paths = vec![
-            Path::from("workloads.simple1"),
-            Path::from("workloads.simple2"),
-            Path::from("workloads.simple3"),
-            Path::from("workloads.simple4"),
-            Path::from("workloads.simple5"),
-            Path::from("workloads.simple6"),
-            Path::from("workloads.simple7"),
+            Path::from("workloads.simple"),
+            Path::from("workloads.complex"),
         ];
-        let expected_obj = Object::try_from(&content_value).unwrap();
+        let expected_output = generate_multiple_test_apply_manifest_table_display(
+            super::ApplyManifestOperation::Remove,
+            "OK",
+        );
 
         assert!(update_request_obj(
             &mut req_obj,
             &cur_obj,
             &paths,
             "manifest_file_name",
-            &super::generate_test_apply_args(vec![], None, false),
             true,
             &mut console_output,
         )
         .is_ok());
-        assert_eq!(expected_obj, req_obj);
-        assert_eq!(
-            "Collecting manifest: 'manifest_file_name' - contained workloads: { 'simple1', 'simple2', 'simple3', 'simple4', 'simple5', 'simple6', 'simple7' } - OK\n"
-                .to_string(),
-            console_output
-        );
-    }
-
-    #[test]
-    fn utest_update_request_obj_verbose_mode_off_ok() {
-        let mut console_output = "".to_string();
-        let mut req_obj = Object::default();
-        let content_value: Value = serde_yaml::from_str(
-            r#"
-        workloads:
-         simple1: {}
-         simple2: {}
-         simple3: {}
-         simple4: {}
-         simple5: {}
-         simple6: {}
-         simple7: {}
-        "#,
-        )
-        .unwrap();
-        let cur_obj = Object::try_from(&content_value).unwrap();
-        let paths = vec![
-            Path::from("workloads.simple1"),
-            Path::from("workloads.simple2"),
-            Path::from("workloads.simple3"),
-            Path::from("workloads.simple4"),
-            Path::from("workloads.simple5"),
-            Path::from("workloads.simple6"),
-            Path::from("workloads.simple7"),
-        ];
-        let expected_obj = Object::try_from(&content_value).unwrap();
-
-        assert!(update_request_obj(
-            &mut req_obj,
-            &cur_obj,
-            &paths,
-            "manifest_file_name",
-            &super::generate_test_apply_args(vec![], None, false),
-            false,
-            &mut console_output,
-        )
-        .is_ok());
-        assert_eq!(expected_obj, req_obj);
-        assert_eq!(
-            "Collecting manifest: 'manifest_file_name' - contained workloads: { 'simple1', 'simple2', 'simple3', 'simple4', 'simple5', '... 2 more' } - OK\n"
-                .to_string(),
-            console_output
-        );
+        assert_eq!(expected_output, console_output);
     }
 
     #[test]
@@ -2602,7 +2478,6 @@ mod tests {
 
     #[test]
     fn utest_handle_agent_overwrite_agent_name_provided_through_agent_flag() {
-        let mut console_output = String::new();
         let mut state = test_utils::generate_test_state_from_workloads(vec![WorkloadSpec {
             ..Default::default()
         }]);
@@ -2614,22 +2489,13 @@ mod tests {
 
         assert_eq!(
             Ok(()),
-            handle_agent_overwrite(
-                &Some("overwritten_agent_name".to_string()),
-                &mut state,
-                &mut console_output,
-            )
+            handle_agent_overwrite(&Some("overwritten_agent_name".to_string()), &mut state)
         );
         assert_eq!(expected_state, state);
-        assert_eq!(
-            "Applying collected manifests on agent 'overwritten_agent_name' ... ",
-            console_output
-        );
     }
 
     #[test]
     fn utest_handle_agent_overwrite_one_agent_name_provided_in_workload_specs() {
-        let mut console_output = String::new();
         let mut state = test_utils::generate_test_state_from_workloads(vec![
             WorkloadSpec {
                 agent: "agent_name".to_string(),
@@ -2652,20 +2518,12 @@ mod tests {
             },
         ]);
 
-        assert_eq!(
-            Ok(()),
-            handle_agent_overwrite(&None, &mut state, &mut console_output,)
-        );
+        assert_eq!(Ok(()), handle_agent_overwrite(&None, &mut state));
         assert_eq!(expected_state, state);
-        assert_eq!(
-            "Applying collected manifests on agent 'agent_name' ... ",
-            console_output
-        );
     }
 
     #[test]
     fn utest_handle_agent_overwrite_multiple_agent_names_provided_in_workload_specs() {
-        let mut console_output = String::new();
         let mut state = test_utils::generate_test_state_from_workloads(vec![
             WorkloadSpec {
                 name: "wl1".to_string(),
@@ -2679,15 +2537,11 @@ mod tests {
             },
         ]);
 
-        assert_eq!(
-            Ok(()),
-            handle_agent_overwrite(&None, &mut state, &mut console_output)
-        );
+        assert_eq!(Ok(()), handle_agent_overwrite(&None, &mut state));
     }
 
     #[test]
     fn utest_handle_agent_overwrite_no_agent_name_provided_at_all() {
-        let mut console_output = String::new();
         let mut state = test_utils::generate_test_state_from_workloads(vec![
             WorkloadSpec {
                 name: "wl1".to_string(),
@@ -2701,7 +2555,7 @@ mod tests {
 
         assert_eq!(
             Err("No agent name specified -> use '--agent' option to specify!".to_string()),
-            handle_agent_overwrite(&None, &mut state, &mut console_output)
+            handle_agent_overwrite(&None, &mut state)
         );
     }
 
@@ -2750,7 +2604,7 @@ mod tests {
                     manifest_files: vec![manifest_file_name.to_string()],
                     delete_mode: false,
                 },
-                false,
+                // false,
                 &mut console_output,
             )
         );
@@ -2798,7 +2652,7 @@ mod tests {
                     manifest_files: vec![manifest_file_name.to_string()],
                     delete_mode: true,
                 },
-                false,
+                // false,
                 &mut console_output,
             )
         );
@@ -2821,42 +2675,9 @@ mod tests {
                     manifest_files: vec![manifest_file_name.to_string()],
                     delete_mode: true,
                 },
-                false,
+                // false,
                 &mut console_output,
             )
-        );
-    }
-
-    #[test]
-    fn utest_print_manifest_files_overview_ok() {
-        let mut console_output = String::new();
-        print_manifest_files_overview(
-            &ApplyArgs {
-                agent_name: None,
-                manifest_files: vec!["manifest1_yaml".to_string(), "manifest2_yaml".to_string()],
-                delete_mode: false,
-            },
-            &mut console_output,
-        );
-
-        assert_eq!("Applying manifest files overview:\n---------------\nmanifest1_yaml\nmanifest2_yaml\n---------------\n", console_output);
-    }
-
-    #[test]
-    fn utest_print_manifest_files_overview_stdin_ok() {
-        let mut console_output = String::new();
-        print_manifest_files_overview(
-            &ApplyArgs {
-                agent_name: None,
-                manifest_files: vec!["-".to_string()],
-                delete_mode: false,
-            },
-            &mut console_output,
-        );
-
-        assert_eq!(
-            "Applying manifest files overview:\n--\nstdin\n--\n",
-            console_output
         );
     }
 
@@ -2921,14 +2742,11 @@ mod tests {
         cmd.to_server = test_to_server;
 
         let apply_result = cmd
-            .apply_manifests(
-                ApplyArgs {
-                    agent_name: None,
-                    delete_mode: false,
-                    manifest_files: vec!["manifest_yaml".to_string()],
-                },
-                false,
-            )
+            .apply_manifests(ApplyArgs {
+                agent_name: None,
+                delete_mode: false,
+                manifest_files: vec!["manifest_yaml".to_string()],
+            })
             .await;
         assert!(apply_result.is_ok());
 
