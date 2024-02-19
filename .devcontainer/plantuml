@@ -1,3 +1,6 @@
+# filename is intentionally without extension
+# the script is called to invoke the plantuml cli command
+
 #!/bin/bash
 
 if [ -n "${JAVA_HOME}" ] && [ -x "${JAVA_HOME}/bin/java" ] ; then
