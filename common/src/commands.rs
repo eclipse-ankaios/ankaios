@@ -420,7 +420,7 @@ mod tests {
             },
             objects::{
                 ExecutionState, ExecutionStateEnum, State, WorkloadExecutionInstanceName,
-                WorkloadState,
+                WorkloadSpec, WorkloadState,
             },
         };
     }
@@ -529,18 +529,32 @@ mod tests {
                 }
                 .into(),
                 startup_state: $expression::State {
-                    workloads: vec![("startup".into(), Default::default())]
+                    workloads: vec![("startup".into(), workload!($expression, "startup"))]
                         .into_iter()
                         .collect(),
                 }
                 .into(),
                 desired_state: $expression::State {
-                    workloads: vec![("desired".into(), Default::default())]
+                    workloads: vec![("desired".into(), workload!($expression, "desired"))]
                         .into_iter()
                         .collect(),
                 }
                 .into(),
                 workload_states: vec![workload_state!($expression)],
+            }
+        };
+    }
+
+    macro_rules! workload {
+        (proto, $name:expr) => {
+            proto::Workload {
+                ..Default::default()
+            }
+        };
+        (ankaios, $name:expr) => {
+            ankaios::WorkloadSpec {
+                name: $name.into(),
+                ..Default::default()
             }
         };
     }
@@ -686,7 +700,10 @@ mod tests {
         else {
             unreachable!()
         };
-        ankaios_request_content.state = Default::default();
+        ankaios_request_content.state = ankaios::CompleteState {
+            format_version: ankaios::ApiVersion { version: "".into() },
+            ..Default::default()
+        };
 
         assert_eq!(
             ankaios::Request::try_from(proto_request_complete_state).unwrap(),
@@ -755,7 +772,7 @@ mod tests {
             .insert(
                 WORKLOAD_NAME_1.into(),
                 proto::Workload {
-                    update_strategy: -1,
+                    dependencies: vec![("dependency".into(), -1)].into_iter().collect(),
                     ..Default::default()
                 },
             );
@@ -786,7 +803,7 @@ mod tests {
             .insert(
                 WORKLOAD_NAME_1.into(),
                 proto::Workload {
-                    update_strategy: -1,
+                    dependencies: vec![("dependency".into(), -1)].into_iter().collect(),
                     ..Default::default()
                 },
             );
@@ -923,7 +940,7 @@ mod tests {
             .insert(
                 WORKLOAD_NAME_1.into(),
                 proto::Workload {
-                    update_strategy: -1,
+                    dependencies: vec![("dependency".into(), -1)].into_iter().collect(),
                     ..Default::default()
                 },
             );
