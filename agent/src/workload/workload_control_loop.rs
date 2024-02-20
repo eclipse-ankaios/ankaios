@@ -252,7 +252,6 @@ impl WorkloadControlLoop {
                     .update_workload_state(vec![common::objects::WorkloadState {
                         instance_name: control_loop_state.instance_name.to_owned(),
                         execution_state: ExecutionState::removed(),
-                        workload_id: old_id.to_string(),
                     }])
                     .await
                     .unwrap_or_illegal_state();
@@ -518,7 +517,6 @@ mod tests {
             workload_states: vec![
                 common::objects::generate_test_workload_state_with_workload_spec(
                     &workload_spec,
-                    WORKLOAD_ID,
                     ExecutionState::removed(),
                 ),
             ],
@@ -600,7 +598,6 @@ mod tests {
             workload_states: vec![
                 common::objects::generate_test_workload_state_with_workload_spec(
                     &workload_spec,
-                    WORKLOAD_ID,
                     ExecutionState::removed(),
                 ),
             ],
@@ -680,7 +677,6 @@ mod tests {
             workload_states: vec![
                 common::objects::generate_test_workload_state_with_workload_spec(
                     &workload_spec,
-                    OLD_WORKLOAD_ID,
                     ExecutionState::removed(),
                 ),
             ],
@@ -762,7 +758,6 @@ mod tests {
             workload_states: vec![
                 common::objects::generate_test_workload_state_with_workload_spec(
                     &workload_spec,
-                    "",
                     ExecutionState::removed(),
                 ),
             ],
@@ -828,7 +823,6 @@ mod tests {
             workload_states: vec![
                 common::objects::generate_test_workload_state_with_workload_spec(
                     &workload_spec,
-                    OLD_WORKLOAD_ID,
                     ExecutionState::removed(),
                 ),
             ],
@@ -901,7 +895,6 @@ mod tests {
             workload_states: vec![
                 common::objects::generate_test_workload_state_with_workload_spec(
                     &workload_spec,
-                    OLD_WORKLOAD_ID,
                     ExecutionState::removed(),
                 ),
             ],
@@ -1319,7 +1312,6 @@ mod tests {
             workload_states: vec![
                 common::objects::generate_test_workload_state_with_workload_spec(
                     &workload_spec,
-                    "",
                     ExecutionState::restart_failed_no_retry(),
                 ),
             ],

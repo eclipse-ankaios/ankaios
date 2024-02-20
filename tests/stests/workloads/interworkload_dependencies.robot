@@ -54,7 +54,7 @@ Test Ankaios observes the inter-workload dependencies when deleting workloads
     And the workload "frontend" shall have the execution state "Running(Ok)" on agent "agent_A" within "30" seconds
     # Actions
     When user triggers "ank delete workload backend"
-    And the workload "backend" shall have the execution state "Running(WaitingToStop)" on agent "agent_A"
+    And the workload "backend" shall have the execution state "Stopping(WaitingToStop)" on agent "agent_A"
     And user triggers "ank delete workload frontend"
     # Asserts
     Then the workload "backend" shall not exist on agent "agent_A" within "60" seconds

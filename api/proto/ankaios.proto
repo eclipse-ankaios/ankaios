@@ -137,10 +137,11 @@ message ExecutionState {
     AgentDisconnected agentDisconnected = 2; /// The exact state of the workload cannot be determined, e.g., because of a broken connection to the responsible agent.
     Pending pending = 3; /// The workload is going to be started eventually.
     Running running = 4; /// The workload is operational.
-    Succeeded succeeded = 5; /// The workload has successfully finished its operation.
-    Failed failed = 6; /// The workload has failed or is in a degraded state.
-    NotScheduled notScheduled = 7; /// The workload is not scheduled to run at any agent. This is signalized with an empty agent in the workload specification.
-    Removed removed = 8; /// The workload was removed from Ankaios. This state is used only internally in Ankaios. The outside world removed states are just not there.
+    Stopping stopping = 5; /// The workload is scheduled for stopping.
+    Succeeded succeeded = 6; /// The workload has successfully finished its operation.
+    Failed failed = 7; /// The workload has failed or is in a degraded state.
+    NotScheduled notScheduled = 8; /// The workload is not scheduled to run at any agent. This is signalized with an empty agent in the workload specification.
+    Removed removed = 9; /// The workload was removed from Ankaios. This state is used only internally in Ankaios. The outside world removed states are just not there.
   }
 }
 
@@ -180,10 +181,16 @@ enum Pending {
 */
 enum Running {
   RUNNING_OK = 0; /// The workload is operational.
-  RUNNING_WAITING_TO_STOP = 1; /// The deletion of the workload will be triggered once neither 'pending' nor 'running' workload depending on it exists.
-  RUNNING_STOPPING = 2; /// Stopping the workload was scheduled at the corresponding runtime.
   RUNNING_DELETE_FAILED = 8; /// The deletion of the workload by the runtime failed.
 }
+
+/**
+* The workload is scheduled for stopping.
+*/
+enum Stopping {
+    STOPPING = 0; /// The workload is being stopped.
+    STOPPING_WAITING_TO_STOP = 1; /// The deletion of the workload will be triggered once neither 'pending' nor 'running' workload depending on it exists.
+  }
 
 /**
 * The workload has successfully finished operation.
@@ -208,14 +215,13 @@ enum Failed {
 */
 message WorkloadState {
   WorkloadInstanceName instanceName = 1;
-  string workloadId = 2; /// Normally, the Id is provided to the workload by the runtime. The Id may not be available in all execution states.
-  ExecutionState executionState = 3; /// The workload execution state.
+  ExecutionState executionState = 2; /// The workload execution state.
 }
 
 message WorkloadInstanceName {
   string workloadName = 1; /// The name of the workload.
   string agentName = 2; /// The name of the owning Agent.
-  string configId = 3; // A unique identifier of the runtime config.
+  string id = 3; // A unique identifier of the workload.
 }
 
 /**

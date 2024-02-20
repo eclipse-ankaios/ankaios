@@ -55,8 +55,6 @@ impl Display for PendingSubstate {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RunningSubstate {
     Ok = 0,
-    WaitingToStop = 1,
-    Stopping = 2,
     DeleteFailed = 8,
 }
 
@@ -64,8 +62,6 @@ impl From<i32> for RunningSubstate {
     fn from(x: i32) -> Self {
         match x {
             x if x == RunningSubstate::Ok as i32 => RunningSubstate::Ok,
-            x if x == RunningSubstate::WaitingToStop as i32 => RunningSubstate::WaitingToStop,
-            x if x == RunningSubstate::Stopping as i32 => RunningSubstate::Stopping,
             _ => RunningSubstate::DeleteFailed,
         }
     }
@@ -75,9 +71,31 @@ impl Display for RunningSubstate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RunningSubstate::Ok => write!(f, "Ok"),
-            RunningSubstate::WaitingToStop => write!(f, "WaitingToStop"),
-            RunningSubstate::Stopping => write!(f, "Stopping"),
             RunningSubstate::DeleteFailed => write!(f, "DeleteFailed"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum StoppingSubstate {
+    Stopping = 0,
+    WaitingToStop = 1,
+}
+
+impl From<i32> for StoppingSubstate {
+    fn from(x: i32) -> Self {
+        match x {
+            x if x == StoppingSubstate::WaitingToStop as i32 => StoppingSubstate::WaitingToStop,
+            _ => StoppingSubstate::Stopping,
+        }
+    }
+}
+
+impl Display for StoppingSubstate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StoppingSubstate::Stopping => write!(f, "Stopping"),
+            StoppingSubstate::WaitingToStop => write!(f, "WaitingToStop"),
         }
     }
 }
@@ -142,6 +160,7 @@ pub enum ExecutionStateEnum {
     AgentDisconnected,
     Pending(PendingSubstate),
     Running(RunningSubstate),
+    Stopping(StoppingSubstate),
     Succeeded(SucceededSubstate),
     Failed(FailedSubstate),
     #[default]
@@ -177,6 +196,9 @@ impl From<ExecutionStateEnum> for proto::execution_state::ExecutionStateEnum {
             ExecutionStateEnum::Removed => {
                 proto::execution_state::ExecutionStateEnum::Removed(proto::Removed::Removed as i32)
             }
+            ExecutionStateEnum::Stopping(value) => {
+                proto::execution_state::ExecutionStateEnum::Stopping(value as i32)
+            }
         }
     }
 }
@@ -192,6 +214,9 @@ impl From<proto::execution_state::ExecutionStateEnum> for ExecutionStateEnum {
             }
             proto::execution_state::ExecutionStateEnum::Running(value) => {
                 ExecutionStateEnum::Running(value.into())
+            }
+            proto::execution_state::ExecutionStateEnum::Stopping(value) => {
+                ExecutionStateEnum::Stopping(value.into())
             }
             proto::execution_state::ExecutionStateEnum::Succeeded(value) => {
                 ExecutionStateEnum::Succeeded(value.into())
@@ -247,7 +272,7 @@ impl ExecutionState {
     }
 
     pub fn is_waiting_to_stop(&self) -> bool {
-        ExecutionStateEnum::Running(RunningSubstate::WaitingToStop) == self.state
+        ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop) == self.state
     }
 
     pub fn agent_disconnected() -> Self {
@@ -308,7 +333,7 @@ impl ExecutionState {
 
     pub fn stopping(additional_info: impl ToString) -> Self {
         ExecutionState {
-            state: ExecutionStateEnum::Running(RunningSubstate::Stopping),
+            state: ExecutionStateEnum::Stopping(StoppingSubstate::Stopping),
             additional_info: additional_info.to_string(),
         }
     }
@@ -329,7 +354,7 @@ impl ExecutionState {
 
     pub fn waiting_to_stop() -> Self {
         ExecutionState {
-            state: ExecutionStateEnum::Running(RunningSubstate::WaitingToStop),
+            state: ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop),
             additional_info: "waiting for workload dependencies.".to_string(),
         }
     }
@@ -364,6 +389,7 @@ impl Display for ExecutionStateEnum {
             ExecutionStateEnum::AgentDisconnected => write!(f, "AgentDisconnected"),
             ExecutionStateEnum::Pending(substate) => write!(f, "Pending({substate})"),
             ExecutionStateEnum::Running(substate) => write!(f, "Running({substate})"),
+            ExecutionStateEnum::Stopping(substate) => write!(f, "Stopping({substate})"),
             ExecutionStateEnum::Succeeded(substate) => {
                 write!(f, "Succeeded({substate})")
             }
@@ -389,7 +415,6 @@ impl Display for ExecutionState {
 pub struct WorkloadState {
     // [impl->swdd~common-workload-state-identification~1s]
     pub instance_name: WorkloadExecutionInstanceName,
-    pub workload_id: String,
     pub execution_state: ExecutionState,
 }
 
@@ -397,7 +422,6 @@ impl From<WorkloadState> for proto::WorkloadState {
     fn from(item: WorkloadState) -> Self {
         proto::WorkloadState {
             instance_name: Some(item.instance_name.into()),
-            workload_id: item.workload_id,
             execution_state: Some(item.execution_state.into()),
         }
     }
@@ -407,7 +431,6 @@ impl From<proto::WorkloadState> for WorkloadState {
     fn from(item: proto::WorkloadState) -> Self {
         WorkloadState {
             instance_name: item.instance_name.unwrap_or_unreachable().into(),
-            workload_id: item.workload_id,
             execution_state: item
                 .execution_state
                 .unwrap_or(proto::ExecutionState {
@@ -441,14 +464,12 @@ pub fn generate_test_workload_state_with_agent(
             .agent_name(agent_name)
             .config(&"config".to_string())
             .build(),
-        workload_id: "some strange Id".to_string(),
         execution_state,
     }
 }
 #[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_workload_state_with_workload_spec(
     workload_spec: &super::WorkloadSpec,
-    workload_id: &str,
     execution_state: ExecutionState,
 ) -> WorkloadState {
     WorkloadState {
@@ -457,7 +478,6 @@ pub fn generate_test_workload_state_with_workload_spec(
             .agent_name(workload_spec.agent.clone())
             .config(workload_spec)
             .build(),
-        workload_id: workload_id.to_string(),
         execution_state,
     }
 }
@@ -488,7 +508,6 @@ mod tests {
                 .workload_name("john")
                 .agent_name("strange")
                 .build(),
-            workload_id: "id2".to_string(),
         };
 
         let proto_wl_state = proto::WorkloadState {
@@ -501,9 +520,8 @@ mod tests {
             instance_name: Some(WorkloadInstanceName {
                 workload_name: "john".to_string(),
                 agent_name: "strange".to_string(),
-                config_id: "".to_string(),
+                id: "".to_string(),
             }),
-            workload_id: "id2".to_string(),
         };
 
         assert_eq!(proto::WorkloadState::from(ankaios_wl_state), proto_wl_state);
@@ -518,7 +536,6 @@ mod tests {
                 .workload_name("john")
                 .agent_name("strange")
                 .build(),
-            workload_id: "id2".to_string(),
         };
 
         let proto_wl_state = proto::WorkloadState {
@@ -531,9 +548,8 @@ mod tests {
             instance_name: Some(WorkloadInstanceName {
                 workload_name: "john".to_string(),
                 agent_name: "strange".to_string(),
-                config_id: "".to_string(),
+                id: "".to_string(),
             }),
-            workload_id: "id2".to_string(),
         };
 
         assert_eq!(WorkloadState::from(proto_wl_state), ankaios_wl_state);
@@ -623,8 +639,8 @@ mod tests {
         assert_eq!(
             proto::ExecutionState {
                 additional_info: additional_info.to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Running(
-                    proto::Running::Stopping.into(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Stopping(
+                    proto::Stopping::Stopping.into(),
                 )),
             },
             ExecutionState::stopping(additional_info).into(),
@@ -733,8 +749,8 @@ mod tests {
             ExecutionState::stopping(additional_info),
             proto::ExecutionState {
                 additional_info: additional_info.to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Running(
-                    proto::Running::Stopping.into(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Stopping(
+                    proto::Stopping::Stopping.into(),
                 )),
             }
             .into(),
@@ -791,7 +807,7 @@ mod tests {
         );
         assert_eq!(
             ExecutionState::stopping(additional_info).to_string(),
-            format!("Running(Stopping): '{additional_info}'")
+            format!("Stopping(Stopping): '{additional_info}'")
         );
         assert_eq!(
             ExecutionState::lost().to_string(),

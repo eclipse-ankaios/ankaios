@@ -51,7 +51,6 @@ where
                     manager_interface
                         .update_workload_state(vec![common::objects::WorkloadState {
                             instance_name: workload_spec.instance_name(),
-                            workload_id: workload_id.to_string(),
                             execution_state: current_state,
                         }])
                         .await
@@ -148,7 +147,6 @@ mod tests {
         let expected_state = vec![
             common::objects::generate_test_workload_state_with_workload_spec(
                 &workload_spec,
-                WORKLOAD_ID,
                 ExecutionState::running(),
             ),
         ];

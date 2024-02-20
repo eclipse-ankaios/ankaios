@@ -242,7 +242,7 @@ impl AnkaiosServer {
 
                     // [impl->swdd~server-stores-workload-state~1]
                     self.workload_state_db
-                        .proccess_new_states(method_obj.workload_states.clone());
+                        .process_new_states(method_obj.workload_states.clone());
 
                     // [impl->swdd~server-forwards-workload-state~1]
                     self.to_agents

@@ -17,7 +17,7 @@ use std::collections::HashMap;
 
 type AgentName = String;
 
-type WorkloadStatesMap = HashMap<WorkloadExecutionInstanceName, Vec<WorkloadState>>;
+type WorkloadStatesMap = HashMap<WorkloadExecutionInstanceName, WorkloadState>;
 type AgentWorkloadStates = HashMap<AgentName, WorkloadStatesMap>;
 
 pub struct WorkloadStateDB {
@@ -38,7 +38,7 @@ impl WorkloadStateDB {
             .flat_map(|(_, workload_states)| {
                 workload_states
                     .iter()
-                    .flat_map(|(_, workload_state)| workload_state.to_owned())
+                    .map(|(_, workload_state)| workload_state.to_owned())
             })
             .collect()
     }
@@ -47,7 +47,7 @@ impl WorkloadStateDB {
     pub fn get_workload_state_for_agent(&self, agent_name: &str) -> Vec<WorkloadState> {
         self.stored_states
             .get(agent_name)
-            .map(|x| x.iter().flat_map(|(_, v)| v.to_owned()).collect())
+            .map(|x| x.iter().map(|(_, v)| v.to_owned()).collect())
             .unwrap_or_default()
     }
 
@@ -62,7 +62,7 @@ impl WorkloadStateDB {
             .flat_map(|(_, workload_states)| {
                 workload_states
                     .iter()
-                    .flat_map(|(_, workload_state)| workload_state.to_owned())
+                    .map(|(_, workload_state)| workload_state.to_owned())
             })
             .collect()
     }
@@ -70,10 +70,8 @@ impl WorkloadStateDB {
     // [impl->swdd~server-set-workload-state-on-disconnect~1]
     pub fn agent_disconnected(&mut self, agent_name: &str) {
         if let Some(agent_states) = self.stored_states.get_mut(agent_name) {
-            agent_states.iter_mut().for_each(|(_, states)| {
-                states.iter_mut().for_each(|wl_state| {
-                    wl_state.execution_state = ExecutionState::agent_disconnected()
-                })
+            agent_states.iter_mut().for_each(|(_, wl_state)| {
+                wl_state.execution_state = ExecutionState::agent_disconnected()
             })
         }
     }
@@ -84,49 +82,20 @@ impl WorkloadStateDB {
             .stored_states
             .get_mut(state_to_remove.instance_name.agent_name())
         {
-            if state_to_remove.workload_id.is_empty() {
-                agent_states.remove(&state_to_remove.instance_name);
-            } else if let Some(wl_states) = agent_states.get_mut(&state_to_remove.instance_name) {
-                wl_states.retain(|wl_state| {
-                    wl_state.workload_id != state_to_remove.workload_id
-                        && !wl_state.workload_id.is_empty() /* todo: remove the temporary fix for testing,
-                        avoids WaitingToStop states visible after remove of the workload */
-                })
-            }
+            agent_states.remove(&state_to_remove.instance_name);
         }
     }
 
     // [impl->swdd~server-stores-workload-state~1]
-    pub fn proccess_new_states(&mut self, workload_states: Vec<WorkloadState>) {
+    pub fn process_new_states(&mut self, workload_states: Vec<WorkloadState>) {
         workload_states.into_iter().for_each(|workload_state| {
             if workload_state.execution_state.is_removed() {
                 self.remove(workload_state);
             } else {
-                match self
-                    .stored_states
+                self.stored_states
                     .entry(workload_state.instance_name.agent_name().to_owned())
                     .or_default()
-                    .entry(workload_state.instance_name.to_owned())
-                {
-                    std::collections::hash_map::Entry::Occupied(mut existing_entry) => {
-                        let existing_states = existing_entry.get_mut();
-                        // Remove all entries not having an Id and or with Id equal to the one for the new state
-                        existing_states.retain(|x| {
-                            !x.workload_id.is_empty() && x.workload_id != workload_state.workload_id
-                        });
-
-                        // todo: remove this temporary fix for testing
-                        // avoid multiple states in the db for WaitingToStop workloads
-                        // not having a workload id at the time of sending the state
-                        if workload_state.execution_state.is_waiting_to_stop() {
-                            existing_states.clear();
-                        }
-                        existing_states.push(workload_state);
-                    }
-                    std::collections::hash_map::Entry::Vacant(new_entry) => {
-                        new_entry.insert(vec![workload_state]);
-                    }
-                }
+                    .insert(workload_state.instance_name.to_owned(), workload_state);
             }
         });
     }
@@ -180,12 +149,12 @@ mod tests {
         );
 
         let mut wls = HashMap::new();
-        wls.insert(wl_1_state.instance_name.to_owned(), vec![wl_1_state]);
-        wls.insert(wl_2_state.instance_name.to_owned(), vec![wl_2_state]);
+        wls.insert(wl_1_state.instance_name.to_owned(), wl_1_state);
+        wls.insert(wl_2_state.instance_name.to_owned(), wl_2_state);
         wls_db.stored_states.insert(AGENT_A.to_string(), wls);
 
         let mut wls_2 = HashMap::new();
-        wls_2.insert(wl_3_state.instance_name.to_owned(), vec![wl_3_state]);
+        wls_2.insert(wl_3_state.instance_name.to_owned(), wl_3_state);
         wls_db.stored_states.insert(AGENT_B.to_string(), wls_2);
 
         wls_db
@@ -236,7 +205,7 @@ mod tests {
             ExecutionState::starting("test info"),
         );
 
-        wls_db.proccess_new_states(vec![wl_state_4.clone()]);
+        wls_db.process_new_states(vec![wl_state_4.clone()]);
 
         let mut wls_res = wls_db.get_all_workload_states();
         wls_res.sort_by(|a, b| {
@@ -279,7 +248,7 @@ mod tests {
             ExecutionState::running(),
         );
 
-        wls_db.proccess_new_states(vec![wl_state_2_update.clone()]);
+        wls_db.process_new_states(vec![wl_state_2_update.clone()]);
 
         let mut wls_res = wls_db.get_all_workload_states();
         wls_res.sort_by(|a, b| {
@@ -421,12 +390,11 @@ mod tests {
     fn utest_workload_states_deletes_removed() {
         let mut wls_db = create_test_setup();
 
-        let mut wl_state_1 = generate_test_workload_state_with_agent(
+        let wl_state_1 = generate_test_workload_state_with_agent(
             WORKLOAD_NAME_1,
             AGENT_A,
             ExecutionState::removed(),
         );
-        wl_state_1.workload_id = "".to_string();
 
         let wl_state_3 = generate_test_workload_state_with_agent(
             WORKLOAD_NAME_3,
@@ -434,7 +402,7 @@ mod tests {
             ExecutionState::removed(),
         );
 
-        wls_db.proccess_new_states(vec![wl_state_1, wl_state_3]);
+        wls_db.process_new_states(vec![wl_state_1, wl_state_3]);
 
         let mut wls_res = wls_db.get_all_workload_states();
         wls_res.sort_by(|a, b| {

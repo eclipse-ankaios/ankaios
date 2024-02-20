@@ -62,7 +62,7 @@ impl From<proto::WorkloadInstanceName> for WorkloadExecutionInstanceName {
         WorkloadExecutionInstanceName {
             workload_name: item.workload_name,
             agent_name: item.agent_name,
-            hash: item.config_id,
+            hash: item.id,
         }
     }
 }
@@ -72,7 +72,7 @@ impl From<WorkloadExecutionInstanceName> for proto::WorkloadInstanceName {
         proto::WorkloadInstanceName {
             workload_name: item.workload_name,
             agent_name: item.agent_name,
-            config_id: item.hash,
+            id: item.hash,
         }
     }
 }

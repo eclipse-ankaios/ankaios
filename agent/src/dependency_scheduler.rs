@@ -24,6 +24,7 @@ use mockall::automock;
 
 pub type ReadyWorkloads = Vec<WorkloadSpec>;
 pub type WaitingWorkloads = Vec<WorkloadSpec>;
+
 pub type ReadyDeletedWorkloads = Vec<DeletedWorkload>;
 pub type WaitingDeletedWorkloads = Vec<DeletedWorkload>;
 

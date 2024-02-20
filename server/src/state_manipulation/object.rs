@@ -510,7 +510,6 @@ mod tests {
                                 .entry("workloadName", "workload A")
                                 .entry("hash", config_hash.hash_config()),
                         )
-                        .entry("workloadId", "some strange Id")
                         .entry(
                             "executionState",
                             Mapping::default()

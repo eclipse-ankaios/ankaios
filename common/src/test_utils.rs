@@ -58,7 +58,6 @@ pub fn generate_test_complete_state(
                     .agent_name(&v.agent)
                     .config(&v.runtime_config)
                     .build(),
-                workload_id: "some strange Id".to_string(),
                 execution_state: ExecutionState::running(),
             })
             .collect(),

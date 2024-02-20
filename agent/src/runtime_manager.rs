@@ -112,7 +112,6 @@ impl RuntimeManager {
                 .update_workload_state(vec![WorkloadState {
                     instance_name: workload.instance_name(),
                     execution_state: ExecutionState::waiting_to_start(),
-                    ..Default::default()
                 }])
                 .await
                 .unwrap_or_illegal_state();
@@ -124,7 +123,7 @@ impl RuntimeManager {
         waiting_workloads: &[DeletedWorkload],
     ) {
         for workload in waiting_workloads.iter() {
-            // a transition to state Running(WaitingToStop) is only allowed if the workload was in the Running(Ok) state before
+            // a transition to state Stopping(WaitingToStop) is only allowed if the workload was in the Running(Ok) state before
             if self
                 .parameter_storage
                 .get_workload_state(self.agent_name.get(), &workload.name)
@@ -135,7 +134,6 @@ impl RuntimeManager {
                         .update_workload_state(vec![WorkloadState {
                             instance_name: wl.instance_name(),
                             execution_state: ExecutionState::waiting_to_stop(),
-                            ..Default::default()
                         }])
                         .await
                         .unwrap_or_illegal_state();
