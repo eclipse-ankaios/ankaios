@@ -35,18 +35,21 @@ ankaios::ToServer createRequestToAddNewWorkload()
     newWorkload.set_agent("agent_A");
     newWorkload.set_runtime("podman");
     newWorkload.set_restart(true);
-    newWorkload.set_updatestrategy(ankaios::UpdateStrategy::AT_MOST_ONCE);
     newWorkload.set_runtimeconfig("image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]");
 
     ankaios::State *state{new ankaios::State};
     state->mutable_workloads()->insert({"dynamic_nginx", std::move(newWorkload)});
 
+    ankaios::ApiVersion *apiVersion{new ankaios::ApiVersion};
+    apiVersion->set_version("v0.1");
+
     ankaios::CompleteState *completeState{new ankaios::CompleteState};
-    completeState->set_allocated_currentstate(state);
+    completeState->set_allocated_format_version(apiVersion);
+    completeState->set_allocated_desiredstate(state);
 
     ankaios::UpdateStateRequest *updateStateRequest{new ankaios::UpdateStateRequest};
     updateStateRequest->set_allocated_newstate(completeState);
-    updateStateRequest->add_updatemask("currentState.workloads.dynamic_nginx");
+    updateStateRequest->add_updatemask("desiredState.workloads.dynamic_nginx");
 
     ankaios::Request* request {new ankaios::Request};
     request->set_allocated_updatestaterequest(updateStateRequest);

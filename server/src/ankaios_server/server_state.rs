@@ -28,17 +28,17 @@ use std::fmt::Display;
 use mockall::automock;
 
 fn update_state(
-    current_state: &CompleteState,
+    desired_state: &CompleteState,
     updated_state: CompleteState,
     update_mask: Vec<String>,
 ) -> Result<CompleteState, UpdateStateError> {
-    // [impl->swdd~update-current-state-empty-update-mask~1]
+    // [impl->swdd~update-desired-state-empty-update-mask~1]
     if update_mask.is_empty() {
         return Ok(updated_state);
     }
 
-    // [impl->swdd~update-current-state-with-update-mask~1]
-    let mut new_state: Object = current_state.try_into().map_err(|err| {
+    // [impl->swdd~update-desired-state-with-update-mask~1]
+    let mut new_state: Object = desired_state.try_into().map_err(|err| {
         UpdateStateError::ResultInvalid(format!("Failed to parse current state, '{}'", err))
     })?;
     let state_from_update: Object = updated_state.try_into().map_err(|err| {
@@ -66,14 +66,14 @@ fn update_state(
 }
 
 fn extract_added_and_deleted_workloads(
-    current_state: &State,
+    desired_state: &State,
     new_state: &State,
 ) -> Option<(Vec<WorkloadSpec>, Vec<DeletedWorkload>)> {
     let mut added_workloads: Vec<WorkloadSpec> = Vec::new();
     let mut deleted_workloads: Vec<DeletedWorkload> = Vec::new();
 
     // find updated or deleted workloads
-    current_state.workloads.iter().for_each(|(wl_name, wls)| {
+    desired_state.workloads.iter().for_each(|(wl_name, wls)| {
         if let Some(new_wls) = new_state.workloads.get(wl_name) {
             // The new workload is identical with existing or updated. Lets check if it is an update.
             if wls != new_wls {
@@ -101,7 +101,7 @@ fn extract_added_and_deleted_workloads(
         .workloads
         .iter()
         .for_each(|(new_wl_name, new_wls)| {
-            if !current_state.workloads.contains_key(new_wl_name) {
+            if !desired_state.workloads.contains_key(new_wl_name) {
                 added_workloads.push(new_wls.clone());
             }
         });
@@ -151,23 +151,30 @@ pub type AddedDeletedWorkloads = Option<(Vec<WorkloadSpec>, Vec<DeletedWorkload>
 #[cfg_attr(test, automock)]
 impl ServerState {
     // [impl->swdd~server-provides-interface-get-complete-state~1]
-    // [impl->swdd~server-filters-get-complete-state-result~1]
+    // [impl->swdd~server-filters-get-complete-state-result~2]
     pub fn get_complete_state_by_field_mask(
         &self,
         request_complete_state: &CompleteStateRequest,
         workload_state_db: &WorkloadStateDB,
     ) -> Result<CompleteState, String> {
         let current_complete_state = CompleteState {
-            current_state: self.state.current_state.clone(),
+            format_version: self.state.format_version.clone(),
+            desired_state: self.state.desired_state.clone(),
             startup_state: self.state.startup_state.clone(),
             workload_states: workload_state_db.get_all_workload_states(),
         };
 
-        // [impl->swdd~server-filters-get-complete-state-result~1]
         if !request_complete_state.field_mask.is_empty() {
             let current_complete_state: Object =
                 current_complete_state.try_into().unwrap_or_illegal_state();
             let mut return_state = Object::default();
+
+            let format_version_path: Path = "formatVersion".into();
+            if let Some(format_version) = current_complete_state.get(&format_version_path) {
+                return_state.set(&format_version_path, format_version.to_owned())?;
+            } else {
+                log::warn!("The formatVersion field not found in the current state");
+            }
 
             for field in &request_complete_state.field_mask {
                 if let Some(value) = current_complete_state.get(&field.into()) {
@@ -195,7 +202,7 @@ impl ServerState {
     // [impl->swdd~agent-from-agent-field~1]
     pub fn get_workloads_for_agent(&self, agent_name: &String) -> Vec<WorkloadSpec> {
         self.state
-            .current_state
+            .desired_state
             .workloads
             .clone()
             .into_values()
@@ -208,13 +215,13 @@ impl ServerState {
         new_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<AddedDeletedWorkloads, UpdateStateError> {
-        // [impl->swdd~update-current-state-with-update-mask~1]
-        // [impl->swdd~update-current-state-empty-update-mask~1]
+        // [impl->swdd~update-desired-state-with-update-mask~1]
+        // [impl->swdd~update-desired-state-empty-update-mask~1]
         match update_state(&self.state, new_state, update_mask) {
             Ok(new_state) => {
                 let cmd = extract_added_and_deleted_workloads(
-                    &self.state.current_state,
-                    &new_state.current_state,
+                    &self.state.desired_state,
+                    &new_state.desired_state,
                 );
 
                 if let Some((added_workloads, mut deleted_workloads)) = cmd {
@@ -231,7 +238,7 @@ impl ServerState {
 
                     // [impl->swdd~server-state-rejects-state-with-cyclic-dependencies~1]
                     if let Some(workload_part_of_cycle) =
-                        cycle_check::dfs(&new_state.current_state, Some(start_nodes))
+                        cycle_check::dfs(&new_state.desired_state, Some(start_nodes))
                     {
                         return Err(UpdateStateError::CycleInDependencies(
                             workload_part_of_cycle,
@@ -288,7 +295,7 @@ mod tests {
     const RUNTIME: &str = "runtime";
 
     // [utest->swdd~server-provides-interface-get-complete-state~1]
-    // [utest->swdd~server-filters-get-complete-state-result~1]
+    // [utest->swdd~server-filters-get-complete-state-result~2]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask_empty_mask() {
         let w1 = generate_test_workload_spec_with_param(
@@ -342,7 +349,7 @@ mod tests {
     }
 
     // [utest->swdd~server-provides-interface-get-complete-state~1]
-    // [utest->swdd~server-filters-get-complete-state-result~1]
+    // [utest->swdd~server-filters-get-complete-state-result~2]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask() {
         let w1 = generate_test_workload_spec_with_param(
@@ -370,8 +377,8 @@ mod tests {
 
         let request_complete_state = CompleteStateRequest {
             field_mask: vec![
-                format!("currentState.workloads.{}", WORKLOAD_NAME_1),
-                format!("currentState.workloads.{}.agent", WORKLOAD_NAME_3),
+                format!("desiredState.workloads.{}", WORKLOAD_NAME_1),
+                format!("desiredState.workloads.{}.agent", WORKLOAD_NAME_3),
             ],
         };
 
@@ -390,7 +397,7 @@ mod tests {
         });
 
         let mut expected_complete_state = server_state.state.clone();
-        expected_complete_state.current_state.workloads = HashMap::from([
+        expected_complete_state.desired_state.workloads = HashMap::from([
             (w1.name.clone(), w1.clone()),
             (
                 w3.name.clone(),
@@ -405,7 +412,7 @@ mod tests {
     }
 
     // [utest->swdd~server-provides-interface-get-complete-state~1]
-    // [utest->swdd~server-filters-get-complete-state-result~1]
+    // [utest->swdd~server-filters-get-complete-state-result~2]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask_continue_on_invalid_mask() {
         let w1 = generate_test_workload_spec_with_param(
@@ -422,7 +429,7 @@ mod tests {
         let request_complete_state = CompleteStateRequest {
             field_mask: vec![
                 "workloads.invalidMask".to_string(), // invalid not existing workload
-                format!("currentState.workloads.{}", WORKLOAD_NAME_1),
+                format!("desiredState.workloads.{}", WORKLOAD_NAME_1),
             ],
         };
 
@@ -441,7 +448,7 @@ mod tests {
         });
 
         let mut expected_complete_state = server_state.state.clone();
-        expected_complete_state.current_state.workloads =
+        expected_complete_state.desired_state.workloads =
             HashMap::from([(w1.name.clone(), w1.clone())]);
         expected_complete_state.workload_states.clear();
         assert_eq!(expected_complete_state, complete_state);
@@ -510,20 +517,18 @@ mod tests {
         new_workload_2.dependencies.clear();
 
         let old_state = CompleteState {
-            current_state: State {
+            desired_state: State {
                 workloads: HashMap::from([(workload.name.clone(), workload)]),
-                ..Default::default()
             },
             ..Default::default()
         };
 
         let rejected_new_state = CompleteState {
-            current_state: State {
+            desired_state: State {
                 workloads: HashMap::from([
                     (new_workload_1.name.clone(), new_workload_1),
                     (new_workload_2.name.clone(), new_workload_2),
                 ]),
-                ..Default::default()
             },
             ..Default::default()
         };
@@ -551,7 +556,7 @@ mod tests {
         assert_eq!(old_state, server_state.state);
     }
 
-    // [utest->swdd~update-current-state-empty-update-mask~1]
+    // [utest->swdd~update-desired-state-empty-update-mask~1]
     #[test]
     fn utest_server_state_update_state_replace_all_if_update_mask_empty() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -580,16 +585,16 @@ mod tests {
         assert_eq!(update_state, server_state.state);
     }
 
-    // [utest->swdd~update-current-state-with-update-mask~1]
+    // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_server_state_update_state_replace_workload() {
         let _ = env_logger::builder().is_test(true).try_init();
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
-        let update_mask = vec![format!("currentState.workloads.{}", WORKLOAD_NAME_1)];
+        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
 
         let new_workload = update_state
-            .current_state
+            .desired_state
             .workloads
             .get(WORKLOAD_NAME_1)
             .unwrap()
@@ -597,7 +602,7 @@ mod tests {
 
         let mut expected = old_state.clone();
         expected
-            .current_state
+            .desired_state
             .workloads
             .insert(new_workload.name.clone(), new_workload.clone());
 
@@ -618,15 +623,15 @@ mod tests {
         assert_eq!(expected, server_state.state);
     }
 
-    // [utest->swdd~update-current-state-with-update-mask~1]
+    // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_server_state_update_state_add_workload() {
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
-        let update_mask = vec![format!("currentState.workloads.{}", WORKLOAD_NAME_4)];
+        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_4)];
 
         let new_workload = update_state
-            .current_state
+            .desired_state
             .workloads
             .get(WORKLOAD_NAME_4)
             .unwrap()
@@ -634,7 +639,7 @@ mod tests {
 
         let mut expected = old_state.clone();
         expected
-            .current_state
+            .desired_state
             .workloads
             .insert(WORKLOAD_NAME_4.into(), new_workload.clone());
 
@@ -655,16 +660,16 @@ mod tests {
         assert_eq!(expected, server_state.state);
     }
 
-    // [utest->swdd~update-current-state-with-update-mask~1]
+    // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_server_state_update_state_remove_workload() {
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
-        let update_mask = vec![format!("currentState.workloads.{}", WORKLOAD_NAME_2)];
+        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_2)];
 
         let mut expected = old_state.clone();
         expected
-            .current_state
+            .desired_state
             .workloads
             .remove(WORKLOAD_NAME_2)
             .unwrap();
@@ -686,12 +691,12 @@ mod tests {
         assert_eq!(expected, server_state.state);
     }
 
-    // [utest->swdd~update-current-state-with-update-mask~1]
+    // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_server_state_update_state_remove_non_existing_workload() {
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
-        let update_mask = vec!["currentState.workloads.workload_5".into()];
+        let update_mask = vec!["desiredState.workloads.workload_5".into()];
 
         let expected = &old_state;
 
@@ -710,12 +715,12 @@ mod tests {
         assert_eq!(*expected, server_state.state);
     }
 
-    // [utest->swdd~update-current-state-with-update-mask~1]
+    // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_server_state_update_state_remove_fails_from_non_map() {
         let old_state = generate_test_old_state();
         let update_state = generate_test_update_state();
-        let update_mask = vec!["currentState.workloads.workload_2.tags.x".into()];
+        let update_mask = vec!["desiredState.workloads.workload_2.tags.x".into()];
 
         let mut delete_graph_mock = MockDeleteGraph::new();
         delete_graph_mock.expect_insert().never();
@@ -733,7 +738,7 @@ mod tests {
         assert_eq!(server_state.state, old_state);
     }
 
-    // [utest->swdd~update-current-state-with-update-mask~1]
+    // [utest->swdd~update-desired-state-with-update-mask~1]
     #[test]
     fn utest_server_state_update_state_fails_with_update_mask_empty_string() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -756,7 +761,7 @@ mod tests {
         assert_eq!(server_state.state, old_state);
     }
 
-    // [utest->swdd~update-current-state-empty-update-mask~1]
+    // [utest->swdd~update-desired-state-empty-update-mask~1]
     #[test]
     fn utest_server_state_update_state_no_update() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -779,7 +784,7 @@ mod tests {
         assert_eq!(server_state.state, CompleteState::default());
     }
 
-    // [utest->swdd~update-current-state-empty-update-mask~1]
+    // [utest->swdd~update-desired-state-empty-update-mask~1]
     // [utest->swdd~server-detects-new-workload~1]
     #[test]
     fn utest_server_state_update_state_new_workloads() {
@@ -809,7 +814,7 @@ mod tests {
 
         let mut expected_added_workloads: Vec<WorkloadSpec> = new_state
             .clone()
-            .current_state
+            .desired_state
             .workloads
             .into_values()
             .collect();
@@ -822,7 +827,7 @@ mod tests {
         assert_eq!(server_state.state, new_state);
     }
 
-    // [utest->swdd~update-current-state-empty-update-mask~1]
+    // [utest->swdd~update-desired-state-empty-update-mask~1]
     // [utest->swdd~server-detects-deleted-workload~1]
     #[test]
     fn utest_server_state_update_state_deleted_workloads() {
@@ -854,7 +859,7 @@ mod tests {
 
         deleted_workloads.sort_by(|left, right| left.name.cmp(&right.name));
         let mut expected_deleted_workloads: Vec<DeletedWorkload> = current_complete_state
-            .current_state
+            .desired_state
             .workloads
             .iter()
             .map(|(k, v)| DeletedWorkload {
@@ -869,7 +874,7 @@ mod tests {
         assert_eq!(server_state.state, CompleteState::default());
     }
 
-    // [utest->swdd~update-current-state-empty-update-mask~1]
+    // [utest->swdd~update-desired-state-empty-update-mask~1]
     // [utest->swdd~server-detects-changed-workload~1]
     #[test]
     fn utest_server_state_update_state_updated_workload() {
@@ -880,7 +885,7 @@ mod tests {
         let update_mask = vec![];
 
         let workload_to_update = current_complete_state
-            .current_state
+            .desired_state
             .workloads
             .get(WORKLOAD_NAME_1)
             .unwrap();
@@ -891,7 +896,7 @@ mod tests {
             "runtime_2".into(),
         );
         new_complete_state
-            .current_state
+            .desired_state
             .workloads
             .insert(workload_to_update.name.clone(), updated_workload.clone());
 
@@ -941,9 +946,8 @@ mod tests {
         );
 
         let current_complete_state = CompleteState {
-            current_state: State {
+            desired_state: State {
                 workloads: HashMap::from([(workload.name.clone(), workload.clone())]),
-                ..Default::default()
             },
             ..Default::default()
         };
@@ -951,9 +955,8 @@ mod tests {
         let mut new_workload = workload.clone();
         new_workload.agent = AGENT_B.to_string();
         let new_complete_state = CompleteState {
-            current_state: State {
+            desired_state: State {
                 workloads: HashMap::from([(new_workload.name.clone(), new_workload.clone())]),
-                ..Default::default()
             },
             ..Default::default()
         };

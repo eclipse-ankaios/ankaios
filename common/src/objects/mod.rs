@@ -30,17 +30,11 @@ pub use workload_state::{ExecutionState, ExecutionStateEnum, WorkloadState};
 mod workload_spec;
 pub use workload_spec::{
     get_workloads_per_agent, AddCondition, DeleteCondition, DeletedWorkload,
-    DeletedWorkloadCollection, UpdateStrategy, WorkloadCollection, WorkloadSpec,
+    DeletedWorkloadCollection, WorkloadCollection, WorkloadSpec,
 };
-
-mod cronjob;
-pub use cronjob::{Cronjob, Interval};
 
 mod tag;
 pub use tag::Tag;
-
-mod access_rights;
-pub use access_rights::{AccessRights, AccessRightsRule, PatchOperation};
 
 mod workload_execution_instance_name;
 pub use workload_execution_instance_name::{

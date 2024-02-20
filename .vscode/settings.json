@@ -21,7 +21,7 @@
     "rust-analyzer.cargo.loadOutDirsFromCheck": true,
     "rust-analyzer.cargo.unsetTest": [
         "api",
-        "common",
+        "common-s",
         "agent",
         "server",
         "grpc",

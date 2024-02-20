@@ -16,7 +16,7 @@ mod cycle_check;
 mod delete_graph;
 mod server_state;
 
-use common::commands::{CompleteState, Request, UpdateWorkload};
+use common::commands::{ApiVersion, CompleteState, Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
@@ -154,7 +154,7 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
                 }
-                // [impl->swdd~server-provides-update-current-state-interface~1]
+                // [impl->swdd~server-provides-update-desired-state-interface~1]
                 ToServer::Request(Request {
                     request_id,
                     request_content,
@@ -193,7 +193,7 @@ impl AnkaiosServer {
                         }
                     }
 
-                    // [impl->swdd~server-provides-update-current-state-interface~1]
+                    // [impl->swdd~server-provides-update-desired-state-interface~1]
                     common::commands::RequestContent::UpdateStateRequest(update_state_request) => {
                         log::debug!(
                             "Received UpdateState. State '{:?}', update mask '{:?}'",
@@ -201,8 +201,32 @@ impl AnkaiosServer {
                             update_state_request.update_mask
                         );
 
-                        // [impl->swdd~update-current-state-with-update-mask~1]
-                        // [impl->swdd~update-current-state-empty-update-mask~1]
+                        // [impl->swdd~update-desired-state-with-invalid-version~1]
+                        // [impl->swdd~update-desired-state-with-missing-version~1]
+                        if !CompleteState::is_compatible_format(
+                            &update_state_request.state.format_version,
+                        ) {
+                            log::warn!("The CompleteState in the request has wrong format. Received {}, expected {} -> ignoring the request.",
+                                update_state_request.state.format_version, ApiVersion::default());
+
+                            self.to_agents
+                                .error(
+                                    request_id,
+                                    common::commands::Error {
+                                        message: format!(
+                                            "Unsupported API version. Received {}, expected {}",
+                                            update_state_request.state.format_version,
+                                            ApiVersion::default()
+                                        ),
+                                    },
+                                )
+                                .await
+                                .unwrap_or_illegal_state();
+                            continue;
+                        }
+
+                        // [impl->swdd~update-desired-state-with-update-mask~1]
+                        // [impl->swdd~update-desired-state-empty-update-mask~1]
                         match self
                             .server_state
                             .update(update_state_request.state, update_state_request.update_mask)
@@ -306,19 +330,17 @@ impl AnkaiosServer {
 
 #[cfg(test)]
 mod tests {
+    use api::proto;
     use std::collections::HashMap;
 
     use super::AnkaiosServer;
     use crate::ankaios_server::server_state::{MockServerState, UpdateStateError};
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
     use common::commands::{
-        CompleteStateRequest, Response, ResponseContent, UpdateStateSuccess, UpdateWorkload,
-        UpdateWorkloadState,
+        ApiVersion, CompleteStateRequest, Error, Response, ResponseContent, UpdateStateSuccess,
+        UpdateWorkload, UpdateWorkloadState,
     };
-    use common::objects::{
-        generate_test_workload_state, generate_test_workload_state_with_agent, DeletedWorkload,
-        ExecutionState, State,
-    };
+    use common::objects::{DeletedWorkload, ExecutionState, State};
     use common::test_utils::generate_test_workload_spec_with_param;
     use common::to_server_interface::ToServerInterface;
     use common::{commands::CompleteState, from_server_interface::FromServer};
@@ -348,9 +370,8 @@ mod tests {
         );
 
         let startup_state = CompleteState {
-            current_state: State {
+            desired_state: State {
                 workloads: HashMap::from([(workload.name.clone(), workload)]),
-                ..Default::default()
             },
             ..Default::default()
         };
@@ -392,12 +413,11 @@ mod tests {
         );
 
         let new_state = CompleteState {
-            current_state: State {
+            desired_state: State {
                 workloads: HashMap::from([(
                     updated_workload.name.clone(),
                     updated_workload.clone(),
                 )]),
-                ..Default::default()
             },
             ..Default::default()
         };
@@ -405,10 +425,10 @@ mod tests {
         // fix new state by deleting the dependencies
         let mut fixed_state = new_state.clone();
         updated_workload.dependencies.clear();
-        fixed_state.current_state.workloads =
+        fixed_state.desired_state.workloads =
             HashMap::from([(updated_workload.name.clone(), updated_workload.clone())]);
 
-        let update_mask = vec!["currentState.workloads".to_string()];
+        let update_mask = vec!["desiredState.workloads".to_string()];
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
@@ -509,9 +529,8 @@ mod tests {
         );
 
         let startup_state = CompleteState {
-            current_state: State {
+            desired_state: State {
                 workloads: HashMap::from([(workload.name.clone(), workload.clone())]),
-                ..Default::default()
             },
             ..Default::default()
         };
@@ -609,8 +628,10 @@ mod tests {
         // [utest->swdd~server-informs-a-newly-connected-agent-workload-states~1]
         // [utest->swdd~server-starts-without-startup-config~1]
         // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
-        let test_wl_1_state_running =
-            generate_test_workload_state(WORKLOAD_NAME_1, ExecutionState::running());
+        let test_wl_1_state_running = common::objects::generate_test_workload_state(
+            WORKLOAD_NAME_1,
+            ExecutionState::running(),
+        );
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_1_state_running.clone()])
             .await;
@@ -649,8 +670,10 @@ mod tests {
 
         // [utest->swdd~server-forwards-workload-state~1]
         // send update_workload_state for second agent which is then stored in the workload_state_db in ankaios server
-        let test_wl_2_state_succeeded =
-            generate_test_workload_state(WORKLOAD_NAME_2, ExecutionState::succeeded());
+        let test_wl_2_state_succeeded = common::objects::generate_test_workload_state(
+            WORKLOAD_NAME_2,
+            ExecutionState::succeeded(),
+        );
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_2_state_succeeded.clone()])
             .await;
@@ -666,8 +689,10 @@ mod tests {
         );
 
         // send update_workload_state for first agent again which is then updated in the workload_state_db in ankaios server
-        let test_wl_1_state_succeeded =
-            generate_test_workload_state(WORKLOAD_NAME_2, ExecutionState::succeeded());
+        let test_wl_1_state_succeeded = common::objects::generate_test_workload_state(
+            WORKLOAD_NAME_2,
+            ExecutionState::succeeded(),
+        );
         let update_workload_state_result = to_server
             .update_workload_state(vec![test_wl_1_state_succeeded.clone()])
             .await;
@@ -687,7 +712,7 @@ mod tests {
     }
 
     // [utest->swdd~server-uses-async-channels~1]
-    // [utest->swdd~server-provides-update-current-state-interface~1]
+    // [utest->swdd~server-provides-update-desired-state-interface~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_success()
@@ -705,12 +730,10 @@ mod tests {
         w1.runtime_config = "changed".to_string();
 
         let update_state = CompleteState {
-            current_state: State {
+            desired_state: State {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
                     .into_iter()
                     .collect(),
-                configs: HashMap::default(),
-                cron_jobs: HashMap::default(),
             },
             ..Default::default()
         };
@@ -718,7 +741,7 @@ mod tests {
         let added_workloads = vec![w1.clone()];
         let deleted_workloads = vec![];
 
-        let update_mask = vec![format!("currentState.workloads.{}", WORKLOAD_NAME_1)];
+        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
         mock_server_state
@@ -769,7 +792,7 @@ mod tests {
     }
 
     // [utest->swdd~server-uses-async-channels~1]
-    // [utest->swdd~server-provides-update-current-state-interface~1]
+    // [utest->swdd~server-provides-update-desired-state-interface~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_nothing_to_do(
@@ -787,16 +810,14 @@ mod tests {
         w1.runtime_config = "changed".to_string();
 
         let update_state = CompleteState {
-            current_state: State {
+            desired_state: State {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
                     .into_iter()
                     .collect(),
-                configs: HashMap::default(),
-                cron_jobs: HashMap::default(),
             },
             ..Default::default()
         };
-        let update_mask = vec![format!("currentState.workloads.{}", WORKLOAD_NAME_1)];
+        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
         mock_server_state
@@ -839,7 +860,7 @@ mod tests {
     }
 
     // [utest->swdd~server-uses-async-channels~1]
-    // [utest->swdd~server-provides-update-current-state-interface~1]
+    // [utest->swdd~server-provides-update-desired-state-interface~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_error() {
@@ -855,16 +876,14 @@ mod tests {
         );
 
         let update_state = CompleteState {
-            current_state: State {
+            desired_state: State {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
                     .into_iter()
                     .collect(),
-                configs: HashMap::default(),
-                cron_jobs: HashMap::default(),
             },
             ..Default::default()
         };
-        let update_mask = vec![format!("currentState.workloads.{}", WORKLOAD_NAME_1)];
+        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
         mock_server_state
@@ -940,17 +959,8 @@ mod tests {
             (w3.name.clone(), w3),
         ]);
 
-        let mut configs = HashMap::new();
-        configs.insert("key1".to_string(), "value1".to_string());
-        configs.insert("key2".to_string(), "value2".to_string());
-        configs.insert("key3".to_string(), "value3".to_string());
-
         let current_complete_state = CompleteState {
-            current_state: State {
-                workloads,
-                configs,
-                cron_jobs: HashMap::default(),
-            },
+            desired_state: State { workloads },
             ..Default::default()
         };
         let request_id = format!("{AGENT_A}@my_request_id");
@@ -1069,7 +1079,7 @@ mod tests {
         server.server_state = mock_server_state;
 
         // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
-        let test_wl_1_state_running = generate_test_workload_state_with_agent(
+        let test_wl_1_state_running = common::objects::generate_test_workload_state_with_agent(
             WORKLOAD_NAME_1,
             AGENT_A,
             ExecutionState::running(),
@@ -1101,7 +1111,7 @@ mod tests {
             .workload_state_db
             .get_workload_state_for_agent(AGENT_A);
 
-        let expected_workload_state = generate_test_workload_state_with_agent(
+        let expected_workload_state = common::objects::generate_test_workload_state_with_agent(
             WORKLOAD_NAME_1,
             AGENT_A,
             ExecutionState::agent_disconnected(),
@@ -1142,16 +1152,14 @@ mod tests {
         let mut updated_w1 = w1.clone();
         updated_w1.restart = false;
         let update_state = CompleteState {
-            current_state: State {
+            desired_state: State {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), updated_w1.clone())]
                     .into_iter()
                     .collect(),
-                configs: HashMap::default(),
-                cron_jobs: HashMap::default(),
             },
             ..Default::default()
         };
-        let update_mask = vec!["currentState.workloads".to_string()];
+        let update_mask = vec!["desiredState.workloads".to_string()];
 
         let added_workloads = vec![updated_w1.clone()];
         let deleted_workloads = vec![DeletedWorkload {
@@ -1273,5 +1281,95 @@ mod tests {
         if !server_task.is_finished() {
             server_task.abort();
         }
+    }
+
+    // [utest->swdd~update-desired-state-with-invalid-version~1]
+    #[tokio::test]
+    async fn utest_server_rejects_update_state_with_incompatible_version() {
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let update_state = CompleteState {
+            format_version: ApiVersion {
+                version: "incompatible_version".to_string(),
+            },
+            ..Default::default()
+        };
+
+        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let server_task = tokio::spawn(async move { server.start(None).await });
+
+        // send new state to server
+        let update_state_result = to_server
+            .update_state(REQUEST_ID_A.to_string(), update_state.clone(), update_mask)
+            .await;
+        assert!(update_state_result.is_ok());
+
+        let error_message = format!(
+            "Unsupported API version. Received 'incompatible_version', expected {}",
+            ApiVersion::default()
+        );
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            FromServer::Response(Response {
+                request_id: REQUEST_ID_A.to_string(),
+                response_content: ResponseContent::Error(Error {
+                    message: error_message
+                }),
+            }),
+            from_server_command
+        );
+
+        server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    // [utest->swdd~update-desired-state-with-missing-version~1]
+    #[tokio::test]
+    async fn utest_server_rejects_update_state_without_format_version() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let update_state_proto_no_version = proto::CompleteState {
+            ..Default::default()
+        };
+        let update_state_ankaios_no_version: CompleteState =
+            CompleteState::try_from(update_state_proto_no_version).unwrap();
+
+        let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let server_task = tokio::spawn(async move { server.start(None).await });
+
+        // send new state to server
+        let update_state_result = to_server
+            .update_state(
+                REQUEST_ID_A.to_string(),
+                update_state_ankaios_no_version.clone(),
+                update_mask,
+            )
+            .await;
+        assert!(update_state_result.is_ok());
+
+        let error_message = format!(
+            "Unsupported API version. Received '', expected {}",
+            ApiVersion::default()
+        );
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            FromServer::Response(Response {
+                request_id: REQUEST_ID_A.to_string(),
+                response_content: ResponseContent::Error(Error {
+                    message: error_message
+                }),
+            }),
+            from_server_command
+        );
+
+        server_task.abort();
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 }

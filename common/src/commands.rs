@@ -12,9 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::fmt::Display;
+
 use crate::objects::{DeletedWorkload, State, WorkloadSpec, WorkloadState};
 use api::proto;
 use serde::{Deserialize, Serialize};
+
+const CURRENT_API_VERSION: &str = "v0.1";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AgentHello {
@@ -273,19 +277,59 @@ impl From<Error> for proto::Error {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct ApiVersion {
+    pub version: String,
+}
+
+impl Default for ApiVersion {
+    fn default() -> Self {
+        Self {
+            version: CURRENT_API_VERSION.to_string(),
+        }
+    }
+}
+
+impl From<ApiVersion> for proto::ApiVersion {
+    fn from(item: ApiVersion) -> proto::ApiVersion {
+        proto::ApiVersion {
+            version: item.version,
+        }
+    }
+}
+
+impl From<proto::ApiVersion> for ApiVersion {
+    fn from(item: proto::ApiVersion) -> Self {
+        ApiVersion {
+            version: item.version,
+        }
+    }
+}
+
+impl Display for ApiVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "'{}'", self.version)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
-#[serde(default, rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 pub struct CompleteState {
+    pub format_version: ApiVersion,
+    #[serde(default)]
     pub startup_state: State,
-    pub current_state: State,
+    #[serde(default)]
+    pub desired_state: State,
+    #[serde(default)]
     pub workload_states: Vec<WorkloadState>,
 }
 
 impl From<CompleteState> for proto::CompleteState {
     fn from(item: CompleteState) -> proto::CompleteState {
         proto::CompleteState {
+            format_version: Some(proto::ApiVersion::from(item.format_version)),
             startup_state: Some(proto::State::from(item.startup_state)),
-            current_state: Some(proto::State::from(item.current_state)),
+            desired_state: Some(proto::State::from(item.desired_state)),
             workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
         }
     }
@@ -296,10 +340,22 @@ impl TryFrom<proto::CompleteState> for CompleteState {
 
     fn try_from(item: proto::CompleteState) -> Result<Self, Self::Error> {
         Ok(CompleteState {
+            format_version: item
+                .format_version
+                .unwrap_or_else(|| proto::ApiVersion {
+                    version: "".to_string(),
+                })
+                .into(),
             startup_state: item.startup_state.unwrap_or_default().try_into()?,
-            current_state: item.current_state.unwrap_or_default().try_into()?,
+            desired_state: item.desired_state.unwrap_or_default().try_into()?,
             workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
         })
+    }
+}
+
+impl CompleteState {
+    pub fn is_compatible_format(format_version: &ApiVersion) -> bool {
+        format_version.version == CURRENT_API_VERSION
     }
 }
 
@@ -349,17 +405,18 @@ mod tests {
     mod proto {
         pub use api::proto::{
             execution_state::ExecutionStateEnum, request::RequestContent,
-            response::ResponseContent, CompleteState, CompleteStateRequest, Error, ExecutionState,
-            Request, Response, Running, State, Success, UpdateStateRequest, UpdateStateSuccess,
-            UpdateWorkloadState, Workload, WorkloadInstanceName, WorkloadState,
+            response::ResponseContent, ApiVersion, CompleteState, CompleteStateRequest, Error,
+            ExecutionState, Request, Response, Running, State, Success, UpdateStateRequest,
+            UpdateStateSuccess, UpdateWorkloadState, Workload, WorkloadInstanceName, WorkloadState,
         };
     }
 
     mod ankaios {
         pub use crate::{
             commands::{
-                CompleteState, CompleteStateRequest, Error, Request, RequestContent, Response,
-                ResponseContent, UpdateStateRequest, UpdateStateSuccess, UpdateWorkloadState,
+                ApiVersion, CompleteState, CompleteStateRequest, Error, Request, RequestContent,
+                Response, ResponseContent, UpdateStateRequest, UpdateStateSuccess,
+                UpdateWorkloadState,
             },
             objects::{
                 ExecutionState, ExecutionStateEnum, State, WorkloadExecutionInstanceName,
@@ -467,14 +524,20 @@ mod tests {
     macro_rules! complete_state {
         ($expression:ident) => {
             $expression::CompleteState {
-                startup_state: $expression::State {
-                    configs: [("startup".into(), "state".into())].into(),
-                    ..Default::default()
+                format_version: $expression::ApiVersion {
+                    version: "version".into(),
                 }
                 .into(),
-                current_state: $expression::State {
-                    configs: [("current".into(), "state".into())].into(),
-                    ..Default::default()
+                startup_state: $expression::State {
+                    workloads: vec![("startup".into(), Default::default())]
+                        .into_iter()
+                        .collect(),
+                }
+                .into(),
+                desired_state: $expression::State {
+                    workloads: vec![("desired".into(), Default::default())]
+                        .into_iter()
+                        .collect(),
                 }
                 .into(),
                 workload_states: vec![workload_state!($expression)],
@@ -653,7 +716,7 @@ mod tests {
             .new_state
             .as_mut()
             .unwrap()
-            .current_state = None;
+            .desired_state = None;
 
         let ankaios::RequestContent::UpdateStateRequest(ankaios_request_content) =
             &mut ankaios_request_complete_state.request_content
@@ -661,7 +724,7 @@ mod tests {
             unreachable!()
         };
         ankaios_request_content.state.startup_state = Default::default();
-        ankaios_request_content.state.current_state = Default::default();
+        ankaios_request_content.state.desired_state = Default::default();
 
         assert_eq!(
             ankaios::Request::try_from(proto_request_complete_state).unwrap(),
@@ -716,7 +779,7 @@ mod tests {
             .new_state
             .as_mut()
             .unwrap()
-            .current_state
+            .desired_state
             .as_mut()
             .unwrap()
             .workloads
@@ -823,7 +886,7 @@ mod tests {
             unreachable!()
         };
         proto_content.startup_state = None;
-        proto_content.current_state = None;
+        proto_content.desired_state = None;
 
         let ankaios::ResponseContent::CompleteState(ankaios_content) =
             &mut ankaios_complete_state_response.response_content
@@ -831,7 +894,7 @@ mod tests {
             unreachable!()
         };
         ankaios_content.startup_state = Default::default();
-        ankaios_content.current_state = Default::default();
+        ankaios_content.desired_state = Default::default();
 
         assert_eq!(
             ankaios::Response::try_from(proto_complete_state_response).unwrap(),
@@ -916,5 +979,49 @@ mod tests {
         ankaios_request_complete_state.prefix_request_id("prefix@");
 
         assert_eq!("prefix@42", ankaios_request_complete_state.request_id);
+    }
+
+    #[test]
+    fn utest_complete_state_accepts_compatible_state() {
+        let complete_state_compatible_version = ankaios::CompleteState {
+            ..Default::default()
+        };
+        assert!(ankaios::CompleteState::is_compatible_format(
+            &complete_state_compatible_version.format_version
+        ));
+    }
+
+    #[test]
+    fn utest_complete_state_rejects_incompatible_state() {
+        let complete_state_incompatible_version = ankaios::CompleteState {
+            format_version: ankaios::ApiVersion {
+                version: "incompatible_version".to_string(),
+            },
+            ..Default::default()
+        };
+        assert!(!ankaios::CompleteState::is_compatible_format(
+            &complete_state_incompatible_version.format_version
+        ));
+    }
+
+    #[test]
+    fn utest_complete_state_rejects_state_without_format_version() {
+        let complete_state_proto_no_version = proto::CompleteState {
+            ..Default::default()
+        };
+        let complete_state_ankaios_no_version =
+            ankaios::CompleteState::try_from(complete_state_proto_no_version).unwrap();
+
+        assert_eq!(
+            complete_state_ankaios_no_version.format_version.version,
+            "".to_string()
+        );
+
+        let file_without_format_version = "";
+        let deserialization_result =
+            serde_yaml::from_str::<ankaios::CompleteState>(file_without_format_version)
+                .unwrap_err()
+                .to_string();
+        assert_eq!(deserialization_result, "missing field `formatVersion`");
     }
 }

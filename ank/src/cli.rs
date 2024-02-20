@@ -77,7 +77,7 @@ pub enum GetCommands {
         /// Specify the output format
         #[arg(short = 'o', value_enum, default_value_t = OutputFormat::Yaml)]
         output_format: OutputFormat,
-        /// Select which parts of the state object shall be output e.g. 'currentState.workloads.nginx' [default: empty = the complete state]
+        /// Select which parts of the state object shall be output e.g. 'desiredState.workloads.nginx' [default: empty = the complete state]
         object_field_mask: Vec<String>,
     },
     /// Information about workloads of the Ankaios system
@@ -107,7 +107,7 @@ pub struct SetArgs {
 pub enum SetCommands {
     /// State information of Ankaios system
     State {
-        /// Select which parts of the state object shall be updated e.g. 'currentState.workloads.nginx'
+        /// Select which parts of the state object shall be updated e.g. 'desiredState.workloads.nginx'
         #[arg(required = true)]
         object_field_mask: Vec<String>,
         /// A file containing the new State Object Description in yaml format
