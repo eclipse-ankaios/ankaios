@@ -49,7 +49,6 @@ impl GRPCStreaming<proto::FromServer> for GRPCFromServerStreaming {
 
 // [impl->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
 pub async fn forward_from_proto_to_ankaios(
-    agent_name: &str,
     grpc_streaming: &mut impl GRPCStreaming<proto::FromServer>,
     agent_tx: &FromServerSender,
 ) -> Result<(), GrpcMiddlewareError> {
@@ -67,12 +66,12 @@ pub async fn forward_from_proto_to_ankaios(
                         .update_workload(
                             obj.added_workloads
                                 .into_iter()
-                                .map(|x| (agent_name.to_string(), x).try_into())
+                                .map(|added_workload| added_workload.try_into())
                                 .collect::<Result<Vec<WorkloadSpec>, _>>()
                                 .map_err(GrpcMiddlewareError::ConversionError)?,
                             obj.deleted_workloads
                                 .into_iter()
-                                .map(|x| (agent_name.to_string(), x).try_into())
+                                .map(|deleted_workload| deleted_workload.try_into())
                                 .collect::<Result<Vec<DeletedWorkload>, _>>()
                                 .map_err(GrpcMiddlewareError::ConversionError)?,
                         )
@@ -446,7 +445,6 @@ mod tests {
     // [utest->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
     #[tokio::test]
     async fn utest_from_server_proxy_forward_from_proto_to_ankaios_handles_missing_agent_reply() {
-        let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
             mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
@@ -462,7 +460,6 @@ mod tests {
         // forwards from proto to ankaios
         let forward_result = tokio::spawn(async move {
             forward_from_proto_to_ankaios(
-                agent_name,
                 &mut mock_grpc_ex_request_streaming,
                 &to_agent,
             )
@@ -481,7 +478,6 @@ mod tests {
     #[tokio::test]
     async fn utest_from_server_proxy_forward_from_proto_to_ankaios_handles_incorrect_added_workloads(
     ) {
-        let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
             mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
@@ -509,7 +505,6 @@ mod tests {
         // forwards from proto to ankaios
         let forward_result = tokio::spawn(async move {
             forward_from_proto_to_ankaios(
-                agent_name,
                 &mut mock_grpc_ex_request_streaming,
                 &to_agent,
             )
@@ -552,7 +547,6 @@ mod tests {
         // forwards from proto to ankaios
         let forward_result = tokio::spawn(async move {
             forward_from_proto_to_ankaios(
-                agent_name,
                 &mut mock_grpc_ex_request_streaming,
                 &to_agent,
             )
@@ -588,7 +582,6 @@ mod tests {
         // forwards from proto to ankaios
         let forward_result = tokio::spawn(async move {
             forward_from_proto_to_ankaios(
-                agent_name,
                 &mut mock_grpc_ex_request_streaming,
                 &to_agent,
             )
@@ -628,7 +621,6 @@ mod tests {
         // forwards from proto to ankaios
         let forward_result = tokio::spawn(async move {
             forward_from_proto_to_ankaios(
-                agent_name,
                 &mut mock_grpc_ex_request_streaming,
                 &to_agent,
             )

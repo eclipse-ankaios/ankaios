@@ -25,7 +25,10 @@ use crate::objects::{
 #[cfg(feature = "test_utils")]
 pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State {
     State {
-        workloads: workloads.into_iter().map(|v| (v.name.clone(), v)).collect(),
+        workloads: workloads
+            .into_iter()
+            .map(|v| (v.instance_name.workload_name().to_owned(), v))
+            .collect(),
         configs: HashMap::new(),
         cron_jobs: HashMap::new(),
     }
@@ -37,7 +40,7 @@ pub fn generate_test_complete_state(
 ) -> crate::commands::CompleteState {
     use crate::{
         commands::CompleteState,
-        objects::{ExecutionState, WorkloadExecutionInstanceName, WorkloadState},
+        objects::{ExecutionState, WorkloadState},
     };
 
     CompleteState {
@@ -45,7 +48,7 @@ pub fn generate_test_complete_state(
             workloads: workloads
                 .clone()
                 .into_iter()
-                .map(|v| (v.name.clone(), v))
+                .map(|v| (v.instance_name.workload_name().to_owned(), v))
                 .collect(),
             configs: HashMap::new(),
             cron_jobs: HashMap::new(),
@@ -53,11 +56,7 @@ pub fn generate_test_complete_state(
         workload_states: workloads
             .into_iter()
             .map(|v| WorkloadState {
-                instance_name: WorkloadExecutionInstanceName::builder()
-                    .workload_name(&v.name)
-                    .agent_name(&v.agent)
-                    .config(&v.runtime_config)
-                    .build(),
+                instance_name: v.instance_name,
                 execution_state: ExecutionState::running(),
             })
             .collect(),

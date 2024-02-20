@@ -12,12 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::{ExecutionState, WorkloadExecutionInstanceName, WorkloadState};
+use common::objects::{ExecutionState, WorkloadInstanceName, WorkloadState};
 use std::collections::HashMap;
 
 type AgentName = String;
 
-type WorkloadStatesMap = HashMap<WorkloadExecutionInstanceName, WorkloadState>;
+type WorkloadStatesMap = HashMap<WorkloadInstanceName, WorkloadState>;
 type AgentWorkloadStates = HashMap<AgentName, WorkloadStatesMap>;
 
 pub struct WorkloadStateDB {

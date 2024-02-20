@@ -20,8 +20,8 @@ use std::{
 use common::{
     commands::Response,
     objects::{
-        AgentName, DeletedWorkload, ExecutionState, WorkloadExecutionInstanceName,
-        WorkloadInstanceName, WorkloadSpec, WorkloadState,
+        AgentName, DeletedWorkload, ExecutionState, WorkloadInstanceName,
+        WorkloadSpec, WorkloadState,
     },
     request_id_prepending::detach_prefix_from_request_id,
     std_extensions::IllegalStateResult,
@@ -269,7 +269,7 @@ impl RuntimeManager {
                             .get_mut(runtime_name)
                             .and_then(|map| map.remove(instance_name.workload_name()))
                         {
-                            let new_instance_name: WorkloadExecutionInstanceName =
+                            let new_instance_name: WorkloadInstanceName =
                                 new_workload_spec.instance_name();
 
                             // We have a running workload that matches a new added workload; check if the config is updated
@@ -467,7 +467,7 @@ mod tests {
     use crate::workload::{MockWorkload, WorkloadError};
     use common::commands::{ResponseContent, UpdateWorkloadState};
     use common::objects::{
-        generate_test_workload_state, AddCondition, WorkloadExecutionInstanceNameBuilder,
+        generate_test_workload_state, AddCondition, WorkloadInstanceNameBuilder,
     };
     use common::test_utils::{
         generate_test_complete_state, generate_test_deleted_workload,
@@ -931,7 +931,7 @@ mod tests {
         );
 
         // create workload with different config string to simulate a replace of a existing workload
-        let existing_workload_with_other_config = WorkloadExecutionInstanceNameBuilder::default()
+        let existing_workload_with_other_config = WorkloadInstanceNameBuilder::default()
             .workload_name(WORKLOAD_1_NAME)
             .config(&String::from("different config"))
             .agent_name(AGENT_NAME)
@@ -1018,7 +1018,7 @@ mod tests {
             .once()
             .return_once(|| mock_dependency_scheduler);
 
-        let existing_workload_with_other_config = WorkloadExecutionInstanceNameBuilder::default()
+        let existing_workload_with_other_config = WorkloadInstanceNameBuilder::default()
             .workload_name(WORKLOAD_1_NAME)
             .config(&String::from("different config"))
             .agent_name(AGENT_NAME)
@@ -2030,7 +2030,7 @@ mod tests {
         let deleted_workload =
             generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
 
-        let instance_name = WorkloadExecutionInstanceName::builder()
+        let instance_name = WorkloadInstanceName::builder()
             .agent_name(deleted_workload.agent.clone())
             .workload_name(deleted_workload.name.clone())
             .config(&String::from("config"))

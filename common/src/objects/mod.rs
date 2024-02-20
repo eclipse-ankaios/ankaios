@@ -42,10 +42,9 @@ pub use tag::Tag;
 mod access_rights;
 pub use access_rights::{AccessRights, AccessRightsRule, PatchOperation};
 
-mod workload_execution_instance_name;
-pub use workload_execution_instance_name::{
-    ConfigHash, WorkloadExecutionInstanceName, WorkloadExecutionInstanceNameBuilder,
-    WorkloadInstanceName,
+mod workload_instance_name;
+pub use workload_instance_name::{
+    ConfigHash, WorkloadInstanceName, WorkloadInstanceNameBuilder,
 };
 
 mod agent_name;

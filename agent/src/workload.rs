@@ -29,7 +29,7 @@ use crate::control_interface::PipesChannelContext;
 use common::{
     commands::{self, ResponseContent},
     from_server_interface::FromServer,
-    objects::{WorkloadExecutionInstanceName, WorkloadSpec},
+    objects::{WorkloadInstanceName, WorkloadSpec},
 };
 
 #[cfg(test)]
@@ -64,7 +64,7 @@ pub enum WorkloadCommand {
 
 // #[derive(Debug)]
 pub struct Workload {
-    instance_name: WorkloadExecutionInstanceName,
+    instance_name: WorkloadInstanceName,
     channel: WorkloadCommandSender,
     control_interface: Option<PipesChannelContext>,
 }
@@ -72,7 +72,7 @@ pub struct Workload {
 #[cfg_attr(test, automock)]
 impl Workload {
     pub fn new(
-        instance_name: WorkloadExecutionInstanceName,
+        instance_name: WorkloadInstanceName,
         channel: WorkloadCommandSender,
         control_interface: Option<PipesChannelContext>,
     ) -> Self {
@@ -83,7 +83,7 @@ impl Workload {
         }
     }
 
-    pub fn instance_name(&self) -> WorkloadExecutionInstanceName {
+    pub fn instance_name(&self) -> WorkloadInstanceName {
         self.instance_name.clone()
     }
 
@@ -172,7 +172,7 @@ mod tests {
     use common::{
         commands::{CompleteState, Response, ResponseContent},
         from_server_interface::FromServer,
-        objects::{ConfigHash, WorkloadExecutionInstanceName},
+        objects::{ConfigHash, WorkloadInstanceName},
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
     };
     use tokio::{sync::mpsc, time::timeout};
@@ -193,7 +193,7 @@ mod tests {
 
     #[test]
     fn utest_workload_obj_instance_name() {
-        let instance_name = WorkloadExecutionInstanceName::builder()
+        let instance_name = WorkloadInstanceName::builder()
             .agent_name(AGENT_NAME.to_owned())
             .workload_name(WORKLOAD_1_NAME.to_owned())
             .config(&String::from("config"))
@@ -224,7 +224,7 @@ mod tests {
             .once()
             .return_const(());
 
-        let instance_name = WorkloadExecutionInstanceName::builder()
+        let instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME.to_string())
             .agent_name(AGENT_NAME.to_string())
             .config(&"some config".to_string().hash_config())
@@ -269,7 +269,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let instance_name = WorkloadExecutionInstanceName::builder()
+        let instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME.to_string())
             .agent_name(AGENT_NAME.to_string())
             .config(&"some config".to_string().hash_config())
@@ -328,7 +328,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let instance_name = WorkloadExecutionInstanceName::builder()
+        let instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME.to_string())
             .agent_name(AGENT_NAME.to_string())
             .config(&"some config".to_string().hash_config())
@@ -363,7 +363,7 @@ mod tests {
             .once()
             .return_const(());
 
-        let instance_name = WorkloadExecutionInstanceName::builder()
+        let instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME.to_string())
             .agent_name(AGENT_NAME.to_string())
             .config(&"some config".to_string().hash_config())
@@ -399,7 +399,7 @@ mod tests {
             .once()
             .return_const(to_server_tx);
 
-        let instance_name = WorkloadExecutionInstanceName::builder()
+        let instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME.to_string())
             .agent_name(AGENT_NAME.to_string())
             .config(&"some config".to_string().hash_config())
@@ -451,7 +451,7 @@ mod tests {
             .once()
             .return_const(to_server_tx);
 
-        let instance_name = WorkloadExecutionInstanceName::builder()
+        let instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME.to_string())
             .agent_name(AGENT_NAME.to_string())
             .config(&"some config".to_string().hash_config())
@@ -484,7 +484,7 @@ mod tests {
 
         let (workload_command_sender, _) = WorkloadCommandSender::new();
 
-        let instance_name = WorkloadExecutionInstanceName::builder()
+        let instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME.to_string())
             .agent_name(AGENT_NAME.to_string())
             .config(&"some config".to_string().hash_config())

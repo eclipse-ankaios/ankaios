@@ -4,7 +4,7 @@ use tokio::{task::JoinHandle, time};
 
 use crate::runtime_connectors::{RuntimeStateGetter, StateChecker};
 use common::{
-    objects::{ExecutionState, ExecutionStateEnum, WorkloadInstanceName, WorkloadSpec},
+    objects::{ExecutionState, ExecutionStateEnum, WorkloadSpec},
     std_extensions::IllegalStateResult,
     to_server_interface::{ToServerInterface, ToServerSender},
 };

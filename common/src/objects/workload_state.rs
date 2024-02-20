@@ -20,7 +20,7 @@ use api::proto;
 
 use crate::std_extensions::UnreachableOption;
 
-use super::WorkloadExecutionInstanceName;
+use super::WorkloadInstanceName;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PendingSubstate {
@@ -414,7 +414,7 @@ impl Display for ExecutionState {
 #[serde(default, rename_all = "camelCase")]
 pub struct WorkloadState {
     // [impl->swdd~common-workload-state-identification~1s]
-    pub instance_name: WorkloadExecutionInstanceName,
+    pub instance_name: WorkloadInstanceName,
     pub execution_state: ExecutionState,
 }
 
@@ -459,7 +459,7 @@ pub fn generate_test_workload_state_with_agent(
     execution_state: ExecutionState,
 ) -> WorkloadState {
     WorkloadState {
-        instance_name: WorkloadExecutionInstanceName::builder()
+        instance_name: WorkloadInstanceName::builder()
             .workload_name(workload_name)
             .agent_name(agent_name)
             .config(&"config".to_string())
@@ -473,11 +473,7 @@ pub fn generate_test_workload_state_with_workload_spec(
     execution_state: ExecutionState,
 ) -> WorkloadState {
     WorkloadState {
-        instance_name: WorkloadExecutionInstanceName::builder()
-            .workload_name(workload_spec.name.clone())
-            .agent_name(workload_spec.agent.clone())
-            .config(workload_spec)
-            .build(),
+        instance_name: workload_spec.instance_name,
         execution_state,
     }
 }
@@ -494,9 +490,9 @@ pub fn generate_test_workload_state(
 // [utest->swdd~common-object-representation~1]
 #[cfg(test)]
 mod tests {
-    use api::proto::{self, WorkloadInstanceName};
+    use api::proto::{self};
 
-    use crate::objects::{ExecutionState, WorkloadExecutionInstanceName, WorkloadState};
+    use crate::objects::{ExecutionState, WorkloadInstanceName, WorkloadState};
 
     // [utest->swdd~common-workload-state-identification~1]
     #[test]
@@ -504,7 +500,7 @@ mod tests {
         let additional_info = "some additional info";
         let ankaios_wl_state = WorkloadState {
             execution_state: ExecutionState::starting(additional_info),
-            instance_name: WorkloadExecutionInstanceName::builder()
+            instance_name: WorkloadInstanceName::builder()
                 .workload_name("john")
                 .agent_name("strange")
                 .build(),
@@ -517,7 +513,7 @@ mod tests {
                     proto::Pending::Starting.into(),
                 )),
             }),
-            instance_name: Some(WorkloadInstanceName {
+            instance_name: Some(proto::WorkloadInstanceName {
                 workload_name: "john".to_string(),
                 agent_name: "strange".to_string(),
                 id: "".to_string(),
@@ -532,7 +528,7 @@ mod tests {
     fn utest_converts_to_ankaios_workload_state() {
         let ankaios_wl_state = WorkloadState {
             execution_state: ExecutionState::running(),
-            instance_name: WorkloadExecutionInstanceName::builder()
+            instance_name: WorkloadInstanceName::builder()
                 .workload_name("john")
                 .agent_name("strange")
                 .build(),
@@ -545,7 +541,7 @@ mod tests {
                     proto::Running::Ok.into(),
                 )),
             }),
-            instance_name: Some(WorkloadInstanceName {
+            instance_name: Some(proto::WorkloadInstanceName {
                 workload_name: "john".to_string(),
                 agent_name: "strange".to_string(),
                 id: "".to_string(),

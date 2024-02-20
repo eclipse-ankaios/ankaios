@@ -15,7 +15,6 @@ use super::workload_command_channel::WorkloadCommandReceiver;
 use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use crate::workload::WorkloadCommand;
 use crate::workload::WorkloadCommandSender;
-use common::objects::WorkloadExecutionInstanceName;
 use common::{
     objects::{ExecutionState, WorkloadInstanceName, WorkloadSpec},
     std_extensions::IllegalStateResult,
@@ -73,7 +72,7 @@ where
     WorkloadId: ToString + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
-    pub instance_name: WorkloadExecutionInstanceName,
+    pub instance_name: WorkloadInstanceName,
     pub workload_id: Option<WorkloadId>,
     pub state_checker: Option<StChecker>,
     pub update_state_tx: ToServerSender,

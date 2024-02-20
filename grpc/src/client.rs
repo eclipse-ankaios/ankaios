@@ -148,7 +148,6 @@ impl GRPCCommunicationsClient {
 
         // [impl->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
         let forward_exec_from_proto_task = from_server_proxy::forward_from_proto_to_ankaios(
-            self.name.as_str(),
             &mut grpc_to_server_streaming,
             agent_tx,
         );

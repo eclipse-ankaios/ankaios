@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::WorkloadExecutionInstanceName;
+use common::objects::WorkloadInstanceName;
 
 #[cfg(test)]
 use mockall::automock;
@@ -59,7 +59,7 @@ pub struct PipesChannelContext {
 impl PipesChannelContext {
     pub fn new(
         run_directory: &Path,
-        execution_instance_name: &WorkloadExecutionInstanceName,
+        execution_instance_name: &WorkloadInstanceName,
         output_pipe_channel: ToServerSender,
     ) -> Result<Self, PipesChannelContextError> {
         // [impl->swdd~agent-control-interface-pipes-path-naming~1]
@@ -128,7 +128,7 @@ mod tests {
         generate_test_input_output_mock, generate_test_pipes_channel_task_mock,
         MockFromServerChannels, MockReopenFile, PipesChannelContext,
     };
-    use common::objects::WorkloadExecutionInstanceName;
+    use common::objects::WorkloadInstanceName;
 
     // [utest->swdd~agent-create-control-interface-pipes-per-workload~1]
     // [utest->swdd~agent-control-interface-pipes-path-naming~1]
@@ -162,7 +162,7 @@ mod tests {
 
         let pipes_channel_context = PipesChannelContext::new(
             Path::new("api_pipes_location"),
-            &WorkloadExecutionInstanceName::builder()
+            &WorkloadInstanceName::builder()
                 .workload_name("workload_name_1")
                 .config(&String::from(CONFIG))
                 .build(),
@@ -211,7 +211,7 @@ mod tests {
 
         let pipes_channel_context = PipesChannelContext::new(
             Path::new("api_pipes_location"),
-            &WorkloadExecutionInstanceName::builder()
+            &WorkloadInstanceName::builder()
                 .agent_name("workload_name_1")
                 .config(&String::from(CONFIG))
                 .build(),

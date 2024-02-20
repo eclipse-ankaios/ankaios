@@ -16,7 +16,7 @@ use super::workload_state_store::WorkloadStateStore;
 
 use async_trait::async_trait;
 use common::{
-    objects::{ExecutionState, WorkloadExecutionInstanceName, WorkloadState},
+    objects::{ExecutionState, WorkloadInstanceName, WorkloadState},
     state_change_interface::{StateChangeInterface, StateChangeSender},
     std_extensions::IllegalStateResult,
 };
@@ -37,10 +37,10 @@ pub trait WorkloadStateSenderInterface {
         execution_state: ExecutionState,
     ) -> Result<(), String>;
 
-    async fn report_starting(&self, instance_name: &WorkloadExecutionInstanceName);
-    async fn report_stopping(&self, instance_name: &WorkloadExecutionInstanceName);
-    async fn report_stopping_failed(&self, instance_name: &WorkloadExecutionInstanceName);
-    async fn report_removed(&self, instance_name: &WorkloadExecutionInstanceName);
+    async fn report_starting(&self, instance_name: &WorkloadInstanceName);
+    async fn report_stopping(&self, instance_name: &WorkloadInstanceName);
+    async fn report_stopping_failed(&self, instance_name: &WorkloadInstanceName);
+    async fn report_removed(&self, instance_name: &WorkloadInstanceName);
 }
 
 #[async_trait]
@@ -66,7 +66,7 @@ impl WorkloadStateSenderInterface for WorkloadStateMsgSender {
         .map_err(|error| error.to_string())
     }
 
-    async fn report_starting(&self, instance_name: &WorkloadExecutionInstanceName) {
+    async fn report_starting(&self, instance_name: &WorkloadInstanceName) {
         self.report_workload_execution_state(
             instance_name.workload_name().to_string(),
             instance_name.agent_name().to_string(),
@@ -76,7 +76,7 @@ impl WorkloadStateSenderInterface for WorkloadStateMsgSender {
         .unwrap_or_illegal_state();
     }
 
-    async fn report_stopping(&self, instance_name: &WorkloadExecutionInstanceName) {
+    async fn report_stopping(&self, instance_name: &WorkloadInstanceName) {
         self.report_workload_execution_state(
             instance_name.workload_name().to_string(),
             instance_name.agent_name().to_string(),
@@ -86,7 +86,7 @@ impl WorkloadStateSenderInterface for WorkloadStateMsgSender {
         .unwrap_or_illegal_state();
     }
 
-    async fn report_stopping_failed(&self, instance_name: &WorkloadExecutionInstanceName) {
+    async fn report_stopping_failed(&self, instance_name: &WorkloadInstanceName) {
         self.report_workload_execution_state(
             instance_name.workload_name().to_string(),
             instance_name.agent_name().to_string(),
@@ -96,7 +96,7 @@ impl WorkloadStateSenderInterface for WorkloadStateMsgSender {
         .unwrap_or_illegal_state();
     }
 
-    async fn report_removed(&self, instance_name: &WorkloadExecutionInstanceName) {
+    async fn report_removed(&self, instance_name: &WorkloadInstanceName) {
         self.report_workload_execution_state(
             instance_name.workload_name().to_string(),
             instance_name.agent_name().to_string(),

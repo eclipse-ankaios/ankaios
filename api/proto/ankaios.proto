@@ -95,7 +95,7 @@ message UpdateWorkload {
 * A message containing information about a workload to be added to the Ankaios cluster.
 */
 message AddedWorkload {
-  string name = 1; /// The name of the workload.
+  WorkloadInstanceName instanceName = 1; /// The instance name of the workload.
   string runtime = 2; /// The name of the runtime, e.g., podman.
   map<string, AddCondition> dependencies = 3; /// A list of dependencies to other workloads with their corresponding, expected states. Can be used to enable a synchronized start of a workload.
   bool restart = 4; /// A flag indicating to restart the workload in case of an intentional or an unintentional stop of the workload.
@@ -109,7 +109,7 @@ message AddedWorkload {
 * A message containing information about a workload to be deleted from the Anakaios system.
 */
 message DeletedWorkload {
-  string name = 1; /// The name of the workload.
+  WorkloadInstanceName instanceName = 1; /// The instance name of the workload.
   map<string, DeleteCondition> dependencies = 2; /// A list of dependencies to other workloads with their corresponding, expected states. Can be used to enable a synchronized stop of a workload.
 }
 

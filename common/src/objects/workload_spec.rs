@@ -22,27 +22,27 @@ use crate::objects::AccessRights;
 use crate::objects::Tag;
 
 use super::ExecutionState;
+use super::WorkloadInstanceName;
 
 pub type WorkloadCollection = Vec<WorkloadSpec>;
 pub type DeletedWorkloadCollection = Vec<DeletedWorkload>;
 // [impl->swdd~common-object-serialization~1]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct DeletedWorkload {
-    pub agent: String,
-    pub name: String,
+    pub instance_name: WorkloadInstanceName,
     #[serde(serialize_with = "serialize_to_ordered_map")]
     pub dependencies: HashMap<String, DeleteCondition>,
 }
 
-impl TryFrom<(String, proto::DeletedWorkload)> for DeletedWorkload {
+impl TryFrom<proto::DeletedWorkload> for DeletedWorkload {
     type Error = String;
 
-    fn try_from(
-        (agent, deleted_workload): (String, proto::DeletedWorkload),
-    ) -> Result<Self, Self::Error> {
+    fn try_from(deleted_workload: proto::DeletedWorkload) -> Result<Self, Self::Error> {
         Ok(DeletedWorkload {
-            agent,
-            name: deleted_workload.name,
+            instance_name: deleted_workload
+                .instance_name
+                .ok_or("No instance name")?
+                .into(),
             dependencies: deleted_workload
                 .dependencies
                 .into_iter()
@@ -55,7 +55,7 @@ impl TryFrom<(String, proto::DeletedWorkload)> for DeletedWorkload {
 impl From<DeletedWorkload> for proto::DeletedWorkload {
     fn from(value: DeletedWorkload) -> Self {
         proto::DeletedWorkload {
-            name: value.name,
+            instance_name: proto::WorkloadInstanceName::from(value.instance_name).into(),
             dependencies: value
                 .dependencies
                 .into_iter()
@@ -69,8 +69,7 @@ impl From<DeletedWorkload> for proto::DeletedWorkload {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(default, rename_all = "camelCase")]
 pub struct WorkloadSpec {
-    pub agent: String,
-    pub name: String,
+    pub instance_name: WorkloadInstanceName,
     pub tags: Vec<Tag>,
     #[serde(serialize_with = "serialize_to_ordered_map")]
     pub dependencies: HashMap<String, AddCondition>,
@@ -81,10 +80,10 @@ pub struct WorkloadSpec {
     pub runtime_config: String,
 }
 
-impl TryFrom<(String, proto::AddedWorkload)> for WorkloadSpec {
+impl TryFrom<proto::AddedWorkload> for WorkloadSpec {
     type Error = String;
 
-    fn try_from((agent, workload): (String, proto::AddedWorkload)) -> Result<Self, String> {
+    fn try_from(workload: proto::AddedWorkload) -> Result<Self, String> {
         Ok(WorkloadSpec {
             dependencies: workload
                 .dependencies
@@ -95,8 +94,7 @@ impl TryFrom<(String, proto::AddedWorkload)> for WorkloadSpec {
             restart: workload.restart,
             access_rights: workload.access_rights.unwrap_or_default().try_into()?,
             runtime: workload.runtime,
-            name: workload.name,
-            agent,
+            instance_name: workload.instance_name.ok_or("No instance name")?.into(),
             tags: workload.tags.into_iter().map(|x| x.into()).collect(),
             runtime_config: workload.runtime_config,
         })
@@ -117,8 +115,11 @@ impl TryFrom<(String, proto::Workload)> for WorkloadSpec {
             restart: workload.restart,
             access_rights: workload.access_rights.unwrap_or_default().try_into()?,
             runtime: workload.runtime,
-            name,
-            agent: workload.agent,
+            instance_name: WorkloadInstanceName::builder()
+                .workload_name(name)
+                .agent_name(workload.agent)
+                .config(&workload.runtime_config)
+                .build(),
             tags: workload.tags.into_iter().map(|x| x.into()).collect(),
             runtime_config: workload.runtime_config,
         })
@@ -128,7 +129,7 @@ impl TryFrom<(String, proto::Workload)> for WorkloadSpec {
 impl From<WorkloadSpec> for proto::Workload {
     fn from(workload: WorkloadSpec) -> Self {
         proto::Workload {
-            agent: workload.agent,
+            agent: workload.instance_name.agent_name().to_owned(),
             dependencies: workload
                 .dependencies
                 .into_iter()
@@ -151,7 +152,7 @@ impl From<WorkloadSpec> for proto::Workload {
 impl From<WorkloadSpec> for proto::AddedWorkload {
     fn from(workload: WorkloadSpec) -> Self {
         proto::AddedWorkload {
-            name: workload.name,
+            instance_name: proto::WorkloadInstanceName::from(workload.instance_name).into(),
             dependencies: workload
                 .dependencies
                 .into_iter()
@@ -180,20 +181,26 @@ pub fn get_workloads_per_agent(
     let mut agent_workloads: AgentWorkloadMap = HashMap::new();
 
     for added_workload in added_workloads {
-        if let Some((added_workload_vector, _)) = agent_workloads.get_mut(&added_workload.agent) {
+        if let Some((added_workload_vector, _)) =
+            agent_workloads.get_mut(added_workload.instance_name.agent_name())
+        {
             added_workload_vector.push(added_workload);
         } else {
-            agent_workloads.insert(added_workload.agent.clone(), (vec![added_workload], vec![]));
+            agent_workloads.insert(
+                added_workload.instance_name.agent_name().to_owned(),
+                (vec![added_workload], vec![]),
+            );
         }
     }
 
     for deleted_workload in deleted_workloads {
-        if let Some((_, deleted_workload_vector)) = agent_workloads.get_mut(&deleted_workload.agent)
+        if let Some((_, deleted_workload_vector)) =
+            agent_workloads.get_mut(deleted_workload.instance_name.agent_name())
         {
             deleted_workload_vector.push(deleted_workload);
         } else {
             agent_workloads.insert(
-                deleted_workload.agent.clone(),
+                deleted_workload.instance_name.agent_name().to_owned(),
                 (vec![], vec![deleted_workload]),
             );
         }

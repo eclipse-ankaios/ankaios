@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects as ankaios;
+use common::objects::{self as ankaios, WorkloadInstanceName};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -61,8 +61,11 @@ fn from_stored_workloads(
     let mut workload_specs: HashMap<String, ankaios::WorkloadSpec> = HashMap::new();
     for (name, stored_workload) in stored_workloads {
         let workload = ankaios::WorkloadSpec {
-            name: name.to_owned(),
-            agent: stored_workload.agent,
+            instance_name: WorkloadInstanceName::builder()
+                .workload_name(name)
+                .agent_name(stored_workload.agent)
+                .config(&stored_workload.runtime_config)
+                .build(),
             tags: stored_workload.tags,
             runtime_config: stored_workload.runtime_config,
             runtime: stored_workload.runtime,

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use common::{
-    objects::{AgentName, WorkloadExecutionInstanceName, WorkloadInstanceName, WorkloadSpec},
+    objects::{AgentName, WorkloadInstanceName, WorkloadSpec},
     to_server_interface::ToServerSender,
 };
 #[cfg(test)]
@@ -23,7 +23,7 @@ pub trait RuntimeFacade: Send + Sync + 'static {
     async fn get_reusable_running_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError>;
+    ) -> Result<Vec<WorkloadInstanceName>, RuntimeError>;
 
     fn create_workload(
         &self,
@@ -34,7 +34,7 @@ pub trait RuntimeFacade: Send + Sync + 'static {
 
     fn replace_workload(
         &self,
-        existing_workload_name: WorkloadExecutionInstanceName,
+        existing_workload_name: WorkloadInstanceName,
         new_workload_spec: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
         update_state_tx: &ToServerSender,
@@ -47,7 +47,7 @@ pub trait RuntimeFacade: Send + Sync + 'static {
         update_state_tx: &ToServerSender,
     ) -> Workload;
 
-    fn delete_workload(&self, instance_name: WorkloadExecutionInstanceName);
+    fn delete_workload(&self, instance_name: WorkloadInstanceName);
 }
 
 pub struct GenericRuntimeFacade<
@@ -77,7 +77,7 @@ impl<
     async fn get_reusable_running_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
+    ) -> Result<Vec<WorkloadInstanceName>, RuntimeError> {
         log::debug!(
             "Searching for reusable '{}' workloads on agent '{}'.",
             self.runtime.name(),
@@ -137,7 +137,7 @@ impl<
     // [impl->swdd~agent-replace-workload~1]
     fn replace_workload(
         &self,
-        old_instance_name: WorkloadExecutionInstanceName,
+        old_instance_name: WorkloadInstanceName,
         new_workload_spec: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
         update_state_tx: &ToServerSender,
@@ -272,7 +272,7 @@ impl<
     }
 
     // [impl->swdd~agent-delete-old-workload~1]
-    fn delete_workload(&self, instance_name: WorkloadExecutionInstanceName) {
+    fn delete_workload(&self, instance_name: WorkloadInstanceName) {
         let runtime = self.runtime.to_owned();
 
         log::info!(
@@ -301,7 +301,7 @@ impl<
 #[cfg(test)]
 mod tests {
     use common::{
-        objects::{WorkloadExecutionInstanceName, WorkloadInstanceName},
+        objects::{WorkloadInstanceName, WorkloadInstanceName},
         test_utils::generate_test_workload_spec_with_param,
         to_server_interface::ToServer,
     };
@@ -329,7 +329,7 @@ mod tests {
     async fn utest_runtime_facade_reusable_running_workloads() {
         let mut runtime_mock = MockRuntimeConnector::new();
 
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
+        let workload_instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
@@ -612,7 +612,7 @@ mod tests {
             .once()
             .return_once(|_, _, _| mock_workload);
 
-        let old_workload_instance_name = WorkloadExecutionInstanceName::builder()
+        let old_workload_instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME)
             .config(&"config".to_string())
             .build();
@@ -681,7 +681,7 @@ mod tests {
             .once()
             .return_once(|_, _, _| mock_workload);
 
-        let old_workload_instance_name = WorkloadExecutionInstanceName::builder()
+        let old_workload_instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME)
             .config(&"config".to_string())
             .build();
@@ -752,7 +752,7 @@ mod tests {
             .once()
             .return_once(|_, _, _| mock_workload);
 
-        let old_workload_instance_name = WorkloadExecutionInstanceName::builder()
+        let old_workload_instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME)
             .config(&"config".to_string())
             .build();
@@ -803,7 +803,7 @@ mod tests {
     async fn utest_runtime_facade_delete_workload() {
         let mut runtime_mock = MockRuntimeConnector::new();
 
-        let workload_instance_name = WorkloadExecutionInstanceName::builder()
+        let workload_instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
