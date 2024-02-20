@@ -1263,7 +1263,7 @@ mod tests {
         assert!(update_state_result.is_ok());
 
         let error_message = format!(
-            "Unsupported API version. Received 'unknown_api_version', expected {}",
+            "Unsupported API version. Received '', expected {}",
             ApiVersion::default()
         );
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();

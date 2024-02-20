@@ -320,11 +320,14 @@ impl CliCommands {
                     .unwrap_or_else(|error| {
                         panic!("Could not read the state object file.\nError: {error}")
                     });
+
             // [impl -> swdd~cli-supports-yaml-to-set-desired-state~1]
-            complete_state_input =
-                serde_yaml::from_str(&state_object_data).unwrap_or_else(|error| {
-                    panic!("Error while parsing the state object data.\nError: {error}")
-                });
+            match serde_yaml::from_str(&state_object_data) {
+                Ok(parsed_complete_state) => complete_state_input = parsed_complete_state,
+                Err(error) => {
+                    output_and_error!("Error while parsing the state object data: '{error}'.");
+                }
+            }
         }
 
         output_debug!(

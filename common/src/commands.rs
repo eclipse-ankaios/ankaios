@@ -271,21 +271,15 @@ impl Display for ApiVersion {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
-#[serde(default, rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 pub struct CompleteState {
-    #[serde(default = "default_api_value_serialization")]
     pub format_version: ApiVersion,
+    #[serde(default)]
     pub startup_state: State,
+    #[serde(default)]
     pub desired_state: State,
+    #[serde(default)]
     pub workload_states: Vec<WorkloadState>,
-}
-
-// This function returns intentionally the string different from the "official/default version".
-// This way Ankaios can catch and reject the CompleteState without format_version.
-fn default_api_value_serialization() -> ApiVersion {
-    ApiVersion {
-        version: "unknown_api_version".to_string(),
-    }
 }
 
 impl From<CompleteState> for proto::CompleteState {
@@ -307,7 +301,7 @@ impl TryFrom<proto::CompleteState> for CompleteState {
             format_version: item
                 .format_version
                 .unwrap_or_else(|| proto::ApiVersion {
-                    version: "unknown_api_version".to_string(),
+                    version: "".to_string(),
                 })
                 .into(),
             startup_state: item.startup_state.unwrap_or_default().try_into()?,
@@ -440,13 +434,14 @@ mod tests {
 
         assert_eq!(
             complete_state_ankaios_no_version.format_version.version,
-            "unknown_api_version".to_string()
+            "".to_string()
         );
 
-        let empty_complete_state_deserialized: CompleteState = serde_yaml::from_str("").unwrap();
-        assert_eq!(
-            empty_complete_state_deserialized.format_version.version,
-            "unknown_api_version".to_string()
-        );
+        let file_without_format_version = "";
+        let deserialization_result =
+            serde_yaml::from_str::<CompleteState>(file_without_format_version)
+                .unwrap_err()
+                .to_string();
+        assert_eq!(deserialization_result, "missing field `formatVersion`");
     }
 }
