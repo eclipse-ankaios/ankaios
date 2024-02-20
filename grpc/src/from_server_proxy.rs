@@ -520,9 +520,8 @@ mod tests {
 
         let workload: proto::DeletedWorkload = proto::DeletedWorkload {
             instance_name: Some(proto::WorkloadInstanceName {
-                agent_name: "".to_string(),
                 workload_name: "name".to_string(),
-                id: "".to_string(),
+                ..Default::default()
             }),
             dependencies: [("name".into(), -1)].into(),
         };

@@ -222,8 +222,7 @@ mod tests {
                 added_workloads: vec![AddedWorkload {
                     instance_name: Some(proto::WorkloadInstanceName {
                         workload_name: "test_workload".to_owned(),
-                        agent_name: "".to_owned(),
-                        id: "".to_owned(),
+                        ..Default::default()
                     }),
                     runtime: "tes_runtime".to_owned(),
                     ..Default::default()

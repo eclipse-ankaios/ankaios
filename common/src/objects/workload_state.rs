@@ -516,7 +516,7 @@ mod tests {
             instance_name: Some(proto::WorkloadInstanceName {
                 workload_name: "john".to_string(),
                 agent_name: "strange".to_string(),
-                id: "".to_string(),
+                ..Default::default()
             }),
         };
 
@@ -544,7 +544,7 @@ mod tests {
             instance_name: Some(proto::WorkloadInstanceName {
                 workload_name: "john".to_string(),
                 agent_name: "strange".to_string(),
-                id: "".to_string(),
+                ..Default::default()
             }),
         };
 
