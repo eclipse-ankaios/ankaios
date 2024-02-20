@@ -80,16 +80,14 @@ fn extract_added_and_deleted_workloads(
                 // [impl->swdd~server-detects-changed-workload~1]
                 added_workloads.push(new_wls.clone());
                 deleted_workloads.push(DeletedWorkload {
-                    agent: wls.agent.clone(),
-                    name: wl_name.clone(),
+                    instance_name: wls.instance_name,
                     ..Default::default()
                 });
             }
         } else {
             // [impl->swdd~server-detects-deleted-workload~1]
             deleted_workloads.push(DeletedWorkload {
-                agent: wls.agent.clone(),
-                name: wl_name.clone(),
+                instance_name: wls.instance_name,
                 ..Default::default()
             });
         }
@@ -199,7 +197,7 @@ impl ServerState {
             .workloads
             .clone()
             .into_values()
-            .filter(|workload_spec| workload_spec.agent.eq(agent_name))
+            .filter(|workload_spec| workload_spec.instance_name.agent_name().eq(agent_name))
             .collect()
     }
 
@@ -218,11 +216,11 @@ impl ServerState {
                 );
 
                 if let Some((added_workloads, mut deleted_workloads)) = cmd {
-                    let start_nodes: Vec<&String> = added_workloads
+                    let start_nodes: Vec<&str> = added_workloads
                         .iter()
                         .filter_map(|w| {
                             if !w.dependencies.is_empty() {
-                                Some(&w.name)
+                                Some(w.instance_name.workload_name())
                             } else {
                                 None
                             }
