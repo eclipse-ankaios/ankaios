@@ -31,7 +31,7 @@ impl DeleteGraph {
                 /* currently for other add conditions besides AddCondRunning
                 the workload can be deleted immediately and does not need a delete condition */
                 if add_condition == &AddCondition::AddCondRunning {
-                    let workload_name = workload_spec.name.clone();
+                    let workload_name = workload_spec.instance_name.workload_name().to_owned();
                     self.delete_graph
                         .entry(dependency_name.clone())
                         .or_default()
@@ -44,7 +44,10 @@ impl DeleteGraph {
     // [impl->swdd~server-state-adds-delete-conditions-to-deleted-workload~1]
     pub fn apply_delete_conditions_to(&self, deleted_workloads: &mut [DeletedWorkload]) {
         for workload in deleted_workloads.iter_mut() {
-            if let Some(delete_conditions) = self.delete_graph.get(&workload.name) {
+            if let Some(delete_conditions) = self
+                .delete_graph
+                .get(workload.instance_name.workload_name())
+            {
                 workload.dependencies = delete_conditions.clone();
             }
         }

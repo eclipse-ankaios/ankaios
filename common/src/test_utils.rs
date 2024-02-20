@@ -18,8 +18,8 @@ use api::proto;
 use serde::{Serialize, Serializer};
 
 use crate::objects::{
-    AccessRights, AddCondition, Cronjob, DeleteCondition, DeletedWorkload, Interval, State, Tag,
-    UpdateStrategy, WorkloadSpec,
+    AccessRights, AddCondition, ConfigHash, Cronjob, DeleteCondition, DeletedWorkload, Interval,
+    State, Tag, UpdateStrategy, WorkloadInstanceName, WorkloadSpec,
 };
 
 #[cfg(feature = "test_utils")]
@@ -76,11 +76,17 @@ pub fn generate_test_state() -> State {
 
     let mut ankaios_workloads = HashMap::new();
 
-    let mut workload_1 = generate_test_workload_spec();
-    let mut workload_2 = generate_test_workload_spec();
+    let workload_1 = generate_test_workload_spec_with_param(
+        "agent".to_owned(),
+        "workload_name_1".to_owned(),
+        "runtime".to_owned(),
+    );
 
-    workload_1.name = "workload_name_1".to_string();
-    workload_2.name = "workload_name_2".to_string();
+    let workload_2 = generate_test_workload_spec_with_param(
+        "agent".to_owned(),
+        "workload_name_2".to_owned(),
+        "runtime".to_owned(),
+    );
 
     ankaios_workloads.insert(workload_name_1, workload_1);
     ankaios_workloads.insert(workload_name_2, workload_2);
@@ -164,20 +170,28 @@ pub fn generate_test_workload_spec_with_param(
     workload_name: String,
     runtime_name: String,
 ) -> crate::objects::WorkloadSpec {
+    let runtime_config =
+        "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
+        .to_owned();
+
+    let instance_name = WorkloadInstanceName::builder()
+        .agent_name(agent_name)
+        .workload_name(workload_name)
+        .config(&runtime_config.hash_config())
+        .build();
+
     WorkloadSpec {
+        instance_name,
         dependencies: generate_test_dependencies(),
         update_strategy: UpdateStrategy::Unspecified,
         restart: true,
         access_rights: AccessRights::default(),
         runtime: runtime_name,
-        name: workload_name,
-        agent: agent_name,
         tags: vec![Tag {
             key: "key".into(),
             value: "value".into(),
         }],
-        runtime_config: "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
-            .to_string(),
+        runtime_config,
     }
 }
 
@@ -225,16 +239,26 @@ pub fn generate_test_deleted_workload(
     agent: String,
     name: String,
 ) -> crate::objects::DeletedWorkload {
+    let instance_name = WorkloadInstanceName::builder()
+        .agent_name(agent)
+        .workload_name(name)
+        .config(&String::from("config"))
+        .build();
     DeletedWorkload {
-        agent,
-        name,
+        instance_name,
         dependencies: generate_test_delete_dependencies(),
     }
 }
 
 pub fn generate_test_proto_deleted_workload() -> proto::DeletedWorkload {
+    let instance_name = WorkloadInstanceName::builder()
+        .agent_name("agent")
+        .workload_name("workload X")
+        .config(&String::from("config"))
+        .build();
+
     proto::DeletedWorkload {
-        name: "workload X".to_string(),
+        instance_name: Some(instance_name.into()),
         dependencies: generate_test_proto_delete_dependencies(),
     }
 }

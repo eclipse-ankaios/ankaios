@@ -24,7 +24,7 @@ use tests::read_to_string_mock as read_file_to_string;
 use common::{
     commands::{CompleteState, CompleteStateRequest, Response, ResponseContent},
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::{Tag, WorkloadSpec},
+    objects::{ConfigHash, Tag, WorkloadInstanceName, WorkloadSpec},
     to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
 
@@ -360,7 +360,9 @@ impl CliCommands {
                 .current_state
                 .workloads
                 .iter()
-                .find(|&(wl_name, wl_spec)| *wl_name == wi.name && wl_spec.agent == wi.agent)
+                .find(|&(wl_name, wl_spec)| {
+                    *wl_name == wi.name && wl_spec.instance_name.agent_name() == wi.agent.as_str()
+                })
             {
                 wi.runtime = found_wl_spec.runtime.clone();
             }
@@ -443,10 +445,16 @@ impl CliCommands {
             .into_iter()
             .map(|(k, v)| Tag { key: k, value: v })
             .collect();
+
+        let instance_name = WorkloadInstanceName::builder()
+            .agent_name(agent_name)
+            .workload_name(workload_name.clone())
+            .config(&runtime_config.hash_config())
+            .build();
+
         let new_workload = WorkloadSpec {
+            instance_name,
             runtime: runtime_name,
-            name: workload_name.clone(),
-            agent: agent_name,
             tags,
             runtime_config,
             ..Default::default()

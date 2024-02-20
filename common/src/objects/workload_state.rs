@@ -473,7 +473,7 @@ pub fn generate_test_workload_state_with_workload_spec(
     execution_state: ExecutionState,
 ) -> WorkloadState {
     WorkloadState {
-        instance_name: workload_spec.instance_name,
+        instance_name: workload_spec.instance_name.clone(),
         execution_state,
     }
 }

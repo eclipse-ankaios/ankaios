@@ -74,20 +74,21 @@ fn extract_added_and_deleted_workloads(
 
     // find updated or deleted workloads
     current_state.workloads.iter().for_each(|(wl_name, wls)| {
+        let instance_name = wls.instance_name.clone();
         if let Some(new_wls) = new_state.workloads.get(wl_name) {
             // The new workload is identical with existing or updated. Lets check if it is an update.
             if wls != new_wls {
                 // [impl->swdd~server-detects-changed-workload~1]
                 added_workloads.push(new_wls.clone());
                 deleted_workloads.push(DeletedWorkload {
-                    instance_name: wls.instance_name,
+                    instance_name,
                     ..Default::default()
                 });
             }
         } else {
             // [impl->swdd~server-detects-deleted-workload~1]
             deleted_workloads.push(DeletedWorkload {
-                instance_name: wls.instance_name,
+                instance_name,
                 ..Default::default()
             });
         }
@@ -389,9 +390,9 @@ mod tests {
 
         let mut expected_complete_state = server_state.state.clone();
         expected_complete_state.current_state.workloads = HashMap::from([
-            (w1.name.clone(), w1.clone()),
+            (w1.instance_name.workload_name().to_owned(), w1.clone()),
             (
-                w3.name.clone(),
+                w3.instance_name.workload_name().to_owned(),
                 WorkloadSpec {
                     agent: AGENT_B.to_string(),
                     ..Default::default()

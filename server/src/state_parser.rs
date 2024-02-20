@@ -62,7 +62,7 @@ fn from_stored_workloads(
     for (name, stored_workload) in stored_workloads {
         let workload = ankaios::WorkloadSpec {
             instance_name: WorkloadInstanceName::builder()
-                .workload_name(name)
+                .workload_name(name.clone())
                 .agent_name(stored_workload.agent)
                 .config(&stored_workload.runtime_config)
                 .build(),
