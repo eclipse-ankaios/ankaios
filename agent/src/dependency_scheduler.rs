@@ -90,13 +90,9 @@ impl DependencyScheduler {
             .dependencies
             .iter()
             .all(|(dependency_name, delete_condition)| {
-                if let Some(wl_state) =
-                    workload_state_db.get_workload_state_by_workload_name(dependency_name)
-                {
-                    delete_condition.fulfilled_by(&wl_state)
-                } else {
-                    true
-                }
+                workload_state_db
+                    .get_state_of_workload(dependency_name)
+                    .map_or(true, |wl_state| delete_condition.fulfilled_by(&wl_state))
             })
     }
 
@@ -128,13 +124,9 @@ impl DependencyScheduler {
             .dependencies
             .iter()
             .all(|(dependency_name, add_condition)| {
-                if let Some(wl_state) =
-                    workload_state_db.get_workload_state_by_workload_name(dependency_name)
-                {
-                    add_condition.fulfilled_by(&wl_state)
-                } else {
-                    false
-                }
+                workload_state_db
+                    .get_state_of_workload(dependency_name)
+                    .map_or(false, |wl_state| add_condition.fulfilled_by(&wl_state))
             })
     }
 
@@ -225,7 +217,7 @@ mod tests {
 
         let mut parameter_storage_mock = MockParameterStorage::default();
         parameter_storage_mock
-            .expect_get_workload_state_by_workload_name()
+            .expect_get_state_of_workload()
             .once()
             .return_once(|_| Some(ExecutionState::running()));
 
@@ -256,7 +248,7 @@ mod tests {
 
         let mut parameter_storage_mock = MockParameterStorage::default();
         parameter_storage_mock
-            .expect_get_workload_state_by_workload_name()
+            .expect_get_state_of_workload()
             .once()
             .return_once(|_| Some(ExecutionState::succeeded()));
 
@@ -317,7 +309,7 @@ mod tests {
 
         let mut parameter_storage_mock = MockParameterStorage::default();
         parameter_storage_mock
-            .expect_get_workload_state_by_workload_name()
+            .expect_get_state_of_workload()
             .once()
             .return_const(Some(ExecutionState::running()));
 
@@ -341,7 +333,7 @@ mod tests {
 
         let mut parameter_storage_mock = MockParameterStorage::default();
         parameter_storage_mock
-            .expect_get_workload_state_by_workload_name()
+            .expect_get_state_of_workload()
             .once()
             .return_const(Some(ExecutionState::succeeded()));
 
@@ -362,7 +354,7 @@ mod tests {
 
         let mut parameter_storage_mock = MockParameterStorage::default();
         parameter_storage_mock
-            .expect_get_workload_state_by_workload_name()
+            .expect_get_state_of_workload()
             .once()
             .return_const(None);
 
@@ -387,7 +379,7 @@ mod tests {
 
         let mut parameter_storage_mock = MockParameterStorage::default();
         parameter_storage_mock
-            .expect_get_workload_state_by_workload_name()
+            .expect_get_state_of_workload()
             .once()
             .return_const(Some(ExecutionState::running()));
 
@@ -408,7 +400,7 @@ mod tests {
 
         let mut parameter_storage_mock = MockParameterStorage::default();
         parameter_storage_mock
-            .expect_get_workload_state_by_workload_name()
+            .expect_get_state_of_workload()
             .once()
             .return_const(Some(ExecutionState::removed()));
 
@@ -429,7 +421,7 @@ mod tests {
 
         let mut parameter_storage_mock = MockParameterStorage::default();
         parameter_storage_mock
-            .expect_get_workload_state_by_workload_name()
+            .expect_get_state_of_workload()
             .once()
             .return_const(None);
 
@@ -456,7 +448,7 @@ mod tests {
 
         let mut parameter_storage_mock = MockParameterStorage::default();
         parameter_storage_mock
-            .expect_get_workload_state_by_workload_name()
+            .expect_get_state_of_workload()
             .once()
             .return_const(Some(ExecutionState::succeeded()));
 
@@ -481,7 +473,7 @@ mod tests {
 
         let mut parameter_storage_mock = MockParameterStorage::default();
         parameter_storage_mock
-            .expect_get_workload_state_by_workload_name()
+            .expect_get_state_of_workload()
             .once()
             .return_const(Some(ExecutionState::running()));
 
@@ -506,7 +498,7 @@ mod tests {
 
         let mut parameter_storage_mock = MockParameterStorage::default();
         parameter_storage_mock
-            .expect_get_workload_state_by_workload_name()
+            .expect_get_state_of_workload()
             .once()
             .return_const(None);
 
@@ -518,7 +510,7 @@ mod tests {
     fn utest_next_workloads_to_start_on_empty_queue() {
         let mut parameter_storage_mock = MockParameterStorage::default();
         parameter_storage_mock
-            .expect_get_workload_state_by_workload_name()
+            .expect_get_state_of_workload()
             .never();
 
         let mut dependency_scheduler = DependencyScheduler::new();
@@ -541,7 +533,7 @@ mod tests {
 
         let mut parameter_storage_mock = MockParameterStorage::default();
         parameter_storage_mock
-            .expect_get_workload_state_by_workload_name()
+            .expect_get_state_of_workload()
             .once()
             .return_const(Some(ExecutionState::succeeded()));
 
@@ -563,7 +555,7 @@ mod tests {
 
         let mut parameter_storage_mock = MockParameterStorage::default();
         parameter_storage_mock
-            .expect_get_workload_state_by_workload_name()
+            .expect_get_state_of_workload()
             .once()
             .return_const(Some(ExecutionState::running()));
 
@@ -576,7 +568,7 @@ mod tests {
     fn utest_next_workloads_to_delete_on_empty_queue() {
         let mut parameter_storage_mock = MockParameterStorage::default();
         parameter_storage_mock
-            .expect_get_workload_state_by_workload_name()
+            .expect_get_state_of_workload()
             .never();
 
         let mut dependency_scheduler = DependencyScheduler::new();
@@ -601,7 +593,7 @@ mod tests {
 
         let mut parameter_storage_mock = MockParameterStorage::default();
         parameter_storage_mock
-            .expect_get_workload_state_by_workload_name()
+            .expect_get_state_of_workload()
             .once()
             .return_const(None);
 
