@@ -93,7 +93,7 @@ impl<
         control_interface: Option<PipesChannelContext>,
         update_state_tx: &ToServerSender,
     ) -> Workload {
-        let instance_name = workload_spec.instance_name();
+        let instance_name = workload_spec.instance_name.clone();
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
         let control_interface_path = control_interface
@@ -101,10 +101,9 @@ impl<
             .map(|control_interface| control_interface.get_api_location());
 
         log::info!(
-            "Creating '{}' workload '{}' on agent '{}'",
+            "Creating '{}' workload '{}'.",
             runtime.name(),
-            instance_name.workload_name(),
-            workload_spec.agent
+            instance_name,
         );
         let (workload_channel_sender, command_receiver) = WorkloadCommandSender::new();
         let workload_channel = workload_channel_sender.clone();
@@ -142,7 +141,7 @@ impl<
         control_interface: Option<PipesChannelContext>,
         update_state_tx: &ToServerSender,
     ) -> Workload {
-        let instance_name = new_workload_spec.instance_name();
+        let instance_name = new_workload_spec.instance_name.clone();
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
         let control_interface_path = control_interface
@@ -150,10 +149,9 @@ impl<
             .map(|control_interface| control_interface.get_api_location());
 
         log::info!(
-            "Replacing '{}' workload '{}' on agent '{}'",
+            "Replacing '{}' workload '{}'.",
             runtime.name(),
-            instance_name.workload_name(),
-            new_workload_spec.agent
+            instance_name,
         );
 
         let (workload_channel_sender, command_receiver) = WorkloadCommandSender::new();
@@ -211,15 +209,14 @@ impl<
         control_interface: Option<PipesChannelContext>,
         update_state_tx: &ToServerSender,
     ) -> Workload {
-        let instance_name = workload_spec.instance_name();
+        let instance_name = workload_spec.instance_name.clone();
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
 
         log::info!(
-            "Resuming '{}' workload '{}' on agent '{}'",
+            "Resuming '{}' workload '{}'.",
             runtime.name(),
-            instance_name.workload_name(),
-            workload_spec.agent
+            instance_name,
         );
 
         let (workload_channel, command_receiver) = WorkloadCommandSender::new();
@@ -227,9 +224,7 @@ impl<
         let instance_name_clone = instance_name.clone();
         tokio::spawn(async move {
             let workload_name = instance_name_clone.workload_name();
-            let workload_id = runtime
-                .get_workload_id(&workload_spec.instance_name())
-                .await;
+            let workload_id = runtime.get_workload_id(&workload_spec.instance_name).await;
 
             let state_checker: Option<StChecker> = match workload_id.as_ref() {
                 Ok(wl_id) => runtime

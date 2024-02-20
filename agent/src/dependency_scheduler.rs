@@ -78,7 +78,7 @@ impl DependencyScheduler {
         self.start_queue.extend(
             workloads
                 .into_iter()
-                .map(|workload| (workload.name.clone(), workload)),
+                .map(|workload| (workload.instance_name.workload_name().to_owned(), workload)),
         );
     }
 
@@ -112,7 +112,7 @@ impl DependencyScheduler {
         self.delete_queue.extend(
             workloads
                 .into_iter()
-                .map(|workload| (workload.name.clone(), workload)),
+                .map(|workload| (workload.instance_name.workload_name().to_owned(), workload)),
         );
     }
 
@@ -144,7 +144,8 @@ impl DependencyScheduler {
             .collect();
 
         for workload in ready_workloads.iter() {
-            self.start_queue.remove(&workload.name);
+            self.start_queue
+                .remove(workload.instance_name.workload_name());
         }
 
         ready_workloads
@@ -167,7 +168,8 @@ impl DependencyScheduler {
             .collect();
 
         for workload in ready_workloads.iter() {
-            self.delete_queue.remove(&workload.name);
+            self.delete_queue
+                .remove(workload.instance_name.workload_name());
         }
         ready_workloads
     }

@@ -106,11 +106,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         _control_interface_path: Option<PathBuf>,
         update_state_tx: ToServerSender,
     ) -> Result<(PodmanKubeWorkloadId, GenericPollingStateChecker), RuntimeError> {
-        let instance_name = WorkloadInstanceName::builder()
-            .agent_name(&workload_spec.agent)
-            .workload_name(&workload_spec.name)
-            .config(&workload_spec.runtime_config)
-            .build();
+        let instance_name = workload_spec.instance_name.clone();
 
         let workload_config =
             PodmanKubeRuntimeConfig::try_from(&workload_spec).map_err(RuntimeError::Create)?;
@@ -125,7 +121,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         .unwrap_or_else(|err| {
             log::warn!(
                 "Could not store config for '{}' in volume: '{}'",
-                workload_spec.name,
+                workload_spec.instance_name,
                 err
             )
         });
@@ -154,7 +150,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         .unwrap_or_else(|err| {
             log::warn!(
                 "Could not store pods for '{}' in volume: '{}'",
-                workload_spec.name,
+                workload_spec.instance_name,
                 err
             )
         });
@@ -167,9 +163,8 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         };
 
         log::debug!(
-            "The workload '{}' has been created with workload execution instance name '{:?}'",
-            workload_spec.name,
-            workload_id.name
+            "The workload '{}' has been created.",
+            workload_spec.instance_name,
         );
 
         // [impl->swdd~podman-kube-create-starts-podman-kube-state-getter~1]
@@ -231,9 +226,8 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         // [impl->swdd~podman-kube-state-getter-reset-cache~1]
         PodmanCli::reset_ps_cache().await;
         log::debug!(
-            "Starting the checker for the workload '{}' with workload execution instance name '{}'",
-            workload_spec.name,
-            workload_id.name
+            "Starting the checker for the workload '{}'.",
+            workload_spec.instance_name,
         );
         Ok(GenericPollingStateChecker::start_checker(
             &workload_spec,

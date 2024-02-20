@@ -20,8 +20,8 @@ use std::{
 use common::{
     commands::Response,
     objects::{
-        AgentName, DeletedWorkload, ExecutionState, WorkloadInstanceName,
-        WorkloadSpec, WorkloadState,
+        AgentName, DeletedWorkload, ExecutionState, WorkloadInstanceName, WorkloadSpec,
+        WorkloadState,
     },
     request_id_prepending::detach_prefix_from_request_id,
     std_extensions::IllegalStateResult,
@@ -110,7 +110,7 @@ impl RuntimeManager {
         for workload in waiting_workloads.iter() {
             self.update_state_tx
                 .update_workload_state(vec![WorkloadState {
-                    instance_name: workload.instance_name(),
+                    instance_name: workload.instance_name.clone(),
                     execution_state: ExecutionState::waiting_to_start(),
                 }])
                 .await
@@ -123,7 +123,7 @@ impl RuntimeManager {
         waiting_workloads: &[DeletedWorkload],
     ) {
         for workload in waiting_workloads.iter() {
-            if let Some(wl) = self.workloads.get(&workload.name) {
+            if let Some(wl) = self.workloads.get(workload.instance_name.workload_name()) {
                 self.update_state_tx
                     .update_workload_state(vec![WorkloadState {
                         instance_name: wl.instance_name(),
@@ -238,11 +238,17 @@ impl RuntimeManager {
         for workload_spec in added_workloads {
             if let Some(workload_map) = added_workloads_per_runtime.get_mut(&workload_spec.runtime)
             {
-                workload_map.insert(workload_spec.name.clone(), workload_spec);
+                workload_map.insert(
+                    workload_spec.instance_name.workload_name().to_owned(),
+                    workload_spec,
+                );
             } else {
                 added_workloads_per_runtime.insert(
                     workload_spec.runtime.clone(),
-                    HashMap::from([(workload_spec.name.clone(), workload_spec)]),
+                    HashMap::from([(
+                        workload_spec.instance_name.workload_name().to_owned(),
+                        workload_spec,
+                    )]),
                 );
             }
         }
@@ -268,7 +274,7 @@ impl RuntimeManager {
                             .and_then(|map| map.remove(instance_name.workload_name()))
                         {
                             let new_instance_name: WorkloadInstanceName =
-                                new_workload_spec.instance_name();
+                                new_workload_spec.instance_name.clone();
 
                             // We have a running workload that matches a new added workload; check if the config is updated
                             // [impl->swdd~agent-stores-running-workload~1]
@@ -286,7 +292,7 @@ impl RuntimeManager {
                                 );
                                 // [impl->swdd~agent-existing-workloads-resume-existing~1]
                                 self.workloads.insert(
-                                    new_workload_spec.name.to_string(),
+                                    new_instance_name.workload_name().to_owned(),
                                     runtime.resume_workload(
                                         new_workload_spec,
                                         control_interface,
@@ -328,12 +334,19 @@ impl RuntimeManager {
         // [impl->swdd~agent-updates-deleted-and-added-workloads~1]
         let mut added_workloads: HashMap<String, WorkloadSpec> = added_workloads
             .into_iter()
-            .map(|workload_spec| (workload_spec.name.to_string(), workload_spec))
+            .map(|workload_spec| {
+                (
+                    workload_spec.instance_name.workload_name().to_owned(),
+                    workload_spec,
+                )
+            })
             .collect();
 
         // [impl->swdd~agent-handle-deleted-before-added-workloads~1]
         for deleted_workload in deleted_workloads {
-            if let Some(updated_workload) = added_workloads.remove(&deleted_workload.name) {
+            if let Some(updated_workload) =
+                added_workloads.remove(deleted_workload.instance_name.workload_name())
+            {
                 // [impl->swdd~agent-updates-deleted-and-added-workloads~1]
                 self.update_workload(updated_workload).await;
             } else {
@@ -343,7 +356,7 @@ impl RuntimeManager {
         }
 
         for (_, workload_spec) in added_workloads {
-            let workload_name = &workload_spec.name;
+            let workload_name = workload_spec.instance_name.workload_name();
             if self.workloads.get(workload_name).is_some() {
                 log::warn!(
                     "Added workload '{}' already exists. Updating.",
@@ -360,7 +373,7 @@ impl RuntimeManager {
     }
 
     async fn add_workload(&mut self, workload_spec: WorkloadSpec) {
-        let workload_name = workload_spec.name.clone();
+        let workload_name = workload_spec.instance_name.workload_name().to_owned();
 
         // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
         let control_interface = Self::create_control_interface(
@@ -386,22 +399,25 @@ impl RuntimeManager {
     }
 
     async fn delete_workload(&mut self, deleted_workload: DeletedWorkload) {
-        if let Some(workload) = self.workloads.remove(&deleted_workload.name) {
+        if let Some(workload) = self
+            .workloads
+            .remove(deleted_workload.instance_name.workload_name())
+        {
             if let Err(err) = workload.delete().await {
                 log::error!(
                     "Failed to delete workload '{}': '{}'",
-                    deleted_workload.name,
+                    deleted_workload.instance_name.workload_name(),
                     err
                 );
             }
         } else {
-            log::warn!("Workload '{}' already gone.", deleted_workload.name);
+            log::warn!("Workload '{}' already gone.", deleted_workload.instance_name.workload_name());
         }
     }
 
     // [impl->swdd~agent-updates-deleted-and-added-workloads~1]
     async fn update_workload(&mut self, workload_spec: WorkloadSpec) {
-        let workload_name = workload_spec.name.clone();
+        let workload_name = workload_spec.instance_name.workload_name().to_owned();
         if let Some(workload) = self.workloads.get_mut(&workload_name) {
             // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
             let control_interface = Self::create_control_interface(
@@ -432,14 +448,14 @@ impl RuntimeManager {
 
         match PipesChannelContext::new(
             run_folder,
-            &workload_spec.instance_name(),
+            &workload_spec.instance_name,
             control_interface_tx,
         ) {
             Ok(pipes_channel_context) => Some(pipes_channel_context),
             Err(err) => {
                 log::warn!(
                     "Could not create pipes channel context for workload '{}'. Error: '{err}'",
-                    workload_spec.name
+                    workload_spec.instance_name
                 );
                 None
             }
@@ -1826,7 +1842,7 @@ mod tests {
 
         let instance_name_deleted_workload = WorkloadExecutionInstanceName::builder()
             .agent_name(new_deleted_workload.agent.clone())
-            .workload_name(new_deleted_workload.name.clone())
+            .workload_name(new_deleted_workload.instance_name.workload_name().to_owned())
             .config(&String::from("config"))
             .build();
 
@@ -1839,7 +1855,7 @@ mod tests {
 
         runtime_manager
             .workloads
-            .insert(new_deleted_workload.name.clone(), workload_mock);
+            .insert(new_deleted_workload.instance_name.workload_name().to_owned(), workload_mock);
 
         runtime_manager
             .handle_update_workload(vec![], deleted_workloads)

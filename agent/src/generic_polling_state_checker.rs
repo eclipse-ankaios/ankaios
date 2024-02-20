@@ -31,7 +31,7 @@ where
         state_getter: impl RuntimeStateGetter<WorkloadId>,
     ) -> Self {
         let workload_spec = workload_spec.clone();
-        let workload_name = workload_spec.name.clone();
+        let workload_name = workload_spec.instance_name.workload_name().to_owned();
         let task_handle = tokio::spawn(async move {
             let mut last_state = ExecutionState::unknown("Never received an execution state.");
             let mut interval = time::interval(Duration::from_millis(STATUS_CHECK_INTERVAL_MS));
@@ -42,7 +42,7 @@ where
                 if current_state != last_state {
                     log::debug!(
                         "The workload {} has changed its state to {:?}",
-                        workload_spec.name,
+                        workload_spec.instance_name.workload_name(),
                         current_state
                     );
                     last_state = current_state.clone();
@@ -50,7 +50,7 @@ where
                     // [impl->swdd~generic-state-checker-sends-workload-state~1]
                     manager_interface
                         .update_workload_state(vec![common::objects::WorkloadState {
-                            instance_name: workload_spec.instance_name(),
+                            instance_name: workload_spec.instance_name.clone(),
                             execution_state: current_state,
                         }])
                         .await

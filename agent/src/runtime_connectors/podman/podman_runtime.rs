@@ -3,9 +3,7 @@ use std::path::PathBuf;
 use async_trait::async_trait;
 
 use common::{
-    objects::{
-        AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec,
-    },
+    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec},
     std_extensions::UnreachableOption,
     to_server_interface::ToServerSender,
 };
@@ -116,16 +114,16 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
 
         let workload_id = PodmanCli::podman_run(
             workload_cfg.into(),
-            workload_spec.instance_name.to_string().as_str(),
-            workload_spec.agent.as_str(),
+            &workload_spec.instance_name.to_string(),
+            workload_spec.instance_name.agent_name(),
             control_interface_path,
         )
         .await
         .map_err(RuntimeError::Create)?;
 
         log::debug!(
-            "The workload '{}' has been created with id '{}'",
-            workload_spec.name,
+            "The workload '{}' has been created with internal id '{}'",
+            workload_spec.instance_name,
             workload_id
         );
 
@@ -173,8 +171,8 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         PodmanCli::reset_ps_cache().await;
 
         log::debug!(
-            "Starting the checker for the workload '{}' with id '{}'",
-            workload_spec.name,
+            "Starting the checker for the workload '{}' with internal id '{}'",
+            workload_spec.instance_name,
             workload_id.id
         );
         let checker = GenericPollingStateChecker::start_checker(

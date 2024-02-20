@@ -323,7 +323,7 @@ impl WorkloadControlLoop {
         WorkloadId: ToString + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
-        if control_loop_state.instance_name == runtime_workload_config.instance_name()
+        if control_loop_state.instance_name == runtime_workload_config.instance_name
             && control_loop_state.workload_id.is_none()
         {
             log::debug!("Next restart attempt.");
@@ -362,7 +362,8 @@ impl WorkloadControlLoop {
                 }
                 // [impl->swdd~agent-workload-control-loop-executes-update~1]
                 Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
-                    control_loop_state.instance_name = runtime_workload_config.instance_name();
+                    control_loop_state.instance_name =
+                        runtime_workload_config.instance_name.clone();
                     log::debug!("Received WorkloadCommand::Update.");
 
                     control_loop_state = Self::update(
