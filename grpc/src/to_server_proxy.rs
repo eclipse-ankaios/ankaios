@@ -376,14 +376,16 @@ mod tests {
                 "my_runtime".into(),
             )])
             .into();
-        ankaios_state
-            .current_state
+        *ankaios_state
+            .desired_state
             .as_mut()
             .unwrap()
             .workloads
             .get_mut("name")
             .unwrap()
-            .update_strategy = -1;
+            .dependencies
+            .get_mut(&String::from("workload A"))
+            .unwrap() = -1;
 
         let ankaios_update_mask = vec!["bla".into()];
 

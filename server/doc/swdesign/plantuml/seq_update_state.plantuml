@@ -19,7 +19,7 @@ activate agent1
 agent1 ->> tonic_server--++: UpdateState
 tonic_server ->> server--++: UpdateState
 server -> server_state++: update state
-server_state -> server_state ++--: Compare new with\nold CurrentState
+server_state -> server_state ++--: Compare new with\nold DesiredState
 server_state -> server_state ++--: Validate the new state
 server_state -> server_state ++--: Update DeleteGraph with\nDeleteConditions\nof new workloads
 alt State valid

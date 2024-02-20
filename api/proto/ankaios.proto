@@ -99,10 +99,8 @@ message AddedWorkload {
   string runtime = 2; /// The name of the runtime, e.g., podman.
   map<string, AddCondition> dependencies = 3; /// A list of dependencies to other workloads with their corresponding, expected states. Can be used to enable a synchronized start of a workload.
   bool restart = 4; /// A flag indicating to restart the workload in case of an intentional or an unintentional stop of the workload.
-  UpdateStrategy updateStrategy = 5; /// An enum to specify the update strategy.
-  AccessRights accessRights = 6; /// Lists of authorizations of the workload.
-  repeated Tag tags = 7; /// A list of tags.
-  string runtimeConfig = 8; /// The configuration information specific to the runtime.
+  repeated Tag tags = 5; /// A list of tags.
+  string runtimeConfig = 6; /// The configuration information specific to the runtime.
 }
 
 /**
@@ -240,14 +238,19 @@ message Error {
   string message = 1;
 }
 
+message ApiVersion {
+    string version = 1; /// The current version of the API.
+}
+
 /**
 * A message containing the complete state of the Ankaios system.
 * This is a response to the [CompleteStateRequest](#completestaterequest) message.
 */
 message CompleteState {
-  State startupState = 1; /// The State information at the startup of the Ankaios System.
-  State currentState = 2; /// The current state information.
-  repeated WorkloadState workloadStates = 3; /// The current states of the workloads.
+  ApiVersion format_version = 1; /// The current version of the API.
+  State startupState = 2; /// The State information at the startup of the Ankaios System.
+  State desiredState = 3; /// The state the user wants to reach.
+  repeated WorkloadState workloadStates = 4; /// The current states of the workloads.
 }
 
 // Common messages
@@ -257,7 +260,7 @@ message CompleteState {
 * This is usually answered with a [CompleteState](#completestate) message.
 */
 message CompleteStateRequest {
-  repeated string fieldMask = 1; /// A list of symbolic field paths within the State message structure e.g. 'currentState.workloads.nginx'.
+  repeated string fieldMask = 1; /// A list of symbolic field paths within the State message structure e.g. 'desiredState.workloads.nginx'.
 }
 
 /**
@@ -268,7 +271,7 @@ message CompleteStateRequest {
 */
 message UpdateStateRequest {
   CompleteState newState = 1; /// The new state of the Ankaios system.
-  repeated string updateMask = 2; /// A list of symbolic field paths within the state message structure e.g. 'currentState.workloads.nginx' to specify what to be updated.
+  repeated string updateMask = 2; /// A list of symbolic field paths within the state message structure e.g. 'desiredState.workloads.nginx' to specify what to be updated.
 }
 
 /**
@@ -276,8 +279,6 @@ message UpdateStateRequest {
 */
 message State {
   map<string, Workload> workloads = 1; /// A mapping from workload names to workload configurations.
-  map<string, string> configs = 2; /// A key value storage for reusable configuration items.
-  map<string, Cronjob> cronjobs = 3; /// A mapping from workload names to cron job configurations.
 }
 
 /**
@@ -287,20 +288,9 @@ message Workload {
   string agent = 1; /// The name of the owning Agent.
   bool restart = 2; /// A flag indicating to restart the workload in case of an intentional or an unintentional stop of the workload.
   map<string, AddCondition> dependencies = 3; /// A map of workload names and expected states to enable a synchronized start of the workload.
-  UpdateStrategy updateStrategy = 4; /// An enum to specify the update strategy.
-  repeated Tag tags = 5; /// A list of tag names.
-  AccessRights accessRights = 6; /// Lists of authorizations of the workload.
-  string runtime = 7; /// The name of the runtime e.g. podman.
-  string runtimeConfig  = 8; /// The configuration information specific to the runtime.
-}
-
-/**
-* An enum type for specifing the update strategy.
-*/
-enum UpdateStrategy {
-    UNSPECIFIED = 0; /// The update order is irrelevant.
-    AT_LEAST_ONCE = 1; /// At least one instance shall be running - start the new before stopping the old one.
-    AT_MOST_ONCE = 2; /// At most one instance shall be running - stop the old before starting the new one.
+  repeated Tag tags = 4; /// A list of tag names.
+  string runtime = 5; /// The name of the runtime e.g. podman.
+  string runtimeConfig  = 6; /// The configuration information specific to the runtime.
 }
 
 /**
@@ -309,47 +299,4 @@ enum UpdateStrategy {
 message Tag {
   string key = 1; /// The key of the tag.
   string value = 2; /// The value of the tag.
-}
-
-/**
-* A message containing lists of access rules that are allowed or denied.
-*/
-message AccessRights {
-  repeated AccessRightsRule allow = 1; /// A list of access rules that are allowed.
-  repeated AccessRightsRule deny = 2; /// A list of access rules that are denied.
-}
-
-/**
-* A message describing an access rule for the given patch operation for given object fields and values.
-*/
-message AccessRightsRule {
-  PatchOperation operation = 1; /// The patch operation of interrest.
-  repeated string updateMask = 2; /// A List of field names.
-  repeated string value = 3; /// A list of accepted values.
-}
-
-/**
-* An enum type for specifing the patch operation.
-*/
-enum PatchOperation {
-  REPLACE = 0; /// The replace operation.
-  ADD = 1; /// The add operation.
-  REMOVE =2; /// the remove operation.
-}
-
-/**
-* A message containing the cron job information.
-*/
-message Cronjob {
-  string workload = 1; /// The name of the workload.
-  Interval interval = 2; /// The interval of the cron job.
-}
-
-/**
-* A message containing the interval information for the cron job.
-*/
-message Interval {
-  uint32 hours = 1; /// The number of hours.
-  uint32 minutes = 2; /// The number of minutes.
-  uint32 seconds = 3; /// The number of seconds.
 }

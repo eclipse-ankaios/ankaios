@@ -263,7 +263,8 @@ mod tests {
                     request_id: "req_id".to_owned(),
                     response_content: Some(proto::response::ResponseContent::CompleteState(
                         proto::CompleteState {
-                            current_state: Some(api::proto::State::default()),
+                            format_version: Some(commands::ApiVersion::default().into()),
+                            desired_state: Some(api::proto::State::default()),
                             startup_state: Some(api::proto::State::default()),
                             workload_states: vec![],
                         },

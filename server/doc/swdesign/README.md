@@ -347,7 +347,7 @@ The Ankaios Server provides an interface to get the CompleteState.
 The CompleteState includes:
 
 - StartupState
-- CurrentState
+- DesiredState
 - WorkloadState
 
 Tags:
@@ -361,12 +361,12 @@ Needs:
 - utest
 
 ##### Server filters GetCompleteState requests
-`swdd~server-filters-get-complete-state-result~1`
+`swdd~server-filters-get-complete-state-result~2`
 
 Status: approved
 
 When the Ankaios Server responses to a GetCompleteState request and the request contains a `field_mask`,
-it only includes fields in the response, which are listed in the `field_mask`.
+the response includes the filed `format_version` and the fields listed in the `field_mask`.
 
 Tags:
 - ControlInterface
@@ -395,12 +395,12 @@ The following diagram shows the sequence of UpdateState request from the agent:
 
 ![Update state sequence](plantuml/seq_update_state.svg)
 
-##### Server provides UpdateCurrentState interface
-`swdd~server-provides-update-current-state-interface~1`
+##### Server provides UpdateState interface
+`swdd~server-provides-update-desired-state-interface~1`
 
 Status: approved
 
-The Ankaios Server provides an UpdateCurrentState interface.
+The Ankaios Server provides an UpdateState interface.
 
 Tags:
 - ControlInterface
@@ -409,13 +409,13 @@ Needs:
 - impl
 - utest
 
-##### UpdateCurrentState interface with empty update_mask
-`swdd~update-current-state-empty-update-mask~1`
+##### UpdateState interface with empty update_mask
+`swdd~update-desired-state-empty-update-mask~1`
 
 Status: approved
 
-When the Ankaios Server gets an UpdateCurrentState request with empty update_mask,
-the Ankaios Server replaces its CurrentState with the newState from the UpdateStateRequest.
+When the Ankaios Server gets an UpdateStateRequest with empty update_mask,
+the Ankaios Server replaces its DesiredState with the newState from the UpdateStateRequest.
 
 Tags:
 - ControlInterface
@@ -424,13 +424,13 @@ Needs:
 - impl
 - utest
 
-##### UpdateCurrentState interface with update_mask
-`swdd~update-current-state-with-update-mask~1`
+##### UpdateState interface with update_mask
+`swdd~update-desired-state-with-update-mask~1`
 
 Status: approved
 
-When the Ankaios Server gets an UpdateCurrentState request with a non empty update_mask,
-the Ankaios Server replaces each field of its CurrentState listed in the update_mask, with the value of the same field of the newState from the UpdateStateRequest.
+When the Ankaios Server gets an UpdateStateRequest with a non empty update_mask,
+the Ankaios Server replaces each field of its DesiredState listed in the update_mask, with the value of the same field of the newState from the UpdateStateRequest.
 
 Tags:
 - ControlInterface
@@ -439,9 +439,41 @@ Needs:
 - impl
 - utest
 
-Comment: If one field from the update_mask is not present in the CurrentState, this field is created. This can include any amount of parent fields.
+Comment: If one field from the update_mask is not present in the DesiredState, this field is created. This can include any amount of parent fields.
 
-If one field from the update_mask is not present in the newState, this field is deleted from the CurrentState.
+If one field from the update_mask is not present in the newState, this field is deleted from the DesiredState.
+
+##### UpdateState interface with invalid version
+`swdd~update-desired-state-with-invalid-version~1`
+
+Status: approved
+
+When the Ankaios Server gets an UpdateStateRequest with an API version which is not identical to the API version expected by the Ankaios Server,
+the Ankaios Server shall reject the request and keep on listening for incoming requests.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
+- stest
+
+##### UpdateState interface with missing version
+`swdd~update-desired-state-with-missing-version~1`
+
+Status: approved
+
+When the Ankaios Server gets an UpdateStateRequest without set API version,
+the Ankaios Server shall reject the request and keep on listening for incoming requests.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
+- stest
 
 ### Update Current State
 
