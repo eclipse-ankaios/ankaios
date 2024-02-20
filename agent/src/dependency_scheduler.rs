@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::{DeletedWorkload, FulfilledBy, WorkloadSpec};
+use common::objects::{DeletedWorkload, FulfilledBy, WorkloadInstanceName, WorkloadSpec};
 
 use std::collections::HashMap;
 
@@ -28,8 +28,8 @@ pub type WaitingWorkloads = Vec<WorkloadSpec>;
 pub type ReadyDeletedWorkloads = Vec<DeletedWorkload>;
 pub type WaitingDeletedWorkloads = Vec<DeletedWorkload>;
 
-type StartWorkloadQueue = HashMap<String, WorkloadSpec>;
-type DeleteWorkloadQueue = HashMap<String, DeletedWorkload>;
+type StartWorkloadQueue = HashMap<WorkloadInstanceName, WorkloadSpec>;
+type DeleteWorkloadQueue = HashMap<WorkloadInstanceName, DeletedWorkload>;
 
 pub struct DependencyScheduler {
     start_queue: StartWorkloadQueue,
@@ -78,7 +78,7 @@ impl DependencyScheduler {
         self.start_queue.extend(
             workloads
                 .into_iter()
-                .map(|workload| (workload.instance_name.workload_name().to_owned(), workload)),
+                .map(|workload| (workload.instance_name.clone(), workload)),
         );
     }
 
@@ -112,7 +112,7 @@ impl DependencyScheduler {
         self.delete_queue.extend(
             workloads
                 .into_iter()
-                .map(|workload| (workload.instance_name.workload_name().to_owned(), workload)),
+                .map(|workload| (workload.instance_name.clone(), workload)),
         );
     }
 
@@ -144,8 +144,7 @@ impl DependencyScheduler {
             .collect();
 
         for workload in ready_workloads.iter() {
-            self.start_queue
-                .remove(workload.instance_name.workload_name());
+            self.start_queue.remove(&workload.instance_name);
         }
 
         ready_workloads
@@ -168,8 +167,7 @@ impl DependencyScheduler {
             .collect();
 
         for workload in ready_workloads.iter() {
-            self.delete_queue
-                .remove(workload.instance_name.workload_name());
+            self.delete_queue.remove(&workload.instance_name);
         }
         ready_workloads
     }
@@ -282,7 +280,7 @@ mod tests {
         dependency_scheduler.put_on_waiting_queue(vec![new_workload.clone()]);
 
         assert_eq!(
-            StartWorkloadQueue::from([(new_workload.name.clone(), new_workload)]),
+            StartWorkloadQueue::from([(new_workload.instance_name.clone(), new_workload)]),
             dependency_scheduler.start_queue
         );
     }
@@ -296,7 +294,7 @@ mod tests {
         dependency_scheduler.put_on_delete_waiting_queue(vec![new_workload.clone()]);
 
         assert_eq!(
-            DeleteWorkloadQueue::from([(new_workload.name.clone(), new_workload)]),
+            DeleteWorkloadQueue::from([(new_workload.instance_name.clone(), new_workload)]),
             dependency_scheduler.delete_queue
         );
     }
@@ -444,7 +442,7 @@ mod tests {
 
         let mut dependency_scheduler = DependencyScheduler::new();
         dependency_scheduler.start_queue.insert(
-            workload_with_dependencies.name.clone(),
+            workload_with_dependencies.instance_name.clone(),
             workload_with_dependencies.clone(),
         );
 
@@ -469,7 +467,7 @@ mod tests {
 
         let mut dependency_scheduler = DependencyScheduler::new();
         dependency_scheduler.start_queue.insert(
-            workload_with_dependencies.name.clone(),
+            workload_with_dependencies.instance_name.clone(),
             workload_with_dependencies.clone(),
         );
 
@@ -494,7 +492,7 @@ mod tests {
 
         let mut dependency_scheduler = DependencyScheduler::new();
         dependency_scheduler.start_queue.insert(
-            workload_with_dependencies.name.clone(),
+            workload_with_dependencies.instance_name.clone(),
             workload_with_dependencies.clone(),
         );
 
@@ -529,7 +527,7 @@ mod tests {
 
         let mut dependency_scheduler = DependencyScheduler::new();
         dependency_scheduler.delete_queue.insert(
-            workload_with_dependencies.name.clone(),
+            workload_with_dependencies.instance_name.clone(),
             workload_with_dependencies.clone(),
         );
 
@@ -551,7 +549,7 @@ mod tests {
 
         let mut dependency_scheduler = DependencyScheduler::new();
         dependency_scheduler.delete_queue.insert(
-            workload_with_dependencies.name.clone(),
+            workload_with_dependencies.instance_name.clone(),
             workload_with_dependencies.clone(),
         );
 
@@ -589,7 +587,7 @@ mod tests {
 
         let mut dependency_scheduler = DependencyScheduler::new();
         dependency_scheduler.delete_queue.insert(
-            workload_with_dependencies.name.clone(),
+            workload_with_dependencies.instance_name.clone(),
             workload_with_dependencies.clone(),
         );
 
@@ -603,6 +601,6 @@ mod tests {
 
         assert!(!dependency_scheduler
             .delete_queue
-            .contains_key(WORKLOAD_NAME_1));
+            .contains_key(&workload_with_dependencies.instance_name));
     }
 }

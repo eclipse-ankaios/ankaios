@@ -64,7 +64,10 @@ impl DeleteGraph {
 #[cfg(test)]
 mod tests {
     use super::{AddCondition, DeleteCondition, DeleteGraph};
-    use common::{objects::DeletedWorkload, test_utils::generate_test_workload_spec_with_param};
+    use common::{
+        objects::{DeletedWorkload, WorkloadInstanceName},
+        test_utils::generate_test_workload_spec_with_param,
+    };
     use std::collections::HashMap;
 
     const AGENT_A: &str = "agent_A";
@@ -131,16 +134,22 @@ mod tests {
             RUNTIME.to_string(),
         );
 
-        workload_1.dependencies =
-            HashMap::from([(workload_2.name.clone(), AddCondition::AddCondRunning)]);
+        workload_1.dependencies = HashMap::from([(
+            workload_2.instance_name.workload_name().to_owned(),
+            AddCondition::AddCondRunning,
+        )]);
 
         workload_2.dependencies.clear();
 
-        workload_3.dependencies =
-            HashMap::from([(workload_5.name.clone(), AddCondition::AddCondRunning)]);
+        workload_3.dependencies = HashMap::from([(
+            workload_5.instance_name.workload_name().to_owned(),
+            AddCondition::AddCondRunning,
+        )]);
 
-        workload_4.dependencies =
-            HashMap::from([(workload_1.name.clone(), AddCondition::AddCondFailed)]);
+        workload_4.dependencies = HashMap::from([(
+            workload_1.instance_name.workload_name().to_owned(),
+            AddCondition::AddCondFailed,
+        )]);
 
         workload_5.dependencies.clear();
         workload_6.dependencies.clear();
@@ -157,16 +166,16 @@ mod tests {
 
         let expected_delete_graph = HashMap::from([
             (
-                workload_2.name.clone(),
+                workload_2.instance_name.workload_name().to_owned(),
                 HashMap::from([(
-                    workload_1.name.clone(),
+                    workload_1.instance_name.workload_name().to_owned(),
                     DeleteCondition::DelCondNotPendingNorRunning,
                 )]),
             ),
             (
-                workload_5.name.clone(),
+                workload_5.instance_name.workload_name().to_owned(),
                 HashMap::from([(
-                    workload_3.name.clone(),
+                    workload_3.instance_name.workload_name().to_owned(),
                     DeleteCondition::DelCondNotPendingNorRunning,
                 )]),
             ),
@@ -210,20 +219,35 @@ mod tests {
             ]),
         };
 
+        let instance_name_wl2 = WorkloadInstanceName::builder()
+            .agent_name(AGENT_A)
+            .workload_name(WORKLOAD_NAME_2)
+            .config(&String::from("some config"))
+            .build();
+
+        let instance_name_wl4 = WorkloadInstanceName::builder()
+            .agent_name(AGENT_A)
+            .workload_name(WORKLOAD_NAME_4)
+            .config(&String::from("some config"))
+            .build();
+
+        let instance_name_wl5 = WorkloadInstanceName::builder()
+            .agent_name(AGENT_A)
+            .workload_name(WORKLOAD_NAME_5)
+            .config(&String::from("some config"))
+            .build();
+
         let mut deleted_workloads = vec![
             DeletedWorkload {
-                name: WORKLOAD_NAME_2.to_string(),
-                agent: AGENT_A.to_string(),
+                instance_name: instance_name_wl2.clone(),
                 ..Default::default()
             },
             DeletedWorkload {
-                name: WORKLOAD_NAME_4.to_string(),
-                agent: AGENT_A.to_string(),
+                instance_name: instance_name_wl4.clone(),
                 ..Default::default()
             },
             DeletedWorkload {
-                name: WORKLOAD_NAME_5.to_string(),
-                agent: AGENT_A.to_string(),
+                instance_name: instance_name_wl5.clone(),
                 ..Default::default()
             },
         ];
@@ -232,8 +256,7 @@ mod tests {
 
         assert_eq!(
             DeletedWorkload {
-                name: WORKLOAD_NAME_2.to_string(),
-                agent: AGENT_A.to_string(),
+                instance_name: instance_name_wl2,
                 dependencies: HashMap::from([(
                     WORKLOAD_NAME_1.to_string(),
                     DeleteCondition::DelCondNotPendingNorRunning
@@ -244,8 +267,7 @@ mod tests {
 
         assert_eq!(
             DeletedWorkload {
-                name: WORKLOAD_NAME_5.to_string(),
-                agent: AGENT_A.to_string(),
+                instance_name: instance_name_wl5,
                 dependencies: HashMap::from([(
                     WORKLOAD_NAME_3.to_string(),
                     DeleteCondition::DelCondNotPendingNorRunning
@@ -256,8 +278,7 @@ mod tests {
 
         assert_eq!(
             DeletedWorkload {
-                name: WORKLOAD_NAME_4.to_string(),
-                agent: AGENT_A.to_string(),
+                instance_name: instance_name_wl4,
                 dependencies: HashMap::new()
             },
             deleted_workloads[1]

@@ -115,7 +115,7 @@ mod tests {
         let workload_command = workload_command_receiver.recv().await.unwrap();
 
         assert!(
-            matches!(workload_command, WorkloadCommand::Create(workload_spec, control_interface_path) if workload_spec.name == WORKLOAD_SPEC.name && control_interface_path == *CONTROL_INTERFACE_PATH)
+            matches!(workload_command, WorkloadCommand::Create(workload_spec, control_interface_path) if workload_spec.instance_name == WORKLOAD_SPEC.instance_name && control_interface_path == *CONTROL_INTERFACE_PATH)
         );
     }
 
@@ -132,7 +132,7 @@ mod tests {
         let workload_command = workload_command_receiver.recv().await.unwrap();
 
         assert!(
-            matches!(workload_command, WorkloadCommand::Restart(workload_spec, control_interface_path) if workload_spec.name == WORKLOAD_SPEC.name && control_interface_path == *CONTROL_INTERFACE_PATH)
+            matches!(workload_command, WorkloadCommand::Restart(workload_spec, control_interface_path) if workload_spec.instance_name == WORKLOAD_SPEC.instance_name && control_interface_path == *CONTROL_INTERFACE_PATH)
         );
     }
 
@@ -149,7 +149,7 @@ mod tests {
         let workload_command = workload_command_receiver.recv().await.unwrap();
 
         assert!(
-            matches!(workload_command, WorkloadCommand::Update(workload_spec, control_interface_path) if workload_spec.name == WORKLOAD_SPEC.name && control_interface_path == *CONTROL_INTERFACE_PATH)
+            matches!(workload_command, WorkloadCommand::Update(workload_spec, control_interface_path) if workload_spec.instance_name == WORKLOAD_SPEC.instance_name && control_interface_path == *CONTROL_INTERFACE_PATH)
         );
     }
 

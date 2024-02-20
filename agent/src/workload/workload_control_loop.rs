@@ -149,7 +149,6 @@ impl WorkloadControlLoop {
                 .update_workload_state(vec![common::objects::WorkloadState {
                     instance_name: control_loop_state.instance_name.to_owned(),
                     execution_state: ExecutionState::restart_failed_no_retry(),
-                    ..Default::default()
                 }])
                 .await
                 .unwrap_or_else(|err| {
@@ -268,7 +267,6 @@ impl WorkloadControlLoop {
                 .update_workload_state(vec![common::objects::WorkloadState {
                     instance_name: control_loop_state.instance_name.to_owned(),
                     execution_state: ExecutionState::removed(),
-                    ..Default::default() // no id
                 }])
                 .await
                 .unwrap_or_illegal_state();
@@ -419,10 +417,8 @@ mod tests {
     use std::time::Duration;
 
     use common::{
-        commands::UpdateWorkloadState,
-        objects::{ExecutionState, WorkloadInstanceName},
-        test_utils::generate_test_workload_spec_with_param,
-        to_server_interface::ToServer,
+        commands::UpdateWorkloadState, objects::ExecutionState,
+        test_utils::generate_test_workload_spec_with_param, to_server_interface::ToServer,
     };
     use tokio::{sync::mpsc, time::timeout};
 
@@ -469,7 +465,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let instance_name = workload_spec.instance_name();
+        let instance_name = workload_spec.instance_name.clone();
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
@@ -551,7 +547,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let instance_name = workload_spec.instance_name();
+        let instance_name = workload_spec.instance_name.clone();
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
@@ -630,7 +626,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let instance_name = workload_spec.instance_name();
+        let instance_name = workload_spec.instance_name.clone();
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
@@ -709,7 +705,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let instance_name = workload_spec.instance_name();
+        let instance_name = workload_spec.instance_name.clone();
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
@@ -801,8 +797,10 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
+        let instance_name = workload_spec.instance_name.clone();
+
         let control_loop_state = ControlLoopState {
-            instance_name: workload_spec.instance_name(),
+            instance_name,
             workload_id: Some(OLD_WORKLOAD_ID.to_string()),
             state_checker: Some(mock_state_checker),
             update_state_tx: to_server_tx.clone(),
@@ -872,9 +870,10 @@ mod tests {
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
+        let instance_name = workload_spec.instance_name.clone();
 
         let control_loop_state = ControlLoopState {
-            instance_name: workload_spec.instance_name(),
+            instance_name,
             workload_id: Some(OLD_WORKLOAD_ID.to_string()),
             state_checker: Some(mock_state_checker),
             update_state_tx: to_server_tx.clone(),
@@ -929,8 +928,10 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
+        let instance_name = workload_spec.instance_name.clone();
+
         let control_loop_state = ControlLoopState {
-            instance_name: workload_spec.instance_name(),
+            instance_name,
             workload_id: None,
             state_checker: None,
             update_state_tx: to_server_tx.clone(),
@@ -967,7 +968,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let instance_name = workload_spec.instance_name();
+        let instance_name = workload_spec.instance_name.clone();
 
         let mut new_mock_state_checker = StubStateChecker::new();
         new_mock_state_checker.panic_if_not_stopped();
@@ -1037,7 +1038,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let instance_name = workload_spec.instance_name();
+        let instance_name = workload_spec.instance_name.clone();
 
         let mut new_mock_state_checker = StubStateChecker::new();
         new_mock_state_checker.panic_if_not_stopped();
@@ -1115,7 +1116,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let instance_name = workload_spec.instance_name();
+        let instance_name = workload_spec.instance_name.clone();
 
         let runtime_expectations = vec![RuntimeCall::CreateWorkload(
             workload_spec.clone(),
@@ -1178,7 +1179,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let instance_name = workload_spec.instance_name();
+        let instance_name = workload_spec.instance_name.clone();
 
         let mut new_mock_state_checker = StubStateChecker::new();
         new_mock_state_checker.panic_if_not_stopped();
@@ -1258,7 +1259,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let instance_name = workload_spec.instance_name();
+        let instance_name = workload_spec.instance_name.clone();
 
         let mut runtime_expectations = vec![];
 
@@ -1343,7 +1344,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let instance_name = workload_spec.instance_name();
+        let instance_name = workload_spec.instance_name.clone();
 
         let runtime_expectations = vec![RuntimeCall::CreateWorkload(
             workload_spec.clone(),
@@ -1405,7 +1406,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let instance_name = workload_spec.instance_name();
+        let instance_name = workload_spec.instance_name.clone();
 
         let runtime_expectations = vec![RuntimeCall::CreateWorkload(
             workload_spec.clone(),
@@ -1467,7 +1468,7 @@ mod tests {
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
-        let instance_name = workload_spec.instance_name();
+        let instance_name = workload_spec.instance_name.clone();
 
         let mut new_workload_spec = workload_spec.clone();
         new_workload_spec.runtime_config = "Changed".to_string();
@@ -1553,7 +1554,7 @@ mod tests {
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
-        let instance_name = workload_spec.instance_name();
+        let instance_name = workload_spec.instance_name.clone();
 
         let mut new_workload_spec = workload_spec.clone();
         new_workload_spec.runtime_config = "Changed".to_string();
@@ -1642,7 +1643,7 @@ mod tests {
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
-        let instance_name = workload_spec.instance_name();
+        let instance_name = workload_spec.instance_name.clone();
 
         let mut new_workload_spec = workload_spec.clone();
         new_workload_spec.runtime_config = "Changed".to_string();
@@ -1736,7 +1737,7 @@ mod tests {
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
-        let instance_name = workload_spec.instance_name();
+        let instance_name = workload_spec.instance_name.clone();
 
         let mut new_workload_spec_update1 = workload_spec.clone();
         new_workload_spec_update1.runtime_config = "Changed".to_string();

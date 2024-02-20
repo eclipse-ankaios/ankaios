@@ -411,7 +411,10 @@ impl RuntimeManager {
                 );
             }
         } else {
-            log::warn!("Workload '{}' already gone.", deleted_workload.instance_name.workload_name());
+            log::warn!(
+                "Workload '{}' already gone.",
+                deleted_workload.instance_name.workload_name()
+            );
         }
     }
 
@@ -769,7 +772,7 @@ mod tests {
             .expect_create_workload()
             .once()
             .withf(|workload_spec, control_interface, to_server| {
-                workload_spec.name == *WORKLOAD_1_NAME
+                workload_spec.instance_name.workload_name() == WORKLOAD_1_NAME
                     && control_interface.is_some()
                     && !to_server.is_closed()
             })
@@ -855,13 +858,14 @@ mod tests {
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
-        let existing_workload1_name = existing_workload1.instance_name();
+
+        let existing_workload_instance_name = existing_workload1.instance_name.clone();
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
             .expect_get_reusable_running_workloads()
             .once()
-            .return_once(|_| Box::pin(async { Ok(vec![existing_workload1_name]) }));
+            .return_once(|_| Box::pin(async { Ok(vec![existing_workload_instance_name]) }));
 
         runtime_facade_mock
             .expect_resume_workload()
@@ -1070,8 +1074,7 @@ mod tests {
             MockDependencyScheduler::split_deleted_workloads_to_ready_and_waiting_context();
         dependency_scheduler_context.expect().once().return_const((
             vec![DeletedWorkload {
-                name: existing_instance_name_clone.workload_name().to_owned(),
-                agent: existing_instance_name_clone.agent_name().to_owned(),
+                instance_name: existing_instance_name_clone,
                 ..Default::default()
             }],
             vec![],
@@ -1197,7 +1200,7 @@ mod tests {
         );
 
         // create workload with different config string to simulate a replace of a existing workload
-        let existing_workload_with_other_config = WorkloadExecutionInstanceNameBuilder::default()
+        let existing_workload_with_other_config = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME)
             .config(&String::from("different config"))
             .agent_name(AGENT_NAME)
@@ -1299,7 +1302,7 @@ mod tests {
             .once()
             .with(
                 predicate::function(|workload_spec: &WorkloadSpec| {
-                    workload_spec.name == *WORKLOAD_1_NAME
+                    workload_spec.instance_name.workload_name() == WORKLOAD_1_NAME
                 }),
                 predicate::function(|control_interface: &Option<PipesChannelContext>| {
                     control_interface.is_some()
@@ -1396,7 +1399,7 @@ mod tests {
             .expect_create_workload()
             .once()
             .withf(|workload_spec, control_interface, to_server| {
-                workload_spec.name == *WORKLOAD_2_NAME
+                workload_spec.instance_name.workload_name() == WORKLOAD_2_NAME
                     && control_interface.is_some()
                     && !to_server.is_closed()
             })
@@ -1586,7 +1589,8 @@ mod tests {
             .expect_update()
             .once()
             .withf(|workload_spec, control_interface| {
-                workload_spec.name == *WORKLOAD_1_NAME && control_interface.is_some()
+                workload_spec.instance_name.workload_name() == WORKLOAD_1_NAME
+                    && control_interface.is_some()
             })
             .return_once(move |_, _| Ok(()));
 
@@ -1665,7 +1669,7 @@ mod tests {
             .expect_create_workload()
             .once()
             .withf(|workload_spec, control_interface, to_server| {
-                workload_spec.name == *WORKLOAD_1_NAME
+                workload_spec.instance_name.workload_name() == WORKLOAD_1_NAME
                     && control_interface.is_some()
                     && !to_server.is_closed()
             })
@@ -1840,22 +1844,20 @@ mod tests {
 
         runtime_manager.initial_workload_list_received = true;
 
-        let instance_name_deleted_workload = WorkloadExecutionInstanceName::builder()
-            .agent_name(new_deleted_workload.agent.clone())
-            .workload_name(new_deleted_workload.instance_name.workload_name().to_owned())
-            .config(&String::from("config"))
-            .build();
-
         let mut workload_mock = MockWorkload::default();
         workload_mock.expect_delete().never();
         workload_mock
             .expect_instance_name()
             .once()
-            .return_const(instance_name_deleted_workload);
+            .return_const(new_deleted_workload.instance_name.clone());
 
-        runtime_manager
-            .workloads
-            .insert(new_deleted_workload.instance_name.workload_name().to_owned(), workload_mock);
+        runtime_manager.workloads.insert(
+            new_deleted_workload
+                .instance_name
+                .workload_name()
+                .to_owned(),
+            workload_mock,
+        );
 
         runtime_manager
             .handle_update_workload(vec![], deleted_workloads)
@@ -2314,9 +2316,8 @@ mod tests {
             WORKLOAD_1_NAME.to_owned(),
             RUNTIME_NAME.to_owned(),
         );
-        let instance_name = workload.instance_name();
 
-        let waiting_workloads = vec![workload];
+        let waiting_workloads = vec![workload.clone()];
 
         runtime_manager
             .enqueue_waiting_workloads(waiting_workloads)
@@ -2325,9 +2326,8 @@ mod tests {
         let expected_update_workload_state_msg =
             ToServer::UpdateWorkloadState(UpdateWorkloadState {
                 workload_states: vec![WorkloadState {
-                    instance_name,
+                    instance_name: workload.instance_name,
                     execution_state: ExecutionState::waiting_to_start(),
-                    ..Default::default()
                 }],
             });
 
@@ -2364,22 +2364,18 @@ mod tests {
         let deleted_workload =
             generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
 
-        let instance_name = WorkloadInstanceName::builder()
-            .agent_name(deleted_workload.agent.clone())
-            .workload_name(deleted_workload.name.clone())
-            .config(&String::from("config"))
-            .build();
-
         let mut workload_mock = MockWorkload::default();
         workload_mock
             .expect_instance_name()
             .once()
-            .return_const(instance_name.clone());
+            .return_const(deleted_workload.instance_name.clone());
 
-        runtime_manager
-            .workloads
-            .insert(deleted_workload.name.clone(), workload_mock);
+        runtime_manager.workloads.insert(
+            deleted_workload.instance_name.workload_name().to_owned(),
+            workload_mock,
+        );
 
+        let deleted_workload_instance_name = deleted_workload.instance_name.clone();
         let waiting_workloads = vec![deleted_workload];
 
         runtime_manager
@@ -2389,9 +2385,8 @@ mod tests {
         let expected_update_workload_state_msg =
             ToServer::UpdateWorkloadState(UpdateWorkloadState {
                 workload_states: vec![WorkloadState {
-                    instance_name,
+                    instance_name: deleted_workload_instance_name,
                     execution_state: ExecutionState::waiting_to_stop(),
-                    ..Default::default()
                 }],
             });
 

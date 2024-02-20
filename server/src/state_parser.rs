@@ -133,8 +133,8 @@ mod tests {
         assert!(state.workloads.contains_key("nginx"));
         let workload_spec_nginx = state.workloads.get("nginx").unwrap();
         assert_eq!(workload_spec_nginx.runtime, "podman");
-        assert_eq!(workload_spec_nginx.agent, "agent_A");
-        assert_eq!(workload_spec_nginx.name, "nginx");
+        assert_eq!(workload_spec_nginx.instance_name.agent_name(), "agent_A");
+        assert_eq!(workload_spec_nginx.instance_name.workload_name(), "nginx");
         assert!(workload_spec_nginx.restart);
         assert_eq!(
             workload_spec_nginx.update_strategy,
@@ -159,8 +159,8 @@ mod tests {
         assert!(state.workloads.contains_key("hello"));
         let workload_spec_hello = state.workloads.get("hello").unwrap();
         assert_eq!(workload_spec_hello.runtime, "podman");
-        assert_eq!(workload_spec_hello.agent, "agent_B");
-        assert_eq!(workload_spec_hello.name, "hello");
+        assert_eq!(workload_spec_hello.instance_name.agent_name(), "agent_B");
+        assert_eq!(workload_spec_hello.instance_name.workload_name(), "hello");
         assert!(!workload_spec_hello.restart);
         assert_eq!(
             workload_spec_hello.update_strategy,

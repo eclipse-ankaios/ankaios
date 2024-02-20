@@ -334,25 +334,19 @@ mod tests {
 
     #[test]
     fn utest_converts_to_ankaios_deleted_workload() {
-        let agent = "agent X";
-
         let proto_workload = generate_test_proto_deleted_workload();
-        let workload = generate_test_deleted_workload(agent.to_string(), "workload X".to_string());
+        let workload =
+            generate_test_deleted_workload("agent X".to_string(), "workload X".to_string());
 
-        assert_eq!(
-            DeletedWorkload::try_from((agent.to_string(), proto_workload)),
-            Ok(workload)
-        );
+        assert_eq!(DeletedWorkload::try_from(proto_workload), Ok(workload));
     }
 
     #[test]
     fn utest_converts_to_ankaios_deleted_workload_fails() {
-        let agent = "agent X";
-
         let mut proto_workload = generate_test_proto_deleted_workload();
         proto_workload.dependencies.insert("workload B".into(), -1);
 
-        assert!(DeletedWorkload::try_from((agent.to_string(), proto_workload)).is_err());
+        assert!(DeletedWorkload::try_from(proto_workload).is_err());
     }
 
     #[test]
@@ -360,7 +354,10 @@ mod tests {
         let workload = generate_test_workload_spec();
 
         let proto_workload = proto::AddedWorkload {
-            name: String::from("name"),
+            instance_name: Some(proto::WorkloadInstanceName {
+                workload_name: "name".to_string(),
+                ..Default::default()
+            }),
             dependencies: HashMap::from([
                 (
                     String::from("workload A"),
@@ -408,8 +405,10 @@ mod tests {
                 deny: vec![],
             },
             runtime: String::from("runtime"),
-            name: String::from("name"),
-            agent: String::from("agent"),
+            instance_name: WorkloadInstanceName::builder()
+                .agent_name("agent")
+                .workload_name("name")
+                .build(),
             tags: vec![],
             runtime_config: String::from("some config"),
         };
@@ -480,14 +479,19 @@ mod tests {
                 deny: vec![],
             },
             runtime: String::from("runtime"),
-            name: String::from("name"),
-            agent: String::from("agent"),
+            instance_name: WorkloadInstanceName::builder()
+                .agent_name("agent")
+                .workload_name("name")
+                .build(),
             tags: vec![],
             runtime_config: String::from("some config"),
         };
 
         let proto_workload = proto::AddedWorkload {
-            name: String::from("name"),
+            instance_name: Some(proto::WorkloadInstanceName {
+                workload_name: "name".to_string(),
+                ..Default::default()
+            }),
             dependencies: HashMap::from([
                 (
                     String::from("workload A"),
@@ -506,16 +510,16 @@ mod tests {
             tags: vec![],
         };
 
-        assert_eq!(
-            WorkloadSpec::try_from(("agent".to_string(), proto_workload)),
-            Ok(workload)
-        );
+        assert_eq!(WorkloadSpec::try_from(proto_workload), Ok(workload));
     }
 
     #[test]
     fn utest_converts_to_ankaios_added_workload_fails() {
         let proto_workload = proto::AddedWorkload {
-            name: String::from("name"),
+            instance_name: Some(proto::WorkloadInstanceName {
+                workload_name: "name".to_string(),
+                ..Default::default()
+            }),
             dependencies: HashMap::from([
                 (
                     String::from("workload A"),
@@ -535,7 +539,7 @@ mod tests {
             tags: vec![],
         };
 
-        assert!(WorkloadSpec::try_from(("agent".to_string(), proto_workload)).is_err());
+        assert!(WorkloadSpec::try_from(proto_workload).is_err());
     }
 
     #[test]
@@ -573,14 +577,17 @@ mod tests {
 
         let workload1 = &agent1_added_workloads[0];
         let workload2 = &agent1_added_workloads[1];
-        assert_eq!(workload1.agent, "agent1");
+        assert_eq!(workload1.instance_name.agent_name(), "agent1");
         assert_eq!(workload1.runtime, "runtime1");
-        assert_eq!(workload2.agent, "agent1");
+        assert_eq!(workload2.instance_name.agent_name(), "agent1");
         assert_eq!(workload2.runtime, "runtime2");
 
         let deleted_workload1 = &agent1_deleted_workloads[0];
-        assert_eq!(deleted_workload1.agent, "agent1");
-        assert_eq!(deleted_workload1.name, "workload 8");
+        assert_eq!(deleted_workload1.instance_name.agent_name(), "agent1");
+        assert_eq!(
+            deleted_workload1.instance_name.workload_name(),
+            "workload 8"
+        );
 
         let (agent2_added_workloads, agent2_deleted_workloads) =
             workload_map.get("agent2").unwrap();
@@ -588,7 +595,7 @@ mod tests {
         assert_eq!(agent2_deleted_workloads.len(), 0);
 
         let workload3 = &agent2_added_workloads[0];
-        assert_eq!(workload3.agent, "agent2");
+        assert_eq!(workload3.instance_name.agent_name(), "agent2");
         assert_eq!(workload3.runtime, "runtime3");
 
         assert!(workload_map.get("agent3").is_none());
@@ -599,8 +606,8 @@ mod tests {
         assert_eq!(agent4_deleted_workloads.len(), 1);
 
         let workload3 = &agent4_deleted_workloads[0];
-        assert_eq!(workload3.agent, "agent4");
-        assert_eq!(workload3.name, "workload 9");
+        assert_eq!(workload3.instance_name.agent_name(), "agent4");
+        assert_eq!(workload3.instance_name.workload_name(), "workload 9");
     }
 
     // [utest->swdd~workload-add-conditions-for-dependencies~1]

@@ -296,8 +296,7 @@ impl<
 #[cfg(test)]
 mod tests {
     use common::{
-        objects::{WorkloadInstanceName, WorkloadInstanceName},
-        test_utils::generate_test_workload_spec_with_param,
+        objects::WorkloadInstanceName, test_utils::generate_test_workload_spec_with_param,
         to_server_interface::ToServer,
     };
 
@@ -437,7 +436,7 @@ mod tests {
         runtime_mock
             .expect(vec![
                 RuntimeCall::GetWorkloadId(
-                    workload_spec.instance_name(),
+                    workload_spec.instance_name.clone(),
                     Ok(WORKLOAD_ID.to_string()),
                 ),
                 RuntimeCall::StartChecker(
@@ -494,7 +493,7 @@ mod tests {
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
             .expect(vec![RuntimeCall::GetWorkloadId(
-                workload_spec.instance_name(),
+                workload_spec.instance_name.clone(),
                 Err(crate::runtime_connectors::RuntimeError::List(
                     "some list workload error".to_string(),
                 )),
@@ -547,7 +546,7 @@ mod tests {
         runtime_mock
             .expect(vec![
                 RuntimeCall::GetWorkloadId(
-                    workload_spec.instance_name(),
+                    workload_spec.instance_name.clone(),
                     Ok(WORKLOAD_ID.to_string()),
                 ),
                 RuntimeCall::StartChecker(

@@ -316,7 +316,10 @@ mod tests {
 
         let startup_state = CompleteState {
             current_state: State {
-                workloads: HashMap::from([(workload.name.clone(), workload)]),
+                workloads: HashMap::from([(
+                    workload.instance_name.workload_name().to_owned(),
+                    workload,
+                )]),
                 ..Default::default()
             },
             ..Default::default()
@@ -361,7 +364,7 @@ mod tests {
         let new_state = CompleteState {
             current_state: State {
                 workloads: HashMap::from([(
-                    updated_workload.name.clone(),
+                    updated_workload.instance_name.workload_name().to_owned(),
                     updated_workload.clone(),
                 )]),
                 ..Default::default()
@@ -372,8 +375,10 @@ mod tests {
         // fix new state by deleting the dependencies
         let mut fixed_state = new_state.clone();
         updated_workload.dependencies.clear();
-        fixed_state.current_state.workloads =
-            HashMap::from([(updated_workload.name.clone(), updated_workload.clone())]);
+        fixed_state.current_state.workloads = HashMap::from([(
+            updated_workload.instance_name.workload_name().to_owned(),
+            updated_workload.clone(),
+        )]);
 
         let update_mask = vec!["currentState.workloads".to_string()];
 
@@ -458,7 +463,10 @@ mod tests {
 
         let startup_state = CompleteState {
             current_state: State {
-                workloads: HashMap::from([(workload.name.clone(), workload.clone())]),
+                workloads: HashMap::from([(
+                    workload.instance_name.workload_name().to_owned(),
+                    workload.clone(),
+                )]),
                 ..Default::default()
             },
             ..Default::default()
@@ -850,9 +858,9 @@ mod tests {
         );
 
         let workloads = HashMap::from([
-            (w1.name.clone(), w1),
-            (w2.name.clone(), w2),
-            (w3.name.clone(), w3),
+            (w1.instance_name.workload_name().to_owned(), w1),
+            (w2.instance_name.workload_name().to_owned(), w2),
+            (w3.instance_name.workload_name().to_owned(), w3),
         ]);
 
         let mut configs = HashMap::new();
@@ -1070,8 +1078,7 @@ mod tests {
 
         let added_workloads = vec![updated_w1.clone()];
         let deleted_workloads = vec![DeletedWorkload {
-            agent: w1.agent.clone(),
-            name: w1.name.clone(),
+            instance_name: w1.instance_name.clone(),
             dependencies: HashMap::new(),
         }];
 
@@ -1143,8 +1150,7 @@ mod tests {
             FromServer::UpdateWorkload(UpdateWorkload {
                 added_workloads: vec![updated_w1],
                 deleted_workloads: vec![DeletedWorkload {
-                    agent: w1.agent.clone(),
-                    name: w1.name.clone(),
+                    instance_name: w1.instance_name.clone(),
                     dependencies: HashMap::new(),
                 }]
             }),

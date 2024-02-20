@@ -195,7 +195,7 @@ mod tests {
     use crate::{
         commands,
         from_server_interface::FromServer,
-        objects::WorkloadSpec,
+        objects::{WorkloadInstanceName, WorkloadSpec},
         test_utils::{generate_test_deleted_workload, generate_test_proto_deleted_workload},
     };
 
@@ -203,9 +203,12 @@ mod tests {
 
     #[test]
     fn utest_convert_from_server_to_proto_update_workload() {
+        let instance_name = WorkloadInstanceName::builder()
+            .workload_name("test_workload")
+            .build();
         let test_ex_com = FromServer::UpdateWorkload(commands::UpdateWorkload {
             added_workloads: vec![WorkloadSpec {
-                name: "test_workload".to_owned(),
+                instance_name,
                 runtime: "tes_runtime".to_owned(),
                 ..Default::default()
             }],
@@ -217,7 +220,11 @@ mod tests {
         let expected_ex_com = Ok(proto::FromServer {
             from_server_enum: Some(FromServerEnum::UpdateWorkload(proto::UpdateWorkload {
                 added_workloads: vec![AddedWorkload {
-                    name: "test_workload".to_owned(),
+                    instance_name: Some(proto::WorkloadInstanceName {
+                        workload_name: "test_workload".to_owned(),
+                        agent_name: "".to_owned(),
+                        id: "".to_owned(),
+                    }),
                     runtime: "tes_runtime".to_owned(),
                     ..Default::default()
                 }],
