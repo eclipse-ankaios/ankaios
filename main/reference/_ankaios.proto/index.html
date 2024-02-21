@@ -846,6 +846,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#updatestatesuccess" class="md-nav__link">
+    <span class="md-ellipsis">
+      UpdateStateSuccess
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#updateworkload" class="md-nav__link">
     <span class="md-ellipsis">
       UpdateWorkload
@@ -1657,6 +1666,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#updatestatesuccess" class="md-nav__link">
+    <span class="md-ellipsis">
+      UpdateStateSuccess
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#updateworkload" class="md-nav__link">
     <span class="md-ellipsis">
       UpdateWorkload
@@ -1873,6 +1891,7 @@
 <li><a href="#ankaios-Tag">Tag</a></li>
 <li><a href="#ankaios-ToServer">ToServer</a></li>
 <li><a href="#ankaios-UpdateStateRequest">UpdateStateRequest</a></li>
+<li><a href="#ankaios-UpdateStateSuccess">UpdateStateSuccess</a></li>
 <li><a href="#ankaios-UpdateWorkload">UpdateWorkload</a></li>
 <li><a href="#ankaios-UpdateWorkloadState">UpdateWorkloadState</a></li>
 <li><a href="#ankaios-Workload">Workload</a></li>
@@ -2348,6 +2367,12 @@ This is usually answered with a <a href="#completestate">CompleteState</a> messa
 <td></td>
 <td></td>
 </tr>
+<tr>
+<td>UpdateStateSuccess</td>
+<td><a href="#ankaios-UpdateStateSuccess">UpdateStateSuccess</a></td>
+<td></td>
+<td></td>
+</tr>
 </tbody>
 </table>
 <p><a name="ankaios-State"></a></p>
@@ -2492,6 +2517,32 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 <td><a href="#string">string</a></td>
 <td>repeated</td>
 <td>A list of symbolic field paths within the state message structure e.g. &#39;desiredState.workloads.nginx&#39; to specify what to be updated.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ankaios-UpdateStateSuccess"></a></p>
+<h3 id="updatestatesuccess">UpdateStateSuccess<a class="headerlink" href="#updatestatesuccess" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>addedWorkloads</td>
+<td><a href="#string">string</a></td>
+<td>repeated</td>
+<td>Workload istance names of workloads which will be started</td>
+</tr>
+<tr>
+<td>deletedWorkloads</td>
+<td><a href="#string">string</a></td>
+<td>repeated</td>
+<td>Workload instance names of workloads which will be stopped</td>
 </tr>
 </tbody>
 </table>
