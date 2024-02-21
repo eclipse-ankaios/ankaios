@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::objects::{DeletedWorkload, State, WorkloadSpec, WorkloadState};
+use crate::objects::{DeletedWorkload, ExternalState, State, WorkloadSpec, WorkloadState};
 use api::proto;
 use serde::{Deserialize, Serialize};
 
@@ -232,7 +232,25 @@ impl From<Error> for proto::Error {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
-#[serde(default, rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
+struct ExternalCompleteState {
+    pub startup_state: ExternalState,
+    pub current_state: ExternalState,
+    pub workload_states: Vec<WorkloadState>,
+}
+
+impl From<CompleteState> for ExternalCompleteState {
+    fn from(value: CompleteState) -> Self {
+        ExternalCompleteState {
+            startup_state: value.startup_state.into(),
+            current_state: value.current_state.into(),
+            workload_states: value.workload_states,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[serde(default, rename_all = "camelCase", into = "ExternalCompleteState")]
 pub struct CompleteState {
     pub startup_state: State,
     pub current_state: State,

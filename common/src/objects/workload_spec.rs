@@ -22,7 +22,7 @@ use crate::objects::AccessRights;
 use crate::objects::Tag;
 
 use super::ExecutionState;
-use super::WorkloadInstanceName;
+use super::{workload_instance_name::serialize_instance_name_for_state, WorkloadInstanceName};
 
 pub type WorkloadCollection = Vec<WorkloadSpec>;
 pub type DeletedWorkloadCollection = Vec<DeletedWorkload>;
@@ -69,6 +69,10 @@ impl From<DeletedWorkload> for proto::DeletedWorkload {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(default, rename_all = "camelCase")]
 pub struct WorkloadSpec {
+    // #[serde(
+    //     serialize_with = "serialize_instance_name_for_state",
+    //     rename(serialize = "agent")
+    // )]
     pub instance_name: WorkloadInstanceName,
     pub tags: Vec<Tag>,
     #[serde(serialize_with = "serialize_to_ordered_map")]

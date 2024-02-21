@@ -19,6 +19,9 @@
 mod state;
 pub use state::State;
 
+mod external_state;
+pub use external_state::ExternalState;
+
 mod workload_state;
 #[cfg(any(feature = "test_utils", test))]
 pub use workload_state::{
@@ -43,9 +46,7 @@ mod access_rights;
 pub use access_rights::{AccessRights, AccessRightsRule, PatchOperation};
 
 mod workload_instance_name;
-pub use workload_instance_name::{
-    ConfigHash, WorkloadInstanceName, WorkloadInstanceNameBuilder,
-};
+pub use workload_instance_name::{ConfigHash, WorkloadInstanceName, WorkloadInstanceNameBuilder};
 
 mod agent_name;
 pub use agent_name::AgentName;
