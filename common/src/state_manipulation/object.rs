@@ -260,9 +260,8 @@ impl Object {
 #[cfg(test)]
 mod tests {
     use crate::{
-        commands::CompleteState,
-        objects::State,
-        objects::{generate_test_workload_state_with_agent, ExecutionState},
+        commands::{ApiVersion, CompleteState},
+        objects::{generate_test_workload_state_with_agent, ExecutionState, State},
         test_utils::{generate_test_state_from_workloads, generate_test_workload_spec},
     };
     use serde_yaml::Value;
@@ -276,7 +275,7 @@ mod tests {
             data: object::generate_test_state().into(),
         };
         let actual: Object = state.clone().try_into().unwrap();
-        println!("\nstate:\n{:?}\nactual:\n{:?}", state, actual);
+        // println!("\nstate:\n{:?}\nactual:\n{:?}", state, actual);
         assert_eq!(actual, expected)
     }
 
@@ -296,8 +295,9 @@ mod tests {
     fn utest_object_from_complete_state() {
         let state = generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
         let complete_state = CompleteState {
+            format_version: ApiVersion::default(),
             startup_state: state.clone(),
-            current_state: state,
+            desired_state: state,
             workload_states: vec![generate_test_workload_state_with_agent(
                 "workload A",
                 "agent",
@@ -322,8 +322,9 @@ mod tests {
         let expected_state =
             generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
         let expected = CompleteState {
+            format_version: ApiVersion::default(),
             startup_state: expected_state.clone(),
-            current_state: expected_state,
+            desired_state: expected_state,
             workload_states: vec![generate_test_workload_state_with_agent(
                 "workload A",
                 "agent",
@@ -377,7 +378,7 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = actual.set(&"workloads.name.updateStrategy.key".into(), "value".into());
+        let res = actual.set(&"workloads.name.tags.key".into(), "value".into());
 
         assert!(res.is_err());
         assert_eq!(actual, expected);
@@ -566,10 +567,10 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = data.get(&"workloads.name.updateStrategy".into());
+        let res = data.get(&"workloads.name.restart".into());
 
         assert!(res.is_some());
-        assert_eq!(res.expect(""), "UNSPECIFIED");
+        assert_eq!(res.expect(""), &serde_yaml::Value::from(true));
     }
 
     #[test]
@@ -675,11 +676,16 @@ mod tests {
     mod object {
         use serde_yaml::Value;
 
+        pub fn generate_test_format_version() -> Mapping {
+            Mapping::default().entry("version", "v0.1")
+        }
+
         pub fn generate_test_complete_state() -> Mapping {
             let config_hash: &dyn common::objects::ConfigHash = &"config".to_string();
             Mapping::default()
+                .entry("formatVersion", generate_test_format_version())
                 .entry("startupState", generate_test_state())
-                .entry("currentState", generate_test_state())
+                .entry("desiredState", generate_test_state())
                 .entry(
                     "workloadStates",
                     vec![Mapping::default()
@@ -723,20 +729,19 @@ mod tests {
                                     .entry("workload A", "ADD_COND_RUNNING")
                                     .entry("workload C", "ADD_COND_SUCCEEDED"),
                             )
-                            .entry("updateStrategy", "UNSPECIFIED")
                             .entry("restart", true)
-                            .entry(
-                                "accessRights",
-                                Mapping::default()
-                                    .entry("allow", vec![] as Vec<Value>)
-                                    .entry("deny", vec![] as Vec<Value>),
-                            )
+                            // .entry(
+                            //     "accessRights",
+                            //     Mapping::default()
+                            //         .entry("allow", vec![] as Vec<Value>)
+                            //         .entry("deny", vec![] as Vec<Value>),
+                            // )
                             .entry("runtime", "runtime")
                             .entry("runtimeConfig", "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"),
                     ),
                 )
-                .entry("configs", Mapping::default())
-                .entry("cronJobs", Mapping::default())
+            // .entry("configs", Mapping::default())
+            // .entry("cronJobs", Mapping::default())
         }
 
         pub fn generate_test_value_object() -> Value {

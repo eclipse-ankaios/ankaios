@@ -13,8 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::proto::{
-    request::RequestContent, to_server::ToServerEnum, CompleteState, CompleteStateRequest,
-    FromServer, Request, State, Tag, ToServer, UpdateStateRequest, UpdateStrategy, Workload,
+    request::RequestContent, to_server::ToServerEnum, ApiVersion, CompleteState,
+    CompleteStateRequest, FromServer, Request, State, Tag, ToServer, UpdateStateRequest, Workload,
 };
 use prost::Message;
 use std::{
@@ -52,8 +52,6 @@ fn create_request_to_add_new_workload() -> ToServer {
             runtime: "podman".to_string(),
             agent: "agent_A".to_string(),
             restart: false,
-            update_strategy: UpdateStrategy::AtMostOnce.into(),
-            access_rights: None,
             tags: vec![Tag {
                 key: "owner".to_string(),
                 value: "Ankaios team".to_string(),
@@ -69,14 +67,15 @@ fn create_request_to_add_new_workload() -> ToServer {
             request_id: REQUEST_ID.to_string(),
             request_content: Some(RequestContent::UpdateStateRequest(UpdateStateRequest {
                 new_state: Some(CompleteState {
-                    current_state: Some(State {
+                    format_version: Some(ApiVersion {
+                        version: "v0.1".to_string(),
+                    }),
+                    desired_state: Some(State {
                         workloads: new_workloads,
-                        configs: HashMap::default(),
-                        cronjobs: HashMap::default(),
                     }),
                     ..Default::default()
                 }),
-                update_mask: vec!["currentState.workloads.dynamic_nginx".to_string()],
+                update_mask: vec!["desiredState.workloads.dynamic_nginx".to_string()],
             })),
         })),
     }

@@ -1,5 +1,5 @@
 formatVersion:
-  version: "v0.1"
+  version: "invalidVersion"
 startupState:
   workloads: {}
 desiredState:

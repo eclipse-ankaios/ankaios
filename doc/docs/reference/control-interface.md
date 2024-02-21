@@ -106,6 +106,7 @@ Code snippet in [Rust](https://www.rust-lang.org/) for sending request message v
 
 ```rust
 use api::proto;
+use prost::Message;
 use std::{collections::HashMap, fs::File, io::Write, path::Path};
 
 const ANKAIOS_CONTROL_INTERFACE_BASE_PATH: &str = "/run/ankaios/control_interface";
@@ -117,8 +118,6 @@ fn create_update_workload_request() -> proto::ToServer {
             runtime: "podman".to_string(),
             agent: "agent_A".to_string(),
             restart: false,
-            update_strategy: proto::UpdateStrategy::AtMostOnce.into(),
-            access_rights: None,
             tags: vec![proto::Tag {
                 key: "owner".to_string(),
                 value: "Ankaios team".to_string(),
@@ -130,19 +129,20 @@ fn create_update_workload_request() -> proto::ToServer {
     )]);
 
     proto::ToServer {
-        to_server_enum: Some(ToServerEnum::Request(Request {
+        to_server_enum: Some(proto::to_server::ToServerEnum::Request(proto::Request {
             request_id: "request_id".to_string(),
             request_content: Some(proto::request::RequestContent::UpdateStateRequest(
-                UpdateStateRequest {
+                proto::UpdateStateRequest {
                     new_state: Some(proto::CompleteState {
-                        current_state: Some(proto::State {
+                        format_version: Some(proto::ApiVersion {
+                            version: "v0.1".to_string(),
+                        }),
+                        desired_state: Some(proto::State {
                             workloads: new_workloads,
-                            configs: HashMap::default(),
-                            cronjobs: HashMap::default(),
                         }),
                         ..Default::default()
                     }),
-                    update_mask: vec!["currentState.workloads.dynamic_nginx".to_string()],
+                    update_mask: vec!["desiredState.workloads.dynamic_nginx".to_string()],
                 },
             )),
         })),
@@ -167,7 +167,6 @@ fn write_to_control_interface() {
 fn main() {
     write_to_control_interface();
 }
-
 ```
 
 ### Processing response message from Ankaios server
@@ -247,5 +246,4 @@ fn read_from_control_interface() {
 fn main() {
     read_from_control_interface();
 }
-
 ```

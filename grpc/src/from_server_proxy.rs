@@ -16,9 +16,11 @@ use crate::agent_senders_map::AgentSendersMap;
 use crate::ankaios_streaming::GRPCStreaming;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 use api::proto::from_server::FromServerEnum;
-use api::proto::{self, response, CompleteState};
+use api::proto::response::ResponseContent;
+use api::proto::{self};
 
 use async_trait::async_trait;
+use common::commands::Response;
 use common::from_server_interface::{
     FromServer, FromServerInterface, FromServerReceiver, FromServerSender,
 };
@@ -87,31 +89,10 @@ pub async fn forward_from_proto_to_ankaios(
                 }
                 FromServerEnum::Response(response) => {
                     // [impl->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
-                    let request_id = response.request_id;
-
-                    match response
-                        .response_content
-                        .ok_or(GrpcMiddlewareError::ConversionError(format!(
-                            "Response content empty for response ID: '{}'",
-                            request_id
-                        )))? {
-                        proto::response::ResponseContent::Success(_) => {
-                            agent_tx.success(request_id).await?;
-                        }
-                        proto::response::ResponseContent::Error(error) => {
-                            agent_tx.error(request_id, error.into()).await?;
-                        }
-                        proto::response::ResponseContent::CompleteState(complete_state) => {
-                            agent_tx
-                                .complete_state(
-                                    request_id,
-                                    complete_state
-                                        .try_into()
-                                        .map_err(GrpcMiddlewareError::ConversionError)?,
-                                )
-                                .await?;
-                        }
-                    }
+                    let response: Response = response
+                        .try_into()
+                        .map_err(GrpcMiddlewareError::ConversionError)?;
+                    agent_tx.response(response).await?;
                 }
             }
             Ok(()) as Result<(), GrpcMiddlewareError>
@@ -153,26 +134,7 @@ pub async fn forward_from_ankaios_to_proto(
                 let (agent_name, request_id) =
                     detach_prefix_from_request_id(response.request_id.as_ref());
                 if let Some(sender) = agent_senders.get(&agent_name) {
-                    let response_content = match response.response_content {
-                        common::commands::ResponseContent::Success => {
-                            response::ResponseContent::Success(proto::Success {})
-                        }
-                        common::commands::ResponseContent::Error(error) => {
-                            response::ResponseContent::Error(error.into())
-                        }
-                        common::commands::ResponseContent::CompleteState(complete_state) => {
-                            response::ResponseContent::CompleteState(CompleteState {
-                                startup_state: Some(complete_state.startup_state.into()),
-                                current_state: Some(complete_state.current_state.into()),
-                                workload_states: complete_state
-                                    .workload_states
-                                    .into_iter()
-                                    .map(|x| x.into())
-                                    .collect(),
-                            })
-                        }
-                    };
-
+                    let response_content: ResponseContent = response.response_content.into();
                     log::trace!(
                         "Sending response to agent '{}': {:?}.",
                         agent_name,
@@ -313,7 +275,7 @@ mod tests {
     use api::proto::response;
     use api::proto::{self, from_server::FromServerEnum, FromServer, UpdateWorkload};
     use async_trait::async_trait;
-    use common::commands::CompleteState;
+    use common::commands::{ApiVersion, CompleteState};
     use common::from_server_interface::FromServerInterface;
     use common::objects::{State, WorkloadSpec};
     use common::test_utils::*;
@@ -492,7 +454,10 @@ mod tests {
         )
         .into();
 
-        workload.update_strategy = -1;
+        *workload
+            .dependencies
+            .get_mut(&String::from("workload A"))
+            .unwrap() = -1;
 
         // simulate the reception of an update workload grpc from server message
         let mut mock_grpc_ex_request_streaming =
@@ -738,17 +703,14 @@ mod tests {
         let prefixed_my_request_id = format!("{agent_name}@{my_request_id}");
 
         let test_complete_state = CompleteState {
-            current_state: State {
+            desired_state: State {
                 workloads: startup_workloads.clone(),
-                configs: HashMap::default(),
-                cron_jobs: HashMap::default(),
             },
             startup_state: State {
                 workloads: startup_workloads.clone(),
-                configs: HashMap::default(),
-                cron_jobs: HashMap::default(),
             },
             workload_states: vec![],
+            ..Default::default()
         };
 
         let complete_state_result = to_manager
@@ -769,13 +731,16 @@ mod tests {
             result.from_server_enum,
             Some(FromServerEnum::Response(proto::Response {
                 request_id,
-                response_content: Some(proto::response::ResponseContent::CompleteState(proto::CompleteState{current_state: Some(current_state),
+                response_content: Some(proto::response::ResponseContent::CompleteState(proto::CompleteState{
+                    format_version: Some(format_version),
+                    desired_state: Some(desired_state),
                     startup_state: Some(startup_state),
                     workload_states}))
 
             })) if request_id == my_request_id
-            && current_state == test_complete_state.current_state.into()
+            && desired_state == test_complete_state.desired_state.into()
             && startup_state ==test_complete_state.startup_state.into()
+            && format_version == test_complete_state.format_version.into()
             && workload_states == vec![]
         ));
     }
@@ -791,7 +756,8 @@ mod tests {
 
         let proto_complete_state =
             proto::response::ResponseContent::CompleteState(proto::CompleteState {
-                current_state: Some(State::default().into()),
+                format_version: Some(ApiVersion::default().into()),
+                desired_state: Some(State::default().into()),
                 startup_state: Some(proto::State {
                     workloads: [(
                         "workload".into(),
@@ -801,7 +767,6 @@ mod tests {
                         },
                     )]
                     .into(),
-                    ..Default::default()
                 }),
                 workload_states: vec![],
             });
@@ -855,13 +820,15 @@ mod tests {
         let my_request_id = "my_request_id".to_owned();
 
         let test_complete_state = CompleteState {
-            current_state: State::default(),
+            format_version: ApiVersion::default(),
+            desired_state: State::default(),
             startup_state: State::default(),
             workload_states: vec![],
         };
 
         let proto_complete_state = proto::CompleteState {
-            current_state: Some(test_complete_state.current_state.clone().into()),
+            format_version: Some(ApiVersion::default().into()),
+            desired_state: Some(test_complete_state.desired_state.clone().into()),
             startup_state: Some(test_complete_state.startup_state.clone().into()),
             workload_states: vec![],
         };
@@ -908,7 +875,7 @@ mod tests {
                 )
             }) if request_id == my_request_id &&
             boxed_complete_state.startup_state == expected_test_complete_state.startup_state &&
-            boxed_complete_state.current_state == expected_test_complete_state.current_state &&
+            boxed_complete_state.desired_state == expected_test_complete_state.desired_state &&
             boxed_complete_state.workload_states == expected_test_complete_state.workload_states
         ));
     }
