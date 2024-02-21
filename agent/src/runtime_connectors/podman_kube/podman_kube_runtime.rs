@@ -354,7 +354,7 @@ impl From<OrderedExecutionState> for ExecutionState {
 // [utest->swdd~functions-required-by-runtime-connector~1]
 #[cfg(test)]
 mod tests {
-    use common::test_utils::generate_test_workload_spec_with_param;
+    use common::test_utils::generate_test_workload_spec_with_runtime_config;
     use mockall::Sequence;
 
     use std::fmt::Display;
@@ -509,13 +509,12 @@ mod tests {
 
         let runtime = PodmanKubeRuntime {};
 
-        let mut workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_spec_with_runtime_config(
             SAMPLE_AGENT.to_string(),
             SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
+            SAMPLE_RUNTIME_CONFIG.to_string(),
         );
-
-        workload_spec.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime.create_workload(workload_spec, None, sender).await;
@@ -558,12 +557,12 @@ mod tests {
 
         let runtime = PodmanKubeRuntime {};
 
-        let mut workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_spec_with_runtime_config(
             SAMPLE_AGENT.to_string(),
             SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
+            SAMPLE_RUNTIME_CONFIG.to_string(),
         );
-        workload_spec.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime.create_workload(workload_spec, None, sender).await;
@@ -605,13 +604,12 @@ mod tests {
 
         let runtime = PodmanKubeRuntime {};
 
-        let mut workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_spec_with_runtime_config(
             SAMPLE_AGENT.to_string(),
             SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
+            SAMPLE_RUNTIME_CONFIG.to_string(),
         );
-
-        workload_spec.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime.create_workload(workload_spec, None, sender).await;
@@ -667,13 +665,12 @@ mod tests {
 
         let runtime = PodmanKubeRuntime {};
 
-        let mut workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_spec_with_runtime_config(
             SAMPLE_AGENT.to_string(),
             SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
+            SAMPLE_RUNTIME_CONFIG.to_string(),
         );
-
-        workload_spec.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
 
         let (sender, mut receiver) = tokio::sync::mpsc::channel(1);
         let _workload = runtime.create_workload(workload_spec, None, sender).await;
@@ -703,12 +700,12 @@ mod tests {
 
         let runtime = PodmanKubeRuntime {};
 
-        let mut workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_spec_with_runtime_config(
             SAMPLE_AGENT.to_string(),
             SAMPLE_WORKLOAD_1.to_string(),
             PODMAN_KUBE_RUNTIME_NAME.to_string(),
+            SAMPLE_RUNTIME_CONFIG.to_string(),
         );
-        workload_spec.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
 
         let (sender, _) = tokio::sync::mpsc::channel(1);
         let workload = runtime.create_workload(workload_spec, None, sender).await;

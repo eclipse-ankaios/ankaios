@@ -18,7 +18,7 @@ use api::proto;
 use serde::{Serialize, Serializer};
 
 use crate::objects::{
-    AccessRights, AddCondition, ConfigHash, Cronjob, DeleteCondition, DeletedWorkload, Interval,
+    AccessRights, AddCondition, Cronjob, DeleteCondition, DeletedWorkload, Interval,
     State, Tag, UpdateStrategy, WorkloadInstanceName, WorkloadSpec,
 };
 
@@ -174,10 +174,24 @@ pub fn generate_test_workload_spec_with_param(
         "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
         .to_owned();
 
+    generate_test_workload_spec_with_runtime_config(
+        agent_name,
+        workload_name,
+        runtime_name,
+        runtime_config,
+    )
+}
+
+pub fn generate_test_workload_spec_with_runtime_config(
+    agent_name: String,
+    workload_name: String,
+    runtime_name: String,
+    runtime_config: String,
+) -> crate::objects::WorkloadSpec {
     let instance_name = WorkloadInstanceName::builder()
         .agent_name(agent_name)
         .workload_name(workload_name)
-        .config(&runtime_config.hash_config())
+        .config(&runtime_config)
         .build();
 
     WorkloadSpec {
