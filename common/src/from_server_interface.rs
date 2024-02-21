@@ -98,12 +98,19 @@ pub trait FromServerInterface {
         &self,
         workload_running: Vec<WorkloadState>,
     ) -> Result<(), FromServerInterfaceError>;
+    async fn response(&self, response: commands::Response) -> Result<(), FromServerInterfaceError>;
     async fn complete_state(
         &self,
         request_id: String,
         complete_state: commands::CompleteState,
     ) -> Result<(), FromServerInterfaceError>;
     async fn success(&self, request_id: String) -> Result<(), FromServerInterfaceError>;
+    async fn update_state_success(
+        &self,
+        request_id: String,
+        added_workloads: Vec<String>,
+        deleted_workloads: Vec<String>,
+    ) -> Result<(), FromServerInterfaceError>;
     async fn error(
         &self,
         request_id: String,
@@ -141,6 +148,10 @@ impl FromServerInterface for FromServerSender {
             .await?)
     }
 
+    async fn response(&self, response: commands::Response) -> Result<(), FromServerInterfaceError> {
+        Ok(self.send(FromServer::Response(response)).await?)
+    }
+
     async fn complete_state(
         &self,
         request_id: String,
@@ -164,6 +175,26 @@ impl FromServerInterface for FromServerSender {
             }))
             .await?)
     }
+
+    async fn update_state_success(
+        &self,
+        request_id: String,
+        added_workloads: Vec<String>,
+        deleted_workloads: Vec<String>,
+    ) -> Result<(), FromServerInterfaceError> {
+        Ok(self
+            .send(FromServer::Response(commands::Response {
+                request_id,
+                response_content: commands::ResponseContent::UpdateStateSuccess(
+                    commands::UpdateStateSuccess {
+                        added_workloads,
+                        deleted_workloads,
+                    },
+                ),
+            }))
+            .await?)
+    }
+
     async fn error(
         &self,
         request_id: String,
@@ -195,7 +226,7 @@ mod tests {
     use crate::{
         commands,
         from_server_interface::FromServer,
-        objects::{ExecutionState, WorkloadSpec, WorkloadState},
+        objects::WorkloadSpec,
         test_utils::{generate_test_deleted_workload, generate_test_proto_deleted_workload},
     };
 
@@ -230,21 +261,19 @@ mod tests {
 
     #[test]
     fn utest_convert_from_server_to_proto_update_workload_state() {
+        let workload_state = crate::objects::generate_test_workload_state_with_agent(
+            "test_workload",
+            "test_agent",
+            crate::objects::ExecutionState::running(),
+        );
+
         let test_ex_com = FromServer::UpdateWorkloadState(commands::UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                agent_name: "test_agent".to_owned(),
-                workload_name: "test_workload".to_owned(),
-                execution_state: ExecutionState::ExecRunning,
-            }],
+            workload_states: vec![workload_state.clone()],
         });
         let expected_ex_com = Ok(proto::FromServer {
             from_server_enum: Some(FromServerEnum::UpdateWorkloadState(
                 proto::UpdateWorkloadState {
-                    workload_states: vec![api::proto::WorkloadState {
-                        agent_name: "test_agent".to_owned(),
-                        workload_name: "test_workload".to_owned(),
-                        execution_state: ExecutionState::ExecRunning as i32,
-                    }],
+                    workload_states: vec![workload_state.into()],
                 },
             )),
         });
@@ -265,7 +294,8 @@ mod tests {
                     request_id: "req_id".to_owned(),
                     response_content: Some(proto::response::ResponseContent::CompleteState(
                         proto::CompleteState {
-                            current_state: Some(api::proto::State::default()),
+                            format_version: Some(commands::ApiVersion::default().into()),
+                            desired_state: Some(api::proto::State::default()),
                             startup_state: Some(api::proto::State::default()),
                             workload_states: vec![],
                         },

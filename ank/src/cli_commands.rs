@@ -86,9 +86,9 @@ fn generate_compact_state_output(
 ) -> Result<String, CliError> {
     let convert_to_output = |map: serde_yaml::Value| -> Result<String, CliError> {
         match output_format {
-            // [impl -> swdd~cli-shall-support-current-state-yaml~1]
+            // [impl -> swdd~cli-shall-support-desired-state-yaml~1]
             OutputFormat::Yaml => Ok(serde_yaml::to_string(&map)?),
-            // [impl -> swdd~cli-shall-support-current-state-json~1]
+            // [impl -> swdd~cli-shall-support-desired-state-json~1]
             OutputFormat::Json => Ok(serde_json::to_string_pretty(&map)?),
         }
     };
@@ -99,7 +99,18 @@ fn generate_compact_state_output(
         return convert_to_output(deserialized_state);
     }
 
+    // [impl->swdd~cli-returns-format-version-with-desired-state~1]
     let mut compact_state = serde_yaml::Value::Mapping(Default::default());
+    if let Some(filtered_format_version) =
+        get_filtered_value(&deserialized_state, &["formatVersion"])
+    {
+        update_compact_state(
+            &mut compact_state,
+            &["formatVersion"],
+            filtered_format_version.to_owned(),
+        );
+    }
+
     for mask in object_field_mask {
         let splitted_masks: Vec<&str> = mask.split('.').collect();
         if let Some(filtered_mapping) = get_filtered_value(&deserialized_state, &splitted_masks) {
@@ -192,6 +203,8 @@ struct WorkloadInfo {
     runtime: String,
     #[tabled(rename = "EXECUTION STATE")]
     execution_state: String,
+    #[tabled(rename = "ADDITIONAL INFO")]
+    additional_info: String,
 }
 
 pub struct CliCommands {
@@ -307,14 +320,20 @@ impl CliCommands {
                     .unwrap_or_else(|error| {
                         panic!("Could not read the state object file.\nError: {error}")
                     });
-            // [impl -> swdd~cli-supports-yaml-to-set-current-state~1]
-            complete_state_input =
-                serde_yaml::from_str(&state_object_data).unwrap_or_else(|error| {
-                    panic!("Error while parsing the state object data.\nError: {error}")
-                });
+
+            // [impl -> swdd~cli-supports-yaml-to-set-desired-state~1]
+            match serde_yaml::from_str(&state_object_data) {
+                Ok(parsed_complete_state) => complete_state_input = parsed_complete_state,
+                Err(error) => {
+                    output_and_error!("Error while parsing the state object data: '{error}'.");
+                }
+            }
         }
 
-        output_debug!("Send UpdateState request ...");
+        output_debug!(
+            "Send UpdateState request with the CompleteState {:?}",
+            complete_state_input.clone()
+        );
         // send update request
         self.to_server
             .update_state(
@@ -344,17 +363,18 @@ impl CliCommands {
             .workload_states
             .into_iter()
             .map(|wl_state| WorkloadInfo {
-                name: wl_state.workload_name,
-                agent: wl_state.agent_name,
+                name: wl_state.instance_name.workload_name().into(),
+                agent: wl_state.instance_name.agent_name().into(),
                 runtime: String::new(),
-                execution_state: wl_state.execution_state.to_string(),
+                execution_state: wl_state.execution_state.state.to_string(),
+                additional_info: wl_state.execution_state.additional_info.to_string(),
             })
             .collect();
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
         for wi in &mut workload_infos {
             if let Some((_found_wl_name, found_wl_spec)) = res_complete_state
-                .current_state
+                .desired_state
                 .workloads
                 .iter()
                 .find(|&(wl_name, wl_spec)| *wl_name == wi.name && wl_spec.agent == wi.agent)
@@ -398,7 +418,7 @@ impl CliCommands {
         let mut new_state = complete_state.clone();
         // Filter out workloads to be deleted.
         new_state
-            .current_state
+            .desired_state
             .workloads
             .retain(|k, _v| !workload_names.clone().into_iter().any(|wn| &wn == k));
 
@@ -408,11 +428,11 @@ impl CliCommands {
             !workload_names
                 .clone()
                 .into_iter()
-                .any(|wn| wn == ws.workload_name)
+                .any(|wn| wn == ws.instance_name.workload_name())
         });
 
-        let update_mask = vec!["currentState".to_string()];
-        if new_state.current_state != complete_state.current_state {
+        let update_mask = vec!["desiredState".to_string()];
+        if new_state.desired_state != complete_state.desired_state {
             output_debug!("Sending the new state {:?}", new_state);
             self.to_server
                 .update_state(self.cli_name.to_owned(), *new_state, update_mask)
@@ -454,11 +474,11 @@ impl CliCommands {
         output_debug!("Got current state: {:?}", res_complete_state);
         let mut new_state = *res_complete_state.clone();
         new_state
-            .current_state
+            .desired_state
             .workloads
             .insert(workload_name, new_workload);
 
-        let update_mask = vec!["currentState".to_string()];
+        let update_mask = vec!["desiredState".to_string()];
         output_debug!("Sending the new state {:?}", new_state);
         self.to_server
             .update_state(self.cli_name.to_owned(), new_state, update_mask)
@@ -482,7 +502,7 @@ mod tests {
     use common::{
         commands::{self, Request, RequestContent, Response, ResponseContent},
         from_server_interface::{FromServer, FromServerSender},
-        objects::{ExecutionState, Tag, WorkloadSpec, WorkloadState},
+        objects::{ExecutionState, Tag, WorkloadSpec},
         test_utils::{self, generate_test_complete_state},
         to_server_interface::{ToServer, ToServerReceiver},
     };
@@ -503,7 +523,7 @@ mod tests {
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
     const EXAMPLE_STATE_INPUT: &str = r#"{
-        "currentState": {
+        "desiredState": {
             "workloads": {
                 "nginx": {
                     "restart": true,
@@ -650,19 +670,22 @@ mod tests {
                 name: String::from("name1"),
                 agent: String::from("agent_A"),
                 runtime: String::from("runtime"),
-                execution_state: String::from("Running"),
+                execution_state: ExecutionState::running().state.to_string(),
+                additional_info: Default::default(),
             },
             WorkloadInfo {
                 name: String::from("name2"),
                 agent: String::from("agent_B"),
                 runtime: String::from("runtime"),
-                execution_state: String::from("Running"),
+                execution_state: ExecutionState::running().state.to_string(),
+                additional_info: Default::default(),
             },
             WorkloadInfo {
                 name: String::from("name3"),
                 agent: String::from("agent_B"),
                 runtime: String::from("runtime"),
-                execution_state: String::from("Running"),
+                execution_state: ExecutionState::running().state.to_string(),
+                additional_info: Default::default(),
             },
         ];
         let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
@@ -723,7 +746,8 @@ mod tests {
             name: String::from("name1"),
             agent: String::from("agent_A"),
             runtime: String::from("runtime"),
-            execution_state: String::from("Running"),
+            execution_state: ExecutionState::running().state.to_string(),
+            additional_info: Default::default(),
         }];
         let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
         assert_eq!(cmd_text.unwrap(), expected_table_text);
@@ -784,13 +808,15 @@ mod tests {
                 name: String::from("name2"),
                 agent: String::from("agent_B"),
                 runtime: String::from("runtime"),
-                execution_state: String::from("Running"),
+                execution_state: ExecutionState::running().state.to_string(),
+                additional_info: Default::default(),
             },
             WorkloadInfo {
                 name: String::from("name3"),
                 agent: String::from("agent_B"),
                 runtime: String::from("runtime"),
-                execution_state: String::from("Running"),
+                execution_state: ExecutionState::running().state.to_string(),
+                additional_info: Default::default(),
             },
         ];
         let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
@@ -860,11 +886,11 @@ mod tests {
             .await;
 
         let test_data = commands::CompleteState {
-            workload_states: vec![WorkloadState {
-                workload_name: "Workload_1".to_string(),
-                agent_name: "agent_A".to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
+            workload_states: vec![common::objects::generate_test_workload_state_with_agent(
+                "Workload_1",
+                "agent_A",
+                ExecutionState::removed(),
+            )],
             ..Default::default()
         };
 
@@ -897,6 +923,7 @@ mod tests {
             agent: String::from("agent_A"),
             runtime: String::new(),
             execution_state: String::from("Removed"),
+            additional_info: Default::default(),
         }];
         let expected_table_text = Table::new(expected_empty_table)
             .with(Style::blank())
@@ -988,7 +1015,7 @@ mod tests {
                 request_content: RequestContent::UpdateStateRequest(Box::new(
                     commands::UpdateStateRequest {
                         state: updated_state,
-                        update_mask: vec!["currentState".to_string()]
+                        update_mask: vec!["desiredState".to_string()]
                     }
                 ))
             })
@@ -1068,12 +1095,12 @@ mod tests {
         assert!(test_server_receiver.try_recv().is_err());
     }
 
-    // [utest -> swdd~cli-returns-current-state-from-server~1]
-    // [utest -> swdd~cli-shall-support-current-state-yaml~1]
-    // [utest->swdd~cli-blocks-until-ankaios-server-responds-get-current-state~1]
-    // [utest->swdd~cli-provides-get-current-state~1]
+    // [utest -> swdd~cli-returns-desired-state-from-server~1]
+    // [utest -> swdd~cli-shall-support-desired-state-yaml~1]
+    // [utest->swdd~cli-blocks-until-ankaios-server-responds-get-desired-state~1]
+    // [utest->swdd~cli-provides-get-desired-state~1]
     #[tokio::test]
-    async fn get_state_complete_current_state_yaml() {
+    async fn get_state_complete_desired_state_yaml() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1124,9 +1151,9 @@ mod tests {
         assert_eq!(cmd_text, expected_text);
     }
 
-    // [utest -> swdd~cli-shall-support-current-state-json~1]
+    // [utest -> swdd~cli-shall-support-desired-state-json~1]
     #[tokio::test]
-    async fn get_state_complete_current_state_json() {
+    async fn get_state_complete_desired_state_json() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1178,9 +1205,10 @@ mod tests {
         assert_eq!(cmd_text, expected_text);
     }
 
-    // [utest -> swdd~cli-returns-current-state-from-server~1]
+    // [utest -> swdd~cli-returns-desired-state-from-server~1]
+    // [utest->swdd~cli-returns-format-version-with-desired-state~1]
     #[tokio::test]
-    async fn get_state_single_field_of_current_state() {
+    async fn get_state_single_field_of_desired_state() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1225,24 +1253,22 @@ mod tests {
         );
         let cmd_text = cmd
             .get_state(
-                vec!["currentState.workloads.name3.runtime".to_owned()],
+                vec!["desiredState.workloads.name3.runtime".to_owned()],
                 crate::cli::OutputFormat::Yaml,
             )
             .await
             .unwrap();
 
-        let expected_single_field_result_text = serde_yaml::to_string(&serde_json::json!(
-            {"currentState": {"workloads": {"name3": { "runtime": "runtime"}}}}
-        ))
-        .unwrap();
+        let expected_single_field_result_text = "formatVersion:\n  version: v0.1\ndesiredState:\n  workloads:\n    name3:\n      runtime: runtime\n";
 
         assert_eq!(cmd_text, expected_single_field_result_text);
     }
 
-    // [utest->swdd~cli-provides-object-field-mask-arg-to-get-partial-current-state~1]
+    // [utest->swdd~cli-provides-object-field-mask-arg-to-get-partial-desired-state~1]
     // [utest->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
+    // [utest->swdd~cli-returns-format-version-with-desired-state~1]
     #[tokio::test]
-    async fn get_state_multiple_fields_of_current_state() {
+    async fn get_state_multiple_fields_of_desired_state() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1289,21 +1315,21 @@ mod tests {
         let cmd_text = cmd
             .get_state(
                 vec![
-                    "currentState.workloads.name1.runtime".to_owned(),
-                    "currentState.workloads.name2.runtime".to_owned(),
+                    "desiredState.workloads.name1.runtime".to_owned(),
+                    "desiredState.workloads.name2.runtime".to_owned(),
                 ],
                 crate::cli::OutputFormat::Yaml,
             )
             .await
             .unwrap();
         assert!(matches!(cmd_text,
-            txt if txt == *"currentState:\n  workloads:\n    name1:\n      runtime: runtime\n    name2:\n      runtime: runtime\n" ||
-            txt == *"currentState:\n  workloads:\n    name2:\n      runtime: runtime\n    name1:\n      runtime: runtime\n"));
+            txt if txt == *"formatVersion:\n  version: v0.1\ndesiredState:\n  workloads:\n    name1:\n      runtime: runtime\n    name2:\n      runtime: runtime\n" ||
+            txt == *"formatVersion:\n  version: v0.1\ndesiredState:\n  workloads:\n    name2:\n      runtime: runtime\n    name1:\n      runtime: runtime\n"));
     }
 
-    // [utest -> swdd~cli-provides-set-current-state~1]
-    // [utest -> swdd~cli-supports-yaml-to-set-current-state~1]
-    // [utest->swdd~cli-blocks-until-ankaios-server-responds-set-current-state~1]
+    // [utest -> swdd~cli-provides-set-desired-state~1]
+    // [utest -> swdd~cli-supports-yaml-to-set-desired-state~1]
+    // [utest->swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~1]
     #[tokio::test]
     async fn set_state_update_state() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1311,7 +1337,7 @@ mod tests {
             .await;
 
         let mut updated_state = commands::CompleteState::default();
-        updated_state.current_state.workloads.insert(
+        updated_state.desired_state.workloads.insert(
             "name3".to_owned(),
             WorkloadSpec {
                 runtime: "new_runtime".to_owned(),
@@ -1349,7 +1375,9 @@ mod tests {
             .lock()
             .await
             .push_back(Ok(r#"
-            currentState:
+            formatVersion:
+               version: "v0.1"
+            desiredState:
                workloads:
                   name3:
                     runtime: new_runtime
@@ -1357,7 +1385,7 @@ mod tests {
             .to_owned()));
 
         let update_mask = vec![
-            "currentState".to_owned(),
+            "desiredState".to_owned(),
             "workloads".to_owned(),
             "name3".to_owned(),
             "runtime".to_owned(),
@@ -1430,7 +1458,7 @@ mod tests {
         };
         let mut updated_state = startup_state.clone();
         updated_state
-            .current_state
+            .desired_state
             .workloads
             .insert(test_workload_name.clone(), new_workload);
         let complete_states = vec![
@@ -1491,7 +1519,7 @@ mod tests {
                 request_content: RequestContent::UpdateStateRequest(Box::new(
                     commands::UpdateStateRequest {
                         state: updated_state,
-                        update_mask: vec!["currentState".to_string()]
+                        update_mask: vec!["desiredState".to_string()]
                     }
                 ))
             })
@@ -1549,7 +1577,10 @@ mod tests {
         ]);
 
         let expected_state = r#"{
-            "currentState": {
+            "formatVersion": {
+                "version": "v0.1"
+            },
+            "desiredState": {
                 "workloads": {
                     "name1": {
                     "agent": "agent_A",
@@ -1564,12 +1595,7 @@ mod tests {
                         "workload A": "ADD_COND_RUNNING",
                         "workload C": "ADD_COND_SUCCEEDED"
                     },
-                    "updateStrategy": "UNSPECIFIED",
                     "restart": true,
-                    "accessRights": {
-                        "allow": [],
-                        "deny": []
-                    },
                     "runtime": "podman",
                     "runtimeConfig": "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
                     }
@@ -1579,7 +1605,7 @@ mod tests {
 
         let cli_output = generate_compact_state_output(
             &input_state,
-            vec!["currentState.workloads.name1".to_string()],
+            vec!["desiredState.workloads.name1".to_string()],
             OutputFormat::Yaml,
         )
         .unwrap();
@@ -1610,7 +1636,10 @@ mod tests {
         ]);
 
         let expected_state = r#"{
-            "currentState": {
+            "formatVersion": {
+                "version": "v0.1"
+            },
+            "desiredState": {
                 "workloads": {
                     "name1": {
                         "agent": "agent_A",
@@ -1625,12 +1654,7 @@ mod tests {
                             "workload A": "ADD_COND_RUNNING",
                             "workload C": "ADD_COND_SUCCEEDED"
                         },
-                        "updateStrategy": "UNSPECIFIED",
                         "restart": true,
-                        "accessRights": {
-                            "allow": [],
-                            "deny": []
-                        },
                         "runtime": "podman",
                         "runtimeConfig": "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
                     },
@@ -1644,8 +1668,8 @@ mod tests {
         let cli_output = generate_compact_state_output(
             &input_state,
             vec![
-                "currentState.workloads.name1".to_string(),
-                "currentState.workloads.name2.agent".to_string(),
+                "desiredState.workloads.name1".to_string(),
+                "desiredState.workloads.name2.agent".to_string(),
             ],
             OutputFormat::Yaml,
         )
@@ -1661,7 +1685,7 @@ mod tests {
         let deserialized_map: serde_yaml::Value =
             serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
         let result =
-            get_filtered_value(&deserialized_map, &["currentState", "workloads", "nginx"]).unwrap();
+            get_filtered_value(&deserialized_map, &["desiredState", "workloads", "nginx"]).unwrap();
         assert_eq!(
             result.get("restart").unwrap(),
             &serde_yaml::Value::Bool(true)
@@ -1674,7 +1698,7 @@ mod tests {
             serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
         let result = get_filtered_value(
             &deserialized_map,
-            &["currentState", "workloads", "nginx", "agent"],
+            &["desiredState", "workloads", "nginx", "agent"],
         )
         .unwrap();
         let expected = serde_yaml::Value::String("agent_A".to_string());
@@ -1686,7 +1710,7 @@ mod tests {
         let deserialized_map: serde_yaml::Value =
             serde_yaml::from_str(EXAMPLE_STATE_INPUT).unwrap();
         let result = get_filtered_value(&deserialized_map, &[]).unwrap();
-        assert!(result.get("currentState").is_some());
+        assert!(result.get("desiredState").is_some());
     }
 
     #[test]
@@ -1696,14 +1720,14 @@ mod tests {
 
         let result = get_filtered_value(
             &deserialized_map,
-            &["currentState", "workloads", "notExistingWorkload", "nginx"],
+            &["desiredState", "workloads", "notExistingWorkload", "nginx"],
         );
         assert!(result.is_none());
 
         let result = get_filtered_value(
             &deserialized_map,
             &[
-                "currentState",
+                "desiredState",
                 "workloads",
                 "notExistingWorkload",
                 "notExistingField",
@@ -1714,7 +1738,7 @@ mod tests {
         let result = get_filtered_value(
             &deserialized_map,
             &[
-                "currentState",
+                "desiredState",
                 "workloads",
                 "nginx",
                 "agent",
@@ -1733,7 +1757,7 @@ mod tests {
         update_compact_state(
             &mut deserialized_map,
             &[
-                "currentState",
+                "desiredState",
                 "workloads",
                 "createThisKey",
                 "createThisKey",
@@ -1742,7 +1766,7 @@ mod tests {
         );
 
         assert!(deserialized_map
-            .get("currentState")
+            .get("desiredState")
             .and_then(|next| next.get("workloads").and_then(|next| next
                 .get("createThisKey")
                 .and_then(|next| next.get("createThisKey"))))
@@ -1757,7 +1781,7 @@ mod tests {
         update_compact_state(
             &mut deserialized_map,
             &[
-                "currentState",
+                "desiredState",
                 "workloads",
                 "nginx",
                 "restart",
@@ -1768,7 +1792,7 @@ mod tests {
 
         assert_eq!(
             deserialized_map
-                .get("currentState")
+                .get("desiredState")
                 .and_then(|next| next
                     .get("workloads")
                     .and_then(|next| next.get("nginx").and_then(|next| next.get("restart"))))
@@ -1783,12 +1807,12 @@ mod tests {
         let mut empty_map = serde_yaml::Value::Mapping(Default::default());
         update_compact_state(
             &mut empty_map,
-            &["currentState", "workloads", "nginx"],
+            &["desiredState", "workloads", "nginx"],
             serde_yaml::Value::Mapping(Default::default()),
         );
 
         assert!(empty_map
-            .get("currentState")
+            .get("desiredState")
             .and_then(|next| next.get("workloads").and_then(|next| next.get("nginx")))
             .is_some());
     }
@@ -1797,7 +1821,7 @@ mod tests {
     fn utest_update_compact_state_do_not_update_on_empty_mask() {
         let mut empty_map = serde_yaml::Value::Mapping(Default::default());
         empty_map.as_mapping_mut().unwrap().insert(
-            "currentState".into(),
+            "desiredState".into(),
             serde_yaml::Value::Mapping(Default::default()),
         );
         let expected_map = empty_map.clone();

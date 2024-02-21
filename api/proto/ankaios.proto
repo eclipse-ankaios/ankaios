@@ -99,10 +99,8 @@ message AddedWorkload {
   string runtime = 2; /// The name of the runtime, e.g., podman.
   map<string, AddCondition> dependencies = 3; /// A list of dependencies to other workloads with their corresponding, expected states. Can be used to enable a synchronized start of a workload.
   bool restart = 4; /// A flag indicating to restart the workload in case of an intentional or an unintentional stop of the workload.
-  UpdateStrategy updateStrategy = 5; /// An enum to specify the update strategy.
-  AccessRights accessRights = 6; /// Lists of authorizations of the workload.
-  repeated Tag tags = 7; /// A list of tags.
-  string runtimeConfig = 8; /// The configuration information specific to the runtime.
+  repeated Tag tags = 5; /// A list of tags.
+  string runtimeConfig = 6; /// The configuration information specific to the runtime.
 }
 
 /**
@@ -117,8 +115,8 @@ message DeletedWorkload {
 * An enum type describing the conditions for deleting a workload. Used for dependency management, and update strategies.
 */
 enum DeleteCondition {
-    DEL_COND_RUNNING = 0; /// The workload is operational.
-    DEL_COND_NOT_PENDING_NOR_RUNNING = 1; /// The workload is not scheduled or running.
+  DEL_COND_RUNNING = 0; /// The workload is operational.
+  DEL_COND_NOT_PENDING_NOR_RUNNING = 1; /// The workload is not scheduled or running.
 }
 
 /**
@@ -130,29 +128,92 @@ enum AddCondition {
   ADD_COND_FAILED = 2; /// The workload has exited with an error or could not be started.
 }
 
+
+message ExecutionState {
+  string additionalInfo = 1; /// The additional info contains more detailed information from the runtime regarding the execution state.
+  oneof ExecutionStateEnum {
+    AgentDisconnected agentDisconnected = 2; /// The exact state of the workload cannot be determined, e.g., because of a broken connection to the responsible agent.
+    Pending pending = 3; /// The workload is going to be started eventually.
+    Running running = 4; /// The workload is operational.
+    Succeeded succeeded = 5; /// The workload has successfully finished its operation.
+    Failed failed = 6; /// The workload has failed or is in a degraded state.
+    NotScheduled notScheduled = 7; /// The workload is not scheduled to run at any agent. This is signalized with an empty agent in the workload specification.
+    Removed removed = 8; /// The workload was removed from Ankaios. This state is used only internally in Ankaios. The outside world removed states are just not there.
+  }
+}
+
 /**
-* An enum type describing the workload execution state.
+* The workload was removed from Ankaios. This state is used only internally in Ankaios. The outside world removed states are just not there.
 */
-enum ExecutionState {
-    EXEC_UNKNOWN = 0; /// The exact state of the workload cannot be determined, e.g., because of a broken connection to the responsible agent.
-    EXEC_PENDING = 1; /// The workload has not being scheduled yet.
-    EXEC_WAITING_TO_START = 2; /// The start of the workload will be triggered once all its dependencies are met.
-    EXEC_STARTING = 3; /// Starting the workload was scheduled at the corresponding runtime.
-    EXEC_RUNNING = 4; /// The workload is operational.
-    EXEC_SUCCEEDED = 5; /// The workload has successfully finished operation.
-    EXEC_FAILED = 6; /// The workload has failed either during startup ot during operation
-    EXEC_WAITING_TO_STOP = 7; /// Thhe deletion of the workload will be triggered once no 'waiting to start', 'starting' or 'running' workload depending on it exists.
-    EXEC_STOPPING = 8; /// Stopping the workload was scheduled at the corresponding runtimeg.
-    EXEC_REMOVED = 10; /// The workload has been deleted.
+enum Removed {
+    REMOVED = 0;
+}
+
+/**
+* The exact state of the workload cannot be determined, e.g., because of a broken connection to the responsible agent.
+*/
+enum AgentDisconnected {
+    AGENT_DISCONNECTED = 0;
+}
+
+/**
+* The workload is not scheduled to run at any agent. This is signalized with an empty agent in the workload specification.
+*/
+enum NotScheduled {
+    NOT_SCHEDULED = 0;
+}
+
+/**
+* The workload is going to be started eventually.
+*/
+enum Pending {
+  PENDING_INITIAL = 0; /// The workload specification has not yet being received by an agent
+  PENDING_WAITING_TO_START = 1; /// The start of the workload will be triggered once all its dependencies are met.
+  PENDING_STARTING = 2; /// Starting the workload was scheduled at the corresponding runtime.
+  PENDING_STARTING_FAILED = 8; /// The starting of the workload by the runtime failed.
+}
+
+/**
+* The workload is operational.
+*/
+enum Running {
+  RUNNING_OK = 0; /// The workload is operational.
+  RUNNING_WAITING_TO_STOP = 1; /// The deletion of the workload will be triggered once neither 'pending' nor 'running' workload depending on it exists.
+  RUNNING_STOPPING = 2; /// Stopping the workload was scheduled at the corresponding runtime.
+  RUNNING_DELETE_FAILED = 8; /// The deletion of the workload by the runtime failed.
+}
+
+/**
+* The workload has successfully finished operation.
+*/
+enum Succeeded {
+  SUCCEEDED_OK = 0; /// The workload has successfully finished operation.
+  SUCCEEDED_DELETE_FAILED = 8; /// The deletion of the workload by the runtime failed.
+}
+
+/**
+* The workload has failed or is in a degraded state.
+*/
+enum Failed {
+  FAILED_EXEC_FAILED = 0; /// The workload has failed during operation
+  FAILED_UNKNOWN = 1; /// The workload is in an unsupported by Ankaios runtime state. The workload was possibly altered outside of Ankaios.
+  FAILED_LOST = 2; /// The workload cannot be found anymore. The workload was possibly altered outside of Ankaios or was auto-removed by the runtime.
+  FAILED_DELETE_FAILED = 8; /// The deletion of the workload by the runtime failed.
 }
 
 /**
 * A message containing the information about the workload state.
 */
 message WorkloadState {
-    string workloadName = 1; /// The name of the workload.
-    string agentName = 2; /// The name of the owning Agent.
-    ExecutionState executionState = 3; /// The workload execution state.
+  WorkloadInstanceName instanceName = 1;
+  string workloadId = 2; /// Normally, the Id is provided to the workload by the runtime. The Id may not be available in all execution states.
+  ExecutionState executionState = 3; /// The workload execution state.
+}
+
+message WorkloadInstanceName {
+  string workloadName = 1; /// The name of the workload.
+  string agentName = 2; /// The name of the owning Agent.
+  string configId = 3; // A unique identifier of the runtime config.
 }
 
 /**
@@ -168,6 +229,7 @@ message Response {
     Success success = 2;
     Error error = 3;
     CompleteState completeState = 4;
+    UpdateStateSuccess UpdateStateSuccess = 5;
   }
 }
 
@@ -177,14 +239,24 @@ message Error {
   string message = 1;
 }
 
+message UpdateStateSuccess {
+    repeated string addedWorkloads = 1; /// Workload istance names of workloads which will be started
+    repeated string deletedWorkloads = 2; /// Workload instance names of workloads which will be stopped
+}
+
+message ApiVersion {
+    string version = 1; /// The current version of the API.
+}
+
 /**
 * A message containing the complete state of the Ankaios system.
 * This is a response to the [CompleteStateRequest](#completestaterequest) message.
 */
 message CompleteState {
-  State startupState = 1; /// The State information at the startup of the Ankaios System.
-  State currentState = 2; /// The current state information.
-  repeated WorkloadState workloadStates = 3; /// The current states of the workloads.
+  ApiVersion format_version = 1; /// The current version of the API.
+  State startupState = 2; /// The State information at the startup of the Ankaios System.
+  State desiredState = 3; /// The state the user wants to reach.
+  repeated WorkloadState workloadStates = 4; /// The current states of the workloads.
 }
 
 // Common messages
@@ -194,7 +266,7 @@ message CompleteState {
 * This is usually answered with a [CompleteState](#completestate) message.
 */
 message CompleteStateRequest {
-  repeated string fieldMask = 1; /// A list of symbolic field paths within the State message structure e.g. 'currentState.workloads.nginx'.
+  repeated string fieldMask = 1; /// A list of symbolic field paths within the State message structure e.g. 'desiredState.workloads.nginx'.
 }
 
 /**
@@ -205,7 +277,7 @@ message CompleteStateRequest {
 */
 message UpdateStateRequest {
   CompleteState newState = 1; /// The new state of the Ankaios system.
-  repeated string updateMask = 2; /// A list of symbolic field paths within the state message structure e.g. 'currentState.workloads.nginx' to specify what to be updated.
+  repeated string updateMask = 2; /// A list of symbolic field paths within the state message structure e.g. 'desiredState.workloads.nginx' to specify what to be updated.
 }
 
 /**
@@ -213,8 +285,6 @@ message UpdateStateRequest {
 */
 message State {
   map<string, Workload> workloads = 1; /// A mapping from workload names to workload configurations.
-  map<string, string> configs = 2; /// A key value storage for reusable configuration items.
-  map<string, Cronjob> cronjobs = 3; /// A mapping from workload names to cron job configurations.
 }
 
 /**
@@ -224,20 +294,9 @@ message Workload {
   string agent = 1; /// The name of the owning Agent.
   bool restart = 2; /// A flag indicating to restart the workload in case of an intentional or an unintentional stop of the workload.
   map<string, AddCondition> dependencies = 3; /// A map of workload names and expected states to enable a synchronized start of the workload.
-  UpdateStrategy updateStrategy = 4; /// An enum to specify the update strategy.
-  repeated Tag tags = 5; /// A list of tag names.
-  AccessRights accessRights = 6; /// Lists of authorizations of the workload.
-  string runtime = 7; /// The name of the runtime e.g. podman.
-  string runtimeConfig  = 8; /// The configuration information specific to the runtime.
-}
-
-/**
-* An enum type for specifing the update strategy.
-*/
-enum UpdateStrategy {
-    UNSPECIFIED = 0; /// The update order is irrelevant.
-    AT_LEAST_ONCE = 1; /// At least one instance shall be running - start the new before stopping the old one.
-    AT_MOST_ONCE = 2; /// At most one instance shall be running - stop the old before starting the new one.
+  repeated Tag tags = 4; /// A list of tag names.
+  string runtime = 5; /// The name of the runtime e.g. podman.
+  string runtimeConfig  = 6; /// The configuration information specific to the runtime.
 }
 
 /**
@@ -246,47 +305,4 @@ enum UpdateStrategy {
 message Tag {
   string key = 1; /// The key of the tag.
   string value = 2; /// The value of the tag.
-}
-
-/**
-* A message containing lists of access rules that are allowed or denied.
-*/
-message AccessRights {
-  repeated AccessRightsRule allow = 1; /// A list of access rules that are allowed.
-  repeated AccessRightsRule deny = 2; /// A list of access rules that are denied.
-}
-
-/**
-* A message describing an access rule for the given patch operation for given object fields and values.
-*/
-message AccessRightsRule {
-  PatchOperation operation = 1; /// The patch operation of interrest.
-  repeated string updateMask = 2; /// A List of field names.
-  repeated string value = 3; /// A list of accepted values.
-}
-
-/**
-* An enum type for specifing the patch operation.
-*/
-enum PatchOperation {
-  REPLACE = 0; /// The replace operation.
-  ADD = 1; /// The add operation.
-  REMOVE =2; /// the remove operation.
-}
-
-/**
-* A message containing the cron job information.
-*/
-message Cronjob {
-  string workload = 1; /// The name of the workload.
-  Interval interval = 2; /// The interval of the cron job.
-}
-
-/**
-* A message containing the interval information for the cron job.
-*/
-message Interval {
-  uint32 hours = 1; /// The number of hours.
-  uint32 minutes = 2; /// The number of minutes.
-  uint32 seconds = 3; /// The number of seconds.
 }

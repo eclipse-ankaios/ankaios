@@ -70,7 +70,7 @@ impl RestartCounter {
 
 pub struct ControlLoopState<WorkloadId, StChecker>
 where
-    WorkloadId: Send + Sync + 'static,
+    WorkloadId: ToString + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
     pub instance_name: WorkloadExecutionInstanceName,
@@ -93,7 +93,7 @@ impl WorkloadControlLoop {
         error_msg: String,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
-        WorkloadId: Send + Sync + 'static,
+        WorkloadId: ToString + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         log::info!(
@@ -120,7 +120,7 @@ impl WorkloadControlLoop {
         error_msg: String,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
-        WorkloadId: Send + Sync + 'static,
+        WorkloadId: ToString + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         control_loop_state.workload_id = None;
@@ -148,9 +148,9 @@ impl WorkloadControlLoop {
             control_loop_state
                 .update_state_tx
                 .update_workload_state(vec![common::objects::WorkloadState {
-                    agent_name: control_loop_state.instance_name.agent_name().into(),
-                    workload_name: control_loop_state.instance_name.workload_name().into(),
-                    execution_state: ExecutionState::ExecFailed,
+                    instance_name: control_loop_state.instance_name.to_owned(),
+                    execution_state: ExecutionState::restart_failed_no_retry(),
+                    ..Default::default()
                 }])
                 .await
                 .unwrap_or_else(|err| {
@@ -191,7 +191,7 @@ impl WorkloadControlLoop {
         ) -> Fut,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
-        WorkloadId: Send + Sync + 'static,
+        WorkloadId: ToString + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
         Fut: Future<Output = ControlLoopState<WorkloadId, StChecker>>,
     {
@@ -229,7 +229,7 @@ impl WorkloadControlLoop {
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
     ) -> Option<ControlLoopState<WorkloadId, StChecker>>
     where
-        WorkloadId: Send + Sync + 'static,
+        WorkloadId: ToString + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         let workload_name = control_loop_state.instance_name.workload_name();
@@ -245,22 +245,36 @@ impl WorkloadControlLoop {
                     old_checker.stop_checker().await;
                 }
                 log::debug!("Stop workload complete");
+
+                // Successfully stopped the workload and the state checker. Send a removed on the channel
+                control_loop_state
+                    .update_state_tx
+                    .update_workload_state(vec![common::objects::WorkloadState {
+                        instance_name: control_loop_state.instance_name.to_owned(),
+                        execution_state: ExecutionState::removed(),
+                        workload_id: old_id.to_string(),
+                    }])
+                    .await
+                    .unwrap_or_illegal_state();
             }
         } else {
             // [impl->swdd~agent-workload-control-loop-delete-broken-allowed~1]
             log::debug!("Workload '{}' already gone.", workload_name);
-        }
 
-        // Successfully stopped the workload and the state checker. Send a removed on the channel
-        control_loop_state
-            .update_state_tx
-            .update_workload_state(vec![common::objects::WorkloadState {
-                agent_name: control_loop_state.instance_name.agent_name().to_string(),
-                workload_name: control_loop_state.instance_name.workload_name().to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }])
-            .await
-            .unwrap_or_illegal_state();
+            // TODO: this has to be done in a better way and not repeating the code. The
+            // new functionality taking care of this will come with a dedicated PR
+            //
+            // Successfully stopped the workload and the state checker. Send a removed on the channel
+            control_loop_state
+                .update_state_tx
+                .update_workload_state(vec![common::objects::WorkloadState {
+                    instance_name: control_loop_state.instance_name.to_owned(),
+                    execution_state: ExecutionState::removed(),
+                    ..Default::default() // no id
+                }])
+                .await
+                .unwrap_or_illegal_state();
+        }
 
         None
     }
@@ -271,7 +285,7 @@ impl WorkloadControlLoop {
         control_interface_path: Option<PathBuf>,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
-        WorkloadId: Send + Sync + 'static,
+        WorkloadId: ToString + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         let workload_name = control_loop_state.instance_name.workload_name();
@@ -308,7 +322,7 @@ impl WorkloadControlLoop {
         control_interface_path: Option<PathBuf>,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
-        WorkloadId: Send + Sync + 'static,
+        WorkloadId: ToString + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         if control_loop_state.instance_name == runtime_workload_config.instance_name()
@@ -332,7 +346,7 @@ impl WorkloadControlLoop {
     pub async fn run<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
     ) where
-        WorkloadId: Send + Sync + 'static,
+        WorkloadId: ToString + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         loop {
@@ -407,7 +421,7 @@ mod tests {
 
     use common::{
         commands::UpdateWorkloadState,
-        objects::{ExecutionState, WorkloadInstanceName, WorkloadState},
+        objects::{ExecutionState, WorkloadInstanceName},
         test_utils::generate_test_workload_spec_with_param,
         to_server_interface::ToServer,
     };
@@ -476,7 +490,7 @@ mod tests {
 
         // Send the update command now. It will be buffered until the await receives it.
         workload_command_sender
-            .update(workload_spec, Some(PIPES_LOCATION.into()))
+            .update(workload_spec.clone(), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
@@ -501,17 +515,19 @@ mod tests {
         .is_ok());
 
         let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
+            workload_states: vec![
+                common::objects::generate_test_workload_state_with_workload_spec(
+                    &workload_spec,
+                    WORKLOAD_ID,
+                    ExecutionState::removed(),
+                ),
+            ],
         };
 
-        assert!(matches!(
+        assert_eq!(
             timeout(Duration::from_millis(200), to_server_rx.recv()).await,
-            Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
-        if workload_state == expected_state));
+            Ok(Some(ToServer::UpdateWorkloadState(expected_state)))
+        );
 
         runtime_mock.assert_all_expectations().await;
     }
@@ -556,7 +572,7 @@ mod tests {
 
         // Send the update command now. It will be buffered until the await receives it.
         workload_command_sender
-            .update(workload_spec, Some(PIPES_LOCATION.into()))
+            .update(workload_spec.clone(), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
@@ -581,17 +597,19 @@ mod tests {
         .is_ok());
 
         let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
+            workload_states: vec![
+                common::objects::generate_test_workload_state_with_workload_spec(
+                    &workload_spec,
+                    WORKLOAD_ID,
+                    ExecutionState::removed(),
+                ),
+            ],
         };
 
-        assert!(matches!(
+        assert_eq!(
             timeout(Duration::from_millis(200), to_server_rx.recv()).await,
-            Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
-        if workload_state == expected_state));
+            Ok(Some(ToServer::UpdateWorkloadState(expected_state)))
+        );
 
         runtime_mock.assert_all_expectations().await;
     }
@@ -634,7 +652,7 @@ mod tests {
 
         // Send the update command now. It will be buffered until the await receives it.
         workload_command_sender
-            .update(workload_spec, Some(PIPES_LOCATION.into()))
+            .update(workload_spec.clone(), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
@@ -659,17 +677,19 @@ mod tests {
         .is_ok());
 
         let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
+            workload_states: vec![
+                common::objects::generate_test_workload_state_with_workload_spec(
+                    &workload_spec,
+                    OLD_WORKLOAD_ID,
+                    ExecutionState::removed(),
+                ),
+            ],
         };
 
-        assert!(matches!(
+        assert_eq!(
             timeout(Duration::from_millis(200), to_server_rx.recv()).await,
-            Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
-        if workload_state == expected_state));
+            Ok(Some(ToServer::UpdateWorkloadState(expected_state)))
+        );
 
         runtime_mock.assert_all_expectations().await;
     }
@@ -714,7 +734,7 @@ mod tests {
 
         // Send the update command now. It will be buffered until the await receives it.
         workload_command_sender
-            .update(workload_spec, Some(PIPES_LOCATION.into()))
+            .update(workload_spec.clone(), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
@@ -739,11 +759,13 @@ mod tests {
         .is_ok());
 
         let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
+            workload_states: vec![
+                common::objects::generate_test_workload_state_with_workload_spec(
+                    &workload_spec,
+                    "",
+                    ExecutionState::removed(),
+                ),
+            ],
         };
 
         assert!(matches!(
@@ -803,17 +825,19 @@ mod tests {
         .is_ok());
 
         let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
+            workload_states: vec![
+                common::objects::generate_test_workload_state_with_workload_spec(
+                    &workload_spec,
+                    OLD_WORKLOAD_ID,
+                    ExecutionState::removed(),
+                ),
+            ],
         };
 
-        assert!(matches!(
+        assert_eq!(
             timeout(Duration::from_millis(200), to_server_rx.recv()).await,
-            Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
-        if workload_state == expected_state));
+            Ok(Some(ToServer::UpdateWorkloadState(expected_state)))
+        );
 
         runtime_mock.assert_all_expectations().await;
     }
@@ -874,17 +898,19 @@ mod tests {
         .is_ok());
 
         let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecRemoved,
-            }],
+            workload_states: vec![
+                common::objects::generate_test_workload_state_with_workload_spec(
+                    &workload_spec,
+                    OLD_WORKLOAD_ID,
+                    ExecutionState::removed(),
+                ),
+            ],
         };
 
-        assert!(matches!(
+        assert_eq!(
             timeout(Duration::from_millis(200), to_server_rx.recv()).await,
-            Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
-        if workload_state == expected_state));
+            Ok(Some(ToServer::UpdateWorkloadState(expected_state)))
+        );
 
         runtime_mock.assert_all_expectations().await;
     }
@@ -1069,7 +1095,7 @@ mod tests {
         };
 
         assert!(timeout(
-            Duration::from_millis(150),
+            Duration::from_millis(200),
             WorkloadControlLoop::run(control_loop_state)
         )
         .await
@@ -1259,7 +1285,7 @@ mod tests {
         runtime_mock.expect(runtime_expectations).await;
 
         workload_command_sender
-            .restart(workload_spec, Some(PIPES_LOCATION.into()))
+            .restart(workload_spec.clone(), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
 
@@ -1290,11 +1316,13 @@ mod tests {
         .is_ok());
 
         let expected_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                workload_name: WORKLOAD_1_NAME.to_string(),
-                agent_name: AGENT_NAME.to_string(),
-                execution_state: ExecutionState::ExecFailed,
-            }],
+            workload_states: vec![
+                common::objects::generate_test_workload_state_with_workload_spec(
+                    &workload_spec,
+                    "",
+                    ExecutionState::restart_failed_no_retry(),
+                ),
+            ],
         };
 
         assert!(matches!(to_server_rx.try_recv(),

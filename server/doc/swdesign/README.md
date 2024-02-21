@@ -218,20 +218,6 @@ Needs:
 - impl
 - utest
 
-#### AnkaiosServer sends all Workload States on Agent connect
-`swdd~server-sends-all-workload-states-on-agent-connect~1`
-
-Status: approved
-
-When an Agent connects to the Server, the Ankaios Server shall send all Workload States to the Agent.
-
-Tags:
-- AnkaiosServer
-
-Needs:
-- impl
-- utest
-
 #### Agent selection based on `agent` field
 `swdd~agent-from-agent-field~1`
 
@@ -255,6 +241,7 @@ When startup state is loaded and the ToServer message AgentHello is received fro
 
 Tags:
 - AnkaiosServer
+- WorkloadStateDB
 
 Needs:
 - impl
@@ -288,36 +275,52 @@ When the ToServer message UpdateWorkloadState is received by the Ankaios Server 
 
 Tags:
 - AnkaiosServer
+- WorkloadStateDB
 
 Needs:
 - impl
 - utest
 
-### ExecUnknown Workload State of disconnected agents
-The following diagram shows the sequence of setting the Workload States of an disconnected agent to ExecUnknown and the distribution of its Workload States to other connected agents:
-
-![Set Workload States to ExecUnknown and distribute sequence](plantuml/seq_set_wl_state_unknown_update.svg)
-
-#### Server sets Workload State to ExecUnknown when an agent disconnects
-`swdd~server-set-workload-state-unknown-on-disconnect~1`
+#### Server deletes removed Workload State
+`swdd~server-deletes-removed-workload-state~1`
 
 Status: approved
 
-When the ToServer message AgentGone is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall set all the Workload States of that agent to ExecUnknown.
+When the WorkloadStateDB receives a workload state stating a workload was removed, the WorkloadStateDB shall delete that state from its storage.
+
+Tags:
+- WorkloadStateDB
+
+Needs:
+- impl
+- utest
+
+### Workload State update on disconnected agents
+The following diagram shows the sequence of updating the Workload States of a disconnected agent and the distribution of its Workload States to other connected agents:
+
+![Set Workload States to agent disconnected and distribute sequence](plantuml/seq_set_wl_state_on_disconnected.svg)
+
+#### Server sets Workload State to agent disconnects on connection loss
+`swdd~server-set-workload-state-on-disconnect~1`
+
+Status: approved
+
+When the ToServer message AgentGone is received by the Ankaios server from an Ankaios agent, the Ankaios server shall set all the Workload States of that agent to `agent disconnected`.
 
 Tags:
 - AnkaiosServer
+- WorkloadStateDB
 
 Needs:
 - impl
 - utest
 
 #### Server distributes Workload State when an agent disconnects
-`swdd~server-distribute-workload-state-unknown-on-disconnect~1`
+`swdd~server-distribute-workload-state-on-disconnect~1`
 
 Status: approved
 
-When the ToServer message AgentGone is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall distribute the Workload States of that disconnected Ankaios Agent via the FromServer message UpdateWorkloadState to all remaining agents.
+When the ToServer message AgentGone is received by the Ankaios server from an Ankaios Agent, the Ankaios server shall distribute the Workload States of that disconnected Ankaios agent via the FromServer message UpdateWorkloadState to all remaining agents.
 
 Tags:
 - AnkaiosServer
@@ -344,23 +347,26 @@ The Ankaios Server provides an interface to get the CompleteState.
 The CompleteState includes:
 
 - StartupState
-- CurrentState
+- DesiredState
 - WorkloadState
 
 Tags:
+- AnkaiosServer
 - ControlInterface
+- WorkloadStateDB
+- ServerState
 
 Needs:
 - impl
 - utest
 
 ##### Server filters GetCompleteState requests
-`swdd~server-filters-get-complete-state-result~1`
+`swdd~server-filters-get-complete-state-result~2`
 
 Status: approved
 
 When the Ankaios Server responses to a GetCompleteState request and the request contains a `field_mask`,
-it only includes fields in the response, which are listed in the `field_mask`.
+the response includes the filed `format_version` and the fields listed in the `field_mask`.
 
 Tags:
 - ControlInterface
@@ -389,12 +395,12 @@ The following diagram shows the sequence of UpdateState request from the agent:
 
 ![Update state sequence](plantuml/seq_update_state.svg)
 
-##### Server provides UpdateCurrentState interface
-`swdd~server-provides-update-current-state-interface~1`
+##### Server provides UpdateState interface
+`swdd~server-provides-update-desired-state-interface~1`
 
 Status: approved
 
-The Ankaios Server provides an UpdateCurrentState interface.
+The Ankaios Server provides an UpdateState interface.
 
 Tags:
 - ControlInterface
@@ -403,13 +409,13 @@ Needs:
 - impl
 - utest
 
-##### UpdateCurrentState interface with empty update_mask
-`swdd~update-current-state-empty-update-mask~1`
+##### UpdateState interface with empty update_mask
+`swdd~update-desired-state-empty-update-mask~1`
 
 Status: approved
 
-When the Ankaios Server gets an UpdateCurrentState request with empty update_mask,
-the Ankaios Server replaces its CurrentState with the newState from the UpdateStateRequest.
+When the Ankaios Server gets an UpdateStateRequest with empty update_mask,
+the Ankaios Server replaces its DesiredState with the newState from the UpdateStateRequest.
 
 Tags:
 - ControlInterface
@@ -418,13 +424,13 @@ Needs:
 - impl
 - utest
 
-##### UpdateCurrentState interface with update_mask
-`swdd~update-current-state-with-update-mask~1`
+##### UpdateState interface with update_mask
+`swdd~update-desired-state-with-update-mask~1`
 
 Status: approved
 
-When the Ankaios Server gets an UpdateCurrentState request with a non empty update_mask,
-the Ankaios Server replaces each field of its CurrentState listed in the update_mask, with the value of the same field of the newState from the UpdateStateRequest.
+When the Ankaios Server gets an UpdateStateRequest with a non empty update_mask,
+the Ankaios Server replaces each field of its DesiredState listed in the update_mask, with the value of the same field of the newState from the UpdateStateRequest.
 
 Tags:
 - ControlInterface
@@ -433,9 +439,41 @@ Needs:
 - impl
 - utest
 
-Comment: If one field from the update_mask is not present in the CurrentState, this field is created. This can include any amount of parent fields.
+Comment: If one field from the update_mask is not present in the DesiredState, this field is created. This can include any amount of parent fields.
 
-If one field from the update_mask is not present in the newState, this field is deleted from the CurrentState.
+If one field from the update_mask is not present in the newState, this field is deleted from the DesiredState.
+
+##### UpdateState interface with invalid version
+`swdd~update-desired-state-with-invalid-version~1`
+
+Status: approved
+
+When the Ankaios Server gets an UpdateStateRequest with an API version which is not identical to the API version expected by the Ankaios Server,
+the Ankaios Server shall reject the request and keep on listening for incoming requests.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
+- stest
+
+##### UpdateState interface with missing version
+`swdd~update-desired-state-with-missing-version~1`
+
+Status: approved
+
+When the Ankaios Server gets an UpdateStateRequest without set API version,
+the Ankaios Server shall reject the request and keep on listening for incoming requests.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
+- stest
 
 ### Update Current State
 

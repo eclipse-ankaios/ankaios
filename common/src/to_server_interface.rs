@@ -160,17 +160,19 @@ impl ToServerInterface for ToServerSender {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-#[cfg(feature = "test_utils")]
+#[cfg(test)]
 pub fn generate_test_failed_update_workload_state(
     agent_name: &str,
     workload_name: &str,
 ) -> ToServer {
+    use crate::objects::ExecutionState;
+
     ToServer::UpdateWorkloadState(commands::UpdateWorkloadState {
-        workload_states: vec![crate::objects::WorkloadState {
-            workload_name: workload_name.to_string(),
-            agent_name: agent_name.to_string(),
-            execution_state: crate::objects::ExecutionState::ExecFailed,
-        }],
+        workload_states: vec![crate::objects::generate_test_workload_state_with_agent(
+            workload_name,
+            agent_name,
+            ExecutionState::failed("additional_info"),
+        )],
     })
 }
 
@@ -226,7 +228,8 @@ mod tests {
                     proto::UpdateStateRequest {
                         update_mask: vec!["test_update_mask_field".to_owned()],
                         new_state: Some(proto::CompleteState {
-                            current_state: Some(proto::State {
+                            format_version: Some(common::commands::ApiVersion::default().into()),
+                            desired_state: Some(proto::State {
                                 workloads: HashMap::from([(
                                     "test_workload".to_owned(),
                                     proto::Workload {
@@ -248,7 +251,7 @@ mod tests {
             request_content: RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 update_mask: vec!["test_update_mask_field".to_owned()],
                 state: crate::commands::CompleteState {
-                    current_state: crate::objects::State {
+                    desired_state: crate::objects::State {
                         workloads: HashMap::from([(
                             "test_workload".to_owned(),
                             crate::objects::WorkloadSpec {
@@ -276,7 +279,7 @@ mod tests {
                     proto::UpdateStateRequest {
                         update_mask: vec!["test_update_mask_field".to_owned()],
                         new_state: Some(proto::CompleteState {
-                            current_state: Some(proto::State {
+                            desired_state: Some(proto::State {
                                 workloads: HashMap::from([(
                                     "test_workload".to_owned(),
                                     proto::Workload {

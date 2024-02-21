@@ -1727,14 +1727,14 @@ Needs:
 - impl
 - utest
 
-##### PodmanStateGetter returns removed state
-`swdd~podman-state-getter-returns-removed-state~1`
+##### PodmanStateGetter returns lost state
+`swdd~podman-state-getter-returns-lost-state~1`
 
 Status: approved
 
 When the `PodmanStateGetter` is called to get the current state of a workload over the state getter interface
 and the `PodmanStateGetter` gets no state for this workload,
-the `PodmanStateGetter` shall return the state removed.
+the `PodmanStateGetter` shall return the state `lost`.
 
 Rationale:
 This happens when the container has been removed and the Agent meanwhile triggers status check of the workload.

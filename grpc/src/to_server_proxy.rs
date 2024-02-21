@@ -201,7 +201,6 @@ mod tests {
     use super::{forward_from_ankaios_to_proto, forward_from_proto_to_ankaios, GRPCStreaming};
     use async_trait::async_trait;
     use common::{
-        objects as ankaios,
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
         to_server_interface::{ToServer, ToServerInterface},
     };
@@ -276,11 +275,11 @@ mod tests {
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
         let (grpc_tx, mut grpc_rx) = mpsc::channel::<proto::ToServer>(common::CHANNEL_CAPACITY);
 
-        let wl_state = common::objects::WorkloadState {
-            agent_name: "other_agent".into(),
-            workload_name: "workload_1".into(),
-            execution_state: common::objects::ExecutionState::ExecRunning,
-        };
+        let wl_state = common::objects::generate_test_workload_state_with_agent(
+            "workload_1",
+            "other_agent",
+            common::objects::ExecutionState::running(),
+        );
 
         let update_workload_state_result = server_tx
             .update_workload_state(vec![wl_state.clone()])
@@ -377,14 +376,16 @@ mod tests {
                 "my_runtime".into(),
             )])
             .into();
-        ankaios_state
-            .current_state
+        *ankaios_state
+            .desired_state
             .as_mut()
             .unwrap()
             .workloads
             .get_mut("name")
             .unwrap()
-            .update_strategy = -1;
+            .dependencies
+            .get_mut(&String::from("workload A"))
+            .unwrap() = -1;
 
         let ankaios_update_mask = vec!["bla".into()];
 
@@ -476,11 +477,13 @@ mod tests {
         let agent_name = "fake_agent";
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
-        let proto_wl_state = proto::WorkloadState {
-            workload_name: "fake_workload".into(),
-            agent_name: agent_name.into(),
-            execution_state: ankaios::ExecutionState::ExecRunning as i32,
-        };
+        let proto_wl_state: proto::WorkloadState =
+            common::objects::generate_test_workload_state_with_agent(
+                "fake_workload",
+                agent_name,
+                common::objects::ExecutionState::running(),
+            )
+            .into();
 
         // simulate the reception of an update workload state grpc from server message
         let mut mock_grpc_ex_request_streaming =
