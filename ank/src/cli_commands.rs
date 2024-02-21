@@ -2604,7 +2604,7 @@ mod tests {
             ..Default::default()
         };
 
-        let expected_filter_masks = vec!["currentState.workloads.simple".to_string()];
+        let expected_filter_masks = vec!["desiredState.workloads.simple".to_string()];
 
         let mut manifests: Vec<InputSourcePair> =
             vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
@@ -2652,7 +2652,7 @@ mod tests {
             ..Default::default()
         };
 
-        let expected_filter_masks = vec!["currentState.workloads.simple".to_string()];
+        let expected_filter_masks = vec!["desiredState.workloads.simple".to_string()];
 
         let mut manifests: Vec<InputSourcePair> =
             vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
@@ -2774,7 +2774,7 @@ mod tests {
                 request_content: RequestContent::UpdateStateRequest(Box::new(
                     commands::UpdateStateRequest {
                         state: updated_state,
-                        update_mask: vec!["currentState.workloads.simple_manifest1".to_string(),]
+                        update_mask: vec!["desiredState.workloads.simple_manifest1".to_string(),]
                     }
                 ))
             })
