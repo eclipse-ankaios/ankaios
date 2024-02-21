@@ -290,10 +290,8 @@ mod apply_manifests {
         paths: &[Path],
         manifest_file_name: &str,
         delete_mode: bool,
-        console_output: &mut String,
+        table_output: &mut Vec<ApplyManifestTableDisplay>,
     ) -> Result<(), String> {
-        let mut table_output = Vec::<ApplyManifestTableDisplay>::default();
-
         for workload_path in paths.iter() {
             let workload_name = &workload_path.parts()[1];
             let cur_workload_spec = cur_obj.get(workload_path).unwrap().clone();
@@ -325,12 +323,6 @@ mod apply_manifests {
             }
         }
 
-        console_output.push_str(
-            &tabled::Table::new(table_output)
-                .with(tabled::settings::Style::blank())
-                .to_string(),
-        );
-
         Ok(())
     }
 
@@ -351,7 +343,7 @@ mod apply_manifests {
     pub fn generate_state_obj_and_filter_masks_from_manifests(
         manifests: &mut [InputSourcePair],
         apply_args: &ApplyArgs,
-        console_output: &mut String,
+        table_output: &mut Vec<ApplyManifestTableDisplay>,
     ) -> Result<(CompleteState, Vec<String>), String> {
         let mut req_obj: Object = State::default().try_into().unwrap();
         let mut req_paths: Vec<common::state_manipulation::Path> = Vec::new();
@@ -364,7 +356,7 @@ mod apply_manifests {
                 &cur_workload_paths,
                 &manifest.0,
                 apply_args.delete_mode,
-                console_output,
+                table_output,
             )?;
 
             req_paths.append(&mut cur_workload_paths);
@@ -521,7 +513,6 @@ pub struct CliCommands {
     task: tokio::task::JoinHandle<()>,
     to_server: ToServerSender,
     from_server: FromServerReceiver,
-    console_output: String,
 }
 
 impl CliCommands {
@@ -534,7 +525,6 @@ impl CliCommands {
             task,
             to_server,
             from_server,
-            console_output: String::default(),
         }
     }
 
@@ -805,11 +795,12 @@ impl CliCommands {
         use apply_manifests::*;
         match apply_args.get_input_sources() {
             Ok(mut manifests) => {
+                let mut table_output = Vec::<ApplyManifestTableDisplay>::default();
                 let (complete_state_req_obj, filter_masks) =
                     generate_state_obj_and_filter_masks_from_manifests(
                         &mut manifests,
                         &apply_args,
-                        &mut self.console_output,
+                        &mut table_output,
                     )?;
 
                 let request_id: &str = &self.cli_name;
@@ -829,7 +820,9 @@ impl CliCommands {
                                         request_id: req_id,
                                         response_content: _,
                                     })) if req_id == request_id => {
-                                        return Ok(self.console_output.clone());
+                                        return Ok(tabled::Table::new(table_output)
+                                            .with(tabled::settings::Style::blank())
+                                            .to_string());
                                     }
                                     None => return Err("Channel preliminary closed."),
                                     Some(_) => (),
@@ -878,6 +871,13 @@ fn generate_multiple_test_apply_manifest_table_display(
     ])
     .with(tabled::settings::Style::blank())
     .to_string();
+}
+
+#[cfg(test)]
+fn generate_apply_manifest_table_output(table_output: &Vec<ApplyManifestTableDisplay>) -> String {
+    tabled::Table::new(table_output)
+        .with(tabled::settings::Style::blank())
+        .to_string()
 }
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
@@ -2377,7 +2377,7 @@ mod tests {
 
     #[test]
     fn utest_update_request_obj_ok() {
-        let mut console_output = "".to_string();
+        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
         let mut req_obj = Object::default();
         let content_value: Value = serde_yaml::from_str(
             r#"
@@ -2406,16 +2406,18 @@ mod tests {
             &paths,
             "manifest_file_name",
             false,
-            &mut console_output,
+            &mut table_output,
         )
         .is_ok());
         assert_eq!(expected_obj, req_obj);
-        assert_eq!(expected_output, console_output);
+        assert_eq!(
+            expected_output,
+            super::generate_apply_manifest_table_output(&table_output)
+        );
     }
 
     #[test]
     fn utest_update_request_obj_failed_same_workload_names() {
-        let mut console_output = "".to_string();
         let content_value: Value = serde_yaml::from_str(
             r#"
         workloads:
@@ -2436,14 +2438,14 @@ mod tests {
             &paths,
             "manifest_file_name",
             false,
-            &mut console_output,
+            &mut Vec::<super::ApplyManifestTableDisplay>::default(),
         )
         .is_err());
     }
 
     #[test]
     fn utest_update_request_obj_delete_mode_on_ok() {
-        let mut console_output = "".to_string();
+        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
         let mut req_obj = Object::default();
         let content_value: Value = serde_yaml::from_str(
             r#"
@@ -2471,10 +2473,13 @@ mod tests {
             &paths,
             "manifest_file_name",
             true,
-            &mut console_output,
+            &mut table_output,
         )
         .is_ok());
-        assert_eq!(expected_output, console_output);
+        assert_eq!(
+            expected_output,
+            super::generate_apply_manifest_table_output(&table_output)
+        );
     }
 
     #[test]
@@ -2576,7 +2581,6 @@ mod tests {
     // [utest->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
     #[test]
     fn utest_generate_state_obj_and_filter_masks_from_manifests_ok() {
-        let mut console_output = String::new();
         let manifest_file_name = "manifest.yaml";
         let manifest_content = io::Cursor::new(
             b"workloads:
@@ -2617,8 +2621,7 @@ mod tests {
                     manifest_files: vec![manifest_file_name.to_string()],
                     delete_mode: false,
                 },
-                // false,
-                &mut console_output,
+                &mut Vec::<super::ApplyManifestTableDisplay>::default(),
             )
         );
     }
@@ -2627,7 +2630,6 @@ mod tests {
     // [utest->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
     #[test]
     fn utest_generate_state_obj_and_filter_masks_from_manifests_delete_mode_ok() {
-        let mut console_output = String::new();
         let manifest_file_name = "manifest.yaml";
         let manifest_content = io::Cursor::new(
             b"workloads:
@@ -2665,15 +2667,13 @@ mod tests {
                     manifest_files: vec![manifest_file_name.to_string()],
                     delete_mode: true,
                 },
-                // false,
-                &mut console_output,
+                &mut Vec::<super::ApplyManifestTableDisplay>::default(),
             )
         );
     }
 
     #[test]
     fn utest_generate_state_obj_and_filter_masks_from_manifests_no_workload_provided() {
-        let mut console_output = String::new();
         let manifest_file_name = "manifest.yaml";
         let manifest_content = io::Cursor::new(b"");
         let mut manifests: Vec<InputSourcePair> =
@@ -2688,8 +2688,7 @@ mod tests {
                     manifest_files: vec![manifest_file_name.to_string()],
                     delete_mode: true,
                 },
-                // false,
-                &mut console_output,
+                &mut Vec::<super::ApplyManifestTableDisplay>::default(),
             )
         );
     }
