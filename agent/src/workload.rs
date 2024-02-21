@@ -83,10 +83,6 @@ impl Workload {
         }
     }
 
-    pub fn instance_name(&self) -> WorkloadInstanceName {
-        self.instance_name.clone()
-    }
-
     // [impl->swdd~agent-workload-obj-update-command~1]
     pub async fn update(
         &mut self,
@@ -190,21 +186,6 @@ mod tests {
 
     const TEST_WL_COMMAND_BUFFER_SIZE: usize = 5;
     const TEST_EXEC_COMMAND_BUFFER_SIZE: usize = 5;
-
-    #[test]
-    fn utest_workload_obj_instance_name() {
-        let instance_name = WorkloadInstanceName::builder()
-            .agent_name(AGENT_NAME.to_owned())
-            .workload_name(WORKLOAD_1_NAME.to_owned())
-            .config(&String::from("config"))
-            .build();
-
-        let (workload_command_sender, _) = WorkloadCommandSender::new();
-
-        let workload = Workload::new(instance_name.clone(), workload_command_sender, None);
-
-        assert_eq!(instance_name, workload.instance_name());
-    }
 
     // [utest->swdd~agent-workload-obj-delete-command~1]
     #[tokio::test]

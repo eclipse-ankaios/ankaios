@@ -27,10 +27,10 @@ mod runtime_connectors;
 #[cfg(test)]
 pub mod test_helper;
 
-mod dependency_scheduler;
 mod generic_polling_state_checker;
 mod runtime_manager;
 mod workload;
+mod workload_scheduler;
 
 use common::from_server_interface::FromServer;
 use common::std_extensions::{GracefulExitResult, IllegalStateResult, UnreachableResult};

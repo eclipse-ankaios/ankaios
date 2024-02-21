@@ -31,7 +31,7 @@ pub type WaitingDeletedWorkloads = Vec<DeletedWorkload>;
 type StartWorkloadQueue = HashMap<WorkloadInstanceName, WorkloadSpec>;
 type DeleteWorkloadQueue = HashMap<WorkloadInstanceName, DeletedWorkload>;
 
-pub struct DependencyScheduler {
+pub struct WorkloadQueue {
     start_queue: StartWorkloadQueue,
     delete_queue: DeleteWorkloadQueue,
 }
@@ -55,9 +55,9 @@ where
 }
 
 #[cfg_attr(test, automock)]
-impl DependencyScheduler {
+impl WorkloadQueue {
     pub fn new() -> Self {
-        DependencyScheduler {
+        WorkloadQueue {
             start_queue: StartWorkloadQueue::new(),
             delete_queue: DeleteWorkloadQueue::new(),
         }
@@ -193,9 +193,9 @@ mod tests {
         },
     };
 
-    use crate::dependency_scheduler::{DeleteWorkloadQueue, StartWorkloadQueue};
+    use crate::workload_scheduler::workload_queue::{DeleteWorkloadQueue, StartWorkloadQueue};
 
-    use super::DependencyScheduler;
+    use super::WorkloadQueue;
     use crate::parameter_storage::MockParameterStorage;
 
     const AGENT_A: &str = "agent_A";
@@ -222,7 +222,7 @@ mod tests {
             .return_once(|_| Some(ExecutionState::running()));
 
         let (ready_workloads, waiting_workloads) =
-            DependencyScheduler::split_workloads_to_ready_and_waiting(
+            WorkloadQueue::split_workloads_to_ready_and_waiting(
                 vec![
                     workload_with_dependencies.clone(),
                     workload_without_dependencies.clone(),
@@ -253,7 +253,7 @@ mod tests {
             .return_once(|_| Some(ExecutionState::succeeded()));
 
         let (ready_workloads, waiting_workloads) =
-            DependencyScheduler::split_workloads_to_ready_and_waiting(
+            WorkloadQueue::split_workloads_to_ready_and_waiting(
                 vec![
                     workload_with_dependencies.clone(),
                     workload_without_dependencies.clone(),
@@ -270,7 +270,7 @@ mod tests {
 
     #[test]
     fn utest_put_on_waiting_queue() {
-        let mut dependency_scheduler = DependencyScheduler::new();
+        let mut dependency_scheduler = WorkloadQueue::new();
         let new_workload = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
             WORKLOAD_NAME_1.to_string(),
@@ -287,7 +287,7 @@ mod tests {
 
     #[test]
     fn utest_put_on_delete_waiting_queue() {
-        let mut dependency_scheduler = DependencyScheduler::new();
+        let mut dependency_scheduler = WorkloadQueue::new();
         let new_workload =
             generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
 
@@ -314,7 +314,7 @@ mod tests {
             .return_const(Some(ExecutionState::running()));
 
         let (ready_workloads, waiting_workloads) =
-            DependencyScheduler::split_deleted_workloads_to_ready_and_waiting(
+            WorkloadQueue::split_deleted_workloads_to_ready_and_waiting(
                 vec![
                     workload_with_dependencies.clone(),
                     workload_without_dependencies.clone(),
@@ -338,7 +338,7 @@ mod tests {
             .return_const(Some(ExecutionState::succeeded()));
 
         let (ready_workloads, waiting_workloads) =
-            DependencyScheduler::split_deleted_workloads_to_ready_and_waiting(
+            WorkloadQueue::split_deleted_workloads_to_ready_and_waiting(
                 vec![workload_with_dependencies.clone()],
                 &parameter_storage_mock,
             );
@@ -359,7 +359,7 @@ mod tests {
             .return_const(None);
 
         let (ready_workloads, waiting_workloads) =
-            DependencyScheduler::split_deleted_workloads_to_ready_and_waiting(
+            WorkloadQueue::split_deleted_workloads_to_ready_and_waiting(
                 vec![workload_with_dependencies.clone()],
                 &parameter_storage_mock,
             );
@@ -383,7 +383,7 @@ mod tests {
             .once()
             .return_const(Some(ExecutionState::running()));
 
-        assert!(DependencyScheduler::dependencies_for_workload_fulfilled(
+        assert!(WorkloadQueue::dependencies_for_workload_fulfilled(
             &workload_with_dependencies,
             &parameter_storage_mock
         ));
@@ -404,7 +404,7 @@ mod tests {
             .once()
             .return_const(Some(ExecutionState::removed()));
 
-        assert!(!DependencyScheduler::dependencies_for_workload_fulfilled(
+        assert!(!WorkloadQueue::dependencies_for_workload_fulfilled(
             &workload_with_dependencies,
             &parameter_storage_mock
         ));
@@ -425,7 +425,7 @@ mod tests {
             .once()
             .return_const(None);
 
-        assert!(!DependencyScheduler::dependencies_for_workload_fulfilled(
+        assert!(!WorkloadQueue::dependencies_for_workload_fulfilled(
             &workload_with_dependencies,
             &parameter_storage_mock
         ));
@@ -440,7 +440,7 @@ mod tests {
             HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondSucceeded)]),
         );
 
-        let mut dependency_scheduler = DependencyScheduler::new();
+        let mut dependency_scheduler = WorkloadQueue::new();
         dependency_scheduler.start_queue.insert(
             workload_with_dependencies.instance_name.clone(),
             workload_with_dependencies.clone(),
@@ -465,7 +465,7 @@ mod tests {
             HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondFailed)]),
         );
 
-        let mut dependency_scheduler = DependencyScheduler::new();
+        let mut dependency_scheduler = WorkloadQueue::new();
         dependency_scheduler.start_queue.insert(
             workload_with_dependencies.instance_name.clone(),
             workload_with_dependencies.clone(),
@@ -490,7 +490,7 @@ mod tests {
             HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondRunning)]),
         );
 
-        let mut dependency_scheduler = DependencyScheduler::new();
+        let mut dependency_scheduler = WorkloadQueue::new();
         dependency_scheduler.start_queue.insert(
             workload_with_dependencies.instance_name.clone(),
             workload_with_dependencies.clone(),
@@ -513,7 +513,7 @@ mod tests {
             .expect_get_state_of_workload()
             .never();
 
-        let mut dependency_scheduler = DependencyScheduler::new();
+        let mut dependency_scheduler = WorkloadQueue::new();
 
         assert!(dependency_scheduler.start_queue.is_empty());
         let ready_workloads = dependency_scheduler.next_workloads_to_start(&parameter_storage_mock);
@@ -525,7 +525,7 @@ mod tests {
         let workload_with_dependencies =
             generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
 
-        let mut dependency_scheduler = DependencyScheduler::new();
+        let mut dependency_scheduler = WorkloadQueue::new();
         dependency_scheduler.delete_queue.insert(
             workload_with_dependencies.instance_name.clone(),
             workload_with_dependencies.clone(),
@@ -547,7 +547,7 @@ mod tests {
         let workload_with_dependencies =
             generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
 
-        let mut dependency_scheduler = DependencyScheduler::new();
+        let mut dependency_scheduler = WorkloadQueue::new();
         dependency_scheduler.delete_queue.insert(
             workload_with_dependencies.instance_name.clone(),
             workload_with_dependencies.clone(),
@@ -571,7 +571,7 @@ mod tests {
             .expect_get_state_of_workload()
             .never();
 
-        let mut dependency_scheduler = DependencyScheduler::new();
+        let mut dependency_scheduler = WorkloadQueue::new();
 
         assert!(dependency_scheduler.delete_queue.is_empty());
         let ready_workloads =
@@ -585,7 +585,7 @@ mod tests {
         let workload_with_dependencies =
             generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
 
-        let mut dependency_scheduler = DependencyScheduler::new();
+        let mut dependency_scheduler = WorkloadQueue::new();
         dependency_scheduler.delete_queue.insert(
             workload_with_dependencies.instance_name.clone(),
             workload_with_dependencies.clone(),
