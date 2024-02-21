@@ -19,12 +19,12 @@ use serde::{Deserialize, Serialize};
 use crate::helpers::serialize_to_ordered_map;
 
 use super::{
-    AccessRights, AddCondition, Cronjob, State, Tag, UpdateStrategy, WorkloadInstanceName,
-    WorkloadSpec,
+    AccessRights, AddCondition, CompleteState, Cronjob, State, Tag, UpdateStrategy,
+    WorkloadInstanceName, WorkloadSpec, WorkloadState,
 };
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Serialize, Default, Deserialize, Clone, PartialEq, Eq)]
+#[serde(default, rename_all = "camelCase")]
 struct StoredWorkloadSpec {
     pub runtime: String,
     pub agent: String,
@@ -73,7 +73,7 @@ impl From<WorkloadSpec> for StoredWorkloadSpec {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[serde(default, rename_all = "camelCase")]
 pub struct ExternalState {
     #[serde(serialize_with = "serialize_to_ordered_map")]
     workloads: HashMap<String, StoredWorkloadSpec>,
@@ -107,6 +107,34 @@ impl From<State> for ExternalState {
                 .collect(),
             configs: value.configs,
             cron_jobs: value.cron_jobs,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ExternalCompleteState {
+    pub startup_state: ExternalState,
+    pub current_state: ExternalState,
+    pub workload_states: Vec<WorkloadState>,
+}
+
+impl From<CompleteState> for ExternalCompleteState {
+    fn from(value: CompleteState) -> Self {
+        ExternalCompleteState {
+            startup_state: value.startup_state.into(),
+            current_state: value.current_state.into(),
+            workload_states: value.workload_states,
+        }
+    }
+}
+
+impl From<ExternalCompleteState> for CompleteState {
+    fn from(value: ExternalCompleteState) -> Self {
+        CompleteState {
+            startup_state: value.startup_state.into(),
+            current_state: value.current_state.into(),
+            workload_states: value.workload_states,
         }
     }
 }

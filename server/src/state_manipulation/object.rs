@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::Path;
-use common::{commands::CompleteState, objects::State};
+use common::{objects::CompleteState, objects::State};
 use serde_yaml::{
     from_value, mapping::Entry::Occupied, mapping::Entry::Vacant, to_value, Mapping, Value,
 };
@@ -159,8 +159,7 @@ impl Object {
 #[cfg(test)]
 mod tests {
     use common::{
-        commands::CompleteState,
-        objects::State,
+        objects::{CompleteState, State},
         test_utils::{generate_test_state_from_workloads, generate_test_workload_spec},
     };
     use serde_yaml::Value;

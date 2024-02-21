@@ -12,7 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::{self, RequestContent};
+use crate::{
+    commands::{self, RequestContent},
+    objects::CompleteState,
+};
 use api::proto;
 use async_trait::async_trait;
 use std::fmt;
@@ -69,7 +72,7 @@ pub trait ToServerInterface {
     async fn update_state(
         &self,
         request_id: String,
-        state: commands::CompleteState,
+        state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<(), ToServerError>;
     async fn update_workload_state(
@@ -104,7 +107,7 @@ impl ToServerInterface for ToServerSender {
     async fn update_state(
         &self,
         request_id: String,
-        state: commands::CompleteState,
+        state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<(), ToServerError> {
         Ok(self
@@ -250,7 +253,7 @@ mod tests {
             request_id: "request_id".to_owned(),
             request_content: RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 update_mask: vec!["test_update_mask_field".to_owned()],
-                state: crate::commands::CompleteState {
+                state: crate::objects::CompleteState {
                     current_state: crate::objects::State {
                         workloads: HashMap::from([(
                             "test_workload".to_owned(),

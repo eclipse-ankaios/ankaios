@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::objects::{DeletedWorkload, ExternalState, State, WorkloadSpec, WorkloadState};
+use crate::objects::{CompleteState, DeletedWorkload, WorkloadSpec};
 use api::proto;
 use serde::{Deserialize, Serialize};
 
@@ -228,54 +228,6 @@ impl From<Error> for proto::Error {
         proto::Error {
             message: value.message,
         }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-struct ExternalCompleteState {
-    pub startup_state: ExternalState,
-    pub current_state: ExternalState,
-    pub workload_states: Vec<WorkloadState>,
-}
-
-impl From<CompleteState> for ExternalCompleteState {
-    fn from(value: CompleteState) -> Self {
-        ExternalCompleteState {
-            startup_state: value.startup_state.into(),
-            current_state: value.current_state.into(),
-            workload_states: value.workload_states,
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
-#[serde(default, rename_all = "camelCase", into = "ExternalCompleteState")]
-pub struct CompleteState {
-    pub startup_state: State,
-    pub current_state: State,
-    pub workload_states: Vec<WorkloadState>,
-}
-
-impl From<CompleteState> for proto::CompleteState {
-    fn from(item: CompleteState) -> proto::CompleteState {
-        proto::CompleteState {
-            startup_state: Some(proto::State::from(item.startup_state)),
-            current_state: Some(proto::State::from(item.current_state)),
-            workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
-        }
-    }
-}
-
-impl TryFrom<proto::CompleteState> for CompleteState {
-    type Error = String;
-
-    fn try_from(item: proto::CompleteState) -> Result<Self, Self::Error> {
-        Ok(CompleteState {
-            startup_state: item.startup_state.unwrap_or_default().try_into()?,
-            current_state: item.current_state.unwrap_or_default().try_into()?,
-            workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
-        })
     }
 }
 

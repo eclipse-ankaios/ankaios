@@ -4,11 +4,12 @@ mod grpc_tests {
     use std::time::Duration;
 
     use common::{
-        commands::{self, CompleteState, CompleteStateRequest, Request, RequestContent},
+        commands::{self, CompleteStateRequest, Request, RequestContent},
         communications_client::CommunicationsClient,
         communications_error::CommunicationMiddlewareError,
         communications_server::CommunicationsServer,
         from_server_interface::{FromServer, FromServerSender},
+        objects::CompleteState,
         to_server_interface::{ToServer, ToServerInterface, ToServerReceiver, ToServerSender},
     };
     use grpc::{client::GRPCCommunicationsClient, server::GRPCCommunicationsServer};

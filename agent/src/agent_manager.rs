@@ -171,9 +171,9 @@ mod tests {
     use super::*;
     use crate::agent_manager::AgentManager;
     use common::{
-        commands::{self, Goodbye, Response, ResponseContent, UpdateWorkloadState},
+        commands::{Goodbye, Response, ResponseContent, UpdateWorkloadState},
         from_server_interface::FromServerInterface,
-        objects::ExecutionState,
+        objects::{CompleteState, ExecutionState},
         test_utils::generate_test_workload_spec_with_param,
     };
     use mockall::predicate::*;
@@ -298,7 +298,7 @@ mod tests {
         let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
 
         let request_id = format!("{WORKLOAD_1_NAME}@{REQUEST_ID}");
-        let complete_state: commands::CompleteState = Default::default();
+        let complete_state: CompleteState = Default::default();
 
         let response = Response {
             request_id: request_id.clone(),

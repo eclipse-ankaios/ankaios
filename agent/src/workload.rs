@@ -170,9 +170,9 @@ mod tests {
     use std::time::Duration;
 
     use common::{
-        commands::{CompleteState, Response, ResponseContent},
+        commands::{Response, ResponseContent},
         from_server_interface::FromServer,
-        objects::{ConfigHash, WorkloadInstanceName},
+        objects::{CompleteState, ConfigHash, WorkloadInstanceName},
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
     };
     use tokio::{sync::mpsc, time::timeout};

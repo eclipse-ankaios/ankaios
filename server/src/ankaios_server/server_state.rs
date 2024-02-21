@@ -19,8 +19,8 @@ use crate::state_manipulation::{Object, Path};
 use crate::workload_state_db::WorkloadStateDB;
 use common::std_extensions::IllegalStateResult;
 use common::{
-    commands::{CompleteState, CompleteStateRequest},
-    objects::{DeletedWorkload, State, WorkloadSpec},
+    commands::CompleteStateRequest,
+    objects::{CompleteState, DeletedWorkload, State, WorkloadSpec},
 };
 use std::fmt::Display;
 
@@ -267,8 +267,10 @@ mod tests {
     use std::collections::HashMap;
 
     use common::{
-        commands::{CompleteState, CompleteStateRequest},
-        objects::{ConfigHash, DeletedWorkload, State, WorkloadInstanceName, WorkloadSpec},
+        commands::CompleteStateRequest,
+        objects::{
+            CompleteState, ConfigHash, DeletedWorkload, State, WorkloadInstanceName, WorkloadSpec,
+        },
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
     };
 

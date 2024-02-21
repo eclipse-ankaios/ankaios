@@ -312,7 +312,7 @@ mod tests {
     use api::proto::response;
     use api::proto::{self, from_server::FromServerEnum, FromServer, UpdateWorkload};
     use async_trait::async_trait;
-    use common::commands::CompleteState;
+    use common::objects::CompleteState;
     use common::from_server_interface::FromServerInterface;
     use common::objects::{State, WorkloadSpec};
     use common::test_utils::*;

@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands;
-use crate::objects::{DeletedWorkload, WorkloadSpec, WorkloadState};
+use crate::objects::{CompleteState, DeletedWorkload, WorkloadSpec, WorkloadState};
 use api::proto;
 use async_trait::async_trait;
 use std::fmt;
@@ -101,7 +101,7 @@ pub trait FromServerInterface {
     async fn complete_state(
         &self,
         request_id: String,
-        complete_state: commands::CompleteState,
+        complete_state: CompleteState,
     ) -> Result<(), FromServerInterfaceError>;
     async fn success(&self, request_id: String) -> Result<(), FromServerInterfaceError>;
     async fn error(
@@ -144,7 +144,7 @@ impl FromServerInterface for FromServerSender {
     async fn complete_state(
         &self,
         request_id: String,
-        complete_state: commands::CompleteState,
+        complete_state: CompleteState,
     ) -> Result<(), FromServerInterfaceError> {
         Ok(self
             .send(FromServer::Response(commands::Response {

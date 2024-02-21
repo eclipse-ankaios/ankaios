@@ -19,8 +19,12 @@
 mod state;
 pub use state::State;
 
+mod complete_state;
+pub use complete_state::CompleteState;
+
 mod external_state;
-pub use external_state::ExternalState;
+
+pub use external_state::ExternalCompleteState;
 
 mod workload_state;
 #[cfg(any(feature = "test_utils", test))]

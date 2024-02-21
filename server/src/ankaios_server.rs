@@ -16,8 +16,9 @@ mod cycle_check;
 mod delete_graph;
 mod server_state;
 
-use common::commands::{CompleteState, Request, UpdateWorkload};
+use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
+use common::objects::CompleteState;
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
 
@@ -184,7 +185,7 @@ impl AnkaiosServer {
                                 self.to_agents
                                     .complete_state(
                                         request_id,
-                                        common::commands::CompleteState {
+                                        common::objects::CompleteState {
                                             ..Default::default()
                                         },
                                     )
@@ -282,13 +283,13 @@ mod tests {
     use crate::ankaios_server::server_state::{MockServerState, UpdateStateError};
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
     use common::commands::{CompleteStateRequest, UpdateWorkload, UpdateWorkloadState};
+    use common::from_server_interface::FromServer;
     use common::objects::{
-        generate_test_workload_state, generate_test_workload_state_with_agent, DeletedWorkload,
-        ExecutionState, State,
+        generate_test_workload_state, generate_test_workload_state_with_agent, CompleteState,
+        DeletedWorkload, ExecutionState, State,
     };
     use common::test_utils::generate_test_workload_spec_with_param;
     use common::to_server_interface::ToServerInterface;
-    use common::{commands::CompleteState, from_server_interface::FromServer};
 
     const AGENT_A: &str = "agent_A";
     const AGENT_B: &str = "agent_B";

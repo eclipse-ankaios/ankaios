@@ -22,9 +22,9 @@ async fn read_file_to_string(file: String) -> std::io::Result<String> {
 use tests::read_to_string_mock as read_file_to_string;
 
 use common::{
-    commands::{CompleteState, CompleteStateRequest, Response, ResponseContent},
+    commands::{CompleteStateRequest, Response, ResponseContent},
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::{ConfigHash, Tag, WorkloadInstanceName, WorkloadSpec},
+    objects::{CompleteState, ConfigHash, ExternalCompleteState, Tag, WorkloadInstanceName, WorkloadSpec},
     to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
 
@@ -301,7 +301,7 @@ impl CliCommands {
             object_field_mask,
             state_object_file
         );
-        let mut complete_state_input = CompleteState::default();
+        let mut complete_state_input = ExternalCompleteState::default();
         if let Some(state_object_file) = state_object_file {
             let state_object_data =
                 read_file_to_string(state_object_file)
@@ -321,7 +321,7 @@ impl CliCommands {
         self.to_server
             .update_state(
                 self.cli_name.to_owned(),
-                complete_state_input,
+                complete_state_input.into(),
                 object_field_mask,
             )
             .await
@@ -491,7 +491,7 @@ mod tests {
     use common::{
         commands::{self, Request, RequestContent, Response, ResponseContent},
         from_server_interface::{FromServer, FromServerSender},
-        objects::{ConfigHash, ExecutionState, Tag, WorkloadInstanceName, WorkloadSpec},
+        objects::{self, ConfigHash, ExecutionState, Tag, WorkloadInstanceName, WorkloadSpec},
         test_utils::{self, generate_test_complete_state},
         to_server_interface::{ToServer, ToServerReceiver},
     };
@@ -875,7 +875,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let test_data = commands::CompleteState {
+        let test_data = objects::CompleteState {
             workload_states: vec![common::objects::generate_test_workload_state_with_agent(
                 "Workload_1",
                 "agent_A",
@@ -1327,7 +1327,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let mut updated_state = commands::CompleteState::default();
+        let mut updated_state = objects::CompleteState::default();
         updated_state.current_state.workloads.insert(
             "name3".to_owned(),
             WorkloadSpec {

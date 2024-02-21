@@ -18,7 +18,7 @@ mod state_manipulation;
 mod state_parser;
 mod workload_state_db;
 
-use common::commands::CompleteState;
+use common::objects::CompleteState;
 use std::fs;
 
 use common::communications_server::CommunicationsServer;

@@ -37,9 +37,9 @@ pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State
 #[cfg(feature = "test_utils")]
 pub fn generate_test_complete_state(
     workloads: Vec<WorkloadSpec>,
-) -> crate::commands::CompleteState {
+) -> crate::objects::CompleteState {
     use crate::{
-        commands::CompleteState,
+        objects::CompleteState,
         objects::{ExecutionState, WorkloadState},
     };
 
