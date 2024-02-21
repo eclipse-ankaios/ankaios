@@ -1,11 +1,10 @@
 use std::{
-    collections::HashMap,
     fmt::Display,
     path::{Path, PathBuf},
 };
 
 use api::proto;
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 use super::WorkloadSpec;
 
@@ -42,16 +41,6 @@ pub struct WorkloadInstanceName {
     agent_name: String,
     workload_name: String,
     id: String,
-}
-
-pub fn serialize_instance_name_for_state<S>(
-    value: &WorkloadInstanceName,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    value.agent_name().serialize(serializer)
 }
 
 impl From<proto::WorkloadInstanceName> for WorkloadInstanceName {
