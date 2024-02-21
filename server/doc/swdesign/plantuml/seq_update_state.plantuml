@@ -40,7 +40,7 @@ deactivate agent2
 end
 deactivate grpc_server
 else
-server_state -->> server: UpdateStateError
+server_state -->> server ++: UpdateStateError
 end
 server -> server++: listen for incoming requests
 

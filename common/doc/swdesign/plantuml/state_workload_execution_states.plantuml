@@ -18,12 +18,12 @@ failed --> removed
 succeeded --> removed
 running --> waiting_to_stop
 waiting_to_stop -right-> stopping
+unknown --> removed
 note top of unknown
     A transition to unknown
     is possible from all states,
     but is now shown here for
     better readability.
 end note
-unknown --> removed
 removed --> [*]
 @enduml

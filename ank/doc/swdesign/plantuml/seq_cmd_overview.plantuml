@@ -19,14 +19,16 @@ user-> main ++ : a command
 
 == command ==
 
-main -> cli_commands : command implementation
+main -> cli_commands ++: command implementation
+deactivate cli_commands
 ... call server and process the command ...
-
 alt a command returns text to display
-    main -> main : print text to the stdout
+    main -> main ++: print text to the stdout
+    deactivate main
 end
 
 user <- main -- : exit
+destroy main
 note right: terminate the connection and exit the application
 
 @enduml
