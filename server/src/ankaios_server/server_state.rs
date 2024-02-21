@@ -519,7 +519,6 @@ mod tests {
         let old_state = CompleteState {
             desired_state: State {
                 workloads: HashMap::from([(workload.name.clone(), workload)]),
-                ..Default::default()
             },
             ..Default::default()
         };
@@ -530,7 +529,6 @@ mod tests {
                     (new_workload_1.name.clone(), new_workload_1),
                     (new_workload_2.name.clone(), new_workload_2),
                 ]),
-                ..Default::default()
             },
             ..Default::default()
         };
@@ -950,7 +948,6 @@ mod tests {
         let current_complete_state = CompleteState {
             desired_state: State {
                 workloads: HashMap::from([(workload.name.clone(), workload.clone())]),
-                ..Default::default()
             },
             ..Default::default()
         };
@@ -960,7 +957,6 @@ mod tests {
         let new_complete_state = CompleteState {
             desired_state: State {
                 workloads: HashMap::from([(new_workload.name.clone(), new_workload.clone())]),
-                ..Default::default()
             },
             ..Default::default()
         };

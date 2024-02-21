@@ -237,6 +237,13 @@ impl AnkaiosServer {
                                         added_workloads.len(),
                                         deleted_workloads.len()
                                     );
+                                let added_workloads_names =
+                                    added_workloads.iter().map(|x| x.name.to_owned()).collect();
+                                let deleted_workloads_names = deleted_workloads
+                                    .iter()
+                                    .map(|x| x.name.to_owned())
+                                    .collect();
+
                                 let from_server_command =
                                     FromServer::UpdateWorkload(UpdateWorkload {
                                         added_workloads,
@@ -246,13 +253,37 @@ impl AnkaiosServer {
                                     .send(from_server_command)
                                     .await
                                     .unwrap_or_illegal_state();
+                                log::debug!("Send UpdateStateSuccess for request '{}'", request_id);
+                                self.to_agents
+                                    .update_state_success(
+                                        request_id,
+                                        added_workloads_names,
+                                        deleted_workloads_names,
+                                    )
+                                    .await
+                                    .unwrap_or_illegal_state();
                             }
-                            Ok(None) => log::debug!(
+                            Ok(None) => {
+                                log::debug!(
                                 "The current state and new state are identical -> nothing to do"
-                            ),
+                            );
+                                self.to_agents
+                                    .update_state_success(request_id, vec![], vec![])
+                                    .await
+                                    .unwrap_or_illegal_state();
+                            }
                             Err(error_msg) => {
                                 // [impl->swdd~server-continues-on-invalid-updated-state~1]
                                 log::error!("Update rejected: '{error_msg}'",);
+                                self.to_agents
+                                    .error(
+                                        request_id,
+                                        common::commands::Error {
+                                            message: format!("Update rejected: '{error_msg}'"),
+                                        },
+                                    )
+                                    .await
+                                    .unwrap_or_illegal_state();
                             }
                         }
                     }
@@ -306,7 +337,8 @@ mod tests {
     use crate::ankaios_server::server_state::{MockServerState, UpdateStateError};
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
     use common::commands::{
-        self, ApiVersion, CompleteStateRequest, UpdateWorkload, UpdateWorkloadState,
+        ApiVersion, CompleteStateRequest, Error, Response, ResponseContent, UpdateStateSuccess,
+        UpdateWorkload, UpdateWorkloadState,
     };
     use common::objects::{DeletedWorkload, ExecutionState, State};
     use common::test_utils::generate_test_workload_spec_with_param;
@@ -340,7 +372,6 @@ mod tests {
         let startup_state = CompleteState {
             desired_state: State {
                 workloads: HashMap::from([(workload.name.clone(), workload)]),
-                ..Default::default()
             },
             ..Default::default()
         };
@@ -387,7 +418,6 @@ mod tests {
                     updated_workload.name.clone(),
                     updated_workload.clone(),
                 )]),
-                ..Default::default()
             },
             ..Default::default()
         };
@@ -445,6 +475,14 @@ mod tests {
             .await
             .is_ok());
 
+        assert!(matches!(
+            comm_middle_ware_receiver.recv().await.unwrap(),
+            FromServer::Response(Response {
+                request_id,
+                response_content: ResponseContent::Error(_)
+            }) if request_id == REQUEST_ID_A
+        ));
+
         // send the update with the new clean state again
         assert!(to_server
             .update_state(REQUEST_ID_A.to_string(), fixed_state.clone(), update_mask)
@@ -458,6 +496,17 @@ mod tests {
             deleted_workloads,
         });
         assert_eq!(from_server_command, expected_from_server_command);
+
+        assert_eq!(
+            comm_middle_ware_receiver.recv().await.unwrap(),
+            FromServer::Response(Response {
+                request_id: REQUEST_ID_A.into(),
+                response_content: ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
+                    added_workloads: vec!["workload A".into()],
+                    deleted_workloads: Vec::new(),
+                }),
+            })
+        );
 
         // make sure all messages are consumed
         assert!(comm_middle_ware_receiver.try_recv().is_err());
@@ -482,7 +531,6 @@ mod tests {
         let startup_state = CompleteState {
             desired_state: State {
                 workloads: HashMap::from([(workload.name.clone(), workload.clone())]),
-                ..Default::default()
             },
             ..Default::default()
         };
@@ -716,13 +764,27 @@ mod tests {
             .await;
         assert!(update_state_result.is_ok());
 
-        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+        let update_workload_message = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::UpdateWorkload(UpdateWorkload {
-                added_workloads,
-                deleted_workloads,
+                added_workloads: added_workloads.clone(),
+                deleted_workloads: deleted_workloads.clone(),
             }),
-            from_server_command
+            update_workload_message
+        );
+
+        let update_state_success_message = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            FromServer::Response(Response {
+                request_id: REQUEST_ID_A.to_string(),
+                response_content: common::commands::ResponseContent::UpdateStateSuccess(
+                    UpdateStateSuccess {
+                        added_workloads: added_workloads.into_iter().map(|x| x.name).collect(),
+                        deleted_workloads: deleted_workloads.into_iter().map(|x| x.name).collect()
+                    }
+                )
+            }),
+            update_state_success_message
         );
 
         server_task.abort();
@@ -774,6 +836,17 @@ mod tests {
             .update_state(REQUEST_ID_A.to_string(), update_state, update_mask)
             .await;
         assert!(update_state_result.is_ok());
+
+        assert!(matches!(
+            comm_middle_ware_receiver.recv().await.unwrap(),
+            FromServer::Response(Response {
+                request_id,
+                response_content: ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
+                    added_workloads,
+                    deleted_workloads
+                })
+            }) if request_id == REQUEST_ID_A && added_workloads.is_empty() && deleted_workloads.is_empty()
+        ));
 
         assert!(tokio::time::timeout(
             tokio::time::Duration::from_millis(200),
@@ -831,6 +904,14 @@ mod tests {
             .update_state(REQUEST_ID_A.to_string(), update_state, update_mask)
             .await;
         assert!(update_state_result.is_ok());
+
+        assert!(matches!(
+            comm_middle_ware_receiver.recv().await.unwrap(),
+            FromServer::Response(common::commands::Response {
+                request_id,
+                response_content: common::commands::ResponseContent::Error(_)
+            }) if request_id == REQUEST_ID_A
+        ));
 
         assert!(tokio::time::timeout(
             tokio::time::Duration::from_millis(200),
@@ -1163,6 +1244,17 @@ mod tests {
             from_server_command
         );
 
+        assert!(matches!(
+            comm_middle_ware_receiver.recv().await.unwrap(),
+            FromServer::Response(Response {
+                request_id,
+                response_content: ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
+                    added_workloads,
+                    deleted_workloads
+                })
+            }) if request_id == REQUEST_ID_A && added_workloads == vec!["workload_1"] && deleted_workloads == vec!["workload_1"]
+        ));
+
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
@@ -1221,9 +1313,9 @@ mod tests {
         );
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
-            FromServer::Response(commands::Response {
+            FromServer::Response(Response {
                 request_id: REQUEST_ID_A.to_string(),
-                response_content: commands::ResponseContent::Error(commands::Error {
+                response_content: ResponseContent::Error(Error {
                     message: error_message
                 }),
             }),
@@ -1268,9 +1360,9 @@ mod tests {
         );
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
-            FromServer::Response(commands::Response {
+            FromServer::Response(Response {
                 request_id: REQUEST_ID_A.to_string(),
-                response_content: commands::ResponseContent::Error(commands::Error {
+                response_content: ResponseContent::Error(Error {
                     message: error_message
                 }),
             }),
