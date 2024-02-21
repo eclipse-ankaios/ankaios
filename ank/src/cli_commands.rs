@@ -839,13 +839,12 @@ impl CliCommands {
                         match tokio::time::timeout(WAIT_TIME_MS, poll_complete_state_response).await
                         {
                             Ok(Ok(res)) => Ok(res),
-                            // Ok(Err(err)) => Err(CliError::ExecutionError(format!(
-                            //     "Error response received from server.\nError: {err}"
-                            // ))),
-                            // Err(_) => Err(CliError::ExecutionError(format!(
-                            //     "Failed get response from server in time (timeout={WAIT_TIME_MS:?})."
-                            // ))),
-                            _ => Ok(self.console_output.clone()),
+                            Ok(Err(err)) => Err(format!(
+                                "Error response received from server.\nError: {err}"
+                            )),
+                            Err(_) => Err(format!(
+                                "Failed get response from server in time (timeout={WAIT_TIME_MS:?})."
+                            )),
                         }
                     }
                     Err(err) => Err(err.to_string()),
