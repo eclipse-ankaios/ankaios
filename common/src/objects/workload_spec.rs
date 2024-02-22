@@ -327,7 +327,7 @@ mod tests {
     fn utest_converts_to_proto_deleted_workload() {
         let proto_workload = generate_test_proto_deleted_workload();
         let workload =
-            generate_test_deleted_workload("agent X".to_string(), "workload X".to_string());
+            generate_test_deleted_workload("agent".to_string(), "workload X".to_string());
 
         assert_eq!(proto::DeletedWorkload::from(workload), proto_workload);
     }
@@ -336,7 +336,7 @@ mod tests {
     fn utest_converts_to_ankaios_deleted_workload() {
         let proto_workload = generate_test_proto_deleted_workload();
         let workload =
-            generate_test_deleted_workload("agent X".to_string(), "workload X".to_string());
+            generate_test_deleted_workload("agent".to_string(), "workload X".to_string());
 
         assert_eq!(DeletedWorkload::try_from(proto_workload), Ok(workload));
     }
@@ -490,6 +490,7 @@ mod tests {
         let proto_workload = proto::AddedWorkload {
             instance_name: Some(proto::WorkloadInstanceName {
                 workload_name: "name".to_string(),
+                agent_name: "agent".to_string(),
                 ..Default::default()
             }),
             dependencies: HashMap::from([

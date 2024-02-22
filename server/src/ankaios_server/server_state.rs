@@ -274,8 +274,8 @@ mod tests {
     use common::{
         commands::CompleteStateRequest,
         objects::{
-            generate_test_stored_workload_spec, CompleteState, ConfigHash, DeletedWorkload, State,
-            StoredWorkloadSpec, WorkloadInstanceName, WorkloadSpec,
+            generate_test_stored_workload_spec, CompleteState, DeletedWorkload, State,
+            StoredWorkloadSpec, WorkloadSpec,
         },
         test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
     };
@@ -972,12 +972,11 @@ mod tests {
             ..Default::default()
         };
 
-        let mut new_workload = workload.clone();
-        new_workload.instance_name = WorkloadInstanceName::builder()
-            .agent_name(AGENT_B)
-            .workload_name(new_workload.instance_name.workload_name())
-            .config(&workload.runtime_config.hash_config())
-            .build();
+        let new_workload = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            "Workload_A".to_string(),
+            RUNTIME.to_string(),
+        );
         let new_complete_state = CompleteState {
             current_state: State {
                 workloads: HashMap::from([(
