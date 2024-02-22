@@ -208,7 +208,7 @@ mod tests {
         let instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME.to_string())
             .agent_name(AGENT_NAME.to_string())
-            .config(&"some config".to_string().hash_config())
+            .config(&"some config".to_string())
             .build();
 
         let test_workload = Workload::new(
@@ -253,7 +253,7 @@ mod tests {
         let instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME.to_string())
             .agent_name(AGENT_NAME.to_string())
-            .config(&"some config".to_string().hash_config())
+            .config(&"some config".to_string())
             .build();
 
         let mut test_workload = Workload::new(
@@ -312,7 +312,7 @@ mod tests {
         let instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME.to_string())
             .agent_name(AGENT_NAME.to_string())
-            .config(&"some config".to_string().hash_config())
+            .config(&"some config".to_string())
             .build();
 
         let mut test_workload = Workload::new(
@@ -347,7 +347,7 @@ mod tests {
         let instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME.to_string())
             .agent_name(AGENT_NAME.to_string())
-            .config(&"some config".to_string().hash_config())
+            .config(&"some config".to_string())
             .build();
 
         let test_workload = Workload::new(
@@ -383,7 +383,7 @@ mod tests {
         let instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME.to_string())
             .agent_name(AGENT_NAME.to_string())
-            .config(&"some config".to_string().hash_config())
+            .config(&"some config".to_string())
             .build();
 
         let mut test_workload = Workload::new(
@@ -435,7 +435,7 @@ mod tests {
         let instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME.to_string())
             .agent_name(AGENT_NAME.to_string())
-            .config(&"some config".to_string().hash_config())
+            .config(&"some config".to_string())
             .build();
 
         let mut test_workload = Workload::new(
@@ -468,7 +468,7 @@ mod tests {
         let instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME.to_string())
             .agent_name(AGENT_NAME.to_string())
-            .config(&"some config".to_string().hash_config())
+            .config(&"some config".to_string())
             .build();
 
         let mut test_workload = Workload::new(instance_name, workload_command_sender, None);

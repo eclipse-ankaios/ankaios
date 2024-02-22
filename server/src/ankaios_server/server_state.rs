@@ -953,8 +953,6 @@ mod tests {
     // [utest->swdd~server-state-adds-delete-conditions-to-deleted-workload~1]
     #[test]
     fn utest_server_state_update_state_store_and_add_delete_conditions() {
-        let _ = env_logger::builder().is_test(true).try_init();
-
         let workload = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
             WORKLOAD_NAME_1.to_string(),
@@ -973,10 +971,11 @@ mod tests {
         };
 
         let new_workload = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            "Workload_A".to_string(),
+            AGENT_B.to_string(),
+            workload.instance_name.workload_name().to_owned(),
             RUNTIME.to_string(),
         );
+
         let new_complete_state = CompleteState {
             current_state: State {
                 workloads: HashMap::from([(
