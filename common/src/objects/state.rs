@@ -18,18 +18,16 @@ use std::collections::HashMap;
 
 use crate::helpers::serialize_to_ordered_map;
 use crate::objects::Cronjob;
-use crate::objects::WorkloadSpec;
+use crate::objects::StoredWorkloadSpec;
 use api::proto;
-
-use super::external_state::ExternalState;
 
 // [impl->swdd~common-object-representation~1]#[accessible_by_field_name]
 // [impl->swdd~common-object-serialization~1]
 #[derive(Debug, Clone, Default, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(default, rename_all = "camelCase", from = "ExternalState")]
+#[serde(default, rename_all = "camelCase")]
 pub struct State {
     #[serde(serialize_with = "serialize_to_ordered_map")]
-    pub workloads: HashMap<String, WorkloadSpec>,
+    pub workloads: HashMap<String, StoredWorkloadSpec>,
     #[serde(serialize_with = "serialize_to_ordered_map")]
     pub configs: HashMap<String, String>,
     #[serde(serialize_with = "serialize_to_ordered_map")]
@@ -62,8 +60,8 @@ impl TryFrom<proto::State> for State {
             workloads: item
                 .workloads
                 .into_iter()
-                .map(|(k, v)| Ok((k.to_owned(), (k, v).try_into()?)))
-                .collect::<Result<HashMap<String, WorkloadSpec>, String>>()?,
+                .map(|(k, v)| Ok((k.to_owned(), v.try_into()?)))
+                .collect::<Result<HashMap<String, StoredWorkloadSpec>, String>>()?,
             configs: item.configs,
             cron_jobs: item
                 .cronjobs

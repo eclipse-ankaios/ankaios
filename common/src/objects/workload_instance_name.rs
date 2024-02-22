@@ -6,7 +6,7 @@ use std::{
 use api::proto;
 use serde::{Deserialize, Serialize};
 
-use super::WorkloadSpec;
+use super::{StoredWorkloadSpec, WorkloadSpec};
 
 pub trait ConfigHash {
     fn hash_config(&self) -> String;
@@ -41,6 +41,16 @@ pub struct WorkloadInstanceName {
     agent_name: String,
     workload_name: String,
     id: String,
+}
+
+impl From<(String, &StoredWorkloadSpec)> for WorkloadInstanceName {
+    fn from((workload_name, stored_spec): (String, &StoredWorkloadSpec)) -> Self {
+        WorkloadInstanceName {
+            workload_name,
+            agent_name: stored_spec.agent.clone(),
+            id: stored_spec.runtime_config.hash_config(),
+        }
+    }
 }
 
 impl From<proto::WorkloadInstanceName> for WorkloadInstanceName {

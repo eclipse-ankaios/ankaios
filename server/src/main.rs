@@ -15,7 +15,7 @@
 mod ankaios_server;
 mod cli;
 mod state_manipulation;
-mod state_parser;
+// mod state_parser;
 mod workload_state_db;
 
 use common::objects::CompleteState;
@@ -49,8 +49,9 @@ async fn main() {
                 fs::read_to_string(config_path).unwrap_or_exit("Could not read the startup config");
             // [impl->swdd~server-state-in-memory~1]
             // [impl->swdd~server-loads-startup-state-file~2]
-            let state: State =
-                state_parser::parse(data).unwrap_or_exit("Parsing start config failed with error");
+            let state: State = serde_yaml::from_str(&data)
+                // state_parser::parse(data)
+                .unwrap_or_exit("Parsing start config failed with error");
             log::trace!(
                 "The state is initialized with the following workloads: {:?}",
                 state.workloads

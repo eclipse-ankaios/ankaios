@@ -187,7 +187,6 @@ mod tests {
 
     use crate::{
         commands::{AgentHello, CompleteStateRequest, Request, RequestContent, UpdateStateRequest},
-        objects::WorkloadInstanceName,
         to_server_interface::ToServer,
     };
 
@@ -257,11 +256,8 @@ mod tests {
                     current_state: crate::objects::State {
                         workloads: HashMap::from([(
                             "test_workload".to_owned(),
-                            crate::objects::WorkloadSpec {
-                                instance_name: WorkloadInstanceName::builder()
-                                    .agent_name("test_agent")
-                                    .workload_name("test_workload")
-                                    .build(),
+                            crate::objects::StoredWorkloadSpec {
+                                agent: "test_agent".to_string(),
                                 ..Default::default()
                             },
                         )]),

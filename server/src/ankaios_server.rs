@@ -285,8 +285,9 @@ mod tests {
     use common::commands::{CompleteStateRequest, UpdateWorkload, UpdateWorkloadState};
     use common::from_server_interface::FromServer;
     use common::objects::{
-        generate_test_workload_state, generate_test_workload_state_with_agent, CompleteState,
-        DeletedWorkload, ExecutionState, State,
+        generate_test_stored_workload_spec, generate_test_workload_state,
+        generate_test_workload_state_with_agent, CompleteState, DeletedWorkload, ExecutionState,
+        State,
     };
     use common::test_utils::generate_test_workload_spec_with_param;
     use common::to_server_interface::ToServerInterface;
@@ -309,18 +310,11 @@ mod tests {
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         // contains a self cycle to workload A
-        let workload = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            "workload A".to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let workload = generate_test_stored_workload_spec(AGENT_A, RUNTIME_NAME);
 
         let startup_state = CompleteState {
             current_state: State {
-                workloads: HashMap::from([(
-                    workload.instance_name.workload_name().to_owned(),
-                    workload,
-                )]),
+                workloads: HashMap::from([("workload A".to_string(), workload)]),
                 ..Default::default()
             },
             ..Default::default()
@@ -366,7 +360,7 @@ mod tests {
             current_state: State {
                 workloads: HashMap::from([(
                     updated_workload.instance_name.workload_name().to_owned(),
-                    updated_workload.clone(),
+                    updated_workload.clone().into(),
                 )]),
                 ..Default::default()
             },
@@ -378,7 +372,7 @@ mod tests {
         updated_workload.dependencies.clear();
         fixed_state.current_state.workloads = HashMap::from([(
             updated_workload.instance_name.workload_name().to_owned(),
-            updated_workload.clone(),
+            updated_workload.clone().into(),
         )]);
 
         let update_mask = vec!["currentState.workloads".to_string()];
@@ -466,7 +460,7 @@ mod tests {
             current_state: State {
                 workloads: HashMap::from([(
                     workload.instance_name.workload_name().to_owned(),
-                    workload.clone(),
+                    workload.clone().into(),
                 )]),
                 ..Default::default()
             },
@@ -663,7 +657,7 @@ mod tests {
 
         let update_state = CompleteState {
             current_state: State {
-                workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
+                workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone().into())]
                     .into_iter()
                     .collect(),
                 configs: HashMap::default(),
@@ -722,11 +716,8 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let mut w1 = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME_NAME.to_string(),
-        );
+        let mut w1 =
+            generate_test_stored_workload_spec(AGENT_A.to_owned(), RUNTIME_NAME.to_string());
         w1.runtime_config = "changed".to_string();
 
         let update_state = CompleteState {
@@ -780,11 +771,7 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let w1 = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME_NAME.to_string(),
-        );
+        let w1 = generate_test_stored_workload_spec(AGENT_A.to_owned(), RUNTIME_NAME.to_string());
 
         let update_state = CompleteState {
             current_state: State {
@@ -840,28 +827,16 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let w1 = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME_NAME.to_string(),
-        );
+        let w1 = generate_test_stored_workload_spec(AGENT_A.to_owned(), RUNTIME_NAME.to_string());
 
-        let w2 = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_2.to_owned(),
-            RUNTIME_NAME.to_string(),
-        );
+        let w2 = generate_test_stored_workload_spec(AGENT_A.to_owned(), RUNTIME_NAME.to_string());
 
-        let w3 = generate_test_workload_spec_with_param(
-            AGENT_B.to_owned(),
-            WORKLOAD_NAME_3.to_owned(),
-            RUNTIME_NAME.to_string(),
-        );
+        let w3 = generate_test_stored_workload_spec(AGENT_B.to_owned(), RUNTIME_NAME.to_string());
 
         let workloads = HashMap::from([
-            (w1.instance_name.workload_name().to_owned(), w1),
-            (w2.instance_name.workload_name().to_owned(), w2),
-            (w3.instance_name.workload_name().to_owned(), w3),
+            (WORKLOAD_NAME_1.to_owned(), w1),
+            (WORKLOAD_NAME_2.to_owned(), w2),
+            (WORKLOAD_NAME_3.to_owned(), w3),
         ]);
 
         let mut configs = HashMap::new();
@@ -1067,7 +1042,7 @@ mod tests {
         updated_w1.restart = false;
         let update_state = CompleteState {
             current_state: State {
-                workloads: vec![(WORKLOAD_NAME_1.to_owned(), updated_w1.clone())]
+                workloads: vec![(WORKLOAD_NAME_1.to_owned(), updated_w1.clone().into())]
                     .into_iter()
                     .collect(),
                 configs: HashMap::default(),

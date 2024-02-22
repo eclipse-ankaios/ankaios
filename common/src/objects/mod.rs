@@ -22,9 +22,17 @@ pub use state::State;
 mod complete_state;
 pub use complete_state::CompleteState;
 
-mod external_state;
+mod stored_workload_spec;
+#[cfg(any(feature = "test_utils", test))]
+pub use stored_workload_spec::{
+    generate_test_stored_workload_spec, generate_test_stored_workload_spec_with_config,
+};
 
-pub use external_state::ExternalCompleteState;
+pub use stored_workload_spec::StoredWorkloadSpec;
+
+// mod external_state;
+
+// pub use external_state::ExternalCompleteState;
 
 mod workload_state;
 #[cfg(any(feature = "test_utils", test))]

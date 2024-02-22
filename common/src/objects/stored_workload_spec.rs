@@ -14,18 +14,16 @@
 
 use std::collections::HashMap;
 
+use api::proto;
 use serde::{Deserialize, Serialize};
 
 use crate::helpers::serialize_to_ordered_map;
 
-use super::{
-    AccessRights, AddCondition, CompleteState, Cronjob, State, Tag, UpdateStrategy,
-    WorkloadInstanceName, WorkloadSpec, WorkloadState,
-};
+use super::{AccessRights, AddCondition, Tag, UpdateStrategy, WorkloadInstanceName, WorkloadSpec};
 
 #[derive(Debug, Serialize, Default, Deserialize, Clone, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
-struct StoredWorkloadSpec {
+pub struct StoredWorkloadSpec {
     pub agent: String,
     pub tags: Vec<Tag>,
     #[serde(serialize_with = "serialize_to_ordered_map")]
@@ -35,6 +33,50 @@ struct StoredWorkloadSpec {
     pub access_rights: AccessRights,
     pub runtime: String,
     pub runtime_config: String,
+}
+
+impl TryFrom<proto::Workload> for StoredWorkloadSpec {
+    type Error = String;
+
+    fn try_from(value: proto::Workload) -> Result<Self, String> {
+        Ok(StoredWorkloadSpec {
+            agent: value.agent,
+            tags: value.tags.into_iter().map(|x| x.into()).collect(),
+            dependencies: value
+                .dependencies
+                .into_iter()
+                .map(|(k, v)| Ok((k, v.try_into()?)))
+                .collect::<Result<HashMap<String, AddCondition>, String>>()?,
+            update_strategy: value.update_strategy.try_into()?,
+            restart: value.restart,
+            access_rights: value.access_rights.unwrap_or_default().try_into()?,
+            runtime: value.runtime,
+            runtime_config: value.runtime_config,
+        })
+    }
+}
+
+impl From<StoredWorkloadSpec> for proto::Workload {
+    fn from(workload: StoredWorkloadSpec) -> Self {
+        proto::Workload {
+            agent: workload.agent,
+            dependencies: workload
+                .dependencies
+                .into_iter()
+                .map(|(k, v)| (k, v as i32))
+                .collect(),
+            restart: workload.restart,
+            update_strategy: workload.update_strategy as i32,
+            access_rights: if workload.access_rights.is_empty() {
+                None
+            } else {
+                Some(workload.access_rights.into())
+            },
+            runtime: workload.runtime,
+            runtime_config: workload.runtime_config,
+            tags: workload.tags.into_iter().map(|x| x.into()).collect(),
+        }
+    }
 }
 
 impl From<(String, StoredWorkloadSpec)> for WorkloadSpec {
@@ -71,73 +113,6 @@ impl From<WorkloadSpec> for StoredWorkloadSpec {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
-#[serde(default, rename_all = "camelCase")]
-pub struct ExternalState {
-    #[serde(serialize_with = "serialize_to_ordered_map")]
-    pub workloads: HashMap<String, StoredWorkloadSpec>,
-    #[serde(serialize_with = "serialize_to_ordered_map")]
-    pub configs: HashMap<String, String>,
-    #[serde(serialize_with = "serialize_to_ordered_map")]
-    pub cron_jobs: HashMap<String, Cronjob>,
-}
-
-impl From<ExternalState> for State {
-    fn from(value: ExternalState) -> Self {
-        State {
-            workloads: value
-                .workloads
-                .into_iter()
-                .map(|(name, spec)| (name.clone(), (name, spec).into()))
-                .collect(),
-            configs: value.configs,
-            cron_jobs: value.cron_jobs,
-        }
-    }
-}
-
-impl From<State> for ExternalState {
-    fn from(value: State) -> Self {
-        ExternalState {
-            workloads: value
-                .workloads
-                .into_iter()
-                .map(|(name, spec)| (name, spec.into()))
-                .collect(),
-            configs: value.configs,
-            cron_jobs: value.cron_jobs,
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
-#[serde(default, rename_all = "camelCase")]
-pub struct ExternalCompleteState {
-    pub startup_state: ExternalState,
-    pub current_state: ExternalState,
-    pub workload_states: Vec<WorkloadState>,
-}
-
-impl From<CompleteState> for ExternalCompleteState {
-    fn from(value: CompleteState) -> Self {
-        ExternalCompleteState {
-            startup_state: value.startup_state.into(),
-            current_state: value.current_state.into(),
-            workload_states: value.workload_states,
-        }
-    }
-}
-
-impl From<ExternalCompleteState> for CompleteState {
-    fn from(value: ExternalCompleteState) -> Self {
-        CompleteState {
-            startup_state: value.startup_state.into(),
-            current_state: value.current_state.into(),
-            workload_states: value.workload_states,
-        }
-    }
-}
-
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -145,6 +120,43 @@ impl From<ExternalCompleteState> for CompleteState {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_stored_workload_spec_with_config(
+    agent: impl Into<String>,
+    runtime_name: impl Into<String>,
+    runtime_config: impl Into<String>,
+) -> crate::objects::StoredWorkloadSpec {
+    StoredWorkloadSpec {
+        agent: agent.into(),
+        dependencies: HashMap::from([
+            (String::from("workload A"), AddCondition::AddCondRunning),
+            (String::from("workload C"), AddCondition::AddCondSucceeded),
+        ]),
+        update_strategy: UpdateStrategy::Unspecified,
+        restart: true,
+        access_rights: AccessRights::default(),
+        runtime: runtime_name.into(),
+        tags: vec![Tag {
+            key: "key".into(),
+            value: "value".into(),
+        }],
+        runtime_config: runtime_config.into(),
+    }
+}
+
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_stored_workload_spec(
+    agent: impl Into<String>,
+    runtime_name: impl Into<String>,
+) -> crate::objects::StoredWorkloadSpec {
+    generate_test_stored_workload_spec_with_config(
+        agent,
+        runtime_name,
+        "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
+        .to_owned()
+    )
+}
 
 // [utest->swdd~common-object-serialization~1]
 #[cfg(test)]

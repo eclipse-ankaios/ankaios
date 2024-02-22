@@ -15,10 +15,10 @@
 use api::proto;
 use serde::{Deserialize, Serialize};
 
-use super::{ExternalCompleteState, State, WorkloadState};
+use super::{State, WorkloadState};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
-#[serde(default, rename_all = "camelCase", into = "ExternalCompleteState")]
+#[serde(default, rename_all = "camelCase")]
 pub struct CompleteState {
     pub startup_state: State,
     pub current_state: State,

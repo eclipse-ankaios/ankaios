@@ -312,8 +312,8 @@ mod tests {
     use api::proto::response;
     use api::proto::{self, from_server::FromServerEnum, FromServer, UpdateWorkload};
     use async_trait::async_trait;
-    use common::objects::CompleteState;
     use common::from_server_interface::FromServerInterface;
+    use common::objects::{generate_test_stored_workload_spec, CompleteState, StoredWorkloadSpec};
     use common::objects::{State, WorkloadSpec};
     use common::test_utils::*;
     use tokio::sync::mpsc::error::TryRecvError;
@@ -696,14 +696,10 @@ mod tests {
         let (to_manager, mut manager_receiver, _, mut agent_rx, agent_senders_map) =
             create_test_setup(agent_name);
 
-        let mut startup_workloads = HashMap::<String, WorkloadSpec>::new();
+        let mut startup_workloads = HashMap::<String, StoredWorkloadSpec>::new();
         startup_workloads.insert(
             String::from(WORKLOAD_NAME),
-            generate_test_workload_spec_with_param(
-                agent_name.to_string(),
-                WORKLOAD_NAME.to_string(),
-                "my_runtime".to_string(),
-            ),
+            generate_test_stored_workload_spec(agent_name.to_string(), "my_runtime".to_string()),
         );
 
         let my_request_id = "my_request_id".to_owned();

@@ -57,10 +57,10 @@ fn from_stored_state(stored_state: StoredState) -> ankaios::State {
 
 fn from_stored_workloads(
     stored_workloads: HashMap<String, StoredWorkloadSpec>,
-) -> HashMap<String, ankaios::WorkloadSpec> {
+) -> HashMap<String, ankaios::StoredWorkloadSpec> {
     let mut workload_specs: HashMap<String, ankaios::WorkloadSpec> = HashMap::new();
     for (name, stored_workload) in stored_workloads {
-        let workload = ankaios::WorkloadSpec {
+        let workload = ankaios::StoredWorkloadSpec {
             instance_name: WorkloadInstanceName::builder()
                 .workload_name(name.clone())
                 .agent_name(stored_workload.agent)

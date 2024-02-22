@@ -24,9 +24,7 @@ use tests::read_to_string_mock as read_file_to_string;
 use common::{
     commands::{CompleteStateRequest, Response, ResponseContent},
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::{
-        CompleteState, ConfigHash, ExternalCompleteState, Tag, WorkloadInstanceName, WorkloadSpec,
-    },
+    objects::{CompleteState, StoredWorkloadSpec, Tag},
     to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
 
@@ -303,7 +301,7 @@ impl CliCommands {
             object_field_mask,
             state_object_file
         );
-        let mut complete_state_input = ExternalCompleteState::default();
+        let mut complete_state_input = CompleteState::default();
         if let Some(state_object_file) = state_object_file {
             let state_object_data =
                 read_file_to_string(state_object_file)
@@ -323,7 +321,7 @@ impl CliCommands {
         self.to_server
             .update_state(
                 self.cli_name.to_owned(),
-                complete_state_input.into(),
+                complete_state_input,
                 object_field_mask,
             )
             .await
@@ -363,7 +361,7 @@ impl CliCommands {
                 .workloads
                 .iter()
                 .find(|&(wl_name, wl_spec)| {
-                    *wl_name == wi.name && wl_spec.instance_name.agent_name() == wi.agent.as_str()
+                    *wl_name == wi.name && wl_spec.agent == wi.agent.as_str()
                 })
             {
                 wi.runtime = found_wl_spec.runtime.clone();
@@ -448,14 +446,8 @@ impl CliCommands {
             .map(|(k, v)| Tag { key: k, value: v })
             .collect();
 
-        let instance_name = WorkloadInstanceName::builder()
-            .agent_name(agent_name)
-            .workload_name(workload_name.clone())
-            .config(&runtime_config.hash_config())
-            .build();
-
-        let new_workload = WorkloadSpec {
-            instance_name,
+        let new_workload = StoredWorkloadSpec {
+            agent: agent_name,
             runtime: runtime_name,
             tags,
             runtime_config,
@@ -493,7 +485,7 @@ mod tests {
     use common::{
         commands::{self, Request, RequestContent, Response, ResponseContent},
         from_server_interface::{FromServer, FromServerSender},
-        objects::{self, ConfigHash, ExecutionState, Tag, WorkloadInstanceName, WorkloadSpec},
+        objects::{self, ExecutionState, StoredWorkloadSpec, Tag},
         test_utils::{self, generate_test_complete_state},
         to_server_interface::{ToServer, ToServerReceiver},
     };
@@ -1332,12 +1324,8 @@ mod tests {
         let mut updated_state = objects::CompleteState::default();
         updated_state.current_state.workloads.insert(
             "name3".to_owned(),
-            WorkloadSpec {
+            StoredWorkloadSpec {
                 runtime: "new_runtime".to_owned(),
-                instance_name: WorkloadInstanceName::builder()
-                    .workload_name("name3".to_string())
-                    .config(&"".to_string())
-                    .build(),
                 ..Default::default()
             },
         );
@@ -1440,12 +1428,8 @@ mod tests {
         ]);
 
         // The "run workload" command shall add one new workload to the startup state.
-        let new_workload = WorkloadSpec {
-            instance_name: WorkloadInstanceName::builder()
-                .agent_name(test_workload_agent.clone())
-                .workload_name(test_workload_name.clone())
-                .config(&test_workload_runtime_cfg.clone().hash_config())
-                .build(),
+        let new_workload = StoredWorkloadSpec {
+            agent: test_workload_agent.to_owned(),
             runtime: test_workload_runtime_name.clone(),
             tags: vec![Tag {
                 key: "key".to_string(),

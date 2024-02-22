@@ -118,8 +118,8 @@ pub fn dfs(state: &State, start_nodes: Option<Vec<&str>>) -> Option<String> {
 mod tests {
     use super::*;
     use common::{
-        objects::AddCondition,
-        test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
+        objects::{generate_test_stored_workload_spec, AddCondition},
+        test_utils::generate_test_complete_state,
     };
     use std::{collections::HashSet, ops::Deref};
 
@@ -600,11 +600,8 @@ mod tests {
 
         fn with_workloads(mut self, workloads: &[&str]) -> Self {
             for w in workloads {
-                let mut test_workload_spec = generate_test_workload_spec_with_param(
-                    AGENT_NAME.into(),
-                    w.to_string(),
-                    RUNTIME.into(),
-                );
+                let mut test_workload_spec =
+                    generate_test_stored_workload_spec(AGENT_NAME, RUNTIME);
                 test_workload_spec.dependencies.clear();
                 self.0.workloads.insert(w.to_string(), test_workload_spec);
             }

@@ -27,7 +27,7 @@ pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State
     State {
         workloads: workloads
             .into_iter()
-            .map(|v| (v.instance_name.workload_name().to_owned(), v))
+            .map(|v| (v.instance_name.workload_name().to_owned(), v.into()))
             .collect(),
         configs: HashMap::new(),
         cron_jobs: HashMap::new(),
@@ -48,7 +48,7 @@ pub fn generate_test_complete_state(
             workloads: workloads
                 .clone()
                 .into_iter()
-                .map(|v| (v.instance_name.workload_name().to_owned(), v))
+                .map(|v| (v.instance_name.workload_name().to_owned(), v.into()))
                 .collect(),
             configs: HashMap::new(),
             cron_jobs: HashMap::new(),
@@ -88,8 +88,8 @@ pub fn generate_test_state() -> State {
         "runtime".to_owned(),
     );
 
-    ankaios_workloads.insert(workload_name_1, workload_1);
-    ankaios_workloads.insert(workload_name_2, workload_2);
+    ankaios_workloads.insert(workload_name_1, workload_1.into());
+    ankaios_workloads.insert(workload_name_2, workload_2.into());
     let mut ankaios_configs = HashMap::new();
     ankaios_configs.insert(config_key_1, config_value_1);
     ankaios_configs.insert(config_key_2, config_value_2);
