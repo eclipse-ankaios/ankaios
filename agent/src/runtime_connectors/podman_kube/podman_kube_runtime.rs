@@ -354,7 +354,7 @@ impl From<OrderedExecutionState> for ExecutionState {
 // [utest->swdd~functions-required-by-runtime-connector~1]
 #[cfg(test)]
 mod tests {
-    use common::test_utils::generate_test_workload_spec_with_runtime_config;
+    use common::objects::generate_test_workload_spec_with_runtime_config;
     use mockall::Sequence;
 
     use std::fmt::Display;

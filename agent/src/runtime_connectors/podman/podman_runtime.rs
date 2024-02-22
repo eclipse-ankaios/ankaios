@@ -207,8 +207,9 @@ mod tests {
     use std::path::PathBuf;
 
     use common::{
-        objects::{AgentName, ExecutionState, WorkloadInstanceName},
-        test_utils::generate_test_workload_spec_with_param,
+        objects::{
+            generate_test_workload_spec_with_param, AgentName, ExecutionState, WorkloadInstanceName,
+        },
         to_server_interface::ToServer,
     };
     use mockall::Sequence;

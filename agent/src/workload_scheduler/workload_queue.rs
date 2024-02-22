@@ -186,11 +186,11 @@ mod tests {
     use std::collections::HashMap;
 
     use common::{
-        objects::{AddCondition, ExecutionState, WorkloadSpec},
-        test_utils::{
-            generate_test_deleted_workload, generate_test_workload_spec_with_dependencies,
-            generate_test_workload_spec_with_param,
+        objects::{
+            generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
+            AddCondition, ExecutionState, WorkloadSpec,
         },
+        test_utils::generate_test_deleted_workload,
     };
 
     use crate::workload_scheduler::workload_queue::{DeleteWorkloadQueue, StartWorkloadQueue};

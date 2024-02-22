@@ -485,7 +485,7 @@ mod tests {
     use common::{
         commands::{self, Request, RequestContent, Response, ResponseContent},
         from_server_interface::{FromServer, FromServerSender},
-        objects::{self, ExecutionState, StoredWorkloadSpec, Tag},
+        objects::{self, generate_test_workload_spec_with_param, ExecutionState, StoredWorkloadSpec, Tag},
         test_utils::{self, generate_test_complete_state},
         to_server_interface::{ToServer, ToServerReceiver},
     };
@@ -612,17 +612,17 @@ mod tests {
             request_id: "TestCli".to_owned(),
             response_content: ResponseContent::CompleteState(Box::new(
                 test_utils::generate_test_complete_state(vec![
-                    test_utils::generate_test_workload_spec_with_param(
+                    generate_test_workload_spec_with_param(
                         "agent_A".to_string(),
                         "name1".to_string(),
                         "runtime".to_string(),
                     ),
-                    test_utils::generate_test_workload_spec_with_param(
+                    generate_test_workload_spec_with_param(
                         "agent_B".to_string(),
                         "name2".to_string(),
                         "runtime".to_string(),
                     ),
-                    test_utils::generate_test_workload_spec_with_param(
+                    generate_test_workload_spec_with_param(
                         "agent_B".to_string(),
                         "name3".to_string(),
                         "runtime".to_string(),
@@ -687,17 +687,17 @@ mod tests {
             request_id: "TestCli".to_owned(),
             response_content: ResponseContent::CompleteState(Box::new(
                 test_utils::generate_test_complete_state(vec![
-                    test_utils::generate_test_workload_spec_with_param(
+                    generate_test_workload_spec_with_param(
                         "agent_A".to_string(),
                         "name1".to_string(),
                         "runtime".to_string(),
                     ),
-                    test_utils::generate_test_workload_spec_with_param(
+                    generate_test_workload_spec_with_param(
                         "agent_B".to_string(),
                         "name2".to_string(),
                         "runtime".to_string(),
                     ),
-                    test_utils::generate_test_workload_spec_with_param(
+                    generate_test_workload_spec_with_param(
                         "agent_B".to_string(),
                         "name3".to_string(),
                         "runtime".to_string(),
@@ -748,17 +748,17 @@ mod tests {
             request_id: "TestCli".to_owned(),
             response_content: ResponseContent::CompleteState(Box::new(
                 test_utils::generate_test_complete_state(vec![
-                    test_utils::generate_test_workload_spec_with_param(
+                    generate_test_workload_spec_with_param(
                         "agent_A".to_string(),
                         "name1".to_string(),
                         "runtime".to_string(),
                     ),
-                    test_utils::generate_test_workload_spec_with_param(
+                    generate_test_workload_spec_with_param(
                         "agent_B".to_string(),
                         "name2".to_string(),
                         "runtime".to_string(),
                     ),
-                    test_utils::generate_test_workload_spec_with_param(
+                    generate_test_workload_spec_with_param(
                         "agent_B".to_string(),
                         "name3".to_string(),
                         "runtime".to_string(),
@@ -818,17 +818,17 @@ mod tests {
             request_id: "TestCli".to_owned(),
             response_content: ResponseContent::CompleteState(Box::new(
                 test_utils::generate_test_complete_state(vec![
-                    test_utils::generate_test_workload_spec_with_param(
+                    generate_test_workload_spec_with_param(
                         "agent_A".to_string(),
                         "name1".to_string(),
                         "runtime".to_string(),
                     ),
-                    test_utils::generate_test_workload_spec_with_param(
+                    generate_test_workload_spec_with_param(
                         "agent_B".to_string(),
                         "name2".to_string(),
                         "runtime".to_string(),
                     ),
-                    test_utils::generate_test_workload_spec_with_param(
+                    generate_test_workload_spec_with_param(
                         "agent_B".to_string(),
                         "name3".to_string(),
                         "runtime".to_string(),
@@ -925,24 +925,24 @@ mod tests {
             .await;
 
         let startup_state = test_utils::generate_test_complete_state(vec![
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
                 "name1".to_string(),
                 "runtime".to_string(),
             ),
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name2".to_string(),
                 "runtime".to_string(),
             ),
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name3".to_string(),
                 "runtime".to_string(),
             ),
         ]);
         let updated_state = test_utils::generate_test_complete_state(vec![
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name3".to_string(),
                 "runtime".to_string(),
@@ -1017,17 +1017,17 @@ mod tests {
             .await;
 
         let startup_state = test_utils::generate_test_complete_state(vec![
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
                 "name1".to_string(),
                 "runtime".to_string(),
             ),
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name2".to_string(),
                 "runtime".to_string(),
             ),
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name3".to_string(),
                 "runtime".to_string(),
@@ -1090,17 +1090,17 @@ mod tests {
             .await;
 
         let test_data = test_utils::generate_test_complete_state(vec![
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
                 "name1".to_string(),
                 "runtime".to_string(),
             ),
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name2".to_string(),
                 "runtime".to_string(),
             ),
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name3".to_string(),
                 "runtime".to_string(),
@@ -1143,17 +1143,17 @@ mod tests {
             .await;
 
         let test_data = test_utils::generate_test_complete_state(vec![
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
                 "name1".to_string(),
                 "runtime".to_string(),
             ),
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name2".to_string(),
                 "runtime".to_string(),
             ),
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name3".to_string(),
                 "runtime".to_string(),
@@ -1197,17 +1197,17 @@ mod tests {
             .await;
 
         let test_data = test_utils::generate_test_complete_state(vec![
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
                 "name1".to_string(),
                 "runtime".to_string(),
             ),
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name2".to_string(),
                 "runtime".to_string(),
             ),
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name3".to_string(),
                 "runtime".to_string(),
@@ -1259,17 +1259,17 @@ mod tests {
             .await;
 
         let test_data = test_utils::generate_test_complete_state(vec![
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
                 "name1".to_string(),
                 "runtime".to_string(),
             ),
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name2".to_string(),
                 "runtime".to_string(),
             ),
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name3".to_string(),
                 "runtime".to_string(),
@@ -1410,17 +1410,17 @@ mod tests {
             .await;
 
         let startup_state = test_utils::generate_test_complete_state(vec![
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
                 "name1".to_string(),
                 "runtime".to_string(),
             ),
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name2".to_string(),
                 "runtime".to_string(),
             ),
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name3".to_string(),
                 "runtime".to_string(),
@@ -1514,17 +1514,17 @@ mod tests {
     #[test]
     fn utest_generate_compact_state_output_empty_filter_masks() {
         let input_state = generate_test_complete_state(vec![
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
                 "name1".to_string(),
                 "podman".to_string(),
             ),
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name2".to_string(),
                 "podman".to_string(),
             ),
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name3".to_string(),
                 "podman".to_string(),
@@ -1541,17 +1541,17 @@ mod tests {
     #[test]
     fn utest_generate_compact_state_output_single_filter_mask() {
         let input_state = generate_test_complete_state(vec![
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
                 "name1".to_string(),
                 "podman".to_string(),
             ),
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name2".to_string(),
                 "podman".to_string(),
             ),
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name3".to_string(),
                 "podman".to_string(),
@@ -1601,17 +1601,17 @@ mod tests {
     #[test]
     fn utest_generate_compact_state_output_multiple_filter_masks() {
         let input_state = generate_test_complete_state(vec![
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
                 "name1".to_string(),
                 "podman".to_string(),
             ),
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name2".to_string(),
                 "podman".to_string(),
             ),
-            test_utils::generate_test_workload_spec_with_param(
+            generate_test_workload_spec_with_param(
                 "agent_B".to_string(),
                 "name3".to_string(),
                 "podman".to_string(),

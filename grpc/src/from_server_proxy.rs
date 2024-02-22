@@ -313,7 +313,7 @@ mod tests {
     use api::proto::{self, from_server::FromServerEnum, FromServer, UpdateWorkload};
     use async_trait::async_trait;
     use common::from_server_interface::FromServerInterface;
-    use common::objects::{generate_test_stored_workload_spec, CompleteState, StoredWorkloadSpec};
+    use common::objects::{generate_test_stored_workload_spec, generate_test_workload_spec_with_param, CompleteState, StoredWorkloadSpec};
     use common::objects::{State, WorkloadSpec};
     use common::test_utils::*;
     use tokio::sync::mpsc::error::TryRecvError;

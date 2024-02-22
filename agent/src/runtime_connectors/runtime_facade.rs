@@ -296,7 +296,7 @@ impl<
 #[cfg(test)]
 mod tests {
     use common::{
-        objects::WorkloadInstanceName, test_utils::generate_test_workload_spec_with_param,
+        objects::{generate_test_workload_spec_with_param, WorkloadInstanceName},
         to_server_interface::ToServer,
     };
 

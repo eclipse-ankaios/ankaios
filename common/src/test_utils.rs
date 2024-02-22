@@ -18,8 +18,8 @@ use api::proto;
 use serde::{Serialize, Serializer};
 
 use crate::objects::{
-    AccessRights, AddCondition, Cronjob, DeleteCondition, DeletedWorkload, Interval,
-    State, Tag, UpdateStrategy, WorkloadInstanceName, WorkloadSpec,
+    generate_test_workload_spec_with_param, Cronjob, DeleteCondition, DeletedWorkload, Interval,
+    State, WorkloadInstanceName, WorkloadSpec,
 };
 
 #[cfg(feature = "test_utils")]
@@ -35,9 +35,7 @@ pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State
 }
 
 #[cfg(feature = "test_utils")]
-pub fn generate_test_complete_state(
-    workloads: Vec<WorkloadSpec>,
-) -> crate::objects::CompleteState {
+pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> crate::objects::CompleteState {
     use crate::{
         objects::CompleteState,
         objects::{ExecutionState, WorkloadState},
@@ -131,13 +129,6 @@ pub fn generate_test_proto_state() -> proto::State {
     }
 }
 
-fn generate_test_dependencies() -> HashMap<String, AddCondition> {
-    HashMap::from([
-        (String::from("workload A"), AddCondition::AddCondRunning),
-        (String::from("workload C"), AddCondition::AddCondSucceeded),
-    ])
-}
-
 fn generate_test_proto_dependencies() -> HashMap<String, i32> {
     HashMap::from([
         (
@@ -163,73 +154,6 @@ fn generate_test_proto_delete_dependencies() -> HashMap<String, i32> {
         String::from("workload A"),
         proto::DeleteCondition::DelCondNotPendingNorRunning.into(),
     )])
-}
-
-pub fn generate_test_workload_spec_with_param(
-    agent_name: String,
-    workload_name: String,
-    runtime_name: String,
-) -> crate::objects::WorkloadSpec {
-    let runtime_config =
-        "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
-        .to_owned();
-
-    generate_test_workload_spec_with_runtime_config(
-        agent_name,
-        workload_name,
-        runtime_name,
-        runtime_config,
-    )
-}
-
-pub fn generate_test_workload_spec_with_runtime_config(
-    agent_name: String,
-    workload_name: String,
-    runtime_name: String,
-    runtime_config: String,
-) -> crate::objects::WorkloadSpec {
-    let instance_name = WorkloadInstanceName::builder()
-        .agent_name(agent_name)
-        .workload_name(workload_name)
-        .config(&runtime_config)
-        .build();
-
-    WorkloadSpec {
-        instance_name,
-        dependencies: generate_test_dependencies(),
-        update_strategy: UpdateStrategy::Unspecified,
-        restart: true,
-        access_rights: AccessRights::default(),
-        runtime: runtime_name,
-        tags: vec![Tag {
-            key: "key".into(),
-            value: "value".into(),
-        }],
-        runtime_config,
-    }
-}
-
-pub fn generate_test_workload_spec() -> WorkloadSpec {
-    generate_test_workload_spec_with_param(
-        "agent".to_string(),
-        "name".to_string(),
-        "runtime".to_string(),
-    )
-}
-
-pub fn generate_test_workload_spec_with_dependencies(
-    agent_name: &str,
-    workload_name: &str,
-    runtime_name: &str,
-    dependencies: HashMap<String, AddCondition>,
-) -> WorkloadSpec {
-    let mut workload_spec = generate_test_workload_spec_with_param(
-        agent_name.to_owned(),
-        workload_name.to_owned(),
-        runtime_name.to_owned(),
-    );
-    workload_spec.dependencies = dependencies;
-    workload_spec
 }
 
 pub fn generate_test_proto_workload() -> proto::Workload {

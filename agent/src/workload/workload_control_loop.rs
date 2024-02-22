@@ -417,8 +417,8 @@ mod tests {
     use std::time::Duration;
 
     use common::{
-        commands::UpdateWorkloadState, objects::ExecutionState,
-        test_utils::generate_test_workload_spec_with_param, to_server_interface::ToServer,
+        commands::UpdateWorkloadState, objects::generate_test_workload_spec_with_param,
+        objects::ExecutionState, to_server_interface::ToServer,
     };
     use tokio::{sync::mpsc, time::timeout};
 

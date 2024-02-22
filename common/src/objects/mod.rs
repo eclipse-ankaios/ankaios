@@ -43,6 +43,12 @@ pub use workload_state::{
 pub use workload_state::{ExecutionState, ExecutionStateEnum, WorkloadState};
 
 mod workload_spec;
+#[cfg(any(feature = "test_utils", test))]
+pub use workload_spec::{
+    generate_test_workload_spec, generate_test_workload_spec_with_dependencies,
+    generate_test_workload_spec_with_param, generate_test_workload_spec_with_runtime_config,
+};
+
 pub use workload_spec::{
     get_workloads_per_agent, AddCondition, DeleteCondition, DeletedWorkload,
     DeletedWorkloadCollection, FulfilledBy, UpdateStrategy, WorkloadCollection, WorkloadSpec,

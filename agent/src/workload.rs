@@ -168,8 +168,8 @@ mod tests {
     use common::{
         commands::{Response, ResponseContent},
         from_server_interface::FromServer,
-        objects::{CompleteState, ConfigHash, WorkloadInstanceName},
-        test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
+        objects::{generate_test_workload_spec_with_param, CompleteState, WorkloadInstanceName},
+        test_utils::generate_test_complete_state,
     };
     use tokio::{sync::mpsc, time::timeout};
 

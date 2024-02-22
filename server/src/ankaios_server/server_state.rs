@@ -274,10 +274,10 @@ mod tests {
     use common::{
         commands::CompleteStateRequest,
         objects::{
-            generate_test_stored_workload_spec, CompleteState, DeletedWorkload, State,
-            StoredWorkloadSpec, WorkloadSpec,
+            generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
+            CompleteState, DeletedWorkload, State, StoredWorkloadSpec, WorkloadSpec,
         },
-        test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
+        test_utils::generate_test_complete_state,
     };
 
     use crate::{

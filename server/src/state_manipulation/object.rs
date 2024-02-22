@@ -159,8 +159,8 @@ impl Object {
 #[cfg(test)]
 mod tests {
     use common::{
-        objects::{CompleteState, State},
-        test_utils::{generate_test_state_from_workloads, generate_test_workload_spec},
+        objects::{generate_test_workload_spec, CompleteState, State},
+        test_utils::generate_test_state_from_workloads,
     };
     use serde_yaml::Value;
 

@@ -94,7 +94,7 @@ mod tests {
     use std::time::Duration;
 
     use common::{
-        commands, objects::ExecutionState, test_utils::generate_test_workload_spec_with_param,
+        commands, objects::generate_test_workload_spec_with_param, objects::ExecutionState,
         to_server_interface::ToServer,
     };
 

@@ -91,7 +91,7 @@ impl WorkloadCommandSender {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::test_utils::generate_test_workload_spec;
+    use common::objects::generate_test_workload_spec;
     const PIPES_LOCATION: &str = "/some/path";
 
     use mockall::lazy_static;

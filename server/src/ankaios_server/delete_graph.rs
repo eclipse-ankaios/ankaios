@@ -64,9 +64,8 @@ impl DeleteGraph {
 #[cfg(test)]
 mod tests {
     use super::{AddCondition, DeleteCondition, DeleteGraph};
-    use common::{
-        objects::{DeletedWorkload, WorkloadInstanceName},
-        test_utils::generate_test_workload_spec_with_param,
+    use common::objects::{
+        generate_test_workload_spec_with_param, DeletedWorkload, WorkloadInstanceName,
     };
     use std::collections::HashMap;
 

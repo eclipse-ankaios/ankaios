@@ -285,11 +285,10 @@ mod tests {
     use common::commands::{CompleteStateRequest, UpdateWorkload, UpdateWorkloadState};
     use common::from_server_interface::FromServer;
     use common::objects::{
-        generate_test_stored_workload_spec, generate_test_workload_state,
-        generate_test_workload_state_with_agent, CompleteState, DeletedWorkload, ExecutionState,
-        State,
+        generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
+        generate_test_workload_state, generate_test_workload_state_with_agent, CompleteState,
+        DeletedWorkload, ExecutionState, State,
     };
-    use common::test_utils::generate_test_workload_spec_with_param;
     use common::to_server_interface::ToServerInterface;
 
     const AGENT_A: &str = "agent_A";

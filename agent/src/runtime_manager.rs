@@ -414,11 +414,11 @@ mod tests {
     use crate::workload::{MockWorkload, WorkloadError};
     use crate::workload_scheduler::scheduler::MockWorkloadScheduler;
     use common::commands::ResponseContent;
-    use common::objects::{AddCondition, WorkloadInstanceNameBuilder};
-    use common::test_utils::{
-        generate_test_complete_state, generate_test_deleted_workload,
+    use common::objects::{
         generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
+        AddCondition, WorkloadInstanceNameBuilder,
     };
+    use common::test_utils::{generate_test_complete_state, generate_test_deleted_workload};
     use common::to_server_interface::ToServerReceiver;
     use mockall::{predicate, Sequence};
     use tokio::sync::mpsc::channel;

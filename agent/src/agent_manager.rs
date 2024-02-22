@@ -190,8 +190,7 @@ mod tests {
     use common::{
         commands::{Goodbye, Response, ResponseContent, UpdateWorkloadState},
         from_server_interface::FromServerInterface,
-        objects::{CompleteState, ExecutionState},
-        test_utils::generate_test_workload_spec_with_param,
+        objects::{generate_test_workload_spec_with_param, CompleteState, ExecutionState},
     };
     use mockall::predicate::*;
     use tokio::{join, sync::mpsc::channel};

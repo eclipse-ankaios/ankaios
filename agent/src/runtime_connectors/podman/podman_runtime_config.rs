@@ -62,7 +62,7 @@ impl From<TryFromWorkloadSpecError> for String {
 
 #[cfg(test)]
 mod tests {
-    use common::test_utils::generate_test_workload_spec_with_param;
+    use common::objects::generate_test_workload_spec_with_param;
 
     use super::PodmanRuntimeConfig;
     use crate::runtime_connectors::{
