@@ -213,7 +213,7 @@ mod tests {
                 ..Default::default()
             }],
             deleted_workloads: vec![generate_test_deleted_workload(
-                "agent X".to_string(),
+                "agent".to_string(),
                 "workload X".to_string(),
             )],
         });

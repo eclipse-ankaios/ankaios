@@ -101,53 +101,53 @@ impl TryFrom<proto::AddedWorkload> for WorkloadSpec {
     }
 }
 
-impl TryFrom<(String, proto::Workload)> for WorkloadSpec {
-    type Error = String;
+// impl TryFrom<(String, proto::Workload)> for WorkloadSpec {
+//     type Error = String;
 
-    fn try_from((name, workload): (String, proto::Workload)) -> Result<Self, Self::Error> {
-        Ok(WorkloadSpec {
-            dependencies: workload
-                .dependencies
-                .into_iter()
-                .map(|(k, v)| Ok((k, v.try_into()?)))
-                .collect::<Result<HashMap<String, AddCondition>, String>>()?,
-            update_strategy: workload.update_strategy.try_into()?,
-            restart: workload.restart,
-            access_rights: workload.access_rights.unwrap_or_default().try_into()?,
-            runtime: workload.runtime,
-            instance_name: WorkloadInstanceName::builder()
-                .workload_name(name)
-                .agent_name(workload.agent)
-                .config(&workload.runtime_config)
-                .build(),
-            tags: workload.tags.into_iter().map(|x| x.into()).collect(),
-            runtime_config: workload.runtime_config,
-        })
-    }
-}
+//     fn try_from((name, workload): (String, proto::Workload)) -> Result<Self, Self::Error> {
+//         Ok(WorkloadSpec {
+//             dependencies: workload
+//                 .dependencies
+//                 .into_iter()
+//                 .map(|(k, v)| Ok((k, v.try_into()?)))
+//                 .collect::<Result<HashMap<String, AddCondition>, String>>()?,
+//             update_strategy: workload.update_strategy.try_into()?,
+//             restart: workload.restart,
+//             access_rights: workload.access_rights.unwrap_or_default().try_into()?,
+//             runtime: workload.runtime,
+//             instance_name: WorkloadInstanceName::builder()
+//                 .workload_name(name)
+//                 .agent_name(workload.agent)
+//                 .config(&workload.runtime_config)
+//                 .build(),
+//             tags: workload.tags.into_iter().map(|x| x.into()).collect(),
+//             runtime_config: workload.runtime_config,
+//         })
+//     }
+// }
 
-impl From<WorkloadSpec> for proto::Workload {
-    fn from(workload: WorkloadSpec) -> Self {
-        proto::Workload {
-            agent: workload.instance_name.agent_name().to_owned(),
-            dependencies: workload
-                .dependencies
-                .into_iter()
-                .map(|(k, v)| (k, v as i32))
-                .collect(),
-            restart: workload.restart,
-            update_strategy: workload.update_strategy as i32,
-            access_rights: if workload.access_rights.is_empty() {
-                None
-            } else {
-                Some(workload.access_rights.into())
-            },
-            runtime: workload.runtime,
-            runtime_config: workload.runtime_config,
-            tags: workload.tags.into_iter().map(|x| x.into()).collect(),
-        }
-    }
-}
+// impl From<WorkloadSpec> for proto::Workload {
+//     fn from(workload: WorkloadSpec) -> Self {
+//         proto::Workload {
+//             agent: workload.instance_name.agent_name().to_owned(),
+//             dependencies: workload
+//                 .dependencies
+//                 .into_iter()
+//                 .map(|(k, v)| (k, v as i32))
+//                 .collect(),
+//             restart: workload.restart,
+//             update_strategy: workload.update_strategy as i32,
+//             access_rights: if workload.access_rights.is_empty() {
+//                 None
+//             } else {
+//                 Some(workload.access_rights.into())
+//             },
+//             runtime: workload.runtime,
+//             runtime_config: workload.runtime_config,
+//             tags: workload.tags.into_iter().map(|x| x.into()).collect(),
+//         }
+//     }
+// }
 
 impl From<WorkloadSpec> for proto::AddedWorkload {
     fn from(workload: WorkloadSpec) -> Self {
@@ -351,12 +351,13 @@ mod tests {
 
     #[test]
     fn utest_converts_to_proto_added_workload() {
-        let workload = generate_test_workload_spec();
+        let workload_spec = generate_test_workload_spec();
 
         let proto_workload = proto::AddedWorkload {
             instance_name: Some(proto::WorkloadInstanceName {
                 workload_name: "name".to_string(),
-                ..Default::default()
+                agent_name: "agent".to_string(),
+                id: workload_spec.runtime_config.hash_config(),
             }),
             dependencies: HashMap::from([
                 (
@@ -372,98 +373,98 @@ mod tests {
             update_strategy: proto::UpdateStrategy::Unspecified.into(),
             access_rights: None,
             runtime: String::from("runtime"),
-            runtime_config: workload.runtime_config.clone(),
+            runtime_config: workload_spec.runtime_config.clone(),
             tags: vec![proto::Tag {
                 key: "key".into(),
                 value: "value".into(),
             }],
         };
 
-        assert_eq!(proto::AddedWorkload::from(workload), proto_workload);
+        assert_eq!(proto::AddedWorkload::from(workload_spec), proto_workload);
     }
 
-    #[test]
-    fn utest_converts_to_proto_workload() {
-        let workload = generate_test_workload_spec();
+    // #[test]
+    // fn utest_converts_to_proto_workload() {
+    //     let workload = generate_test_workload_spec();
 
-        let proto_workload = generate_test_proto_workload();
+    //     let proto_workload = generate_test_proto_workload();
 
-        assert_eq!(proto::Workload::from(workload), proto_workload);
-    }
+    //     assert_eq!(proto::Workload::from(workload), proto_workload);
+    // }
 
-    #[test]
-    fn utest_converts_to_ankaios_workload() {
-        let workload = WorkloadSpec {
-            dependencies: HashMap::from([
-                (String::from("workload A"), AddCondition::AddCondRunning),
-                (String::from("workload C"), AddCondition::AddCondSucceeded),
-            ]),
-            update_strategy: UpdateStrategy::Unspecified,
-            restart: true,
-            access_rights: AccessRights {
-                allow: vec![],
-                deny: vec![],
-            },
-            runtime: String::from("runtime"),
-            instance_name: WorkloadInstanceName::builder()
-                .agent_name("agent")
-                .workload_name("name")
-                .build(),
-            tags: vec![],
-            runtime_config: String::from("some config"),
-        };
+    // #[test]
+    // fn utest_converts_to_ankaios_workload_spec() {
+    //     let workload = WorkloadSpec {
+    //         dependencies: HashMap::from([
+    //             (String::from("workload A"), AddCondition::AddCondRunning),
+    //             (String::from("workload C"), AddCondition::AddCondSucceeded),
+    //         ]),
+    //         update_strategy: UpdateStrategy::Unspecified,
+    //         restart: true,
+    //         access_rights: AccessRights {
+    //             allow: vec![],
+    //             deny: vec![],
+    //         },
+    //         runtime: String::from("runtime"),
+    //         instance_name: WorkloadInstanceName::builder()
+    //             .agent_name("agent")
+    //             .workload_name("name")
+    //             .build(),
+    //         tags: vec![],
+    //         runtime_config: String::from("some config"),
+    //     };
 
-        let proto_workload = proto::Workload {
-            agent: String::from("agent"),
-            dependencies: HashMap::from([
-                (
-                    String::from("workload A"),
-                    proto::AddCondition::AddCondRunning.into(),
-                ),
-                (
-                    String::from("workload C"),
-                    proto::AddCondition::AddCondSucceeded.into(),
-                ),
-            ]),
-            restart: true,
-            update_strategy: proto::UpdateStrategy::Unspecified.into(),
-            access_rights: None,
-            runtime: String::from("runtime"),
-            runtime_config: String::from("some config"),
-            tags: vec![],
-        };
+    //     let proto_workload = proto::Workload {
+    //         agent: String::from("agent"),
+    //         dependencies: HashMap::from([
+    //             (
+    //                 String::from("workload A"),
+    //                 proto::AddCondition::AddCondRunning.into(),
+    //             ),
+    //             (
+    //                 String::from("workload C"),
+    //                 proto::AddCondition::AddCondSucceeded.into(),
+    //             ),
+    //         ]),
+    //         restart: true,
+    //         update_strategy: proto::UpdateStrategy::Unspecified.into(),
+    //         access_rights: None,
+    //         runtime: String::from("runtime"),
+    //         runtime_config: String::from("some config"),
+    //         tags: vec![],
+    //     };
 
-        assert_eq!(
-            WorkloadSpec::try_from(("name".to_string(), proto_workload)),
-            Ok(workload)
-        );
-    }
+    //     assert_eq!(
+    //         WorkloadSpec::try_from(("name".to_string(), proto_workload)),
+    //         Ok(workload)
+    //     );
+    // }
 
-    #[test]
-    fn utest_converts_to_ankaios_workload_fails() {
-        let proto_workload = proto::Workload {
-            agent: String::from("agent"),
-            dependencies: HashMap::from([
-                (
-                    String::from("workload A"),
-                    proto::AddCondition::AddCondRunning.into(),
-                ),
-                (String::from("workload B"), -1),
-                (
-                    String::from("workload C"),
-                    proto::AddCondition::AddCondSucceeded.into(),
-                ),
-            ]),
-            restart: true,
-            update_strategy: proto::UpdateStrategy::Unspecified.into(),
-            access_rights: None,
-            runtime: String::from("runtime"),
-            runtime_config: String::from("some config"),
-            tags: vec![],
-        };
+    // #[test]
+    // fn utest_converts_to_ankaios_workload_spec_fails() {
+    //     let proto_workload = proto::Workload {
+    //         agent: String::from("agent"),
+    //         dependencies: HashMap::from([
+    //             (
+    //                 String::from("workload A"),
+    //                 proto::AddCondition::AddCondRunning.into(),
+    //             ),
+    //             (String::from("workload B"), -1),
+    //             (
+    //                 String::from("workload C"),
+    //                 proto::AddCondition::AddCondSucceeded.into(),
+    //             ),
+    //         ]),
+    //         restart: true,
+    //         update_strategy: proto::UpdateStrategy::Unspecified.into(),
+    //         access_rights: None,
+    //         runtime: String::from("runtime"),
+    //         runtime_config: String::from("some config"),
+    //         tags: vec![],
+    //     };
 
-        assert!(WorkloadSpec::try_from(("name".to_string(), proto_workload)).is_err());
-    }
+    //     assert!(WorkloadSpec::try_from(("name".to_string(), proto_workload)).is_err());
+    // }
 
     #[test]
     fn utest_converts_to_ankaios_added_workload() {
