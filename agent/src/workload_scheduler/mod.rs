@@ -13,4 +13,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod scheduler;
+mod state_validator;
 mod workload_queue;

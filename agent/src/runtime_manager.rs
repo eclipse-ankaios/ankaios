@@ -82,7 +82,7 @@ impl RuntimeManager {
         }
     }
 
-    pub async fn update_workloads_on_new_workload_states(
+    pub async fn update_workloads_on_fulfilled_dependencies(
         &mut self,
         workload_state_db: &ParameterStorage,
     ) {
@@ -125,7 +125,7 @@ impl RuntimeManager {
 
         let (ready_workloads, ready_deleted_workloads) = self
             .workload_scheduler
-            .schedule_workloads(added_workloads, deleted_workloads, workload_state_db)
+            .enqueue_filtered_workloads(added_workloads, deleted_workloads, workload_state_db)
             .await;
 
         self.handle_subsequent_update_workload(ready_workloads, ready_deleted_workloads)
@@ -490,7 +490,7 @@ mod tests {
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
-            .expect_schedule_workloads()
+            .expect_enqueue_filtered_workloads()
             .once()
             .return_const((added_workloads.clone(), vec![]));
 
@@ -563,7 +563,7 @@ mod tests {
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
-            .expect_schedule_workloads()
+            .expect_enqueue_filtered_workloads()
             .once()
             .return_const((added_workloads.clone(), vec![]));
 
@@ -617,7 +617,7 @@ mod tests {
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
-            .expect_schedule_workloads()
+            .expect_enqueue_filtered_workloads()
             .once()
             .return_const((added_workloads.clone(), vec![]));
 
@@ -682,7 +682,7 @@ mod tests {
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
-            .expect_schedule_workloads()
+            .expect_enqueue_filtered_workloads()
             .once()
             .return_const((vec![], vec![]));
 
@@ -753,7 +753,7 @@ mod tests {
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
-            .expect_schedule_workloads()
+            .expect_enqueue_filtered_workloads()
             .once()
             .return_const((added_workloads.clone(), vec![]));
 
@@ -822,7 +822,7 @@ mod tests {
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
-            .expect_schedule_workloads()
+            .expect_enqueue_filtered_workloads()
             .once()
             .return_const((
                 vec![],
@@ -880,7 +880,7 @@ mod tests {
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
-            .expect_schedule_workloads()
+            .expect_enqueue_filtered_workloads()
             .once()
             .with(
                 predicate::eq(added_workloads.clone()),
@@ -929,7 +929,7 @@ mod tests {
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
-            .expect_schedule_workloads()
+            .expect_enqueue_filtered_workloads()
             .once()
             .return_const((vec![], vec![]));
 
@@ -1007,7 +1007,7 @@ mod tests {
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
-            .expect_schedule_workloads()
+            .expect_enqueue_filtered_workloads()
             .once()
             .return_const((added_workloads.clone(), deleted_workloads.clone()));
 
@@ -1084,7 +1084,7 @@ mod tests {
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
-            .expect_schedule_workloads()
+            .expect_enqueue_filtered_workloads()
             .once()
             .return_const((added_workloads.clone(), deleted_workloads.clone()));
 
@@ -1167,7 +1167,7 @@ mod tests {
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
-            .expect_schedule_workloads()
+            .expect_enqueue_filtered_workloads()
             .once()
             .return_const((added_workloads.clone(), deleted_workloads.clone()));
 
@@ -1223,7 +1223,7 @@ mod tests {
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
-            .expect_schedule_workloads()
+            .expect_enqueue_filtered_workloads()
             .once()
             .return_const((added_workloads.clone(), vec![]));
 
@@ -1287,7 +1287,7 @@ mod tests {
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
-            .expect_schedule_workloads()
+            .expect_enqueue_filtered_workloads()
             .once()
             .return_const((added_workloads.clone(), vec![]));
 
@@ -1334,7 +1334,7 @@ mod tests {
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
-            .expect_schedule_workloads()
+            .expect_enqueue_filtered_workloads()
             .once()
             .return_const((vec![], vec![]));
 
@@ -1383,7 +1383,7 @@ mod tests {
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
-            .expect_schedule_workloads()
+            .expect_enqueue_filtered_workloads()
             .once()
             .with(
                 predicate::eq(vec![]),
@@ -1621,7 +1621,7 @@ mod tests {
             .build();
 
         runtime_manager
-            .update_workloads_on_new_workload_states(&MockParameterStorage::default())
+            .update_workloads_on_fulfilled_dependencies(&MockParameterStorage::default())
             .await;
         server_receiver.close();
 
@@ -1657,7 +1657,7 @@ mod tests {
             .build();
 
         runtime_manager
-            .update_workloads_on_new_workload_states(&MockParameterStorage::default())
+            .update_workloads_on_fulfilled_dependencies(&MockParameterStorage::default())
             .await;
         server_receiver.close();
 
@@ -1699,7 +1699,7 @@ mod tests {
             .insert(WORKLOAD_1_NAME.to_owned(), workload_mock);
 
         runtime_manager
-            .update_workloads_on_new_workload_states(&MockParameterStorage::default())
+            .update_workloads_on_fulfilled_dependencies(&MockParameterStorage::default())
             .await;
         server_receiver.close();
 
@@ -1734,7 +1734,7 @@ mod tests {
             .insert(WORKLOAD_1_NAME.to_owned(), workload_mock);
 
         runtime_manager
-            .update_workloads_on_new_workload_states(&MockParameterStorage::default())
+            .update_workloads_on_fulfilled_dependencies(&MockParameterStorage::default())
             .await;
         server_receiver.close();
 

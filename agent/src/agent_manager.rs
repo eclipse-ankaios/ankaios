@@ -114,7 +114,7 @@ impl AgentManager {
                             .update_workload_state(new_workload_state);
                     }
                     self.runtime_manager
-                        .update_workloads_on_new_workload_states(&self.parameter_storage)
+                        .update_workloads_on_fulfilled_dependencies(&self.parameter_storage)
                         .await;
                 }
 
@@ -163,7 +163,7 @@ impl AgentManager {
 
         if !workload_states.is_empty() {
             self.runtime_manager
-                .update_workloads_on_new_workload_states(&self.parameter_storage)
+                .update_workloads_on_fulfilled_dependencies(&self.parameter_storage)
                 .await;
 
             self.to_server
@@ -282,7 +282,7 @@ mod tests {
         let mut mock_runtime_manager = RuntimeManager::default();
         mock_runtime_manager.expect_handle_update_workload().never();
         mock_runtime_manager
-            .expect_update_workloads_on_new_workload_states()
+            .expect_update_workloads_on_fulfilled_dependencies()
             .once()
             .return_const(());
 
@@ -447,7 +447,7 @@ mod tests {
 
         let mut mock_runtime_manager = RuntimeManager::default();
         mock_runtime_manager
-            .expect_update_workloads_on_new_workload_states()
+            .expect_update_workloads_on_fulfilled_dependencies()
             .once()
             .return_const(());
 
@@ -507,7 +507,7 @@ mod tests {
 
         let mut mock_runtime_manager = RuntimeManager::default();
         mock_runtime_manager
-            .expect_update_workloads_on_new_workload_states()
+            .expect_update_workloads_on_fulfilled_dependencies()
             .never();
 
         let mut agent_manager = AgentManager::new(
