@@ -19,7 +19,7 @@ use std::{
 
 use common::{
     commands::Response,
-    objects::{AgentName, DeletedWorkload, WorkloadInstanceName, WorkloadSpec, WorkloadState},
+    objects::{AgentName, DeletedWorkload, WorkloadInstanceName, WorkloadSpec},
     request_id_prepending::detach_prefix_from_request_id,
     to_server_interface::ToServerSender,
 };
@@ -58,7 +58,6 @@ pub struct RuntimeManager {
     // [impl->swdd~agent-supports-multiple-runtime-connectors~1]
     runtime_map: HashMap<String, Box<dyn RuntimeFacade>>,
     update_state_tx: ToServerSender,
-    parameter_storage: ParameterStorage,
     workload_scheduler: WorkloadScheduler,
 }
 
@@ -79,18 +78,17 @@ impl RuntimeManager {
             workloads: HashMap::new(),
             runtime_map,
             update_state_tx: update_state_tx.clone(),
-            parameter_storage: ParameterStorage::new(),
             workload_scheduler: WorkloadScheduler::new(update_state_tx),
         }
     }
 
-    pub async fn update_workload_state(&mut self, new_workload_state: WorkloadState) {
-        self.parameter_storage
-            .update_workload_state(new_workload_state);
-
+    pub async fn update_workloads_on_new_workload_states(
+        &mut self,
+        workload_state_db: &ParameterStorage,
+    ) {
         let (added_workloads, deleted_workloads) = self
             .workload_scheduler
-            .next_added_and_deleted_workloads(&self.parameter_storage);
+            .next_added_and_deleted_workloads(workload_state_db);
 
         if !added_workloads.is_empty() || !deleted_workloads.is_empty() {
             self.handle_subsequent_update_workload(added_workloads, deleted_workloads)
@@ -102,6 +100,7 @@ impl RuntimeManager {
         &mut self,
         mut added_workloads: Vec<WorkloadSpec>,
         deleted_workloads: Vec<DeletedWorkload>,
+        workload_state_db: &ParameterStorage,
     ) {
         log::info!(
             "Received a new desired state with '{}' added and '{}' deleted workloads.",
@@ -126,7 +125,7 @@ impl RuntimeManager {
 
         let (ready_workloads, ready_deleted_workloads) = self
             .workload_scheduler
-            .schedule_workloads(added_workloads, deleted_workloads, &self.parameter_storage)
+            .schedule_workloads(added_workloads, deleted_workloads, workload_state_db)
             .await;
 
         self.handle_subsequent_update_workload(ready_workloads, ready_deleted_workloads)
@@ -415,9 +414,7 @@ mod tests {
     use crate::workload::{MockWorkload, WorkloadError};
     use crate::workload_scheduler::scheduler::MockWorkloadScheduler;
     use common::commands::ResponseContent;
-    use common::objects::{
-        generate_test_workload_state, AddCondition, ExecutionState, WorkloadInstanceNameBuilder,
-    };
+    use common::objects::{AddCondition, WorkloadInstanceNameBuilder};
     use common::test_utils::{
         generate_test_complete_state, generate_test_deleted_workload,
         generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
@@ -478,12 +475,6 @@ mod tests {
             .times(2)
             .returning(|_, _, _| Ok(MockPipesChannelContext::default()));
 
-        let parameter_storage_mock = MockParameterStorage::new_context();
-        parameter_storage_mock
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
-
         let added_workloads = vec![
             generate_test_workload_spec_with_param(
                 AGENT_NAME.to_string(),
@@ -543,7 +534,7 @@ mod tests {
             .build();
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![])
+            .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
@@ -563,12 +554,6 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
-
-        let parameter_storage_mock = MockParameterStorage::new_context();
-        parameter_storage_mock
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
 
         let added_workloads = vec![generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -604,7 +589,7 @@ mod tests {
             .build();
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![])
+            .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
@@ -623,12 +608,6 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
-
-        let parameter_storage_mock = MockParameterStorage::new_context();
-        parameter_storage_mock
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
 
         let added_workloads = vec![generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -678,7 +657,7 @@ mod tests {
             .build();
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![])
+            .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
             .await;
         server_receiver.close();
 
@@ -700,12 +679,6 @@ mod tests {
             .expect()
             .once()
             .returning(move |_, _, _| Ok(MockPipesChannelContext::default()));
-
-        let parameter_storage_mock = MockParameterStorage::new_context();
-        parameter_storage_mock
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
@@ -749,7 +722,7 @@ mod tests {
 
         let added_workloads = vec![existing_workload1];
         runtime_manager
-            .handle_update_workload(added_workloads, vec![])
+            .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
@@ -769,12 +742,6 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
-
-        let parameter_storage_mock = MockParameterStorage::new_context();
-        parameter_storage_mock
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
 
         let existing_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -831,7 +798,7 @@ mod tests {
             .build();
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![])
+            .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
@@ -844,12 +811,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-
-        let parameter_storage_mock = MockParameterStorage::new_context();
-        parameter_storage_mock
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
 
         let existing_workload_with_other_config = WorkloadInstanceNameBuilder::default()
             .workload_name(WORKLOAD_1_NAME)
@@ -897,7 +858,9 @@ mod tests {
             )
             .build();
 
-        runtime_manager.handle_update_workload(vec![], vec![]).await;
+        runtime_manager
+            .handle_update_workload(vec![], vec![], &MockParameterStorage::default())
+            .await;
 
         assert!(runtime_manager.initial_workload_list_received);
         assert!(runtime_manager.workloads.is_empty());
@@ -909,20 +872,13 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let parameter_storage_mock = MockParameterStorage::new_context();
-        parameter_storage_mock
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
-
-        let mut mock_workload_scheduler = MockWorkloadScheduler::default();
-
         let added_workloads = vec![generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         )];
 
+        let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
             .expect_schedule_workloads()
             .once()
@@ -954,7 +910,7 @@ mod tests {
             .build();
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![])
+            .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
@@ -970,12 +926,6 @@ mod tests {
 
         let pipes_channel_mock = MockPipesChannelContext::new_context();
         pipes_channel_mock.expect().never();
-
-        let parameter_storage_mock = MockParameterStorage::new_context();
-        parameter_storage_mock
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
@@ -1024,7 +974,7 @@ mod tests {
 
         let added_workloads = vec![existing_workload];
         runtime_manager
-            .handle_update_workload(added_workloads, vec![])
+            .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
@@ -1043,12 +993,6 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
-
-        let parameter_storage_mock = MockParameterStorage::new_context();
-        parameter_storage_mock
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
 
         let added_workloads = vec![generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1103,7 +1047,11 @@ mod tests {
 
         // workload is in added and deleted workload vec
         runtime_manager
-            .handle_update_workload(added_workloads, deleted_workloads)
+            .handle_update_workload(
+                added_workloads,
+                deleted_workloads,
+                &MockParameterStorage::default(),
+            )
             .await;
 
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
@@ -1122,12 +1070,6 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
-
-        let parameter_storage_mock = MockParameterStorage::new_context();
-        parameter_storage_mock
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
 
         let added_workloads = vec![generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1187,7 +1129,11 @@ mod tests {
             .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
 
         runtime_manager
-            .handle_update_workload(added_workloads, deleted_workloads)
+            .handle_update_workload(
+                added_workloads,
+                deleted_workloads,
+                &MockParameterStorage::default(),
+            )
             .await;
         server_receiver.close();
 
@@ -1207,12 +1153,6 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
-
-        let parameter_storage_mock = MockParameterStorage::new_context();
-        parameter_storage_mock
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
 
         let added_workloads = vec![generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1252,7 +1192,11 @@ mod tests {
         runtime_manager.initial_workload_list_received = true;
 
         runtime_manager
-            .handle_update_workload(added_workloads, deleted_workloads)
+            .handle_update_workload(
+                added_workloads,
+                deleted_workloads,
+                &MockParameterStorage::default(),
+            )
             .await;
 
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
@@ -1270,12 +1214,6 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
-
-        let parameter_storage_mock = MockParameterStorage::new_context();
-        parameter_storage_mock
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
 
         let added_workloads = vec![generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1320,7 +1258,7 @@ mod tests {
             .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![])
+            .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
             .await;
 
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
@@ -1340,12 +1278,6 @@ mod tests {
             .expect()
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
-
-        let parameter_storage_mock = MockParameterStorage::new_context();
-        parameter_storage_mock
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
 
         let added_workloads = vec![generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1386,7 +1318,7 @@ mod tests {
         runtime_manager.initial_workload_list_received = true;
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![])
+            .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
             .await;
         server_receiver.close();
 
@@ -1399,12 +1331,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-
-        let parameter_storage_mock = MockParameterStorage::new_context();
-        parameter_storage_mock
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
@@ -1437,7 +1363,7 @@ mod tests {
         runtime_manager.initial_workload_list_received = true;
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![])
+            .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
             .await;
         server_receiver.close();
 
@@ -1450,12 +1376,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-
-        let parameter_storage_mock = MockParameterStorage::new_context();
-        parameter_storage_mock
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
 
         let new_deleted_workload =
             generate_test_deleted_workload(AGENT_NAME.to_string(), WORKLOAD_1_NAME.to_string());
@@ -1494,7 +1414,7 @@ mod tests {
         );
 
         runtime_manager
-            .handle_update_workload(vec![], deleted_workloads)
+            .handle_update_workload(vec![], deleted_workloads, &MockParameterStorage::default())
             .await;
         server_receiver.close();
 
@@ -1509,12 +1429,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-
-        let parameter_storage_mock = MockParameterStorage::new_context();
-        parameter_storage_mock
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
 
         let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
         mock_workload_scheduler_context
@@ -1570,12 +1484,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-
-        let parameter_storage_mock = MockParameterStorage::new_context();
-        parameter_storage_mock
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
 
         let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
         mock_workload_scheduler_context
@@ -1636,12 +1544,6 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let parameter_storage_mock = MockParameterStorage::new_context();
-        parameter_storage_mock
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
-
         let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
         mock_workload_scheduler_context
             .expect()
@@ -1686,18 +1588,6 @@ mod tests {
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
 
-        let mut parameter_storage_mock = MockParameterStorage::default();
-        parameter_storage_mock
-            .expect_update_workload_state()
-            .once()
-            .return_const(());
-
-        let parameter_storage_mock_context = MockParameterStorage::new_context();
-        parameter_storage_mock_context
-            .expect()
-            .once()
-            .return_once(|| parameter_storage_mock);
-
         let ready_workloads = vec![generate_test_workload_spec_with_dependencies(
             AGENT_NAME,
             WORKLOAD_1_NAME,
@@ -1730,11 +1620,8 @@ mod tests {
             )
             .build();
 
-        let new_workload_state =
-            generate_test_workload_state(WORKLOAD_2_NAME, ExecutionState::running());
-
         runtime_manager
-            .update_workload_state(new_workload_state)
+            .update_workloads_on_new_workload_states(&MockParameterStorage::default())
             .await;
         server_receiver.close();
 
@@ -1746,18 +1633,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-
-        let mut parameter_storage_mock = MockParameterStorage::default();
-        parameter_storage_mock
-            .expect_update_workload_state()
-            .once()
-            .return_const(());
-
-        let parameter_storage_mock_context = MockParameterStorage::new_context();
-        parameter_storage_mock_context
-            .expect()
-            .once()
-            .return_once(|| parameter_storage_mock);
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
@@ -1781,11 +1656,8 @@ mod tests {
             )
             .build();
 
-        let new_workload_state =
-            generate_test_workload_state(WORKLOAD_2_NAME, ExecutionState::succeeded());
-
         runtime_manager
-            .update_workload_state(new_workload_state)
+            .update_workloads_on_new_workload_states(&MockParameterStorage::default())
             .await;
         server_receiver.close();
 
@@ -1798,18 +1670,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-
-        let mut parameter_storage_mock = MockParameterStorage::default();
-        parameter_storage_mock
-            .expect_update_workload_state()
-            .once()
-            .return_const(());
-
-        let parameter_storage_mock_context = MockParameterStorage::new_context();
-        parameter_storage_mock_context
-            .expect()
-            .once()
-            .return_once(|| parameter_storage_mock);
 
         let deleted_workload =
             generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
@@ -1838,11 +1698,8 @@ mod tests {
             .workloads
             .insert(WORKLOAD_1_NAME.to_owned(), workload_mock);
 
-        let new_workload_state =
-            generate_test_workload_state("workload A", ExecutionState::succeeded());
-
         runtime_manager
-            .update_workload_state(new_workload_state)
+            .update_workloads_on_new_workload_states(&MockParameterStorage::default())
             .await;
         server_receiver.close();
 
@@ -1854,18 +1711,6 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-
-        let mut parameter_storage_mock = MockParameterStorage::default();
-        parameter_storage_mock
-            .expect_update_workload_state()
-            .once()
-            .return_const(());
-
-        let parameter_storage_mock_context = MockParameterStorage::new_context();
-        parameter_storage_mock_context
-            .expect()
-            .once()
-            .return_once(|| parameter_storage_mock);
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
@@ -1888,11 +1733,8 @@ mod tests {
             .workloads
             .insert(WORKLOAD_1_NAME.to_owned(), workload_mock);
 
-        let new_workload_state =
-            generate_test_workload_state("workload A", ExecutionState::running());
-
         runtime_manager
-            .update_workload_state(new_workload_state)
+            .update_workloads_on_new_workload_states(&MockParameterStorage::default())
             .await;
         server_receiver.close();
 
