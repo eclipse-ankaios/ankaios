@@ -24,16 +24,18 @@ The call to the Agent Manager is simpliefied here. The actuall call goes over th
 end note
 
 agent_manager <<- server ++: UpdateWorkload
-agent_manager ->> runtime_manager ++: update workload
+agent_manager ->> runtime_manager --++: update workload
 
 loop for each worload
     runtime_manager -> runtime_manager: skip workloads with unknown runtime
     runtime_manager -> control **: create Control Interface Instance
     activate control
-    control -> control: create input-output pipe pair per Workload
+    control -> control ++: create input-output pipe pair per Workload
     control -> control_task **: start Control Interface task
-    runtime_manager -> runtime_manager: store Control Interface Instance
-    runtime_manager -> runtime_manager: store Workload to runtime mapping
+    deactivate control
+    deactivate control
+    runtime_manager -> runtime_manager ++: store Control Interface Instance
+    runtime_manager -> runtime_manager ++: store Workload to runtime mapping
 
     ... handle initial or subsequent added and deleted workload lists ...
 end

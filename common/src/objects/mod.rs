@@ -20,7 +20,7 @@ mod state;
 pub use state::State;
 
 mod complete_state;
-pub use complete_state::CompleteState;
+pub use complete_state::{ApiVersion, CompleteState};
 
 mod stored_workload_spec;
 #[cfg(any(feature = "test_utils", test))]
@@ -51,17 +51,11 @@ pub use workload_spec::{
 
 pub use workload_spec::{
     get_workloads_per_agent, AddCondition, DeleteCondition, DeletedWorkload,
-    DeletedWorkloadCollection, FulfilledBy, UpdateStrategy, WorkloadCollection, WorkloadSpec,
+    DeletedWorkloadCollection, FulfilledBy, WorkloadCollection, WorkloadSpec,
 };
-
-mod cronjob;
-pub use cronjob::{Cronjob, Interval};
 
 mod tag;
 pub use tag::Tag;
-
-mod access_rights;
-pub use access_rights::{AccessRights, AccessRightsRule, PatchOperation};
 
 mod workload_instance_name;
 pub use workload_instance_name::{ConfigHash, WorkloadInstanceName, WorkloadInstanceNameBuilder};

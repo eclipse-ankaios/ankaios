@@ -98,12 +98,19 @@ pub trait FromServerInterface {
         &self,
         workload_running: Vec<WorkloadState>,
     ) -> Result<(), FromServerInterfaceError>;
+    async fn response(&self, response: commands::Response) -> Result<(), FromServerInterfaceError>;
     async fn complete_state(
         &self,
         request_id: String,
         complete_state: CompleteState,
     ) -> Result<(), FromServerInterfaceError>;
     async fn success(&self, request_id: String) -> Result<(), FromServerInterfaceError>;
+    async fn update_state_success(
+        &self,
+        request_id: String,
+        added_workloads: Vec<String>,
+        deleted_workloads: Vec<String>,
+    ) -> Result<(), FromServerInterfaceError>;
     async fn error(
         &self,
         request_id: String,
@@ -141,6 +148,10 @@ impl FromServerInterface for FromServerSender {
             .await?)
     }
 
+    async fn response(&self, response: commands::Response) -> Result<(), FromServerInterfaceError> {
+        Ok(self.send(FromServer::Response(response)).await?)
+    }
+
     async fn complete_state(
         &self,
         request_id: String,
@@ -164,6 +175,26 @@ impl FromServerInterface for FromServerSender {
             }))
             .await?)
     }
+
+    async fn update_state_success(
+        &self,
+        request_id: String,
+        added_workloads: Vec<String>,
+        deleted_workloads: Vec<String>,
+    ) -> Result<(), FromServerInterfaceError> {
+        Ok(self
+            .send(FromServer::Response(commands::Response {
+                request_id,
+                response_content: commands::ResponseContent::UpdateStateSuccess(
+                    commands::UpdateStateSuccess {
+                        added_workloads,
+                        deleted_workloads,
+                    },
+                ),
+            }))
+            .await?)
+    }
+
     async fn error(
         &self,
         request_id: String,
@@ -195,7 +226,7 @@ mod tests {
     use crate::{
         commands,
         from_server_interface::FromServer,
-        objects::{WorkloadInstanceName, WorkloadSpec},
+        objects::{self, WorkloadInstanceName, WorkloadSpec},
         test_utils::{generate_test_deleted_workload, generate_test_proto_deleted_workload},
     };
 
@@ -269,7 +300,8 @@ mod tests {
                     request_id: "req_id".to_owned(),
                     response_content: Some(proto::response::ResponseContent::CompleteState(
                         proto::CompleteState {
-                            current_state: Some(api::proto::State::default()),
+                            format_version: Some(objects::ApiVersion::default().into()),
+                            desired_state: Some(api::proto::State::default()),
                             startup_state: Some(api::proto::State::default()),
                             workload_states: vec![],
                         },

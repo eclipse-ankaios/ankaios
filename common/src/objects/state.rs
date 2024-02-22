@@ -17,8 +17,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::helpers::serialize_to_ordered_map;
-use crate::objects::Cronjob;
 use crate::objects::StoredWorkloadSpec;
+
 use api::proto;
 
 // [impl->swdd~common-object-representation~1]#[accessible_by_field_name]
@@ -28,10 +28,6 @@ use api::proto;
 pub struct State {
     #[serde(serialize_with = "serialize_to_ordered_map")]
     pub workloads: HashMap<String, StoredWorkloadSpec>,
-    #[serde(serialize_with = "serialize_to_ordered_map")]
-    pub configs: HashMap<String, String>,
-    #[serde(serialize_with = "serialize_to_ordered_map")]
-    pub cron_jobs: HashMap<String, Cronjob>,
 }
 
 impl From<State> for proto::State {
@@ -39,12 +35,6 @@ impl From<State> for proto::State {
         proto::State {
             workloads: item
                 .workloads
-                .into_iter()
-                .map(|(k, v)| (k, v.into()))
-                .collect(),
-            configs: item.configs,
-            cronjobs: item
-                .cron_jobs
                 .into_iter()
                 .map(|(k, v)| (k, v.into()))
                 .collect(),
@@ -62,12 +52,7 @@ impl TryFrom<proto::State> for State {
                 .into_iter()
                 .map(|(k, v)| Ok((k.to_owned(), v.try_into()?)))
                 .collect::<Result<HashMap<String, StoredWorkloadSpec>, String>>()?,
-            configs: item.configs,
-            cron_jobs: item
-                .cronjobs
-                .into_iter()
-                .map(|(k, v)| (k, v.into()))
-                .collect(),
+
         })
     }
 }
@@ -107,5 +92,21 @@ mod tests {
         let proto_state = generate_test_proto_state();
 
         assert_eq!(State::try_from(proto_state), Ok(ankaios_state));
+    }
+
+    #[test]
+    fn utest_serialize_state_into_ordered_output() {
+        // input: random sorted state
+        let ankaios_state = generate_test_state();
+
+        // serialize to sorted output
+        let sorted_state_string = serde_yaml::to_string(&ankaios_state).unwrap();
+
+        let index_workload1 = sorted_state_string.find("workload_name_1").unwrap();
+        let index_workload2 = sorted_state_string.find("workload_name_2").unwrap();
+        assert!(
+            index_workload1 < index_workload2,
+            "expected sorted workloads."
+        );
     }
 }

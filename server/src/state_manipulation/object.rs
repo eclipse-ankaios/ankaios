@@ -194,12 +194,13 @@ mod tests {
         let state = generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
         let complete_state = CompleteState {
             startup_state: state.clone(),
-            current_state: state,
+            desired_state: state,
             workload_states: vec![common::objects::generate_test_workload_state_with_agent(
                 "workload A",
                 "agent",
                 common::objects::ExecutionState::running(),
             )],
+            ..Default::default()
         };
 
         let expected = Object {
@@ -220,12 +221,13 @@ mod tests {
             generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
         let expected = CompleteState {
             startup_state: expected_state.clone(),
-            current_state: expected_state,
+            desired_state: expected_state,
             workload_states: vec![common::objects::generate_test_workload_state_with_agent(
                 "workload A",
                 "agent",
                 common::objects::ExecutionState::running(),
             )],
+            ..Default::default()
         };
         let actual: CompleteState = object.try_into().unwrap();
 
@@ -256,10 +258,7 @@ mod tests {
             data: Value::String("not object".into()),
         };
 
-        let res = actual.set(
-            &"workloads.workload_1.update_strategy.key".into(),
-            "value".into(),
-        );
+        let res = actual.set(&"workloads.workload_1.runtime.key".into(), "value".into());
 
         assert!(res.is_err());
         assert_eq!(actual, expected);
@@ -274,7 +273,7 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = actual.set(&"workloads.name.updateStrategy.key".into(), "value".into());
+        let res = actual.set(&"workloads.name.runtime.key".into(), "value".into());
 
         assert!(res.is_err());
         assert_eq!(actual, expected);
@@ -288,7 +287,7 @@ mod tests {
         if let Value::Mapping(state) = &mut expected.data {
             if let Some(Value::Mapping(workloads)) = state.get_mut("workloads") {
                 if let Some(Value::Mapping(workload_1)) = workloads.get_mut("name") {
-                    workload_1.insert("update_strategy".into(), "AT_MOST_ONCE".into());
+                    workload_1.insert("runtime".into(), "runtime".into());
                 }
             }
         }
@@ -297,17 +296,12 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = actual.set(
-            &"workloads.name.update_strategy".into(),
-            "AT_MOST_ONCE".into(),
-        );
+        let res = actual.set(&"workloads.name.runtime".into(), "runtime".into());
 
         assert!(res.is_ok());
         assert_eq!(
-            actual
-                .get(&"workloads.name.update_strategy".into())
-                .unwrap(),
-            "AT_MOST_ONCE"
+            actual.get(&"workloads.name.runtime".into()).unwrap(),
+            "runtime"
         );
         assert_eq!(actual, expected);
     }
@@ -370,14 +364,14 @@ mod tests {
     }
 
     #[test]
-    fn utest_obbject_remove_existing() {
+    fn utest_object_remove_existing() {
         let mut expected = Object {
             data: object::generate_test_state().into(),
         };
         if let Value::Mapping(state) = &mut expected.data {
             if let Some(Value::Mapping(worklaods)) = state.get_mut("workloads") {
                 if let Some(Value::Mapping(workload_1)) = worklaods.get_mut("name") {
-                    workload_1.remove("access_rights");
+                    workload_1.remove("runtime");
                 }
             }
         }
@@ -386,10 +380,10 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = actual.remove(&"workloads.name.access_rights".into());
+        let res = actual.remove(&"workloads.name.runtime".into());
 
         assert!(res.is_ok());
-        assert!(actual.get(&"workloads.name.access_rights".into()).is_none());
+        assert!(actual.get(&"workloads.name.runtime".into()).is_none());
         assert_eq!(actual, expected);
     }
 
@@ -419,7 +413,7 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = actual.remove(&"workloads.non_existing.access_rights".into());
+        let res = actual.remove(&"workloads.non_existing.runtime".into());
 
         assert!(res.is_err());
         assert_eq!(actual, expected);
@@ -463,10 +457,10 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = data.get(&"workloads.name.updateStrategy".into());
+        let res = data.get(&"workloads.name.runtime".into());
 
         assert!(res.is_some());
-        assert_eq!(res.expect(""), "UNSPECIFIED");
+        assert_eq!(res.expect(""), "runtime");
     }
 
     #[test]
@@ -497,8 +491,9 @@ mod tests {
         pub fn generate_test_complete_state() -> Mapping {
             let config_hash: &dyn common::objects::ConfigHash = &"config".to_string();
             Mapping::default()
+                .entry("formatVersion", Mapping::default().entry("version", "v0.1"))
                 .entry("startupState", generate_test_state())
-                .entry("currentState", generate_test_state())
+                .entry("desiredState", generate_test_state())
                 .entry(
                     "workloadStates",
                     vec![Mapping::default()
@@ -540,20 +535,11 @@ mod tests {
                                     .entry("workload A", "ADD_COND_RUNNING")
                                     .entry("workload C", "ADD_COND_SUCCEEDED"),
                             )
-                            .entry("updateStrategy", "UNSPECIFIED")
                             .entry("restart", true)
-                            .entry(
-                                "accessRights",
-                                Mapping::default()
-                                    .entry("allow", vec![] as Vec<Value>)
-                                    .entry("deny", vec![] as Vec<Value>),
-                            )
                             .entry("runtime", "runtime")
                             .entry("runtimeConfig", "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"),
                     ),
                 )
-                .entry("configs", Mapping::default())
-                .entry("cronJobs", Mapping::default())
         }
 
         #[derive(Default)]

@@ -231,7 +231,8 @@ mod tests {
                     proto::UpdateStateRequest {
                         update_mask: vec!["test_update_mask_field".to_owned()],
                         new_state: Some(proto::CompleteState {
-                            current_state: Some(proto::State {
+                            format_version: Some(common::objects::ApiVersion::default().into()),
+                            desired_state: Some(proto::State {
                                 workloads: HashMap::from([(
                                     "test_workload".to_owned(),
                                     proto::Workload {
@@ -239,7 +240,6 @@ mod tests {
                                         ..Default::default()
                                     },
                                 )]),
-                                ..Default::default()
                             }),
                             ..Default::default()
                         }),
@@ -253,7 +253,7 @@ mod tests {
             request_content: RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 update_mask: vec!["test_update_mask_field".to_owned()],
                 state: crate::objects::CompleteState {
-                    current_state: crate::objects::State {
+                    desired_state: crate::objects::State {
                         workloads: HashMap::from([(
                             "test_workload".to_owned(),
                             crate::objects::StoredWorkloadSpec {
@@ -261,7 +261,6 @@ mod tests {
                                 ..Default::default()
                             },
                         )]),
-                        ..Default::default()
                     },
                     ..Default::default()
                 },
@@ -280,7 +279,7 @@ mod tests {
                     proto::UpdateStateRequest {
                         update_mask: vec!["test_update_mask_field".to_owned()],
                         new_state: Some(proto::CompleteState {
-                            current_state: Some(proto::State {
+                            desired_state: Some(proto::State {
                                 workloads: HashMap::from([(
                                     "test_workload".to_owned(),
                                     proto::Workload {
@@ -291,7 +290,6 @@ mod tests {
                                         ..Default::default()
                                     },
                                 )]),
-                                ..Default::default()
                             }),
                             ..Default::default()
                         }),

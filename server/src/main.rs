@@ -57,7 +57,7 @@ async fn main() {
                 state.workloads
             );
             Some(CompleteState {
-                current_state: state,
+                desired_state: state,
                 ..Default::default()
             })
         }
