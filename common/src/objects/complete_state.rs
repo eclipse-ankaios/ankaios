@@ -15,7 +15,7 @@
 use api::proto;
 use serde::{Deserialize, Serialize};
 
-use super::{external_state::ExternalCompleteState, State, WorkloadState};
+use super::{ExternalCompleteState, State, WorkloadState};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase", into = "ExternalCompleteState")]

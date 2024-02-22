@@ -507,7 +507,7 @@ mod tests {
                             Mapping::default()
                                 .entry("agentName", "agent")
                                 .entry("workloadName", "workload A")
-                                .entry("hash", config_hash.hash_config()),
+                                .entry("id", config_hash.hash_config()),
                         )
                         .entry(
                             "executionState",
@@ -527,7 +527,6 @@ mod tests {
                         "name",
                         Mapping::default()
                             .entry("agent", "agent")
-                            .entry("name", "name")
                             .entry(
                                 "tags",
                                 vec![Mapping::default()

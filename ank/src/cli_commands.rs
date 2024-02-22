@@ -24,7 +24,9 @@ use tests::read_to_string_mock as read_file_to_string;
 use common::{
     commands::{CompleteStateRequest, Response, ResponseContent},
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::{CompleteState, ConfigHash, ExternalCompleteState, Tag, WorkloadInstanceName, WorkloadSpec},
+    objects::{
+        CompleteState, ConfigHash, ExternalCompleteState, Tag, WorkloadInstanceName, WorkloadSpec,
+    },
     to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
 
@@ -1332,6 +1334,10 @@ mod tests {
             "name3".to_owned(),
             WorkloadSpec {
                 runtime: "new_runtime".to_owned(),
+                instance_name: WorkloadInstanceName::builder()
+                    .workload_name("name3".to_string())
+                    .config(&"".to_string())
+                    .build(),
                 ..Default::default()
             },
         );
@@ -1571,9 +1577,8 @@ mod tests {
         let expected_state = r#"{
             "currentState": {
                 "workloads": {
-                    "name1": {
+                  "name1": {
                     "agent": "agent_A",
-                    "name": "name1",
                     "tags": [
                         {
                         "key": "key",
@@ -1634,7 +1639,6 @@ mod tests {
                 "workloads": {
                     "name1": {
                         "agent": "agent_A",
-                        "name": "name1",
                         "tags": [
                             {
                             "key": "key",

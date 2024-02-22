@@ -26,15 +26,14 @@ use super::{
 #[derive(Debug, Serialize, Default, Deserialize, Clone, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
 struct StoredWorkloadSpec {
-    pub runtime: String,
     pub agent: String,
-    pub restart: bool,
-    #[serde(default)]
+    pub tags: Vec<Tag>,
+    #[serde(serialize_with = "serialize_to_ordered_map")]
     pub dependencies: HashMap<String, AddCondition>,
     pub update_strategy: UpdateStrategy,
+    pub restart: bool,
     pub access_rights: AccessRights,
-    #[serde(default)]
-    pub tags: Vec<Tag>,
+    pub runtime: String,
     pub runtime_config: String,
 }
 
@@ -76,7 +75,7 @@ impl From<WorkloadSpec> for StoredWorkloadSpec {
 #[serde(default, rename_all = "camelCase")]
 pub struct ExternalState {
     #[serde(serialize_with = "serialize_to_ordered_map")]
-    workloads: HashMap<String, StoredWorkloadSpec>,
+    pub workloads: HashMap<String, StoredWorkloadSpec>,
     #[serde(serialize_with = "serialize_to_ordered_map")]
     pub configs: HashMap<String, String>,
     #[serde(serialize_with = "serialize_to_ordered_map")]

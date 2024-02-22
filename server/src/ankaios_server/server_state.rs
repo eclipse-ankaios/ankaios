@@ -396,7 +396,10 @@ mod tests {
             (
                 w3.instance_name.workload_name().to_owned(),
                 WorkloadSpec {
-                    instance_name: WorkloadInstanceName::builder().agent_name(AGENT_B).build(),
+                    instance_name: WorkloadInstanceName::builder()
+                        .workload_name(WORKLOAD_NAME_3)
+                        .agent_name(AGENT_B)
+                        .build(),
                     ..Default::default()
                 },
             ),
