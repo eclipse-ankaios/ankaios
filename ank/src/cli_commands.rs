@@ -259,11 +259,12 @@ mod apply_manifests {
     pub fn handle_agent_overwrite(
         desired_agent: &Option<String>,
         state_obj: &mut State,
+        table_output: &mut Vec<ApplyManifestTableDisplay>,
     ) -> Result<(), String> {
-        let mut agent_names: HashSet<String> =
-            HashSet::from_iter(state_obj.clone().workloads.into_values().map(|wl| wl.agent));
         // No agent name specified through cli!
         if desired_agent.is_none() {
+            let agent_names: HashSet<String> =
+                HashSet::from_iter(state_obj.clone().workloads.into_values().map(|wl| wl.agent));
             // Agent name not specified in a workload spec!
             // [impl->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
             if agent_names.is_empty() || agent_names.contains("") {
@@ -278,7 +279,9 @@ mod apply_manifests {
             for (_, wl) in &mut state_obj.workloads.iter_mut() {
                 wl.agent = desired_agent_name.to_string();
             }
-            agent_names.insert(desired_agent_name);
+            table_output.iter_mut().for_each(|row| {
+                row.base_info.agent = desired_agent_name.to_string();
+            })
         }
 
         Ok(())
@@ -375,7 +378,11 @@ mod apply_manifests {
             }
         } else {
             let mut state_from_req_obj: common::objects::State = req_obj.try_into().unwrap();
-            handle_agent_overwrite(&apply_args.agent_name, &mut state_from_req_obj)?;
+            handle_agent_overwrite(
+                &apply_args.agent_name,
+                &mut state_from_req_obj,
+                table_output,
+            )?;
             CompleteState {
                 desired_state: state_from_req_obj,
                 ..Default::default()
@@ -2496,6 +2503,7 @@ mod tests {
 
     #[test]
     fn utest_handle_agent_overwrite_agent_name_provided_through_agent_flag() {
+        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
         let mut state = test_utils::generate_test_state_from_workloads(vec![WorkloadSpec {
             ..Default::default()
         }]);
@@ -2507,13 +2515,18 @@ mod tests {
 
         assert_eq!(
             Ok(()),
-            handle_agent_overwrite(&Some("overwritten_agent_name".to_string()), &mut state)
+            handle_agent_overwrite(
+                &Some("overwritten_agent_name".to_string()),
+                &mut state,
+                &mut table_output
+            )
         );
         assert_eq!(expected_state, state);
     }
 
     #[test]
     fn utest_handle_agent_overwrite_one_agent_name_provided_in_workload_specs() {
+        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
         let mut state = test_utils::generate_test_state_from_workloads(vec![
             WorkloadSpec {
                 agent: "agent_name".to_string(),
@@ -2536,12 +2549,16 @@ mod tests {
             },
         ]);
 
-        assert_eq!(Ok(()), handle_agent_overwrite(&None, &mut state));
+        assert_eq!(
+            Ok(()),
+            handle_agent_overwrite(&None, &mut state, &mut table_output)
+        );
         assert_eq!(expected_state, state);
     }
 
     #[test]
     fn utest_handle_agent_overwrite_multiple_agent_names_provided_in_workload_specs() {
+        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
         let mut state = test_utils::generate_test_state_from_workloads(vec![
             WorkloadSpec {
                 name: "wl1".to_string(),
@@ -2555,11 +2572,15 @@ mod tests {
             },
         ]);
 
-        assert_eq!(Ok(()), handle_agent_overwrite(&None, &mut state));
+        assert_eq!(
+            Ok(()),
+            handle_agent_overwrite(&None, &mut state, &mut table_output)
+        );
     }
 
     #[test]
     fn utest_handle_agent_overwrite_no_agent_name_provided_at_all() {
+        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
         let mut state = test_utils::generate_test_state_from_workloads(vec![
             WorkloadSpec {
                 name: "wl1".to_string(),
@@ -2573,8 +2594,9 @@ mod tests {
 
         assert_eq!(
             Err("No agent name specified -> use '--agent' option to specify!".to_string()),
-            handle_agent_overwrite(&None, &mut state)
+            handle_agent_overwrite(&None, &mut state, &mut table_output)
         );
+        assert!(table_output.is_empty())
     }
 
     // [utest->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
