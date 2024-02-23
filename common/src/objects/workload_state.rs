@@ -358,6 +358,13 @@ impl ExecutionState {
             additional_info: "waiting for workload dependencies.".to_string(),
         }
     }
+
+    pub fn initial() -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Pending(PendingSubstate::Initial),
+            ..Default::default()
+        }
+    }
 }
 
 impl From<ExecutionState> for proto::ExecutionState {

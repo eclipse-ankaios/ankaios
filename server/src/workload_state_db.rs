@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::{ExecutionState, WorkloadInstanceName, WorkloadState};
+use common::objects::{ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState};
 use std::collections::HashMap;
 
 type AgentName = String;
@@ -73,6 +73,20 @@ impl WorkloadStateDB {
             agent_states.iter_mut().for_each(|(_, wl_state)| {
                 wl_state.execution_state = ExecutionState::agent_disconnected()
             })
+        }
+    }
+
+    // TODO: req for this?
+    pub fn initial_state(&mut self, workload_specs: &Vec<WorkloadSpec>) {
+        for spec in workload_specs {
+            self.stored_states
+                .entry(spec.instance_name.agent_name().to_owned())
+                .or_default()
+                .entry(spec.instance_name.to_owned())
+                .or_insert(WorkloadState {
+                    instance_name: spec.instance_name.to_owned(),
+                    execution_state: ExecutionState::initial(),
+                });
         }
     }
 

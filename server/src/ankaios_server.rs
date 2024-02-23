@@ -66,6 +66,9 @@ impl AnkaiosServer {
         if let Some(state) = startup_state {
             match self.server_state.update(state, vec![]) {
                 Ok(Some((added_workloads, deleted_workloads))) => {
+                    // TODO: reqs?
+                    self.workload_state_db.initial_state(&added_workloads);
+
                     let from_server_command = FromServer::UpdateWorkload(UpdateWorkload {
                         added_workloads,
                         deleted_workloads,
@@ -239,6 +242,10 @@ impl AnkaiosServer {
                                         added_workloads.len(),
                                         deleted_workloads.len()
                                     );
+
+                                // TODO reqs?
+                                self.workload_state_db.initial_state(&added_workloads);
+
                                 let added_workloads_names = added_workloads
                                     .iter()
                                     .map(|x| x.instance_name.to_string())
