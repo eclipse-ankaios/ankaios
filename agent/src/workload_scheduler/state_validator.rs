@@ -22,16 +22,24 @@ use crate::workload_operation::WorkloadOperation;
 use mockall::automock;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum PendingSubState {
-    Create,
-    Delete,
-    CreateAndDelete,
+pub enum DependencyState {
+    PendingCreate,
+    PendingDelete,
+    Fulfilled,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum DependencyState {
-    Pending(PendingSubState),
-    Fulfilled,
+impl DependencyState {
+    pub fn is_fulfilled(&self) -> bool {
+        *self == DependencyState::Fulfilled
+    }
+
+    pub fn is_pending(&self) -> bool {
+        !self.is_fulfilled()
+    }
+
+    pub fn is_pending_delete(&self) -> bool {
+        *self == DependencyState::PendingDelete
+    }
 }
 
 pub struct StateValidator {}
@@ -53,7 +61,7 @@ impl StateValidator {
         {
             DependencyState::Fulfilled
         } else {
-            DependencyState::Pending(PendingSubState::Create)
+            DependencyState::PendingCreate
         }
     }
 
@@ -75,7 +83,7 @@ impl StateValidator {
         {
             DependencyState::Fulfilled
         } else {
-            DependencyState::Pending(PendingSubState::Delete)
+            DependencyState::PendingDelete
         }
     }
 
@@ -85,29 +93,13 @@ impl StateValidator {
     ) -> DependencyState {
         match workload_operation {
             WorkloadOperation::Create(workload_spec) => {
-                Self::create_fulfilled(&workload_spec, workload_state_db)
+                Self::create_fulfilled(workload_spec, workload_state_db)
             }
-            WorkloadOperation::Update(workload_spec, deleted_workload) => {
-                let delete_result = Self::delete_fulfilled(&deleted_workload, workload_state_db);
-                let create_result = Self::create_fulfilled(&workload_spec, workload_state_db);
-
-                match (delete_result, create_result) {
-                    (DependencyState::Pending(_), DependencyState::Pending(_)) => {
-                        DependencyState::Pending(PendingSubState::CreateAndDelete)
-                    }
-                    (DependencyState::Pending(_), DependencyState::Fulfilled) => {
-                        DependencyState::Pending(PendingSubState::Delete)
-                    }
-                    (DependencyState::Fulfilled, DependencyState::Pending(_)) => {
-                        DependencyState::Pending(PendingSubState::Create)
-                    }
-                    (DependencyState::Fulfilled, DependencyState::Fulfilled) => {
-                        DependencyState::Fulfilled
-                    }
-                }
+            WorkloadOperation::Update(_, deleted_workload) => {
+                Self::delete_fulfilled(deleted_workload, workload_state_db)
             }
             WorkloadOperation::Delete(deleted_workload) => {
-                Self::delete_fulfilled(&deleted_workload, workload_state_db)
+                Self::delete_fulfilled(deleted_workload, workload_state_db)
             }
         }
     }

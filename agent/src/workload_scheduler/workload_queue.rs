@@ -12,8 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::state_validator::DependencyState;
-use super::state_validator::{PendingSubState, StateValidator};
+use super::state_validator::StateValidator;
 use common::{
     objects::{DeletedWorkload, ExecutionState, WorkloadSpec, WorkloadState},
     std_extensions::IllegalStateResult,
@@ -67,14 +66,10 @@ impl WorkloadQueue {
             .unwrap_or_illegal_state();
     }
 
-    async fn insert_and_notify(
-        &mut self,
-        workload_operation: WorkloadOperation,
-        pending_sub_state: PendingSubState,
-    ) {
+    async fn insert_and_notify(&mut self, workload_operation: WorkloadOperation) {
         match workload_operation {
             WorkloadOperation::Create(ref workload_spec) => {
-                self.report_pending_state_for_waiting_workload(&workload_spec)
+                self.report_pending_state_for_waiting_workload(workload_spec)
                     .await;
 
                 self.queue.insert(
@@ -82,24 +77,17 @@ impl WorkloadQueue {
                     workload_operation,
                 );
             }
-            WorkloadOperation::Update(ref workload_spec, ref deleted_workload) => {
-                if pending_sub_state == PendingSubState::Create {
-                    self.report_pending_state_for_waiting_workload(&workload_spec)
-                        .await;
-                }
-
-                if pending_sub_state == PendingSubState::Delete {
-                    self.report_pending_delete_state_for_waiting_workload(&deleted_workload)
-                        .await;
-                }
+            WorkloadOperation::Update(_, ref deleted_workload) => {
+                self.report_pending_delete_state_for_waiting_workload(deleted_workload)
+                    .await;
 
                 self.queue.insert(
-                    workload_spec.instance_name.workload_name().to_owned(),
+                    deleted_workload.instance_name.workload_name().to_owned(),
                     workload_operation,
                 );
             }
             WorkloadOperation::Delete(ref deleted_workload) => {
-                self.report_pending_delete_state_for_waiting_workload(&deleted_workload)
+                self.report_pending_delete_state_for_waiting_workload(deleted_workload)
                     .await;
 
                 self.queue.insert(
@@ -112,19 +100,30 @@ impl WorkloadQueue {
 
     pub async fn enqueue_filtered_workload_operations(
         &mut self,
-        new_waiting_workloads: WorkloadOperations,
+        new_workload_operations: WorkloadOperations,
         workload_state_db: &ParameterStorage,
     ) -> WorkloadOperations {
         let mut ready_workload_operations = WorkloadOperations::new();
-        for workload_operation in new_waiting_workloads {
-            if let DependencyState::Pending(pending_sub_state) =
-                StateValidator::dependencies_for_workload_fulfilled(
-                    &workload_operation,
-                    workload_state_db,
-                )
-            {
-                self.insert_and_notify(workload_operation, pending_sub_state)
-                    .await;
+        for workload_operation in new_workload_operations {
+            let dependency_state = StateValidator::dependencies_for_workload_fulfilled(
+                &workload_operation,
+                workload_state_db,
+            );
+
+            if dependency_state.is_pending() {
+                if let WorkloadOperation::Update(workload_spec, deleted_workload) =
+                    workload_operation
+                {
+                    if !dependency_state.is_pending_delete() {
+                        /* For an update with pending create dependencies but fulfilled delete dependencies
+                        the delete can be done immediately but the create must wait in the queue. */
+                        self.insert_and_notify(WorkloadOperation::Create(workload_spec))
+                            .await;
+                        ready_workload_operations.push(WorkloadOperation::Delete(deleted_workload));
+                    }
+                } else {
+                    self.insert_and_notify(workload_operation).await;
+                }
             } else {
                 ready_workload_operations.push(workload_operation);
             }
@@ -137,27 +136,26 @@ impl WorkloadQueue {
         &mut self,
         workload_state_db: &ParameterStorage,
     ) -> WorkloadOperations {
+        let mut ready_workload_operations = WorkloadOperations::new();
         let mut retained_entries = DependencyQueue::new();
-        let ready_operations: WorkloadOperations = self.queue.iter().fold(
-            WorkloadOperations::new(),
-            |mut ready_operations_container, (name, wl_operation)| {
-                if StateValidator::dependencies_for_workload_fulfilled(
-                    wl_operation,
+
+        self.queue
+            .drain()
+            .for_each(|(workload_name, workload_operation)| {
+                let dependency_state = StateValidator::dependencies_for_workload_fulfilled(
+                    &workload_operation,
                     workload_state_db,
-                ) == DependencyState::Fulfilled
-                {
-                    ready_operations_container.push(wl_operation.clone());
+                );
+
+                if dependency_state.is_fulfilled() {
+                    ready_workload_operations.push(workload_operation);
                 } else {
-                    retained_entries.insert(name.clone(), wl_operation.clone());
+                    retained_entries.insert(workload_name, workload_operation);
                 }
+            });
 
-                ready_operations_container
-            },
-        );
-
-        self.queue = retained_entries;
-
-        ready_operations
+        self.queue.extend(retained_entries);
+        ready_workload_operations
     }
 }
 
