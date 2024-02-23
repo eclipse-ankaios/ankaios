@@ -12,19 +12,37 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::{DeletedWorkload, FulfilledBy, WorkloadSpec};
+use common::objects::{DeletedWorkload, ExecutionState, FulfilledBy, WorkloadSpec};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::parameter_storage::ParameterStorage;
+use crate::workload_operation::WorkloadOperation;
+
+#[cfg(test)]
+use mockall::automock;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum PendingSubState {
+    Create,
+    Delete,
+    CreateAndDelete,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DependencyState {
+    Pending(PendingSubState),
+    Fulfilled,
+}
 
 pub struct StateValidator {}
 
+#[cfg_attr(test, automock)]
 impl StateValidator {
-    pub fn dependencies_for_workload_fulfilled(
+    fn create_fulfilled(
         workload: &WorkloadSpec,
         workload_state_db: &ParameterStorage,
-    ) -> bool {
-        workload
+    ) -> DependencyState {
+        if workload
             .dependencies
             .iter()
             .all(|(dependency_name, add_condition)| {
@@ -32,20 +50,66 @@ impl StateValidator {
                     .get_state_of_workload(dependency_name)
                     .map_or(false, |wl_state| add_condition.fulfilled_by(&wl_state))
             })
+        {
+            DependencyState::Fulfilled
+        } else {
+            DependencyState::Pending(PendingSubState::Create)
+        }
     }
 
-    pub fn dependencies_for_deleted_workload_fulfilled(
+    fn delete_fulfilled(
         workload: &DeletedWorkload,
         workload_state_db: &ParameterStorage,
-    ) -> bool {
-        workload
+    ) -> DependencyState {
+        if workload
             .dependencies
             .iter()
             .all(|(dependency_name, delete_condition)| {
                 workload_state_db
                     .get_state_of_workload(dependency_name)
-                    .map_or(true, |wl_state| delete_condition.fulfilled_by(&wl_state))
+                    .map_or(true, |wl_state| {
+                        delete_condition.fulfilled_by(&wl_state)
+                            || wl_state == ExecutionState::waiting_to_start()
+                    })
             })
+        {
+            DependencyState::Fulfilled
+        } else {
+            DependencyState::Pending(PendingSubState::Delete)
+        }
+    }
+
+    pub fn dependencies_for_workload_fulfilled(
+        workload_operation: &WorkloadOperation,
+        workload_state_db: &ParameterStorage,
+    ) -> DependencyState {
+        match workload_operation {
+            WorkloadOperation::Create(workload_spec) => {
+                Self::create_fulfilled(&workload_spec, workload_state_db)
+            }
+            WorkloadOperation::Update(workload_spec, deleted_workload) => {
+                let delete_result = Self::delete_fulfilled(&deleted_workload, workload_state_db);
+                let create_result = Self::create_fulfilled(&workload_spec, workload_state_db);
+
+                match (delete_result, create_result) {
+                    (DependencyState::Pending(_), DependencyState::Pending(_)) => {
+                        DependencyState::Pending(PendingSubState::CreateAndDelete)
+                    }
+                    (DependencyState::Pending(_), DependencyState::Fulfilled) => {
+                        DependencyState::Pending(PendingSubState::Delete)
+                    }
+                    (DependencyState::Fulfilled, DependencyState::Pending(_)) => {
+                        DependencyState::Pending(PendingSubState::Create)
+                    }
+                    (DependencyState::Fulfilled, DependencyState::Fulfilled) => {
+                        DependencyState::Fulfilled
+                    }
+                }
+            }
+            WorkloadOperation::Delete(deleted_workload) => {
+                Self::delete_fulfilled(&deleted_workload, workload_state_db)
+            }
+        }
     }
 }
 

@@ -29,7 +29,7 @@ use crate::control_interface::PipesChannelContext;
 use common::{
     commands::{self, ResponseContent},
     from_server_interface::FromServer,
-    objects::{WorkloadInstanceName, WorkloadSpec},
+    objects::WorkloadSpec,
 };
 
 #[cfg(test)]
@@ -64,7 +64,7 @@ pub enum WorkloadCommand {
 
 // #[derive(Debug)]
 pub struct Workload {
-    instance_name: WorkloadInstanceName,
+    name: String,
     channel: WorkloadCommandSender,
     control_interface: Option<PipesChannelContext>,
 }
@@ -72,12 +72,12 @@ pub struct Workload {
 #[cfg_attr(test, automock)]
 impl Workload {
     pub fn new(
-        instance_name: WorkloadInstanceName,
+        name: String,
         channel: WorkloadCommandSender,
         control_interface: Option<PipesChannelContext>,
     ) -> Self {
         Workload {
-            instance_name,
+            name,
             channel,
             control_interface,
         }
@@ -89,10 +89,7 @@ impl Workload {
         spec: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
     ) -> Result<(), WorkloadError> {
-        log::info!(
-            "Updating workload '{}'.",
-            self.instance_name.workload_name()
-        );
+        log::info!("Updating workload '{}'.", self.name);
 
         if let Some(control_interface) = self.control_interface.take() {
             control_interface.abort_pipes_channel_task()
@@ -113,10 +110,7 @@ impl Workload {
 
     // [impl->swdd~agent-workload-obj-delete-command~1]
     pub async fn delete(self) -> Result<(), WorkloadError> {
-        log::info!(
-            "Deleting workload '{}'.",
-            self.instance_name.workload_name()
-        );
+        log::info!("Deleting workload '{}'.", self.name);
 
         if let Some(control_interface) = self.control_interface {
             control_interface.abort_pipes_channel_task()
@@ -161,14 +155,13 @@ impl Workload {
 
 #[cfg(test)]
 mod tests {
-
     use std::path::PathBuf;
     use std::time::Duration;
 
     use common::{
         commands::{Response, ResponseContent},
         from_server_interface::FromServer,
-        objects::{generate_test_workload_spec_with_param, CompleteState, WorkloadInstanceName},
+        objects::{generate_test_workload_spec_with_param, CompleteState},
         test_utils::generate_test_complete_state,
     };
     use tokio::{sync::mpsc, time::timeout};
@@ -205,14 +198,8 @@ mod tests {
             .once()
             .return_const(());
 
-        let instance_name = WorkloadInstanceName::builder()
-            .workload_name(WORKLOAD_1_NAME.to_string())
-            .agent_name(AGENT_NAME.to_string())
-            .config(&"some config".to_string())
-            .build();
-
         let test_workload = Workload::new(
-            instance_name,
+            WORKLOAD_1_NAME.to_string(),
             workload_command_sender,
             Some(old_control_interface_mock),
         );
@@ -250,14 +237,8 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let instance_name = WorkloadInstanceName::builder()
-            .workload_name(WORKLOAD_1_NAME.to_string())
-            .agent_name(AGENT_NAME.to_string())
-            .config(&"some config".to_string())
-            .build();
-
         let mut test_workload = Workload::new(
-            instance_name,
+            WORKLOAD_1_NAME.to_string(),
             workload_command_sender,
             Some(old_control_interface_mock),
         );
@@ -309,14 +290,8 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let instance_name = WorkloadInstanceName::builder()
-            .workload_name(WORKLOAD_1_NAME.to_string())
-            .agent_name(AGENT_NAME.to_string())
-            .config(&"some config".to_string())
-            .build();
-
         let mut test_workload = Workload::new(
-            instance_name,
+            WORKLOAD_1_NAME.to_string(),
             workload_command_sender,
             Some(old_control_interface_mock),
         );
@@ -344,14 +319,8 @@ mod tests {
             .once()
             .return_const(());
 
-        let instance_name = WorkloadInstanceName::builder()
-            .workload_name(WORKLOAD_1_NAME.to_string())
-            .agent_name(AGENT_NAME.to_string())
-            .config(&"some config".to_string())
-            .build();
-
         let test_workload = Workload::new(
-            instance_name,
+            WORKLOAD_1_NAME.to_string(),
             workload_command_sender,
             Some(old_control_interface_mock),
         );
@@ -380,14 +349,8 @@ mod tests {
             .once()
             .return_const(to_server_tx);
 
-        let instance_name = WorkloadInstanceName::builder()
-            .workload_name(WORKLOAD_1_NAME.to_string())
-            .agent_name(AGENT_NAME.to_string())
-            .config(&"some config".to_string())
-            .build();
-
         let mut test_workload = Workload::new(
-            instance_name,
+            WORKLOAD_1_NAME.to_string(),
             workload_command_sender,
             Some(control_interface_mock),
         );
@@ -432,14 +395,8 @@ mod tests {
             .once()
             .return_const(to_server_tx);
 
-        let instance_name = WorkloadInstanceName::builder()
-            .workload_name(WORKLOAD_1_NAME.to_string())
-            .agent_name(AGENT_NAME.to_string())
-            .config(&"some config".to_string())
-            .build();
-
         let mut test_workload = Workload::new(
-            instance_name,
+            WORKLOAD_1_NAME.to_string(),
             workload_command_sender,
             Some(control_interface_mock),
         );
@@ -465,13 +422,8 @@ mod tests {
 
         let (workload_command_sender, _) = WorkloadCommandSender::new();
 
-        let instance_name = WorkloadInstanceName::builder()
-            .workload_name(WORKLOAD_1_NAME.to_string())
-            .agent_name(AGENT_NAME.to_string())
-            .config(&"some config".to_string())
-            .build();
-
-        let mut test_workload = Workload::new(instance_name, workload_command_sender, None);
+        let mut test_workload =
+            Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_sender, None);
         let complete_state = CompleteState::default();
 
         assert!(matches!(

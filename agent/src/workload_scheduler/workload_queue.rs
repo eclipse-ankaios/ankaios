@@ -12,99 +12,152 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::state_validator::StateValidator;
-use common::objects::{DeletedWorkload, WorkloadInstanceName, WorkloadSpec};
-
+use super::state_validator::DependencyState;
+use super::state_validator::{PendingSubState, StateValidator};
+use common::{
+    objects::{DeletedWorkload, ExecutionState, WorkloadSpec, WorkloadState},
+    std_extensions::IllegalStateResult,
+    to_server_interface::{ToServerInterface, ToServerSender},
+};
 use std::collections::HashMap;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::parameter_storage::ParameterStorage;
+use crate::workload_operation::{WorkloadOperation, WorkloadOperations};
 
 #[cfg(test)]
 use mockall::automock;
 
-pub type ReadyWorkloads = Vec<WorkloadSpec>;
-pub type WaitingWorkloads = Vec<WorkloadSpec>;
-
-pub type ReadyDeletedWorkloads = Vec<DeletedWorkload>;
-pub type WaitingDeletedWorkloads = Vec<DeletedWorkload>;
-
-type StartWorkloadQueue = HashMap<WorkloadInstanceName, WorkloadSpec>;
-type DeleteWorkloadQueue = HashMap<WorkloadInstanceName, DeletedWorkload>;
+type DependencyQueue = HashMap<String, WorkloadOperation>;
 
 pub struct WorkloadQueue {
-    start_queue: StartWorkloadQueue,
-    delete_queue: DeleteWorkloadQueue,
+    queue: DependencyQueue,
+    workload_state_sender: ToServerSender,
 }
 
 #[cfg_attr(test, automock)]
 impl WorkloadQueue {
-    pub fn new() -> Self {
+    pub fn new(workload_state_tx: ToServerSender) -> Self {
         WorkloadQueue {
-            start_queue: StartWorkloadQueue::new(),
-            delete_queue: DeleteWorkloadQueue::new(),
+            queue: DependencyQueue::new(),
+            workload_state_sender: workload_state_tx,
         }
     }
 
-    pub fn put_on_waiting_queue(&mut self, workloads: WaitingWorkloads) {
-        self.start_queue.extend(
-            workloads
-                .into_iter()
-                .map(|workload| (workload.instance_name.clone(), workload)),
-        );
+    async fn report_pending_state_for_waiting_workload(&self, waiting_workload: &WorkloadSpec) {
+        self.workload_state_sender
+            .update_workload_state(vec![WorkloadState {
+                instance_name: waiting_workload.instance_name.clone(),
+                execution_state: ExecutionState::waiting_to_start(),
+            }])
+            .await
+            .unwrap_or_illegal_state();
     }
 
-    pub fn put_on_delete_waiting_queue(&mut self, workloads: WaitingDeletedWorkloads) {
-        self.delete_queue.extend(
-            workloads
-                .into_iter()
-                .map(|workload| (workload.instance_name.clone(), workload)),
-        );
+    async fn report_pending_delete_state_for_waiting_workload(
+        &self,
+        waiting_deleted_workload: &DeletedWorkload,
+    ) {
+        self.workload_state_sender
+            .update_workload_state(vec![WorkloadState {
+                instance_name: waiting_deleted_workload.instance_name.clone(),
+                execution_state: ExecutionState::waiting_to_stop(),
+            }])
+            .await
+            .unwrap_or_illegal_state();
     }
 
-    pub fn next_workloads_to_start(
+    async fn insert_and_notify(
         &mut self,
+        workload_operation: WorkloadOperation,
+        pending_sub_state: PendingSubState,
+    ) {
+        match workload_operation {
+            WorkloadOperation::Create(ref workload_spec) => {
+                self.report_pending_state_for_waiting_workload(&workload_spec)
+                    .await;
+
+                self.queue.insert(
+                    workload_spec.instance_name.workload_name().to_owned(),
+                    workload_operation,
+                );
+            }
+            WorkloadOperation::Update(ref workload_spec, ref deleted_workload) => {
+                if pending_sub_state == PendingSubState::Create {
+                    self.report_pending_state_for_waiting_workload(&workload_spec)
+                        .await;
+                }
+
+                if pending_sub_state == PendingSubState::Delete {
+                    self.report_pending_delete_state_for_waiting_workload(&deleted_workload)
+                        .await;
+                }
+
+                self.queue.insert(
+                    workload_spec.instance_name.workload_name().to_owned(),
+                    workload_operation,
+                );
+            }
+            WorkloadOperation::Delete(ref deleted_workload) => {
+                self.report_pending_delete_state_for_waiting_workload(&deleted_workload)
+                    .await;
+
+                self.queue.insert(
+                    deleted_workload.instance_name.workload_name().to_owned(),
+                    workload_operation,
+                );
+            }
+        }
+    }
+
+    pub async fn enqueue_filtered_workload_operations(
+        &mut self,
+        new_waiting_workloads: WorkloadOperations,
         workload_state_db: &ParameterStorage,
-    ) -> ReadyWorkloads {
-        let ready_workloads: ReadyWorkloads = self
-            .start_queue
-            .values()
-            .filter_map(|workload_spec| {
+    ) -> WorkloadOperations {
+        let mut ready_workload_operations = WorkloadOperations::new();
+        for workload_operation in new_waiting_workloads {
+            if let DependencyState::Pending(pending_sub_state) =
                 StateValidator::dependencies_for_workload_fulfilled(
-                    workload_spec,
+                    &workload_operation,
                     workload_state_db,
                 )
-                .then_some(workload_spec.clone())
-            })
-            .collect();
-
-        for workload in ready_workloads.iter() {
-            self.start_queue.remove(&workload.instance_name);
+            {
+                self.insert_and_notify(workload_operation, pending_sub_state)
+                    .await;
+            } else {
+                ready_workload_operations.push(workload_operation);
+            }
         }
 
-        ready_workloads
+        ready_workload_operations
     }
 
-    pub fn next_workloads_to_delete(
+    pub fn next_workload_operations(
         &mut self,
         workload_state_db: &ParameterStorage,
-    ) -> ReadyDeletedWorkloads {
-        let ready_workloads: ReadyDeletedWorkloads = self
-            .delete_queue
-            .values()
-            .filter_map(|deleted_workload| {
-                StateValidator::dependencies_for_deleted_workload_fulfilled(
-                    deleted_workload,
+    ) -> WorkloadOperations {
+        let mut retained_entries = DependencyQueue::new();
+        let ready_operations: WorkloadOperations = self.queue.iter().fold(
+            WorkloadOperations::new(),
+            |mut ready_operations_container, (name, wl_operation)| {
+                if StateValidator::dependencies_for_workload_fulfilled(
+                    wl_operation,
                     workload_state_db,
-                )
-                .then_some(deleted_workload.clone())
-            })
-            .collect();
+                ) == DependencyState::Fulfilled
+                {
+                    ready_operations_container.push(wl_operation.clone());
+                } else {
+                    retained_entries.insert(name.clone(), wl_operation.clone());
+                }
 
-        for workload in ready_workloads.iter() {
-            self.delete_queue.remove(&workload.instance_name);
-        }
-        ready_workloads
+                ready_operations_container
+            },
+        );
+
+        self.queue = retained_entries;
+
+        ready_operations
     }
 }
 
@@ -147,7 +200,7 @@ mod tests {
             RUNTIME.to_string(),
         );
 
-        dependency_scheduler.put_on_waiting_queue(vec![new_workload.clone()]);
+        dependency_scheduler.enqueue_filtered_workload_operations(vec![new_workload.clone()]);
 
         assert_eq!(
             StartWorkloadQueue::from([(new_workload.instance_name.clone(), new_workload)]),
