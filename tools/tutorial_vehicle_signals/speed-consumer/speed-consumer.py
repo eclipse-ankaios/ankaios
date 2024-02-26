@@ -16,5 +16,6 @@ with VSSClient(addr, port) as client:
     for updates in client.subscribe_current_values([
         'Vehicle.Speed',
     ]):
-        speed = updates['Vehicle.Speed'].value
-        log(f"Received updated speed: {speed}")
+        speed = updates['Vehicle.Speed']
+        if speed is not None:
+            log(f"Received updated speed: {speed.value}")

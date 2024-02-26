@@ -157,7 +157,7 @@ workloads:
       deny: []
     tags: []
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/speed-consumer:0.1.1
+      image: ghcr.io/eclipse-ankaios/speed-consumer:0.1.2
       commandOptions:
         - "--net=host"
         - "-e"
@@ -321,7 +321,7 @@ workloads:
     dependencies:
       databroker: ADD_COND_RUNNING
     runtimeConfig: |
-      image: ghcr.io/eclipse-ankaios/speed-consumer:0.1.1
+      image: ghcr.io/eclipse-ankaios/speed-consumer:0.1.2
       commandOptions:
         - "--net=host"
         - "-e"
