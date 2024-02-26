@@ -598,5 +598,8 @@ mod tests {
 
         let delete_condition = DeleteCondition::DelCondRunning;
         assert!(delete_condition.fulfilled_by(&ExecutionState::running()));
+
+        let delete_condition = DeleteCondition::DelCondNotPendingNorRunning;
+        assert!(delete_condition.fulfilled_by(&ExecutionState::waiting_to_start()));
     }
 }

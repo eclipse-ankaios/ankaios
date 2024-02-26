@@ -553,4 +553,79 @@ mod tests {
             workload_scheduler.queue.get(WORKLOAD_NAME_1)
         )
     }
+
+    #[tokio::test]
+    async fn utest_next_workload_operations_not_available() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_state_sender, _workload_state_receiver) = channel(1);
+        let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
+
+        let state_validator_mock_context =
+            MockDependencyStateValidator::dependencies_for_workload_fulfilled_context();
+        state_validator_mock_context
+            .expect()
+            .once()
+            .return_const(DependencyState::PendingCreate);
+
+        let pending_workload = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME.to_owned(),
+        );
+
+        workload_scheduler.queue.insert(
+            pending_workload.instance_name.workload_name().to_owned(),
+            WorkloadOperation::Create(pending_workload.clone()),
+        );
+
+        let next_workload_operations =
+            workload_scheduler.next_workload_operations(&MockParameterStorage::default());
+
+        assert!(next_workload_operations.is_empty());
+
+        let expected_pending_create = &WorkloadOperation::Create(pending_workload);
+        assert_eq!(
+            Some(expected_pending_create),
+            workload_scheduler.queue.get(WORKLOAD_NAME_1)
+        )
+    }
+
+    #[tokio::test]
+    async fn utest_next_workload_operations_available() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_state_sender, _workload_state_receiver) = channel(1);
+        let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
+
+        let state_validator_mock_context =
+            MockDependencyStateValidator::dependencies_for_workload_fulfilled_context();
+        state_validator_mock_context
+            .expect()
+            .once()
+            .return_const(DependencyState::Fulfilled);
+
+        let next_ready_workload = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME.to_owned(),
+        );
+
+        workload_scheduler.queue.insert(
+            next_ready_workload.instance_name.workload_name().to_owned(),
+            WorkloadOperation::Create(next_ready_workload.clone()),
+        );
+
+        let next_workload_operations =
+            workload_scheduler.next_workload_operations(&MockParameterStorage::default());
+
+        let expected_next_operation = WorkloadOperation::Create(next_ready_workload);
+
+        assert_eq!(vec![expected_next_operation], next_workload_operations);
+        assert!(workload_scheduler.queue.is_empty());
+    }
 }

@@ -126,14 +126,98 @@ mod tests {
     use std::collections::HashMap;
 
     use crate::{
-        parameter_storage::MockParameterStorage,
+        parameter_storage::MockParameterStorage, workload_operation::WorkloadOperation,
         workload_scheduler::dependency_state_validator::DependencyState,
     };
 
     const AGENT_A: &str = "agent_A";
     const WORKLOAD_NAME_1: &str = "workload_1";
     const WORKLOAD_NAME_2: &str = "workload_2";
+    const WORKLOAD_NAME_3: &str = "workload_3";
     const RUNTIME: &str = "runtime";
+
+    #[test]
+    fn utest_state_validator_dependencies_for_workload_fulfilled_create() {
+        let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
+            AGENT_A,
+            WORKLOAD_NAME_1,
+            RUNTIME,
+            HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondRunning)]),
+        );
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_state_of_workload()
+            .once()
+            .return_const(Some(ExecutionState::running()));
+
+        assert_eq!(
+            DependencyState::Fulfilled,
+            DependencyStateValidator::dependencies_for_workload_fulfilled(
+                &WorkloadOperation::Create(workload_with_dependencies),
+                &parameter_storage_mock
+            )
+        );
+    }
+
+    #[test]
+    fn utest_state_validator_dependencies_for_workload_fulfilled_delete() {
+        let deleted_workload = generate_test_deleted_workload_with_dependencies(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            HashMap::from([(
+                WORKLOAD_NAME_2.to_string(),
+                DeleteCondition::DelCondNotPendingNorRunning,
+            )]),
+        );
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_state_of_workload()
+            .once()
+            .return_const(Some(ExecutionState::succeeded()));
+
+        assert_eq!(
+            DependencyState::Fulfilled,
+            DependencyStateValidator::dependencies_for_workload_fulfilled(
+                &WorkloadOperation::Delete(deleted_workload),
+                &parameter_storage_mock
+            )
+        );
+    }
+
+    #[test]
+    fn utest_state_validator_dependencies_for_workload_fulfilled_update() {
+        let new_workload = generate_test_workload_spec_with_dependencies(
+            AGENT_A,
+            WORKLOAD_NAME_1,
+            RUNTIME,
+            HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondRunning)]),
+        );
+
+        let deleted_workload = generate_test_deleted_workload_with_dependencies(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            HashMap::from([(
+                WORKLOAD_NAME_3.to_string(),
+                DeleteCondition::DelCondNotPendingNorRunning,
+            )]),
+        );
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_state_of_workload()
+            .once()
+            .return_const(Some(ExecutionState::running()));
+
+        assert_eq!(
+            DependencyState::PendingDelete,
+            DependencyStateValidator::dependencies_for_workload_fulfilled(
+                &WorkloadOperation::Update(new_workload, deleted_workload),
+                &parameter_storage_mock
+            )
+        );
+    }
 
     #[test]
     fn utest_state_validator_create_fulfilled() {
