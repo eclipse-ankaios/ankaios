@@ -222,26 +222,15 @@ mod apply_manifests {
 
     // [impl->swdd~cli-supports-ankaios-manifest~1]
     pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
-        let mut data = "".to_string();
-        let _ = manifest.1.read_to_string(&mut data);
-        if data.is_empty() {
-            return Err("Empty manifest provided -> nothing to do!".to_string());
-        }
-        let _state_obj_parsing_check: State =
-            serde_yaml::from_str(&data).map_err(|_| "Invalid manifest data provided!")?;
-
-        let mut yaml_nodes = Default::default();
-        match serde_yaml::from_str(&data).and_then(|nodes: serde_yaml::Value| {
-            yaml_nodes = nodes;
-            Object::try_from(&yaml_nodes)
-        }) {
+        let _state_obj_parsing_check: State = serde_yaml::from_reader(&mut manifest.1)
+            .map_err(|err| format!("Invalid manifest data provided: {}", err))?;
+        match Object::try_from(_state_obj_parsing_check) {
             Err(err) => Err(format!(
                 "Error while parsing the manifest data.\nError: {err}"
             )),
             Ok(obj) => {
                 let mut workload_paths: HashSet<common::state_manipulation::Path> = HashSet::new();
-                for path in common::state_manipulation::get_paths_from_yaml_node(&yaml_nodes, false)
-                {
+                for path in Vec::<Path>::from(&obj) {
                     let parts = path.parts();
                     if parts.len() > 1 {
                         let _ = &mut workload_paths.insert(common::state_manipulation::Path::from(
@@ -259,7 +248,7 @@ mod apply_manifests {
     pub fn handle_agent_overwrite(
         desired_agent: &Option<String>,
         state_obj: &mut State,
-        table_output: &mut Vec<ApplyManifestTableDisplay>,
+        table_output: &mut [ApplyManifestTableDisplay],
     ) -> Result<(), String> {
         // No agent name specified through cli!
         if desired_agent.is_none() {
@@ -797,7 +786,7 @@ impl CliCommands {
         Ok(())
     }
 
-    // [impl->swdd~cli-provides-apply-multiple-ankaios-manifests~1]
+    // [impl->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
     pub async fn apply_manifests(&mut self, apply_args: ApplyArgs) -> Result<String, String> {
         use apply_manifests::*;
         match apply_args.get_input_sources() {
@@ -2369,18 +2358,6 @@ mod tests {
         ))
         .is_err());
     }
-    #[test]
-    fn utest_parse_manifest_failed_empty_manifest_content() {
-        let manifest_content = io::Cursor::new(b"");
-
-        assert_eq!(
-            Err("Empty manifest provided -> nothing to do!".to_string()),
-            parse_manifest(&mut (
-                "invalid_manifest_content".to_string(),
-                Box::new(manifest_content)
-            ))
-        );
-    }
 
     #[test]
     fn utest_update_request_obj_ok() {
@@ -2578,6 +2555,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
     #[test]
     fn utest_handle_agent_overwrite_no_agent_name_provided_at_all() {
         let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
@@ -2702,7 +2680,7 @@ mod tests {
             vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
 
         assert_eq!(
-            Err("Empty manifest provided -> nothing to do!".to_string()),
+            Err("No workload provided in manifests!".to_string()),
             generate_state_obj_and_filter_masks_from_manifests(
                 &mut manifests[..],
                 &ApplyArgs {
@@ -2715,8 +2693,9 @@ mod tests {
         );
     }
 
+    //[utest->swdd~cli-apply-send-update-state-for-deletion~1]
     #[tokio::test]
-    async fn apply_manifests_ok() {
+    async fn apply_manifests_delete_mode_ok() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -2726,14 +2705,91 @@ mod tests {
     simple_manifest1:
       runtime: podman
       agent: agent_A
-      restart: true
-      updateStrategy: AT_MOST_ONCE
-      accessRights:
-        allow: []
-        deny: []
-      tags: []
       runtimeConfig: \"\"
         ",
+        );
+
+        let mut manifest_data = String::new();
+        let _ = manifest_content.clone().read_to_string(&mut manifest_data);
+
+        FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .push_back(Ok(("manifest.yml".to_string(), Box::new(manifest_content))));
+
+        let updated_state = CompleteState {
+            ..Default::default()
+        };
+
+        let complete_states = vec![FromServer::Response(Response {
+            request_id: "TestCli".to_owned(),
+            response_content: ResponseContent::CompleteState(Box::new(updated_state.clone())),
+        })];
+
+        let mut mock_client = MockGRPCCommunicationsClient::default();
+        mock_client
+            .expect_run()
+            .return_once(|_r, to_cli| prepare_server_response(complete_states, to_cli));
+
+        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
+        mock_new
+            .expect()
+            .return_once(move |_name, _server_address| mock_client);
+
+        let mut cmd = CliCommands::init(
+            RESPONSE_TIMEOUT_MS,
+            "TestCli".to_string(),
+            Url::parse("http://localhost").unwrap(),
+        );
+
+        // replace the connection to the server with our own
+        let (test_to_server, mut test_server_receiver) =
+            tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
+        cmd.to_server = test_to_server;
+
+        let apply_result = cmd
+            .apply_manifests(ApplyArgs {
+                agent_name: None,
+                delete_mode: true,
+                manifest_files: vec!["manifest_yaml".to_string()],
+            })
+            .await;
+        assert!(apply_result.is_ok());
+
+        // The request to update_state
+        let message_to_server = test_server_receiver.try_recv();
+        assert!(message_to_server.is_ok());
+        assert_eq!(
+            message_to_server.unwrap(),
+            ToServer::Request(Request {
+                request_id: "TestCli".to_owned(),
+                request_content: RequestContent::UpdateStateRequest(Box::new(
+                    commands::UpdateStateRequest {
+                        state: updated_state,
+                        update_mask: vec!["desiredState.workloads.simple_manifest1".to_string(),]
+                    }
+                ))
+            })
+        );
+
+        // Make sure that we have read all commands from the channel.
+        assert!(test_server_receiver.try_recv().is_err());
+    }
+
+    //[utest->swdd~cli-apply-send-update-state~1]
+    #[tokio::test]
+    async fn apply_manifests_ok() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let manifest_content = io::Cursor::new(
+            b"workloads:
+        simple_manifest1:
+          runtime: podman
+          agent: agent_A
+          runtimeConfig: \"\"
+            ",
         );
 
         let mut manifest_data = String::new();

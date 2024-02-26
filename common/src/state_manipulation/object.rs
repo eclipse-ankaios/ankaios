@@ -170,14 +170,11 @@ pub fn get_paths_from_yaml_node(node: &Value, includes_mappings_and_sequences: b
         .map(|entry| Path::from(&entry))
         .collect()
 }
-impl TryInto<Vec<Path>> for Object {
-    type Error = serde_yaml::Error;
-
-    fn try_into(self) -> Result<Vec<Path>, Self::Error> {
-        Ok(get_paths_from_yaml_node(&self.data, true))
+impl From<&Object> for Vec<Path> {
+    fn from(value: &Object) -> Self {
+        get_paths_from_yaml_node(&value.data, true)
     }
 }
-
 impl Object {
     pub fn set(&mut self, path: &Path, value: Value) -> Result<(), String> {
         let (path_head, path_last) = path.split_last()?;
@@ -654,7 +651,7 @@ mod tests {
         };
 
         use crate::state_manipulation::Path;
-        let actual: Vec<Path> = data.try_into().unwrap();
+        let actual: Vec<Path> = Vec::<Path>::from(&data);
         let expected: Vec<Path> = vec![
             Path::from("A"),
             Path::from("A.AA"),
