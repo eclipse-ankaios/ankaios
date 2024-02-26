@@ -198,6 +198,10 @@ pub enum DeleteCondition {
 
 impl FulfilledBy<ExecutionState> for DeleteCondition {
     fn fulfilled_by(&self, other: &ExecutionState) -> bool {
+        if other.is_waiting_to_start() {
+            return true;
+        }
+
         match self {
             DeleteCondition::DelCondNotPendingNorRunning => (*other).is_not_pending_nor_running(),
             DeleteCondition::DelCondRunning => (*other).is_running(),
