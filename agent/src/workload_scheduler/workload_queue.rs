@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use super::state_validator::StateValidator;
+use super::state_validator::{DependencyState, StateValidator};
 use common::{
     objects::{DeletedWorkload, ExecutionState, WorkloadSpec, WorkloadState},
     std_extensions::IllegalStateResult,
@@ -98,6 +98,27 @@ impl WorkloadQueue {
         }
     }
 
+    async fn enqueue_filtered_update_operation(
+        &mut self,
+        new_workload: WorkloadSpec,
+        deleted_workload: DeletedWorkload,
+        dependency_state: DependencyState,
+        ready_workload_operations: &mut WorkloadOperations,
+    ) {
+        if !dependency_state.is_pending_delete() {
+            /* For an update with pending create dependencies but fulfilled delete dependencies
+            the delete can be done immediately but the create must wait in the queue. */
+            self.insert_and_notify(WorkloadOperation::Create(new_workload))
+                .await;
+
+            ready_workload_operations.push(WorkloadOperation::Delete(deleted_workload));
+        } else {
+            // For an update with pending delete dependencies, the whole update is pending.
+            self.insert_and_notify(WorkloadOperation::Update(new_workload, deleted_workload))
+                .await;
+        }
+    }
+
     pub async fn enqueue_filtered_workload_operations(
         &mut self,
         new_workload_operations: WorkloadOperations,
@@ -110,25 +131,17 @@ impl WorkloadQueue {
                 workload_state_db,
             );
 
-            log::info!("received dependency_state = {:?}", dependency_state);
-
             if dependency_state.is_pending() {
-                if let WorkloadOperation::Update(workload_spec, deleted_workload) =
+                if let WorkloadOperation::Update(new_workload, deleted_workload) =
                     workload_operation
                 {
-                    if !dependency_state.is_pending_delete() {
-                        /* For an update with pending create dependencies but fulfilled delete dependencies
-                        the delete can be done immediately but the create must wait in the queue. */
-                        self.insert_and_notify(WorkloadOperation::Create(workload_spec))
-                            .await;
-                        ready_workload_operations.push(WorkloadOperation::Delete(deleted_workload));
-                    } else {
-                        self.insert_and_notify(WorkloadOperation::Update(
-                            workload_spec,
-                            deleted_workload,
-                        ))
-                        .await;
-                    }
+                    self.enqueue_filtered_update_operation(
+                        new_workload,
+                        deleted_workload,
+                        dependency_state,
+                        &mut ready_workload_operations,
+                    )
+                    .await;
                 } else {
                     self.insert_and_notify(workload_operation).await;
                 }
