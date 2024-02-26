@@ -2,11 +2,7 @@ workloads:
   frontend:
     runtime: podman
     agent: agent_A
-    restart: true
-    updateStrategy: AT_MOST_ONCE
-    accessRights:
-      allow: []
-      deny: []
+    restart: false
     dependencies:
       backend:
         ADD_COND_RUNNING
@@ -19,11 +15,7 @@ workloads:
   backend:
     runtime: podman
     agent: agent_A
-    restart: true
-    updateStrategy: AT_MOST_ONCE
-    accessRights:
-      allow: []
-      deny: []
+    restart: false
     tags:
       - key: owner
         value: Ankaios team
