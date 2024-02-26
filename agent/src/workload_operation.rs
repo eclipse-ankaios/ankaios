@@ -14,7 +14,7 @@
 
 use common::objects::{DeletedWorkload, WorkloadSpec};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum WorkloadOperation {
     Create(WorkloadSpec),
     Update(WorkloadSpec, DeletedWorkload),

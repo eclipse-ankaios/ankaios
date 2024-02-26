@@ -42,10 +42,10 @@ impl DependencyState {
     }
 }
 
-pub struct StateValidator {}
+pub struct DependencyStateValidator {}
 
 #[cfg_attr(test, automock)]
-impl StateValidator {
+impl DependencyStateValidator {
     fn create_fulfilled(
         workload: &WorkloadSpec,
         workload_state_db: &ParameterStorage,
@@ -114,13 +114,21 @@ impl StateValidator {
 
 #[cfg(test)]
 mod tests {
-    use super::StateValidator;
-    use common::objects::{
-        generate_test_workload_spec_with_dependencies, AddCondition, ExecutionState,
+    use super::DependencyStateValidator;
+    use common::{
+        objects::{
+            generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
+            AddCondition, DeleteCondition, ExecutionState,
+        },
+        test_utils::generate_test_deleted_workload_with_dependencies,
     };
+    use mockall::predicate;
     use std::collections::HashMap;
 
-    use crate::parameter_storage::MockParameterStorage;
+    use crate::{
+        parameter_storage::MockParameterStorage,
+        workload_scheduler::dependency_state_validator::DependencyState,
+    };
 
     const AGENT_A: &str = "agent_A";
     const WORKLOAD_NAME_1: &str = "workload_1";
@@ -128,7 +136,7 @@ mod tests {
     const RUNTIME: &str = "runtime";
 
     #[test]
-    fn utest_dependency_states_for_start_fulfilled() {
+    fn utest_state_validator_create_fulfilled() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
             AGENT_A,
             WORKLOAD_NAME_1,
@@ -140,37 +148,44 @@ mod tests {
         parameter_storage_mock
             .expect_get_state_of_workload()
             .once()
+            .with(predicate::eq(WORKLOAD_NAME_2.to_owned()))
             .return_const(Some(ExecutionState::running()));
 
-        assert!(StateValidator::dependencies_for_workload_fulfilled(
-            &workload_with_dependencies,
-            &parameter_storage_mock
-        ));
+        assert_eq!(
+            DependencyState::Fulfilled,
+            DependencyStateValidator::create_fulfilled(
+                &workload_with_dependencies,
+                &parameter_storage_mock
+            )
+        );
     }
 
     #[test]
-    fn utest_dependency_states_for_start_not_fulfilled() {
-        let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
-            AGENT_A,
-            WORKLOAD_NAME_1,
-            RUNTIME,
-            HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondRunning)]),
+    fn utest_state_validator_create_fulfilled_no_dependencies() {
+        let mut workload_with_dependencies = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME.to_string(),
         );
+
+        workload_with_dependencies.dependencies.clear(); // no inter-workload dependencies
 
         let mut parameter_storage_mock = MockParameterStorage::default();
         parameter_storage_mock
             .expect_get_state_of_workload()
-            .once()
-            .return_const(Some(ExecutionState::removed()));
+            .never();
 
-        assert!(!StateValidator::dependencies_for_workload_fulfilled(
-            &workload_with_dependencies,
-            &parameter_storage_mock
-        ));
+        assert_eq!(
+            DependencyState::Fulfilled,
+            DependencyStateValidator::create_fulfilled(
+                &workload_with_dependencies,
+                &parameter_storage_mock
+            )
+        );
     }
 
     #[test]
-    fn utest_dependency_states_for_start_fulfilled_no_workload_state() {
+    fn utest_state_validator_create_fulfilled_no_workload_state_known() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
             AGENT_A,
             WORKLOAD_NAME_1,
@@ -184,9 +199,115 @@ mod tests {
             .once()
             .return_const(None);
 
-        assert!(!StateValidator::dependencies_for_workload_fulfilled(
-            &workload_with_dependencies,
-            &parameter_storage_mock
-        ));
+        assert_eq!(
+            DependencyState::PendingCreate,
+            DependencyStateValidator::create_fulfilled(
+                &workload_with_dependencies,
+                &parameter_storage_mock
+            )
+        );
+    }
+
+    #[test]
+    fn utest_state_validator_create_fulfilled_unfulfilled_execution_state() {
+        let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
+            AGENT_A,
+            WORKLOAD_NAME_1,
+            RUNTIME,
+            HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondRunning)]),
+        );
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_state_of_workload()
+            .once()
+            .return_const(Some(ExecutionState::succeeded()));
+
+        assert_eq!(
+            DependencyState::PendingCreate,
+            DependencyStateValidator::create_fulfilled(
+                &workload_with_dependencies,
+                &parameter_storage_mock
+            )
+        );
+    }
+
+    #[test]
+    fn utest_state_validator_delete_fulfilled() {
+        let deleted_workload_with_dependencies = generate_test_deleted_workload_with_dependencies(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            HashMap::from([(
+                WORKLOAD_NAME_2.to_owned(),
+                DeleteCondition::DelCondNotPendingNorRunning,
+            )]),
+        );
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_state_of_workload()
+            .once()
+            .with(predicate::eq(WORKLOAD_NAME_2.to_owned()))
+            .return_const(Some(ExecutionState::succeeded()));
+
+        assert_eq!(
+            DependencyState::Fulfilled,
+            DependencyStateValidator::delete_fulfilled(
+                &deleted_workload_with_dependencies,
+                &parameter_storage_mock
+            )
+        );
+    }
+
+    #[test]
+    fn utest_state_validator_delete_fulfilled_unfulfilled_execution_state() {
+        let deleted_workload_with_dependencies = generate_test_deleted_workload_with_dependencies(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            HashMap::from([(
+                WORKLOAD_NAME_2.to_owned(),
+                DeleteCondition::DelCondNotPendingNorRunning,
+            )]),
+        );
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_state_of_workload()
+            .once()
+            .return_const(Some(ExecutionState::running()));
+
+        assert_eq!(
+            DependencyState::PendingDelete,
+            DependencyStateValidator::delete_fulfilled(
+                &deleted_workload_with_dependencies,
+                &parameter_storage_mock
+            )
+        );
+    }
+
+    #[test]
+    fn utest_state_validator_delete_fulfilled_no_workload_state_known() {
+        let deleted_workload_with_dependencies = generate_test_deleted_workload_with_dependencies(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            HashMap::from([(
+                WORKLOAD_NAME_2.to_owned(),
+                DeleteCondition::DelCondNotPendingNorRunning,
+            )]),
+        );
+
+        let mut parameter_storage_mock = MockParameterStorage::default();
+        parameter_storage_mock
+            .expect_get_state_of_workload()
+            .once()
+            .return_const(None);
+
+        assert_eq!(
+            DependencyState::Fulfilled,
+            DependencyStateValidator::delete_fulfilled(
+                &deleted_workload_with_dependencies,
+                &parameter_storage_mock
+            )
+        );
     }
 }
