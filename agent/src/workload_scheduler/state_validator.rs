@@ -75,10 +75,7 @@ impl StateValidator {
             .all(|(dependency_name, delete_condition)| {
                 workload_state_db
                     .get_state_of_workload(dependency_name)
-                    .map_or(true, |wl_state| {
-                        delete_condition.fulfilled_by(&wl_state)
-                            || wl_state == ExecutionState::waiting_to_start()
-                    })
+                    .map_or(true, |wl_state| delete_condition.fulfilled_by(&wl_state))
             })
         {
             DependencyState::Fulfilled
@@ -96,6 +93,8 @@ impl StateValidator {
                 Self::create_fulfilled(workload_spec, workload_state_db)
             }
             WorkloadOperation::Update(_, deleted_workload) => {
+                /* The update operation is only blocked when a delete is pending.
+                If the create operation is pending the delete can still be done.*/
                 Self::delete_fulfilled(deleted_workload, workload_state_db)
             }
             WorkloadOperation::Delete(deleted_workload) => {
