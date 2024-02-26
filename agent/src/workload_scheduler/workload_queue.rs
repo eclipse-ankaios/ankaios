@@ -110,6 +110,8 @@ impl WorkloadQueue {
                 workload_state_db,
             );
 
+            log::info!("received dependency_state = {:?}", dependency_state);
+
             if dependency_state.is_pending() {
                 if let WorkloadOperation::Update(workload_spec, deleted_workload) =
                     workload_operation
@@ -120,6 +122,12 @@ impl WorkloadQueue {
                         self.insert_and_notify(WorkloadOperation::Create(workload_spec))
                             .await;
                         ready_workload_operations.push(WorkloadOperation::Delete(deleted_workload));
+                    } else {
+                        self.insert_and_notify(WorkloadOperation::Update(
+                            workload_spec,
+                            deleted_workload,
+                        ))
+                        .await;
                     }
                 } else {
                     self.insert_and_notify(workload_operation).await;

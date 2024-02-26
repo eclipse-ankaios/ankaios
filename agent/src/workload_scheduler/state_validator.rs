@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use common::objects::{DeletedWorkload, ExecutionState, FulfilledBy, WorkloadSpec};
+use common::objects::{DeletedWorkload, FulfilledBy, WorkloadSpec};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::parameter_storage::ParameterStorage;
