@@ -844,37 +844,6 @@ impl CliCommands {
     }
 }
 
-#[cfg(test)]
-fn generate_multiple_test_apply_manifest_table_display(
-    operation: ApplyManifestOperation,
-    status: &str,
-) -> String {
-    return tabled::Table::new(vec![
-        ApplyManifestTableDisplay::new(
-            "simple",
-            "agent1",
-            operation.clone(),
-            status,
-            "manifest_file_name",
-        ),
-        ApplyManifestTableDisplay::new(
-            "complex",
-            "agent1",
-            operation,
-            status,
-            "manifest_file_name",
-        ),
-    ])
-    .with(tabled::settings::Style::blank())
-    .to_string();
-}
-
-#[cfg(test)]
-fn generate_apply_manifest_table_output(table_output: &Vec<ApplyManifestTableDisplay>) -> String {
-    tabled::Table::new(table_output)
-        .with(tabled::settings::Style::blank())
-        .to_string()
-}
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -900,11 +869,12 @@ mod tests {
         create_filter_masks_from_paths, generate_state_obj_and_filter_masks_from_manifests,
         handle_agent_overwrite, parse_manifest, update_request_obj, InputSourcePair,
     };
+    use super::{ApplyManifestOperation, ApplyManifestTableDisplay};
     use crate::{
         cli::OutputFormat,
         cli_commands::{
-            generate_compact_state_output, generate_multiple_test_apply_manifest_table_display,
-            get_filtered_value, update_compact_state, ApplyArgs, GetWorkloadTableDisplay,
+            generate_compact_state_output, get_filtered_value, update_compact_state, ApplyArgs,
+            GetWorkloadTableDisplay,
         },
     };
     use common::commands::CompleteState;
@@ -958,6 +928,38 @@ mod tests {
                 agent_tx: FromServerSender,
             ) -> Result<(), String>;
         }
+    }
+
+    fn generate_multiple_test_apply_manifest_table_display(
+        operation: ApplyManifestOperation,
+        status: &str,
+    ) -> String {
+        return tabled::Table::new(vec![
+            ApplyManifestTableDisplay::new(
+                "simple",
+                "agent1",
+                operation.clone(),
+                status,
+                "manifest_file_name",
+            ),
+            ApplyManifestTableDisplay::new(
+                "complex",
+                "agent1",
+                operation,
+                status,
+                "manifest_file_name",
+            ),
+        ])
+        .with(tabled::settings::Style::blank())
+        .to_string();
+    }
+
+    fn generate_apply_manifest_table_output(
+        table_output: &Vec<super::ApplyManifestTableDisplay>,
+    ) -> String {
+        tabled::Table::new(table_output)
+            .with(tabled::settings::Style::blank())
+            .to_string()
     }
 
     pub fn open_manifest_mock(
@@ -2396,7 +2398,7 @@ mod tests {
         assert_eq!(expected_obj, req_obj);
         assert_eq!(
             expected_output,
-            super::generate_apply_manifest_table_output(&table_output)
+            generate_apply_manifest_table_output(&table_output)
         );
     }
 
@@ -2462,7 +2464,7 @@ mod tests {
         .is_ok());
         assert_eq!(
             expected_output,
-            super::generate_apply_manifest_table_output(&table_output)
+            generate_apply_manifest_table_output(&table_output)
         );
     }
 
