@@ -574,8 +574,8 @@ Needs:
 
 Status: approved
 
-When the user provides a list of Ankaios manifest files via the CLI command `ank apply [OPTIONS] manifest1.yaml manifest2.yaml ...`,
-the Ankaios CLI shall accept the content of all the given Ankaios manifest files.
+When the user calls the Ankaios Cli `apply` command with one or multiple files,
+the Ankaios CLI shall process the content of all provided files.
 
 Needs:
 - impl
@@ -587,8 +587,8 @@ Needs:
 
 Status: approved
 
-When the user provides the manifest content via the CLI command `ank apply [OPTIONS] -` through `stdin`,
-the Ankaios CLI shall accept the given manifest content from `stdin`.
+When the user calls the Ankaios CLI ``apply` command with a file named `-`,
+the Ankaios CLI shall read data from stdin.
 
 Needs:
 - impl
@@ -627,9 +627,8 @@ Needs:
 
 Status: approved
 
-When the Ankaios CLI parses the manifest content into a state object
-And the Ankaios CLI parses the manifest content into a list of filter masks,
-the Ankaios CLI shall send an update state request to the Ankaios server containing the built state object and filter mask.
+When the user calls the Ankaios CLI `apply` command,
+the Ankaios CLI shall send an update state request to the Ankaios server, containing the state object and filter mask generated from the given input files.
 
 Needs:
 - impl
@@ -641,9 +640,8 @@ Needs:
 
 Status: approved
 
-When the user provides the optional argument `-d`
-And the Ankaios CLI parses the manifest content into a list of filter masks,
-the Ankaios CLI shall send an update state request to the Ankaios server containing an empty state object and the filter mask.
+When the user calls the Ankaios CLI `apply` command with the `-d` flag,
+the Ankaios CLI shall send an update state request to the Ankaios server, containing an empty state object and the filter mask generated from the given input files.
 
 Needs:
 - impl
@@ -671,8 +669,8 @@ Status: approved
 
 When the agent name is not specified in a workload specification
 And the user does not provide the agent name via the optional argument `--agent`,
-And the user runs the CLI command `ank apply [OPTIONS] ...`,
-the Ankaios CLI shall emit an agent name not specified error.
+And the user calls the Ankaios CLI `apply` command,
+the Ankaios CLI shall create a list of filter masks from all `workloads` in the `desiredState` of all given files.
 
 Needs:
 - impl
