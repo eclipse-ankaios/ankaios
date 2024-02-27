@@ -132,7 +132,6 @@ all workloads of agent "${agent_name}" have an initial execution state
     ...    %{ANK_BIN_DIR}${/}ank get workloads
     ...    ${agent_name}
     ...    60
-    ...    5
     Should Not Be Empty
     ...    ${list_result}
     ...    msg=Timeout: Workloads on agent '${agent_name}' do not have the expected initial execution states!

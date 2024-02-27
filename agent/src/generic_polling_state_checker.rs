@@ -10,7 +10,7 @@ use common::{
 };
 
 // [impl->swdd~agent-provides-generic-state-checker-implementation~1]
-const STATUS_CHECK_INTERVAL_MS: u64 = 1000;
+const STATUS_CHECK_INTERVAL_MS: u64 = 500;
 
 #[derive(Debug)]
 pub struct GenericPollingStateChecker {
