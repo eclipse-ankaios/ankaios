@@ -28,6 +28,7 @@ ${new_state_yaml_file}          ${EMPTY}
 
 *** Test Cases ***
 Test Ankaios observes the inter-workload dependencies when creating workloads
+    [Documentation]    Perform a create of an workload only if its start dependencies are fulfilled.
     [Setup]    Run Keywords    Setup Ankaios
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/create_workloads_with_dependencies_config.yaml"
@@ -47,6 +48,7 @@ Test Ankaios observes the inter-workload dependencies when creating workloads
 
 
 Test Ankaios observes the inter-workload dependencies when deleting workloads
+    [Documentation]    Perform a delete of an workload only when its delete dependencies are fulfilled.
     [Setup]    Run Keywords    Setup Ankaios
     # Preconditions
     Given Ankaios server is started with config "${CONFIGS_DIR}/delete_workloads_with_dependencies.yaml"
@@ -58,4 +60,24 @@ Test Ankaios observes the inter-workload dependencies when deleting workloads
     And user triggers "ank delete workload frontend"
     # Asserts
     Then the workload "backend" shall not exist on agent "agent_A" within "60" seconds
+    [Teardown]    Clean up Ankaios
+
+Test Ankaios CLI update workload with pending delete
+    [Documentation]    Perform an update with pending delete only when the delete dependencies are fulfilled.
+    [Setup]    Run Keywords    Setup Ankaios
+    ...    AND    Set Global Variable    ${default_state_yaml_file}    ${CONFIGS_DIR}/update_workloads_pending_delete.yaml
+    ...    AND    Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_update_workload_pending_delete_new_state.yaml
+    # Preconditions
+    Given Ankaios server is started with config "${default_state_yaml_file}"
+    And Ankaios agent is started with name "agent_A"
+    And the workload "frontend" shall have the execution state "Running(Ok)" on agent "agent_A" within "30" seconds
+    # Actions
+    When user triggers "ank get state > ${new_state_yaml_file}"
+    And user updates the state "${new_state_yaml_file}" with "desiredState.workloads.backend.runtimeConfig.commandOptions=['-p', '8084:80']"
+    And user triggers "ank set state -f ${new_state_yaml_file} desiredState.workloads.backend"
+    And the workload "backend" shall have the execution state "Stopping(WaitingToStop)" on agent "agent_A" within "30" seconds
+    And user triggers "ank delete workload frontend"
+    # Asserts
+    Then the workload "frontend" shall not exist on agent "agent_A" within "30" seconds
+    And the workload "backend" shall have the execution state "Running(Ok)" on agent "agent_A" within "30" seconds
     [Teardown]    Clean up Ankaios
