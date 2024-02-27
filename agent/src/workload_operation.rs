@@ -12,5 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-mod dependency_state_validator;
-pub mod scheduler;
+use common::objects::{DeletedWorkload, WorkloadSpec};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum WorkloadOperation {
+    Create(WorkloadSpec),
+    Update(WorkloadSpec, DeletedWorkload),
+    Delete(DeletedWorkload),
+}
+
+pub type WorkloadOperations = Vec<WorkloadOperation>;

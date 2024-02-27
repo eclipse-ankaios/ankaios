@@ -16,9 +16,22 @@ workloads:
     runtime: podman
     agent: agent_A
     restart: false
+    dependencies:
+      init_backend:
+        ADD_COND_SUCCEEDED
     tags:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
       image: docker.io/nginx:latest
       commandOptions: ["-p", "8082:80"]
+  init_backend:
+    runtime: podman
+    agent: agent_A
+    restart: false
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: docker.io/alpine:latest
+      commandArgs: ["echo", "init_backend"]

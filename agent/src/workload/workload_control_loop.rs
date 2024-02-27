@@ -15,6 +15,7 @@ use super::workload_command_channel::WorkloadCommandReceiver;
 use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use crate::workload::WorkloadCommand;
 use crate::workload::WorkloadCommandSender;
+use common::objects::WorkloadState;
 use common::{
     objects::{ExecutionState, WorkloadInstanceName, WorkloadSpec},
     std_extensions::IllegalStateResult,
@@ -146,7 +147,7 @@ impl WorkloadControlLoop {
             // [impl->swdd~agent-workload-control-loop-restart-limit-set-execution-state~1]
             control_loop_state
                 .update_state_tx
-                .update_workload_state(vec![common::objects::WorkloadState {
+                .update_workload_state(vec![WorkloadState {
                     instance_name: control_loop_state.instance_name.to_owned(),
                     execution_state: ExecutionState::restart_failed_no_retry(),
                 }])
@@ -179,7 +180,7 @@ impl WorkloadControlLoop {
 
     async fn create<WorkloadId, StChecker, Fut>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-        runtime_workload_config: WorkloadSpec,
+        new_workload_spec: WorkloadSpec,
         control_interface_path: Option<PathBuf>,
         func_on_error: impl FnOnce(
             ControlLoopState<WorkloadId, StChecker>,
@@ -196,7 +197,7 @@ impl WorkloadControlLoop {
         match control_loop_state
             .runtime
             .create_workload(
-                runtime_workload_config.clone(),
+                new_workload_spec.clone(),
                 control_interface_path.clone(),
                 control_loop_state.update_state_tx.clone(),
             )
@@ -209,12 +210,13 @@ impl WorkloadControlLoop {
                 );
                 control_loop_state.workload_id = Some(new_workload_id);
                 control_loop_state.state_checker = Some(new_state_checker);
+                control_loop_state.instance_name = new_workload_spec.instance_name.clone();
                 control_loop_state
             }
             Err(err) => {
                 func_on_error(
                     control_loop_state,
-                    runtime_workload_config,
+                    new_workload_spec,
                     control_interface_path,
                     err.to_string(),
                 )
@@ -247,7 +249,7 @@ impl WorkloadControlLoop {
                 // Successfully stopped the workload and the state checker. Send a removed on the channel
                 control_loop_state
                     .update_state_tx
-                    .update_workload_state(vec![common::objects::WorkloadState {
+                    .update_workload_state(vec![WorkloadState {
                         instance_name: control_loop_state.instance_name.to_owned(),
                         execution_state: ExecutionState::removed(),
                     }])
@@ -264,7 +266,7 @@ impl WorkloadControlLoop {
             // Successfully stopped the workload and the state checker. Send a removed on the channel
             control_loop_state
                 .update_state_tx
-                .update_workload_state(vec![common::objects::WorkloadState {
+                .update_workload_state(vec![WorkloadState {
                     instance_name: control_loop_state.instance_name.to_owned(),
                     execution_state: ExecutionState::removed(),
                 }])
@@ -277,7 +279,7 @@ impl WorkloadControlLoop {
 
     async fn update<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-        runtime_workload_config: WorkloadSpec,
+        new_workload_spec: WorkloadSpec,
         control_interface_path: Option<PathBuf>,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
@@ -299,13 +301,23 @@ impl WorkloadControlLoop {
             log::debug!("Workload '{}' already gone.", workload_name);
         }
 
+        // workload is deleted or already gone, send the remove state
+        control_loop_state
+            .update_state_tx
+            .update_workload_state(vec![WorkloadState {
+                instance_name: control_loop_state.instance_name.clone(),
+                execution_state: ExecutionState::removed(),
+            }])
+            .await
+            .unwrap_or_illegal_state();
+
         // [impl->swdd~agent-workload-control-loop-reset-restart-attempts-on-update~1]
         control_loop_state.restart_counter.reset();
 
         // [impl->swdd~agent-workload-control-loop-update-create-failed-allows-retry~1]
         Self::create(
             control_loop_state,
-            runtime_workload_config,
+            new_workload_spec,
             control_interface_path,
             Self::send_restart,
         )
@@ -360,8 +372,6 @@ impl WorkloadControlLoop {
                 }
                 // [impl->swdd~agent-workload-control-loop-executes-update~1]
                 Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
-                    control_loop_state.instance_name =
-                        runtime_workload_config.instance_name.clone();
                     log::debug!("Received WorkloadCommand::Update.");
 
                     control_loop_state = Self::update(

@@ -26,6 +26,7 @@ mod parameter_storage;
 mod runtime_connectors;
 #[cfg(test)]
 pub mod test_helper;
+mod workload_operation;
 
 mod generic_polling_state_checker;
 mod runtime_manager;

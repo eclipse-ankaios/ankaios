@@ -18,8 +18,8 @@ use api::proto;
 use serde::{Serialize, Serializer};
 
 use crate::objects::{
-    generate_test_workload_spec_with_param, DeleteCondition, DeletedWorkload,
-    State, WorkloadInstanceName, WorkloadSpec,
+    generate_test_workload_spec_with_param, DeleteCondition, DeletedWorkload, State,
+    WorkloadInstanceName, WorkloadSpec,
 };
 
 #[cfg(feature = "test_utils")]
@@ -29,7 +29,6 @@ pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State
             .into_iter()
             .map(|v| (v.instance_name.workload_name().to_owned(), v.into()))
             .collect(),
-
     }
 }
 
@@ -153,6 +152,16 @@ pub fn generate_test_deleted_workload(
         instance_name,
         dependencies: generate_test_delete_dependencies(),
     }
+}
+
+pub fn generate_test_deleted_workload_with_dependencies(
+    agent: String,
+    name: String,
+    dependencies: HashMap<String, DeleteCondition>,
+) -> crate::objects::DeletedWorkload {
+    let mut deleted_workload = generate_test_deleted_workload(agent, name);
+    deleted_workload.dependencies = dependencies;
+    deleted_workload
 }
 
 pub fn generate_test_proto_deleted_workload() -> proto::DeletedWorkload {

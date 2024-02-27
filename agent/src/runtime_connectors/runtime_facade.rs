@@ -93,22 +93,22 @@ impl<
         control_interface: Option<PipesChannelContext>,
         update_state_tx: &ToServerSender,
     ) -> Workload {
-        let instance_name = workload_spec.instance_name.clone();
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
         let control_interface_path = control_interface
             .as_ref()
             .map(|control_interface| control_interface.get_api_location());
 
+        let workload_name = workload_spec.instance_name.workload_name().to_owned();
         log::info!(
             "Creating '{}' workload '{}'.",
             runtime.name(),
-            instance_name,
+            workload_name,
         );
         let (workload_channel_sender, command_receiver) = WorkloadCommandSender::new();
         let workload_channel = workload_channel_sender.clone();
-        let instance_name_clone = instance_name.clone();
         tokio::spawn(async move {
+            let instance_name = workload_spec.instance_name.clone();
             workload_channel
                 .create(workload_spec, control_interface_path)
                 .await
@@ -117,7 +117,7 @@ impl<
                 });
 
             let control_loop_state = ControlLoopState {
-                instance_name: instance_name_clone,
+                instance_name,
                 workload_id: None,
                 state_checker: None,
                 update_state_tx,
@@ -130,7 +130,7 @@ impl<
             WorkloadControlLoop::run(control_loop_state).await;
         });
 
-        Workload::new(instance_name, workload_channel_sender, control_interface)
+        Workload::new(workload_name, workload_channel_sender, control_interface)
     }
 
     // [impl->swdd~agent-replace-workload~1]
@@ -141,24 +141,24 @@ impl<
         control_interface: Option<PipesChannelContext>,
         update_state_tx: &ToServerSender,
     ) -> Workload {
-        let instance_name = new_workload_spec.instance_name.clone();
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
         let control_interface_path = control_interface
             .as_ref()
             .map(|control_interface| control_interface.get_api_location());
 
+        let workload_name = new_workload_spec.instance_name.workload_name().to_owned();
         log::info!(
             "Replacing '{}' workload '{}'.",
             runtime.name(),
-            instance_name,
+            workload_name,
         );
 
         let (workload_channel_sender, command_receiver) = WorkloadCommandSender::new();
         let workload_channel = workload_channel_sender.clone();
-        let instance_name_clone = instance_name.clone();
         tokio::spawn(async move {
-            let workload_name = instance_name_clone.workload_name();
+            let instance_name = new_workload_spec.instance_name.clone();
+            let workload_name = instance_name.workload_name();
             match runtime.get_workload_id(&old_instance_name).await {
                 Ok(old_id) => runtime
                     .delete_workload(&old_id)
@@ -186,7 +186,7 @@ impl<
 
             // replace workload_id and state_checker through Option directly and pass in None if create_workload fails
             let control_loop_state = ControlLoopState {
-                instance_name: instance_name_clone,
+                instance_name,
                 workload_id: None,
                 state_checker: None,
                 update_state_tx,
@@ -199,7 +199,7 @@ impl<
             WorkloadControlLoop::run(control_loop_state).await;
         });
 
-        Workload::new(instance_name, workload_channel_sender, control_interface)
+        Workload::new(workload_name, workload_channel_sender, control_interface)
     }
 
     // [impl->swdd~agent-resume-workload~1]
@@ -209,21 +209,21 @@ impl<
         control_interface: Option<PipesChannelContext>,
         update_state_tx: &ToServerSender,
     ) -> Workload {
-        let instance_name = workload_spec.instance_name.clone();
+        let workload_name = workload_spec.instance_name.workload_name().to_owned();
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
 
         log::info!(
             "Resuming '{}' workload '{}'.",
             runtime.name(),
-            instance_name,
+            workload_name,
         );
 
         let (workload_channel, command_receiver) = WorkloadCommandSender::new();
         let workload_channel_retry = workload_channel.clone();
-        let instance_name_clone = instance_name.clone();
         tokio::spawn(async move {
-            let workload_name = instance_name_clone.workload_name();
+            let instance_name = workload_spec.instance_name.clone();
+            let workload_name = instance_name.workload_name();
             let workload_id = runtime.get_workload_id(&workload_spec.instance_name).await;
 
             let state_checker: Option<StChecker> = match workload_id.as_ref() {
@@ -250,7 +250,7 @@ impl<
             };
 
             let control_loop_state = ControlLoopState {
-                instance_name: instance_name_clone,
+                instance_name,
                 workload_id: workload_id.ok(),
                 state_checker,
                 update_state_tx,
@@ -263,7 +263,7 @@ impl<
             WorkloadControlLoop::run(control_loop_state).await;
         });
 
-        Workload::new(instance_name, workload_channel, control_interface)
+        Workload::new(workload_name, workload_channel, control_interface)
     }
 
     // [impl->swdd~agent-delete-old-workload~1]

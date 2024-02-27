@@ -21,7 +21,7 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: alpine:latest
+      image: docker.io/alpine:latest
       commandArgs: [ "echo", "Hello Ankaios"]
   workload_D:
     runtime: podman
@@ -31,5 +31,5 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: alpine:latest
+      image: docker.io/alpine:latest
       commandArgs: [ "echo", "Hello Ankaios"]

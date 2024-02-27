@@ -2,11 +2,7 @@ workloads:
   logger:
     runtime: podman
     agent: agent_A
-    restart: true
-    updateStrategy: AT_MOST_ONCE
-    accessRights:
-      allow: []
-      deny: []
+    restart: false
     dependencies:
       storage_provider:
         ADD_COND_RUNNING
@@ -14,17 +10,13 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: alpine:latest
+      image: docker.io/alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sleep" ]
       commandArgs: [ "1" ]
   storage_provider:
     runtime: podman
     agent: agent_B
-    restart: true
-    updateStrategy: AT_MOST_ONCE
-    accessRights:
-      allow: []
-      deny: []
+    restart: false
     dependencies:
       filesystem_init:
         ADD_COND_SUCCEEDED
@@ -32,32 +24,24 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: alpine:latest
+      image: docker.io/alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sh" ]
       commandArgs: [ "-c", "sleep 2; exit 1" ]
   filesystem_init:
     runtime: podman
     agent: agent_B
-    restart: true
-    updateStrategy: AT_MOST_ONCE
-    accessRights:
-      allow: []
-      deny: []
+    restart: false
     tags:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: alpine:latest
+      image: docker.io/alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sleep" ]
       commandArgs: [ "1" ]
   error_notifier:
     runtime: podman
     agent: agent_A
-    restart: true
-    updateStrategy: AT_MOST_ONCE
-    accessRights:
-      allow: []
-      deny: []
+    restart: false
     dependencies:
       storage_provider:
         ADD_COND_FAILED
@@ -65,5 +49,5 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: alpine:latest
+      image: docker.io/alpine:latest
       commandArgs: [ "echo", "Send error notifications."]
