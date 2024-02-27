@@ -137,7 +137,7 @@ mod tests {
     const RUNTIME: &str = "runtime";
 
     #[test]
-    fn utest_state_validator_dependencies_for_workload_fulfilled_create() {
+    fn utest_dependencies_for_workload_fulfilled_create() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
             AGENT_A,
             WORKLOAD_NAME_1,
@@ -161,7 +161,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_state_validator_dependencies_for_workload_fulfilled_delete() {
+    fn utest_dependencies_for_workload_fulfilled_delete() {
         let deleted_workload = generate_test_deleted_workload_with_dependencies(
             AGENT_A.to_owned(),
             WORKLOAD_NAME_1.to_owned(),
@@ -187,7 +187,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_state_validator_dependencies_for_workload_fulfilled_update() {
+    fn utest_dependencies_for_workload_fulfilled_update() {
         let new_workload = generate_test_workload_spec_with_dependencies(
             AGENT_A,
             WORKLOAD_NAME_1,
@@ -220,7 +220,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_state_validator_create_fulfilled() {
+    fn utest_create_fulfilled() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
             AGENT_A,
             WORKLOAD_NAME_1,
@@ -245,7 +245,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_state_validator_create_fulfilled_no_dependencies() {
+    fn utest_create_fulfilled_no_dependencies() {
         let mut workload_with_dependencies = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
             WORKLOAD_NAME_1.to_string(),
@@ -269,7 +269,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_state_validator_create_fulfilled_no_workload_state_known() {
+    fn utest_create_fulfilled_no_workload_state_known() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
             AGENT_A,
             WORKLOAD_NAME_1,
@@ -293,7 +293,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_state_validator_create_fulfilled_unfulfilled_execution_state() {
+    fn utest_create_fulfilled_unfulfilled_execution_state() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
             AGENT_A,
             WORKLOAD_NAME_1,
@@ -317,7 +317,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_state_validator_delete_fulfilled() {
+    fn utest_delete_fulfilled() {
         let deleted_workload_with_dependencies = generate_test_deleted_workload_with_dependencies(
             AGENT_A.to_string(),
             WORKLOAD_NAME_1.to_string(),
@@ -344,7 +344,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_state_validator_delete_fulfilled_unfulfilled_execution_state() {
+    fn utest_delete_fulfilled_unfulfilled_execution_state() {
         let deleted_workload_with_dependencies = generate_test_deleted_workload_with_dependencies(
             AGENT_A.to_string(),
             WORKLOAD_NAME_1.to_string(),
@@ -370,7 +370,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_state_validator_delete_fulfilled_no_workload_state_known() {
+    fn utest_delete_fulfilled_no_workload_state_known() {
         let deleted_workload_with_dependencies = generate_test_deleted_workload_with_dependencies(
             AGENT_A.to_owned(),
             WORKLOAD_NAME_1.to_owned(),
