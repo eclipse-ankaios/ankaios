@@ -587,7 +587,7 @@ Needs:
 
 Status: approved
 
-When the user calls the Ankaios CLI ``apply` command with a file named `-`,
+When the user calls the Ankaios CLI `apply` command with a file named `-`,
 the Ankaios CLI shall read data from stdin.
 
 Needs:
@@ -601,7 +601,7 @@ Needs:
 Status: approved
 
 When the user does not provide the optional argument `-d`
-And the Ankaios CLI accepts the manifest content from file(s) or from `stdin`,
+and the Ankaios CLI accepts the manifest content from file(s) or from `stdin`,
 the Ankaios CLI shall parse the manifest content into a state object.
 
 Needs:
@@ -653,8 +653,8 @@ Needs:
 
 Status: approved
 
-When the user provides the optional argument `--agent`,
-And the Ankaios CLI parses the manifest content into a state object,
+When the user provides the optional argument `--agent`
+and the Ankaios CLI parses the manifest content into a state object,
 the Ankaios CLI shall overwrite the agent names in the state object, built as specified in the manifest content, with the one given by the argument.
 
 Needs:
@@ -668,8 +668,8 @@ Needs:
 Status: approved
 
 When the agent name is not specified in a workload specification
-And the user does not provide the agent name via the optional argument `--agent`,
-And the user calls the Ankaios CLI `apply` command,
+and the user does not provide the agent name via the optional argument `--agent`
+and the user calls the Ankaios CLI `apply` command,
 the Ankaios CLI shall create a list of filter masks from all `workloads` in the `desiredState` of all given files.
 
 Needs:
