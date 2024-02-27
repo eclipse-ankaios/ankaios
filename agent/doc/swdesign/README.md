@@ -33,9 +33,9 @@ The following diagram shows the structural view of the Ankaios Agent:
 
 ### AgentManager
 
-The AgentManager is the entry component in the Ankaios agent and is responsible, amongst others, for receiving commands from the server and forwarding them to the RuntimeManager and for authorizing requests from the workloads to the Ankaios Server.
+The AgentManager is the entry component in the Ankaios agent and is responsible, amongst others, for receiving commands from the server and forwarding them to the RuntimeManager and for authorizing requests from the workloads to the Ankaios server.
 
-The initial setup of the Ankaios agent is done in the main.rs is also counted as part of this unit.
+The initial setup of the Ankaios agent is done in the main.rs and is also counted as part of this unit.
 
 ### RuntimeManager
 
@@ -160,6 +160,78 @@ Needs:
 - impl
 - utest
 - itest
+
+#### AgentManager shall receive workload states of the workloads it manages
+`swdd~agent-manager-receives-workload-states-of-its-workloads~1`
+
+Status: approved
+
+The AgentManager shall receive the workload states of the workloads it manages.
+
+Rationale: The workload states of its own workloads are needed for handling inter-workload dependencies of workloads on the same agent.
+
+Tags:
+- AgentManager
+
+Needs:
+- impl
+- utest
+
+#### AgentManager shall store the workload states of the workloads it manages
+`swdd~agent-manager-stores-workload-states-of-its-workloads~1`
+
+Status: approved
+
+The AgentManager shall store the workload states of the workloads it manages into the ParameterStorage.
+
+Comment: Empty workload states are not stored and skipped.
+
+Rationale: This ensures that the execution states of a workload and its inter-workload dependencies on the same agent are available.
+
+Tags:
+- AgentManager
+
+Needs:
+- impl
+- utest
+
+#### AgentManager shall send the workload states of the workload it manages to the server
+`swdd~agent-manager-sends-workload-states-of-its-workloads-to-server~1`
+
+Status: approved
+
+When the AgentManager receives the workload states of the workload it manages, then the AgentManager shall send the workload states to the Ankaios server.
+
+Comment: Empty workload states are not sent.
+
+Rationale: The Ankaios server stores the workload states of the workloads managed by the Ankaios agent.
+
+Tags:
+- AgentManager
+
+Needs:
+- impl
+- utest
+
+#### AgentManager shall trigger workloads if its inter-workload dependencies are fulfilled
+`swdd~agent-triggers-workloads-with-fulfilled-dependencies~1`
+
+Status: approved
+
+When the AgentManager receives new workload states, then the AgentManager shall request the RuntimeManager to create and delete workloads
+having fulfilled inter-workload dependency conditions.
+
+Comment: The workload states could be received from the Ankaios server and from the workloads the agent manages itself. Empty workload states are ignored.
+
+Rationale: Whenever a new workload state is received the conditions of inter-workload dependencies shall be checked whether they are fulfilled or not.
+
+Tags:
+- AgentManager
+- RuntimeManager
+
+Needs:
+- impl
+- utest
 
 #### All communication with the Server through middleware
 `swdd~communication-to-from-agent-middleware~1`

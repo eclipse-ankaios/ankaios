@@ -61,15 +61,19 @@ impl AgentManager {
                         .ok_or("Channel to listen to server closed.".to_string())
                         .unwrap_or_exit("Abort");
 
+                    // [impl->swdd~agent-manager-listens-requests-from-server~1]
                     if self.execute_from_server_command(from_server).await.is_none() {
                         break;
                     }
                 }
                 to_server_msg = self.workload_state_receiver.recv() => {
+                    // [impl->swdd~agent-manager-receives-workload-states-of-its-workloads~1]
                     let workload_states_msg = to_server_msg
                         .ok_or("Channel to listen to own workload states closed.".to_string())
                         .unwrap_or_exit("Abort");
 
+                    // [impl->swdd~agent-manager-stores-workload-states-of-its-workloads~1]
+                    // [impl->swdd~agent-manager-sends-workload-states-of-its-workloads-to-server~1]
                     self.store_and_forward_own_workload_states(workload_states_msg).await;
                 }
             }
@@ -113,6 +117,8 @@ impl AgentManager {
                         self.parameter_storage
                             .update_workload_state(new_workload_state);
                     }
+
+                    // [impl->swdd~agent-triggers-workloads-with-fulfilled-dependencies~1]
                     self.runtime_manager
                         .update_workloads_on_fulfilled_dependencies(&self.parameter_storage)
                         .await;
@@ -157,15 +163,18 @@ impl AgentManager {
                 new_workload_state.instance_name.workload_name(),
             );
 
+            // [impl->swdd~agent-manager-stores-workload-states-of-its-workloads~1]
             self.parameter_storage
                 .update_workload_state(new_workload_state.clone());
         });
 
         if !workload_states.is_empty() {
+            // [impl->swdd~agent-triggers-workloads-with-fulfilled-dependencies~1]
             self.runtime_manager
                 .update_workloads_on_fulfilled_dependencies(&self.parameter_storage)
                 .await;
 
+            // [impl->swdd~agent-manager-sends-workload-states-of-its-workloads-to-server~1]
             self.to_server
                 .update_workload_state(workload_states)
                 .await
@@ -415,9 +424,12 @@ mod tests {
         assert!(join!(handle).0.is_ok());
     }
 
-    // [utest->swdd~agent-uses-async-channels~1]
+    // [utest->swdd~agent-manager-receives-workload-states-of-its-workloads~1]
+    // [utest->swdd~agent-manager-stores-workload-states-of-its-workloads~1]
+    // [utest->swdd~agent-manager-sends-workload-states-of-its-workloads-to-server~1]
+    // [utest->swdd~agent-triggers-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
-    async fn utest_agent_manager_receives_own_workload_states() {
+    async fn utest_agent_manager_receives_and_stores_own_workload_states() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -483,7 +495,10 @@ mod tests {
         assert!(join!(handle).0.is_ok());
     }
 
-    // [utest->swdd~agent-uses-async-channels~1]
+    // [utest->swdd~agent-manager-receives-workload-states-of-its-workloads~1]
+    // [utest->swdd~agent-manager-stores-workload-states-of-its-workloads~1]
+    // [utest->swdd~agent-manager-sends-workload-states-of-its-workloads-to-server~1]
+    // [utest->swdd~agent-triggers-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_agent_manager_no_update_on_own_empty_workload_states() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -533,6 +548,7 @@ mod tests {
         assert!(join!(handle).0.is_ok());
     }
 
+    // [utest->swdd~agent-manager-receives-workload-states-of-its-workloads~1]
     #[tokio::test]
     #[should_panic]
     async fn utest_agent_manager_receives_own_workload_states_panic_on_wrong_response() {
