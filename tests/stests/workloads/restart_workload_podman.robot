@@ -37,8 +37,8 @@ Test Ankaios Podman restart of a workload on creation failure
     # Actions
     When user triggers "ank get state > ${new_state_yaml_file}"
     And user triggers "ank delete workload hello1"
-    And the workload "hello1" shall not exist on agent "agent_A" within "30" seconds
-    And podman shall not have a container for workload "hello1" on agent "agent_A" within "30" seconds
+    And the workload "hello1" shall not exist on agent "agent_A" within "20" seconds
+    And podman shall not have a container for workload "hello1" on agent "agent_A" within "20" seconds
     And user triggers "ank set state -f ${new_state_yaml_file} desiredState.workloads.hello1"
     # Asserts
     Then the workload "hello1" shall have the execution state "Running(Ok)" from agent "agent_A" within "20" seconds
@@ -60,13 +60,13 @@ Test Ankaios Podman restart of a workload on creation failure intercepted by upd
     # Actions
     When user triggers "ank get state > ${new_state_yaml_file}"
     And user triggers "ank delete workload hello1"
-    And the workload "hello1" shall not exist on agent "agent_A" within "30" seconds
-    And podman shall not have a container for workload "hello1" on agent "agent_A" within "30" seconds
+    And the workload "hello1" shall not exist on agent "agent_A" within "20" seconds
+    And podman shall not have a container for workload "hello1" on agent "agent_A" within "20" seconds
     And user triggers "ank set state -f ${new_state_yaml_file} desiredState.workloads.hello1"
     And user updates the state "${new_state_yaml_file}" with "desiredState.workloads.hello1.runtimeConfig.commandArgs=['3']"
     And user triggers "ank set state -f ${new_state_yaml_file} desiredState.workloads.hello1"
     # Asserts
-    Then the workload "hello1" shall have the execution state "Succeeded(Ok)" from agent "agent_A" within "30" seconds
+    Then the workload "hello1" shall have the execution state "Succeeded(Ok)" from agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~agent-workload-control-loop-restart-workload-on-create-failure~1]
@@ -85,14 +85,14 @@ Test Ankaios Podman restart of a workload on creation failure intercepted by del
     # Actions
     When user triggers "ank get state > ${new_state_yaml_file}"
     And user triggers "ank delete workload hello1"
-    And the workload "hello1" shall not exist on agent "agent_A" within "30" seconds
-    And podman shall not have a container for workload "hello1" on agent "agent_A" within "30" seconds
+    And the workload "hello1" shall not exist on agent "agent_A" within "20" seconds
+    And podman shall not have a container for workload "hello1" on agent "agent_A" within "20" seconds
     And user triggers "ank set state -f ${new_state_yaml_file} desiredState.workloads.hello1"
     And the user waits "1" seconds
     And user triggers "ank delete workload hello1"
     # Asserts
-    Then podman shall not have a container for workload "hello1" on agent "agent_A" within "30" seconds
-    And the workload "hello1" shall not exist on agent "agent_A" within "30" seconds
+    Then podman shall not have a container for workload "hello1" on agent "agent_A" within "20" seconds
+    And the workload "hello1" shall not exist on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~agent-workload-control-loop-restart-workload-on-create-failure~1]
