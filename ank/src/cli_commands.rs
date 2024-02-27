@@ -289,22 +289,28 @@ mod apply_manifests {
             let cur_workload_spec = cur_obj.get(workload_path).unwrap().clone();
             if req_obj.get(workload_path).is_none() {
                 let _ = req_obj.set(workload_path, cur_workload_spec.clone());
+                let mapping_default = serde_yaml::Mapping::default();
+                let value_default = serde_yaml::Value::default();
+                let mut agent_name = "";
+
+                if !delete_mode {
+                    agent_name = cur_workload_spec
+                        .as_mapping()
+                        .unwrap_or(&mapping_default)
+                        .get("agent")
+                        .unwrap_or(&value_default)
+                        .as_str()
+                        .unwrap_or_default()
+                };
 
                 table_output.push(ApplyManifestTableDisplay::new(
                     workload_name,
-                    cur_workload_spec
-                        .as_mapping()
-                        .unwrap_or(&serde_yaml::Mapping::default())
-                        .get("agent")
-                        .unwrap_or(&serde_yaml::Value::default())
-                        .as_str()
-                        .unwrap_or_default(),
+                    agent_name,
                     if delete_mode {
                         super::ApplyManifestOperation::Remove
                     } else {
                         super::ApplyManifestOperation::AddOrUpdate
                     },
-                    "OK",
                     manifest_file_name,
                 ));
             } else {
@@ -480,7 +486,6 @@ struct ApplyManifestTableDisplay {
     #[tabled(inline)]
     base_info: WorkloadBaseTableDisplay,
     operation: ApplyManifestOperation,
-    status: String,
     #[tabled(rename = "FILE")]
     manifest_file: String,
 }
@@ -490,13 +495,11 @@ impl ApplyManifestTableDisplay {
         workload_name: &str,
         agent_name: &str,
         operation: ApplyManifestOperation,
-        status: &str,
         manifest_file: &str,
     ) -> Self {
         ApplyManifestTableDisplay {
             base_info: WorkloadBaseTableDisplay::new(workload_name, agent_name),
             operation,
-            status: status.to_string(),
             manifest_file: manifest_file.to_string(),
         }
     }
@@ -930,25 +933,26 @@ mod tests {
         }
     }
 
-    fn generate_multiple_test_apply_manifest_table_display(
-        operation: ApplyManifestOperation,
-        status: &str,
-    ) -> String {
+    fn generate_multiple_test_apply_manifest_table_display() -> String {
+        let operation = ApplyManifestOperation::AddOrUpdate;
         return tabled::Table::new(vec![
             ApplyManifestTableDisplay::new(
                 "simple",
                 "agent1",
                 operation.clone(),
-                status,
                 "manifest_file_name",
             ),
-            ApplyManifestTableDisplay::new(
-                "complex",
-                "agent1",
-                operation,
-                status,
-                "manifest_file_name",
-            ),
+            ApplyManifestTableDisplay::new("complex", "agent1", operation, "manifest_file_name"),
+        ])
+        .with(tabled::settings::Style::blank())
+        .to_string();
+    }
+
+    fn generate_multiple_test_apply_manifest_table_display_operation_remove() -> String {
+        let operation = ApplyManifestOperation::Remove;
+        return tabled::Table::new(vec![
+            ApplyManifestTableDisplay::new("simple", "", operation.clone(), "manifest_file_name"),
+            ApplyManifestTableDisplay::new("complex", "", operation, "manifest_file_name"),
         ])
         .with(tabled::settings::Style::blank())
         .to_string();
@@ -2330,14 +2334,6 @@ mod tests {
         simple:
           runtime: podman
           agent: agent_A
-          restart: true
-          updateStrategy: AT_MOST_ONCE
-          accessRights:
-            allow: []
-            deny: []
-          tags:
-            - key: owner
-              value: Ankaios team
           runtimeConfig: |
             image: docker.io/nginx:latest
             commandOptions: [\"-p\", \"8081:80\"]",
@@ -2381,10 +2377,7 @@ mod tests {
             Path::from("workloads.complex"),
         ];
         let expected_obj = Object::try_from(&content_value).unwrap();
-        let expected_output = generate_multiple_test_apply_manifest_table_display(
-            super::ApplyManifestOperation::AddOrUpdate,
-            "OK",
-        );
+        let expected_output = generate_multiple_test_apply_manifest_table_display();
 
         assert!(update_request_obj(
             &mut req_obj,
@@ -2448,10 +2441,8 @@ mod tests {
             Path::from("workloads.simple"),
             Path::from("workloads.complex"),
         ];
-        let expected_output = generate_multiple_test_apply_manifest_table_display(
-            super::ApplyManifestOperation::Remove,
-            "OK",
-        );
+        let expected_output =
+            generate_multiple_test_apply_manifest_table_display_operation_remove();
 
         assert!(update_request_obj(
             &mut req_obj,
@@ -2638,14 +2629,6 @@ mod tests {
         simple:
           runtime: podman
           agent: agent_A
-          restart: true
-          updateStrategy: AT_MOST_ONCE
-          accessRights:
-            allow: []
-            deny: []
-          tags:
-            - key: owner
-              value: Ankaios team
           runtimeConfig: |
             image: docker.io/nginx:latest
             commandOptions: [\"-p\", \"8081:80\"]",
@@ -2707,8 +2690,9 @@ mod tests {
     simple_manifest1:
       runtime: podman
       agent: agent_A
-      runtimeConfig: \"\"
-        ",
+      runtimeConfig: |
+            image: docker.io/nginx:latest
+            commandOptions: [\"-p\", \"8081:80\"]",
         );
 
         let mut manifest_data = String::new();
