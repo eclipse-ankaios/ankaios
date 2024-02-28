@@ -220,7 +220,7 @@ mod apply_manifests {
     #[cfg(test)]
     use super::tests::open_manifest_mock as open_manifest;
 
-    // [impl->swdd~cli-supports-ankaios-manifest~1]
+    // [impl->swdd~cli-apply-supports-ankaios-manifest~1]
     pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
         let state_obj_parsing_check: State = serde_yaml::from_reader(&mut manifest.1)
             .map_err(|err| format!("Invalid manifest data provided: {}", err))?;
@@ -2326,7 +2326,7 @@ mod tests {
         )
     }
 
-    // [utest->swdd~cli-supports-ankaios-manifest~1]
+    // [utest->swdd~cli-apply-supports-ankaios-manifest~1]
     #[test]
     fn utest_parse_manifest_ok() {
         let manifest_content = io::Cursor::new(
