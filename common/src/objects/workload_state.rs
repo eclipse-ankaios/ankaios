@@ -305,6 +305,13 @@ impl ExecutionState {
         }
     }
 
+    pub fn starting_failed(additional_info: impl ToString) -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Pending(PendingSubstate::StartingFailed),
+            additional_info: additional_info.to_string(),
+        }
+    }
+
     pub fn restart_failed_no_retry() -> Self {
         ExecutionState {
             state: ExecutionStateEnum::Pending(PendingSubstate::StartingFailed),

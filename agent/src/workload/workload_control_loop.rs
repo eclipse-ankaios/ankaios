@@ -211,6 +211,14 @@ impl WorkloadControlLoop {
                 control_loop_state
             }
             Err(err) => {
+                control_loop_state
+                    .update_state_tx
+                    .report_workload_execution_state(
+                        &control_loop_state.instance_name,
+                        ExecutionState::starting_failed(err.to_string()),
+                    )
+                    .await;
+
                 func_on_error(
                     control_loop_state,
                     new_workload_spec,
@@ -438,10 +446,7 @@ impl WorkloadControlLoop {
 mod tests {
     use std::time::Duration;
 
-    use common::{
-        commands::UpdateWorkloadState, objects::generate_test_workload_spec_with_param,
-        objects::ExecutionState, to_server_interface::ToServer,
-    };
+    use common::objects::{generate_test_workload_spec_with_param, ExecutionState};
     use tokio::{sync::mpsc, time::timeout};
 
     use crate::{
@@ -536,9 +541,10 @@ mod tests {
             state_change_rx,
             vec![
                 ExecutionState::stopping_triggered(),
-                ExecutionState::ExecStarting,
-                ExecutionState::ExecStopping,
-                ExecutionState::ExecRemoved,
+                ExecutionState::removed(),
+                ExecutionState::starting_triggered(),
+                ExecutionState::stopping_triggered(),
+                ExecutionState::removed(),
             ],
         )
         .await;
@@ -610,19 +616,17 @@ mod tests {
         .await
         .is_ok());
 
-        let expected_state = UpdateWorkloadState {
-            workload_states: vec![
-                common::objects::generate_test_workload_state_with_workload_spec(
-                    &workload_spec,
-                    ExecutionState::removed(),
-                ),
+        assert_execution_state_sequence(
+            state_change_rx,
+            vec![
+                ExecutionState::stopping_triggered(),
+                ExecutionState::removed(),
+                ExecutionState::starting_triggered(),
+                ExecutionState::stopping_triggered(),
+                ExecutionState::removed(),
             ],
-        };
-
-        assert_eq!(
-            timeout(Duration::from_millis(200), to_server_rx.recv()).await,
-            Ok(Some(ToServer::UpdateWorkloadState(expected_state)))
-        );
+        )
+        .await;
 
         runtime_mock.assert_all_expectations().await;
     }
@@ -689,19 +693,16 @@ mod tests {
         .await
         .is_ok());
 
-        let expected_state = UpdateWorkloadState {
-            workload_states: vec![
-                common::objects::generate_test_workload_state_with_workload_spec(
-                    &workload_spec,
-                    ExecutionState::removed(),
-                ),
+        assert_execution_state_sequence(
+            state_change_rx,
+            vec![
+                ExecutionState::stopping_triggered(),
+                ExecutionState::delete_failed("some delete error"),
+                ExecutionState::stopping_triggered(),
+                ExecutionState::removed(),
             ],
-        };
-
-        assert_eq!(
-            timeout(Duration::from_millis(200), to_server_rx.recv()).await,
-            Ok(Some(ToServer::UpdateWorkloadState(expected_state)))
-        );
+        )
+        .await;
 
         runtime_mock.assert_all_expectations().await;
     }
@@ -770,19 +771,18 @@ mod tests {
         .await
         .is_ok());
 
-        let expected_state = UpdateWorkloadState {
-            workload_states: vec![
-                common::objects::generate_test_workload_state_with_workload_spec(
-                    &workload_spec,
-                    ExecutionState::removed(),
-                ),
+        assert_execution_state_sequence(
+            state_change_rx,
+            vec![
+                ExecutionState::stopping_triggered(),
+                ExecutionState::removed(),
+                ExecutionState::starting_triggered(),
+                ExecutionState::starting_failed("some create error"),
+                ExecutionState::stopping_triggered(),
+                ExecutionState::removed(),
             ],
-        };
-
-        assert!(matches!(
-            timeout(Duration::from_millis(200), to_server_rx.recv()).await,
-            Ok(Some(ToServer::UpdateWorkloadState(workload_state)))
-        if workload_state == expected_state));
+        )
+        .await;
 
         runtime_mock.assert_all_expectations().await;
     }
@@ -837,19 +837,14 @@ mod tests {
         .await
         .is_ok());
 
-        let expected_state = UpdateWorkloadState {
-            workload_states: vec![
-                common::objects::generate_test_workload_state_with_workload_spec(
-                    &workload_spec,
-                    ExecutionState::removed(),
-                ),
+        assert_execution_state_sequence(
+            state_change_rx,
+            vec![
+                ExecutionState::stopping_triggered(),
+                ExecutionState::removed(),
             ],
-        };
-
-        assert_eq!(
-            timeout(Duration::from_millis(200), to_server_rx.recv()).await,
-            Ok(Some(ToServer::UpdateWorkloadState(expected_state)))
-        );
+        )
+        .await;
 
         runtime_mock.assert_all_expectations().await;
     }
@@ -910,19 +905,16 @@ mod tests {
         .await
         .is_ok());
 
-        let expected_state = UpdateWorkloadState {
-            workload_states: vec![
-                common::objects::generate_test_workload_state_with_workload_spec(
-                    &workload_spec,
-                    ExecutionState::removed(),
-                ),
+        assert_execution_state_sequence(
+            state_change_rx,
+            vec![
+                ExecutionState::stopping_triggered(),
+                ExecutionState::delete_failed("some delete error"),
+                ExecutionState::stopping_triggered(),
+                ExecutionState::removed(),
             ],
-        };
-
-        assert_eq!(
-            timeout(Duration::from_millis(200), to_server_rx.recv()).await,
-            Ok(Some(ToServer::UpdateWorkloadState(expected_state)))
-        );
+        )
+        .await;
 
         runtime_mock.assert_all_expectations().await;
     }
@@ -1288,7 +1280,7 @@ mod tests {
             runtime_expectations.push(RuntimeCall::CreateWorkload(
                 workload_spec.clone(),
                 Some(PIPES_LOCATION.into()),
-                to_server_tx.clone(),
+                state_change_tx.clone(),
                 Err(crate::runtime_connectors::RuntimeError::Create(
                     "some create error".to_string(),
                 )),
@@ -1329,84 +1321,21 @@ mod tests {
         .await
         .is_ok());
 
-        let expected_state = UpdateWorkloadState {
-            workload_states: vec![
-                common::objects::generate_test_workload_state_with_workload_spec(
-                    &workload_spec,
-                    ExecutionState::restart_failed_no_retry(),
-                ),
+        assert_execution_state_sequence(
+            state_change_rx,
+            vec![
+                ExecutionState::starting_triggered(),
+                ExecutionState::starting_failed("some create error"),
+                ExecutionState::starting_triggered(),
+                ExecutionState::starting_failed("some create error"),
+                ExecutionState::restart_failed_no_retry(),
+                ExecutionState::stopping_triggered(),
+                ExecutionState::removed(),
             ],
-        };
-
-        assert!(matches!(to_server_rx.try_recv(),
-            Ok(ToServer::UpdateWorkloadState(workload_state))
-            if workload_state == expected_state));
-
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~agent-workload-control-loop-executes-restart~1]
-    // [utest->swdd~agent-workload-control-loop-limit-restart-attempts~1]
-    // [utest->swdd~agent-workload-control-loop-restart-limit-set-execution-state~1]
-    #[tokio::test]
-    async fn utest_workload_obj_run_restart_attempts_exceeded_workload_state_channel_closed() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let instance_name = workload_spec.instance_name.clone();
-
-        let runtime_expectations = vec![RuntimeCall::CreateWorkload(
-            workload_spec.clone(),
-            Some(PIPES_LOCATION.into()),
-            state_change_tx.clone(),
-            Err(crate::runtime_connectors::RuntimeError::Create(
-                "some create error".to_string(),
-            )),
-        )];
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(runtime_expectations).await;
-
-        let mut restart_counter = RestartCounter::new();
-        // Increase the counter until the penultimate restart limit
-        for _ in restart_counter.current_restart()..super::MAX_RESTARTS {
-            restart_counter.count_restart();
-        }
-
-        let control_loop_state = ControlLoopState {
-            instance_name,
-            workload_id: None,
-            state_checker: None,
-            update_state_tx: state_change_tx.clone(),
-            runtime: Box::new(runtime_mock.clone()),
-            command_receiver: workload_command_receiver,
-            workload_channel: workload_command_sender,
-            restart_counter,
-        };
-
-        // dropping the channel causes the failing send of ToServer message after the restart limit is exceeded.
-        drop(state_change_rx);
-
-        // execute last restart => restart limit is exceeded after this last try
-        let new_control_loop_state = WorkloadControlLoop::restart(
-            control_loop_state,
-            workload_spec,
-            Some(PIPES_LOCATION.into()),
         )
         .await;
 
-        assert!(new_control_loop_state.update_state_tx.is_closed());
+        runtime_mock.assert_all_expectations().await;
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-restart~1]

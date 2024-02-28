@@ -17,13 +17,13 @@ impl Display for RuntimeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RuntimeError::Create(msg) => {
-                write!(f, "Could not create workload: '{}'", msg)
+                write!(f, "{}", msg)
             }
             RuntimeError::Delete(msg) => {
-                write!(f, "Could not delete workload '{}'", msg)
+                write!(f, "{}", msg)
             }
             RuntimeError::List(msg) => {
-                write!(f, "Could not get a list of workloads '{}'", msg)
+                write!(f, "{}", msg)
             }
         }
     }
@@ -97,13 +97,13 @@ pub mod test {
     use std::{collections::VecDeque, path::PathBuf, sync::Arc};
 
     use async_trait::async_trait;
-    use common::{
-        objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec},
-        to_server_interface::ToServerSender,
-    };
+    use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
     use tokio::sync::Mutex;
 
-    use crate::{runtime_connectors::{RuntimeStateGetter, StateChecker}, workload_state::WorkloadStateSender};
+    use crate::{
+        runtime_connectors::{RuntimeStateGetter, StateChecker},
+        workload_state::WorkloadStateSender,
+    };
 
     use super::{RuntimeConnector, RuntimeError};
 
@@ -136,7 +136,7 @@ pub mod test {
         fn start_checker(
             _workload_spec: &WorkloadSpec,
             _workload_id: String,
-            _manager_interface: ToServerSender,
+            _manager_interface: WorkloadStateSender,
             _state_getter: impl RuntimeStateGetter<String>,
         ) -> Self {
             log::info!("Starting the checker ;)");
