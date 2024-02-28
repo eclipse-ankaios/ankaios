@@ -2,12 +2,11 @@ use async_trait::async_trait;
 use std::time::Duration;
 use tokio::{task::JoinHandle, time};
 
-use crate::runtime_connectors::{RuntimeStateGetter, StateChecker};
-use common::{
-    objects::{ExecutionState, ExecutionStateEnum, WorkloadSpec},
-    std_extensions::IllegalStateResult,
-    to_server_interface::{ToServerInterface, ToServerSender},
+use crate::{
+    runtime_connectors::{RuntimeStateGetter, StateChecker},
+    workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
+use common::objects::{ExecutionState, ExecutionStateEnum, WorkloadSpec};
 
 // [impl->swdd~agent-provides-generic-state-checker-implementation~1]
 const STATUS_CHECK_INTERVAL_MS: u64 = 1000;
@@ -27,7 +26,7 @@ where
     fn start_checker(
         workload_spec: &WorkloadSpec,
         workload_id: WorkloadId,
-        manager_interface: ToServerSender,
+        workload_state_sender: WorkloadStateSender,
         state_getter: impl RuntimeStateGetter<WorkloadId>,
     ) -> Self {
         let workload_spec = workload_spec.clone();
@@ -48,13 +47,12 @@ where
                     last_state = current_state.clone();
 
                     // [impl->swdd~generic-state-checker-sends-workload-state~1]
-                    manager_interface
-                        .update_workload_state(vec![common::objects::WorkloadState {
-                            instance_name: workload_spec.instance_name.clone(),
-                            execution_state: current_state,
-                        }])
-                        .await
-                        .unwrap_or_illegal_state();
+                    workload_state_sender
+                        .report_workload_execution_state(
+                            &workload_spec.instance_name,
+                            current_state,
+                        )
+                        .await;
 
                     if last_state.state == ExecutionStateEnum::Removed {
                         break;
@@ -93,10 +91,7 @@ impl Drop for GenericPollingStateChecker {
 mod tests {
     use std::time::Duration;
 
-    use common::{
-        commands, objects::generate_test_workload_spec_with_param, objects::ExecutionState,
-        to_server_interface::ToServer,
-    };
+    use common::{objects::generate_test_workload_spec_with_param, objects::ExecutionState};
 
     use crate::{
         generic_polling_state_checker::GenericPollingStateChecker,
@@ -122,7 +117,7 @@ mod tests {
             .times(2)
             .returning(|_: &String| Box::pin(async { ExecutionState::running() }));
 
-        let (state_sender, mut state_receiver) = tokio::sync::mpsc::channel::<ToServer>(20);
+        let (state_sender, mut state_receiver) = tokio::sync::mpsc::channel(20);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -144,18 +139,13 @@ mod tests {
         )
         .await;
 
-        let expected_state = vec![
-            common::objects::generate_test_workload_state_with_workload_spec(
-                &workload_spec,
-                ExecutionState::running(),
-            ),
-        ];
+        let expected_state = common::objects::generate_test_workload_state_with_workload_spec(
+            &workload_spec,
+            ExecutionState::running(),
+        );
 
         // [utest->swdd~generic-state-checker-sends-workload-state~1]
         let state_update_1 = state_receiver.recv().await.unwrap();
-        assert!(matches!(
-            state_update_1,
-            ToServer::UpdateWorkloadState(commands::UpdateWorkloadState{workload_states})
-            if workload_states == expected_state));
+        assert_eq!(state_update_1, expected_state);
     }
 }

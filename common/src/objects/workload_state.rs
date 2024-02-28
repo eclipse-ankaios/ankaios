@@ -22,6 +22,8 @@ use crate::std_extensions::UnreachableOption;
 
 use super::WorkloadInstanceName;
 
+const TRIGGERED_MSG: &str = "triggered at runtime";
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PendingSubstate {
     Initial = 0,
@@ -55,14 +57,13 @@ impl Display for PendingSubstate {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RunningSubstate {
     Ok = 0,
-    DeleteFailed = 8,
 }
 
 impl From<i32> for RunningSubstate {
     fn from(x: i32) -> Self {
         match x {
             x if x == RunningSubstate::Ok as i32 => RunningSubstate::Ok,
-            _ => RunningSubstate::DeleteFailed,
+            _ => RunningSubstate::Ok,
         }
     }
 }
@@ -71,7 +72,6 @@ impl Display for RunningSubstate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RunningSubstate::Ok => write!(f, "Ok"),
-            RunningSubstate::DeleteFailed => write!(f, "DeleteFailed"),
         }
     }
 }
@@ -80,12 +80,14 @@ impl Display for RunningSubstate {
 pub enum StoppingSubstate {
     Stopping = 0,
     WaitingToStop = 1,
+    DeleteFailed = 8,
 }
 
 impl From<i32> for StoppingSubstate {
     fn from(x: i32) -> Self {
         match x {
             x if x == StoppingSubstate::WaitingToStop as i32 => StoppingSubstate::WaitingToStop,
+            x if x == StoppingSubstate::DeleteFailed as i32 => StoppingSubstate::DeleteFailed,
             _ => StoppingSubstate::Stopping,
         }
     }
@@ -96,6 +98,7 @@ impl Display for StoppingSubstate {
         match self {
             StoppingSubstate::Stopping => write!(f, "Stopping"),
             StoppingSubstate::WaitingToStop => write!(f, "WaitingToStop"),
+            StoppingSubstate::DeleteFailed => write!(f, "DeleteFailed"),
         }
     }
 }
@@ -103,14 +106,13 @@ impl Display for StoppingSubstate {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SucceededSubstate {
     Ok = 0,
-    DeleteFailed = 8,
 }
 
 impl From<i32> for SucceededSubstate {
     fn from(x: i32) -> Self {
         match x {
             x if x == SucceededSubstate::Ok as i32 => SucceededSubstate::Ok,
-            _ => SucceededSubstate::DeleteFailed,
+            _ => SucceededSubstate::Ok,
         }
     }
 }
@@ -119,7 +121,6 @@ impl Display for SucceededSubstate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SucceededSubstate::Ok => write!(f, "Ok"),
-            SucceededSubstate::DeleteFailed => write!(f, "DeleteFailed"),
         }
     }
 }
@@ -129,7 +130,6 @@ pub enum FailedSubstate {
     ExecFailed = 0,
     Unknown = 1,
     Lost = 2,
-    DeleteFailed = 8,
 }
 
 impl From<i32> for FailedSubstate {
@@ -138,7 +138,7 @@ impl From<i32> for FailedSubstate {
             x if x == FailedSubstate::ExecFailed as i32 => FailedSubstate::ExecFailed,
             x if x == FailedSubstate::Unknown as i32 => FailedSubstate::Unknown,
             x if x == FailedSubstate::Lost as i32 => FailedSubstate::Lost,
-            _ => FailedSubstate::DeleteFailed,
+            _ => FailedSubstate::Unknown,
         }
     }
 }
@@ -149,7 +149,6 @@ impl Display for FailedSubstate {
             FailedSubstate::ExecFailed => write!(f, "ExecFailed"),
             FailedSubstate::Unknown => write!(f, "Unknown"),
             FailedSubstate::Lost => write!(f, "Lost"),
-            FailedSubstate::DeleteFailed => write!(f, "DeleteFailed"),
         }
     }
 }
@@ -166,6 +165,30 @@ pub enum ExecutionStateEnum {
     #[default]
     NotScheduled,
     Removed,
+}
+
+// [impl->swdd~common-workload-state-transitions~1]
+impl ExecutionStateEnum {
+    pub fn transition(self, incoming: ExecutionStateEnum) -> ExecutionStateEnum {
+        match self {
+            ExecutionStateEnum::Stopping(_) => match incoming {
+                ExecutionStateEnum::Running(RunningSubstate::Ok)
+                | ExecutionStateEnum::Succeeded(SucceededSubstate::Ok)
+                | ExecutionStateEnum::Failed(FailedSubstate::ExecFailed)
+                | ExecutionStateEnum::Failed(FailedSubstate::Lost)
+                | ExecutionStateEnum::Failed(FailedSubstate::Unknown) => {
+                    log::trace!(
+                        "Skipping transition from '{}' to '{}' state.",
+                        self,
+                        incoming
+                    );
+                    self
+                }
+                _ => incoming,
+            },
+            _ => incoming,
+        }
+    }
 }
 
 impl From<ExecutionStateEnum> for proto::execution_state::ExecutionStateEnum {
@@ -310,6 +333,13 @@ impl ExecutionState {
         }
     }
 
+    pub fn starting_triggered() -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Pending(PendingSubstate::Starting),
+            additional_info: TRIGGERED_MSG.to_string(),
+        }
+    }
+
     pub fn failed(additional_info: impl ToString) -> Self {
         ExecutionState {
             state: ExecutionStateEnum::Failed(FailedSubstate::ExecFailed),
@@ -334,6 +364,20 @@ impl ExecutionState {
     pub fn stopping(additional_info: impl ToString) -> Self {
         ExecutionState {
             state: ExecutionStateEnum::Stopping(StoppingSubstate::Stopping),
+            additional_info: additional_info.to_string(),
+        }
+    }
+
+    pub fn stopping_triggered() -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Stopping(StoppingSubstate::Stopping),
+            additional_info: TRIGGERED_MSG.to_string(),
+        }
+    }
+
+    pub fn delete_failed(additional_info: impl ToString) -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Stopping(StoppingSubstate::DeleteFailed),
             additional_info: additional_info.to_string(),
         }
     }
@@ -499,7 +543,60 @@ pub fn generate_test_workload_state(
 mod tests {
     use api::proto::{self};
 
-    use crate::objects::{ExecutionState, WorkloadInstanceName, WorkloadState};
+    use crate::objects::{
+        workload_state::{FailedSubstate, RunningSubstate, StoppingSubstate, SucceededSubstate},
+        ExecutionState, ExecutionStateEnum, WorkloadInstanceName, WorkloadState,
+    };
+
+    // [utest->swdd~common-workload-state-transitions~1]
+    #[test]
+    fn utest_execution_state_transition_hysteresis() {
+        assert_eq!(
+            ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop)
+                .transition(ExecutionStateEnum::Running(RunningSubstate::Ok)),
+            ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop)
+        );
+        assert_eq!(
+            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+                .transition(ExecutionStateEnum::Running(RunningSubstate::Ok)),
+            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+        );
+        assert_eq!(
+            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+                .transition(ExecutionStateEnum::Succeeded(SucceededSubstate::Ok)),
+            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+        );
+        assert_eq!(
+            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+                .transition(ExecutionStateEnum::Failed(FailedSubstate::ExecFailed)),
+            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+        );
+        assert_eq!(
+            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+                .transition(ExecutionStateEnum::Failed(FailedSubstate::Lost)),
+            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+        );
+        assert_eq!(
+            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+                .transition(ExecutionStateEnum::Failed(FailedSubstate::Unknown)),
+            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+        );
+        assert_eq!(
+            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+                .transition(ExecutionStateEnum::Stopping(StoppingSubstate::DeleteFailed)),
+            ExecutionStateEnum::Stopping(StoppingSubstate::DeleteFailed)
+        );
+        assert_eq!(
+            ExecutionStateEnum::Stopping(StoppingSubstate::DeleteFailed)
+                .transition(ExecutionStateEnum::Running(RunningSubstate::Ok)),
+            ExecutionStateEnum::Running(RunningSubstate::Ok)
+        );
+        assert_eq!(
+            ExecutionStateEnum::Running(RunningSubstate::Ok)
+                .transition(ExecutionStateEnum::Failed(FailedSubstate::ExecFailed)),
+            ExecutionStateEnum::Failed(FailedSubstate::ExecFailed)
+        );
+    }
 
     // [utest->swdd~common-workload-state-identification~1]
     #[test]

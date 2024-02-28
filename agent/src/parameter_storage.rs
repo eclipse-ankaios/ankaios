@@ -32,7 +32,7 @@ impl ParameterStorage {
         }
     }
 
-    pub fn get_state_of_workload(&self, workload_name: &String) -> Option<ExecutionState> {
+    pub fn get_state_of_workload(&self, workload_name: &str) -> Option<ExecutionState> {
         self.states_storage.get(workload_name).cloned()
     }
 

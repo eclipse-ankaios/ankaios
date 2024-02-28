@@ -35,6 +35,7 @@ use crate::parameter_storage::ParameterStorage;
 use crate::{
     runtime_connectors::RuntimeFacade,
     workload_operation::{WorkloadOperation, WorkloadOperations},
+    workload_state::WorkloadStateSender,
 };
 
 #[cfg_attr(test, mockall_double::double)]
@@ -60,7 +61,7 @@ pub struct RuntimeManager {
     workloads: HashMap<String, Workload>,
     // [impl->swdd~agent-supports-multiple-runtime-connectors~1]
     runtime_map: HashMap<String, Box<dyn RuntimeFacade>>,
-    update_state_tx: ToServerSender,
+    update_state_tx: WorkloadStateSender,
     workload_queue: WorkloadScheduler,
 }
 
@@ -71,7 +72,7 @@ impl RuntimeManager {
         run_folder: PathBuf,
         control_interface_tx: ToServerSender,
         runtime_map: HashMap<String, Box<dyn RuntimeFacade>>,
-        update_state_tx: ToServerSender,
+        update_state_tx: WorkloadStateSender,
     ) -> Self {
         RuntimeManager {
             agent_name,
@@ -445,6 +446,7 @@ mod tests {
     use crate::runtime_connectors::{MockRuntimeFacade, RuntimeError};
     use crate::workload::{MockWorkload, WorkloadError};
     use crate::workload_scheduler::scheduler::MockWorkloadScheduler;
+    use crate::workload_state::WorkloadStateReceiver;
     use common::commands::ResponseContent;
     use common::objects::{
         generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
@@ -480,16 +482,17 @@ mod tests {
             self
         }
 
-        pub fn build(self) -> (ToServerReceiver, RuntimeManager) {
+        pub fn build(self) -> (ToServerReceiver, RuntimeManager, WorkloadStateReceiver) {
             let (to_server, server_receiver) = channel(BUFFER_SIZE);
+            let (wl_state_sender, wl_state_receiver) = channel(BUFFER_SIZE);
             let runtime_manager = RuntimeManager::new(
                 AGENT_NAME.into(),
                 Path::new(RUN_FOLDER).into(),
                 to_server.clone(),
                 self.runtime_facade_map,
-                to_server.clone(),
+                wl_state_sender.clone(),
             );
-            (server_receiver, runtime_manager)
+            (server_receiver, runtime_manager, wl_state_receiver)
         }
     }
 
@@ -559,7 +562,7 @@ mod tests {
             .once()
             .returning(move |_, _, _| MockWorkload::default());
 
-        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
+        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
                 RUNTIME_NAME,
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
@@ -621,7 +624,7 @@ mod tests {
 
         runtime_facade_mock.expect_create_workload().never(); // workload shall not be created due to unknown runtime
 
-        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
+        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
                 RUNTIME_NAME,
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
@@ -691,12 +694,13 @@ mod tests {
             })
             .return_once(|_, _, _| MockWorkload::default());
 
-        let (mut server_receiver, mut runtime_manager) = RuntimeManagerBuilder::default()
-            .with_runtime(
-                RUNTIME_NAME,
-                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
-            )
-            .build();
+        let (mut server_receiver, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default()
+                .with_runtime(
+                    RUNTIME_NAME,
+                    Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+                )
+                .build();
 
         runtime_manager
             .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
@@ -756,7 +760,7 @@ mod tests {
 
         runtime_facade_mock.expect_create_workload().never();
 
-        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
+        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
                 RUNTIME_NAME,
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
@@ -834,7 +838,7 @@ mod tests {
             .in_sequence(&mut sequence)
             .return_once(|_, _, _| MockWorkload::default());
 
-        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
+        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
                 RUNTIME_NAME,
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
@@ -893,7 +897,7 @@ mod tests {
             .once()
             .return_const(());
 
-        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
+        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
                 RUNTIME_NAME,
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
@@ -940,12 +944,13 @@ mod tests {
             .return_once(|_| Box::pin(async { Ok(vec![]) }));
         runtime_facade_mock.expect_create_workload().never();
 
-        let (_server_receiver, mut runtime_manager) = RuntimeManagerBuilder::default()
-            .with_runtime(
-                RUNTIME_NAME,
-                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
-            )
-            .build();
+        let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default()
+                .with_runtime(
+                    RUNTIME_NAME,
+                    Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+                )
+                .build();
 
         runtime_manager
             .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
@@ -1004,12 +1009,13 @@ mod tests {
 
         runtime_facade_mock.expect_create_workload().never();
 
-        let (_server_receiver, mut runtime_manager) = RuntimeManagerBuilder::default()
-            .with_runtime(
-                RUNTIME_NAME,
-                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
-            )
-            .build();
+        let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default()
+                .with_runtime(
+                    RUNTIME_NAME,
+                    Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+                )
+                .build();
 
         let added_workloads = vec![existing_workload];
         runtime_manager
@@ -1060,12 +1066,13 @@ mod tests {
             .return_once(|_| mock_workload_scheduler);
 
         let runtime_facade_mock = MockRuntimeFacade::new();
-        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
-            .with_runtime(
-                RUNTIME_NAME,
-                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
-            )
-            .build();
+        let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default()
+                .with_runtime(
+                    RUNTIME_NAME,
+                    Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+                )
+                .build();
 
         runtime_manager.initial_workload_list_received = true;
 
@@ -1161,12 +1168,13 @@ mod tests {
             .in_sequence(&mut delete_before_add_seq)
             .return_once(|_, _, _| MockWorkload::default());
 
-        let (mut server_receiver, mut runtime_manager) = RuntimeManagerBuilder::default()
-            .with_runtime(
-                RUNTIME_NAME,
-                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
-            )
-            .build();
+        let (mut server_receiver, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default()
+                .with_runtime(
+                    RUNTIME_NAME,
+                    Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+                )
+                .build();
 
         runtime_manager.initial_workload_list_received = true;
 
@@ -1231,12 +1239,13 @@ mod tests {
             .once()
             .returning(move |_, _, _| MockWorkload::default());
 
-        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
-            .with_runtime(
-                RUNTIME_NAME,
-                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
-            )
-            .build();
+        let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default()
+                .with_runtime(
+                    RUNTIME_NAME,
+                    Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+                )
+                .build();
         runtime_manager.initial_workload_list_received = true;
 
         let added_workloads = vec![new_workload];
@@ -1284,7 +1293,7 @@ mod tests {
     //         .return_once(|_| mock_workload_scheduler);
 
     //     let runtime_facade_mock = MockRuntimeFacade::new();
-    //     let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
+    //     let (_server_receiver, mut runtime_manager, _wl_state_receiver) = RuntimeManagerBuilder::default()
     //         .with_runtime(
     //             RUNTIME_NAME,
     //             Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
@@ -1359,12 +1368,13 @@ mod tests {
             })
             .return_once(|_, _, _| MockWorkload::default());
 
-        let (mut server_receiver, mut runtime_manager) = RuntimeManagerBuilder::default()
-            .with_runtime(
-                RUNTIME_NAME,
-                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
-            )
-            .build();
+        let (mut server_receiver, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default()
+                .with_runtime(
+                    RUNTIME_NAME,
+                    Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+                )
+                .build();
 
         runtime_manager.initial_workload_list_received = true;
 
@@ -1400,12 +1410,13 @@ mod tests {
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock.expect_create_workload().never();
 
-        let (mut server_receiver, mut runtime_manager) = RuntimeManagerBuilder::default()
-            .with_runtime(
-                RUNTIME_NAME,
-                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
-            )
-            .build();
+        let (mut server_receiver, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default()
+                .with_runtime(
+                    RUNTIME_NAME,
+                    Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+                )
+                .build();
 
         let added_workloads = vec![generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1443,7 +1454,8 @@ mod tests {
             .once()
             .return_once(|_| mock_workload_scheduler);
 
-        let (mut server_receiver, mut runtime_manager) = RuntimeManagerBuilder::default().build();
+        let (mut server_receiver, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default().build();
 
         runtime_manager.initial_workload_list_received = true;
 
@@ -1487,12 +1499,13 @@ mod tests {
 
         let runtime_facade_mock = MockRuntimeFacade::new();
 
-        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
-            .with_runtime(
-                RUNTIME_NAME,
-                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
-            )
-            .build();
+        let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default()
+                .with_runtime(
+                    RUNTIME_NAME,
+                    Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+                )
+                .build();
 
         let mut mock_workload = MockWorkload::default();
         mock_workload
@@ -1542,12 +1555,13 @@ mod tests {
 
         let runtime_facade_mock = MockRuntimeFacade::new();
 
-        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
-            .with_runtime(
-                RUNTIME_NAME,
-                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
-            )
-            .build();
+        let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default()
+                .with_runtime(
+                    RUNTIME_NAME,
+                    Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+                )
+                .build();
 
         let mut mock_workload = MockWorkload::default();
         mock_workload
@@ -1601,12 +1615,13 @@ mod tests {
 
         let runtime_facade_mock = MockRuntimeFacade::new();
 
-        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
-            .with_runtime(
-                RUNTIME_NAME,
-                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
-            )
-            .build();
+        let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default()
+                .with_runtime(
+                    RUNTIME_NAME,
+                    Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+                )
+                .build();
 
         let mut mock_workload = MockWorkload::default();
         mock_workload.expect_forward_response().never();
@@ -1663,7 +1678,7 @@ mod tests {
             .once()
             .return_once(|_, _, _| MockWorkload::default());
 
-        let (mut server_receiver, mut runtime_manager) = RuntimeManagerBuilder::default()
+        let (mut server_receiver, mut runtime_manager, _wl_state_receiver) = RuntimeManagerBuilder::default()
             .with_runtime(
                 RUNTIME_NAME,
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
@@ -1700,7 +1715,7 @@ mod tests {
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock.expect_create_workload().never();
 
-        let (mut server_receiver, mut runtime_manager) = RuntimeManagerBuilder::default()
+        let (mut server_receiver, mut runtime_manager, _wl_state_receiver) = RuntimeManagerBuilder::default()
             .with_runtime(
                 RUNTIME_NAME,
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
@@ -1739,7 +1754,7 @@ mod tests {
             .once()
             .return_once(|_| mock_workload_scheduler);
 
-        let (mut server_receiver, mut runtime_manager) = RuntimeManagerBuilder::default().build();
+        let (mut server_receiver, mut runtime_manager, _wl_state_receiver) = RuntimeManagerBuilder::default().build();
 
         let mut workload_mock = MockWorkload::default();
         workload_mock
@@ -1778,7 +1793,7 @@ mod tests {
             .once()
             .return_once(|_| mock_workload_scheduler);
 
-        let (mut server_receiver, mut runtime_manager) = RuntimeManagerBuilder::default().build();
+        let (mut server_receiver, mut runtime_manager, _wl_state_receiver) = RuntimeManagerBuilder::default().build();
 
         let mut workload_mock = MockWorkload::default();
         workload_mock.expect_delete().never();

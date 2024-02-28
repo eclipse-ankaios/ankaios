@@ -1,15 +1,15 @@
 use async_trait::async_trait;
-use common::{
-    objects::{AgentName, WorkloadInstanceName, WorkloadSpec},
-    to_server_interface::ToServerSender,
-};
+use common::objects::{AgentName, WorkloadInstanceName, WorkloadSpec};
 #[cfg(test)]
 use mockall::automock;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::PipesChannelContext;
 
-use crate::runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker};
+use crate::{
+    runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker},
+    workload_state::WorkloadStateSender,
+};
 
 use crate::workload::workload_control_loop::WorkloadControlLoop;
 #[cfg_attr(test, mockall_double::double)]
@@ -29,7 +29,7 @@ pub trait RuntimeFacade: Send + Sync + 'static {
         &self,
         runtime_workload: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
-        update_state_tx: &ToServerSender,
+        update_state_tx: &WorkloadStateSender,
     ) -> Workload;
 
     fn replace_workload(
@@ -37,14 +37,14 @@ pub trait RuntimeFacade: Send + Sync + 'static {
         existing_workload_name: WorkloadInstanceName,
         new_workload_spec: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
-        update_state_tx: &ToServerSender,
+        update_state_tx: &WorkloadStateSender,
     ) -> Workload;
 
     fn resume_workload(
         &self,
         runtime_workload: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
-        update_state_tx: &ToServerSender,
+        update_state_tx: &WorkloadStateSender,
     ) -> Workload;
 
     fn delete_workload(&self, instance_name: WorkloadInstanceName);
@@ -91,7 +91,7 @@ impl<
         &self,
         workload_spec: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
-        update_state_tx: &ToServerSender,
+        update_state_tx: &WorkloadStateSender,
     ) -> Workload {
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
@@ -139,7 +139,7 @@ impl<
         old_instance_name: WorkloadInstanceName,
         new_workload_spec: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
-        update_state_tx: &ToServerSender,
+        update_state_tx: &WorkloadStateSender,
     ) -> Workload {
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
@@ -207,7 +207,7 @@ impl<
         &self,
         workload_spec: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
-        update_state_tx: &ToServerSender,
+        update_state_tx: &WorkloadStateSender,
     ) -> Workload {
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
         let runtime = self.runtime.to_owned();
@@ -295,10 +295,7 @@ impl<
 
 #[cfg(test)]
 mod tests {
-    use common::{
-        objects::{generate_test_workload_spec_with_param, WorkloadInstanceName},
-        to_server_interface::ToServer,
-    };
+    use common::objects::{generate_test_workload_spec_with_param, WorkloadInstanceName};
 
     use crate::{
         control_interface::MockPipesChannelContext,
@@ -370,8 +367,8 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
+        let (wl_state_sender, _wl_state_receiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -385,7 +382,7 @@ mod tests {
             .expect(vec![RuntimeCall::CreateWorkload(
                 workload_spec.clone(),
                 Some(PIPES_LOCATION.into()),
-                to_server.clone(),
+                wl_state_sender.clone(),
                 Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
             )])
             .await;
@@ -399,7 +396,7 @@ mod tests {
         let _workload = test_runtime_facade.create_workload(
             workload_spec.clone(),
             Some(control_interface_mock),
-            &to_server,
+            &wl_state_sender,
         );
 
         tokio::task::yield_now().await;
@@ -422,8 +419,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
+        let (wl_state_sender, _wl_state_receiver) = tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -442,7 +438,7 @@ mod tests {
                 RuntimeCall::StartChecker(
                     WORKLOAD_ID.to_string(),
                     workload_spec.clone(),
-                    to_server.clone(),
+                    wl_state_sender.clone(),
                     Ok(StubStateChecker::new()),
                 ),
             ])
@@ -457,7 +453,7 @@ mod tests {
         let _workload = test_runtime_facade.resume_workload(
             workload_spec.clone(),
             Some(control_interface_mock),
-            &to_server,
+            &wl_state_sender,
         );
 
         tokio::task::yield_now().await;
@@ -480,8 +476,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
+        let (wl_state_sender, _wl_state_receiver) = tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -509,7 +504,7 @@ mod tests {
         let _workload = test_runtime_facade.resume_workload(
             workload_spec.clone(),
             Some(control_interface_mock),
-            &to_server,
+            &wl_state_sender,
         );
 
         tokio::task::yield_now().await;
@@ -532,8 +527,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
+        let (wl_state_sender, _wl_state_receiver) = tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -552,7 +546,7 @@ mod tests {
                 RuntimeCall::StartChecker(
                     WORKLOAD_ID.to_string(),
                     workload_spec.clone(),
-                    to_server.clone(),
+                    wl_state_sender.clone(),
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some state checker error".to_string(),
                     )),
@@ -569,7 +563,7 @@ mod tests {
         let _workload = test_runtime_facade.resume_workload(
             workload_spec.clone(),
             Some(control_interface_mock),
-            &to_server,
+            &wl_state_sender,
         );
 
         tokio::task::yield_now().await;
@@ -596,8 +590,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
+        let (wl_state_sender, _wl_state_receiver) = tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -622,7 +615,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    to_server.clone(),
+                    wl_state_sender.clone(),
                     Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
                 ),
             ])
@@ -638,7 +631,7 @@ mod tests {
             old_workload_instance_name,
             workload_spec.clone(),
             Some(control_interface_mock),
-            &to_server,
+            &wl_state_sender,
         );
 
         tokio::task::yield_now().await;
@@ -665,8 +658,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
+        let (wl_state_sender, _wl_state_receiver) = tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -693,7 +685,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    to_server.clone(),
+                    wl_state_sender.clone(),
                     Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
                 ),
             ])
@@ -709,7 +701,7 @@ mod tests {
             old_workload_instance_name,
             workload_spec.clone(),
             Some(control_interface_mock),
-            &to_server,
+            &wl_state_sender,
         );
 
         tokio::task::yield_now().await;
@@ -736,8 +728,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
+        let (wl_state_sender, _wl_state_receiver) = tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -768,7 +759,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    to_server.clone(),
+                    wl_state_sender.clone(),
                     Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
                 ),
             ])
@@ -784,7 +775,7 @@ mod tests {
             old_workload_instance_name,
             workload_spec.clone(),
             Some(control_interface_mock),
-            &to_server,
+            &wl_state_sender,
         );
 
         tokio::task::yield_now().await;

@@ -15,12 +15,11 @@
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_scheduler::dependency_state_validator::DependencyStateValidator;
 
-use crate::workload_scheduler::dependency_state_validator::DependencyState;
-use common::{
-    objects::{DeletedWorkload, ExecutionState, WorkloadSpec, WorkloadState},
-    std_extensions::IllegalStateResult,
-    to_server_interface::{ToServerInterface, ToServerSender},
+use crate::{
+    workload_scheduler::dependency_state_validator::DependencyState,
+    workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
+use common::objects::{DeletedWorkload, ExecutionState, WorkloadSpec};
 use std::collections::HashMap;
 
 #[cfg_attr(test, mockall_double::double)]
@@ -34,12 +33,12 @@ type DependencyQueue = HashMap<String, WorkloadOperation>;
 
 pub struct WorkloadScheduler {
     queue: DependencyQueue,
-    workload_state_sender: ToServerSender,
+    workload_state_sender: WorkloadStateSender,
 }
 
 #[cfg_attr(test, automock)]
 impl WorkloadScheduler {
-    pub fn new(workload_state_tx: ToServerSender) -> Self {
+    pub fn new(workload_state_tx: WorkloadStateSender) -> Self {
         WorkloadScheduler {
             queue: DependencyQueue::new(),
             workload_state_sender: workload_state_tx,
@@ -48,22 +47,20 @@ impl WorkloadScheduler {
 
     async fn report_pending_create_state(&self, pending_workload: &WorkloadSpec) {
         self.workload_state_sender
-            .update_workload_state(vec![WorkloadState {
-                instance_name: pending_workload.instance_name.clone(),
-                execution_state: ExecutionState::waiting_to_start(),
-            }])
-            .await
-            .unwrap_or_illegal_state();
+            .report_workload_execution_state(
+                &pending_workload.instance_name,
+                ExecutionState::waiting_to_start(),
+            )
+            .await;
     }
 
     async fn report_pending_delete_state(&self, waiting_deleted_workload: &DeletedWorkload) {
         self.workload_state_sender
-            .update_workload_state(vec![WorkloadState {
-                instance_name: waiting_deleted_workload.instance_name.clone(),
-                execution_state: ExecutionState::waiting_to_stop(),
-            }])
-            .await
-            .unwrap_or_illegal_state();
+            .report_workload_execution_state(
+                &waiting_deleted_workload.instance_name,
+                ExecutionState::waiting_to_stop(),
+            )
+            .await;
     }
 
     async fn insert_and_notify(&mut self, workload_operation: WorkloadOperation) {
@@ -189,13 +186,11 @@ impl WorkloadScheduler {
 #[cfg(test)]
 mod tests {
     use common::{
-        commands::UpdateWorkloadState,
         objects::{
             generate_test_workload_spec, generate_test_workload_spec_with_param,
             generate_test_workload_state_with_workload_spec, ExecutionState, WorkloadState,
         },
         test_utils::generate_test_deleted_workload,
-        to_server_interface::ToServer,
     };
     use tokio::sync::mpsc::channel;
 
@@ -236,9 +231,7 @@ mod tests {
         );
 
         assert_eq!(
-            Ok(Some(ToServer::UpdateWorkloadState(UpdateWorkloadState {
-                workload_states: vec![expected_workload_state]
-            }))),
+            Ok(Some(expected_workload_state)),
             tokio::time::timeout(
                 tokio::time::Duration::from_millis(100),
                 workload_state_receiver.recv()
@@ -285,9 +278,7 @@ mod tests {
         };
 
         assert_eq!(
-            Ok(Some(ToServer::UpdateWorkloadState(UpdateWorkloadState {
-                workload_states: vec![expected_workload_state]
-            }))),
+            Ok(Some(expected_workload_state)),
             tokio::time::timeout(
                 tokio::time::Duration::from_millis(100),
                 workload_state_receiver.recv()
@@ -328,9 +319,7 @@ mod tests {
         };
 
         assert_eq!(
-            Ok(Some(ToServer::UpdateWorkloadState(UpdateWorkloadState {
-                workload_states: vec![expected_workload_state]
-            }))),
+            Ok(Some(expected_workload_state)),
             tokio::time::timeout(
                 tokio::time::Duration::from_millis(100),
                 workload_state_receiver.recv()

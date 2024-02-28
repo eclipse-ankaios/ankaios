@@ -5,12 +5,12 @@ use async_trait::async_trait;
 use common::{
     objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec},
     std_extensions::UnreachableOption,
-    to_server_interface::ToServerSender,
 };
 
 use crate::{
     generic_polling_state_checker::GenericPollingStateChecker,
     runtime_connectors::{RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker},
+    workload_state::WorkloadStateSender,
 };
 
 #[cfg(test)]
@@ -107,7 +107,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         &self,
         workload_spec: WorkloadSpec,
         control_interface_path: Option<PathBuf>,
-        update_state_tx: ToServerSender,
+        update_state_tx: WorkloadStateSender,
     ) -> Result<(PodmanWorkloadId, GenericPollingStateChecker), RuntimeError> {
         let workload_cfg = PodmanRuntimeConfig::try_from(&workload_spec)
             .map_err(|err| RuntimeError::Create(err.into()))?;
@@ -165,7 +165,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         &self,
         workload_id: &PodmanWorkloadId,
         workload_spec: WorkloadSpec,
-        update_state_tx: ToServerSender,
+        update_state_tx: WorkloadStateSender,
     ) -> Result<GenericPollingStateChecker, RuntimeError> {
         // [impl->swdd~podman-state-getter-reset-cache~1]
         PodmanCli::reset_ps_cache().await;
@@ -206,11 +206,8 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
 mod tests {
     use std::path::PathBuf;
 
-    use common::{
-        objects::{
-            generate_test_workload_spec_with_param, AgentName, ExecutionState, WorkloadInstanceName,
-        },
-        to_server_interface::ToServer,
+    use common::objects::{
+        generate_test_workload_spec_with_param, AgentName, ExecutionState, WorkloadInstanceName,
     };
     use mockall::Sequence;
 
@@ -314,11 +311,15 @@ mod tests {
             WORKLOAD_1_NAME.to_string(),
             PODMAN_RUNTIME_NAME.to_string(),
         );
-        let (to_server, _from_agent) = tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
+        let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
-            .create_workload(workload_spec, Some(PathBuf::from("run_folder")), to_server)
+            .create_workload(
+                workload_spec,
+                Some(PathBuf::from("run_folder")),
+                state_change_tx,
+            )
             .await;
 
         let (workload_id, _checker) = res.unwrap();
@@ -356,16 +357,20 @@ mod tests {
             WORKLOAD_1_NAME.to_string(),
             PODMAN_RUNTIME_NAME.to_string(),
         );
-        let (to_server, mut from_agent) = tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
+        let (state_change_tx, mut state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
-            .create_workload(workload_spec, Some(PathBuf::from("run_folder")), to_server)
+            .create_workload(
+                workload_spec,
+                Some(PathBuf::from("run_folder")),
+                state_change_tx,
+            )
             .await;
 
         let (_workload_id, _checker) = res.unwrap();
 
-        from_agent.recv().await;
+        state_change_rx.recv().await;
     }
 
     // [utest->swdd~podman-state-getter-uses-podmancli~1]
@@ -402,11 +407,15 @@ mod tests {
             WORKLOAD_1_NAME.to_string(),
             PODMAN_RUNTIME_NAME.to_string(),
         );
-        let (to_server, _from_agent) = tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
+        let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
-            .create_workload(workload_spec, Some(PathBuf::from("run_folder")), to_server)
+            .create_workload(
+                workload_spec,
+                Some(PathBuf::from("run_folder")),
+                state_change_tx,
+            )
             .await;
 
         assert!(res.is_err_and(|x| { x == RuntimeError::Create("podman run failed".into()) }))
@@ -423,11 +432,15 @@ mod tests {
         );
         workload_spec.runtime_config = "broken runtime config".to_string();
 
-        let (to_server, _from_agent) = tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
+        let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime
-            .create_workload(workload_spec, Some(PathBuf::from("run_folder")), to_server)
+            .create_workload(
+                workload_spec,
+                Some(PathBuf::from("run_folder")),
+                state_change_tx,
+            )
             .await;
 
         assert!(res.is_err());
