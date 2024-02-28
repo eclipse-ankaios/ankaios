@@ -558,11 +558,11 @@ workloads:
 ```
 
 #### CLI supports Ankaios manifest
-`swdd~cli-supports-ankaios-manifest~1`
+`swdd~cli-apply-supports-ankaios-manifest~1`
 
 Status: approved
 
-The Ankaios CLI shall support the Ankaios manifest file format.
+The Ankaios CLI apply command shall support the Ankaios manifest file format.
 
 Tags:
 - AnkaiosManifest
