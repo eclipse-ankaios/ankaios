@@ -23,30 +23,33 @@ end box
 
 main -> cli_commands ++ : delete workloads
 
-cli_commands ->> listen_to_manager : request complete state
-listen_to_manager ->> server ++ : request complete state
+cli_commands ->> listen_to_manager ++: request complete state
+listen_to_manager ->> server --++ : request complete state
 
-cli_commands -> cli_commands : wait for the response
+cli_commands -> cli_commands ++: wait for the response
 
-listen_to_server <<- server --: complete state
-listen_to_server ->> cli_commands : complete state
-cli_commands -> cli_commands : find and remove workloads
+listen_to_server <<- server --++: complete state
+listen_to_server ->> cli_commands --: complete state
+cli_commands -> cli_commands ++: find and remove workloads
 
 alt Workload has been deleted
-    cli_commands ->> listen_to_manager : request update state
-    listen_to_manager ->> server ++ : request update state
+    cli_commands ->> listen_to_manager --++: request update state
+    deactivate cli_commands
+    listen_to_manager ->> server --++ : request update state
 
-    cli_commands -> cli_commands : wait for the response
+    cli_commands -> cli_commands ++: wait for the response
 
-    listen_to_server <<- server --: response
-    listen_to_server ->> cli_commands : response
-end 
+    listen_to_server <<- server --++: response
+    listen_to_server ->> cli_commands --: response
+end
 main <- cli_commands --
+deactivate cli_commands
 
 destroy cli_commands
 destroy listen_to_manager
 destroy listen_to_server
 
 user <- main -- : exit
+destroy main
 
 @enduml

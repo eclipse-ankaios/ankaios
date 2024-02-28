@@ -32,9 +32,9 @@ loop for every Agent
 
     grpc_server -> grpc_server ++--: Find Agent tx in AgentSendersMap
 
-    grpc_server ->> grpc_client ++--: forward Exection Command over gRPC
+    grpc_server ->> grpc_client --++: forward Exection Command over gRPC
 
-    grpc_client ->> ankaios_agent ++--: forward Exection Command
+    grpc_client ->> ankaios_agent --++: forward Exection Command
 
     deactivate ankaios_agent
 
@@ -44,9 +44,9 @@ end
 
 == Forward ToServer messages ==
 
-ankaios_agent ->> grpc_client ++--: send ToServer message
+ankaios_agent ->> grpc_client --++: send ToServer message
 
-grpc_client ->> agent_connection ++--: forward ToServer\nmessage over gRPC
+grpc_client ->> agent_connection --++: forward ToServer\nmessage over gRPC
 
-agent_connection -->> ankaios_server ++--: forward ToServer message
+agent_connection -->> ankaios_server --++: forward ToServer message
 @enduml
