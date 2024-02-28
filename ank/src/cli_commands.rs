@@ -222,9 +222,9 @@ mod apply_manifests {
 
     // [impl->swdd~cli-supports-ankaios-manifest~1]
     pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
-        let _state_obj_parsing_check: State = serde_yaml::from_reader(&mut manifest.1)
+        let state_obj_parsing_check: State = serde_yaml::from_reader(&mut manifest.1)
             .map_err(|err| format!("Invalid manifest data provided: {}", err))?;
-        match Object::try_from(_state_obj_parsing_check) {
+        match Object::try_from(state_obj_parsing_check) {
             Err(err) => Err(format!(
                 "Error while parsing the manifest data.\nError: {err}"
             )),
