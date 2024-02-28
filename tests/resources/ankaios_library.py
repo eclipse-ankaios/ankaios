@@ -140,7 +140,7 @@ def wait_for_workload_removal(command, workload_name, expected_agent_name, timeo
         table = table_to_list(res.stdout if res else "")
         logger.trace(table)
         while (get_time_secs() - start_time) < timeout:
-            if table and any([row["AGENT"].strip() == expected_agent_name for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name, table)]):
+            if table and any([not expected_agent_name or row["AGENT"].strip() == expected_agent_name for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name, table)]):
                 time.sleep(next_try_in_sec)
                 res = run_command(command)
                 table = table_to_list(res.stdout if res else "")

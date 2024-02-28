@@ -15,12 +15,12 @@
 use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
-use crate::state_manipulation::{Object, Path};
 use crate::workload_state_db::WorkloadStateDB;
 use common::std_extensions::IllegalStateResult;
 use common::{
     commands::{CompleteState, CompleteStateRequest},
     objects::{DeletedWorkload, State, WorkloadSpec},
+    state_manipulation::{Object, Path},
 };
 use std::fmt::Display;
 

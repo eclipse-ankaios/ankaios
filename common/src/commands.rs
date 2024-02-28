@@ -419,8 +419,7 @@ mod tests {
                 UpdateWorkloadState,
             },
             objects::{
-                ExecutionState, ExecutionStateEnum, State, WorkloadExecutionInstanceName,
-                WorkloadSpec, WorkloadState,
+                ExecutionState, State, WorkloadExecutionInstanceName, WorkloadSpec, WorkloadState,
             },
         };
     }

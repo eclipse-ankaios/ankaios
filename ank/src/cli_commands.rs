@@ -24,7 +24,7 @@ use tests::read_to_string_mock as read_file_to_string;
 use common::{
     commands::{CompleteState, CompleteStateRequest, Response, ResponseContent},
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::{Tag, WorkloadSpec},
+    objects::{State, Tag, WorkloadSpec},
     to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
 
@@ -39,12 +39,15 @@ use tests::MockGRPCCommunicationsClient as GRPCCommunicationsClient;
 use tabled::{settings::Style, Table, Tabled};
 use url::Url;
 
-use crate::{cli::OutputFormat, output_and_error, output_debug};
+use crate::{
+    cli::{ApplyArgs, OutputFormat},
+    output_and_error, output_debug,
+};
 
 const BUFFER_SIZE: usize = 20;
 const WAIT_TIME_MS: Duration = Duration::from_millis(3000);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CliError {
     YamlSerialization(String),
     JsonSerialization(String),
@@ -194,17 +197,312 @@ fn setup_cli_communication(
     (communications_task, to_server, cli_receiver)
 }
 
-#[derive(Debug, Tabled)]
+mod apply_manifests {
+    use crate::cli_commands::{ApplyManifestTableDisplay, State};
+    use crate::{cli::ApplyArgs, output_debug};
+    use common::commands::CompleteState;
+    use common::state_manipulation::{Object, Path};
+    use std::{collections::HashSet, io};
+
+    pub type InputSourcePair = (String, Box<dyn io::Read + Send + Sync + 'static>);
+    pub type InputSources = Result<Vec<InputSourcePair>, String>;
+
+    #[cfg(not(test))]
+    pub fn open_manifest(
+        file_path: &str,
+    ) -> io::Result<(String, Box<dyn io::Read + Send + Sync + 'static>)> {
+        use std::fs::File;
+        match File::open(file_path) {
+            Ok(open_file) => Ok((file_path.to_owned(), Box::new(open_file))),
+            Err(err) => Err(err),
+        }
+    }
+    #[cfg(test)]
+    use super::tests::open_manifest_mock as open_manifest;
+
+    // [impl->swdd~cli-apply-supports-ankaios-manifest~1]
+    pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
+        let state_obj_parsing_check: State = serde_yaml::from_reader(&mut manifest.1)
+            .map_err(|err| format!("Invalid manifest data provided: {}", err))?;
+        match Object::try_from(state_obj_parsing_check) {
+            Err(err) => Err(format!(
+                "Error while parsing the manifest data.\nError: {err}"
+            )),
+            Ok(obj) => {
+                let mut workload_paths: HashSet<common::state_manipulation::Path> = HashSet::new();
+                for path in Vec::<Path>::from(&obj) {
+                    let parts = path.parts();
+                    if parts.len() > 1 {
+                        let _ = &mut workload_paths.insert(common::state_manipulation::Path::from(
+                            format!("{}.{}", parts[0], parts[1]),
+                        ));
+                    }
+                }
+
+                Ok((obj, workload_paths.into_iter().collect()))
+            }
+        }
+    }
+
+    // [impl->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
+    pub fn handle_agent_overwrite(
+        desired_agent: &Option<String>,
+        state_obj: &mut State,
+        table_output: &mut [ApplyManifestTableDisplay],
+    ) -> Result<(), String> {
+        // No agent name specified through cli!
+        if desired_agent.is_none() {
+            let agent_names: HashSet<String> =
+                HashSet::from_iter(state_obj.clone().workloads.into_values().map(|wl| wl.agent));
+            // Agent name not specified in a workload spec!
+            // [impl->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
+            if agent_names.is_empty() || agent_names.contains("") {
+                return Err(
+                    "No agent name specified -> use '--agent' option to specify!".to_owned(),
+                );
+            }
+        }
+        // An agent name specified through cli -> do an agent name overwrite!
+        else {
+            let desired_agent_name = desired_agent.as_ref().unwrap().to_string();
+            for (_, wl) in &mut state_obj.workloads.iter_mut() {
+                wl.agent = desired_agent_name.to_string();
+            }
+            table_output.iter_mut().for_each(|row| {
+                row.base_info.agent = desired_agent_name.to_string();
+            })
+        }
+
+        Ok(())
+    }
+
+    pub fn update_request_obj(
+        req_obj: &mut Object,
+        cur_obj: &Object,
+        paths: &[Path],
+        manifest_file_name: &str,
+        delete_mode: bool,
+        table_output: &mut Vec<ApplyManifestTableDisplay>,
+    ) -> Result<(), String> {
+        for workload_path in paths.iter() {
+            let workload_name = &workload_path.parts()[1];
+            let cur_workload_spec = cur_obj.get(workload_path).unwrap().clone();
+            if req_obj.get(workload_path).is_none() {
+                let _ = req_obj.set(workload_path, cur_workload_spec.clone());
+                let mapping_default = serde_yaml::Mapping::default();
+                let value_default = serde_yaml::Value::default();
+                let mut agent_name = "";
+
+                if !delete_mode {
+                    agent_name = cur_workload_spec
+                        .as_mapping()
+                        .unwrap_or(&mapping_default)
+                        .get("agent")
+                        .unwrap_or(&value_default)
+                        .as_str()
+                        .unwrap_or_default()
+                };
+
+                table_output.push(ApplyManifestTableDisplay::new(
+                    workload_name,
+                    agent_name,
+                    if delete_mode {
+                        super::ApplyManifestOperation::Remove
+                    } else {
+                        super::ApplyManifestOperation::AddOrUpdate
+                    },
+                    manifest_file_name,
+                ));
+            } else {
+                return Err(format!(
+                    "Multiple workloads with the same name '{}' found!",
+                    workload_name
+                ));
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn create_filter_masks_from_paths(
+        paths: &[common::state_manipulation::Path],
+        prefix: &str,
+    ) -> Vec<String> {
+        let mut filter_masks = paths
+            .iter()
+            .map(|path| format!("{}.{}.{}", prefix, path.parts()[0], path.parts()[1]))
+            .collect::<Vec<String>>();
+        filter_masks.sort();
+        filter_masks.dedup();
+        filter_masks
+    }
+    // [impl->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
+    // [impl->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
+    pub fn generate_state_obj_and_filter_masks_from_manifests(
+        manifests: &mut [InputSourcePair],
+        apply_args: &ApplyArgs,
+        table_output: &mut Vec<ApplyManifestTableDisplay>,
+    ) -> Result<(CompleteState, Vec<String>), String> {
+        let mut req_obj: Object = State::default().try_into().unwrap();
+        let mut req_paths: Vec<common::state_manipulation::Path> = Vec::new();
+        for manifest in manifests.iter_mut() {
+            let (cur_obj, mut cur_workload_paths) = parse_manifest(manifest)?;
+
+            update_request_obj(
+                &mut req_obj,
+                &cur_obj,
+                &cur_workload_paths,
+                &manifest.0,
+                apply_args.delete_mode,
+                table_output,
+            )?;
+
+            req_paths.append(&mut cur_workload_paths);
+        }
+
+        if req_paths.is_empty() {
+            return Err("No workload provided in manifests!".to_owned());
+        }
+
+        let filter_masks = create_filter_masks_from_paths(&req_paths, "desiredState");
+        output_debug!("\nfilter_masks:\n{:?}\n", filter_masks);
+
+        let complete_state_req_obj = if apply_args.delete_mode {
+            CompleteState {
+                ..Default::default()
+            }
+        } else {
+            let mut state_from_req_obj: common::objects::State = req_obj.try_into().unwrap();
+            handle_agent_overwrite(
+                &apply_args.agent_name,
+                &mut state_from_req_obj,
+                table_output,
+            )?;
+            CompleteState {
+                desired_state: state_from_req_obj,
+                ..Default::default()
+            }
+        };
+        output_debug!("\nstate_obj:\n{:?}\n", complete_state_req_obj);
+
+        Ok((complete_state_req_obj, filter_masks))
+    }
+
+    impl ApplyArgs {
+        pub fn get_input_sources(&self) -> InputSources {
+            if let Some(first_arg) = self.manifest_files.first() {
+                match first_arg.as_str() {
+                    // [impl->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
+                    "-" => Ok(vec![("stdin".to_owned(), Box::new(io::stdin()))]),
+                    // [impl->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
+                    _ => {
+                        let mut res: InputSources = Ok(vec![]);
+                        for file_path in self.manifest_files.iter() {
+                            match open_manifest(file_path) {
+                                Ok(open_file) => res.as_mut().unwrap().push(open_file),
+                                Err(err) => {
+                                    res = Err(match err.kind() {
+                                        io::ErrorKind::NotFound => {
+                                            format!("File '{}' not found!", file_path)
+                                        }
+                                        _ => err.to_string(),
+                                    });
+                                    break;
+                                }
+                            }
+                        }
+                        res
+                    }
+                }
+            } else {
+                Ok(vec![])
+            }
+        }
+    }
+}
+#[derive(Debug, Tabled, Clone)]
 #[tabled(rename_all = "UPPERCASE")]
-struct WorkloadInfo {
+struct WorkloadBaseTableDisplay {
     #[tabled(rename = "WORKLOAD NAME")]
     name: String,
     agent: String,
+}
+
+impl WorkloadBaseTableDisplay {
+    fn new(name: &str, agent: &str) -> Self {
+        WorkloadBaseTableDisplay {
+            name: name.to_string(),
+            agent: agent.to_string(),
+        }
+    }
+}
+#[derive(Debug, Tabled)]
+#[tabled(rename_all = "UPPERCASE")]
+struct GetWorkloadTableDisplay {
+    #[tabled(inline)]
+    base_info: WorkloadBaseTableDisplay,
     runtime: String,
     #[tabled(rename = "EXECUTION STATE")]
     execution_state: String,
     #[tabled(rename = "ADDITIONAL INFO")]
     additional_info: String,
+}
+
+impl GetWorkloadTableDisplay {
+    fn new(
+        name: &str,
+        agent: &str,
+        runtime: &str,
+        execution_state: &str,
+        additional_info: &str,
+    ) -> Self {
+        GetWorkloadTableDisplay {
+            base_info: WorkloadBaseTableDisplay::new(name, agent),
+            runtime: runtime.to_string(),
+            execution_state: execution_state.to_string(),
+            additional_info: additional_info.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+enum ApplyManifestOperation {
+    AddOrUpdate,
+    Remove,
+}
+
+impl fmt::Display for ApplyManifestOperation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ApplyManifestOperation::AddOrUpdate => write!(f, "Add/Update"),
+            ApplyManifestOperation::Remove => write!(f, "Remove"),
+        }
+    }
+}
+
+#[derive(Debug, Tabled, Clone)]
+#[tabled(rename_all = "UPPERCASE")]
+struct ApplyManifestTableDisplay {
+    #[tabled(inline)]
+    base_info: WorkloadBaseTableDisplay,
+    operation: ApplyManifestOperation,
+    #[tabled(rename = "FILE")]
+    manifest_file: String,
+}
+
+impl ApplyManifestTableDisplay {
+    fn new(
+        workload_name: &str,
+        agent_name: &str,
+        operation: ApplyManifestOperation,
+        manifest_file: &str,
+    ) -> Self {
+        ApplyManifestTableDisplay {
+            base_info: WorkloadBaseTableDisplay::new(workload_name, agent_name),
+            operation,
+            manifest_file: manifest_file.to_string(),
+        }
+    }
 }
 
 pub struct CliCommands {
@@ -359,15 +657,17 @@ impl CliCommands {
         // [impl->swdd~cli-returns-list-of-workloads-from-server~1]
         let res_complete_state = self.get_complete_state(&Vec::new()).await?;
 
-        let mut workload_infos: Vec<WorkloadInfo> = res_complete_state
+        let mut workload_infos: Vec<GetWorkloadTableDisplay> = res_complete_state
             .workload_states
             .into_iter()
-            .map(|wl_state| WorkloadInfo {
-                name: wl_state.instance_name.workload_name().into(),
-                agent: wl_state.instance_name.agent_name().into(),
-                runtime: String::new(),
-                execution_state: wl_state.execution_state.state.to_string(),
-                additional_info: wl_state.execution_state.additional_info.to_string(),
+            .map(|wl_state| {
+                GetWorkloadTableDisplay::new(
+                    wl_state.instance_name.workload_name(),
+                    wl_state.instance_name.agent_name(),
+                    Default::default(),
+                    &wl_state.execution_state.state.to_string(),
+                    &wl_state.execution_state.additional_info.to_string(),
+                )
             })
             .collect();
 
@@ -377,7 +677,9 @@ impl CliCommands {
                 .desired_state
                 .workloads
                 .iter()
-                .find(|&(wl_name, wl_spec)| *wl_name == wi.name && wl_spec.agent == wi.agent)
+                .find(|&(wl_name, wl_spec)| {
+                    *wl_name == wi.base_info.name && wl_spec.agent == wi.base_info.agent
+                })
             {
                 wi.runtime = found_wl_spec.runtime.clone();
             }
@@ -386,7 +688,7 @@ impl CliCommands {
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
         if let Some(agent_name) = agent_name {
-            workload_infos.retain(|wi| wi.agent == agent_name);
+            workload_infos.retain(|wi| wi.base_info.agent == agent_name);
         }
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
@@ -396,12 +698,12 @@ impl CliCommands {
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
         if !workload_name.is_empty() {
-            workload_infos.retain(|wi| workload_name.iter().any(|wn| wn == &wi.name));
+            workload_infos.retain(|wi| workload_name.iter().any(|wn| wn == &wi.base_info.name));
         }
 
         // The order of workloads in RequestCompleteState is not sable -> make sure that the user sees always the same order.
         // [impl->swdd~cli-shall-sort-list-of-workloads~1]
-        workload_infos.sort_by_key(|wi| wi.name.clone());
+        workload_infos.sort_by_key(|wi| wi.base_info.name.clone());
 
         output_debug!("The table after filtering:\n{:?}", workload_infos);
 
@@ -486,6 +788,63 @@ impl CliCommands {
             .map_err(|err| CliError::ExecutionError(err.to_string()))?;
         Ok(())
     }
+
+    // [impl->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
+    pub async fn apply_manifests(&mut self, apply_args: ApplyArgs) -> Result<String, String> {
+        use apply_manifests::*;
+        match apply_args.get_input_sources() {
+            Ok(mut manifests) => {
+                let mut table_output = Vec::<ApplyManifestTableDisplay>::default();
+                let (complete_state_req_obj, filter_masks) =
+                    generate_state_obj_and_filter_masks_from_manifests(
+                        &mut manifests,
+                        &apply_args,
+                        &mut table_output,
+                    )?;
+
+                let request_id: &str = &self.cli_name;
+
+                // [impl->swdd~cli-apply-send-update-state~1]
+                // [impl->swdd~cli-apply-send-update-state-for-deletion~1]
+                match self
+                    .to_server
+                    .update_state(request_id.to_string(), complete_state_req_obj, filter_masks)
+                    .await
+                {
+                    Ok(_) => {
+                        let poll_complete_state_response = async {
+                            loop {
+                                match self.from_server.recv().await {
+                                    Some(FromServer::Response(Response {
+                                        request_id: req_id,
+                                        response_content: _,
+                                    })) if req_id == request_id => {
+                                        return Ok(tabled::Table::new(table_output)
+                                            .with(tabled::settings::Style::blank())
+                                            .to_string());
+                                    }
+                                    None => return Err("Channel preliminary closed."),
+                                    Some(_) => (),
+                                }
+                            }
+                        };
+                        match tokio::time::timeout(WAIT_TIME_MS, poll_complete_state_response).await
+                        {
+                            Ok(Ok(res)) => Ok(res),
+                            Ok(Err(err)) => Err(format!(
+                                "Error response received from server.\nError: {err}"
+                            )),
+                            Err(_) => Err(format!(
+                                "Failed get response from server in time (timeout={WAIT_TIME_MS:?})."
+                            )),
+                        }
+                    }
+                    Err(err) => Err(err.to_string()),
+                }
+            }
+            Err(err) => Err(err.to_string()),
+        }
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -503,17 +862,28 @@ mod tests {
         commands::{self, Request, RequestContent, Response, ResponseContent},
         from_server_interface::{FromServer, FromServerSender},
         objects::{ExecutionState, Tag, WorkloadSpec},
+        state_manipulation::Path,
         test_utils::{self, generate_test_complete_state},
         to_server_interface::{ToServer, ToServerReceiver},
     };
     use tabled::{settings::Style, Table};
 
+    use super::apply_manifests::{
+        create_filter_masks_from_paths, generate_state_obj_and_filter_masks_from_manifests,
+        handle_agent_overwrite, parse_manifest, update_request_obj, InputSourcePair,
+    };
+    use super::{ApplyManifestOperation, ApplyManifestTableDisplay};
     use crate::{
         cli::OutputFormat,
         cli_commands::{
-            generate_compact_state_output, get_filtered_value, update_compact_state, WorkloadInfo,
+            generate_compact_state_output, get_filtered_value, update_compact_state, ApplyArgs,
+            GetWorkloadTableDisplay,
         },
     };
+    use common::commands::CompleteState;
+    use common::state_manipulation::Object;
+    use serde_yaml::Value;
+    use std::io::Read;
 
     use super::CliCommands;
 
@@ -539,6 +909,9 @@ mod tests {
     mockall::lazy_static! {
         pub static ref FAKE_READ_TO_STRING_MOCK_RESULT_LIST: tokio::sync::Mutex<std::collections::VecDeque<io::Result<String>>>  =
         tokio::sync::Mutex::new(std::collections::VecDeque::new());
+
+        pub static ref FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST: std::sync::Mutex<std::collections::VecDeque<io::Result<InputSourcePair>>>  =
+        std::sync::Mutex::new(std::collections::VecDeque::new());
     }
 
     pub async fn read_to_string_mock(_file: String) -> io::Result<String> {
@@ -558,6 +931,49 @@ mod tests {
                 agent_tx: FromServerSender,
             ) -> Result<(), String>;
         }
+    }
+
+    fn generate_multiple_test_apply_manifest_table_display() -> String {
+        let operation = ApplyManifestOperation::AddOrUpdate;
+        return tabled::Table::new(vec![
+            ApplyManifestTableDisplay::new(
+                "simple",
+                "agent1",
+                operation.clone(),
+                "manifest_file_name",
+            ),
+            ApplyManifestTableDisplay::new("complex", "agent1", operation, "manifest_file_name"),
+        ])
+        .with(tabled::settings::Style::blank())
+        .to_string();
+    }
+
+    fn generate_multiple_test_apply_manifest_table_display_operation_remove() -> String {
+        let operation = ApplyManifestOperation::Remove;
+        return tabled::Table::new(vec![
+            ApplyManifestTableDisplay::new("simple", "", operation.clone(), "manifest_file_name"),
+            ApplyManifestTableDisplay::new("complex", "", operation, "manifest_file_name"),
+        ])
+        .with(tabled::settings::Style::blank())
+        .to_string();
+    }
+
+    fn generate_apply_manifest_table_output(
+        table_output: &Vec<super::ApplyManifestTableDisplay>,
+    ) -> String {
+        tabled::Table::new(table_output)
+            .with(tabled::settings::Style::blank())
+            .to_string()
+    }
+
+    pub fn open_manifest_mock(
+        _file_path: &str,
+    ) -> io::Result<(String, Box<dyn io::Read + Send + Sync + 'static>)> {
+        FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .pop_front()
+            .unwrap()
     }
 
     fn prepare_server_response(
@@ -605,7 +1021,7 @@ mod tests {
         let cmd_text = cmd.get_workloads(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
-        let expected_empty_table: Vec<WorkloadInfo> = Vec::new();
+        let expected_empty_table: Vec<GetWorkloadTableDisplay> = Vec::new();
         let expected_table_text = Table::new(expected_empty_table)
             .with(Style::blank())
             .to_string();
@@ -665,28 +1081,28 @@ mod tests {
         let cmd_text = cmd.get_workloads(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
-        let expected_table: Vec<WorkloadInfo> = vec![
-            WorkloadInfo {
-                name: String::from("name1"),
-                agent: String::from("agent_A"),
-                runtime: String::from("runtime"),
-                execution_state: ExecutionState::running().state.to_string(),
-                additional_info: Default::default(),
-            },
-            WorkloadInfo {
-                name: String::from("name2"),
-                agent: String::from("agent_B"),
-                runtime: String::from("runtime"),
-                execution_state: ExecutionState::running().state.to_string(),
-                additional_info: Default::default(),
-            },
-            WorkloadInfo {
-                name: String::from("name3"),
-                agent: String::from("agent_B"),
-                runtime: String::from("runtime"),
-                execution_state: ExecutionState::running().state.to_string(),
-                additional_info: Default::default(),
-            },
+        let expected_table: Vec<GetWorkloadTableDisplay> = vec![
+            GetWorkloadTableDisplay::new(
+                "name1",
+                "agent_A",
+                "runtime",
+                &ExecutionState::running().state.to_string(),
+                Default::default(),
+            ),
+            GetWorkloadTableDisplay::new(
+                "name2",
+                "agent_B",
+                "runtime",
+                &ExecutionState::running().state.to_string(),
+                Default::default(),
+            ),
+            GetWorkloadTableDisplay::new(
+                "name3",
+                "agent_B",
+                "runtime",
+                &ExecutionState::running().state.to_string(),
+                Default::default(),
+            ),
         ];
         let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
         assert_eq!(cmd_text.unwrap(), expected_table_text);
@@ -742,13 +1158,13 @@ mod tests {
             .await;
         assert!(cmd_text.is_ok());
 
-        let expected_table: Vec<WorkloadInfo> = vec![WorkloadInfo {
-            name: String::from("name1"),
-            agent: String::from("agent_A"),
-            runtime: String::from("runtime"),
-            execution_state: ExecutionState::running().state.to_string(),
-            additional_info: Default::default(),
-        }];
+        let expected_table: Vec<GetWorkloadTableDisplay> = vec![GetWorkloadTableDisplay::new(
+            "name1",
+            "agent_A",
+            "runtime",
+            &ExecutionState::running().state.to_string(),
+            Default::default(),
+        )];
         let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
         assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
@@ -803,21 +1219,21 @@ mod tests {
             .await;
         assert!(cmd_text.is_ok());
 
-        let expected_table: Vec<WorkloadInfo> = vec![
-            WorkloadInfo {
-                name: String::from("name2"),
-                agent: String::from("agent_B"),
-                runtime: String::from("runtime"),
-                execution_state: ExecutionState::running().state.to_string(),
-                additional_info: Default::default(),
-            },
-            WorkloadInfo {
-                name: String::from("name3"),
-                agent: String::from("agent_B"),
-                runtime: String::from("runtime"),
-                execution_state: ExecutionState::running().state.to_string(),
-                additional_info: Default::default(),
-            },
+        let expected_table: Vec<GetWorkloadTableDisplay> = vec![
+            GetWorkloadTableDisplay::new(
+                "name2",
+                "agent_B",
+                "runtime",
+                &ExecutionState::running().state.to_string(),
+                Default::default(),
+            ),
+            GetWorkloadTableDisplay::new(
+                "name3",
+                "agent_B",
+                "runtime",
+                &ExecutionState::running().state.to_string(),
+                Default::default(),
+            ),
         ];
         let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
         assert_eq!(cmd_text.unwrap(), expected_table_text);
@@ -873,7 +1289,7 @@ mod tests {
             .await;
         assert!(cmd_text.is_ok());
 
-        let expected_table: Vec<WorkloadInfo> = Vec::new();
+        let expected_table: Vec<GetWorkloadTableDisplay> = Vec::new();
         let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
         assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
@@ -918,13 +1334,14 @@ mod tests {
         let cmd_text = cmd.get_workloads(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
-        let expected_empty_table: Vec<WorkloadInfo> = vec![WorkloadInfo {
-            name: String::from("Workload_1"),
-            agent: String::from("agent_A"),
-            runtime: String::new(),
-            execution_state: String::from("Removed"),
-            additional_info: Default::default(),
-        }];
+        let expected_empty_table: Vec<GetWorkloadTableDisplay> =
+            vec![GetWorkloadTableDisplay::new(
+                "Workload_1",
+                "agent_A",
+                Default::default(),
+                "Removed",
+                Default::default(),
+            )];
         let expected_table_text = Table::new(expected_empty_table)
             .with(Style::blank())
             .to_string();
@@ -1833,5 +2250,599 @@ mod tests {
             serde_yaml::Value::Mapping(Default::default()),
         );
         assert_eq!(empty_map, expected_map);
+    }
+
+    // [utest->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
+    #[tokio::test]
+    async fn utest_apply_args_get_input_sources_manifest_files_ok() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let _dummy_content = io::Cursor::new(b"manifest content");
+        for i in 1..3 {
+            FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
+                .lock()
+                .unwrap()
+                .push_back(Ok((
+                    format!("manifest{i}.yml"),
+                    Box::new(_dummy_content.clone()),
+                )));
+        }
+
+        let args = ApplyArgs {
+            manifest_files: vec!["manifest1.yml".to_owned(), "manifest2.yml".to_owned()],
+            agent_name: None,
+            delete_mode: false,
+        };
+        let expected = vec!["manifest1.yml".to_owned(), "manifest2.yml".to_owned()];
+        let actual = args.get_input_sources().unwrap();
+
+        let get_file_name = |item: &InputSourcePair| -> String { item.0.to_owned() };
+        assert_eq!(
+            expected,
+            actual.iter().map(get_file_name).collect::<Vec<String>>()
+        )
+    }
+
+    #[tokio::test]
+    async fn utest_apply_args_get_input_sources_manifest_files_error() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let _dummy_content = io::Cursor::new(b"manifest content");
+        FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .push_back(Err(io::Error::other(
+                "Some error occurred during open the manifest file!",
+            )));
+
+        let args = ApplyArgs {
+            manifest_files: vec!["manifest1.yml".to_owned()],
+            agent_name: None,
+            delete_mode: false,
+        };
+
+        assert!(args.get_input_sources().is_err(), "Expected an error");
+    }
+
+    // [utest->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
+    #[test]
+    fn utest_apply_args_get_input_sources_valid_manifest_stdin() {
+        let args = ApplyArgs {
+            manifest_files: vec!["-".to_owned()],
+            agent_name: None,
+            delete_mode: false,
+        };
+        let expected = vec!["stdin".to_owned()];
+        let actual = args.get_input_sources().unwrap();
+
+        let get_file_name = |item: &InputSourcePair| -> String { item.0.to_owned() };
+        assert_eq!(
+            expected,
+            actual.iter().map(get_file_name).collect::<Vec<String>>()
+        )
+    }
+
+    // [utest->swdd~cli-apply-supports-ankaios-manifest~1]
+    #[test]
+    fn utest_parse_manifest_ok() {
+        let manifest_content = io::Cursor::new(
+            b"workloads:
+        simple:
+          runtime: podman
+          agent: agent_A
+          runtimeConfig: |
+            image: docker.io/nginx:latest
+            commandOptions: [\"-p\", \"8081:80\"]",
+        );
+
+        assert!(parse_manifest(&mut (
+            "valid_manifest_content".to_string(),
+            Box::new(manifest_content)
+        ))
+        .is_ok());
+    }
+
+    #[test]
+    fn utest_parse_manifest_failed_invalid_manifest_content() {
+        let manifest_content = io::Cursor::new(b"invalid manifest content");
+
+        assert!(parse_manifest(&mut (
+            "invalid_manifest_content".to_string(),
+            Box::new(manifest_content)
+        ))
+        .is_err());
+    }
+
+    #[test]
+    fn utest_update_request_obj_ok() {
+        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
+        let mut req_obj = Object::default();
+        let content_value: Value = serde_yaml::from_str(
+            r#"
+        workloads:
+         simple:
+            agent: agent1
+         complex:
+            agent: agent1
+        "#,
+        )
+        .unwrap();
+        let cur_obj = Object::try_from(&content_value).unwrap();
+        let paths = vec![
+            Path::from("workloads.simple"),
+            Path::from("workloads.complex"),
+        ];
+        let expected_obj = Object::try_from(&content_value).unwrap();
+        let expected_output = generate_multiple_test_apply_manifest_table_display();
+
+        assert!(update_request_obj(
+            &mut req_obj,
+            &cur_obj,
+            &paths,
+            "manifest_file_name",
+            false,
+            &mut table_output,
+        )
+        .is_ok());
+        assert_eq!(expected_obj, req_obj);
+        assert_eq!(
+            expected_output,
+            generate_apply_manifest_table_output(&table_output)
+        );
+    }
+
+    #[test]
+    fn utest_update_request_obj_failed_same_workload_names() {
+        let content_value: Value = serde_yaml::from_str(
+            r#"
+        workloads:
+         same_workload_name: {}
+        "#,
+        )
+        .unwrap();
+        let cur_obj = Object::try_from(&content_value).unwrap();
+
+        // simulates the workload 'same_workload_name' is already there
+        let mut req_obj = Object::try_from(&content_value).unwrap();
+
+        let paths = vec![Path::from("workloads.same_workload_name")];
+
+        assert!(update_request_obj(
+            &mut req_obj,
+            &cur_obj,
+            &paths,
+            "manifest_file_name",
+            false,
+            &mut Vec::<super::ApplyManifestTableDisplay>::default(),
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn utest_update_request_obj_delete_mode_on_ok() {
+        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
+        let mut req_obj = Object::default();
+        let content_value: Value = serde_yaml::from_str(
+            r#"
+        workloads:
+         simple:
+            agent: agent1
+         complex:
+            agent: agent1
+        "#,
+        )
+        .unwrap();
+        let cur_obj = Object::try_from(&content_value).unwrap();
+        let paths = vec![
+            Path::from("workloads.simple"),
+            Path::from("workloads.complex"),
+        ];
+        let expected_output =
+            generate_multiple_test_apply_manifest_table_display_operation_remove();
+
+        assert!(update_request_obj(
+            &mut req_obj,
+            &cur_obj,
+            &paths,
+            "manifest_file_name",
+            true,
+            &mut table_output,
+        )
+        .is_ok());
+        assert_eq!(
+            expected_output,
+            generate_apply_manifest_table_output(&table_output)
+        );
+    }
+
+    #[test]
+    fn utest_create_filter_masks_from_paths_unique_ok() {
+        let paths = vec![
+            Path::from("workloads.simple"),
+            Path::from("workloads.simple"),
+        ];
+        assert_eq!(
+            vec!["currentState.workloads.simple"],
+            create_filter_masks_from_paths(&paths, "currentState")
+        );
+    }
+
+    #[test]
+    fn utest_handle_agent_overwrite_agent_name_provided_through_agent_flag() {
+        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
+        let mut state = test_utils::generate_test_state_from_workloads(vec![WorkloadSpec {
+            ..Default::default()
+        }]);
+
+        let expected_state = test_utils::generate_test_state_from_workloads(vec![WorkloadSpec {
+            agent: "overwritten_agent_name".to_string(),
+            ..Default::default()
+        }]);
+
+        assert_eq!(
+            Ok(()),
+            handle_agent_overwrite(
+                &Some("overwritten_agent_name".to_string()),
+                &mut state,
+                &mut table_output
+            )
+        );
+        assert_eq!(expected_state, state);
+    }
+
+    #[test]
+    fn utest_handle_agent_overwrite_one_agent_name_provided_in_workload_specs() {
+        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
+        let mut state = test_utils::generate_test_state_from_workloads(vec![
+            WorkloadSpec {
+                agent: "agent_name".to_string(),
+                ..Default::default()
+            },
+            WorkloadSpec {
+                agent: "agent_name".to_string(),
+                ..Default::default()
+            },
+        ]);
+
+        let expected_state = test_utils::generate_test_state_from_workloads(vec![
+            WorkloadSpec {
+                agent: "agent_name".to_string(),
+                ..Default::default()
+            },
+            WorkloadSpec {
+                agent: "agent_name".to_string(),
+                ..Default::default()
+            },
+        ]);
+
+        assert_eq!(
+            Ok(()),
+            handle_agent_overwrite(&None, &mut state, &mut table_output)
+        );
+        assert_eq!(expected_state, state);
+    }
+
+    #[test]
+    fn utest_handle_agent_overwrite_multiple_agent_names_provided_in_workload_specs() {
+        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
+        let mut state = test_utils::generate_test_state_from_workloads(vec![
+            WorkloadSpec {
+                name: "wl1".to_string(),
+                agent: "agent_name_1".to_string(),
+                ..Default::default()
+            },
+            WorkloadSpec {
+                name: "wl2".to_string(),
+                agent: "agent_name_2".to_string(),
+                ..Default::default()
+            },
+        ]);
+
+        assert_eq!(
+            Ok(()),
+            handle_agent_overwrite(&None, &mut state, &mut table_output)
+        );
+    }
+
+    // [utest->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
+    #[test]
+    fn utest_handle_agent_overwrite_no_agent_name_provided_at_all() {
+        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
+        let mut state = test_utils::generate_test_state_from_workloads(vec![
+            WorkloadSpec {
+                name: "wl1".to_string(),
+                ..Default::default()
+            },
+            WorkloadSpec {
+                name: "wl2".to_string(),
+                ..Default::default()
+            },
+        ]);
+
+        assert_eq!(
+            Err("No agent name specified -> use '--agent' option to specify!".to_string()),
+            handle_agent_overwrite(&None, &mut state, &mut table_output)
+        );
+        assert!(table_output.is_empty())
+    }
+
+    // [utest->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
+    // [utest->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
+    #[test]
+    fn utest_generate_state_obj_and_filter_masks_from_manifests_ok() {
+        let manifest_file_name = "manifest.yaml";
+        let manifest_content = io::Cursor::new(
+            b"workloads:
+        simple:
+          runtime: podman
+          agent: agent_A
+          restart: true
+          updateStrategy: AT_MOST_ONCE
+          accessRights:
+            allow: []
+            deny: []
+          tags:
+            - key: owner
+              value: Ankaios team
+          runtimeConfig: |
+            image: docker.io/nginx:latest
+            commandOptions: [\"-p\", \"8081:80\"]",
+        );
+
+        let mut data = String::new();
+        let _ = manifest_content.clone().read_to_string(&mut data);
+        let expected_complete_state_obj = CompleteState {
+            desired_state: serde_yaml::from_str(&data).unwrap(),
+            ..Default::default()
+        };
+
+        let expected_filter_masks = vec!["desiredState.workloads.simple".to_string()];
+
+        let mut manifests: Vec<InputSourcePair> =
+            vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
+
+        assert_eq!(
+            Ok((expected_complete_state_obj, expected_filter_masks)),
+            generate_state_obj_and_filter_masks_from_manifests(
+                &mut manifests[..],
+                &ApplyArgs {
+                    agent_name: None,
+                    manifest_files: vec![manifest_file_name.to_string()],
+                    delete_mode: false,
+                },
+                &mut Vec::<super::ApplyManifestTableDisplay>::default(),
+            )
+        );
+    }
+
+    // [utest->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
+    // [utest->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
+    #[test]
+    fn utest_generate_state_obj_and_filter_masks_from_manifests_delete_mode_ok() {
+        let manifest_file_name = "manifest.yaml";
+        let manifest_content = io::Cursor::new(
+            b"workloads:
+        simple:
+          runtime: podman
+          agent: agent_A
+          runtimeConfig: |
+            image: docker.io/nginx:latest
+            commandOptions: [\"-p\", \"8081:80\"]",
+        );
+
+        let expected_complete_state_obj = CompleteState {
+            ..Default::default()
+        };
+
+        let expected_filter_masks = vec!["desiredState.workloads.simple".to_string()];
+
+        let mut manifests: Vec<InputSourcePair> =
+            vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
+
+        assert_eq!(
+            Ok((expected_complete_state_obj, expected_filter_masks)),
+            generate_state_obj_and_filter_masks_from_manifests(
+                &mut manifests[..],
+                &ApplyArgs {
+                    agent_name: None,
+                    manifest_files: vec![manifest_file_name.to_string()],
+                    delete_mode: true,
+                },
+                &mut Vec::<super::ApplyManifestTableDisplay>::default(),
+            )
+        );
+    }
+
+    #[test]
+    fn utest_generate_state_obj_and_filter_masks_from_manifests_no_workload_provided() {
+        let manifest_file_name = "manifest.yaml";
+        let manifest_content = io::Cursor::new(b"");
+        let mut manifests: Vec<InputSourcePair> =
+            vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
+
+        assert_eq!(
+            Err("No workload provided in manifests!".to_string()),
+            generate_state_obj_and_filter_masks_from_manifests(
+                &mut manifests[..],
+                &ApplyArgs {
+                    agent_name: None,
+                    manifest_files: vec![manifest_file_name.to_string()],
+                    delete_mode: true,
+                },
+                &mut Vec::<super::ApplyManifestTableDisplay>::default(),
+            )
+        );
+    }
+
+    //[utest->swdd~cli-apply-send-update-state-for-deletion~1]
+    #[tokio::test]
+    async fn apply_manifests_delete_mode_ok() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let manifest_content = io::Cursor::new(
+            b"workloads:
+    simple_manifest1:
+      runtime: podman
+      agent: agent_A
+      runtimeConfig: |
+            image: docker.io/nginx:latest
+            commandOptions: [\"-p\", \"8081:80\"]",
+        );
+
+        let mut manifest_data = String::new();
+        let _ = manifest_content.clone().read_to_string(&mut manifest_data);
+
+        FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .push_back(Ok(("manifest.yml".to_string(), Box::new(manifest_content))));
+
+        let updated_state = CompleteState {
+            ..Default::default()
+        };
+
+        let complete_states = vec![FromServer::Response(Response {
+            request_id: "TestCli".to_owned(),
+            response_content: ResponseContent::CompleteState(Box::new(updated_state.clone())),
+        })];
+
+        let mut mock_client = MockGRPCCommunicationsClient::default();
+        mock_client
+            .expect_run()
+            .return_once(|_r, to_cli| prepare_server_response(complete_states, to_cli));
+
+        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
+        mock_new
+            .expect()
+            .return_once(move |_name, _server_address| mock_client);
+
+        let mut cmd = CliCommands::init(
+            RESPONSE_TIMEOUT_MS,
+            "TestCli".to_string(),
+            Url::parse("http://localhost").unwrap(),
+        );
+
+        // replace the connection to the server with our own
+        let (test_to_server, mut test_server_receiver) =
+            tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
+        cmd.to_server = test_to_server;
+
+        let apply_result = cmd
+            .apply_manifests(ApplyArgs {
+                agent_name: None,
+                delete_mode: true,
+                manifest_files: vec!["manifest_yaml".to_string()],
+            })
+            .await;
+        assert!(apply_result.is_ok());
+
+        // The request to update_state
+        let message_to_server = test_server_receiver.try_recv();
+        assert!(message_to_server.is_ok());
+        assert_eq!(
+            message_to_server.unwrap(),
+            ToServer::Request(Request {
+                request_id: "TestCli".to_owned(),
+                request_content: RequestContent::UpdateStateRequest(Box::new(
+                    commands::UpdateStateRequest {
+                        state: updated_state,
+                        update_mask: vec!["desiredState.workloads.simple_manifest1".to_string(),]
+                    }
+                ))
+            })
+        );
+
+        // Make sure that we have read all commands from the channel.
+        assert!(test_server_receiver.try_recv().is_err());
+    }
+
+    //[utest->swdd~cli-apply-send-update-state~1]
+    #[tokio::test]
+    async fn apply_manifests_ok() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let manifest_content = io::Cursor::new(
+            b"workloads:
+        simple_manifest1:
+          runtime: podman
+          agent: agent_A
+          runtimeConfig: \"\"
+            ",
+        );
+
+        let mut manifest_data = String::new();
+        let _ = manifest_content.clone().read_to_string(&mut manifest_data);
+
+        FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .push_back(Ok(("manifest.yml".to_string(), Box::new(manifest_content))));
+
+        let updated_state = CompleteState {
+            desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
+            ..Default::default()
+        };
+
+        let complete_states = vec![FromServer::Response(Response {
+            request_id: "TestCli".to_owned(),
+            response_content: ResponseContent::CompleteState(Box::new(updated_state.clone())),
+        })];
+
+        let mut mock_client = MockGRPCCommunicationsClient::default();
+        mock_client
+            .expect_run()
+            .return_once(|_r, to_cli| prepare_server_response(complete_states, to_cli));
+
+        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
+        mock_new
+            .expect()
+            .return_once(move |_name, _server_address| mock_client);
+
+        let mut cmd = CliCommands::init(
+            RESPONSE_TIMEOUT_MS,
+            "TestCli".to_string(),
+            Url::parse("http://localhost").unwrap(),
+        );
+
+        // replace the connection to the server with our own
+        let (test_to_server, mut test_server_receiver) =
+            tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
+        cmd.to_server = test_to_server;
+
+        let apply_result = cmd
+            .apply_manifests(ApplyArgs {
+                agent_name: None,
+                delete_mode: false,
+                manifest_files: vec!["manifest_yaml".to_string()],
+            })
+            .await;
+        assert!(apply_result.is_ok());
+
+        // The request to update_state
+        let message_to_server = test_server_receiver.try_recv();
+        assert!(message_to_server.is_ok());
+        assert_eq!(
+            message_to_server.unwrap(),
+            ToServer::Request(Request {
+                request_id: "TestCli".to_owned(),
+                request_content: RequestContent::UpdateStateRequest(Box::new(
+                    commands::UpdateStateRequest {
+                        state: updated_state,
+                        update_mask: vec!["desiredState.workloads.simple_manifest1".to_string(),]
+                    }
+                ))
+            })
+        );
+
+        // Make sure that we have read all commands from the channel.
+        assert!(test_server_receiver.try_recv().is_err());
     }
 }
