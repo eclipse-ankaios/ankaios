@@ -541,6 +541,7 @@ formatVersion: "v0.1"
 workloads:
   nginx:
     agent: agent_A
+    restart: true
     runtime: podman
     runtimeConfig: |
       image: docker.io/nginx:latest
@@ -548,6 +549,7 @@ workloads:
   hello1:
     # For this workload the following are not set:
     # - agent name
+    restart: true
     runtime: podman
     runtimeConfig: |
       image: alpine:latest

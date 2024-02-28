@@ -117,8 +117,8 @@ Test Ankaios apply worklaod specifications via Ankaios Manifest files for deleti
     When user triggers "ank apply -d ${manifest1_yaml_file} ${manifest2_yaml_file}"
     # Asserts
     Then the last command shall finish with exit code "0"
-    And the workload "nginx_from_manifest1" shall not exist on agent "agent_A" within "30" seconds
-    And the workload "nginx_from_manifest2" shall not exist on agent "agent_A" within "30" seconds
+    And the workload "nginx_from_manifest1" shall not exist within "30" seconds
+    And the workload "nginx_from_manifest2" shall not exist within "30" seconds
     [Teardown]    Clean up Ankaios
 
 Test Ankaios apply worklaod specifications via Ankaios Manifest content through stdin for deletion
@@ -134,5 +134,5 @@ Test Ankaios apply worklaod specifications via Ankaios Manifest content through 
     When user triggers "ank apply -d -" passing "${manifest1_yaml_file}" through stdin
     # Asserts
     Then the last command shall finish with exit code "0"
-    And the workload "nginx_from_manifest1" shall not exist on agent "agent_A" within "30" seconds
+    And the workload "nginx_from_manifest1" shall not exist within "30" seconds
     [Teardown]    Clean up Ankaios

@@ -1,6 +1,7 @@
 workloads:
   nginx_from_manifest1:
     runtime: podman
+    restart: true
     agent: agent_A
     runtimeConfig: |
       image: docker.io/nginx:latest
