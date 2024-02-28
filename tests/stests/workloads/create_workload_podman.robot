@@ -36,10 +36,10 @@ Test Ankaios Podman create workloads
     When Ankaios agent is started with name "agent_B"
     And Ankaios agent is started with name "agent_A"
     # Asserts
-    Then the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "30" seconds
-    And the workload "hello1" shall have the execution state "Failed(Lost)" from agent "agent_B" within "30" seconds
-    And the workload "hello2" shall have the execution state "Succeeded(Ok)" on agent "agent_B" within "30" seconds
-    And the workload "hello3" shall have the execution state "Succeeded(Ok)" on agent "agent_B" within "30" seconds
+    Then the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
+    And the workload "hello1" shall have the execution state "Failed(Lost)" from agent "agent_B" within "20" seconds
+    And the workload "hello2" shall have the execution state "Succeeded(Ok)" on agent "agent_B" within "20" seconds
+    And the workload "hello3" shall have the execution state "Succeeded(Ok)" on agent "agent_B" within "20" seconds
     And podman shall have a container for workload "nginx" on agent "agent_A"
     And podman shall not have a container for workload "hello1" on agent "agent_B"
     And podman shall have a container for workload "hello2" on agent "agent_B"
@@ -58,6 +58,6 @@ Test Ankaios Podman create a container with custom name
     # Actions
     When Ankaios agent is started with name "agent_A"
     # Asserts
-    Then the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "30" seconds
+    Then the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
     And podman shall have a container for workload "nginx" with custom name "test_workload1" on agent "agent_A"
     [Teardown]    Clean up Ankaios
