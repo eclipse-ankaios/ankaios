@@ -168,7 +168,7 @@ Status: approved
 
 The AgentManager shall receive the workload states of the workloads it manages.
 
-Rationale: The workload states of its own workloads are needed for handling inter-workload dependencies of workloads on the same agent.
+Rationale: The agent uses the workload states of its workloads for handling inter-workload dependencies of workloads on the same agent.
 
 Tags:
 - AgentManager
@@ -221,10 +221,9 @@ Status: approved
 When the AgentManager receives new workload states, then the AgentManager shall request the RuntimeManager to create and delete workloads
 having fulfilled inter-workload dependency conditions.
 
-Comment: The workload states could be received from the Ankaios server and from the workloads the agent manages itself. Empty workload states are ignored.
+Comment: The Ankaios agent receives workload states from the Ankaios server and from the workloads the agent manages itself. Empty workload states are ignored.
 
-Rationale: Whenever a new workload state is received the conditions of inter-workload dependencies shall be checked whether they are fulfilled or not.
-
+Rationale: Whenever the agent receives new workload states, the dependencies of a workload might be fulfilled.
 Tags:
 - AgentManager
 - RuntimeManager
