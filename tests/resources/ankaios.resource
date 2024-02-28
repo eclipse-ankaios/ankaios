@@ -213,7 +213,7 @@ the workload "${workload_name}" shall not exist within "${timeout}" seconds
     END
     Should Be Empty
     ...    ${list_result}
-    ...    msg=Timeout: Workload '${workload_name}' found on agent '${expected_agent_name}'!
+    ...    msg=Timeout: Workload '${workload_name}' found!
 
 user executes system app "${cli_command}"
     ${cmd}=    Split Command Line    ${cli_command}    escaping=True
