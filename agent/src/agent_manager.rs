@@ -56,24 +56,23 @@ impl AgentManager {
         log::info!("Starting ...");
         loop {
             tokio::select! {
+                // [impl->swdd~agent-manager-listens-requests-from-server~1]
                 from_server_msg = self.from_server_receiver.recv() => {
                     let from_server = from_server_msg
                         .ok_or("Channel to listen to server closed.".to_string())
                         .unwrap_or_exit("Abort");
 
-                    // [impl->swdd~agent-manager-listens-requests-from-server~1]
                     if self.execute_from_server_command(from_server).await.is_none() {
                         break;
                     }
                 }
+                // [impl->swdd~agent-manager-receives-workload-states-of-its-workloads~1]
                 to_server_msg = self.workload_state_receiver.recv() => {
-                    // [impl->swdd~agent-manager-receives-workload-states-of-its-workloads~1]
                     let workload_states_msg = to_server_msg
                         .ok_or("Channel to listen to own workload states closed.".to_string())
                         .unwrap_or_exit("Abort");
 
-                    // [impl->swdd~agent-manager-stores-workload-states-of-its-workloads~1]
-                    // [impl->swdd~agent-manager-sends-workload-states-of-its-workloads-to-server~1]
+
                     self.store_and_forward_own_workload_states(workload_states_msg).await;
                 }
             }
@@ -91,6 +90,8 @@ impl AgentManager {
                     method_obj.added_workloads,
                     method_obj.deleted_workloads);
 
+                // [impl->swdd~agent-handles-update-workload-requests~1]
+                // [impl->swdd~agent-triggers-workloads-with-fulfilled-dependencies~1]
                 self.runtime_manager
                     .handle_update_workload(
                         method_obj.added_workloads,
@@ -145,6 +146,7 @@ impl AgentManager {
         }
     }
 
+    //
     async fn store_and_forward_own_workload_states(&mut self, to_server_msg: ToServer) {
         log::debug!("Storing and forwarding own workload states.");
 
@@ -213,6 +215,7 @@ mod tests {
 
     // [utest->swdd~agent-manager-listens-requests-from-server~1]
     // [utest->swdd~agent-uses-async-channels~1]
+    // [utest->swdd~agent-handles-update-workload-requests~1]
     #[tokio::test]
     async fn utest_agent_manager_update_workload() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

@@ -190,6 +190,7 @@ Rationale: This ensures that the execution states of a workload and its inter-wo
 
 Tags:
 - AgentManager
+- ParameterStorage
 
 Needs:
 - impl
@@ -218,15 +219,177 @@ Needs:
 
 Status: approved
 
-When the AgentManager receives new workload states, then the AgentManager shall request the RuntimeManager to create and delete workloads
-having fulfilled inter-workload dependency conditions.
+When the AgentManager receives an `UpdateWorkloadState` or an `UpdateWorkload` message, then the RuntimeManager shall create, update or delete workloads having fulfilled inter-workload dependency conditions.
 
 Comment: The Ankaios agent receives workload states from the Ankaios server and from the workloads the agent manages itself. Empty workload states are ignored.
 
-Rationale: Whenever the agent receives new workload states, the dependencies of a workload might be fulfilled.
+Rationale: Whenever the agent receives new workload states or updates of workloads, the dependencies of a workload might be fulfilled.
 Tags:
 - AgentManager
 - RuntimeManager
+
+Needs:
+- impl
+- utest
+
+#### Agent handles UpdateWorkload requests from the server
+`swdd~agent-handles-update-workload-requests~1`
+
+Status: approved
+
+When the AgentManager receives an `UpdateWorkload` message from the server, then the RuntimeManager shall update the workloads the message contains.
+
+Comment: The `UpdateWorkload` message contains workloads to create, update and delete.
+
+Rationale: This ensures separation between receiving the requests from the server and performing the requested actions.
+
+Tags:
+- AgentManager
+- RuntimeManager
+
+Needs:
+- impl
+- utest
+
+#### The agent shall enqueue create workload operations with unfulfilled inter-workload dependencies
+`swdd~agent-enqueues-pending-create-workload-operations~1`
+
+Status: approved
+
+When the RuntimeManager receives a `WorkloadOperation` to create a workload,
+and the workload state of a dependency of the workload is not fulfilling the configured `AddCondition`,
+then the WorkloadScheduler shall enqueue the `WorkloadOperation`.
+
+Rationale: A workload having inter-workload dependencies shall only be created when its configured dependencies have the expected workload states specified in the `AddCondition`.
+
+Tags:
+- RuntimeManager
+- WorkloadScheduler
+
+Needs:
+- impl
+- utest
+
+#### The agent shall enqueue delete workload operations with unfulfilled inter-workload dependencies
+`swdd~agent-enqueues-pending-delete-workload-operations~1`
+
+Status: approved
+
+When the RuntimeManager receives a `WorkloadOperation` to delete a workload,
+and the workload state of a dependency of the workload is not fulfilling the configured `DeleteCondition`,
+then the RuntimeManager shall request the WorkloadScheduler to enqueue the `WorkloadOperation`.
+
+Rationale: A workload having inter-workload dependencies shall only be deleted when its configured dependencies have the expected workload states specified in the `DeleteCondition`.
+
+Tags:
+- RuntimeManager
+- WorkloadScheduler
+
+Needs:
+- impl
+- utest
+
+#### The agent shall enqueue update workload operations with unfulfilled delete dependencies
+`swdd~agent-enqueues-pending-update-workload-operations~1`
+
+Status: approved
+
+When the RuntimeManager receives a `WorkloadOperation` to update a workload,
+and the workload state of a dependency of the workload is not fulfilling the configured `DeleteCondition`,
+then the RuntimeManager shall request the WorkloadScheduler to enqueue the `WorkloadOperation`.
+
+Rationale: The agent shall not perform the create of the new workload with the default update strategy `AT_MOST_ONCE`
+when the inter-workload dependencies of a create are fulfilled.
+
+Tags:
+- WorkloadScheduler
+
+Needs:
+- impl
+- utest
+
+#### The agent shall enqueue create workload operations for updates with fulfilled delete dependencies
+`swdd~agent-enqueues-pending-create-on-update-workload-operations~1`
+
+Status: approved
+
+When the WorkloadScheduler receives a `WorkloadOperation` to update a workload,
+and the workload state of a dependency of the new workload is not fulfilling the configured `AddCondition`,
+and the workload state of all its dependencies of the old workload are fulfilling the configured `DeleteCondition`,
+then the WorkloadScheduler shall enqueue a create `WorkloadOperation` containing the new workload.
+
+Comment: When the create of the new workload has already fulfilled inter-workload dependencies, the create `WorkloadOperation` is not enqueued.
+
+Rationale: The agent shall delete a workload with fulfilled deletion conditions immediately to prevent
+the old workload from existing on the Runtime for a long period of time until the create of the new workload can be executed.
+
+Tags:
+- WorkloadScheduler
+
+Needs:
+- impl
+- utest
+
+#### RuntimeManager transforms workloads inside UpdateWorkload message to workload operations
+`swdd~agent-transforms-update-workload-message-to-workload-operations~1`
+
+Status: approved
+
+When the RuntimeManager receives the workloads of an `UpdateWorkload` message, then the RuntimeManager shall transform the workloads of the message
+into a list of workload operations containing workloads to create, update and delete.
+
+Comment: The list of workload operations contains the actions on the workloads the RuntimeManager shall perform.
+
+Rationale: The inter-workload dependency handling requires the concrete knowledge about the workload operation that shall be performed on the workloads.
+
+Tags:on the workloads
+- RuntimeManager
+- WorkloadOperation
+
+Needs:
+- impl
+- utest
+
+#### RuntimeManager executes create workload operation
+`swdd~agent-executes-create-workload-operation~1`
+
+Status: approved
+
+When the RuntimeManager receives the `WorkloadOperation` to create a workload, then the RuntimeManager shall request the RuntimeFacade to create the workload.
+
+Tags:
+- RuntimeManager
+- RuntimeFacade
+
+Needs:
+- impl
+- utest
+
+#### RuntimeManager executes update workload operation
+`swdd~agent-executes-update-workload-operation~1`
+
+Status: approved
+
+When the RuntimeManager receives the `WorkloadOperation` to update a workload, then the RuntimeManager shall request the RuntimeFacade to update the workload.
+
+Tags:
+- RuntimeManager
+- RuntimeFacade
+
+Needs:
+- impl
+- utest
+
+#### RuntimeManager executes delete workload operation
+`swdd~agent-executes-delete-workload-operation~1`
+
+Status: approved
+
+When the RuntimeManager receives the `WorkloadOperation` to delete a workload then the RuntimeManager shall request the RuntimeFacade to delete the workload.
+
+Tags:
+- RuntimeManager
+- RuntimeFacade
 
 Needs:
 - impl
@@ -438,7 +601,7 @@ The following diagram and the subsequent requirements show the steps the Ankaios
 
 Status: approved
 
-After receiving the complete list of added workloads from the Ankaios Sever at the initial connection establishment, the RuntimeManager shall handle existing workloads.
+After receiving the complete list of added workloads from the Ankaios server at the initial connection establishment, the RuntimeManager shall handle existing workloads.
 
 Comment:
 In case the Agent was already running, the RuntimeManager can take care of Workloads that were started in an earlier execution. Some of these workloads can be reused, some have to be updated and some stopped.

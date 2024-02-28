@@ -68,6 +68,7 @@ impl WorkloadScheduler {
 
     async fn insert_and_notify(&mut self, workload_operation: WorkloadOperation) {
         match workload_operation {
+            // [impl->swdd~agent-enqueues-pending-create-workload-operations~1]
             WorkloadOperation::Create(ref workload_spec) => {
                 self.report_pending_create_state(workload_spec).await;
 
@@ -76,6 +77,7 @@ impl WorkloadScheduler {
                     workload_operation,
                 );
             }
+            // [impl->swdd~agent-enqueues-pending-update-workload-operations~1]
             WorkloadOperation::Update(_, ref deleted_workload) => {
                 self.report_pending_delete_state(deleted_workload).await;
 
@@ -84,6 +86,7 @@ impl WorkloadScheduler {
                     workload_operation,
                 );
             }
+            // [impl->swdd~agent-enqueues-pending-delete-workload-operations~1]
             WorkloadOperation::Delete(ref deleted_workload) => {
                 self.report_pending_delete_state(deleted_workload).await;
 
@@ -102,6 +105,7 @@ impl WorkloadScheduler {
         dependency_state: DependencyState,
         ready_workload_operations: &mut WorkloadOperations,
     ) {
+        // [impl->swdd~agent-enqueues-pending-create-on-update-workload-operations~1]
         if !dependency_state.is_pending_delete() {
             /* For an update with pending create dependencies but fulfilled delete dependencies
             the delete can be done immediately but the create must wait in the queue. */
@@ -111,6 +115,8 @@ impl WorkloadScheduler {
             ready_workload_operations.push(WorkloadOperation::Delete(deleted_workload));
         } else {
             // For an update with pending delete dependencies, the whole update is pending.
+
+            // [impl->swdd~agent-enqueues-pending-update-workload-operations~1]
             self.insert_and_notify(WorkloadOperation::Update(new_workload, deleted_workload))
                 .await;
         }

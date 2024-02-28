@@ -99,6 +99,7 @@ impl RuntimeManager {
         }
     }
 
+    // [impl->swdd~agent-handles-update-workload-requests~1]
     pub async fn handle_update_workload(
         &mut self,
         mut added_workloads: Vec<WorkloadSpec>,
@@ -126,9 +127,11 @@ impl RuntimeManager {
                 .await;
         }
 
+        // [impl->swdd~agent-transforms-update-workload-message-to-workload-operations~1]
         let workload_operations: WorkloadOperations =
             self.transform_into_workload_operations(added_workloads, deleted_workloads);
 
+        // [impl->swdd~agent-triggers-workloads-with-fulfilled-dependencies~1]
         let ready_workload_operations = self
             .workload_queue
             .enqueue_filtered_workload_operations(workload_operations, workload_state_db)
@@ -262,6 +265,7 @@ impl RuntimeManager {
         new_added_workloads
     }
 
+    // [impl->swdd~agent-transforms-update-workload-message-to-workload-operations~1]
     fn transform_into_workload_operations(
         &self,
         added_workloads: Vec<WorkloadSpec>,
@@ -325,10 +329,13 @@ impl RuntimeManager {
     async fn process_workloads_operations(&mut self, workload_operations: WorkloadOperations) {
         for wl_operation in workload_operations {
             match wl_operation {
+                // [impl->swdd~agent-executes-create-workload-operation~1]
                 WorkloadOperation::Create(workload_spec) => self.add_workload(workload_spec).await,
+                // [impl->swdd~agent-executes-update-workload-operation~1]
                 WorkloadOperation::Update(workload_spec, _) => {
                     self.update_workload(workload_spec).await
                 }
+                // [impl->swdd~agent-executes-delete-workload-operation~1]
                 WorkloadOperation::Delete(deleted_workload) => {
                     self.delete_workload(deleted_workload).await
                 }
@@ -499,6 +506,7 @@ mod tests {
 
     // [utest->swdd~agent-initial-list-existing-workloads~1]
     // [utest->swdd~agent-supports-multiple-runtime-connectors~1]
+    // [utest->swdd~agent-handles-update-workload-requests~1]
     #[tokio::test]
     async fn utest_handle_update_workload_initial_call_handle() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1025,6 +1033,7 @@ mod tests {
     }
 
     // [utest->swdd~agent-updates-deleted-and-added-workloads~1]
+    // [utest->swdd~agent-handles-update-workload-requests~1]
     #[tokio::test]
     async fn utest_handle_update_workload_subsequent_update_on_add_and_delete() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
