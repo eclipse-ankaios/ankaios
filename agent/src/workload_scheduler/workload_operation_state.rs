@@ -22,15 +22,15 @@ use crate::workload_operation::WorkloadOperation;
 use mockall::automock;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum DependencyState {
+pub enum WorkloadOperationState {
     PendingCreate,
     PendingDelete,
     Fulfilled,
 }
 
-impl DependencyState {
+impl WorkloadOperationState {
     pub fn is_fulfilled(&self) -> bool {
-        *self == DependencyState::Fulfilled
+        *self == WorkloadOperationState::Fulfilled
     }
 
     pub fn is_pending(&self) -> bool {
@@ -38,18 +38,18 @@ impl DependencyState {
     }
 
     pub fn is_pending_delete(&self) -> bool {
-        *self == DependencyState::PendingDelete
+        *self == WorkloadOperationState::PendingDelete
     }
 }
 
-pub struct DependencyStateValidator {}
+pub struct WorkloadOperationStateValidator {}
 
 #[cfg_attr(test, automock)]
-impl DependencyStateValidator {
+impl WorkloadOperationStateValidator {
     fn create_fulfilled(
         workload: &WorkloadSpec,
         workload_state_db: &ParameterStorage,
-    ) -> DependencyState {
+    ) -> WorkloadOperationState {
         if workload
             .dependencies
             .iter()
@@ -59,16 +59,16 @@ impl DependencyStateValidator {
                     .map_or(false, |wl_state| add_condition.fulfilled_by(&wl_state))
             })
         {
-            DependencyState::Fulfilled
+            WorkloadOperationState::Fulfilled
         } else {
-            DependencyState::PendingCreate
+            WorkloadOperationState::PendingCreate
         }
     }
 
     fn delete_fulfilled(
         workload: &DeletedWorkload,
         workload_state_db: &ParameterStorage,
-    ) -> DependencyState {
+    ) -> WorkloadOperationState {
         if workload
             .dependencies
             .iter()
@@ -78,16 +78,16 @@ impl DependencyStateValidator {
                     .map_or(true, |wl_state| delete_condition.fulfilled_by(&wl_state))
             })
         {
-            DependencyState::Fulfilled
+            WorkloadOperationState::Fulfilled
         } else {
-            DependencyState::PendingDelete
+            WorkloadOperationState::PendingDelete
         }
     }
 
-    pub fn dependencies_for_workload_fulfilled(
+    pub fn dependencies_fulfilled(
         workload_operation: &WorkloadOperation,
         workload_state_db: &ParameterStorage,
-    ) -> DependencyState {
+    ) -> WorkloadOperationState {
         match workload_operation {
             WorkloadOperation::Create(workload_spec) => {
                 Self::create_fulfilled(workload_spec, workload_state_db)
@@ -114,7 +114,7 @@ impl DependencyStateValidator {
 
 #[cfg(test)]
 mod tests {
-    use super::DependencyStateValidator;
+    use super::WorkloadOperationStateValidator;
     use common::{
         objects::{
             generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
@@ -127,7 +127,7 @@ mod tests {
 
     use crate::{
         parameter_storage::MockParameterStorage, workload_operation::WorkloadOperation,
-        workload_scheduler::dependency_state_validator::DependencyState,
+        workload_scheduler::workload_operation_state::WorkloadOperationState,
     };
 
     const AGENT_A: &str = "agent_A";
@@ -137,7 +137,7 @@ mod tests {
     const RUNTIME: &str = "runtime";
 
     #[test]
-    fn utest_dependencies_for_workload_fulfilled_create() {
+    fn utest_dependencies_fulfilled_create() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
             AGENT_A,
             WORKLOAD_NAME_1,
@@ -152,8 +152,8 @@ mod tests {
             .return_const(Some(ExecutionState::running()));
 
         assert_eq!(
-            DependencyState::Fulfilled,
-            DependencyStateValidator::dependencies_for_workload_fulfilled(
+            WorkloadOperationState::Fulfilled,
+            WorkloadOperationStateValidator::dependencies_fulfilled(
                 &WorkloadOperation::Create(workload_with_dependencies),
                 &parameter_storage_mock
             )
@@ -161,7 +161,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_dependencies_for_workload_fulfilled_delete() {
+    fn utest_dependencies_fulfilled_delete() {
         let deleted_workload = generate_test_deleted_workload_with_dependencies(
             AGENT_A.to_owned(),
             WORKLOAD_NAME_1.to_owned(),
@@ -178,8 +178,8 @@ mod tests {
             .return_const(Some(ExecutionState::succeeded()));
 
         assert_eq!(
-            DependencyState::Fulfilled,
-            DependencyStateValidator::dependencies_for_workload_fulfilled(
+            WorkloadOperationState::Fulfilled,
+            WorkloadOperationStateValidator::dependencies_fulfilled(
                 &WorkloadOperation::Delete(deleted_workload),
                 &parameter_storage_mock
             )
@@ -187,7 +187,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_dependencies_for_workload_fulfilled_update() {
+    fn utest_dependencies_fulfilled_update() {
         let new_workload = generate_test_workload_spec_with_dependencies(
             AGENT_A,
             WORKLOAD_NAME_1,
@@ -211,8 +211,8 @@ mod tests {
             .return_const(Some(ExecutionState::running()));
 
         assert_eq!(
-            DependencyState::PendingDelete,
-            DependencyStateValidator::dependencies_for_workload_fulfilled(
+            WorkloadOperationState::PendingDelete,
+            WorkloadOperationStateValidator::dependencies_fulfilled(
                 &WorkloadOperation::Update(new_workload, deleted_workload),
                 &parameter_storage_mock
             )
@@ -236,8 +236,8 @@ mod tests {
             .return_const(Some(ExecutionState::running()));
 
         assert_eq!(
-            DependencyState::Fulfilled,
-            DependencyStateValidator::create_fulfilled(
+            WorkloadOperationState::Fulfilled,
+            WorkloadOperationStateValidator::create_fulfilled(
                 &workload_with_dependencies,
                 &parameter_storage_mock
             )
@@ -260,8 +260,8 @@ mod tests {
             .never();
 
         assert_eq!(
-            DependencyState::Fulfilled,
-            DependencyStateValidator::create_fulfilled(
+            WorkloadOperationState::Fulfilled,
+            WorkloadOperationStateValidator::create_fulfilled(
                 &workload_with_dependencies,
                 &parameter_storage_mock
             )
@@ -284,8 +284,8 @@ mod tests {
             .return_const(None);
 
         assert_eq!(
-            DependencyState::PendingCreate,
-            DependencyStateValidator::create_fulfilled(
+            WorkloadOperationState::PendingCreate,
+            WorkloadOperationStateValidator::create_fulfilled(
                 &workload_with_dependencies,
                 &parameter_storage_mock
             )
@@ -308,8 +308,8 @@ mod tests {
             .return_const(Some(ExecutionState::succeeded()));
 
         assert_eq!(
-            DependencyState::PendingCreate,
-            DependencyStateValidator::create_fulfilled(
+            WorkloadOperationState::PendingCreate,
+            WorkloadOperationStateValidator::create_fulfilled(
                 &workload_with_dependencies,
                 &parameter_storage_mock
             )
@@ -335,8 +335,8 @@ mod tests {
             .return_const(Some(ExecutionState::succeeded()));
 
         assert_eq!(
-            DependencyState::Fulfilled,
-            DependencyStateValidator::delete_fulfilled(
+            WorkloadOperationState::Fulfilled,
+            WorkloadOperationStateValidator::delete_fulfilled(
                 &deleted_workload_with_dependencies,
                 &parameter_storage_mock
             )
@@ -361,8 +361,8 @@ mod tests {
             .return_const(Some(ExecutionState::running()));
 
         assert_eq!(
-            DependencyState::PendingDelete,
-            DependencyStateValidator::delete_fulfilled(
+            WorkloadOperationState::PendingDelete,
+            WorkloadOperationStateValidator::delete_fulfilled(
                 &deleted_workload_with_dependencies,
                 &parameter_storage_mock
             )
@@ -387,8 +387,8 @@ mod tests {
             .return_const(None);
 
         assert_eq!(
-            DependencyState::Fulfilled,
-            DependencyStateValidator::delete_fulfilled(
+            WorkloadOperationState::Fulfilled,
+            WorkloadOperationStateValidator::delete_fulfilled(
                 &deleted_workload_with_dependencies,
                 &parameter_storage_mock
             )
