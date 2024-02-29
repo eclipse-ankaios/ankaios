@@ -1,0 +1,8 @@
+workloads:
+  simple:
+    runtime: podman
+    restart: true
+    agent: agent_A
+    runtimeConfig: |
+      image: alpine:latest
+      commandArgs: [ "echo", "Hello Ankaios"]

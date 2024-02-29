@@ -15,13 +15,13 @@
 use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
-use crate::state_manipulation::{Object, Path};
 use crate::workload_state_db::WorkloadStateDB;
 use common::objects::WorkloadInstanceName;
 use common::std_extensions::IllegalStateResult;
 use common::{
     commands::CompleteStateRequest,
     objects::{CompleteState, DeletedWorkload, State, WorkloadSpec},
+    state_manipulation::{Object, Path},
 };
 use std::fmt::Display;
 
@@ -526,7 +526,6 @@ mod tests {
         let old_state = CompleteState {
             desired_state: State {
                 workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
-
             },
             ..Default::default()
         };

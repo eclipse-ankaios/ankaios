@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub struct Path {
     parts: Vec<String>,
 }
