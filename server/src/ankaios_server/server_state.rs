@@ -156,7 +156,7 @@ impl ServerState {
     // [impl->swdd~server-filters-get-complete-state-result~2]
     pub fn get_complete_state_by_field_mask(
         &self,
-        request_complete_state: &CompleteStateRequest,
+        _request_complete_state: &CompleteStateRequest,
         workload_state_db: &WorkloadStateDB,
     ) -> Result<CompleteState, String> {
         let current_complete_state = CompleteState {
@@ -166,39 +166,42 @@ impl ServerState {
             workload_states: workload_state_db.get_all_workload_states(),
         };
 
-        if !request_complete_state.field_mask.is_empty() {
-            let current_complete_state: Object =
-                current_complete_state.try_into().unwrap_or_illegal_state();
-            let mut return_state = Object::default();
+        // TODO: fix the filtering
+        // if !request_complete_state.field_mask.is_empty() {
+        //     let current_complete_state: Object =
+        //         current_complete_state.try_into().unwrap_or_illegal_state();
+        //     let mut return_state = Object::default();
 
-            let format_version_path: Path = "formatVersion".into();
-            if let Some(format_version) = current_complete_state.get(&format_version_path) {
-                return_state.set(&format_version_path, format_version.to_owned())?;
-            } else {
-                log::warn!("The formatVersion field not found in the current state");
-            }
+        //     let format_version_path: Path = "formatVersion".into();
+        //     if let Some(format_version) = current_complete_state.get(&format_version_path) {
+        //         return_state.set(&format_version_path, format_version.to_owned())?;
+        //     } else {
+        //         log::warn!("The formatVersion field not found in the current state");
+        //     }
 
-            for field in &request_complete_state.field_mask {
-                if let Some(value) = current_complete_state.get(&field.into()) {
-                    return_state.set(&field.into(), value.to_owned())?;
-                } else {
-                    log::debug!(
-                        concat!(
-                        "Result for CompleteState incomplete, as requested field does not exist:\n",
+        //     for field in &request_complete_state.field_mask {
+        //         if let Some(value) = current_complete_state.get(&field.into()) {
+        //             return_state.set(&field.into(), value.to_owned())?;
+        //         } else {
+        //             log::debug!(
+        //                 concat!(
+        //                 "Result for CompleteState incomplete, as requested field does not exist:\n",
 
-                        "   field: {}"),
-                        field
-                    );
-                    continue;
-                };
-            }
+        //                 "   field: {}"),
+        //                 field
+        //             );
+        //             continue;
+        //         };
+        //     }
 
-            return_state.try_into().map_err(|err: serde_yaml::Error| {
-                format!("The result for CompleteState is invalid: '{}'", err)
-            })
-        } else {
-            Ok(current_complete_state)
-        }
+        //     return_state.try_into().map_err(|err: serde_yaml::Error| {
+        //         format!("The result for CompleteState is invalid: '{}'", err)
+        //     })
+        // } else {
+        //     Ok(current_complete_state)
+        // }
+
+        Ok(current_complete_state)
     }
 
     // [impl->swdd~agent-from-agent-field~1]
