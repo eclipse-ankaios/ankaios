@@ -30,10 +30,10 @@ use crate::workload_operation::{WorkloadOperation, WorkloadOperations};
 #[cfg(test)]
 use mockall::automock;
 
-type DependencyQueue = HashMap<String, WorkloadOperation>;
+type WorkloadOperationQueue = HashMap<String, WorkloadOperation>;
 
 pub struct WorkloadScheduler {
-    queue: DependencyQueue,
+    queue: WorkloadOperationQueue,
     workload_state_sender: ToServerSender,
 }
 
@@ -41,7 +41,7 @@ pub struct WorkloadScheduler {
 impl WorkloadScheduler {
     pub fn new(workload_state_tx: ToServerSender) -> Self {
         WorkloadScheduler {
-            queue: DependencyQueue::new(),
+            queue: WorkloadOperationQueue::new(),
             workload_state_sender: workload_state_tx,
         }
     }
@@ -155,7 +155,7 @@ impl WorkloadScheduler {
         workload_state_db: &ParameterStorage,
     ) -> WorkloadOperations {
         let mut ready_workload_operations = WorkloadOperations::new();
-        let mut retained_entries = DependencyQueue::new();
+        let mut retained_entries = WorkloadOperationQueue::new();
 
         self.queue
             .drain()
