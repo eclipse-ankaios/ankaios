@@ -678,7 +678,7 @@ impl CliCommands {
                 .workloads
                 .iter()
                 .find(|&(wl_name, wl_spec)| {
-                    *wl_name == wi.base_info.name && wl_spec.agent == wi.base_info.agent.as_str()
+                    *wl_name == wi.base_info.name && wl_spec.agent == wi.base_info.agent
                 })
             {
                 wi.runtime = found_wl_spec.runtime.clone();
