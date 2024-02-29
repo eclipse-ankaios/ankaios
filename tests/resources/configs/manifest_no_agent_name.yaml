@@ -1,0 +1,7 @@
+workloads:
+  nginx_from_manifest_no_agent_name:
+    runtime: podman
+    restart: true
+    runtimeConfig: |
+      image: docker.io/nginx:latest
+      commandOptions: ["-p", "8083:80"]

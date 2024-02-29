@@ -64,6 +64,13 @@ Run in foreground
     ${run_result}=    Run Process    @{cmd}    shell=True
     RETURN    ${run_result}
 
+the last command finished with exit code "${exit_code}"
+    ${exit_code_int}=    Convert To Integer    ${exit_code}
+    Should Be Equal    ${CURRENT_RESULT.rc}    ${exit_code_int}
+
+the last command finished with an error
+    Should Not Be Equal    ${CURRENT_RESULT.rc}    ${0}
+
 the command "${cli_command}" finished with exit code "${exit_code}" within "${timeout}" seconds
     ${start_time}=    Get Time Secs
     ${run_result}=    Create Dictionary
@@ -143,6 +150,13 @@ user triggers "${cli_command}"
     Log    ${CURRENT_RESULT.stdout}
     Set Global Variable    ${CURRENT_RESULT}
 
+user triggers "${cli_command}" passing "${ankaios_manifest_file}" through stdin
+    ${cmd}=    Split Command Line    ${cli_command}
+    Set List Value    ${cmd}    0    %{ANK_BIN_DIR}${/}${cmd}[0]
+    ${CURRENT_RESULT}=    Run Process    @{cmd}    timeout=20    shell=True    stdin=${ankaios_manifest_file}
+    Log    ${CURRENT_RESULT.stdout}
+    Set Global Variable    ${CURRENT_RESULT}
+
 the user waits "${seconds_to_wait}" seconds
     Run Process    sleep    ${seconds_to_wait}
 
@@ -185,6 +199,20 @@ the workload "${workload_name}" shall not exist on agent "${expected_agent_name}
     Should Be Empty
     ...    ${list_result}
     ...    msg=Timeout: Workload '${workload_name}' found on agent '${expected_agent_name}'!
+
+the workload "${workload_name}" shall not exist within "${timeout}" seconds
+    Should Be True    ${timeout} >= 0    msg='timeout' must be greater than or equal to 0!
+    @{list_result}=    Create List
+    IF    ${timeout} >= 0
+        @{list_result}=    Wait For Workload Removal
+        ...    %{ANK_BIN_DIR}${/}ank get workloads
+        ...    ${workload_name}
+        ...    ""
+        ...    ${timeout}
+    END
+    Should Be Empty
+    ...    ${list_result}
+    ...    msg=Timeout: Workload '${workload_name}' found!
 
 user executes system app "${cli_command}"
     ${cmd}=    Split Command Line    ${cli_command}    escaping=True
@@ -310,3 +338,9 @@ podman shall have a container for workload "${workload_name}" with custom name "
 
 podman shall not have a container for workload "${workload_name}" on agent "${agent_name}"
     podman shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "1" seconds
+
+the last command shall finish with an error
+    the last command finished with an error
+
+the last command shall finish with exit code "${exit_code}"
+    the last command finished with exit code "${exit_code}"

@@ -529,6 +529,156 @@ Needs:
 - impl
 - utest
 
+### `ank apply [-d] [--agent agent_name] <manifest.yaml> ...`
+
+#### Ankaios manifest
+
+The Ankaios manifest is a YAML (or a JSON) file composed of a list of workload specifications under the `workloads` keyword.
+
+```yaml
+# Example of a list of two workload specifications with the names 'nginx' and 'hello1'.
+formatVersion: "v0.1"
+workloads:
+  nginx:
+    agent: agent_A
+    restart: true
+    runtime: podman
+    runtimeConfig: |
+      image: docker.io/nginx:latest
+      commandOptions: ["-p", "8081:80"]
+  hello1:
+    # For this workload the following are not set:
+    # - agent name
+    restart: true
+    runtime: podman
+    runtimeConfig: |
+      image: alpine:latest
+      commandOptions: [ "--rm"]
+      commandArgs: [ "echo", "Hello Ankaios"]
+```
+
+#### CLI supports Ankaios manifest
+`swdd~cli-apply-supports-ankaios-manifest~1`
+
+Status: approved
+
+The Ankaios CLI apply command shall support the Ankaios manifest file format.
+
+Tags:
+- AnkaiosManifest
+
+Needs:
+- impl
+- utest
+
+#### CLI provides a function to accept a list of Ankaios manifest files
+`swdd~cli-apply-accepts-list-of-ankaios-manifests~1`
+
+Status: approved
+
+When the user calls the Ankaios Cli `apply` command with one or multiple files,
+the Ankaios CLI shall process the content of all provided files.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI provides a function to accept an Ankaios manifest content from `stdin`
+`swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1`
+
+Status: approved
+
+When the user calls the Ankaios CLI `apply` command with a file named `-`,
+the Ankaios CLI shall read data from stdin.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI generates a state object from Ankaios manifests
+`swdd~cli-apply-generates-state-object-from-ankaios-manifests~1`
+
+Status: approved
+
+When the user does not provide the optional argument `-d`
+and the Ankaios CLI accepts the manifest content from file(s) or from `stdin`,
+the Ankaios CLI shall parse the manifest content into a state object.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI generates filter masks from Ankaios manifests
+`swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1`
+
+Status: approved
+
+When the Ankaios CLI accepts the manifest content from file(s) or from `stdin`,
+the Ankaios CLI shall parse the manifest content into a list of filter masks.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI sends update state request for `ank apply ...`
+`swdd~cli-apply-send-update-state~1`
+
+Status: approved
+
+When the user calls the Ankaios CLI `apply` command,
+the Ankaios CLI shall send an update state request to the Ankaios server, containing the state object and filter mask generated from the given input files.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI sends update state request for `ank apply -d ...`
+`swdd~cli-apply-send-update-state-for-deletion~1`
+
+Status: approved
+
+When the user calls the Ankaios CLI `apply` command with the `-d` flag,
+the Ankaios CLI shall send an update state request to the Ankaios server, containing an empty state object and the filter mask generated from the given input files.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI provides a function to overwrite the agent names
+`swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1`
+
+Status: approved
+
+When the user provides the optional argument `--agent`
+and the Ankaios CLI parses the manifest content into a state object,
+the Ankaios CLI shall overwrite the agent names in the state object, built as specified in the manifest content, with the one given by the argument.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI emits an error on absence of agent name
+`swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1`
+
+Status: approved
+
+When the agent name is not specified in a workload specification
+and the user does not provide the agent name via the optional argument `--agent`
+and the user calls the Ankaios CLI `apply` command,
+the Ankaios CLI shall create a list of filter masks from all `workloads` in the `desiredState` of all given files.
+
+Needs:
+- impl
+- utest
+- stest
+
 ## Data view
 
 ![Data view](plantuml/class_data-structures.svg)

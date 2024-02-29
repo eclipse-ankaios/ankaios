@@ -1,4 +1,4 @@
-# Documentaion for Ankaios
+# Documentation for Ankaios
 
 To be published on <https://eclipse-ankaios.github.io/ankaios/>.
 
