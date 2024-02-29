@@ -46,6 +46,7 @@ impl WorkloadScheduler {
         }
     }
 
+    // [impl->swdd~agent-reports-pending-create-workload-state~1]
     async fn report_pending_create_state(&self, pending_workload: &WorkloadSpec) {
         self.workload_state_sender
             .update_workload_state(vec![WorkloadState {
@@ -56,6 +57,7 @@ impl WorkloadScheduler {
             .unwrap_or_illegal_state();
     }
 
+    // [impl->swdd~agent-reports-pending-delete-workload-state~1]
     async fn report_pending_delete_state(&self, waiting_deleted_workload: &DeletedWorkload) {
         self.workload_state_sender
             .update_workload_state(vec![WorkloadState {
@@ -70,6 +72,7 @@ impl WorkloadScheduler {
         match workload_operation {
             // [impl->swdd~agent-enqueues-pending-create-workload-operations~1]
             WorkloadOperation::Create(ref workload_spec) => {
+                // [impl->swdd~agent-reports-pending-create-workload-state~1]
                 self.report_pending_create_state(workload_spec).await;
 
                 self.queue.insert(
@@ -88,6 +91,7 @@ impl WorkloadScheduler {
             }
             // [impl->swdd~agent-enqueues-pending-delete-workload-operations~1]
             WorkloadOperation::Delete(ref deleted_workload) => {
+                // [impl->swdd~agent-reports-pending-delete-workload-state~1]
                 self.report_pending_delete_state(deleted_workload).await;
 
                 self.queue.insert(
@@ -135,6 +139,8 @@ impl WorkloadScheduler {
             );
 
             if dependency_state.is_pending() {
+                // [impl->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
+
                 if let WorkloadOperation::Update(new_workload, deleted_workload) =
                     workload_operation
                 {
@@ -149,6 +155,7 @@ impl WorkloadScheduler {
                     self.insert_and_notify(workload_operation).await;
                 }
             } else {
+                // [impl->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
                 ready_workload_operations.push(workload_operation);
             }
         }

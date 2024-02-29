@@ -85,7 +85,7 @@ impl RuntimeManager {
         }
     }
 
-    // [impl->swdd~agent-triggers-workloads-with-fulfilled-dependencies~1]
+    // [impl->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
     pub async fn update_workloads_on_fulfilled_dependencies(
         &mut self,
         workload_state_db: &ParameterStorage,
@@ -131,7 +131,8 @@ impl RuntimeManager {
         let workload_operations: WorkloadOperations =
             self.transform_into_workload_operations(added_workloads, deleted_workloads);
 
-        // [impl->swdd~agent-triggers-workloads-with-fulfilled-dependencies~1]
+        // [impl->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
+        // [impl->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
         let ready_workload_operations = self
             .workload_queue
             .enqueue_filtered_workload_operations(workload_operations, workload_state_db)

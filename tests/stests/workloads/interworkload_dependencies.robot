@@ -27,6 +27,9 @@ ${new_state_yaml_file}          ${EMPTY}
 
 
 *** Test Cases ***
+# [stest->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
+# [stest->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
+# [stest->swdd~agent-enqueues-pending-create-workload-operations~1]
 Test Ankaios observes the inter-workload dependencies when creating workloads
     [Documentation]    Perform a create of an workload only if its start dependencies are fulfilled.
     [Setup]    Run Keywords    Setup Ankaios
@@ -46,7 +49,7 @@ Test Ankaios observes the inter-workload dependencies when creating workloads
     And the workload "error_notifier" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     [Teardown]    Clean up Ankaios
 
-
+# [stest->swdd~agent-reports-pending-delete-workload-state~1]
 Test Ankaios observes the inter-workload dependencies when deleting workloads
     [Documentation]    Perform a delete of an workload only when its delete dependencies are fulfilled.
     [Setup]    Run Keywords    Setup Ankaios

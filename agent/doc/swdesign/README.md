@@ -214,8 +214,8 @@ Needs:
 - impl
 - utest
 
-#### AgentManager shall trigger workloads if its inter-workload dependencies are fulfilled
-`swdd~agent-triggers-workloads-with-fulfilled-dependencies~1`
+#### Agent shall trigger workloads if its inter-workload dependencies are fulfilled
+`swdd~agent-updates-workloads-with-fulfilled-dependencies~1`
 
 Status: approved
 
@@ -231,6 +231,26 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
+
+#### Agent shall enqueue workload operations with unfulfilled inter-workload dependency states into waiting queue
+`swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1`
+
+Status: approved
+
+When the RuntimeManager receives a `WorkloadOperation` containing a workload with unfulfilled dependency conditions,
+the WorkloadScheduler shall put the workload operation into a waiting queue.
+
+Rationale: The workload shall only be started when its inter-workload dependencies are in the desired configured state.
+
+Tags:
+- RuntimeManager
+- WorkloadScheduler
+
+Needs:
+- impl
+- utest
+- stest
 
 #### Agent handles UpdateWorkload requests from the server
 `swdd~agent-handles-update-workload-requests~1`
@@ -329,6 +349,62 @@ Tags:
 Needs:
 - impl
 - utest
+
+#### The agent shall report workload state WaitingToStart for workloads with unfulfilled add conditions
+`swdd~agent-reports-pending-create-workload-state~1`
+
+Status: approved
+
+When a workload has an inter-workload dependency with an unfulfilled `AddCondition`
+and the workload operation of that workload is enqueued into the waiting queue,
+the WorkloadScheduler shall report the workload state `Pending(WaitingToStart)`.
+
+Rationale: This communicates to the user that the workload is scheduled but not ready to create because of its unfulfilled dependencies.
+
+Tags:
+- WorkloadScheduler
+
+Needs:
+- impl
+- utest
+- stest
+
+#### The agent shall report workload state WaitingToStop for workloads with unfulfilled delete conditions
+`swdd~agent-reports-pending-delete-workload-state~1`
+
+Status: approved
+
+When a workload has an inter-workload dependency with an unfulfilled `DeleteCondition`,
+and the workload operation of that workload is enqueued into the waiting queue,
+the WorkloadScheduler shall report the workload state `Stopping(WaitingToStop)`.
+
+Rationale: This communicates to the user that the workload is scheduled but not ready to delete because another workload has a dependency to that workload.
+
+Tags:
+- WorkloadScheduler
+
+Needs:
+- impl
+- utest
+- stest
+
+#### The agent shall report workload state WaitingToStop for updated workloads with unfulfilled delete conditions
+`swdd~agent-reports-pending-delete-workload-state-on-update~1`
+
+Status: approved
+
+When an
+the WorkloadScheduler shall report the workload state `Stopping(WaitingToStop)`.
+
+Rationale: This communicates to the user that the workload is scheduled but not ready to delete because another workload has a dependency to that workload.
+
+Tags:
+- WorkloadScheduler
+
+Needs:
+- impl
+- utest
+- stest
 
 #### RuntimeManager transforms workloads inside UpdateWorkload message to workload operations
 `swdd~agent-transforms-update-workload-message-to-workload-operations~1`
