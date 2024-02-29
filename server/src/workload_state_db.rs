@@ -76,7 +76,7 @@ impl WorkloadStateDB {
         }
     }
 
-    // TODO: req for this?
+    // [impl->swdd~server-sets-state-of-new-workload-to-pending-initial~1]
     pub fn initial_state(&mut self, workload_specs: &Vec<WorkloadSpec>) {
         for spec in workload_specs {
             self.stored_states

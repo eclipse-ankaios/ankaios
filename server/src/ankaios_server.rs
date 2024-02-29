@@ -66,7 +66,7 @@ impl AnkaiosServer {
         if let Some(state) = startup_state {
             match self.server_state.update(state, vec![]) {
                 Ok(Some((added_workloads, deleted_workloads))) => {
-                    // TODO: reqs?
+                    // [impl->swdd~server-sets-state-of-new-workload-to-pending-initial~1]
                     self.workload_state_db.initial_state(&added_workloads);
 
                     let from_server_command = FromServer::UpdateWorkload(UpdateWorkload {
@@ -243,7 +243,7 @@ impl AnkaiosServer {
                                         deleted_workloads.len()
                                     );
 
-                                // TODO reqs?
+                                // [impl->swdd~server-sets-state-of-new-workload-to-pending-initial~1]
                                 self.workload_state_db.initial_state(&added_workloads);
 
                                 let added_workloads_names = added_workloads
@@ -355,7 +355,8 @@ mod tests {
     use common::from_server_interface::FromServer;
     use common::objects::{
         generate_test_stored_workload_spec, generate_test_workload_spec_with_param, ApiVersion,
-        CompleteState, DeletedWorkload, ExecutionState, State,
+        CompleteState, DeletedWorkload, ExecutionState, ExecutionStateEnum, PendingSubstate, State,
+        WorkloadState,
     };
 
     use common::to_server_interface::ToServerInterface;
@@ -527,11 +528,12 @@ mod tests {
         server_task.abort();
     }
 
+    // [utest->swdd~server-sets-state-of-new-workload-to-pending-initial~1]
     // [utest->swdd~server-uses-async-channels~1]
     #[tokio::test]
     async fn utest_server_start_with_valid_startup_config() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (_to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
@@ -551,7 +553,7 @@ mod tests {
             ..Default::default()
         };
 
-        let added_workloads = vec![workload];
+        let added_workloads = vec![workload.clone()];
         let deleted_workloads = vec![];
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
@@ -570,7 +572,13 @@ mod tests {
 
         server.server_state = mock_server_state;
 
-        let server_task = tokio::spawn(async move { server.start(Some(startup_state)).await });
+        // let server_task = tokio::spawn(async move { server.start(Some(startup_state)).await });
+
+        let server_handle = server.start(Some(startup_state));
+
+        // The receiver in the server receives the messages and terminates the infinite waiting-loop
+        drop(to_server);
+        tokio::join!(server_handle).0.unwrap();
 
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
@@ -580,7 +588,20 @@ mod tests {
         });
         assert_eq!(from_server_command, expected_from_server_command);
 
-        server_task.abort();
+        assert_eq!(
+            server
+                .workload_state_db
+                .get_workload_state_for_agent(AGENT_A),
+            vec![WorkloadState {
+                instance_name: workload.instance_name,
+                execution_state: ExecutionState {
+                    state: ExecutionStateEnum::Pending(PendingSubstate::Initial),
+                    additional_info: Default::default()
+                }
+            }]
+        );
+
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
     // [utest->swdd~server-uses-async-channels~1]
@@ -1131,6 +1152,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-sets-state-of-new-workload-to-pending-initial~1]
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
@@ -1255,6 +1277,19 @@ mod tests {
                 })
             }) if request_id == REQUEST_ID_A && added_workloads == vec![updated_w1.instance_name.to_string()] && deleted_workloads == vec![updated_w1.instance_name.to_string()]
         ));
+
+        assert_eq!(
+            server
+                .workload_state_db
+                .get_workload_state_for_agent(AGENT_A),
+            vec![WorkloadState {
+                instance_name: w1.instance_name,
+                execution_state: ExecutionState {
+                    state: ExecutionStateEnum::Pending(PendingSubstate::Initial),
+                    additional_info: Default::default()
+                }
+            }]
+        );
 
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }

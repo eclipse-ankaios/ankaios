@@ -1743,7 +1743,7 @@ mod tests {
             txt == *"formatVersion:\n  version: v0.1\ndesiredState:\n  workloads:\n    name2:\n      runtime: runtime\n    name1:\n      runtime: runtime\n"));
     }
 
-    // TODO: fix the test
+    // TODO: This will be fixed with https://github.com/eclipse-ankaios/ankaios/issues/196
     // [utest -> swdd~cli-provides-set-desired-state~1]
     // [utest -> swdd~cli-supports-yaml-to-set-desired-state~1]
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~1]

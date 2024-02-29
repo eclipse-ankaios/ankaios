@@ -165,7 +165,7 @@ impl ServerState {
             workload_states: workload_state_db.get_all_workload_states(),
         };
 
-        // TODO: fix the filtering
+        // TODO: This will be fixed with https://github.com/eclipse-ankaios/ankaios/issues/196
         // if !request_complete_state.field_mask.is_empty() {
         //     let current_complete_state: Object =
         //         current_complete_state.try_into().unwrap_or_illegal_state();
@@ -357,7 +357,7 @@ mod tests {
         assert_eq!(expected_complete_state, complete_state);
     }
 
-    // TODO: fix the test
+    // TODO: This will be fixed with https://github.com/eclipse-ankaios/ankaios/issues/196
     // [utest->swdd~server-provides-interface-get-complete-state~1]
     // [utest->swdd~server-filters-get-complete-state-result~2]
     // #[test]

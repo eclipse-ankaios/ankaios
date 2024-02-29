@@ -126,6 +126,20 @@ Needs:
 - impl
 - utest
 
+#### Server sets all new workloads to pending state
+`swdd~server-sets-state-of-new-workload-to-pending-initial~1`
+
+Status: approved
+
+When the Ankaios server adds a new workload to its desired state, the workload state of this workload shall be set to Pending(Initial).
+
+Tags:
+- AnkaiosServer
+
+Needs:
+- impl
+- utest
+
 #### StartupStateLoader rejects invalid config
 `swdd~stored-workload-spec-checks-unique-name~1`
 
