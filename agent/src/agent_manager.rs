@@ -436,7 +436,11 @@ mod tests {
 
         let mut mock_parameter_storage = MockParameterStorage::default();
 
-        // TODO: check that transition was called
+        mock_parameter_storage
+            .expect_get_state_of_workload()
+            .with(mockall::predicate::eq(WORKLOAD_1_NAME))
+            .once()
+            .return_const(None);
 
         mock_parameter_storage
             .expect_update_workload_state()

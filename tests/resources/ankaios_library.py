@@ -108,7 +108,7 @@ def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_i
         table = table_to_list(res.stdout if res else "")
         logger.trace(table)
         while (get_time_secs() - start_time) < timeout:
-            if table and all([len(row["EXECUTION STATE"].strip()) > 0 for row in filter(lambda r: r["AGENT"] == agent_name, table)]):
+            if table and all([(len(row["EXECUTION STATE"].strip()) > 0 and row["EXECUTION STATE"].strip() != "Pending(Initial)") for row in filter(lambda r: r["AGENT"] == agent_name, table)]):
                 return table
 
             time.sleep(next_try_in_sec)

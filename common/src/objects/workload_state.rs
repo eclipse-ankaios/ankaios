@@ -171,7 +171,8 @@ pub enum ExecutionStateEnum {
 impl ExecutionStateEnum {
     pub fn transition(self, incoming: ExecutionStateEnum) -> ExecutionStateEnum {
         match self {
-            ExecutionStateEnum::Stopping(_) => match incoming {
+            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+            | ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop) => match incoming {
                 ExecutionStateEnum::Running(RunningSubstate::Ok)
                 | ExecutionStateEnum::Succeeded(SucceededSubstate::Ok)
                 | ExecutionStateEnum::Failed(FailedSubstate::ExecFailed)
