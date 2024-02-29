@@ -1681,10 +1681,11 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-reset-restart-attempts-on-update~1]
     #[tokio::test]
     async fn utest_workload_obj_run_restart_reset_restart_counter_on_update() {
-        let _ = env_logger::builder().is_test(true).try_init();
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+
+        let _ = env_logger::builder().is_test(true).try_init();
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (to_server_tx, _to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);

@@ -8,17 +8,20 @@ together {
     struct Set
     struct Delete
     struct Run
+    struct Apply
 }
 
 Commands --|> Get : one of
 Commands --|> Set : one of
 Commands --|> Delete: one of
 Commands --|> Run : one of
+Commands --|> Apply : one of
 
 Get : Option<GetCommands> command
 Set : Option<SetCommands> command
 Delete : Option<DeleteCommands> command
 Run : Option<RunCommands> command
+Apply : ApplyArgs applyArgs
 
 struct "State" as GetState
 struct "Workload" as GetWorkload
@@ -67,9 +70,17 @@ struct "<<union>>\nRunCommands" as RunCommands
 RunCommands --|> RunWorkload : one of
 RunCommands <--o Run
 
+struct "ApplyArgs" as ApplyArgs
+ApplyArgs : Vec<String> manifest_files
+ApplyArgs : Option<String> agent_name
+ApplyArgs : bool delete_mode
+
+ApplyArgs <--o Apply
+
 'This helps to organize the layout (forces to place objects vertically)
 Set -[hidden]down--> SetCommands
 Get -[hidden]down--> GetCommands
 Delete -[hidden]down--> DeleteCommands
 Run -[hidden]down--> RunCommands
+Apply -[hidden]down--> ApplyArgs
 @enduml
