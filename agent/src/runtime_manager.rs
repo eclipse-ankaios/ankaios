@@ -31,7 +31,7 @@ use crate::control_interface::PipesChannelContext;
 use crate::workload_scheduler::scheduler::WorkloadScheduler;
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::parameter_storage::ParameterStorage;
+use crate::workload_state::workload_state_store::WorkloadStateStore;
 use crate::{
     runtime_connectors::RuntimeFacade,
     workload_operation::{WorkloadOperation, WorkloadOperations},
@@ -88,7 +88,7 @@ impl RuntimeManager {
 
     pub async fn update_workloads_on_fulfilled_dependencies(
         &mut self,
-        workload_state_db: &ParameterStorage,
+        workload_state_db: &WorkloadStateStore,
     ) {
         let workload_operations = self
             .workload_queue
@@ -103,7 +103,7 @@ impl RuntimeManager {
         &mut self,
         mut added_workloads: Vec<WorkloadSpec>,
         deleted_workloads: Vec<DeletedWorkload>,
-        workload_state_db: &ParameterStorage,
+        workload_state_db: &WorkloadStateStore,
     ) {
         log::info!(
             "Received a new desired state with '{}' added and '{}' deleted workloads.",
@@ -442,10 +442,10 @@ impl RuntimeManager {
 mod tests {
     use super::*;
     use crate::control_interface::MockPipesChannelContext;
-    use crate::parameter_storage::MockParameterStorage;
     use crate::runtime_connectors::{MockRuntimeFacade, RuntimeError};
     use crate::workload::{MockWorkload, WorkloadError};
     use crate::workload_scheduler::scheduler::MockWorkloadScheduler;
+    use crate::workload_state::workload_state_store::MockWorkloadStateStore;
     use crate::workload_state::WorkloadStateReceiver;
     use common::commands::ResponseContent;
     use common::objects::{
@@ -577,7 +577,7 @@ mod tests {
             .build();
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
+            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
@@ -635,7 +635,7 @@ mod tests {
             .build();
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
+            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
@@ -706,7 +706,7 @@ mod tests {
                 .build();
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
+            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
             .await;
         server_receiver.close();
 
@@ -772,7 +772,7 @@ mod tests {
 
         let added_workloads = vec![existing_workload1];
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
+            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
@@ -849,7 +849,7 @@ mod tests {
             .build();
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
+            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
@@ -908,7 +908,7 @@ mod tests {
             .build();
 
         runtime_manager
-            .handle_update_workload(vec![], vec![], &MockParameterStorage::default())
+            .handle_update_workload(vec![], vec![], &MockWorkloadStateStore::default())
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
@@ -956,7 +956,7 @@ mod tests {
                 .build();
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
+            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
@@ -1022,7 +1022,7 @@ mod tests {
 
         let added_workloads = vec![existing_workload];
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
+            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
             .await;
 
         assert!(runtime_manager.initial_workload_list_received);
@@ -1104,7 +1104,7 @@ mod tests {
             .handle_update_workload(
                 added_workloads,
                 deleted_workloads,
-                &MockParameterStorage::default(),
+                &MockWorkloadStateStore::default(),
             )
             .await;
 
@@ -1192,7 +1192,7 @@ mod tests {
             .handle_update_workload(
                 added_workloads,
                 deleted_workloads,
-                &MockParameterStorage::default(),
+                &MockWorkloadStateStore::default(),
             )
             .await;
         server_receiver.close();
@@ -1257,7 +1257,7 @@ mod tests {
             .handle_update_workload(
                 added_workloads,
                 deleted_workloads,
-                &MockParameterStorage::default(),
+                &MockWorkloadStateStore::default(),
             )
             .await;
 
@@ -1331,7 +1331,7 @@ mod tests {
 
         let added_workloads = vec![new_workload];
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
+            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
             .await;
 
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
@@ -1394,7 +1394,7 @@ mod tests {
 
         let added_workloads = vec![new_workload];
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
+            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
             .await;
         server_receiver.close();
 
@@ -1441,7 +1441,7 @@ mod tests {
         runtime_manager.initial_workload_list_received = true;
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockParameterStorage::default())
+            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
             .await;
         server_receiver.close();
 
@@ -1489,7 +1489,11 @@ mod tests {
 
         let deleted_workloads = vec![new_deleted_workload.clone()];
         runtime_manager
-            .handle_update_workload(vec![], deleted_workloads, &MockParameterStorage::default())
+            .handle_update_workload(
+                vec![],
+                deleted_workloads,
+                &MockWorkloadStateStore::default(),
+            )
             .await;
         server_receiver.close();
 
@@ -1701,7 +1705,7 @@ mod tests {
                 .build();
 
         runtime_manager
-            .update_workloads_on_fulfilled_dependencies(&MockParameterStorage::default())
+            .update_workloads_on_fulfilled_dependencies(&MockWorkloadStateStore::default())
             .await;
         server_receiver.close();
 
@@ -1739,7 +1743,7 @@ mod tests {
                 .build();
 
         runtime_manager
-            .update_workloads_on_fulfilled_dependencies(&MockParameterStorage::default())
+            .update_workloads_on_fulfilled_dependencies(&MockWorkloadStateStore::default())
             .await;
         server_receiver.close();
 
@@ -1784,7 +1788,7 @@ mod tests {
             .insert(WORKLOAD_1_NAME.to_owned(), workload_mock);
 
         runtime_manager
-            .update_workloads_on_fulfilled_dependencies(&MockParameterStorage::default())
+            .update_workloads_on_fulfilled_dependencies(&MockWorkloadStateStore::default())
             .await;
         server_receiver.close();
 
@@ -1821,7 +1825,7 @@ mod tests {
             .insert(WORKLOAD_1_NAME.to_owned(), workload_mock);
 
         runtime_manager
-            .update_workloads_on_fulfilled_dependencies(&MockParameterStorage::default())
+            .update_workloads_on_fulfilled_dependencies(&MockWorkloadStateStore::default())
             .await;
         server_receiver.close();
 

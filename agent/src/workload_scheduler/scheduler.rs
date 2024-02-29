@@ -22,9 +22,9 @@ use crate::{
 use common::objects::{DeletedWorkload, ExecutionState, WorkloadSpec};
 use std::collections::HashMap;
 
-#[cfg_attr(test, mockall_double::double)]
-use crate::parameter_storage::ParameterStorage;
 use crate::workload_operation::{WorkloadOperation, WorkloadOperations};
+#[cfg_attr(test, mockall_double::double)]
+use crate::workload_state::workload_state_store::WorkloadStateStore;
 
 #[cfg(test)]
 use mockall::automock;
@@ -116,7 +116,7 @@ impl WorkloadScheduler {
     pub async fn enqueue_filtered_workload_operations(
         &mut self,
         new_workload_operations: WorkloadOperations,
-        workload_state_db: &ParameterStorage,
+        workload_state_db: &WorkloadStateStore,
     ) -> WorkloadOperations {
         let mut ready_workload_operations = WorkloadOperations::new();
         for workload_operation in new_workload_operations {
@@ -149,7 +149,7 @@ impl WorkloadScheduler {
 
     pub fn next_workload_operations(
         &mut self,
-        workload_state_db: &ParameterStorage,
+        workload_state_db: &WorkloadStateStore,
     ) -> WorkloadOperations {
         let mut ready_workload_operations = WorkloadOperations::new();
         let mut retained_entries = DependencyQueue::new();
@@ -196,11 +196,11 @@ mod tests {
 
     use super::WorkloadScheduler;
     use crate::{
-        parameter_storage::MockParameterStorage,
         workload_operation::WorkloadOperation,
         workload_scheduler::dependency_state_validator::{
             DependencyState, MockDependencyStateValidator,
         },
+        workload_state::workload_state_store::MockWorkloadStateStore,
     };
 
     const AGENT_A: &str = "agent_A";
@@ -373,7 +373,7 @@ mod tests {
         workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockParameterStorage::default(),
+                &MockWorkloadStateStore::default(),
             )
             .await;
 
@@ -406,7 +406,7 @@ mod tests {
         workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockParameterStorage::default(),
+                &MockWorkloadStateStore::default(),
             )
             .await;
 
@@ -442,7 +442,7 @@ mod tests {
         workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockParameterStorage::default(),
+                &MockWorkloadStateStore::default(),
             )
             .await;
 
@@ -486,7 +486,7 @@ mod tests {
         workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockParameterStorage::default(),
+                &MockWorkloadStateStore::default(),
             )
             .await;
 
@@ -532,7 +532,7 @@ mod tests {
         workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockParameterStorage::default(),
+                &MockWorkloadStateStore::default(),
             )
             .await;
 
@@ -571,7 +571,7 @@ mod tests {
         );
 
         let next_workload_operations =
-            workload_scheduler.next_workload_operations(&MockParameterStorage::default());
+            workload_scheduler.next_workload_operations(&MockWorkloadStateStore::default());
 
         assert!(next_workload_operations.is_empty());
 
@@ -610,7 +610,7 @@ mod tests {
         );
 
         let next_workload_operations =
-            workload_scheduler.next_workload_operations(&MockParameterStorage::default());
+            workload_scheduler.next_workload_operations(&MockWorkloadStateStore::default());
 
         let expected_next_operation = WorkloadOperation::Create(next_ready_workload);
 

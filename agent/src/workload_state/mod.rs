@@ -20,3 +20,5 @@ pub use workload_state_proxy::{
 
 #[cfg(test)]
 pub use workload_state_proxy::assert_execution_state_sequence;
+
+pub mod workload_state_store;

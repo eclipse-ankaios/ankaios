@@ -20,7 +20,7 @@ use common::{
 };
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::parameter_storage::ParameterStorage;
+use crate::workload_state::workload_state_store::WorkloadStateStore;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::runtime_manager::RuntimeManager;
@@ -33,7 +33,7 @@ pub struct AgentManager {
     from_server_receiver: FromServerReceiver,
     to_server: ToServerSender,
     workload_state_receiver: WorkloadStateReceiver,
-    parameter_storage: ParameterStorage,
+    parameter_storage: WorkloadStateStore,
 }
 
 impl AgentManager {
@@ -50,7 +50,7 @@ impl AgentManager {
             from_server_receiver,
             to_server,
             workload_state_receiver,
-            parameter_storage: ParameterStorage::new(),
+            parameter_storage: WorkloadStateStore::new(),
         }
     }
 
@@ -187,7 +187,7 @@ impl AgentManager {
 mod tests {
     use super::*;
     use crate::agent_manager::AgentManager;
-    use crate::parameter_storage::MockParameterStorage;
+    use crate::workload_state::workload_state_store::MockWorkloadStateStore;
     use common::{
         commands::{Response, ResponseContent, UpdateWorkloadState},
         from_server_interface::FromServerInterface,
@@ -212,11 +212,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let mock_parameter_storage_context = MockParameterStorage::new_context();
+        let mock_parameter_storage_context = MockWorkloadStateStore::new_context();
         mock_parameter_storage_context
             .expect()
             .once()
-            .return_once(MockParameterStorage::default);
+            .return_once(MockWorkloadStateStore::default);
 
         let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
         let (to_server, _) = channel(BUFFER_SIZE);
@@ -288,14 +288,14 @@ mod tests {
             .once()
             .return_const(());
 
-        let mut mock_parameter_storage = MockParameterStorage::default();
+        let mut mock_parameter_storage = MockWorkloadStateStore::default();
         mock_parameter_storage
             .expect_update_workload_state()
             .with(mockall::predicate::eq(workload_state.clone()))
             .once()
             .return_const(());
 
-        let mock_parameter_storage_context = MockParameterStorage::new_context();
+        let mock_parameter_storage_context = MockWorkloadStateStore::new_context();
         mock_parameter_storage_context
             .expect()
             .once()
@@ -327,13 +327,13 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let mut mock_parameter_storage = MockParameterStorage::default();
+        let mut mock_parameter_storage = MockWorkloadStateStore::default();
         mock_parameter_storage
             .expect_update_workload_state()
             .never()
             .return_const(());
 
-        let mock_parameter_storage_context = MockParameterStorage::new_context();
+        let mock_parameter_storage_context = MockWorkloadStateStore::new_context();
         mock_parameter_storage_context
             .expect()
             .once()
@@ -374,11 +374,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let mock_parameter_storage_context = MockParameterStorage::new_context();
+        let mock_parameter_storage_context = MockWorkloadStateStore::new_context();
         mock_parameter_storage_context
             .expect()
             .once()
-            .return_once(MockParameterStorage::default);
+            .return_once(MockWorkloadStateStore::default);
 
         let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
         let (to_server, _) = channel(BUFFER_SIZE);
@@ -434,7 +434,7 @@ mod tests {
             ExecutionState::running(),
         );
 
-        let mut mock_parameter_storage = MockParameterStorage::default();
+        let mut mock_parameter_storage = MockWorkloadStateStore::default();
 
         mock_parameter_storage
             .expect_get_state_of_workload()
@@ -448,7 +448,7 @@ mod tests {
             .once()
             .return_const(());
 
-        let mock_parameter_storage_context = MockParameterStorage::new_context();
+        let mock_parameter_storage_context = MockWorkloadStateStore::new_context();
         mock_parameter_storage_context
             .expect()
             .once()

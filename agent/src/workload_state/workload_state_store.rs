@@ -20,12 +20,12 @@ use mockall::automock;
 
 type WorkloadStates = HashMap<String, common::objects::ExecutionState>;
 
-pub struct ParameterStorage {
+pub struct WorkloadStateStore {
     states_storage: WorkloadStates,
 }
 
 #[cfg_attr(test, automock)]
-impl ParameterStorage {
+impl WorkloadStateStore {
     pub fn new() -> Self {
         Self {
             states_storage: HashMap::new(),
@@ -49,12 +49,12 @@ impl ParameterStorage {
 
 #[cfg(test)]
 mod tests {
-    use super::ParameterStorage;
+    use super::WorkloadStateStore;
     use common::objects::ExecutionState;
 
     #[test]
     fn utest_update_storage_empty_storage_add_one() {
-        let mut storage = ParameterStorage::new();
+        let mut storage = WorkloadStateStore::new();
         assert!(storage.states_storage.is_empty());
 
         let test_update = common::objects::generate_test_workload_state_with_agent(
@@ -80,7 +80,7 @@ mod tests {
 
     #[test]
     fn utest_update_storage_removed_gets_state_deleted() {
-        let mut storage = ParameterStorage::new();
+        let mut storage = WorkloadStateStore::new();
         assert!(storage.states_storage.is_empty());
 
         let test_update = common::objects::generate_test_workload_state_with_agent(
@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     fn utest_update_storage_update_record() {
-        let mut storage = ParameterStorage::new();
+        let mut storage = WorkloadStateStore::new();
         assert!(storage.states_storage.is_empty());
 
         let test_update = common::objects::generate_test_workload_state_with_agent(
@@ -130,7 +130,7 @@ mod tests {
 
     #[test]
     fn utest_update_storage_add_multiple_records() {
-        let mut storage = ParameterStorage::new();
+        let mut storage = WorkloadStateStore::new();
         assert!(storage.states_storage.is_empty());
 
         let agent_name_a = String::from("test_agent_a");
@@ -179,26 +179,26 @@ mod tests {
 
     #[test]
     fn utest_get_state_of_workload() {
-        let mut parameter_storage = ParameterStorage::new();
+        let mut parameter_storage = WorkloadStateStore::new();
         parameter_storage
             .states_storage
             .insert("workload_1".to_owned(), ExecutionState::running());
 
         assert_eq!(
             Some(ExecutionState::running()),
-            parameter_storage.get_state_of_workload(&"workload_1".to_owned())
+            parameter_storage.get_state_of_workload("workload_1")
         );
     }
 
     #[test]
     fn utest_get_state_of_workload_not_existing_workload() {
-        let mut parameter_storage = ParameterStorage::new();
+        let mut parameter_storage = WorkloadStateStore::new();
         parameter_storage
             .states_storage
             .insert("workload_1".to_owned(), ExecutionState::running());
 
         assert!(parameter_storage
-            .get_state_of_workload(&"unknown workload".to_owned())
+            .get_state_of_workload("unknown workload")
             .is_none());
     }
 }
