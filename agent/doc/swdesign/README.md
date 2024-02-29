@@ -471,6 +471,51 @@ Needs:
 - impl
 - utest
 
+#### ExecutionStates of inter-workload dependencies shall fulfill the AddConditions
+`swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1`
+
+Status: approved
+
+The `ExecutionState` of an inter-workload dependency shall fulfill the `AddCondition` according to the following table:
+
+| ExecutionState     | AddCondition        |
+|--------------------|---------------------|
+| Running(Ok)        | ADD_COND_RUNNING    |
+| Succeeded(Ok)      | ADD_COND_SUCCEEDED  |
+| Failed(ExecFailed) | ADD_COND_FAILED     |
+
+Rationale: The agent must be able to recognize when all inter-workload dependencies of a workload reach their configured expected conditions to create the workload.
+
+Tags:
+- DependencyStateValidator
+- AddCondition
+
+Needs:
+- impl
+- utest
+
+#### ExecutionStates of inter-workload dependencies shall fulfill the DeleteConditions
+`swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1`
+
+Status: approved
+
+The `ExecutionState` of an inter-workload dependency shall fulfill the `DeleteCondition` according to the following table:
+
+| ExecutionState                                                           | DeleteCondition             |
+|--------------------------------------------------------------------------|-----------------------------|
+| All besides Running(Ok) or Pending(S) where S represents all sub states. | DelCondNotPendingNorRunning |
+| Running(Ok)                                                              | DelCondRunning              |
+
+Rationale: The agent must be able to recognize when all inter-workload dependencies of a workload reach their configured expected conditions to delete the workload.
+
+Tags:
+- DependencyStateValidator
+- DeleteCondition
+
+Needs:
+- impl
+- utest
+
 #### All communication with the Server through middleware
 `swdd~communication-to-from-agent-middleware~1`
 

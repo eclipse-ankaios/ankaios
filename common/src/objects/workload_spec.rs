@@ -164,6 +164,7 @@ pub enum AddCondition {
 }
 
 impl FulfilledBy<ExecutionState> for AddCondition {
+    // [impl->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
     fn fulfilled_by(&self, other: &ExecutionState) -> bool {
         match self {
             AddCondition::AddCondRunning => (*other).is_running(),
@@ -197,6 +198,7 @@ pub enum DeleteCondition {
 }
 
 impl FulfilledBy<ExecutionState> for DeleteCondition {
+    // [impl->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
     fn fulfilled_by(&self, other: &ExecutionState) -> bool {
         if other.is_waiting_to_start() {
             return true;

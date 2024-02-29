@@ -144,6 +144,8 @@ impl WorkloadScheduler {
                 if let WorkloadOperation::Update(new_workload, deleted_workload) =
                     workload_operation
                 {
+                    // [impl->swdd~agent-enqueues-pending-update-workload-operations~1]
+                    // [impl->swdd~agent-enqueues-pending-create-on-update-workload-operations~1]
                     self.enqueue_filtered_update_operation(
                         new_workload,
                         deleted_workload,

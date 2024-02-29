@@ -56,7 +56,10 @@ impl DependencyStateValidator {
             .all(|(dependency_name, add_condition)| {
                 workload_state_db
                     .get_state_of_workload(dependency_name)
-                    .map_or(false, |wl_state| add_condition.fulfilled_by(&wl_state))
+                    .map_or(false, |wl_state| {
+                        // [impl->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
+                        add_condition.fulfilled_by(&wl_state)
+                    })
             })
         {
             DependencyState::Fulfilled
@@ -75,7 +78,10 @@ impl DependencyStateValidator {
             .all(|(dependency_name, delete_condition)| {
                 workload_state_db
                     .get_state_of_workload(dependency_name)
-                    .map_or(true, |wl_state| delete_condition.fulfilled_by(&wl_state))
+                    .map_or(true, |wl_state| {
+                        // [impl->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
+                        delete_condition.fulfilled_by(&wl_state)
+                    })
             })
         {
             DependencyState::Fulfilled
