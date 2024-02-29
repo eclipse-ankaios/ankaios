@@ -17,7 +17,6 @@ use super::cycle_check;
 use super::delete_graph::DeleteGraph;
 use crate::workload_state_db::WorkloadStateDB;
 use common::objects::WorkloadInstanceName;
-use common::std_extensions::IllegalStateResult;
 use common::{
     commands::CompleteStateRequest,
     objects::{CompleteState, DeletedWorkload, State, WorkloadSpec},
@@ -467,7 +466,7 @@ mod tests {
             w1.instance_name.workload_name().to_owned(),
             w1.clone().into(),
         )]);
-        expected_complete_state.workload_states.clear();
+
         assert_eq!(expected_complete_state, complete_state);
     }
 

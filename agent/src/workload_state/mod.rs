@@ -12,13 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-mod workload_state_proxy;
+mod workload_state_sender;
 
-pub use workload_state_proxy::{
+pub use workload_state_sender::{
     WorkloadStateReceiver, WorkloadStateSender, WorkloadStateSenderInterface,
 };
 
 #[cfg(test)]
-pub use workload_state_proxy::assert_execution_state_sequence;
+pub use workload_state_sender::assert_execution_state_sequence;
 
 pub mod workload_state_store;
