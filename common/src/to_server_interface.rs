@@ -231,8 +231,12 @@ mod tests {
                     proto::UpdateStateRequest {
                         update_mask: vec!["test_update_mask_field".to_owned()],
                         new_state: Some(proto::CompleteState {
-                            format_version: Some(common::objects::ApiVersion::default().into()),
+                            startup_state: Some(proto::State {
+                                format_version: "v0.1".into(),
+                                ..Default::default()
+                            }),
                             desired_state: Some(proto::State {
+                                format_version: "v0.1".into(),
                                 workloads: HashMap::from([(
                                     "test_workload".to_owned(),
                                     proto::Workload {
@@ -261,6 +265,7 @@ mod tests {
                                 ..Default::default()
                             },
                         )]),
+                        ..Default::default()
                     },
                     ..Default::default()
                 },
@@ -280,6 +285,7 @@ mod tests {
                         update_mask: vec!["test_update_mask_field".to_owned()],
                         new_state: Some(proto::CompleteState {
                             desired_state: Some(proto::State {
+                                format_version: "v0.1".into(),
                                 workloads: HashMap::from([(
                                     "test_workload".to_owned(),
                                     proto::Workload {

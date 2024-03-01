@@ -250,19 +250,14 @@ message UpdateStateSuccess {
     repeated string deletedWorkloads = 2; /// Workload instance names of workloads which will be stopped
 }
 
-message ApiVersion {
-    string version = 1; /// The current version of the API.
-}
-
 /**
 * A message containing the complete state of the Ankaios system.
 * This is a response to the [CompleteStateRequest](#completestaterequest) message.
 */
 message CompleteState {
-  ApiVersion format_version = 1; /// The current version of the API.
-  State startupState = 2; /// The State information at the startup of the Ankaios System.
-  State desiredState = 3; /// The state the user wants to reach.
-  repeated WorkloadState workloadStates = 4; /// The current states of the workloads.
+  State startupState = 1; /// The State information at the startup of the Ankaios System.
+  State desiredState = 2; /// The state the user wants to reach.
+  repeated WorkloadState workloadStates = 3; /// The current states of the workloads.
 }
 
 // Common messages
@@ -290,7 +285,8 @@ message UpdateStateRequest {
 * A message containing the state information.
 */
 message State {
-  map<string, Workload> workloads = 1; /// A mapping from workload names to workload configurations.
+  string format_version = 1; /// The current version of the API.
+  map<string, Workload> workloads = 2; /// A mapping from workload names to workload configurations.
 }
 
 /**

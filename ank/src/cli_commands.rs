@@ -102,14 +102,16 @@ fn generate_compact_state_output(
         return convert_to_output(deserialized_state);
     }
 
+    // TODO: set format version dynamically to startupState or desiredState
     // [impl->swdd~cli-returns-format-version-with-desired-state~1]
     let mut compact_state = serde_yaml::Value::Mapping(Default::default());
+    let splitted_masks_format_version: Vec<&str> = vec!["desiredState", "formatVersion"];
     if let Some(filtered_format_version) =
-        get_filtered_value(&deserialized_state, &["formatVersion"])
+        get_filtered_value(&deserialized_state, &splitted_masks_format_version)
     {
         update_compact_state(
             &mut compact_state,
-            &["formatVersion"],
+            &splitted_masks_format_version,
             filtered_format_version.to_owned(),
         );
     }
@@ -1675,7 +1677,7 @@ mod tests {
             .await
             .unwrap();
 
-        let expected_single_field_result_text = "formatVersion:\n  version: v0.1\ndesiredState:\n  workloads:\n    name3:\n      runtime: runtime\n";
+        let expected_single_field_result_text = "desiredState:\n  formatVersion: v0.1\n  workloads:\n    name3:\n      runtime: runtime\n";
 
         assert_eq!(cmd_text, expected_single_field_result_text);
     }
@@ -1739,8 +1741,8 @@ mod tests {
             .await
             .unwrap();
         assert!(matches!(cmd_text,
-            txt if txt == *"formatVersion:\n  version: v0.1\ndesiredState:\n  workloads:\n    name1:\n      runtime: runtime\n    name2:\n      runtime: runtime\n" ||
-            txt == *"formatVersion:\n  version: v0.1\ndesiredState:\n  workloads:\n    name2:\n      runtime: runtime\n    name1:\n      runtime: runtime\n"));
+            txt if txt == *"desiredState:\n  formatVersion: v0.1\n  workloads:\n    name1:\n      runtime: runtime\n    name2:\n      runtime: runtime\n" ||
+            txt == *"desiredState:\n  formatVersion: v0.1\n  workloads:\n    name2:\n      runtime: runtime\n    name1:\n      runtime: runtime\n"));
     }
 
     // TODO: This will be fixed with https://github.com/eclipse-ankaios/ankaios/issues/196
@@ -1994,10 +1996,8 @@ mod tests {
         ]);
 
         let expected_state = r#"{
-            "formatVersion": {
-                "version": "v0.1"
-            },
             "desiredState": {
+                "formatVersion": "v0.1",
                 "workloads": {
                   "name1": {
                     "agent": "agent_A",
@@ -2052,10 +2052,8 @@ mod tests {
         ]);
 
         let expected_state = r#"{
-            "formatVersion": {
-                "version": "v0.1"
-            },
             "desiredState": {
+                "formatVersion": "v0.1",
                 "workloads": {
                     "name1": {
                         "agent": "agent_A",
@@ -2328,7 +2326,7 @@ mod tests {
     #[test]
     fn utest_parse_manifest_ok() {
         let manifest_content = io::Cursor::new(
-            b"workloads:
+            b"formatVersion: \"v0.1\"\nworkloads:
         simple:
           runtime: podman
           agent: agent_A
@@ -2590,7 +2588,7 @@ mod tests {
     fn utest_generate_state_obj_and_filter_masks_from_manifests_ok() {
         let manifest_file_name = "manifest.yaml";
         let manifest_content = io::Cursor::new(
-            b"workloads:
+            b"formatVersion: \"v0.1\"\nworkloads:
         simple:
           runtime: podman
           agent: agent_A
@@ -2639,7 +2637,7 @@ mod tests {
     fn utest_generate_state_obj_and_filter_masks_from_manifests_delete_mode_ok() {
         let manifest_file_name = "manifest.yaml";
         let manifest_content = io::Cursor::new(
-            b"workloads:
+            b"formatVersion: \"v0.1\"\nworkloads:
         simple:
           runtime: podman
           agent: agent_A
@@ -2674,7 +2672,7 @@ mod tests {
     #[test]
     fn utest_generate_state_obj_and_filter_masks_from_manifests_no_workload_provided() {
         let manifest_file_name = "manifest.yaml";
-        let manifest_content = io::Cursor::new(b"");
+        let manifest_content = io::Cursor::new(b"formatVersion: \"v0.1\"");
         let mut manifests: Vec<InputSourcePair> =
             vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
 
@@ -2700,7 +2698,7 @@ mod tests {
             .await;
 
         let manifest_content = io::Cursor::new(
-            b"workloads:
+            b"formatVersion: \"v0.1\"\nworkloads:
     simple_manifest1:
       runtime: podman
       agent: agent_A
@@ -2784,7 +2782,7 @@ mod tests {
             .await;
 
         let manifest_content = io::Cursor::new(
-            b"workloads:
+            b"formatVersion: \"v0.1\"\nworkloads:
         simple_manifest1:
           runtime: podman
           agent: agent_A

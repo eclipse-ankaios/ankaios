@@ -258,8 +258,8 @@ impl Object {
 mod tests {
     use crate::{
         objects::{
-            generate_test_workload_spec, generate_test_workload_state_with_agent, ApiVersion,
-            CompleteState, ExecutionState, State,
+            generate_test_workload_spec, generate_test_workload_state_with_agent, CompleteState,
+            ExecutionState, State,
         },
         test_utils::generate_test_state_from_workloads,
     };
@@ -274,7 +274,6 @@ mod tests {
             data: object::generate_test_state().into(),
         };
         let actual: Object = state.clone().try_into().unwrap();
-        // println!("\nstate:\n{:?}\nactual:\n{:?}", state, actual);
         assert_eq!(actual, expected)
     }
 
@@ -294,7 +293,6 @@ mod tests {
     fn utest_object_from_complete_state() {
         let state = generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
         let complete_state = CompleteState {
-            format_version: ApiVersion::default(),
             startup_state: state.clone(),
             desired_state: state,
             workload_states: vec![generate_test_workload_state_with_agent(
@@ -321,7 +319,6 @@ mod tests {
         let expected_state =
             generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
         let expected = CompleteState {
-            format_version: ApiVersion::default(),
             startup_state: expected_state.clone(),
             desired_state: expected_state,
             workload_states: vec![generate_test_workload_state_with_agent(
@@ -675,14 +672,9 @@ mod tests {
     mod object {
         use serde_yaml::Value;
 
-        pub fn generate_test_format_version() -> Mapping {
-            Mapping::default().entry("version", "v0.1")
-        }
-
         pub fn generate_test_complete_state() -> Mapping {
             let config_hash: &dyn common::objects::ConfigHash = &"config".to_string();
             Mapping::default()
-                .entry("formatVersion", generate_test_format_version())
                 .entry("startupState", generate_test_state())
                 .entry("desiredState", generate_test_state())
                 .entry(
@@ -707,6 +699,7 @@ mod tests {
 
         pub fn generate_test_state() -> Mapping {
             Mapping::default()
+                .entry("formatVersion", "v0.1")
                 .entry(
                     "workloads",
                     Mapping::default().entry(
@@ -727,18 +720,10 @@ mod tests {
                                     .entry("workload C", "ADD_COND_SUCCEEDED"),
                             )
                             .entry("restart", true)
-                            // .entry(
-                            //     "accessRights",
-                            //     Mapping::default()
-                            //         .entry("allow", vec![] as Vec<Value>)
-                            //         .entry("deny", vec![] as Vec<Value>),
-                            // )
                             .entry("runtime", "runtime")
                             .entry("runtimeConfig", "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"),
                     ),
                 )
-            // .entry("configs", Mapping::default())
-            // .entry("cronJobs", Mapping::default())
         }
 
         pub fn generate_test_value_object() -> Value {

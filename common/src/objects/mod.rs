@@ -20,7 +20,7 @@ mod state;
 pub use state::State;
 
 mod complete_state;
-pub use complete_state::{ApiVersion, CompleteState};
+pub use complete_state::CompleteState;
 
 mod stored_workload_spec;
 #[cfg(any(feature = "test_utils", test))]

@@ -21,18 +21,31 @@ use crate::objects::StoredWorkloadSpec;
 
 use api::proto;
 
+const CURRENT_API_VERSION: &str = "v0.1";
+
 // [impl->swdd~common-object-representation~1]#[accessible_by_field_name]
 // [impl->swdd~common-object-serialization~1]
-#[derive(Debug, Clone, Default, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(default, rename_all = "camelCase")]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct State {
-    #[serde(serialize_with = "serialize_to_ordered_map")]
+    pub format_version: String,
+    #[serde(default, serialize_with = "serialize_to_ordered_map")]
     pub workloads: HashMap<String, StoredWorkloadSpec>,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            format_version: CURRENT_API_VERSION.into(),
+            workloads: Default::default(),
+        }
+    }
 }
 
 impl From<State> for proto::State {
     fn from(item: State) -> Self {
         proto::State {
+            format_version: item.format_version,
             workloads: item
                 .workloads
                 .into_iter()
@@ -47,13 +60,19 @@ impl TryFrom<proto::State> for State {
 
     fn try_from(item: proto::State) -> Result<Self, Self::Error> {
         Ok(State {
+            format_version: item.format_version,
             workloads: item
                 .workloads
                 .into_iter()
                 .map(|(k, v)| Ok((k.to_owned(), v.try_into()?)))
                 .collect::<Result<HashMap<String, StoredWorkloadSpec>, String>>()?,
-
         })
+    }
+}
+
+impl State {
+    pub fn is_compatible_format(format_version: &String) -> bool {
+        format_version == CURRENT_API_VERSION
     }
 }
 
@@ -108,5 +127,42 @@ mod tests {
             index_workload1 < index_workload2,
             "expected sorted workloads."
         );
+    }
+
+    #[test]
+    fn utest_state_accepts_compatible_state() {
+        let state_compatible_version = State {
+            ..Default::default()
+        };
+        assert!(State::is_compatible_format(
+            &state_compatible_version.format_version
+        ));
+    }
+
+    #[test]
+    fn utest_state_rejects_incompatible_state() {
+        let state_incompatible_version = State {
+            format_version: "incompatible_version".to_string(),
+            ..Default::default()
+        };
+        assert!(!State::is_compatible_format(
+            &state_incompatible_version.format_version
+        ));
+    }
+
+    #[test]
+    fn utest_state_rejects_state_without_format_version() {
+        let state_proto_no_version = proto::State {
+            ..Default::default()
+        };
+        let state_ankaios_no_version = State::try_from(state_proto_no_version).unwrap();
+
+        assert_eq!(state_ankaios_no_version.format_version, "".to_string());
+
+        let file_without_format_version = "";
+        let deserialization_result = serde_yaml::from_str::<State>(file_without_format_version)
+            .unwrap_err()
+            .to_string();
+        assert_eq!(deserialization_result, "missing field `formatVersion`");
     }
 }
