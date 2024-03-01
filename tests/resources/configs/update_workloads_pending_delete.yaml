@@ -1,11 +1,11 @@
+formatVersion: "v0.1"
 workloads:
   frontend:
     runtime: podman
     agent: agent_A
     restart: false
     dependencies:
-      backend:
-        ADD_COND_RUNNING
+      backend: ADD_COND_RUNNING
     tags:
       - key: owner
         value: Ankaios team
@@ -17,8 +17,7 @@ workloads:
     agent: agent_A
     restart: false
     dependencies:
-      init_backend:
-        ADD_COND_SUCCEEDED
+      init_backend: ADD_COND_SUCCEEDED
     tags:
       - key: owner
         value: Ankaios team

@@ -1,8 +1,8 @@
-formatVersion:
-  version: "invalidVersion"
 startupState:
+  formatVersion: "invalidVersion"
   workloads: {}
 desiredState:
+  formatVersion: "invalidVersion"
   workloads:
     nginx:
       runtime: podman
