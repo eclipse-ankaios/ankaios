@@ -226,7 +226,7 @@ mod tests {
     use crate::{
         commands,
         from_server_interface::FromServer,
-        objects::{self, WorkloadInstanceName, WorkloadSpec},
+        objects::{WorkloadInstanceName, WorkloadSpec},
         test_utils::{generate_test_deleted_workload, generate_test_proto_deleted_workload},
     };
 
