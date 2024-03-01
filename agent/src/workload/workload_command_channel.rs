@@ -64,12 +64,12 @@ impl WorkloadCommandSender {
 
     pub async fn update(
         &self,
-        workload_spec: WorkloadSpec,
+        workload_spec: Option<WorkloadSpec>,
         control_interface_path: Option<PathBuf>,
     ) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
         self.sender
             .send(WorkloadCommand::Update(
-                Box::new(workload_spec),
+                workload_spec.and_then(|spec| Some(Box::new(spec))),
                 control_interface_path,
             ))
             .await

@@ -279,7 +279,7 @@ impl WorkloadControlLoop {
 
     async fn update<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-        new_workload_spec: WorkloadSpec,
+        new_workload_spec: Option<Box<WorkloadSpec>>,
         control_interface_path: Option<PathBuf>,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
@@ -314,14 +314,22 @@ impl WorkloadControlLoop {
         // [impl->swdd~agent-workload-control-loop-reset-restart-attempts-on-update~1]
         control_loop_state.restart_counter.reset();
 
-        // [impl->swdd~agent-workload-control-loop-update-create-failed-allows-retry~1]
-        Self::create(
-            control_loop_state,
-            new_workload_spec,
-            control_interface_path,
-            Self::send_restart,
-        )
-        .await
+        log::info!(
+            "after delete new workload spec for update: '{:?}'",
+            new_workload_spec
+        );
+
+        if let Some(spec) = new_workload_spec {
+            // [impl->swdd~agent-workload-control-loop-update-create-failed-allows-retry~1]
+            control_loop_state = Self::create(
+                control_loop_state,
+                *spec,
+                control_interface_path,
+                Self::send_restart,
+            )
+            .await;
+        }
+        control_loop_state
     }
 
     async fn restart<WorkloadId, StChecker>(
@@ -376,7 +384,7 @@ impl WorkloadControlLoop {
 
                     control_loop_state = Self::update(
                         control_loop_state,
-                        *runtime_workload_config,
+                        runtime_workload_config,
                         control_interface_path,
                     )
                     .await;

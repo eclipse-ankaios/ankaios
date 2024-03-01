@@ -57,7 +57,7 @@ impl Display for WorkloadError {
 //#[derive(Debug)]
 pub enum WorkloadCommand {
     Delete,
-    Update(Box<WorkloadSpec>, Option<PathBuf>),
+    Update(Option<Box<WorkloadSpec>>, Option<PathBuf>),
     Restart(Box<WorkloadSpec>, Option<PathBuf>),
     Create(Box<WorkloadSpec>, Option<PathBuf>),
 }
@@ -86,7 +86,7 @@ impl Workload {
     // [impl->swdd~agent-workload-obj-update-command~1]
     pub async fn update(
         &mut self,
-        spec: WorkloadSpec,
+        spec: Option<WorkloadSpec>,
         control_interface: Option<PipesChannelContext>,
     ) -> Result<(), WorkloadError> {
         log::info!("Updating workload '{}'.", self.name);

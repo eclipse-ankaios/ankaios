@@ -91,7 +91,8 @@ impl RuntimeManager {
     ) {
         let workload_operations = self
             .workload_queue
-            .next_workload_operations(workload_state_db);
+            .next_workload_operations(workload_state_db)
+            .await;
 
         if !workload_operations.is_empty() {
             self.process_workloads_operations(workload_operations).await;
@@ -325,8 +326,11 @@ impl RuntimeManager {
         for wl_operation in workload_operations {
             match wl_operation {
                 WorkloadOperation::Create(workload_spec) => self.add_workload(workload_spec).await,
-                WorkloadOperation::Update(workload_spec, _) => {
-                    self.update_workload(workload_spec).await
+                WorkloadOperation::Update(new_workload_spec, _) => {
+                    self.update_workload(new_workload_spec).await
+                }
+                WorkloadOperation::UpdateDeleteOnly(deleted_workload) => {
+                    self.update_delete_only(deleted_workload).await
                 }
                 WorkloadOperation::Delete(deleted_workload) => {
                     self.delete_workload(deleted_workload).await
@@ -391,7 +395,10 @@ impl RuntimeManager {
                 self.control_interface_tx.clone(),
                 &workload_spec,
             );
-            if let Err(err) = workload.update(workload_spec, control_interface).await {
+            if let Err(err) = workload
+                .update(Some(workload_spec), control_interface)
+                .await
+            {
                 log::error!("Failed to update workload '{}': '{}'", workload_name, err);
             }
         } else {
@@ -401,6 +408,15 @@ impl RuntimeManager {
             );
             // [impl->swdd~agent-add-on-update-missing-workload~1]
             self.add_workload(workload_spec).await;
+        }
+    }
+
+    async fn update_delete_only(&mut self, deleted_workload: DeletedWorkload) {
+        let workload_name = deleted_workload.instance_name.workload_name().to_owned();
+        if let Some(workload) = self.workloads.get_mut(&workload_name) {
+            if let Err(err) = workload.update(None, None).await {
+                log::error!("Failed to update workload '{}': '{}'", workload_name, err);
+            }
         }
     }
 
