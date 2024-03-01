@@ -13,6 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{fmt, time::Duration};
+mod wait_list;
+use wait_list::WaitList;
 
 #[cfg(not(test))]
 async fn read_file_to_string(file: String) -> std::io::Result<String> {
@@ -809,6 +811,8 @@ impl CliCommands {
         agent_name: String,
         tags_strings: Vec<(String, String)>,
     ) -> Result<(), CliError> {
+        let request_id = uuid::Uuid::new_v4().to_string();
+
         let tags: Vec<Tag> = tags_strings
             .into_iter()
             .map(|(k, v)| Tag { key: k, value: v })
@@ -834,9 +838,62 @@ impl CliCommands {
         let update_mask = vec!["desiredState".to_string()];
         output_debug!("Sending the new state {:?}", new_state);
         self.to_server
-            .update_state(self.cli_name.to_owned(), new_state, update_mask)
+            .update_state(request_id.clone(), new_state, update_mask)
             .await
             .map_err(|err| CliError::ExecutionError(err.to_string()))?;
+
+        let mut x = Vec::new();
+
+        let update_state_success = loop {
+            let Some(server_message) = self.from_server.recv().await else {
+                return Err(CliError::ExecutionError(
+                    "Connection to server interrupted".into(),
+                ));
+            };
+            match server_message {
+                FromServer::Response(response) => {
+                    if response.request_id != request_id {
+                        output_debug!(
+                            "Received unexpected response for request ID: '{}'",
+                            response.request_id
+                        );
+                    } else if let ResponseContent::UpdateStateSuccess(update_state_success) =
+                        response.response_content
+                    {
+                        break update_state_success;
+                    } else {
+                        output_debug!("Received unexpected Response: '{:?}'", response);
+                    }
+                }
+                FromServer::UpdateWorkloadState(mut update_workload_state) => {
+                    x.append(&mut update_workload_state.workload_states);
+                }
+                other_message => {
+                    output_debug!("Received unexpected message: {:?}", other_message)
+                }
+            }
+        };
+
+        output_debug!("Got update success: {:?}", update_state_success);
+        let mut wait_list = WaitList::new(update_state_success).map_err(|error| {
+            CliError::ExecutionError(format!(
+                "Could not parse UpdateStateSuccess message: {error}"
+            ))
+        })?;
+        wait_list.update(x);
+        while !wait_list.is_empty() {
+            let Some(server_message) = self.from_server.recv().await else {
+                return Err(CliError::ExecutionError(
+                    "Connection to server interrupted".into(),
+                ));
+            };
+            let FromServer::UpdateWorkloadState(update_workload_state) = server_message else {
+                output_debug!("Received unexpected message: {:?}", server_message);
+                continue;
+            };
+            wait_list.update(update_workload_state.workload_states);
+        }
+
         Ok(())
     }
 

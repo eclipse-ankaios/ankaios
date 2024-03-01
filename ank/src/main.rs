@@ -29,6 +29,7 @@ async fn main() {
 
     let cli_name = "ank-cli";
     env::set_var(log::VERBOSITY_KEY, args.verbose.to_string());
+    env::set_var(log::QUIET_KEY, args.quiet.to_string());
 
     output_debug!(
         "Started '{}' with the following parameters: '{:?}'",

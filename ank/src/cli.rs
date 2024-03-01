@@ -40,6 +40,9 @@ pub struct AnkCli {
     #[clap(short = 'v', long = "verbose")]
     /// Enable debug traces
     pub verbose: bool,
+    #[clap(short = 'q', long = "quiet")]
+    /// Disable all output
+    pub quiet: bool,
 }
 
 /// Supported actions
