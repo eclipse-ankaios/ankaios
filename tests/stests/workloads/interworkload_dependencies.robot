@@ -87,3 +87,23 @@ Test Ankaios CLI update workload with pending delete
     Then the workload "frontend" shall not exist on agent "agent_A" within "20" seconds
     And the workload "backend" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
+
+Test Ankaios CLI update workload with pending create
+    [Documentation]    Perform the delete part of an update immediately but wait for the create until the create dependencies are fulfilled.
+    [Setup]    Run Keywords    Setup Ankaios
+    ...    AND    Set Global Variable    ${default_state_yaml_file}    ${CONFIGS_DIR}/update_workloads_pending_create.yaml
+    ...    AND    Set Global Variable    ${new_state_yaml_file}    ${CONFIGS_DIR}/update_state_pending_create.yaml
+    # Preconditions
+    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    And Ankaios server is started with config "${default_state_yaml_file}"
+    And Ankaios agent is started with name "agent_A"
+    And the workload "after_backend" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
+    # Actions
+    When user triggers "ank set state -f ${new_state_yaml_file} desiredState.workloads.after_backend"
+    And the workload "after_backend" shall have the execution state "Pending(WaitingToStart)" on agent "agent_A" within "3" seconds
+    And user triggers "ank set state -f ${new_state_yaml_file} desiredState.workloads.backend"
+    # Asserts
+    Then the workload "backend" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "5" seconds
+    And the workload "after_backend" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "5" seconds
+    [Teardown]    Clean up Ankaios

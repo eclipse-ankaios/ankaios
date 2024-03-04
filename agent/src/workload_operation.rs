@@ -18,6 +18,7 @@ use common::objects::{DeletedWorkload, WorkloadSpec};
 pub enum WorkloadOperation {
     Create(WorkloadSpec),
     Update(WorkloadSpec, DeletedWorkload),
+    UpdateDeleteOnly(DeletedWorkload),
     Delete(DeletedWorkload),
 }
 
