@@ -514,7 +514,7 @@ mod tests {
 
         // Send the update command now. It will be buffered until the await receives it.
         workload_command_sender
-            .update(new_workload_spec.clone(), Some(PIPES_LOCATION.into()))
+            .update(Some(new_workload_spec.clone()), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
@@ -601,7 +601,7 @@ mod tests {
 
         // Send the update command now. It will be buffered until the await receives it.
         workload_command_sender
-            .update(new_workload_spec.clone(), Some(PIPES_LOCATION.into()))
+            .update(Some(new_workload_spec.clone()), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
@@ -687,7 +687,7 @@ mod tests {
 
         // Send the update command now. It will be buffered until the await receives it.
         workload_command_sender
-            .update(new_workload_spec.clone(), Some(PIPES_LOCATION.into()))
+            .update(Some(new_workload_spec.clone()), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
@@ -779,7 +779,7 @@ mod tests {
 
         // Send the update command now. It will be buffered until the await receives it.
         workload_command_sender
-            .update(new_workload_spec.clone(), Some(PIPES_LOCATION.into()))
+            .update(Some(new_workload_spec.clone()), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
         // Send also a delete command so that we can properly get out of the loop
@@ -1564,7 +1564,7 @@ mod tests {
             .unwrap();
 
         workload_command_sender
-            .update(new_workload_spec, Some(PIPES_LOCATION.into()))
+            .update(Some(new_workload_spec), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
 
@@ -1652,7 +1652,7 @@ mod tests {
             .await;
 
         workload_command_sender
-            .update(new_workload_spec, Some(PIPES_LOCATION.into()))
+            .update(Some(new_workload_spec), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
 
@@ -1742,7 +1742,7 @@ mod tests {
             .await;
 
         workload_command_sender
-            .update(new_workload_spec, Some(PIPES_LOCATION.into()))
+            .update(Some(new_workload_spec), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
 
@@ -1840,12 +1840,12 @@ mod tests {
             .await;
 
         workload_command_sender
-            .update(new_workload_spec_update1, Some(PIPES_LOCATION.into()))
+            .update(Some(new_workload_spec_update1), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
 
         workload_command_sender
-            .update(new_workload_spec_update2, Some(PIPES_LOCATION.into()))
+            .update(Some(new_workload_spec_update2), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
 

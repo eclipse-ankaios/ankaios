@@ -1093,8 +1093,14 @@ mod tests {
             .expect_update()
             .once()
             .with(
-                predicate::function(|workload_spec: &WorkloadSpec| {
-                    workload_spec.instance_name.workload_name() == WORKLOAD_1_NAME
+                predicate::function(|workload_spec: &Option<WorkloadSpec>| {
+                    workload_spec.is_some()
+                        && workload_spec
+                            .as_ref()
+                            .unwrap()
+                            .instance_name
+                            .workload_name()
+                            == WORKLOAD_1_NAME
                 }),
                 predicate::function(|control_interface: &Option<PipesChannelContext>| {
                     control_interface.is_some()
@@ -1327,7 +1333,13 @@ mod tests {
             .expect_update()
             .once()
             .withf(|workload_spec, control_interface| {
-                workload_spec.instance_name.workload_name() == WORKLOAD_1_NAME
+                workload_spec.is_some()
+                    && workload_spec
+                        .as_ref()
+                        .unwrap()
+                        .instance_name
+                        .workload_name()
+                        == WORKLOAD_1_NAME
                     && control_interface.is_some()
             })
             .return_once(move |_, _| Ok(()));

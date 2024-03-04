@@ -76,7 +76,6 @@ mod tests {
     const AGENT_A: &str = "agent_A";
     const WORKLOAD_NAME_1: &str = "workload_1";
     const WORKLOAD_NAME_2: &str = "workload_2";
-    const WORKLOAD_NAME_3: &str = "workload_3";
     const RUNTIME: &str = "runtime";
 
     #[test]
@@ -205,7 +204,7 @@ mod tests {
             .once()
             .return_const(Some(ExecutionState::running()));
 
-        assert!(DependencyStateValidator::delete_fulfilled(
+        assert!(!DependencyStateValidator::delete_fulfilled(
             &deleted_workload_with_dependencies,
             &parameter_storage_mock
         ));
