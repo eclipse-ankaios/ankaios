@@ -102,7 +102,7 @@ mod tests {
             Some(PathBuf::from(PIPES_LOCATION));
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~1]
+    // [utest->swdd~agent-workload-control-loop-executes-create~2]
     #[tokio::test]
     async fn utest_send_create() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
@@ -119,7 +119,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~1]
+    // [utest->swdd~agent-workload-control-loop-executes-create~2]
     #[tokio::test]
     async fn utest_send_restart() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
@@ -136,7 +136,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~1]
+    // [utest->swdd~agent-workload-control-loop-executes-create~2]
     #[tokio::test]
     async fn utest_send_update() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
@@ -153,7 +153,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~1]
+    // [utest->swdd~agent-workload-control-loop-executes-create~2]
     #[tokio::test]
     async fn utest_send_delete() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();

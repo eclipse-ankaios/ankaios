@@ -521,12 +521,14 @@ Needs:
 - utest
 
 ##### RuntimeFacade delete old workload
-`swdd~agent-delete-old-workload~1`
+`swdd~agent-delete-old-workload~2`
 
 Status: approved
 
 When requested, the RuntimeFacade deletes a workload by:
+* send a `Stopping(Stopping)` with additional information "Triggered at runtime." workload state for that workload
 * deleting the workload via the runtime
+* send a `Removed` workload state for that workload after delete was successful or `Stopping(DeleteFailed)` upon failure
 
 Comment:
 This delete is done by the specific runtime for a workload Id. No internal workload object is involved in this action.
@@ -605,13 +607,17 @@ Needs:
 - utest
 
 ##### WorkloadControlLoop executes create command
-`swdd~agent-workload-control-loop-executes-create~1`
+`swdd~agent-workload-control-loop-executes-create~2`
 
 Status: approved
 
 When the WorkloadControlLoop receives an create command, the WorkloadControlLoop shall:
+* send a `Pending(Starting)` with additional information "Triggered at runtime." workload state for that workload
 * create a new workload via the corresponding runtime connector (which creates and starts a state checker)
-* store the Id and reference to the state checker for the created workload inside the WorkloadControlLoop
+* upon successful creation of the workload:
+    * store the Id and reference to the state checker for the created workload inside the WorkloadControlLoop
+* upon failed creation of the workload:
+    * send a `Pending(StartingFailed)` workload state for that workload
 
 Comment:
 For details on the runtime connector specific actions, e.g., create, see the specific runtime connector workflows.
@@ -627,15 +633,13 @@ Needs:
 - utest
 
 ##### WorkloadControlLoop executes update command
-`swdd~agent-workload-control-loop-executes-update~1`
+`swdd~agent-workload-control-loop-executes-update~2`
 
 Status: approved
 
 When the WorkloadControlLoop started during the creation of the workload object receives an update command, the WorkloadControlLoop shall:
-* delete the old workload via the corresponding runtime connector
-* stop the state checker for the workload
-* create a new workload via the corresponding runtime connector (which creates and starts a state checker)
-* store the new Id and reference to the state checker inside the WorkloadControlLoop
+* execute a delete command for the old configuration of the workload
+* execute a create command for the new configuration of the workload
 
 Comment:
 For details on the runtime connector specific actions, e.g., delete, see the specific runtime connector workflows.
@@ -752,15 +756,19 @@ Needs:
 - utest
 
 ##### WorkloadControlLoop executes delete command
-`swdd~agent-workload-control-loop-executes-delete~1`
+`swdd~agent-workload-control-loop-executes-delete~2`
 
 Status: approved
 
 When the WorkloadControlLoop started during the creation of the workload object receives a delete command, the WorkloadControlLoop shall:
-* delete the old workload via the corresponding runtime connector
-* stop the state checker for the workload
-* send a `Removed` workload state for that workload
-* stop the WorkloadControlLoop
+* send a `Stopping(Stopping)` workload state for that workload
+* delete the old workload via the corresponding runtime connector blocking the execution
+* upon successful deletion of the workload:
+    * stop the state checker for the workload
+    * send a `Removed` workload state for that workload
+    * stop the WorkloadControlLoop
+* upon failed deletion of the workload:
+    * send a `Stopping(DeleteFailed)` workload state for that workload
 
 Comment:
 For details on the runtime connector specific actions, e.g., delete, see the specific runtime connector workflows.
@@ -937,7 +945,7 @@ Needs:
 
 Status: approved
 
-When the WorkloadControlLoop receives a restart command and the maximum amount of restart attempts is reached, the WorkloadControlLoop shall set the execution state of the workload to `Pending(StartingFailed)`.
+When the WorkloadControlLoop receives a restart command and the maximum amount of restart attempts is reached, the WorkloadControlLoop shall set the execution state of the workload to `Pending(StartingFailed)` with additional information "No more retries.".
 
 Rationale:
 The workload has a well defined state after reaching the restart attempt limit indicating that the create of the workload has failed.

@@ -167,6 +167,7 @@ impl WorkloadControlLoop {
         control_loop_state
     }
 
+    // [impl->swdd~agent-workload-control-loop-executes-create~2]
     async fn create<WorkloadId, StChecker, Fut>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         new_workload_spec: WorkloadSpec,
@@ -230,7 +231,7 @@ impl WorkloadControlLoop {
         }
     }
 
-    // [impl->swdd~agent-workload-control-loop-executes-delete~1]
+    // [impl->swdd~agent-workload-control-loop-executes-delete~2]
     async fn delete<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
     ) -> Option<ControlLoopState<WorkloadId, StChecker>>
@@ -284,6 +285,7 @@ impl WorkloadControlLoop {
         None
     }
 
+    // [impl->swdd~agent-workload-control-loop-executes-update~2]
     async fn update<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         new_workload_spec: WorkloadSpec,
@@ -380,7 +382,7 @@ impl WorkloadControlLoop {
     {
         loop {
             match control_loop_state.command_receiver.recv().await {
-                // [impl->swdd~agent-workload-control-loop-executes-delete~1]
+                // [impl->swdd~agent-workload-control-loop-executes-delete~2]
                 Some(WorkloadCommand::Delete) => {
                     log::debug!("Received WorkloadCommand::Delete.");
 
@@ -391,7 +393,7 @@ impl WorkloadControlLoop {
                         return;
                     }
                 }
-                // [impl->swdd~agent-workload-control-loop-executes-update~1]
+                // [impl->swdd~agent-workload-control-loop-executes-update~2]
                 Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
                     log::debug!("Received WorkloadCommand::Update.");
 
@@ -415,7 +417,7 @@ impl WorkloadControlLoop {
                     )
                     .await;
                 }
-                // [impl->swdd~agent-workload-control-loop-executes-create~1]
+                // [impl->swdd~agent-workload-control-loop-executes-create~2]
                 Some(WorkloadCommand::Create(runtime_workload_config, control_interface_path)) => {
                     log::debug!("Received WorkloadCommand::Create.");
 
@@ -477,7 +479,7 @@ mod tests {
     // Unfortunately this test also executes a delete of the newly updated workload.
     // We could not avoid this as it is the only possibility to check the internal variables
     // and to properly stop the control loop in the await new command method
-    // [utest->swdd~agent-workload-control-loop-executes-update~1]
+    // [utest->swdd~agent-workload-control-loop-executes-update~2]
     #[tokio::test]
     async fn utest_workload_obj_run_update_success() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -822,7 +824,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-delete~1]
+    // [utest->swdd~agent-workload-control-loop-executes-delete~2]
     #[tokio::test]
     async fn utest_workload_obj_run_delete_success() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -998,7 +1000,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~1]
+    // [utest->swdd~agent-workload-control-loop-executes-create~2]
     #[tokio::test]
     async fn utest_workload_obj_run_create_successful() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1067,7 +1069,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~1]
+    // [utest->swdd~agent-workload-control-loop-executes-create~2]
     // [utest->swdd~agent-workload-control-loop-restart-workload-on-create-failure~1]
     #[tokio::test]
     async fn utest_workload_obj_run_restart_successful_after_create_command_fails() {
@@ -1145,7 +1147,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~1]
+    // [utest->swdd~agent-workload-control-loop-executes-create~2]
     // [utest->swdd~agent-workload-control-loop-restart-workload-on-create-failure~1]
     #[tokio::test]
     async fn utest_workload_obj_run_create_with_restart_workload_command_channel_closed() {
