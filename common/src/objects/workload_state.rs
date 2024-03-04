@@ -22,7 +22,9 @@ use crate::std_extensions::UnreachableOption;
 
 use super::WorkloadInstanceName;
 
-const TRIGGERED_MSG: &str = "triggered at runtime";
+const TRIGGERED_MSG: &str = "Triggered at runtime.";
+const WAITING_MSG: &str = "Waiting for workload dependencies.";
+const NO_MORE_RETRIES_MSG: &str = "No more retries.";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PendingSubstate {
@@ -317,7 +319,7 @@ impl ExecutionState {
     pub fn restart_failed_no_retry() -> Self {
         ExecutionState {
             state: ExecutionStateEnum::Pending(PendingSubstate::StartingFailed),
-            additional_info: "No more retries.".to_string(),
+            additional_info: NO_MORE_RETRIES_MSG.to_string(),
         }
     }
 
@@ -401,14 +403,14 @@ impl ExecutionState {
     pub fn waiting_to_start() -> Self {
         ExecutionState {
             state: ExecutionStateEnum::Pending(PendingSubstate::WaitingToStart),
-            additional_info: "waiting for workload dependencies.".to_string(),
+            additional_info: WAITING_MSG.to_string(),
         }
     }
 
     pub fn waiting_to_stop() -> Self {
         ExecutionState {
             state: ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop),
-            additional_info: "waiting for workload dependencies.".to_string(),
+            additional_info: WAITING_MSG.to_string(),
         }
     }
 
@@ -552,7 +554,9 @@ pub fn generate_test_workload_state(
 mod tests {
     use api::proto::{self};
 
-    use crate::objects::{ExecutionState, WorkloadInstanceName, WorkloadState};
+    use crate::objects::{
+        workload_state::NO_MORE_RETRIES_MSG, ExecutionState, WorkloadInstanceName, WorkloadState,
+    };
 
     // [utest->swdd~common-workload-state-transitions~1]
     #[test]
@@ -676,7 +680,7 @@ mod tests {
         );
         assert_eq!(
             proto::ExecutionState {
-                additional_info: "No more retries.".to_string(),
+                additional_info: NO_MORE_RETRIES_MSG.to_string(),
                 execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
                     proto::Pending::StartingFailed.into(),
                 )),
@@ -779,7 +783,7 @@ mod tests {
         assert_eq!(
             ExecutionState::restart_failed_no_retry(),
             proto::ExecutionState {
-                additional_info: "No more retries.".to_string(),
+                additional_info: NO_MORE_RETRIES_MSG.to_string(),
                 execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
                     proto::Pending::StartingFailed.into(),
                 )),
@@ -881,7 +885,7 @@ mod tests {
         );
         assert_eq!(
             ExecutionState::restart_failed_no_retry().to_string(),
-            String::from("Pending(StartingFailed): 'No more retries.'")
+            format!("Pending(StartingFailed): '{}'", NO_MORE_RETRIES_MSG)
         );
         assert_eq!(
             ExecutionState::removed().to_string(),
