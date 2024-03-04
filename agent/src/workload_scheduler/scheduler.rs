@@ -911,6 +911,34 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn utest_enqueue_filtered_workload_operations_ignore_update_delete_only_workload_operations(
+    ) {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (workload_state_sender, _workload_state_receiver) = channel(1);
+        let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
+
+        let ready_deleted_workload =
+            generate_test_deleted_workload(AGENT_A.to_owned(), WORKLOAD_NAME_1.to_owned());
+
+        let workload_operations = vec![WorkloadOperation::UpdateDeleteOnly(
+            ready_deleted_workload.clone(),
+        )];
+
+        let ready_workload_operations = workload_scheduler
+            .enqueue_filtered_workload_operations(
+                workload_operations,
+                &MockParameterStorage::default(),
+            )
+            .await;
+
+        assert!(ready_workload_operations.is_empty());
+
+        assert!(workload_scheduler.queue.is_empty());
+    }
+
+    #[tokio::test]
     async fn utest_next_workload_operations_enqueue_pending_update_create_on_delete_fulfilled_update(
     ) {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
