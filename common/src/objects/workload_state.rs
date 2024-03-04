@@ -168,11 +168,12 @@ pub enum ExecutionStateEnum {
 }
 
 // [impl->swdd~common-workload-state-transitions~1]
-impl ExecutionStateEnum {
-    pub fn transition(self, incoming: ExecutionStateEnum) -> ExecutionStateEnum {
-        match self {
+impl ExecutionState {
+    pub fn transition(self, incoming: ExecutionState) -> ExecutionState {
+        match self.state {
             ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
-            | ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop) => match incoming {
+            | ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop) => match incoming.state
+            {
                 ExecutionStateEnum::Running(RunningSubstate::Ok)
                 | ExecutionStateEnum::Succeeded(SucceededSubstate::Ok)
                 | ExecutionStateEnum::Failed(FailedSubstate::ExecFailed)
@@ -551,58 +552,51 @@ pub fn generate_test_workload_state(
 mod tests {
     use api::proto::{self};
 
-    use crate::objects::{
-        workload_state::{FailedSubstate, RunningSubstate, StoppingSubstate, SucceededSubstate},
-        ExecutionState, ExecutionStateEnum, WorkloadInstanceName, WorkloadState,
-    };
+    use crate::objects::{ExecutionState, WorkloadInstanceName, WorkloadState};
 
     // [utest->swdd~common-workload-state-transitions~1]
     #[test]
     fn utest_execution_state_transition_hysteresis() {
         assert_eq!(
-            ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop)
-                .transition(ExecutionStateEnum::Running(RunningSubstate::Ok)),
-            ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop)
+            ExecutionState::waiting_to_stop().transition(ExecutionState::running()),
+            ExecutionState::waiting_to_stop()
         );
         assert_eq!(
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
-                .transition(ExecutionStateEnum::Running(RunningSubstate::Ok)),
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+            ExecutionState::stopping_triggered().transition(ExecutionState::running()),
+            ExecutionState::stopping_triggered()
         );
         assert_eq!(
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
-                .transition(ExecutionStateEnum::Succeeded(SucceededSubstate::Ok)),
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+            ExecutionState::stopping_triggered().transition(ExecutionState::succeeded()),
+            ExecutionState::stopping_triggered()
         );
         assert_eq!(
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
-                .transition(ExecutionStateEnum::Failed(FailedSubstate::ExecFailed)),
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+            ExecutionState::stopping_triggered()
+                .transition(ExecutionState::failed("failed for some reason")),
+            ExecutionState::stopping_triggered()
         );
         assert_eq!(
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
-                .transition(ExecutionStateEnum::Failed(FailedSubstate::Lost)),
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+            ExecutionState::stopping_triggered().transition(ExecutionState::lost()),
+            ExecutionState::stopping_triggered()
         );
         assert_eq!(
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
-                .transition(ExecutionStateEnum::Failed(FailedSubstate::Unknown)),
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+            ExecutionState::stopping_triggered()
+                .transition(ExecutionState::unknown("I lost the thing")),
+            ExecutionState::stopping_triggered()
         );
         assert_eq!(
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
-                .transition(ExecutionStateEnum::Stopping(StoppingSubstate::DeleteFailed)),
-            ExecutionStateEnum::Stopping(StoppingSubstate::DeleteFailed)
+            ExecutionState::stopping_triggered().transition(ExecutionState::delete_failed(
+                "mi mi mi, I could not delete it..."
+            )),
+            ExecutionState::delete_failed("mi mi mi, I could not delete it...")
         );
         assert_eq!(
-            ExecutionStateEnum::Stopping(StoppingSubstate::DeleteFailed)
-                .transition(ExecutionStateEnum::Running(RunningSubstate::Ok)),
-            ExecutionStateEnum::Running(RunningSubstate::Ok)
+            ExecutionState::delete_failed("mi mi mi, I could not delete it...")
+                .transition(ExecutionState::running()),
+            ExecutionState::running()
         );
         assert_eq!(
-            ExecutionStateEnum::Running(RunningSubstate::Ok)
-                .transition(ExecutionStateEnum::Failed(FailedSubstate::ExecFailed)),
-            ExecutionStateEnum::Failed(FailedSubstate::ExecFailed)
+            ExecutionState::running().transition(ExecutionState::failed("crashed")),
+            ExecutionState::failed("crashed")
         );
     }
 

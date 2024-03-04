@@ -140,7 +140,7 @@ impl WorkloadControlLoop {
                 restart_counter.limit()
             );
 
-            // [impl->swdd~agent-workload-control-loop-restart-limit-set-execution-state~1]
+            // [impl->swdd~agent-workload-control-loop-restart-limit-set-execution-state~2]
             control_loop_state
                 .update_state_tx
                 .report_workload_execution_state(
@@ -230,6 +230,7 @@ impl WorkloadControlLoop {
         }
     }
 
+    // [impl->swdd~agent-workload-control-loop-executes-delete~1]
     async fn delete<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
     ) -> Option<ControlLoopState<WorkloadId, StChecker>>
@@ -450,7 +451,9 @@ impl WorkloadControlLoop {
 mod tests {
     use std::time::Duration;
 
-    use common::objects::{generate_test_workload_spec_with_param, ExecutionState, WorkloadInstanceName};
+    use common::objects::{
+        generate_test_workload_spec_with_param, ExecutionState, WorkloadInstanceName,
+    };
 
     use tokio::{sync::mpsc, time::timeout};
 
@@ -557,7 +560,6 @@ mod tests {
                 ExecutionState::starting_triggered(),
                 ExecutionState::stopping_triggered(),
                 ExecutionState::removed(),
-
             ],
         )
         .await;
@@ -1287,7 +1289,7 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-executes-restart~1]
     // [utest->swdd~agent-workload-control-loop-request-restarts-on-failing-restart-attempt~1]
     // [utest->swdd~agent-workload-control-loop-limit-restart-attempts~1]
-    // [utest->swdd~agent-workload-control-loop-restart-limit-set-execution-state~1]
+    // [utest->swdd~agent-workload-control-loop-restart-limit-set-execution-state~2]
     #[tokio::test]
     async fn utest_workload_obj_run_restart_attempts_exceeded_workload_creation() {
         let _ = env_logger::builder().is_test(true).try_init();

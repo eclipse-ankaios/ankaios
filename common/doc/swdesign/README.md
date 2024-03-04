@@ -138,10 +138,10 @@ The Following diagram shows all Ankaios workload states and the possible transit
 
 status: approved
 
-A workload execution state transition from `stopping` state to `running`, `succeeded` or `failed` yields again a `stopping` state.
+A workload execution state transition from `stopping` or `waiting_to_stop` state to `running`, `succeeded` or `failed` yields again a `stopping` state.
 
 Rationale:
-This hysteresis is especially needed if a workload has transitioned to a `stopping` state. It could be that the stopping is is progress, but the workload is still running and is reported to be running.
+This hysteresis is especially needed is the the stopping operation is in progress, but the workload is still running and is reported to be running.
 To prevent flipping the state multiple times, the new value must be dependent on the old one and remain in `stopping`.
 
 Tags:

@@ -33,7 +33,7 @@ pub struct AgentManager {
     from_server_receiver: FromServerReceiver,
     to_server: ToServerSender,
     workload_state_receiver: WorkloadStateReceiver,
-    parameter_storage: WorkloadStateStore,
+    workload_state_store: WorkloadStateStore,
 }
 
 impl AgentManager {
@@ -50,7 +50,7 @@ impl AgentManager {
             from_server_receiver,
             to_server,
             workload_state_receiver,
-            parameter_storage: WorkloadStateStore::new(),
+            workload_state_store: WorkloadStateStore::new(),
         }
     }
 
@@ -93,7 +93,7 @@ impl AgentManager {
                     .handle_update_workload(
                         method_obj.added_workloads,
                         method_obj.deleted_workloads,
-                        &self.parameter_storage,
+                        &self.workload_state_store,
                     )
                     .await;
                 Some(())
@@ -112,11 +112,11 @@ impl AgentManager {
                     for new_workload_state in new_workload_states {
                         log::info!("The server reports workload state '{:?}' for the workload '{}' in the agent '{}'", new_workload_state.execution_state,
                     new_workload_state.instance_name.workload_name(), new_workload_state.instance_name.agent_name());
-                        self.parameter_storage
+                        self.workload_state_store
                             .update_workload_state(new_workload_state);
                     }
                     self.runtime_manager
-                        .update_workloads_on_fulfilled_dependencies(&self.parameter_storage)
+                        .update_workloads_on_fulfilled_dependencies(&self.workload_state_store)
                         .await;
                 }
 
@@ -145,14 +145,14 @@ impl AgentManager {
         &mut self,
         mut new_workload_state: WorkloadState,
     ) {
-        // execute hysteresis on the local workload states as we could be in stopping
+        // execute hysteresis on the local workload states as we could be stopping
+        // [impl->swdd~agent-manager-hysteresis_on-workload-states-of-its-workloads~1]
         if let Some(old_execution_state) = self
-            .parameter_storage
+            .workload_state_store
             .get_state_of_workload(new_workload_state.instance_name.workload_name())
         {
-            new_workload_state.execution_state.state = old_execution_state
-                .state
-                .transition(new_workload_state.execution_state.state);
+            new_workload_state.execution_state = old_execution_state
+                .transition(new_workload_state.execution_state);
         }
 
         log::debug!(
@@ -160,12 +160,12 @@ impl AgentManager {
             new_workload_state
         );
 
-        self.parameter_storage
+        self.workload_state_store
             .update_workload_state(new_workload_state.clone());
 
         // notify the runtime manager s.t. dependencies and restarts can be handled
         self.runtime_manager
-            .update_workloads_on_fulfilled_dependencies(&self.parameter_storage)
+            .update_workloads_on_fulfilled_dependencies(&self.workload_state_store)
             .await;
 
         self.to_server
@@ -212,8 +212,8 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let mock_parameter_storage_context = MockWorkloadStateStore::new_context();
-        mock_parameter_storage_context
+        let mock_wl_state_store_context = MockWorkloadStateStore::new_context();
+        mock_wl_state_store_context
             .expect()
             .once()
             .return_once(MockWorkloadStateStore::default);
@@ -288,18 +288,18 @@ mod tests {
             .once()
             .return_const(());
 
-        let mut mock_parameter_storage = MockWorkloadStateStore::default();
-        mock_parameter_storage
+        let mut mock_wl_state_store = MockWorkloadStateStore::default();
+        mock_wl_state_store
             .expect_update_workload_state()
             .with(mockall::predicate::eq(workload_state.clone()))
             .once()
             .return_const(());
 
-        let mock_parameter_storage_context = MockWorkloadStateStore::new_context();
-        mock_parameter_storage_context
+        let mock_wl_state_store_context = MockWorkloadStateStore::new_context();
+        mock_wl_state_store_context
             .expect()
             .once()
-            .return_once(|| mock_parameter_storage);
+            .return_once(|| mock_wl_state_store);
 
         let mut agent_manager = AgentManager::new(
             AGENT_NAME.to_string(),
@@ -327,17 +327,17 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let mut mock_parameter_storage = MockWorkloadStateStore::default();
-        mock_parameter_storage
+        let mut mock_wl_state_store = MockWorkloadStateStore::default();
+        mock_wl_state_store
             .expect_update_workload_state()
             .never()
             .return_const(());
 
-        let mock_parameter_storage_context = MockWorkloadStateStore::new_context();
-        mock_parameter_storage_context
+        let mock_wl_state_store_context = MockWorkloadStateStore::new_context();
+        mock_wl_state_store_context
             .expect()
             .once()
-            .return_once(|| mock_parameter_storage);
+            .return_once(|| mock_wl_state_store);
 
         let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
         let (to_server, _) = channel(BUFFER_SIZE);
@@ -374,8 +374,8 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let mock_parameter_storage_context = MockWorkloadStateStore::new_context();
-        mock_parameter_storage_context
+        let mock_wl_state_store_context = MockWorkloadStateStore::new_context();
+        mock_wl_state_store_context
             .expect()
             .once()
             .return_once(MockWorkloadStateStore::default);
@@ -418,6 +418,7 @@ mod tests {
     }
 
     // [utest->swdd~agent-uses-async-channels~1]
+    // [utest->swdd~agent-manager-hysteresis_on-workload-states-of-its-workloads~1]
     #[tokio::test]
     async fn utest_agent_manager_receives_own_workload_states() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -428,31 +429,37 @@ mod tests {
         let (to_server, mut to_server_receiver) = channel(BUFFER_SIZE);
         let (workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
 
-        let workload_state = common::objects::generate_test_workload_state_with_agent(
+        let workload_state_incoming = common::objects::generate_test_workload_state_with_agent(
             WORKLOAD_1_NAME,
             AGENT_NAME,
             ExecutionState::running(),
         );
 
-        let mut mock_parameter_storage = MockWorkloadStateStore::default();
+        let wl_state_after_hysteresis = common::objects::generate_test_workload_state_with_agent(
+            WORKLOAD_1_NAME,
+            AGENT_NAME,
+            ExecutionState::stopping_triggered(),
+        );
 
-        mock_parameter_storage
+        let mut mock_wl_state_store = MockWorkloadStateStore::default();
+
+        mock_wl_state_store
             .expect_get_state_of_workload()
             .with(mockall::predicate::eq(WORKLOAD_1_NAME))
             .once()
-            .return_const(None);
+            .return_const(ExecutionState::stopping_triggered());
 
-        mock_parameter_storage
+        mock_wl_state_store
             .expect_update_workload_state()
-            .with(mockall::predicate::eq(workload_state.clone()))
+            .with(mockall::predicate::eq(wl_state_after_hysteresis.clone()))
             .once()
             .return_const(());
 
-        let mock_parameter_storage_context = MockWorkloadStateStore::new_context();
-        mock_parameter_storage_context
+        let mock_wl_state_store_context = MockWorkloadStateStore::new_context();
+        mock_wl_state_store_context
             .expect()
             .once()
-            .return_once(|| mock_parameter_storage);
+            .return_once(|| mock_wl_state_store);
 
         let mut mock_runtime_manager = RuntimeManager::default();
         mock_runtime_manager
@@ -474,13 +481,13 @@ mod tests {
 
         workload_state_sender
             .report_workload_execution_state(
-                &workload_state.instance_name,
-                workload_state.execution_state.clone(),
+                &workload_state_incoming.instance_name,
+                workload_state_incoming.execution_state.clone(),
             )
             .await;
 
         let expected_workload_states = ToServer::UpdateWorkloadState(UpdateWorkloadState {
-            workload_states: vec![workload_state],
+            workload_states: vec![wl_state_after_hysteresis],
         });
         assert_eq!(
             Ok(Some(expected_workload_states)),

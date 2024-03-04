@@ -161,6 +161,23 @@ Needs:
 - utest
 - itest
 
+#### AgentManager shall execute hysteresis on workload states of the workloads it manages
+`swdd~agent-manager-hysteresis_on-workload-states-of-its-workloads~1`
+
+Status: approved
+
+When the AgentManager receives workload states of workload is manages, it shall execute hysteresis on the workload state as defined by the transition of workload states.
+
+Rationale:
+A workload could still be running for some time while the stopping of the workload is in progress. The hysteresis on workload states takes care of a consistent transition between states.
+
+Tags:
+- AgentManager
+
+Needs:
+- impl
+- utest
+
 #### All communication with the Server through middleware
 `swdd~communication-to-from-agent-middleware~1`
 
@@ -344,7 +361,7 @@ Status: approved
 When the RuntimeManager creates new workload objects via the RuntimeFacade, the RuntimeManager shall store the Workload in a list of running workloads.
 
 Comment:
-Please note that the object creation is targeted here and thus also resume or replace of running workloads is in scope.
+Please note that the object creation is targeted here and thus also resuming of running workloads is in scope.
 
 Rationale:
 The workload object is later used to update or delete the workload. The object also stores the ControlInterface for the workload and manages it during the lifetime of the workload.
@@ -476,47 +493,6 @@ When requested, the RuntimeFacade resumes a workload by:
 
 Comment:
 If a workload is running, there is no need to create it again via the specific runtime. The state checker must be started as an additional step here as the runtime does not create a new workload.
-
-Rationale:
-The task handling stop and update commands is needed to ensure maintaining the order of the commands for a workload while not blocking Ankaios to wait until one command is complete.
-
-Tags:
-- RuntimeFacade
-
-Needs:
-- impl
-- utest
-
-##### RuntimeManager handles existing workloads replace updated Workloads
-`swdd~agent-existing-workloads-replace-updated~1`
-
-Status: approved
-
-When handling existing workloads, for each found existing workload which is requested to be started and for which a change in the configuration was detected, the RuntimeManager shall request the RuntimeFacade to replace the workload.
-
-Comment:
-The RuntimeManager can check if the specified workload is already running, but was updated by comparing the new workload execution instance name with that of the running instance.
-
-Tags:
-- RuntimeManager
--
-Needs:
-- impl
-- utest
-
-##### RuntimeFacade replace Workload
-`swdd~agent-replace-workload~1`
-
-Status: approved
-
-When requested, the RuntimeFacade replaces a workload by:
-* request the wrapped runtime to delete the old workload
-* start the WorkloadControlLoop waiting for WorkloadCommands
-* request the create of the workload with the new config by sending a create command to the WorkloadControlLoop
-* return a new workload object containing a WorkloadCommandSender to communicate with the WorkloadControlLoop
-
-Comment:
-No need to specifically ask for starting the state checker at that point as runtimes are expected to always create a state checker when creating a workload.
 
 Rationale:
 The task handling stop and update commands is needed to ensure maintaining the order of the commands for a workload while not blocking Ankaios to wait until one command is complete.
@@ -783,7 +759,7 @@ Status: approved
 When the WorkloadControlLoop started during the creation of the workload object receives a delete command, the WorkloadControlLoop shall:
 * delete the old workload via the corresponding runtime connector
 * stop the state checker for the workload
-* send a removed workload state for that workload
+* send a `Removed` workload state for that workload
 * stop the WorkloadControlLoop
 
 Comment:
@@ -957,11 +933,11 @@ Needs:
 - stest
 
 ##### WorkloadControlLoop sets execution state of workload to failed after reaching the restart limit
-`swdd~agent-workload-control-loop-restart-limit-set-execution-state~1`
+`swdd~agent-workload-control-loop-restart-limit-set-execution-state~2`
 
 Status: approved
 
-When the WorkloadControlLoop receives a restart command and the maximum amount of restart attempts is reached, the WorkloadControlLoop shall set the execution state of the workload to `ExecFailed`.
+When the WorkloadControlLoop receives a restart command and the maximum amount of restart attempts is reached, the WorkloadControlLoop shall set the execution state of the workload to `Pending(StartingFailed)`.
 
 Rationale:
 The workload has a well defined state after reaching the restart attempt limit indicating that the create of the workload has failed.
