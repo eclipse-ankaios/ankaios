@@ -31,10 +31,10 @@ use mockall::automock;
 
 #[derive(Debug, Clone, PartialEq)]
 enum QueueEntry {
-    PendingCreate(WorkloadSpec),
-    PendingDelete(DeletedWorkload),
-    PendingUpdateCreate(WorkloadSpec, DeletedWorkload),
-    PendingUpdateDelete(WorkloadSpec, DeletedWorkload),
+    Create(WorkloadSpec),
+    Delete(DeletedWorkload),
+    UpdateCreate(WorkloadSpec, DeletedWorkload),
+    UpdateDelete(WorkloadSpec, DeletedWorkload),
 }
 
 type WorkloadOperationQueue = HashMap<String, QueueEntry>;
@@ -89,7 +89,7 @@ impl WorkloadScheduler {
 
             self.queue.insert(
                 new_workload_spec.instance_name.workload_name().to_owned(),
-                QueueEntry::PendingCreate(new_workload_spec),
+                QueueEntry::Create(new_workload_spec),
             );
         }
 
@@ -112,7 +112,7 @@ impl WorkloadScheduler {
 
             self.queue.insert(
                 deleted_workload.instance_name.workload_name().to_owned(),
-                QueueEntry::PendingDelete(deleted_workload),
+                QueueEntry::Delete(deleted_workload),
             );
         }
 
@@ -152,7 +152,7 @@ impl WorkloadScheduler {
 
             self.queue.insert(
                 new_workload_spec.instance_name.workload_name().to_owned(),
-                QueueEntry::PendingUpdateCreate(new_workload_spec, deleted_workload.clone()),
+                QueueEntry::UpdateCreate(new_workload_spec, deleted_workload.clone()),
             );
 
             ready_workload_operations.push(WorkloadOperation::UpdateDeleteOnly(deleted_workload));
@@ -164,7 +164,7 @@ impl WorkloadScheduler {
 
             self.queue.insert(
                 new_workload_spec.instance_name.workload_name().to_owned(),
-                QueueEntry::PendingUpdateDelete(new_workload_spec, deleted_workload),
+                QueueEntry::UpdateDelete(new_workload_spec, deleted_workload),
             );
         }
         ready_workload_operations
@@ -236,7 +236,7 @@ impl WorkloadScheduler {
         let notify_on_new_entry = false;
         for queue_entry in queue_entries {
             match queue_entry {
-                QueueEntry::PendingCreate(new_workload_spec) => {
+                QueueEntry::Create(new_workload_spec) => {
                     ready_workload_operations.extend(
                         self.enqueue_pending_create(
                             new_workload_spec,
@@ -246,7 +246,7 @@ impl WorkloadScheduler {
                         .await,
                     );
                 }
-                QueueEntry::PendingDelete(deleted_workload) => {
+                QueueEntry::Delete(deleted_workload) => {
                     ready_workload_operations.extend(
                         self.enqueue_pending_delete(
                             deleted_workload,
@@ -256,7 +256,7 @@ impl WorkloadScheduler {
                         .await,
                     );
                 }
-                QueueEntry::PendingUpdateCreate(new_workload_spec, deleted_workload) => {
+                QueueEntry::UpdateCreate(new_workload_spec, deleted_workload) => {
                     if DependencyStateValidator::create_fulfilled(
                         &new_workload_spec,
                         workload_state_db,
@@ -268,11 +268,11 @@ impl WorkloadScheduler {
                     } else {
                         self.queue.insert(
                             new_workload_spec.instance_name.workload_name().to_owned(),
-                            QueueEntry::PendingUpdateCreate(new_workload_spec, deleted_workload),
+                            QueueEntry::UpdateCreate(new_workload_spec, deleted_workload),
                         );
                     }
                 }
-                QueueEntry::PendingUpdateDelete(new_workload_spec, deleted_workload) => {
+                QueueEntry::UpdateDelete(new_workload_spec, deleted_workload) => {
                     ready_workload_operations.extend(
                         self.enqueue_pending_update(
                             new_workload_spec,
@@ -515,7 +515,7 @@ mod tests {
         state_validator_mock_context
             .expect()
             .once()
-            .return_const(WorkloadOperationState::PendingCreate);
+            .return_const(WorkloadOperationState::Create);
 
         let pending_create_operation =
             WorkloadOperation::Create(generate_test_workload_spec_with_param(
@@ -553,7 +553,7 @@ mod tests {
         state_validator_mock_context
             .expect()
             .once()
-            .return_const(WorkloadOperationState::PendingDelete);
+            .return_const(WorkloadOperationState::Delete);
 
         let pending_delete_operation = WorkloadOperation::Delete(generate_test_deleted_workload(
             AGENT_A.to_owned(),
@@ -589,7 +589,7 @@ mod tests {
         state_validator_mock_context
             .expect()
             .once()
-            .return_const(WorkloadOperationState::PendingDelete);
+            .return_const(WorkloadOperationState::Delete);
 
         let new_workload = generate_test_workload_spec_with_param(
             AGENT_A.to_owned(),
@@ -634,7 +634,7 @@ mod tests {
         state_validator_mock_context
             .expect()
             .once()
-            .return_const(WorkloadOperationState::PendingCreate);
+            .return_const(WorkloadOperationState::Create);
 
         let new_workload = generate_test_workload_spec_with_param(
             AGENT_A.to_owned(),
@@ -679,7 +679,7 @@ mod tests {
         state_validator_mock_context
             .expect()
             .once()
-            .return_const(WorkloadOperationState::PendingCreate);
+            .return_const(WorkloadOperationState::Create);
 
         let pending_workload = generate_test_workload_spec_with_param(
             AGENT_A.to_owned(),
