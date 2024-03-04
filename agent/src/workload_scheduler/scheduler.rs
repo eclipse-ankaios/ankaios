@@ -14,12 +14,8 @@
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_scheduler::dependency_state_validator::DependencyStateValidator;
-use common::{
-    objects::{DeletedWorkload, ExecutionState, WorkloadSpec, WorkloadState},
-    std_extensions::IllegalStateResult,
-
-};
 use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
+use common::objects::{DeletedWorkload, ExecutionState, WorkloadSpec};
 use std::collections::HashMap;
 
 use crate::workload_operation::{WorkloadOperation, WorkloadOperations};
@@ -74,7 +70,7 @@ impl WorkloadScheduler {
     async fn enqueue_pending_create(
         &mut self,
         new_workload_spec: WorkloadSpec,
-        workload_state_db: &ParameterStorage,
+        workload_state_db: &WorkloadStateStore,
         notify_on_new_entry: bool,
     ) -> WorkloadOperations {
         let mut ready_workload_operations = WorkloadOperations::new();
@@ -97,7 +93,7 @@ impl WorkloadScheduler {
     async fn enqueue_pending_delete(
         &mut self,
         deleted_workload: DeletedWorkload,
-        workload_state_db: &ParameterStorage,
+        workload_state_db: &WorkloadStateStore,
         notify_on_new_entry: bool,
     ) -> WorkloadOperations {
         let mut ready_workload_operations = WorkloadOperations::new();
@@ -121,7 +117,7 @@ impl WorkloadScheduler {
         &mut self,
         new_workload_spec: WorkloadSpec,
         deleted_workload: DeletedWorkload,
-        workload_state_db: &ParameterStorage,
+        workload_state_db: &WorkloadStateStore,
         notify_on_new_entry: bool,
     ) -> WorkloadOperations {
         let mut ready_workload_operations = WorkloadOperations::new();
@@ -346,7 +342,7 @@ mod tests {
         let ready_workload_operations = workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockParameterStorage::default(),
+                &MockWorkloadStateStore::default(),
             )
             .await;
 
@@ -396,7 +392,7 @@ mod tests {
         let ready_workload_operations = workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockParameterStorage::default(),
+                &MockWorkloadStateStore::default(),
             )
             .await;
 
@@ -447,7 +443,7 @@ mod tests {
         let ready_workload_operations = workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockParameterStorage::default(),
+                &MockWorkloadStateStore::default(),
             )
             .await;
 
@@ -496,7 +492,7 @@ mod tests {
         let ready_workload_operations = workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockParameterStorage::default(),
+                &MockWorkloadStateStore::default(),
             )
             .await;
 
@@ -567,7 +563,7 @@ mod tests {
         let ready_workload_operations = workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockParameterStorage::default(),
+                &MockWorkloadStateStore::default(),
             )
             .await;
 
@@ -589,9 +585,7 @@ mod tests {
         };
 
         assert_eq!(
-            Ok(Some(ToServer::UpdateWorkloadState(UpdateWorkloadState {
-                workload_states: vec![expected_workload_state]
-            }))),
+            Ok(Some(expected_workload_state)),
             tokio::time::timeout(
                 tokio::time::Duration::from_millis(100),
                 workload_state_receiver.recv()
@@ -638,7 +632,7 @@ mod tests {
         let ready_workload_operations = workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockParameterStorage::default(),
+                &MockWorkloadStateStore::default(),
             )
             .await;
 
@@ -660,9 +654,7 @@ mod tests {
         };
 
         assert_eq!(
-            Ok(Some(ToServer::UpdateWorkloadState(UpdateWorkloadState {
-                workload_states: vec![expected_workload_state]
-            }))),
+            Ok(Some(expected_workload_state)),
             tokio::time::timeout(
                 tokio::time::Duration::from_millis(100),
                 workload_state_receiver.recv()
@@ -733,9 +725,7 @@ mod tests {
         };
 
         assert_eq!(
-            Ok(Some(ToServer::UpdateWorkloadState(UpdateWorkloadState {
-                workload_states: vec![expected_workload_state]
-            }))),
+            Ok(Some(expected_workload_state)),
             tokio::time::timeout(
                 tokio::time::Duration::from_millis(100),
                 workload_state_receiver.recv()
@@ -834,7 +824,7 @@ mod tests {
         let ready_workload_operations = workload_scheduler
             .enqueue_filtered_workload_operations(
                 workload_operations,
-                &MockParameterStorage::default(),
+                &MockWorkloadStateStore::default(),
             )
             .await;
 
