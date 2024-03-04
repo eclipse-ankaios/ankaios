@@ -5,35 +5,20 @@ workloads:
     restart: false
     dependencies:
       backend:
-        ADD_COND_RUNNING # is updated to ADD_COND_SUCCEEDED later
+        ADD_COND_RUNNING
     tags:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
       image: docker.io/alpine:latest
-      commandOptions: [ "--entrypoint", "/bin/sleep" ]
-      commandArgs: [ "1" ]
+      commandArgs: ["echo", "After backend job."]
   backend:
     runtime: podman
     agent: agent_A
     restart: false
-    dependencies:
-      init_backend:
-        ADD_COND_SUCCEEDED
     tags:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: docker.io/alpine:latest
-      commandOptions: [ "--entrypoint", "/bin/sleep" ]
-      commandArgs: [ "10" ]
-  init_backend:
-    runtime: podman
-    agent: agent_A
-    restart: false
-    tags:
-      - key: owner
-        value: Ankaios team
-    runtimeConfig: |
-      image: docker.io/alpine:latest
-      commandArgs: ["echo", "init_backend"]
+      image: docker.io/nginx:latest
+      commandOptions: ["-p", "8082:80"]

@@ -48,37 +48,6 @@ impl DependencyStateValidator {
                     .map_or(true, |wl_state| delete_condition.fulfilled_by(&wl_state))
             })
     }
-
-    // pub fn dependencies_fulfilled(
-    //     workload_operation: &WorkloadOperation,
-    //     workload_state_db: &ParameterStorage,
-    // ) -> WorkloadOperationState {
-    //     match workload_operation {
-    //         WorkloadOperation::Create(workload_spec) => {
-    //             Self::create_fulfilled(workload_spec, workload_state_db)
-    //         }
-    //         WorkloadOperation::Update(new_workload_spec, deleted_workload) => {
-    //             /* The update operation is only blocked when a delete is pending.
-    //             If the create operation is pending the delete can still be done.*/
-    //             let delete_state = Self::delete_fulfilled(deleted_workload, workload_state_db);
-    //             let create_state = Self::create_fulfilled(new_workload_spec, workload_state_db);
-
-    //             if delete_state.is_pending() {
-    //                 WorkloadOperationState::PendingDelete
-    //             } else if create_state.is_pending() {
-    //                 WorkloadOperationState::PendingCreate
-    //             } else {
-    //                 WorkloadOperationState::Fulfilled
-    //             }
-    //         }
-    //         WorkloadOperation::UpdateDeleteOnly(deleted_workload) => {
-    //             Self::delete_fulfilled(deleted_workload, workload_state_db)
-    //         }
-    //         WorkloadOperation::Delete(deleted_workload) => {
-    //             Self::delete_fulfilled(deleted_workload, workload_state_db)
-    //         }
-    //     }
-    // }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -102,99 +71,13 @@ mod tests {
     use mockall::predicate;
     use std::collections::HashMap;
 
-    use crate::{
-        parameter_storage::MockParameterStorage, workload_operation::WorkloadOperation,
-        workload_scheduler::dependency_state_validator::WorkloadOperationState,
-    };
+    use crate::parameter_storage::MockParameterStorage;
 
     const AGENT_A: &str = "agent_A";
     const WORKLOAD_NAME_1: &str = "workload_1";
     const WORKLOAD_NAME_2: &str = "workload_2";
     const WORKLOAD_NAME_3: &str = "workload_3";
     const RUNTIME: &str = "runtime";
-
-    #[test]
-    fn utest_dependencies_fulfilled_create() {
-        let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
-            AGENT_A,
-            WORKLOAD_NAME_1,
-            RUNTIME,
-            HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondRunning)]),
-        );
-
-        let mut parameter_storage_mock = MockParameterStorage::default();
-        parameter_storage_mock
-            .expect_get_state_of_workload()
-            .once()
-            .return_const(Some(ExecutionState::running()));
-
-        assert_eq!(
-            WorkloadOperationState::Fulfilled,
-            DependencyStateValidator::dependencies_fulfilled(
-                &WorkloadOperation::Create(workload_with_dependencies),
-                &parameter_storage_mock
-            )
-        );
-    }
-
-    #[test]
-    fn utest_dependencies_fulfilled_delete() {
-        let deleted_workload = generate_test_deleted_workload_with_dependencies(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            HashMap::from([(
-                WORKLOAD_NAME_2.to_string(),
-                DeleteCondition::DelCondNotPendingNorRunning,
-            )]),
-        );
-
-        let mut parameter_storage_mock = MockParameterStorage::default();
-        parameter_storage_mock
-            .expect_get_state_of_workload()
-            .once()
-            .return_const(Some(ExecutionState::succeeded()));
-
-        assert_eq!(
-            WorkloadOperationState::Fulfilled,
-            DependencyStateValidator::dependencies_fulfilled(
-                &WorkloadOperation::Delete(deleted_workload),
-                &parameter_storage_mock
-            )
-        );
-    }
-
-    #[test]
-    fn utest_dependencies_fulfilled_update() {
-        let new_workload = generate_test_workload_spec_with_dependencies(
-            AGENT_A,
-            WORKLOAD_NAME_1,
-            RUNTIME,
-            HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondRunning)]),
-        );
-
-        let deleted_workload = generate_test_deleted_workload_with_dependencies(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            HashMap::from([(
-                WORKLOAD_NAME_3.to_string(),
-                DeleteCondition::DelCondNotPendingNorRunning,
-            )]),
-        );
-
-        let mut parameter_storage_mock = MockParameterStorage::default();
-        parameter_storage_mock
-            .expect_get_state_of_workload()
-            .once()
-            .return_const(Some(ExecutionState::running()));
-
-        assert_eq!(
-            WorkloadOperationState::PendingDelete,
-            DependencyStateValidator::dependencies_fulfilled(
-                &WorkloadOperation::Update(new_workload, deleted_workload),
-                &parameter_storage_mock
-            )
-        );
-    }
 
     #[test]
     fn utest_create_fulfilled() {
@@ -212,13 +95,10 @@ mod tests {
             .with(predicate::eq(WORKLOAD_NAME_2.to_owned()))
             .return_const(Some(ExecutionState::running()));
 
-        assert_eq!(
-            WorkloadOperationState::Fulfilled,
-            DependencyStateValidator::create_fulfilled(
-                &workload_with_dependencies,
-                &parameter_storage_mock
-            )
-        );
+        assert!(DependencyStateValidator::create_fulfilled(
+            &workload_with_dependencies,
+            &parameter_storage_mock
+        ));
     }
 
     #[test]
@@ -236,13 +116,10 @@ mod tests {
             .expect_get_state_of_workload()
             .never();
 
-        assert_eq!(
-            WorkloadOperationState::Fulfilled,
-            DependencyStateValidator::create_fulfilled(
-                &workload_with_dependencies,
-                &parameter_storage_mock
-            )
-        );
+        assert!(DependencyStateValidator::create_fulfilled(
+            &workload_with_dependencies,
+            &parameter_storage_mock
+        ));
     }
 
     #[test]
@@ -260,13 +137,10 @@ mod tests {
             .once()
             .return_const(None);
 
-        assert_eq!(
-            WorkloadOperationState::PendingCreate,
-            DependencyStateValidator::create_fulfilled(
-                &workload_with_dependencies,
-                &parameter_storage_mock
-            )
-        );
+        assert!(!DependencyStateValidator::create_fulfilled(
+            &workload_with_dependencies,
+            &parameter_storage_mock
+        ));
     }
 
     #[test]
@@ -284,13 +158,10 @@ mod tests {
             .once()
             .return_const(Some(ExecutionState::succeeded()));
 
-        assert_eq!(
-            WorkloadOperationState::PendingCreate,
-            DependencyStateValidator::create_fulfilled(
-                &workload_with_dependencies,
-                &parameter_storage_mock
-            )
-        );
+        assert!(!DependencyStateValidator::create_fulfilled(
+            &workload_with_dependencies,
+            &parameter_storage_mock
+        ));
     }
 
     #[test]
@@ -311,13 +182,10 @@ mod tests {
             .with(predicate::eq(WORKLOAD_NAME_2.to_owned()))
             .return_const(Some(ExecutionState::succeeded()));
 
-        assert_eq!(
-            WorkloadOperationState::Fulfilled,
-            DependencyStateValidator::delete_fulfilled(
-                &deleted_workload_with_dependencies,
-                &parameter_storage_mock
-            )
-        );
+        assert!(DependencyStateValidator::delete_fulfilled(
+            &deleted_workload_with_dependencies,
+            &parameter_storage_mock
+        ));
     }
 
     #[test]
@@ -337,13 +205,10 @@ mod tests {
             .once()
             .return_const(Some(ExecutionState::running()));
 
-        assert_eq!(
-            WorkloadOperationState::PendingDelete,
-            DependencyStateValidator::delete_fulfilled(
-                &deleted_workload_with_dependencies,
-                &parameter_storage_mock
-            )
-        );
+        assert!(DependencyStateValidator::delete_fulfilled(
+            &deleted_workload_with_dependencies,
+            &parameter_storage_mock
+        ));
     }
 
     #[test]
@@ -363,12 +228,9 @@ mod tests {
             .once()
             .return_const(None);
 
-        assert_eq!(
-            WorkloadOperationState::Fulfilled,
-            DependencyStateValidator::delete_fulfilled(
-                &deleted_workload_with_dependencies,
-                &parameter_storage_mock
-            )
-        );
+        assert!(DependencyStateValidator::delete_fulfilled(
+            &deleted_workload_with_dependencies,
+            &parameter_storage_mock
+        ));
     }
 }

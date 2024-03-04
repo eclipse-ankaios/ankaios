@@ -30,14 +30,14 @@ use crate::workload_operation::{WorkloadOperation, WorkloadOperations};
 use mockall::automock;
 
 #[derive(Debug, Clone, PartialEq)]
-enum QueueEntry {
+enum PendingEntry {
     Create(WorkloadSpec),
     Delete(DeletedWorkload),
     UpdateCreate(WorkloadSpec, DeletedWorkload),
     UpdateDelete(WorkloadSpec, DeletedWorkload),
 }
 
-type WorkloadOperationQueue = HashMap<String, QueueEntry>;
+type WorkloadOperationQueue = HashMap<String, PendingEntry>;
 
 pub struct WorkloadScheduler {
     queue: WorkloadOperationQueue,
@@ -89,7 +89,7 @@ impl WorkloadScheduler {
 
             self.queue.insert(
                 new_workload_spec.instance_name.workload_name().to_owned(),
-                QueueEntry::Create(new_workload_spec),
+                PendingEntry::Create(new_workload_spec),
             );
         }
 
@@ -112,7 +112,7 @@ impl WorkloadScheduler {
 
             self.queue.insert(
                 deleted_workload.instance_name.workload_name().to_owned(),
-                QueueEntry::Delete(deleted_workload),
+                PendingEntry::Delete(deleted_workload),
             );
         }
 
@@ -152,7 +152,7 @@ impl WorkloadScheduler {
 
             self.queue.insert(
                 new_workload_spec.instance_name.workload_name().to_owned(),
-                QueueEntry::UpdateCreate(new_workload_spec, deleted_workload.clone()),
+                PendingEntry::UpdateCreate(new_workload_spec, deleted_workload.clone()),
             );
 
             ready_workload_operations.push(WorkloadOperation::UpdateDeleteOnly(deleted_workload));
@@ -164,7 +164,7 @@ impl WorkloadScheduler {
 
             self.queue.insert(
                 new_workload_spec.instance_name.workload_name().to_owned(),
-                QueueEntry::UpdateDelete(new_workload_spec, deleted_workload),
+                PendingEntry::UpdateDelete(new_workload_spec, deleted_workload),
             );
         }
         ready_workload_operations
@@ -210,7 +210,9 @@ impl WorkloadScheduler {
                         .await,
                     );
                 }
-                _ => continue,
+                WorkloadOperation::UpdateDeleteOnly(_) => {
+                    log::warn!("Skip UpdateDeleteOnly. This shall be never enqueued.")
+                }
             };
         }
 
@@ -225,7 +227,7 @@ impl WorkloadScheduler {
     ) -> WorkloadOperations {
         log::info!("queue_content = {:?}", self.queue);
         // clear the whole queue without deallocating memory
-        let queue_entries: Vec<QueueEntry> = self
+        let queue_entries: Vec<PendingEntry> = self
             .queue
             .drain()
             .map(|(_, pending_workload_operation)| pending_workload_operation)
@@ -236,7 +238,7 @@ impl WorkloadScheduler {
         let notify_on_new_entry = false;
         for queue_entry in queue_entries {
             match queue_entry {
-                QueueEntry::Create(new_workload_spec) => {
+                PendingEntry::Create(new_workload_spec) => {
                     ready_workload_operations.extend(
                         self.enqueue_pending_create(
                             new_workload_spec,
@@ -246,7 +248,7 @@ impl WorkloadScheduler {
                         .await,
                     );
                 }
-                QueueEntry::Delete(deleted_workload) => {
+                PendingEntry::Delete(deleted_workload) => {
                     ready_workload_operations.extend(
                         self.enqueue_pending_delete(
                             deleted_workload,
@@ -256,7 +258,7 @@ impl WorkloadScheduler {
                         .await,
                     );
                 }
-                QueueEntry::UpdateCreate(new_workload_spec, deleted_workload) => {
+                PendingEntry::UpdateCreate(new_workload_spec, deleted_workload) => {
                     if DependencyStateValidator::create_fulfilled(
                         &new_workload_spec,
                         workload_state_db,
@@ -268,11 +270,11 @@ impl WorkloadScheduler {
                     } else {
                         self.queue.insert(
                             new_workload_spec.instance_name.workload_name().to_owned(),
-                            QueueEntry::UpdateCreate(new_workload_spec, deleted_workload),
+                            PendingEntry::UpdateCreate(new_workload_spec, deleted_workload),
                         );
                     }
                 }
-                QueueEntry::UpdateDelete(new_workload_spec, deleted_workload) => {
+                PendingEntry::UpdateDelete(new_workload_spec, deleted_workload) => {
                     ready_workload_operations.extend(
                         self.enqueue_pending_update(
                             new_workload_spec,
