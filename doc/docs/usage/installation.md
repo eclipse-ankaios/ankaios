@@ -7,10 +7,17 @@ work as well but have not been tested.
 * Ubuntu 22.04 LTS
 * Ubuntu 20.04 LTS
 
-## Pre-requisites
+## System requirements
 
 Ankaios currently requires a Linux OS and is available for x86_64 and arm64
-targets. [Podman](https://podman.io) needs to be installed as this is used as
+targets.
+
+The recommended system requirements are (based on Ubuntu server):
+
+* CPU: 1 gigahertz or better
+* RAM: 1 gigabyte or more
+
+[Podman](https://podman.io) needs to be installed as this is used as
 container runtime
 (see [Podman installation instructions](https://podman.io/docs/installation)).
 For using the `podman` runtime, Podman version 3.4.2 is sufficient but the
