@@ -53,126 +53,6 @@ impl WorkloadScheduler {
         }
     }
 
-    async fn report_pending_create_state(&self, pending_workload: &WorkloadSpec) {
-        self.workload_state_sender
-            .update_workload_state(vec![WorkloadState {
-                instance_name: pending_workload.instance_name.clone(),
-                execution_state: ExecutionState::waiting_to_start(),
-            }])
-            .await
-            .unwrap_or_illegal_state();
-    }
-
-    async fn report_pending_delete_state(&self, waiting_deleted_workload: &DeletedWorkload) {
-        self.workload_state_sender
-            .update_workload_state(vec![WorkloadState {
-                instance_name: waiting_deleted_workload.instance_name.clone(),
-                execution_state: ExecutionState::waiting_to_stop(),
-            }])
-            .await
-            .unwrap_or_illegal_state();
-    }
-
-    async fn enqueue_pending_create(
-        &mut self,
-        new_workload_spec: WorkloadSpec,
-        workload_state_db: &ParameterStorage,
-        notify_on_new_entry: bool,
-    ) -> WorkloadOperations {
-        let mut ready_workload_operations = WorkloadOperations::new();
-        if DependencyStateValidator::create_fulfilled(&new_workload_spec, workload_state_db) {
-            ready_workload_operations.push(WorkloadOperation::Create(new_workload_spec));
-        } else {
-            if notify_on_new_entry {
-                self.report_pending_create_state(&new_workload_spec).await;
-            }
-
-            self.queue.insert(
-                new_workload_spec.instance_name.workload_name().to_owned(),
-                PendingEntry::Create(new_workload_spec),
-            );
-        }
-
-        ready_workload_operations
-    }
-
-    async fn enqueue_pending_delete(
-        &mut self,
-        deleted_workload: DeletedWorkload,
-        workload_state_db: &ParameterStorage,
-        notify_on_new_entry: bool,
-    ) -> WorkloadOperations {
-        let mut ready_workload_operations = WorkloadOperations::new();
-        if DependencyStateValidator::delete_fulfilled(&deleted_workload, workload_state_db) {
-            ready_workload_operations.push(WorkloadOperation::Delete(deleted_workload));
-        } else {
-            if notify_on_new_entry {
-                self.report_pending_delete_state(&deleted_workload).await;
-            }
-
-            self.queue.insert(
-                deleted_workload.instance_name.workload_name().to_owned(),
-                PendingEntry::Delete(deleted_workload),
-            );
-        }
-
-        ready_workload_operations
-    }
-
-    async fn enqueue_pending_update(
-        &mut self,
-        new_workload_spec: WorkloadSpec,
-        deleted_workload: DeletedWorkload,
-        workload_state_db: &ParameterStorage,
-        notify_on_new_entry: bool,
-    ) -> WorkloadOperations {
-        let mut ready_workload_operations = WorkloadOperations::new();
-        let create_fulfilled =
-            DependencyStateValidator::create_fulfilled(&new_workload_spec, workload_state_db);
-
-        let delete_fulfilled =
-            DependencyStateValidator::delete_fulfilled(&deleted_workload, workload_state_db);
-
-        if create_fulfilled && delete_fulfilled {
-            // dependencies for create and delete are fulfilled, the update can be done immediately
-            ready_workload_operations.push(WorkloadOperation::Update(
-                new_workload_spec.clone(),
-                deleted_workload.clone(),
-            ));
-            return ready_workload_operations;
-        }
-
-        if delete_fulfilled {
-            /* For an update with pending create dependencies but fulfilled delete dependencies
-            the delete can be done immediately but the create must wait in the queue.
-            If the create dependencies are already fulfilled the update must wait until the
-            old workload is deleted (AT_MOST_ONCE default update strategy) */
-
-            /* once the delete conditions are fulfilled the pending update delete is
-            transformed into a pending create since the current update strategy is at most once.
-            We notify a pending create state. */
-            self.report_pending_create_state(&new_workload_spec).await;
-
-            self.queue.insert(
-                new_workload_spec.instance_name.workload_name().to_owned(),
-                PendingEntry::UpdateCreate(new_workload_spec, deleted_workload.clone()),
-            );
-
-            ready_workload_operations.push(WorkloadOperation::UpdateDeleteOnly(deleted_workload));
-        } else {
-            // For an update with pending delete dependencies, the whole update is pending.
-            if notify_on_new_entry {
-                self.report_pending_delete_state(&deleted_workload).await;
-            }
-
-            self.queue.insert(
-                new_workload_spec.instance_name.workload_name().to_owned(),
-                PendingEntry::UpdateDelete(new_workload_spec, deleted_workload),
-            );
-        }
-        ready_workload_operations
-    }
-
     pub async fn enqueue_filtered_workload_operations(
         &mut self,
         new_workload_operations: WorkloadOperations,
@@ -250,16 +130,6 @@ impl WorkloadScheduler {
                         .await,
                     );
                 }
-                PendingEntry::Delete(deleted_workload) => {
-                    ready_workload_operations.extend(
-                        self.enqueue_pending_delete(
-                            deleted_workload,
-                            workload_state_db,
-                            notify_on_new_entry,
-                        )
-                        .await,
-                    );
-                }
                 PendingEntry::UpdateCreate(new_workload_spec, deleted_workload) => {
                     if DependencyStateValidator::create_fulfilled(
                         &new_workload_spec,
@@ -287,9 +157,139 @@ impl WorkloadScheduler {
                         .await,
                     );
                 }
+                PendingEntry::Delete(deleted_workload) => {
+                    ready_workload_operations.extend(
+                        self.enqueue_pending_delete(
+                            deleted_workload,
+                            workload_state_db,
+                            notify_on_new_entry,
+                        )
+                        .await,
+                    );
+                }
             }
         }
         ready_workload_operations
+    }
+
+    async fn enqueue_pending_create(
+        &mut self,
+        new_workload_spec: WorkloadSpec,
+        workload_state_db: &ParameterStorage,
+        notify_on_new_entry: bool,
+    ) -> WorkloadOperations {
+        let mut ready_workload_operations = WorkloadOperations::new();
+        if DependencyStateValidator::create_fulfilled(&new_workload_spec, workload_state_db) {
+            ready_workload_operations.push(WorkloadOperation::Create(new_workload_spec));
+        } else {
+            if notify_on_new_entry {
+                self.report_pending_create_state(&new_workload_spec).await;
+            }
+
+            self.queue.insert(
+                new_workload_spec.instance_name.workload_name().to_owned(),
+                PendingEntry::Create(new_workload_spec),
+            );
+        }
+
+        ready_workload_operations
+    }
+
+    async fn enqueue_pending_update(
+        &mut self,
+        new_workload_spec: WorkloadSpec,
+        deleted_workload: DeletedWorkload,
+        workload_state_db: &ParameterStorage,
+        notify_on_new_entry: bool,
+    ) -> WorkloadOperations {
+        let mut ready_workload_operations = WorkloadOperations::new();
+        let create_fulfilled =
+            DependencyStateValidator::create_fulfilled(&new_workload_spec, workload_state_db);
+
+        let delete_fulfilled =
+            DependencyStateValidator::delete_fulfilled(&deleted_workload, workload_state_db);
+
+        if create_fulfilled && delete_fulfilled {
+            // dependencies for create and delete are fulfilled, the update can be done immediately
+            ready_workload_operations.push(WorkloadOperation::Update(
+                new_workload_spec.clone(),
+                deleted_workload.clone(),
+            ));
+            return ready_workload_operations;
+        }
+
+        if delete_fulfilled {
+            /* For an update with pending create dependencies but fulfilled delete dependencies
+            the delete can be done immediately but the create must wait in the queue.
+            If the create dependencies are already fulfilled the update must wait until the
+            old workload is deleted (AT_MOST_ONCE default update strategy) */
+
+            /* once the delete conditions are fulfilled the pending update delete is
+            transformed into a pending create since the current update strategy is at most once.
+            We notify a pending create state. */
+            self.report_pending_create_state(&new_workload_spec).await;
+
+            self.queue.insert(
+                new_workload_spec.instance_name.workload_name().to_owned(),
+                PendingEntry::UpdateCreate(new_workload_spec, deleted_workload.clone()),
+            );
+
+            ready_workload_operations.push(WorkloadOperation::UpdateDeleteOnly(deleted_workload));
+        } else {
+            // For an update with pending delete dependencies, the whole update is pending.
+            if notify_on_new_entry {
+                self.report_pending_delete_state(&deleted_workload).await;
+            }
+
+            self.queue.insert(
+                new_workload_spec.instance_name.workload_name().to_owned(),
+                PendingEntry::UpdateDelete(new_workload_spec, deleted_workload),
+            );
+        }
+        ready_workload_operations
+    }
+
+    async fn enqueue_pending_delete(
+        &mut self,
+        deleted_workload: DeletedWorkload,
+        workload_state_db: &ParameterStorage,
+        notify_on_new_entry: bool,
+    ) -> WorkloadOperations {
+        let mut ready_workload_operations = WorkloadOperations::new();
+        if DependencyStateValidator::delete_fulfilled(&deleted_workload, workload_state_db) {
+            ready_workload_operations.push(WorkloadOperation::Delete(deleted_workload));
+        } else {
+            if notify_on_new_entry {
+                self.report_pending_delete_state(&deleted_workload).await;
+            }
+
+            self.queue.insert(
+                deleted_workload.instance_name.workload_name().to_owned(),
+                PendingEntry::Delete(deleted_workload),
+            );
+        }
+
+        ready_workload_operations
+    }
+
+    async fn report_pending_create_state(&self, pending_workload: &WorkloadSpec) {
+        self.workload_state_sender
+            .update_workload_state(vec![WorkloadState {
+                instance_name: pending_workload.instance_name.clone(),
+                execution_state: ExecutionState::waiting_to_start(),
+            }])
+            .await
+            .unwrap_or_illegal_state();
+    }
+
+    async fn report_pending_delete_state(&self, waiting_deleted_workload: &DeletedWorkload) {
+        self.workload_state_sender
+            .update_workload_state(vec![WorkloadState {
+                instance_name: waiting_deleted_workload.instance_name.clone(),
+                execution_state: ExecutionState::waiting_to_stop(),
+            }])
+            .await
+            .unwrap_or_illegal_state();
     }
 }
 
