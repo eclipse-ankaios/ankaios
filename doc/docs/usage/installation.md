@@ -12,10 +12,12 @@ work as well but have not been tested.
 Ankaios currently requires a Linux OS and is available for x86_64 and arm64
 targets.
 
-The recommended system requirements are (based on Ubuntu server):
+The minimum system requirements are (tested with [EB corbos Linux – built on Ubuntu](https://www.elektrobit.com/products/ecu/eb-corbos/linux/free/)):
 
-* CPU: 1 gigahertz or better
-* RAM: 1 gigabyte or more
+| Item | Min     |
+| ---- | ------- |
+| CPU  | 1 core  |
+| RAM  | 128 MB  |
 
 [Podman](https://podman.io) needs to be installed as this is used as
 container runtime
