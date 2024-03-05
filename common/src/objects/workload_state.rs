@@ -172,24 +172,23 @@ pub enum ExecutionStateEnum {
 // [impl->swdd~common-workload-state-transitions~1]
 impl ExecutionState {
     pub fn transition(self, incoming: ExecutionState) -> ExecutionState {
-        match self.state {
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
-            | ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop) => match incoming.state
-            {
+        match (&self.state, &incoming.state) {
+            (
+                ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+                | ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop),
                 ExecutionStateEnum::Running(RunningSubstate::Ok)
                 | ExecutionStateEnum::Succeeded(SucceededSubstate::Ok)
                 | ExecutionStateEnum::Failed(FailedSubstate::ExecFailed)
                 | ExecutionStateEnum::Failed(FailedSubstate::Lost)
-                | ExecutionStateEnum::Failed(FailedSubstate::Unknown) => {
-                    log::trace!(
-                        "Skipping transition from '{}' to '{}' state.",
-                        self,
-                        incoming
-                    );
-                    self
-                }
-                _ => incoming,
-            },
+                | ExecutionStateEnum::Failed(FailedSubstate::Unknown),
+            ) => {
+                log::trace!(
+                    "Skipping transition from '{}' to '{}' state.",
+                    self,
+                    incoming
+                );
+                self
+            }
             _ => incoming,
         }
     }

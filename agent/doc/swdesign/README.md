@@ -166,7 +166,7 @@ Needs:
 
 Status: approved
 
-When the AgentManager receives workload states of workload is manages, it shall execute hysteresis on the workload state as defined by the transition of workload states.
+When the AgentManager receives workload states of workloads it manages, it shall execute hysteresis on the workload state as defined by the transitions between workload states.
 
 Rationale:
 A workload could still be running for some time while the stopping of the workload is in progress. The hysteresis on workload states takes care of a consistent transition between states.
@@ -525,10 +525,10 @@ Needs:
 
 Status: approved
 
-When requested, the RuntimeFacade deletes a workload by:
-* send a `Stopping(Stopping)` with additional information "Triggered at runtime." workload state for that workload
+When requested, the RuntimeFacade shall delete a workload by:
+* sending a `Stopping(Stopping)` with additional information "Triggered at runtime." workload state for that workload 
 * deleting the workload via the runtime
-* send a `Removed` workload state for that workload after delete was successful or `Stopping(DeleteFailed)` upon failure
+* sending a `Removed` workload state for that workload after the deletion was successful or `Stopping(DeleteFailed)` upon failure
 
 Comment:
 This delete is done by the specific runtime for a workload Id. No internal workload object is involved in this action.
