@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Elektrobit Automotive GmbH
+// Copyright (c) 2023 Elektrobit Automotive GmbH
 //
 // This program and the accompanying materials are made available under the
 // terms of the Apache License, Version 2.0 which is available at
@@ -52,7 +52,6 @@ impl TryFrom<proto::State> for State {
                 .into_iter()
                 .map(|(k, v)| Ok((k.to_owned(), v.try_into()?)))
                 .collect::<Result<HashMap<String, StoredWorkloadSpec>, String>>()?,
-
         })
     }
 }
