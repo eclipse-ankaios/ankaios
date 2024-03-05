@@ -285,7 +285,7 @@ message UpdateStateRequest {
 * A message containing the state information.
 */
 message State {
-  string format_version = 1; /// The current version of the API.
+  string formatVersion = 1; /// The current version of the API.
   map<string, Workload> workloads = 2; /// A mapping from workload names to workload configurations.
 }
 
