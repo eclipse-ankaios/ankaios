@@ -16,7 +16,7 @@
 use crate::workload_scheduler::dependency_state_validator::DependencyStateValidator;
 
 use common::{
-    objects::{DeletedWorkload, ExecutionState, WorkloadSpec, WorkloadState},
+    objects::{DeletedWorkload, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState},
     std_extensions::IllegalStateResult,
     to_server_interface::{ToServerInterface, ToServerSender},
 };
@@ -183,7 +183,8 @@ impl WorkloadScheduler {
             ready_workload_operations.push(WorkloadOperation::Create(new_workload_spec));
         } else {
             if notify_on_new_entry {
-                self.report_pending_create_state(&new_workload_spec).await;
+                self.report_pending_create_state(&new_workload_spec.instance_name)
+                    .await;
             }
 
             self.queue.insert(
@@ -227,7 +228,8 @@ impl WorkloadScheduler {
             /* once the delete conditions are fulfilled the pending update delete is
             transformed into a pending create since the current update strategy is at most once.
             We notify a pending create state. */
-            self.report_pending_create_state(&new_workload_spec).await;
+            self.report_pending_create_state(&new_workload_spec.instance_name)
+                .await;
 
             self.queue.insert(
                 new_workload_spec.instance_name.workload_name().to_owned(),
@@ -238,7 +240,8 @@ impl WorkloadScheduler {
         } else {
             // For an update with pending delete dependencies, the whole update is pending.
             if notify_on_new_entry {
-                self.report_pending_delete_state(&deleted_workload).await;
+                self.report_pending_delete_state(&deleted_workload.instance_name)
+                    .await;
             }
 
             self.queue.insert(
@@ -260,7 +263,8 @@ impl WorkloadScheduler {
             ready_workload_operations.push(WorkloadOperation::Delete(deleted_workload));
         } else {
             if notify_on_new_entry {
-                self.report_pending_delete_state(&deleted_workload).await;
+                self.report_pending_delete_state(&deleted_workload.instance_name)
+                    .await;
             }
 
             self.queue.insert(
@@ -272,20 +276,23 @@ impl WorkloadScheduler {
         ready_workload_operations
     }
 
-    async fn report_pending_create_state(&self, pending_workload: &WorkloadSpec) {
+    async fn report_pending_create_state(&self, instance_name: &WorkloadInstanceName) {
         self.workload_state_sender
             .update_workload_state(vec![WorkloadState {
-                instance_name: pending_workload.instance_name.clone(),
+                instance_name: instance_name.clone(),
                 execution_state: ExecutionState::waiting_to_start(),
             }])
             .await
             .unwrap_or_illegal_state();
     }
 
-    async fn report_pending_delete_state(&self, waiting_deleted_workload: &DeletedWorkload) {
+    async fn report_pending_delete_state(
+        &self,
+        instance_name_deleted_workload: &WorkloadInstanceName,
+    ) {
         self.workload_state_sender
             .update_workload_state(vec![WorkloadState {
-                instance_name: waiting_deleted_workload.instance_name.clone(),
+                instance_name: instance_name_deleted_workload.clone(),
                 execution_state: ExecutionState::waiting_to_stop(),
             }])
             .await
@@ -430,7 +437,7 @@ mod tests {
 
         let pending_workload = generate_test_workload_spec();
         workload_scheduler
-            .report_pending_create_state(&pending_workload)
+            .report_pending_create_state(&pending_workload.instance_name)
             .await;
     }
 
@@ -535,7 +542,7 @@ mod tests {
             generate_test_deleted_workload(AGENT_A.to_owned(), WORKLOAD_NAME_1.to_owned());
 
         workload_scheduler
-            .report_pending_delete_state(&pending_workload)
+            .report_pending_delete_state(&pending_workload.instance_name)
             .await;
     }
 
