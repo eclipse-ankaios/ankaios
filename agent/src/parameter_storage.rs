@@ -32,10 +32,7 @@ impl ParameterStorage {
         }
     }
 
-    pub fn get_state_of_workload<'a>(
-        &'a self,
-        workload_name: &String,
-    ) -> Option<&'a ExecutionState> {
+    pub fn get_state_of_workload<'a>(&'a self, workload_name: &str) -> Option<&'a ExecutionState> {
         self.states_storage.get(workload_name)
     }
 
