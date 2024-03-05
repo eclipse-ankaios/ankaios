@@ -148,6 +148,9 @@ impl WorkloadScheduler {
             If the create dependencies are already fulfilled the update must wait until the
             old workload is deleted (AT_MOST_ONCE default update strategy) */
 
+            /* once the delete conditions are fulfilled the pending update delete is
+            transformed into a pending create since the current update strategy is at most once.
+            We notify a pending create state. */
             self.report_pending_create_state(&new_workload_spec).await;
 
             self.queue.insert(
