@@ -134,10 +134,8 @@ fn create_update_workload_request() -> proto::ToServer {
             request_content: Some(proto::request::RequestContent::UpdateStateRequest(
                 proto::UpdateStateRequest {
                     new_state: Some(proto::CompleteState {
-                        format_version: Some(proto::ApiVersion {
-                            version: "v0.1".to_string(),
-                        }),
                         desired_state: Some(proto::State {
+                            format_version: "v0.1".to_string(),
                             workloads: new_workloads,
                         }),
                         ..Default::default()

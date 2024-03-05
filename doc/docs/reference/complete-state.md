@@ -7,15 +7,14 @@ The complete state data structure [CompleteState](./_ankaios.proto.md#completest
 Example: `ank get state` returns the complete state of Ankaios system:
 
 ```bash
-formatVersion:
-  version: v0.1
 startupState:
+  formatVersion: v0.1
   workloads: {}
 desiredState:
+  formatVersion: v0.1
   workloads:
     hello-pod:
       agent: agent_B
-      name: hello-pod
       tags:
       - key: owner
         value: Ankaios team
@@ -43,7 +42,6 @@ desiredState:
               - "Hello from a container in a pod"
     hello1:
       agent: agent_B
-      name: hello1
       tags:
       - key: owner
         value: Ankaios team
@@ -56,7 +54,6 @@ desiredState:
         commandArgs: [ "echo", "Hello Ankaios"]
     hello2:
       agent: agent_B
-      name: hello2
       tags:
       - key: owner
         value: Ankaios team
@@ -68,7 +65,6 @@ desiredState:
         commandArgs: [ "echo", "Hello Ankaios"]
     nginx:
       agent: agent_A
-      name: nginx
       tags:
       - key: owner
         value: Ankaios team
@@ -84,9 +80,8 @@ workloadStates: []
 It is not necessary to provide the whole structure of the the [CompleteState](./_ankaios.proto.md#completestate) data structure when using it in conjunction with the [object field mask](#object-field-mask). It is sufficient to provide the relevant branch of the [CompleteState](./_ankaios.proto.md#completestate) object. As an example, to change the restart behavior of the nginx workload, only the relevant branch of the [CompleteState](./_ankaios.proto.md#completestate) needs to be provided:
 
 ```bash
-formatVersion:
-  version: v0.1
 desiredState:
+  formatVersion: v0.1
   workloads:
     nginx:
       restart: false
@@ -104,13 +99,11 @@ The object field mask can be constructed using the field names of the [CompleteS
 1. Example: `ank get state desiredState.workloads.nginx` returns only the information about nginx workload:
 
    ```yaml
-    formatVersion:
-      version: v0.1
     desiredState:
+      formatVersion: v0.1
       workloads:
         nginx:
           agent: agent_A
-          name: nginx
           tags:
           - key: owner
             value: Ankaios team
@@ -125,9 +118,8 @@ The object field mask can be constructed using the field names of the [CompleteS
 2. Example `ank get state desiredState.workloads.nginx.runtimeConfig` returns only the runtime configuration of nginx workload:
 
    ```yaml
-   formatVersion:
-     version: v0.1
    desiredState:
+     formatVersion: v0.1
      workloads:
        nginx:
          runtimeConfig: |
@@ -138,9 +130,8 @@ The object field mask can be constructed using the field names of the [CompleteS
 3. Example `ank set state -f new-state.yaml desiredState.workloads.nginx.restart` changes the restart behavior of nginx workload to `false`:
 
    ```yaml title="new-state.yaml"
-   formatVersion:
-     version: v0.1
    desiredState:
+     formatVersion: v0.1
      workloads:
        nginx:
          restart: false
