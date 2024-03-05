@@ -30,6 +30,7 @@ pub trait WorkloadStateSenderInterface {
     );
 }
 
+#[async_trait]
 impl WorkloadStateSenderInterface for WorkloadStateSender {
     async fn report_workload_execution_state(
         &self,
@@ -110,5 +111,4 @@ mod tests {
             expected_execution_state
         );
     }
-
 }

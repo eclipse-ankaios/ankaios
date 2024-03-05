@@ -577,6 +577,166 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
+    #[tokio::test]
+    async fn utest_workload_obj_run_update_delete_only() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+
+        let mut old_mock_state_checker = StubStateChecker::new();
+        old_mock_state_checker.panic_if_not_stopped();
+
+        let old_workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock
+            .expect(vec![
+                RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
+                // The workload was already deleted with the previous runtime call delete.
+            ])
+            .await;
+
+        // Send only the update to delete the workload
+        workload_command_sender
+            .update(None, Some(PIPES_LOCATION.into()))
+            .await
+            .unwrap();
+
+        // Send also a delete command so that we can properly get out of the loop
+        workload_command_sender.clone().delete().await.unwrap();
+
+        let old_instance_name = old_workload_spec.instance_name.clone();
+        let control_loop_state = ControlLoopState {
+            instance_name: old_instance_name.clone(),
+            workload_id: Some(OLD_WORKLOAD_ID.to_string()),
+            state_checker: Some(old_mock_state_checker),
+            update_state_tx: state_change_tx.clone(),
+            runtime: Box::new(runtime_mock.clone()),
+            command_receiver: workload_command_receiver,
+            workload_channel: workload_command_sender,
+            restart_counter: RestartCounter::new(),
+        };
+
+        assert!(timeout(
+            Duration::from_millis(200),
+            WorkloadControlLoop::run(control_loop_state)
+        )
+        .await
+        .is_ok());
+
+        assert_execution_state_sequence(
+            state_change_rx,
+            vec![
+                ExecutionState::stopping_triggered(),
+                ExecutionState::removed(),
+            ],
+        )
+        .await;
+
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    #[tokio::test]
+    async fn utest_workload_obj_run_update_after_update_delete_only() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+
+        let mut old_mock_state_checker = StubStateChecker::new();
+        old_mock_state_checker.panic_if_not_stopped();
+
+        // Since we also send a delete command to exit the control loop properly, the new state
+        // checker will also we stopped. This also tests if the new state checker was properly stored.
+        let mut new_mock_state_checker = StubStateChecker::new();
+        new_mock_state_checker.panic_if_not_stopped();
+
+        let old_workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let mut new_workload_spec = old_workload_spec.clone();
+        new_workload_spec.runtime_config = "changed config".to_owned();
+        new_workload_spec.instance_name = WorkloadInstanceName::builder()
+            .agent_name(old_workload_spec.instance_name.agent_name())
+            .workload_name(old_workload_spec.instance_name.workload_name())
+            .config(&new_workload_spec.runtime_config)
+            .build();
+
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock
+            .expect(vec![
+                RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
+                RuntimeCall::CreateWorkload(
+                    new_workload_spec.clone(),
+                    Some(PIPES_LOCATION.into()),
+                    state_change_tx.clone(),
+                    Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
+                ),
+                // Delete the new updated workload to exit the infinite loop
+                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
+            ])
+            .await;
+
+        // Send the update delete only
+        workload_command_sender
+            .update(None, Some(PIPES_LOCATION.into()))
+            .await
+            .unwrap();
+
+        // Send the update
+        workload_command_sender
+            .update(Some(new_workload_spec.clone()), Some(PIPES_LOCATION.into()))
+            .await
+            .unwrap();
+
+        // Send also a delete command so that we can properly get out of the loop
+        workload_command_sender.clone().delete().await.unwrap();
+
+        let old_instance_name = old_workload_spec.instance_name.clone();
+        let control_loop_state = ControlLoopState {
+            instance_name: old_instance_name.clone(),
+            workload_id: Some(OLD_WORKLOAD_ID.to_string()),
+            state_checker: Some(old_mock_state_checker),
+            update_state_tx: state_change_tx.clone(),
+            runtime: Box::new(runtime_mock.clone()),
+            command_receiver: workload_command_receiver,
+            workload_channel: workload_command_sender,
+            restart_counter: RestartCounter::new(),
+        };
+
+        assert!(timeout(
+            Duration::from_millis(200),
+            WorkloadControlLoop::run(control_loop_state)
+        )
+        .await
+        .is_ok());
+
+        assert_execution_state_sequence(
+            state_change_rx,
+            vec![
+                ExecutionState::stopping_triggered(),
+                ExecutionState::removed(),
+                ExecutionState::stopping_triggered(),
+                ExecutionState::removed(),
+            ],
+        )
+        .await;
+
+        runtime_mock.assert_all_expectations().await;
+    }
+
     // [utest->swdd~agent-workload-control-loop-update-broken-allowed~1]
     #[tokio::test]
     async fn utest_workload_obj_run_update_broken_allowed() {

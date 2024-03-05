@@ -310,7 +310,9 @@ mod tests {
         workload_scheduler::{
             dependency_state_validator::MockDependencyStateValidator, scheduler::PendingEntry,
         },
-        workload_state::workload_state_store::MockWorkloadStateStore,
+        workload_state::{
+            assert_execution_state_sequence, workload_state_store::MockWorkloadStateStore,
+        },
     };
 
     const AGENT_A: &str = "agent_A";
@@ -318,7 +320,7 @@ mod tests {
     const RUNTIME: &str = "runtime";
 
     #[tokio::test]
-    async fn utest_enqueue_and_report_workload_state_for_pending_create_workload() {
+    async fn utest_enqueue_and_report_workload_state_for_pending_create() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -368,7 +370,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_no_enqueue_and_report_for_ready_create_workload() {
+    async fn utest_no_enqueue_and_report_for_ready_create() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -423,7 +425,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_enqueue_and_report_workload_state_for_pending_deleted_workload() {
+    async fn utest_enqueue_and_report_workload_state_for_pending_delete() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -472,7 +474,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_no_enqueue_and_report_workload_state_for_ready_deleted_workload() {
+    async fn utest_no_enqueue_and_report_workload_state_for_ready_delete() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -839,5 +841,614 @@ mod tests {
         assert!(workload_scheduler.queue.is_empty());
 
         assert!(workload_state_receiver.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_enqueue_filtered_workload_operations_get_next_ready_workload_operations() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (workload_state_sender, _workload_state_receiver) = channel(1);
+        let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
+
+        let mock_dependency_state_validator_create_context =
+            MockDependencyStateValidator::create_fulfilled_context();
+        mock_dependency_state_validator_create_context
+            .expect()
+            .once()
+            .return_const(true);
+
+        let ready_new_workload = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME.to_owned(),
+        );
+
+        let ready_deleted_workload = generate_test_deleted_workload(
+            ready_new_workload.instance_name.agent_name().to_owned(),
+            ready_new_workload.instance_name.workload_name().to_owned(),
+        );
+
+        let workload_operations = vec![];
+
+        workload_scheduler.queue.insert(
+            ready_new_workload.instance_name.workload_name().to_owned(),
+            PendingEntry::UpdateCreate(ready_new_workload.clone(), ready_deleted_workload.clone()),
+        );
+
+        let ready_workload_operations = workload_scheduler
+            .enqueue_filtered_workload_operations(
+                workload_operations,
+                &MockWorkloadStateStore::default(),
+            )
+            .await;
+
+        assert_eq!(
+            vec![WorkloadOperation::Update(
+                ready_new_workload,
+                ready_deleted_workload
+            )],
+            ready_workload_operations
+        );
+
+        assert!(workload_scheduler.queue.is_empty());
+    }
+
+    #[tokio::test]
+    async fn utest_enqueue_filtered_workload_operations_ignore_update_delete_only_workload_operations(
+    ) {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (workload_state_sender, _workload_state_receiver) = channel(1);
+        let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
+
+        let ready_deleted_workload =
+            generate_test_deleted_workload(AGENT_A.to_owned(), WORKLOAD_NAME_1.to_owned());
+
+        let workload_operations = vec![WorkloadOperation::UpdateDeleteOnly(
+            ready_deleted_workload.clone(),
+        )];
+
+        let ready_workload_operations = workload_scheduler
+            .enqueue_filtered_workload_operations(
+                workload_operations,
+                &MockWorkloadStateStore::default(),
+            )
+            .await;
+
+        assert!(ready_workload_operations.is_empty());
+
+        assert!(workload_scheduler.queue.is_empty());
+    }
+
+    #[tokio::test]
+    async fn utest_next_workload_operations_enqueue_pending_update_create_on_delete_fulfilled_update(
+    ) {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (workload_state_sender, _workload_state_receiver) = channel(1);
+        let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
+
+        let mock_dependency_state_validator_create_context =
+            MockDependencyStateValidator::create_fulfilled_context();
+        mock_dependency_state_validator_create_context
+            .expect()
+            .once()
+            .return_const(false);
+
+        let mock_dependency_state_validator_delete_context =
+            MockDependencyStateValidator::delete_fulfilled_context();
+        mock_dependency_state_validator_delete_context
+            .expect()
+            .return_const(true);
+
+        let new_workload_spec = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME.to_owned(),
+        );
+
+        let instance_name_new_workload = new_workload_spec.instance_name.clone();
+
+        let ready_deleted_workload = generate_test_deleted_workload(
+            instance_name_new_workload.agent_name().to_owned(),
+            instance_name_new_workload.workload_name().to_owned(),
+        );
+
+        workload_scheduler.queue.insert(
+            instance_name_new_workload.workload_name().to_owned(),
+            PendingEntry::UpdateDelete(new_workload_spec.clone(), ready_deleted_workload.clone()),
+        );
+
+        let ready_workload_operations = workload_scheduler
+            .next_workload_operations(&MockWorkloadStateStore::default())
+            .await;
+
+        assert_eq!(
+            vec![WorkloadOperation::UpdateDeleteOnly(
+                ready_deleted_workload.clone()
+            )],
+            ready_workload_operations
+        );
+
+        assert_eq!(
+            Some(&PendingEntry::UpdateCreate(
+                new_workload_spec,
+                ready_deleted_workload
+            )),
+            workload_scheduler
+                .queue
+                .get(instance_name_new_workload.workload_name())
+        );
+    }
+
+    #[tokio::test]
+    async fn utest_next_workload_operations_report_pending_create_on_delete_fulfilled_update() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (workload_state_sender, workload_state_receiver) = channel(1);
+        let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
+
+        let mock_dependency_state_validator_create_context =
+            MockDependencyStateValidator::create_fulfilled_context();
+        mock_dependency_state_validator_create_context
+            .expect()
+            .once()
+            .return_const(false);
+
+        let mock_dependency_state_validator_delete_context =
+            MockDependencyStateValidator::delete_fulfilled_context();
+        mock_dependency_state_validator_delete_context
+            .expect()
+            .return_const(true);
+
+        let new_workload_spec = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME.to_owned(),
+        );
+
+        let instance_name_new_workload = new_workload_spec.instance_name.clone();
+
+        let ready_deleted_workload = generate_test_deleted_workload(
+            instance_name_new_workload.agent_name().to_owned(),
+            instance_name_new_workload.workload_name().to_owned(),
+        );
+
+        workload_scheduler.queue.insert(
+            instance_name_new_workload.workload_name().to_owned(),
+            PendingEntry::UpdateDelete(new_workload_spec.clone(), ready_deleted_workload.clone()),
+        );
+
+        workload_scheduler
+            .next_workload_operations(&MockWorkloadStateStore::default())
+            .await;
+
+        assert_execution_state_sequence(
+            workload_state_receiver,
+            vec![ExecutionState::waiting_to_start()],
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn utest_next_workload_operations_keep_pending_delete_in_queue() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (workload_state_sender, _workload_state_receiver) = channel(1);
+        let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
+
+        let mock_dependency_state_validator_delete_context =
+            MockDependencyStateValidator::delete_fulfilled_context();
+        mock_dependency_state_validator_delete_context
+            .expect()
+            .return_const(false);
+
+        let pending_deleted_workload =
+            generate_test_deleted_workload(AGENT_A.to_owned(), WORKLOAD_NAME_1.to_owned());
+
+        let instance_name_deleted_workload = pending_deleted_workload.instance_name.clone();
+
+        workload_scheduler.queue.insert(
+            instance_name_deleted_workload.workload_name().to_owned(),
+            PendingEntry::Delete(pending_deleted_workload.clone()),
+        );
+
+        let ready_workload_operations = workload_scheduler
+            .next_workload_operations(&MockWorkloadStateStore::default())
+            .await;
+
+        assert!(ready_workload_operations.is_empty());
+
+        assert!(workload_scheduler
+            .queue
+            .contains_key(instance_name_deleted_workload.workload_name()));
+    }
+
+    #[tokio::test]
+    async fn utest_next_workload_operations_no_report_pending_delete_on_reenqueue() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (workload_state_sender, mut workload_state_receiver) = channel(1);
+        let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
+
+        let mock_dependency_state_validator_delete_context =
+            MockDependencyStateValidator::delete_fulfilled_context();
+        mock_dependency_state_validator_delete_context
+            .expect()
+            .return_const(false);
+
+        let pending_deleted_workload =
+            generate_test_deleted_workload(AGENT_A.to_owned(), WORKLOAD_NAME_1.to_owned());
+
+        let instance_name_deleted_workload = pending_deleted_workload.instance_name.clone();
+
+        workload_scheduler.queue.insert(
+            instance_name_deleted_workload.workload_name().to_owned(),
+            PendingEntry::Delete(pending_deleted_workload.clone()),
+        );
+
+        workload_scheduler
+            .next_workload_operations(&MockWorkloadStateStore::default())
+            .await;
+
+        assert!(workload_state_receiver.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_next_workload_operations_keep_pending_create_in_queue() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (workload_state_sender, _workload_state_receiver) = channel(1);
+        let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
+
+        let mock_dependency_state_validator_create_context =
+            MockDependencyStateValidator::create_fulfilled_context();
+        mock_dependency_state_validator_create_context
+            .expect()
+            .return_const(false);
+
+        let pending_workload_spec = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME.to_owned(),
+        );
+
+        let instance_name_create_workload = pending_workload_spec.instance_name.clone();
+
+        workload_scheduler.queue.insert(
+            instance_name_create_workload.workload_name().to_owned(),
+            PendingEntry::Create(pending_workload_spec.clone()),
+        );
+
+        let ready_workload_operations = workload_scheduler
+            .next_workload_operations(&MockWorkloadStateStore::default())
+            .await;
+
+        assert!(ready_workload_operations.is_empty());
+
+        assert!(workload_scheduler
+            .queue
+            .contains_key(instance_name_create_workload.workload_name()));
+    }
+
+    #[tokio::test]
+    async fn utest_next_workload_operations_no_report_pending_create_on_reenqueue() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (workload_state_sender, mut workload_state_receiver) = channel(1);
+        let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
+
+        let mock_dependency_state_validator_create_context =
+            MockDependencyStateValidator::create_fulfilled_context();
+        mock_dependency_state_validator_create_context
+            .expect()
+            .return_const(false);
+
+        let pending_workload_spec = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME.to_owned(),
+        );
+
+        let instance_name_create_workload = pending_workload_spec.instance_name.clone();
+
+        workload_scheduler.queue.insert(
+            instance_name_create_workload.workload_name().to_owned(),
+            PendingEntry::Create(pending_workload_spec.clone()),
+        );
+
+        workload_scheduler
+            .next_workload_operations(&MockWorkloadStateStore::default())
+            .await;
+
+        assert!(workload_state_receiver.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_next_workload_operations_keep_pending_update_in_queue() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (workload_state_sender, _workload_state_receiver) = channel(1);
+        let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
+
+        let mock_dependency_state_validator_create_context =
+            MockDependencyStateValidator::create_fulfilled_context();
+        mock_dependency_state_validator_create_context
+            .expect()
+            .return_const(true);
+
+        let mock_dependency_state_validator_delete_context =
+            MockDependencyStateValidator::delete_fulfilled_context();
+        mock_dependency_state_validator_delete_context
+            .expect()
+            .return_const(false);
+
+        let ready_workload_spec = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME.to_owned(),
+        );
+
+        let instance_name = ready_workload_spec.instance_name.clone();
+
+        let pending_deleted_workload = generate_test_deleted_workload(
+            instance_name.agent_name().to_owned(),
+            instance_name.workload_name().to_owned(),
+        );
+
+        workload_scheduler.queue.insert(
+            instance_name.workload_name().to_owned(),
+            PendingEntry::UpdateDelete(
+                ready_workload_spec.clone(),
+                pending_deleted_workload.clone(),
+            ),
+        );
+
+        let ready_workload_operations = workload_scheduler
+            .next_workload_operations(&MockWorkloadStateStore::default())
+            .await;
+
+        assert!(ready_workload_operations.is_empty());
+
+        assert!(workload_scheduler
+            .queue
+            .contains_key(instance_name.workload_name()));
+    }
+
+    #[tokio::test]
+    async fn utest_next_workload_operations_no_report_pending_delete_on_pending_update_reenqueue() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (workload_state_sender, mut workload_state_receiver) = channel(1);
+        let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
+
+        let mock_dependency_state_validator_create_context =
+            MockDependencyStateValidator::create_fulfilled_context();
+        mock_dependency_state_validator_create_context
+            .expect()
+            .return_const(true);
+
+        let mock_dependency_state_validator_delete_context =
+            MockDependencyStateValidator::delete_fulfilled_context();
+        mock_dependency_state_validator_delete_context
+            .expect()
+            .return_const(false);
+
+        let ready_workload_spec = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME.to_owned(),
+        );
+
+        let instance_name = ready_workload_spec.instance_name.clone();
+
+        let pending_deleted_workload = generate_test_deleted_workload(
+            instance_name.agent_name().to_owned(),
+            instance_name.workload_name().to_owned(),
+        );
+
+        workload_scheduler.queue.insert(
+            instance_name.workload_name().to_owned(),
+            PendingEntry::UpdateDelete(
+                ready_workload_spec.clone(),
+                pending_deleted_workload.clone(),
+            ),
+        );
+
+        workload_scheduler
+            .next_workload_operations(&MockWorkloadStateStore::default())
+            .await;
+
+        assert!(workload_state_receiver.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_next_workload_operations_remove_ready_create_from_queue() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (workload_state_sender, _workload_state_receiver) = channel(1);
+        let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
+
+        let mock_dependency_state_validator_create_context =
+            MockDependencyStateValidator::create_fulfilled_context();
+        mock_dependency_state_validator_create_context
+            .expect()
+            .return_const(true);
+
+        let ready_workload_spec = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME.to_owned(),
+        );
+
+        workload_scheduler.queue.insert(
+            ready_workload_spec.instance_name.workload_name().to_owned(),
+            PendingEntry::Create(ready_workload_spec.clone()),
+        );
+
+        let ready_workload_operations = workload_scheduler
+            .next_workload_operations(&MockWorkloadStateStore::default())
+            .await;
+
+        assert_eq!(
+            vec![WorkloadOperation::Create(ready_workload_spec)],
+            ready_workload_operations
+        );
+
+        assert!(workload_scheduler.queue.is_empty());
+    }
+
+    #[tokio::test]
+    async fn utest_next_workload_operations_remove_ready_delete_from_queue() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (workload_state_sender, _workload_state_receiver) = channel(1);
+        let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
+
+        let mock_dependency_state_validator_delete_context =
+            MockDependencyStateValidator::delete_fulfilled_context();
+        mock_dependency_state_validator_delete_context
+            .expect()
+            .return_const(true);
+
+        let ready_deleted_workload =
+            generate_test_deleted_workload(AGENT_A.to_owned(), WORKLOAD_NAME_1.to_owned());
+
+        workload_scheduler.queue.insert(
+            ready_deleted_workload
+                .instance_name
+                .workload_name()
+                .to_owned(),
+            PendingEntry::Delete(ready_deleted_workload.clone()),
+        );
+
+        let ready_workload_operations = workload_scheduler
+            .next_workload_operations(&MockWorkloadStateStore::default())
+            .await;
+
+        assert_eq!(
+            vec![WorkloadOperation::Delete(ready_deleted_workload)],
+            ready_workload_operations
+        );
+
+        assert!(workload_scheduler.queue.is_empty());
+    }
+
+    #[tokio::test]
+    async fn utest_next_workload_operations_remove_ready_update_create_at_most_once_from_queue() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (workload_state_sender, _workload_state_receiver) = channel(1);
+        let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
+
+        let mock_dependency_state_validator_create_context =
+            MockDependencyStateValidator::create_fulfilled_context();
+        mock_dependency_state_validator_create_context
+            .expect()
+            .return_const(true);
+
+        let mock_dependency_state_validator_delete_context =
+            MockDependencyStateValidator::delete_fulfilled_context();
+        mock_dependency_state_validator_delete_context
+            .expect()
+            .return_const(true);
+
+        let ready_workload_spec = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME.to_owned(),
+        );
+
+        let instance_name = ready_workload_spec.instance_name.clone();
+
+        let ready_deleted_workload = generate_test_deleted_workload(
+            instance_name.agent_name().to_owned(),
+            instance_name.workload_name().to_owned(),
+        );
+
+        workload_scheduler.queue.insert(
+            instance_name.workload_name().to_owned(),
+            PendingEntry::UpdateCreate(ready_workload_spec.clone(), ready_deleted_workload.clone()),
+        );
+
+        let ready_workload_operations = workload_scheduler
+            .next_workload_operations(&MockWorkloadStateStore::default())
+            .await;
+
+        assert_eq!(
+            vec![WorkloadOperation::Update(
+                ready_workload_spec,
+                ready_deleted_workload
+            )],
+            ready_workload_operations
+        );
+
+        assert!(workload_scheduler.queue.is_empty());
+    }
+
+    #[tokio::test]
+    async fn utest_next_workload_operations_remove_ready_update_delete_at_most_once_from_queue() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (workload_state_sender, _workload_state_receiver) = channel(1);
+        let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
+
+        let mock_dependency_state_validator_create_context =
+            MockDependencyStateValidator::create_fulfilled_context();
+        mock_dependency_state_validator_create_context
+            .expect()
+            .return_const(true);
+
+        let mock_dependency_state_validator_delete_context =
+            MockDependencyStateValidator::delete_fulfilled_context();
+        mock_dependency_state_validator_delete_context
+            .expect()
+            .return_const(true);
+
+        let ready_workload_spec = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME.to_owned(),
+        );
+
+        let instance_name = ready_workload_spec.instance_name.clone();
+
+        let ready_deleted_workload = generate_test_deleted_workload(
+            instance_name.agent_name().to_owned(),
+            instance_name.workload_name().to_owned(),
+        );
+
+        workload_scheduler.queue.insert(
+            instance_name.workload_name().to_owned(),
+            PendingEntry::UpdateDelete(ready_workload_spec.clone(), ready_deleted_workload.clone()),
+        );
+
+        let ready_workload_operations = workload_scheduler
+            .next_workload_operations(&MockWorkloadStateStore::default())
+            .await;
+
+        assert_eq!(
+            vec![WorkloadOperation::Update(
+                ready_workload_spec,
+                ready_deleted_workload
+            )],
+            ready_workload_operations
+        );
+
+        assert!(workload_scheduler.queue.is_empty());
     }
 }

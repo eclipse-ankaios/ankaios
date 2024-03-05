@@ -31,7 +31,7 @@ impl DependencyStateValidator {
             .all(|(dependency_name, add_condition)| {
                 workload_state_db
                     .get_state_of_workload(dependency_name)
-                    .map_or(false, |wl_state| add_condition.fulfilled_by(&wl_state))
+                    .map_or(false, |wl_state| add_condition.fulfilled_by(wl_state))
             })
     }
 
@@ -45,7 +45,7 @@ impl DependencyStateValidator {
             .all(|(dependency_name, delete_condition)| {
                 workload_state_db
                     .get_state_of_workload(dependency_name)
-                    .map_or(true, |wl_state| delete_condition.fulfilled_by(&wl_state))
+                    .map_or(true, |wl_state| delete_condition.fulfilled_by(wl_state))
             })
     }
 }
@@ -87,12 +87,13 @@ mod tests {
             HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondRunning)]),
         );
 
+        let execution_state = Box::leak(Box::new(Some(ExecutionState::running())));
         let mut parameter_storage_mock = MockWorkloadStateStore::default();
         parameter_storage_mock
             .expect_get_state_of_workload()
             .once()
             .with(predicate::eq(WORKLOAD_NAME_2.to_owned()))
-            .return_const(Some(ExecutionState::running()));
+            .return_const(execution_state.as_ref());
 
         assert!(DependencyStateValidator::create_fulfilled(
             &workload_with_dependencies,
@@ -151,11 +152,12 @@ mod tests {
             HashMap::from([(WORKLOAD_NAME_2.to_string(), AddCondition::AddCondRunning)]),
         );
 
+        let execution_state = Box::leak(Box::new(Some(ExecutionState::succeeded())));
         let mut parameter_storage_mock = MockWorkloadStateStore::default();
         parameter_storage_mock
             .expect_get_state_of_workload()
             .once()
-            .return_const(Some(ExecutionState::succeeded()));
+            .return_const(execution_state.as_ref());
 
         assert!(!DependencyStateValidator::create_fulfilled(
             &workload_with_dependencies,
@@ -174,12 +176,13 @@ mod tests {
             )]),
         );
 
+        let execution_state = Box::leak(Box::new(Some(ExecutionState::succeeded())));
         let mut parameter_storage_mock = MockWorkloadStateStore::default();
         parameter_storage_mock
             .expect_get_state_of_workload()
             .once()
             .with(predicate::eq(WORKLOAD_NAME_2.to_owned()))
-            .return_const(Some(ExecutionState::succeeded()));
+            .return_const(execution_state.as_ref());
 
         assert!(DependencyStateValidator::delete_fulfilled(
             &deleted_workload_with_dependencies,
@@ -198,11 +201,12 @@ mod tests {
             )]),
         );
 
+        let execution_state = Box::leak(Box::new(Some(ExecutionState::running())));
         let mut parameter_storage_mock = MockWorkloadStateStore::default();
         parameter_storage_mock
             .expect_get_state_of_workload()
             .once()
-            .return_const(Some(ExecutionState::running()));
+            .return_const(execution_state.as_ref());
 
         assert!(!DependencyStateValidator::delete_fulfilled(
             &deleted_workload_with_dependencies,

@@ -151,7 +151,9 @@ impl AgentManager {
             .workload_state_store
             .get_state_of_workload(new_workload_state.instance_name.workload_name())
         {
+            // TODO: fix this shit
             new_workload_state.execution_state = old_execution_state
+                .clone()
                 .transition(new_workload_state.execution_state);
         }
 
@@ -443,11 +445,12 @@ mod tests {
 
         let mut mock_wl_state_store = MockWorkloadStateStore::default();
 
+        let execution_state = Box::leak(Box::new(Some(ExecutionState::stopping_triggered())));
         mock_wl_state_store
             .expect_get_state_of_workload()
             .with(mockall::predicate::eq(WORKLOAD_1_NAME))
             .once()
-            .return_const(ExecutionState::stopping_triggered());
+            .return_const(execution_state.as_ref());
 
         mock_wl_state_store
             .expect_update_workload_state()
