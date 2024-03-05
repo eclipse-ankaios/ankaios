@@ -186,7 +186,7 @@ mod tests {
 
         assert_eq!(
             Some(&ExecutionState::running()),
-            parameter_storage.get_state_of_workload(&"workload_1".to_owned())
+            parameter_storage.get_state_of_workload("workload_1")
         );
     }
 
@@ -198,7 +198,7 @@ mod tests {
             .insert("workload_1".to_owned(), ExecutionState::running());
 
         assert!(parameter_storage
-            .get_state_of_workload(&"unknown workload".to_owned())
+            .get_state_of_workload("unknown workload")
             .is_none());
     }
 }
