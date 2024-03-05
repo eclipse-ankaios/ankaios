@@ -66,7 +66,7 @@ impl AnkaiosServer {
         if let Some(state) = startup_state {
             match self.server_state.update(state, vec![]) {
                 Ok(Some((added_workloads, deleted_workloads))) => {
-                    // [impl->swdd~server-sets-state-of-new-workload-to-pending-initial~1]
+                    // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
                     self.workload_state_db.initial_state(&added_workloads);
 
                     let from_server_command = FromServer::UpdateWorkload(UpdateWorkload {
@@ -243,7 +243,7 @@ impl AnkaiosServer {
                                         deleted_workloads.len()
                                     );
 
-                                // [impl->swdd~server-sets-state-of-new-workload-to-pending-initial~1]
+                                // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
                                 self.workload_state_db.initial_state(&added_workloads);
 
                                 let added_workloads_names = added_workloads
@@ -528,7 +528,7 @@ mod tests {
         server_task.abort();
     }
 
-    // [utest->swdd~server-sets-state-of-new-workload-to-pending-initial~1]
+    // [utest->swdd~server-sets-state-of-new-workloads-to-pending~1]
     // [utest->swdd~server-uses-async-channels~1]
     #[tokio::test]
     async fn utest_server_start_with_valid_startup_config() {
@@ -1152,7 +1152,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
-    // [utest->swdd~server-sets-state-of-new-workload-to-pending-initial~1]
+    // [utest->swdd~server-sets-state-of-new-workloads-to-pending~1]
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]

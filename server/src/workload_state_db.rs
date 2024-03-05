@@ -76,7 +76,7 @@ impl WorkloadStateDB {
         }
     }
 
-    // [impl->swdd~server-sets-state-of-new-workload-to-pending-initial~1]
+    // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
     pub fn initial_state(&mut self, workload_specs: &Vec<WorkloadSpec>) {
         for spec in workload_specs {
             self.stored_states
@@ -136,7 +136,10 @@ impl Default for WorkloadStateDB {
 mod tests {
     use std::collections::HashMap;
 
-    use common::objects::{generate_test_workload_state_with_agent, ExecutionState};
+    use common::objects::{
+        generate_test_workload_spec_with_runtime_config, generate_test_workload_state_with_agent,
+        ExecutionState,
+    };
 
     use super::WorkloadStateDB;
 
@@ -436,6 +439,50 @@ mod tests {
                 AGENT_A,
                 ExecutionState::starting("additional_info"),
             )]
+        )
+    }
+
+    // [utest->swdd~server-sets-state-of-new-workloads-to-pending~1]
+    #[test]
+    fn utest_workload_states_initial_state() {
+        let mut wls_db = WorkloadStateDB::new();
+
+        let wl_state_1 = generate_test_workload_spec_with_runtime_config(
+            "".to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            "some runtime".to_string(),
+            "config".to_string(),
+        );
+        let wl_state_3 = generate_test_workload_spec_with_runtime_config(
+            AGENT_B.to_string(),
+            WORKLOAD_NAME_3.to_string(),
+            "some runtime".to_string(),
+            "config".to_string(),
+        );
+
+        wls_db.initial_state(&vec![wl_state_1, wl_state_3]);
+
+        let mut wls_res = wls_db.get_all_workload_states();
+        wls_res.sort_by(|a, b| {
+            a.instance_name
+                .workload_name()
+                .cmp(b.instance_name.workload_name())
+        });
+
+        assert_eq!(
+            wls_res,
+            vec![
+                generate_test_workload_state_with_agent(
+                    WORKLOAD_NAME_1,
+                    "",
+                    ExecutionState::not_scheduled(),
+                ),
+                generate_test_workload_state_with_agent(
+                    WORKLOAD_NAME_3,
+                    AGENT_B,
+                    ExecutionState::initial(),
+                )
+            ]
         )
     }
 }

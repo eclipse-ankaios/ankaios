@@ -131,7 +131,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios server adds a new workload to its desired state, the workload state of this workload shall be set to `Pending(Initial)`.
+When the Ankaios server adds a new workload to its desired state, the workload state of this workload shall be set to `Pending(Initial)` if the workload is assigned to an agent or to `NotScheduled` otherwise.
 
 Tags:
 - AnkaiosServer
