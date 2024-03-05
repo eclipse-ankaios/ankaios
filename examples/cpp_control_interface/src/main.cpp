@@ -38,13 +38,11 @@ ankaios::ToServer createRequestToAddNewWorkload()
     newWorkload.set_runtimeconfig("image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]");
 
     ankaios::State *state{new ankaios::State};
+    std::string* formatVersion{new std::string("v0.1")};
+    state->set_allocated_format_version(formatVersion);
     state->mutable_workloads()->insert({"dynamic_nginx", std::move(newWorkload)});
 
-    ankaios::ApiVersion *apiVersion{new ankaios::ApiVersion};
-    apiVersion->set_version("v0.1");
-
     ankaios::CompleteState *completeState{new ankaios::CompleteState};
-    completeState->set_allocated_format_version(apiVersion);
     completeState->set_allocated_desiredstate(state);
 
     ankaios::UpdateStateRequest *updateStateRequest{new ankaios::UpdateStateRequest};

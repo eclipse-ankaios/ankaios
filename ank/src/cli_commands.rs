@@ -1777,7 +1777,7 @@ mod tests {
                 "name1".to_string(),
                 "runtime".to_string(),
             )]);
-        // Just for testing purpose -> make sure that the filtering takes the correct version
+        // Just for testing purpose here -> check that the filtering takes the correct version
         test_data.startup_state.format_version = "vStart".into();
         test_data.desired_state.format_version = "vDesired".into();
 
