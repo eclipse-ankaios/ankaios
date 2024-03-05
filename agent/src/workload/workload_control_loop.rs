@@ -337,11 +337,6 @@ impl WorkloadControlLoop {
         // [impl->swdd~agent-workload-control-loop-reset-restart-attempts-on-update~1]
         control_loop_state.restart_counter.reset();
 
-        log::info!(
-            "after delete new workload spec for update: '{:?}'",
-            new_workload_spec
-        );
-
         if let Some(spec) = new_workload_spec {
             // [impl->swdd~agent-workload-control-loop-update-create-failed-allows-retry~1]
             control_loop_state = Self::create(
