@@ -107,18 +107,16 @@ Ankaios shall support the following execution states with substates for a worklo
     * starting failed
 - running
     * ok
-    * delete failed
 - stopping
     * waiting to stop
     * stopping
+    * delete failed
 - succeeded
     * ok
-    * delete failed
 - failed
     * exec failed
     * unknown
     * lost
-    * delete failed
 - not scheduled
 - removed
 
