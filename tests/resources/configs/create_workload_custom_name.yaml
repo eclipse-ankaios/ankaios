@@ -1,4 +1,4 @@
-formatVersion: "v0.1"
+formatVersion: v0.1
 workloads:
   nginx:
     runtime: podman
