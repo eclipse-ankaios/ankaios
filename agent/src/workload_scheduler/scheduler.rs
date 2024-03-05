@@ -225,7 +225,6 @@ impl WorkloadScheduler {
         &mut self,
         workload_state_db: &ParameterStorage,
     ) -> WorkloadOperations {
-        log::info!("queue_content = {:?}", self.queue);
         // clear the whole queue without deallocating memory
         let queue_entries: Vec<PendingEntry> = self
             .queue
