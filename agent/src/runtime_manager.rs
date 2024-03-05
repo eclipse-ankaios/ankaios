@@ -32,10 +32,7 @@ use crate::workload_scheduler::scheduler::WorkloadScheduler;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::parameter_storage::ParameterStorage;
-use crate::{
-    runtime_connectors::RuntimeFacade,
-    workload_operation::{WorkloadOperation, WorkloadOperations},
-};
+use crate::{runtime_connectors::RuntimeFacade, workload_operation::WorkloadOperation};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
@@ -126,7 +123,7 @@ impl RuntimeManager {
                 .await;
         }
 
-        let workload_operations: WorkloadOperations =
+        let workload_operations: Vec<WorkloadOperation> =
             self.transform_into_workload_operations(added_workloads, deleted_workloads);
 
         let ready_workload_operations = self
@@ -266,8 +263,8 @@ impl RuntimeManager {
         &self,
         added_workloads: Vec<WorkloadSpec>,
         deleted_workloads: Vec<DeletedWorkload>,
-    ) -> WorkloadOperations {
-        let mut workload_operations: WorkloadOperations = Vec::new();
+    ) -> Vec<WorkloadOperation> {
+        let mut workload_operations: Vec<WorkloadOperation> = Vec::new();
         // transform into a hashmap to be able to search for updates
         // [impl->swdd~agent-updates-deleted-and-added-workloads~1]
         let mut added_workloads: HashMap<String, WorkloadSpec> = added_workloads
@@ -322,7 +319,7 @@ impl RuntimeManager {
         workload_operations
     }
 
-    async fn process_workloads_operations(&mut self, workload_operations: WorkloadOperations) {
+    async fn process_workloads_operations(&mut self, workload_operations: Vec<WorkloadOperation>) {
         for wl_operation in workload_operations {
             match wl_operation {
                 WorkloadOperation::Create(workload_spec) => self.add_workload(workload_spec).await,

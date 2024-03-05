@@ -24,7 +24,7 @@ use std::collections::HashMap;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::parameter_storage::ParameterStorage;
-use crate::workload_operation::{WorkloadOperation, WorkloadOperations};
+use crate::workload_operation::WorkloadOperation;
 
 #[cfg(test)]
 use mockall::automock;
@@ -55,10 +55,10 @@ impl WorkloadScheduler {
 
     pub async fn enqueue_filtered_workload_operations(
         &mut self,
-        new_workload_operations: WorkloadOperations,
+        new_workload_operations: Vec<WorkloadOperation>,
         workload_state_db: &ParameterStorage,
-    ) -> WorkloadOperations {
-        let mut ready_workload_operations = WorkloadOperations::new();
+    ) -> Vec<WorkloadOperation> {
+        let mut ready_workload_operations: Vec<WorkloadOperation> = Vec::new();
         let notify_on_new_entry = true;
         for workload_operation in new_workload_operations {
             match workload_operation {
@@ -107,7 +107,7 @@ impl WorkloadScheduler {
     pub async fn next_workload_operations(
         &mut self,
         workload_state_db: &ParameterStorage,
-    ) -> WorkloadOperations {
+    ) -> Vec<WorkloadOperation> {
         // clear the whole queue without deallocating memory
         let queue_entries: Vec<PendingEntry> = self
             .queue
@@ -116,7 +116,7 @@ impl WorkloadScheduler {
             .collect();
 
         // return ready workload operations and enqueue still pending workload operations again
-        let mut ready_workload_operations = WorkloadOperations::new();
+        let mut ready_workload_operations: Vec<WorkloadOperation> = Vec::new();
         let notify_on_new_entry = false;
         for queue_entry in queue_entries {
             match queue_entry {
@@ -177,8 +177,8 @@ impl WorkloadScheduler {
         new_workload_spec: WorkloadSpec,
         workload_state_db: &ParameterStorage,
         notify_on_new_entry: bool,
-    ) -> WorkloadOperations {
-        let mut ready_workload_operations = WorkloadOperations::new();
+    ) -> Vec<WorkloadOperation> {
+        let mut ready_workload_operations = Vec::new();
         if DependencyStateValidator::create_fulfilled(&new_workload_spec, workload_state_db) {
             ready_workload_operations.push(WorkloadOperation::Create(new_workload_spec));
         } else {
@@ -201,8 +201,8 @@ impl WorkloadScheduler {
         deleted_workload: DeletedWorkload,
         workload_state_db: &ParameterStorage,
         notify_on_new_entry: bool,
-    ) -> WorkloadOperations {
-        let mut ready_workload_operations = WorkloadOperations::new();
+    ) -> Vec<WorkloadOperation> {
+        let mut ready_workload_operations = Vec::new();
         let create_fulfilled =
             DependencyStateValidator::create_fulfilled(&new_workload_spec, workload_state_db);
 
@@ -254,8 +254,8 @@ impl WorkloadScheduler {
         deleted_workload: DeletedWorkload,
         workload_state_db: &ParameterStorage,
         notify_on_new_entry: bool,
-    ) -> WorkloadOperations {
-        let mut ready_workload_operations = WorkloadOperations::new();
+    ) -> Vec<WorkloadOperation> {
+        let mut ready_workload_operations = Vec::new();
         if DependencyStateValidator::delete_fulfilled(&deleted_workload, workload_state_db) {
             ready_workload_operations.push(WorkloadOperation::Delete(deleted_workload));
         } else {

@@ -21,5 +21,3 @@ pub enum WorkloadOperation {
     UpdateDeleteOnly(DeletedWorkload),
     Delete(DeletedWorkload),
 }
-
-pub type WorkloadOperations = Vec<WorkloadOperation>;
