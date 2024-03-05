@@ -419,6 +419,13 @@ impl ExecutionState {
             ..Default::default()
         }
     }
+
+    pub fn not_scheduled() -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::NotScheduled,
+            ..Default::default()
+        }
+    }
 }
 
 impl From<ExecutionState> for proto::ExecutionState {

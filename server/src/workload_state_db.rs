@@ -85,7 +85,11 @@ impl WorkloadStateDB {
                 .entry(spec.instance_name.to_owned())
                 .or_insert(WorkloadState {
                     instance_name: spec.instance_name.to_owned(),
-                    execution_state: ExecutionState::initial(),
+                    execution_state: if spec.instance_name.agent_name().is_empty() {
+                        ExecutionState::not_scheduled()
+                    } else {
+                        ExecutionState::initial()
+                    },
                 });
         }
     }
