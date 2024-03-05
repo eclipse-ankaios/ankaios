@@ -43,7 +43,6 @@ pub trait WorkloadStateSenderInterface {
     async fn report_removed(&self, instance_name: &WorkloadInstanceName);
 }
 
-#[async_trait]
 impl WorkloadStateSenderInterface for WorkloadStateMsgSender {
     async fn store_remote_workload_states(&self, states: Vec<WorkloadState>) -> Result<(), String> {
         self.send(WorkloadStateMessage::FromServer(states))

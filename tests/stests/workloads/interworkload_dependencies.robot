@@ -33,10 +33,10 @@ Test Ankaios observes the inter-workload dependencies when creating workloads
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
     Given Podman has deleted all existing containers
-    And Ankaios server is started with config "${CONFIGS_DIR}/create_workloads_with_dependencies_config.yaml"
+    # Actions
+    When Ankaios server is started with config "${CONFIGS_DIR}/create_workloads_with_dependencies_config.yaml"
     And Ankaios agent is started with name "agent_A"
     And Ankaios agent is started with name "agent_B"
-    # Actions
     # Asserts
     Then the workload "logger" shall have the execution state "Pending(WaitingToStart)" on agent "agent_A"
     And Then the workload "error_notifier" shall have the execution state "Pending(WaitingToStart)" on agent "agent_A"
