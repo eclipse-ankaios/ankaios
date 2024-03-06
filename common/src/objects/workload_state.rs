@@ -348,14 +348,14 @@ impl ExecutionState {
     pub fn waiting_to_start() -> Self {
         ExecutionState {
             state: ExecutionStateEnum::Pending(PendingSubstate::WaitingToStart),
-            additional_info: "waiting for workload dependencies.".to_string(),
+            ..Default::default()
         }
     }
 
     pub fn waiting_to_stop() -> Self {
         ExecutionState {
             state: ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop),
-            additional_info: "waiting for workload dependencies.".to_string(),
+            ..Default::default()
         }
     }
 }
