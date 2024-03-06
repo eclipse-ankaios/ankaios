@@ -48,7 +48,6 @@ async fn main() {
             // [impl->swdd~server-state-in-memory~1]
             // [impl->swdd~server-loads-startup-state-file~2]
             let state: State = serde_yaml::from_str(&data)
-                // state_parser::parse(data)
                 .unwrap_or_exit("Parsing start config failed with error");
             log::trace!(
                 "The state is initialized with the following workloads: {:?}",

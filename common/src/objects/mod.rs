@@ -30,10 +30,6 @@ pub use stored_workload_spec::{
 
 pub use stored_workload_spec::StoredWorkloadSpec;
 
-// mod external_state;
-
-// pub use external_state::ExternalCompleteState;
-
 mod workload_state;
 #[cfg(any(feature = "test_utils", test))]
 pub use workload_state::{

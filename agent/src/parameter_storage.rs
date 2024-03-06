@@ -32,8 +32,8 @@ impl ParameterStorage {
         }
     }
 
-    pub fn get_state_of_workload(&self, workload_name: &String) -> Option<ExecutionState> {
-        self.states_storage.get(workload_name).cloned()
+    pub fn get_state_of_workload<'a>(&'a self, workload_name: &str) -> Option<&'a ExecutionState> {
+        self.states_storage.get(workload_name)
     }
 
     pub fn update_workload_state(&mut self, workload_state: WorkloadState) {
@@ -185,8 +185,8 @@ mod tests {
             .insert("workload_1".to_owned(), ExecutionState::running());
 
         assert_eq!(
-            Some(ExecutionState::running()),
-            parameter_storage.get_state_of_workload(&"workload_1".to_owned())
+            Some(&ExecutionState::running()),
+            parameter_storage.get_state_of_workload("workload_1")
         );
     }
 
@@ -198,7 +198,7 @@ mod tests {
             .insert("workload_1".to_owned(), ExecutionState::running());
 
         assert!(parameter_storage
-            .get_state_of_workload(&"unknown workload".to_owned())
+            .get_state_of_workload("unknown workload")
             .is_none());
     }
 }
