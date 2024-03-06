@@ -177,7 +177,7 @@ mod tests {
         ));
     }
 
-    // [impl->swdd~workload-ready-to-delete-on-fulfilled-dependencies~1]
+    // [utest->swdd~workload-ready-to-delete-on-fulfilled-dependencies~1]
     #[test]
     fn utest_delete_fulfilled() {
         let deleted_workload_with_dependencies = generate_test_deleted_workload_with_dependencies(
@@ -203,7 +203,7 @@ mod tests {
         ));
     }
 
-    // [impl->swdd~workload-ready-to-delete-on-fulfilled-dependencies~1]
+    // [utest->swdd~workload-ready-to-delete-on-fulfilled-dependencies~1]
     #[test]
     fn utest_delete_fulfilled_unfulfilled_execution_state() {
         let deleted_workload_with_dependencies = generate_test_deleted_workload_with_dependencies(
@@ -228,7 +228,7 @@ mod tests {
         ));
     }
 
-    // [impl->swdd~workload-ready-to-delete-on-fulfilled-dependencies~1]
+    // [utest->swdd~workload-ready-to-delete-on-fulfilled-dependencies~1]
     #[test]
     fn utest_delete_fulfilled_no_workload_state_known() {
         let deleted_workload_with_dependencies = generate_test_deleted_workload_with_dependencies(
