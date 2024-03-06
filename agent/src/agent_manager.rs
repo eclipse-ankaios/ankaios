@@ -72,7 +72,6 @@ impl AgentManager {
                         .ok_or("Channel to listen to own workload states closed.".to_string())
                         .unwrap_or_exit("Abort");
 
-
                     self.store_and_forward_own_workload_states(workload_states_msg).await;
                 }
             }
@@ -165,7 +164,7 @@ impl AgentManager {
                 new_workload_state.instance_name.workload_name(),
             );
 
-            // [impl->swdd~agent-manager-stores-workload-states-of-its-workloads~1]
+            // [impl->swdd~agent-stores-workload-states-of-its-workloads~1]
             self.parameter_storage
                 .update_workload_state(new_workload_state.clone());
         });
@@ -176,7 +175,7 @@ impl AgentManager {
                 .update_workloads_on_fulfilled_dependencies(&self.parameter_storage)
                 .await;
 
-            // [impl->swdd~agent-manager-sends-workload-states-of-its-workloads-to-server~1]
+            // [impl->swdd~agent-sends-workload-states-of-its-workloads-to-server~1]
             self.to_server
                 .update_workload_state(workload_states)
                 .await
@@ -428,8 +427,8 @@ mod tests {
     }
 
     // [utest->swdd~agent-manager-receives-workload-states-of-its-workloads~1]
-    // [utest->swdd~agent-manager-stores-workload-states-of-its-workloads~1]
-    // [utest->swdd~agent-manager-sends-workload-states-of-its-workloads-to-server~1]
+    // [utest->swdd~agent-stores-workload-states-of-its-workloads~1]
+    // [utest->swdd~agent-sends-workload-states-of-its-workloads-to-server~1]
     // [utest->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_agent_manager_receives_and_stores_own_workload_states() {
@@ -499,8 +498,8 @@ mod tests {
     }
 
     // [utest->swdd~agent-manager-receives-workload-states-of-its-workloads~1]
-    // [utest->swdd~agent-manager-stores-workload-states-of-its-workloads~1]
-    // [utest->swdd~agent-manager-sends-workload-states-of-its-workloads-to-server~1]
+    // [utest->swdd~agent-stores-workload-states-of-its-workloads~1]
+    // [utest->swdd~agent-sends-workload-states-of-its-workloads-to-server~1]
     // [utest->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_agent_manager_no_update_on_own_empty_workload_states() {

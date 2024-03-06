@@ -130,6 +130,7 @@ impl RuntimeManager {
 
         // [impl->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
         // [impl->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
+        // [impl->swdd~agent-perform-update-delete-only~1]
         let ready_workload_operations = self
             .workload_queue
             .enqueue_filtered_workload_operations(workload_operations, workload_state_db)
@@ -333,6 +334,7 @@ impl RuntimeManager {
                     self.update_workload(new_workload_spec).await
                 }
                 WorkloadOperation::UpdateDeleteOnly(deleted_workload) => {
+                    // [impl->swdd~agent-perform-update-delete-only~1]
                     self.update_delete_only(deleted_workload).await
                 }
                 // [impl->swdd~agent-executes-delete-workload-operation~1]
@@ -415,6 +417,7 @@ impl RuntimeManager {
         }
     }
 
+    // [impl->swdd~agent-perform-update-delete-only~1]
     async fn update_delete_only(&mut self, deleted_workload: DeletedWorkload) {
         let workload_name = deleted_workload.instance_name.workload_name().to_owned();
         if let Some(workload) = self.workloads.get_mut(&workload_name) {

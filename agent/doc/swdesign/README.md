@@ -178,7 +178,7 @@ Needs:
 - utest
 
 #### AgentManager shall store the workload states of the workloads it manages
-`swdd~agent-manager-stores-workload-states-of-its-workloads~1`
+`swdd~agent-stores-workload-states-of-its-workloads~1`
 
 Status: approved
 
@@ -197,7 +197,7 @@ Needs:
 - utest
 
 #### AgentManager shall send the workload states of the workload it manages to the server
-`swdd~agent-manager-sends-workload-states-of-its-workloads-to-server~1`
+`swdd~agent-sends-workload-states-of-its-workloads-to-server~1`
 
 Status: approved
 
@@ -297,7 +297,7 @@ Status: approved
 
 When the RuntimeManager receives a `WorkloadOperation` to delete a workload,
 and the workload state of a dependency of the workload is not fulfilling the configured `DeleteCondition`,
-then the RuntimeManager shall request the WorkloadScheduler to enqueue the `WorkloadOperation`.
+then the WorkloadScheduler shall enqueue the `WorkloadOperation`.
 
 Rationale: A workload having inter-workload dependencies shall only be deleted when its configured dependencies have the expected workload states specified in the `DeleteCondition`.
 
@@ -310,18 +310,19 @@ Needs:
 - utest
 
 #### The agent shall enqueue update workload operations with unfulfilled delete dependencies
-`swdd~agent-enqueues-pending-update-workload-operations~1`
+`swdd~agent-enqueues-pending-update-delete-workload-operations~1`
 
 Status: approved
 
 When the RuntimeManager receives a `WorkloadOperation` to update a workload,
-and the workload state of a dependency of the workload is not fulfilling the configured `DeleteCondition`,
-then the RuntimeManager shall request the WorkloadScheduler to enqueue the `WorkloadOperation`.
+and the workload state of the workload is not fulfilling its `DeleteCondition`,
+then the WorkloadScheduler shall enqueue the update.
 
-Rationale: The agent shall not perform the create of the new workload with the default update strategy `AT_MOST_ONCE`
-when the inter-workload dependencies of a create are fulfilled.
+Rationale: The agent shall not continue with the create of the new workload with the default update strategy `AT_MOST_ONCE`
+when the inter-workload dependencies of a create are fulfilled, but the delete conditions are not fulfilled.
 
 Tags:
+- RuntimeManager
 - WorkloadScheduler
 
 Needs:
@@ -334,16 +335,36 @@ Needs:
 Status: approved
 
 When the WorkloadScheduler receives a `WorkloadOperation` to update a workload,
-and the workload state of a dependency of the new workload is not fulfilling the configured `AddCondition`,
-and the workload state of all its dependencies of the old workload are fulfilling the configured `DeleteCondition`,
+and the workload state of all delete dependencies of the old workload are fulfilling their `DeleteCondition`,
 then the WorkloadScheduler shall enqueue a create `WorkloadOperation` containing the new workload.
 
-Comment: When the create of the new workload has already fulfilled inter-workload dependencies, the create `WorkloadOperation` is not enqueued.
+Rationale: Even if the create of the new workload has already fulfilled inter-workload dependencies, the create `WorkloadOperation` is enqueued to perform the update in the default update strategy `AT_MOST_ONCE`.
 
-Rationale: The agent shall delete a workload with fulfilled deletion conditions immediately to prevent
+Rationale: The agent shall delete an updated workload with fulfilled delete conditions immediately to prevent
+the old workload from existing on the Runtime for a long period of time until the create of the new workload can be executed.
+This performs the update operation by applying the default update strategy `AT_MOST_ONCE`.
+
+Tags:
+- WorkloadScheduler
+
+Needs:
+- impl
+- utest
+
+#### The agent shall perform updates with fulfilled delete dependencies immediately
+`swdd~agent-perform-update-delete-only~1`
+
+Status: approved
+
+When the agent receives a `WorkloadOperation` to update a workload,
+and the workload state of all delete dependencies of the old workload are fulfilling their `DeleteCondition`,
+then the agent shall delete the old workload immediately without enqueuing it.
+
+Rationale: The agent shall delete an updated workload with fulfilled delete conditions immediately to prevent
 the old workload from existing on the Runtime for a long period of time until the create of the new workload can be executed.
 
 Tags:
+- RuntimeManager
 - WorkloadScheduler
 
 Needs:
@@ -355,7 +376,8 @@ Needs:
 
 Status: approved
 
-When a workload has an inter-workload dependency with an unfulfilled `AddCondition`
+When the WorkloadScheduler receives the `WorkloadOperation` to create a workload
+and the workload has an inter-workload dependency with an unfulfilled `AddCondition`
 and the workload operation of that workload is enqueued into the waiting queue,
 the WorkloadScheduler shall report the workload state `Pending(WaitingToStart)`.
 
@@ -374,7 +396,8 @@ Needs:
 
 Status: approved
 
-When a workload has an inter-workload dependency with an unfulfilled `DeleteCondition`,
+When the WorkloadScheduler receives the `WorkloadOperation` to delete a workload,
+and the workload has an inter-workload dependency with an unfulfilled `DeleteCondition`,
 and the workload operation of that workload is enqueued into the waiting queue,
 the WorkloadScheduler shall report the workload state `Stopping(WaitingToStop)`.
 
@@ -389,14 +412,36 @@ Needs:
 - stest
 
 #### The agent shall report workload state WaitingToStop for updated workloads with unfulfilled delete conditions
-`swdd~agent-reports-pending-delete-workload-state-on-update~1`
+`swdd~agent-reports-pending-delete-workload-state-on-pending-update-delete~1`
 
 Status: approved
 
-When an
-the WorkloadScheduler shall report the workload state `Stopping(WaitingToStop)`.
+When the WorkloadScheduler receives the `WorkloadOperation` to update a workload,
+and the workload has an inter-workload dependency with an unfulfilled `DeleteCondition`,
+and the workload operation of that workload is enqueued into the waiting queue,
+then the WorkloadScheduler shall report the workload state `Stopping(WaitingToStop)`.
 
-Rationale: This communicates to the user that the workload is scheduled but not ready to delete because another workload has a dependency to that workload.
+Rationale: This communicates to the user that the delete operation of that workload is scheduled but not ready because another workload has a dependency to that workload.
+
+Tags:
+- WorkloadScheduler
+
+Needs:
+- impl
+- utest
+- stest
+
+#### The agent shall report workload state WaitingToStart for updated workloads with fulfilled delete conditions
+`swdd~agent-reports-pending-create-workload-state-on-pending-update-create~1`
+
+Status: approved
+
+When the WorkloadScheduler receives the `WorkloadOperation` to update a workload,
+and all inter-workload dependencies have an fulfilled `DeleteCondition`,
+and the workload operation of that workload is enqueued into the waiting queue,
+then the WorkloadScheduler shall report the workload state `Pending(WaitingToStart)`.
+
+Rationale: This communicates to the user that the create operation of that workload is scheduled but not ready because the create operation of the update waits for inter-workload dependencies and the create operation shall only run after completing the delete operation of the update with the default update strategy `AT_MOST_ONCE`.
 
 Tags:
 - WorkloadScheduler

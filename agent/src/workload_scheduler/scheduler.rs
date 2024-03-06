@@ -77,7 +77,7 @@ impl WorkloadScheduler {
                 WorkloadOperation::Update(new_workload_spec, deleted_workload) => {
                     // [impl->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
                     ready_workload_operations.extend(
-                        // [impl->swdd~agent-enqueues-pending-update-workload-operations~1]
+                        // [impl->swdd~agent-enqueues-pending-update-delete-workload-operations~1]
                         // [impl->swdd~agent-enqueues-pending-create-on-update-workload-operations~1]
                         self.enqueue_pending_update(
                             new_workload_spec,
@@ -208,7 +208,6 @@ impl WorkloadScheduler {
         ready_workload_operations
     }
 
-    // [impl->swdd~agent-enqueues-pending-update-workload-operations~1]
     async fn enqueue_pending_update(
         &mut self,
         new_workload_spec: WorkloadSpec,
@@ -241,6 +240,8 @@ impl WorkloadScheduler {
             /* once the delete conditions are fulfilled the pending update delete is
             transformed into a pending create since the current update strategy is at most once.
             We notify a pending create state. */
+
+            // [impl->swdd~agent-reports-pending-create-workload-state-on-pending-update-create~1]
             self.report_pending_create_state(&new_workload_spec.instance_name)
                 .await;
 
@@ -250,14 +251,17 @@ impl WorkloadScheduler {
                 PendingEntry::UpdateCreate(new_workload_spec, deleted_workload.clone()),
             );
 
+            // [impl->swdd~agent-perform-update-delete-only~1]
             ready_workload_operations.push(WorkloadOperation::UpdateDeleteOnly(deleted_workload));
         } else {
             // For an update with pending delete dependencies, the whole update is pending.
+            // [impl->swdd~agent-reports-pending-delete-workload-state-on-pending-update-delete~1]
             if notify_on_new_entry {
                 self.report_pending_delete_state(&deleted_workload.instance_name)
                     .await;
             }
 
+            // [impl->swdd~agent-enqueues-pending-update-delete-workload-operations~1]
             self.queue.insert(
                 new_workload_spec.instance_name.workload_name().to_owned(),
                 PendingEntry::UpdateDelete(new_workload_spec, deleted_workload),
