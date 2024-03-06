@@ -106,6 +106,7 @@ fn generate_compact_state_output(
     for mask in object_field_mask {
         let splitted_masks: Vec<&str> = mask.split('.').collect();
         // [impl->swdd~cli-returns-format-version-with-desired-state~1]
+        // [impl->swdd~cli-returns-format-version-with-startup-state~1]
         append_format_version(&deserialized_state, &splitted_masks, &mut compact_state);
 
         if let Some(filtered_mapping) = get_filtered_value(&deserialized_state, &splitted_masks) {
@@ -1765,6 +1766,7 @@ mod tests {
             txt == *"desiredState:\n  formatVersion: v0.1\n  workloads:\n    name2:\n      runtime: runtime\n    name1:\n      runtime: runtime\n"));
     }
 
+    // [utest->swdd~cli-returns-format-version-with-startup-state~1]
     #[tokio::test]
     async fn get_state_multiple_fields_of_startup_and_desired_state() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

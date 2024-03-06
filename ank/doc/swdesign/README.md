@@ -279,8 +279,8 @@ Needs:
 
 Status: approved
 
-When the user invokes the CLI with a request to the get desired state,
-the CLI shall always display the field `formatVersion` together with the requested desired state.
+When the user invokes the CLI with a request to get the desired state,
+the CLI shall always display the field `formatVersion` of the desired state together with the requested desired state.
 
 Rationale:
 Output of the `ank get state` can be (and it is meant to be) used as input for the command `ank set state`.
@@ -288,6 +288,21 @@ The `ank set state` requires the formatVersion, therefore the `ank get state` mu
 
 Tags:
 - GetDesiredState
+
+Needs:
+- impl
+- utest
+
+#### CLI returns `formatVersion` with the startup state
+`swdd~cli-returns-format-version-with-startup-state~1`
+
+Status: approved
+
+When the user invokes the CLI with a request to get startup state,
+the CLI shall always display the field `formatVersion` of the startup state together with the requested startup state.
+
+Tags:
+- GetStartupState
 
 Needs:
 - impl
