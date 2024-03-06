@@ -219,7 +219,7 @@ Needs:
 
 Status: approved
 
-When the AgentManager receives an `UpdateWorkloadState` or an `UpdateWorkload` message, then the RuntimeManager shall create, update or delete workloads having fulfilled inter-workload dependency conditions.
+When the agent receives an `UpdateWorkloadState` or an `UpdateWorkload` message, then the agent shall create, update or delete workloads having fulfilled inter-workload dependency conditions.
 
 Comment: The Ankaios agent receives workload states from the Ankaios server and from the workloads the agent manages itself. Empty workload states are ignored.
 
@@ -227,6 +227,7 @@ Rationale: Whenever the agent receives new workload states or updates of workloa
 Tags:
 - AgentManager
 - RuntimeManager
+- WorkloadScheduler
 
 Needs:
 - impl
@@ -238,7 +239,7 @@ Needs:
 
 Status: approved
 
-When the RuntimeManager receives a `WorkloadOperation` containing a workload with unfulfilled dependency conditions,
+When the RuntimeManager receives a `WorkloadOperation` containing a workload with an unfulfilled inter-workload dependency,
 the WorkloadScheduler shall put the workload operation into a waiting queue.
 
 Rationale: The workload shall only be started when its inter-workload dependencies are in the desired configured state.

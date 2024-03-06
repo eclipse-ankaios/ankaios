@@ -139,6 +139,7 @@ impl WorkloadScheduler {
                     );
                 }
                 PendingEntry::UpdateCreate(new_workload_spec, deleted_workload) => {
+                    // [impl->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
                     if DependencyStateValidator::create_fulfilled(
                         &new_workload_spec,
                         workload_state_db,
@@ -202,6 +203,7 @@ impl WorkloadScheduler {
                     .await;
             }
 
+            // [impl->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
             self.queue.insert(
                 new_workload_spec.instance_name.workload_name().to_owned(),
                 PendingEntry::Create(new_workload_spec),
@@ -219,12 +221,16 @@ impl WorkloadScheduler {
         notify_on_new_entry: bool,
     ) -> Vec<WorkloadOperation> {
         let mut ready_workload_operations = Vec::new();
+
+        // [impl->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
         let create_fulfilled =
             DependencyStateValidator::create_fulfilled(&new_workload_spec, workload_state_db);
 
+        // [impl->swdd~workload-ready-to-delete-on-fulfilled-dependencies~1]
         let delete_fulfilled =
             DependencyStateValidator::delete_fulfilled(&deleted_workload, workload_state_db);
 
+        // [impl->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
         if create_fulfilled && delete_fulfilled {
             // dependencies for create and delete are fulfilled, the update can be done immediately
             ready_workload_operations.push(WorkloadOperation::Update(
@@ -290,6 +296,7 @@ impl WorkloadScheduler {
                     .await;
             }
 
+            // [impl->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
             self.queue.insert(
                 deleted_workload.instance_name.workload_name().to_owned(),
                 PendingEntry::Delete(deleted_workload),
