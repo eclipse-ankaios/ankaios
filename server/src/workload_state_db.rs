@@ -95,12 +95,9 @@ impl WorkloadStateDB {
     }
 
     // [impl->swdd~server-deletes-removed-workload-state~1]
-    fn remove(&mut self, state_to_remove: WorkloadState) {
-        if let Some(agent_states) = self
-            .stored_states
-            .get_mut(state_to_remove.instance_name.agent_name())
-        {
-            agent_states.remove(&state_to_remove.instance_name);
+    pub fn remove(&mut self, instance_name: &WorkloadInstanceName) {
+        if let Some(agent_states) = self.stored_states.get_mut(instance_name.agent_name()) {
+            agent_states.remove(instance_name);
         }
     }
 
@@ -108,7 +105,7 @@ impl WorkloadStateDB {
     pub fn process_new_states(&mut self, workload_states: Vec<WorkloadState>) {
         workload_states.into_iter().for_each(|workload_state| {
             if workload_state.execution_state.is_removed() {
-                self.remove(workload_state);
+                self.remove(&workload_state.instance_name);
             } else {
                 self.stored_states
                     .entry(workload_state.instance_name.agent_name().to_owned())

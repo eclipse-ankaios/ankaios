@@ -126,7 +126,7 @@ pub fn get_workloads_per_agent(
             agent_workloads.get_mut(added_workload.instance_name.agent_name())
         {
             added_workload_vector.push(added_workload);
-        } else {
+        } else if !added_workload.instance_name.agent_name().is_empty() {
             agent_workloads.insert(
                 added_workload.instance_name.agent_name().to_owned(),
                 (vec![added_workload], vec![]),
