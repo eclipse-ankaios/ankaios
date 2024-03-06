@@ -100,6 +100,7 @@ impl WorkloadScheduler {
                     );
                 }
                 WorkloadOperation::UpdateDeleteOnly(_) => {
+                    // [impl->swdd~agent-shall-not-enqueue-update-delete-only-workload-operation~1]
                     log::warn!("Skip UpdateDeleteOnly. This shall never be enqueued.")
                 }
             };
@@ -190,6 +191,8 @@ impl WorkloadScheduler {
         notify_on_new_entry: bool,
     ) -> Vec<WorkloadOperation> {
         let mut ready_workload_operations = Vec::new();
+
+        // [impl->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
         if DependencyStateValidator::create_fulfilled(&new_workload_spec, workload_state_db) {
             ready_workload_operations.push(WorkloadOperation::Create(new_workload_spec));
         } else {

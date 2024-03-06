@@ -28,6 +28,7 @@ impl DependencyStateValidator {
         workload
             .dependencies
             .iter()
+            // [impl->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
             .all(|(dependency_name, add_condition)| {
                 workload_state_db
                     .get_state_of_workload(dependency_name)
@@ -45,6 +46,7 @@ impl DependencyStateValidator {
         workload
             .dependencies
             .iter()
+            // [impl->swdd~workload-ready-to-delete-on-fulfilled-dependencies~1]
             .all(|(dependency_name, delete_condition)| {
                 workload_state_db
                     .get_state_of_workload(dependency_name)
@@ -84,6 +86,7 @@ mod tests {
     const WORKLOAD_NAME_2: &str = "workload_2";
     const RUNTIME: &str = "runtime";
 
+    // [utest->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
     #[test]
     fn utest_create_fulfilled() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
@@ -107,6 +110,7 @@ mod tests {
         ));
     }
 
+    // [utest->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
     #[test]
     fn utest_create_fulfilled_no_dependencies() {
         let mut workload_with_dependencies = generate_test_workload_spec_with_param(
@@ -128,6 +132,7 @@ mod tests {
         ));
     }
 
+    // [utest->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
     #[test]
     fn utest_create_fulfilled_no_workload_state_known() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
@@ -149,6 +154,7 @@ mod tests {
         ));
     }
 
+    // [utest->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
     #[test]
     fn utest_create_fulfilled_unfulfilled_execution_state() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
@@ -171,6 +177,7 @@ mod tests {
         ));
     }
 
+    // [impl->swdd~workload-ready-to-delete-on-fulfilled-dependencies~1]
     #[test]
     fn utest_delete_fulfilled() {
         let deleted_workload_with_dependencies = generate_test_deleted_workload_with_dependencies(
@@ -196,6 +203,7 @@ mod tests {
         ));
     }
 
+    // [impl->swdd~workload-ready-to-delete-on-fulfilled-dependencies~1]
     #[test]
     fn utest_delete_fulfilled_unfulfilled_execution_state() {
         let deleted_workload_with_dependencies = generate_test_deleted_workload_with_dependencies(
@@ -220,6 +228,7 @@ mod tests {
         ));
     }
 
+    // [impl->swdd~workload-ready-to-delete-on-fulfilled-dependencies~1]
     #[test]
     fn utest_delete_fulfilled_no_workload_state_known() {
         let deleted_workload_with_dependencies = generate_test_deleted_workload_with_dependencies(

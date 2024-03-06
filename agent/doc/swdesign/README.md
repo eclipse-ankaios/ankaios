@@ -451,6 +451,54 @@ Needs:
 - utest
 - stest
 
+#### The agent shall not enqueue a delete only operation of an update
+`swdd~agent-shall-not-enqueue-update-delete-only-workload-operation~1`
+
+Status: approved
+
+The WorkloadScheduler shall not enqueue the update delete only `WorkloadOperation`.
+
+Rationale: The update delete only workload operation is internally created when the delete operation of a pending update is ready.
+
+Tags:
+- WorkloadScheduler
+
+Needs:
+- impl
+- utest
+
+#### A workload is ready to create when all of its inter-workload dependencies are fulfilled
+`swdd~workload-ready-to-create-on-fulfilled-dependencies~1`
+
+Status: approved
+
+When the workload state of all inter-workload dependencies of a workload fulfill their configured `AddCondition`,
+then the Workload is ready to create.
+
+Tags:
+- WorkloadScheduler
+- DependencyStateValidator
+
+Needs:
+- impl
+- utest
+
+#### A workload is ready to delete when all of its inter-workload dependencies are fulfilled
+`swdd~workload-ready-to-delete-on-fulfilled-dependencies~1`
+
+Status: approved
+
+When the workload state of all inter-workload dependencies of a workload fulfill their `DeleteCondition`,
+then the Workload is ready to delete.
+
+Tags:
+- WorkloadScheduler
+- DependencyStateValidator
+
+Needs:
+- impl
+- utest
+
 #### RuntimeManager transforms workloads inside UpdateWorkload message to workload operations
 `swdd~agent-transforms-update-workload-message-to-workload-operations~1`
 
@@ -546,10 +594,14 @@ Status: approved
 
 The `ExecutionState` of an inter-workload dependency shall fulfill the `DeleteCondition` according to the following table:
 
-| ExecutionState                                                           | DeleteCondition             |
-|--------------------------------------------------------------------------|-----------------------------|
-| All besides Running(Ok) or Pending(S) where S represents all sub states. | DelCondNotPendingNorRunning |
-| Running(Ok)                                                              | DelCondRunning              |
+| ExecutionState                                                           | DeleteCondition                               |
+|--------------------------------------------------------------------------|-----------------------------------------------|
+| All besides Running(Ok) or Pending(S) where S represents all sub states. | DelCondNotPendingNorRunning                   |
+| Running(Ok)                                                              | DelCondRunning                                |
+| Pending(WaitingToStart)                                                  | DelCondNotPendingNorRunning or DelCondRunning |
+
+Comment: The ExecutionState `Pending(WaitingToStart)` fulfills any `DeleteCondition` to prevent a deadlock situation where a workload is `Stopping(WaitingToStop)`
+and one of its dependency is `Pending(WaitingToStart)`.
 
 Rationale: The agent must be able to recognize when all inter-workload dependencies of a workload reach their configured expected conditions to delete the workload.
 
