@@ -187,7 +187,7 @@ impl WorkloadControlLoop {
         control_loop_state
             .update_state_tx
             .report_workload_execution_state(
-                &control_loop_state.instance_name,
+                &new_workload_spec.instance_name,
                 ExecutionState::starting_triggered(),
             )
             .await;
@@ -215,7 +215,7 @@ impl WorkloadControlLoop {
                 control_loop_state
                     .update_state_tx
                     .report_workload_execution_state(
-                        &control_loop_state.instance_name,
+                        &new_workload_spec.instance_name,
                         ExecutionState::starting_failed(err.to_string()),
                     )
                     .await;
