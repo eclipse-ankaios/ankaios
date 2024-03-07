@@ -12,7 +12,7 @@ work as well but have not been tested.
 Ankaios currently requires a Linux OS and is available for x86_64 and arm64
 targets.
 
-The minimum system requirements are (tested with [EB corbos Linux – built on Ubuntu](https://www.elektrobit.com/products/ecu/eb-corbos/linux/free/)):
+The minimum system requirements are (tested with [EB corbos Linux – built on Ubuntu](https://www.elektrobit.com/products/ecu/eb-corbos/linux/)):
 
 | Resource | Min     |
 | -------- | ------- |
