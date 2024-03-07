@@ -185,8 +185,10 @@ impl AgentManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agent_manager::AgentManager;
     use crate::parameter_storage::MockParameterStorage;
+    use crate::{
+        agent_manager::AgentManager, parameter_storage::mock_parameter_storage_new_returns,
+    };
     use common::{
         commands::{Goodbye, Response, ResponseContent, UpdateWorkloadState},
         from_server_interface::FromServerInterface,
@@ -210,11 +212,8 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let mock_parameter_storage_context = MockParameterStorage::new_context();
-        mock_parameter_storage_context
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
+        let mock_parameter_storage = MockParameterStorage::default();
+        mock_parameter_storage_new_returns(mock_parameter_storage);
 
         let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
         let (to_server, _) = channel(BUFFER_SIZE);
@@ -288,16 +287,9 @@ mod tests {
 
         let mut mock_parameter_storage = MockParameterStorage::default();
         mock_parameter_storage
-            .expect_update_workload_state()
-            .with(mockall::predicate::eq(workload_state.clone()))
-            .once()
-            .return_const(());
-
-        let mock_parameter_storage_context = MockParameterStorage::new_context();
-        mock_parameter_storage_context
-            .expect()
-            .once()
-            .return_once(|| mock_parameter_storage);
+            .expected_update_workload_state_parameters
+            .push_back(workload_state.clone());
+        mock_parameter_storage_new_returns(mock_parameter_storage);
 
         let mut agent_manager = AgentManager::new(
             AGENT_NAME.to_string(),
@@ -325,17 +317,8 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let mut mock_parameter_storage = MockParameterStorage::default();
-        mock_parameter_storage
-            .expect_update_workload_state()
-            .never()
-            .return_const(());
-
-        let mock_parameter_storage_context = MockParameterStorage::new_context();
-        mock_parameter_storage_context
-            .expect()
-            .once()
-            .return_once(|| mock_parameter_storage);
+        let mock_parameter_storage = MockParameterStorage::default();
+        mock_parameter_storage_new_returns(mock_parameter_storage);
 
         let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
         let (to_server, _) = channel(BUFFER_SIZE);
@@ -372,11 +355,8 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let mock_parameter_storage_context = MockParameterStorage::new_context();
-        mock_parameter_storage_context
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
+        let mock_parameter_storage = MockParameterStorage::default();
+        mock_parameter_storage_new_returns(mock_parameter_storage);
 
         let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
         let (to_server, _) = channel(BUFFER_SIZE);
@@ -434,16 +414,10 @@ mod tests {
 
         let mut mock_parameter_storage = MockParameterStorage::default();
         mock_parameter_storage
-            .expect_update_workload_state()
-            .with(mockall::predicate::eq(workload_state.clone()))
-            .once()
-            .return_const(());
+            .expected_update_workload_state_parameters
+            .push_back(workload_state.clone());
 
-        let mock_parameter_storage_context = MockParameterStorage::new_context();
-        mock_parameter_storage_context
-            .expect()
-            .once()
-            .return_once(|| mock_parameter_storage);
+        mock_parameter_storage_new_returns(mock_parameter_storage);
 
         let mut mock_runtime_manager = RuntimeManager::default();
         mock_runtime_manager
@@ -494,16 +468,8 @@ mod tests {
         let (to_server, mut to_server_receiver) = channel(BUFFER_SIZE);
         let (workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
 
-        let mut mock_parameter_storage = MockParameterStorage::default();
-        mock_parameter_storage
-            .expect_update_workload_state()
-            .never();
-
-        let mock_parameter_storage_context = MockParameterStorage::new_context();
-        mock_parameter_storage_context
-            .expect()
-            .once()
-            .return_once(|| mock_parameter_storage);
+        let mock_parameter_storage = MockParameterStorage::default();
+        mock_parameter_storage_new_returns(mock_parameter_storage);
 
         let mut mock_runtime_manager = RuntimeManager::default();
         mock_runtime_manager
@@ -540,11 +506,8 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let mock_parameter_storage_context = MockParameterStorage::new_context();
-        mock_parameter_storage_context
-            .expect()
-            .once()
-            .return_once(MockParameterStorage::default);
+        let mock_parameter_storage = MockParameterStorage::default();
+        mock_parameter_storage_new_returns(mock_parameter_storage);
 
         let (_to_manager, manager_receiver) = channel(BUFFER_SIZE);
         let (to_server, _to_server_receiver) = channel(BUFFER_SIZE);
