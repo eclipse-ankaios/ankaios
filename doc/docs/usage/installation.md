@@ -14,10 +14,10 @@ targets.
 
 The minimum system requirements are (tested with [EB corbos Linux – built on Ubuntu](https://www.elektrobit.com/products/ecu/eb-corbos/linux/free/)):
 
-| Item | Min     |
-| ---- | ------- |
-| CPU  | 1 core  |
-| RAM  | 128 MB  |
+| Resource | Min     |
+| -------- | ------- |
+| CPU      | 1 core  |
+| RAM      | 128 MB  |
 
 [Podman](https://podman.io) needs to be installed as this is used as
 container runtime
