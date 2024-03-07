@@ -581,6 +581,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
     #[test]
     fn utest_add_condition_fulfilled_by_fulfilled() {
         let add_condition = AddCondition::AddCondRunning;
@@ -593,6 +594,7 @@ mod tests {
         assert!(add_condition.fulfilled_by(&ExecutionState::failed("some failure".to_string())));
     }
 
+    // [utest->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
     #[test]
     fn utest_delete_condition_fulfilled_by() {
         let delete_condition = DeleteCondition::DelCondNotPendingNorRunning;

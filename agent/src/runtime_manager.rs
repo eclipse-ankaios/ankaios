@@ -328,17 +328,20 @@ impl RuntimeManager {
     async fn process_workloads_operations(&mut self, workload_operations: Vec<WorkloadOperation>) {
         for wl_operation in workload_operations {
             match wl_operation {
-                // [impl->swdd~agent-executes-create-workload-operation~1]
-                WorkloadOperation::Create(workload_spec) => self.add_workload(workload_spec).await,
+                WorkloadOperation::Create(workload_spec) => {
+                    // [impl->swdd~agent-executes-create-workload-operation~1]
+                    self.add_workload(workload_spec).await
+                }
                 WorkloadOperation::Update(new_workload_spec, _) => {
+                    // [impl->swdd~agent-executes-update-workload-operation~1]
                     self.update_workload(new_workload_spec).await
                 }
                 WorkloadOperation::UpdateDeleteOnly(deleted_workload) => {
                     // [impl->swdd~agent-perform-update-delete-only~1]
                     self.update_delete_only(deleted_workload).await
                 }
-                // [impl->swdd~agent-executes-delete-workload-operation~1]
                 WorkloadOperation::Delete(deleted_workload) => {
+                    // [impl->swdd~agent-executes-delete-workload-operation~1]
                     self.delete_workload(deleted_workload).await
                 }
             }
@@ -1472,6 +1475,77 @@ mod tests {
         server_receiver.close();
 
         assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+    }
+
+    // [utest->swdd~agent-perform-update-delete-only~1]
+    #[tokio::test]
+    async fn utest_handle_update_workload_subsequent_update_delete_only_with_fulfilled_delete_dependencies(
+    ) {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let new_workload = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let old_workload =
+            generate_test_deleted_workload(AGENT_NAME.to_string(), WORKLOAD_1_NAME.to_string());
+
+        let workload_operations = vec![WorkloadOperation::UpdateDeleteOnly(old_workload.clone())];
+
+        let mut mock_workload_scheduler = MockWorkloadScheduler::default();
+        mock_workload_scheduler
+            .expect_enqueue_filtered_workload_operations()
+            .once()
+            .return_const(workload_operations);
+
+        let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
+        mock_workload_scheduler_context
+            .expect()
+            .once()
+            .return_once(|_| mock_workload_scheduler);
+
+        let runtime_facade_mock = MockRuntimeFacade::new();
+        let (_, mut runtime_manager) = RuntimeManagerBuilder::default()
+            .with_runtime(
+                RUNTIME_NAME,
+                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+            )
+            .build();
+
+        runtime_manager.initial_workload_list_received = true;
+
+        let mut workload_mock = MockWorkload::default();
+        workload_mock
+            .expect_update()
+            .once()
+            .with(
+                predicate::eq(None), // in case of update delete only there is no new workload spec
+                predicate::function(|control_interface: &Option<PipesChannelContext>| {
+                    control_interface.is_none()
+                }),
+            )
+            .return_once(move |_, _| Ok(()));
+
+        runtime_manager
+            .workloads
+            .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
+
+        let added_workloads = vec![new_workload];
+        let deleted_workloads = vec![old_workload];
+        // workload is in added and deleted workload vec
+        runtime_manager
+            .handle_update_workload(
+                added_workloads,
+                deleted_workloads,
+                &MockParameterStorage::default(),
+            )
+            .await;
+
+        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
     #[tokio::test]

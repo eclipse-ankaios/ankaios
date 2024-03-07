@@ -328,8 +328,7 @@ then the WorkloadScheduler shall put the `WorkloadOperation` into a waiting queu
 
 Comment: The Ankaios server defines and inserts internally the `DeleteCondition`s for inter-workload dependencies.
 
-Rationale: The default update strategy `AT_MOST_ONCE` requires that the agent shall only create the new workload of that update when the old workload is deleted
-regardless of the `AddCondition` from the inter-workload dependencies of the create are fulfilled or not.
+Rationale: The default update strategy `AT_MOST_ONCE` requires that the agent shall only create the new workload of that update when the old workload is deleted regardless of the `AddCondition` from the inter-workload dependencies of the create are fulfilled or not.
 
 Tags:
 - RuntimeManager
@@ -349,8 +348,7 @@ and the workload is an inter-workload dependency of at least one other workload
 and the workload has fulfilled `DeleteCondition`s,
 then the WorkloadScheduler shall put a create `WorkloadOperation` containing the new workload into a waiting queue.
 
-Rationale: The default update strategy `AT_MOST_ONCE` requires that the agent shall only create the new workload of that update when the old workload is deleted
-regardless of the `AddCondition` from the inter-workload dependencies of the create are fulfilled or not.
+Rationale: The default update strategy `AT_MOST_ONCE` requires that the agent shall only create the new workload of that update when the old workload is deleted regardless of the `AddCondition` from the inter-workload dependencies of the create are fulfilled or not.
 
 Tags:
 - WorkloadScheduler
@@ -369,12 +367,12 @@ and the workload is an inter-workload dependency of at least one other workload
 and the workload has fulfilled `DeleteCondition`s,
 then the agent shall delete the workload immediately.
 
-Rationale: With default update strategy `AT_MOST_ONCE` the agent shall delete an updated workload with fulfilled delete conditions immediately. This prevents
-the old workload from existing on the Runtime for a long period of time until the create of the new workload can be executed.
+Rationale: With default update strategy `AT_MOST_ONCE` the agent shall delete an updated workload with fulfilled delete conditions immediately. This prevents sthe old workload from existing on the Runtime for a long period of time until the create of the new workload can be executed.
 
 Tags:
 - RuntimeManager
 - WorkloadScheduler
+- WorkloadControlLoop
 
 Needs:
 - impl
@@ -481,8 +479,7 @@ Needs:
 
 Status: approved
 
-When the workload state of all inter-workload dependencies of a workload fulfill their configured `AddCondition`,
-then the Workload is ready to create.
+When the workload state of all inter-workload dependencies of a workload fulfill their configured `AddCondition`, then the Workload is ready to create.
 
 Tags:
 - WorkloadScheduler
@@ -497,8 +494,7 @@ Needs:
 
 Status: approved
 
-When the workload states of all workloads fulfill the respective `DeleteCondition` of an inter-workload dependency,
-then the inter-workload dependency is ready to delete.
+When the workload states of all workloads fulfill the respective `DeleteCondition` of an inter-workload dependency, then the inter-workload dependency is ready to delete.
 
 Tags:
 - WorkloadScheduler
@@ -582,6 +578,8 @@ The `ExecutionState` of an inter-workload dependency shall fulfill the `AddCondi
 | Succeeded(Ok)      | ADD_COND_SUCCEEDED  |
 | Failed(ExecFailed) | ADD_COND_FAILED     |
 
+Comment: When no execution state is available for an inter-workload dependency the `AddCondition` is not fulfilled, because the information might be available only later when the inter-workload dependency is processed the first time of Ankaios.
+
 Rationale: The agent must be able to recognize when all inter-workload dependencies of a workload reach their configured expected conditions to create a workload.
 
 Tags:
@@ -606,7 +604,7 @@ The `ExecutionState` of an inter-workload dependency shall fulfill the `DeleteCo
 | Pending(WaitingToStart)                                                  | DelCondNotPendingNorRunning or DelCondRunning |
 
 Comment: The ExecutionState `Pending(WaitingToStart)` fulfills any `DeleteCondition` to prevent a deadlock situation where a workload is `Stopping(WaitingToStop)`
-and one of its dependency is `Pending(WaitingToStart)`.
+and one of its dependency is `Pending(WaitingToStart)`. When no execution state of the dependent workload is available the `DeleteCondition` is fulfilled, because the workload is already deleted.
 
 Rationale: The agent must be able to recognize when all workloads of an inter-workload dependency fulfill the expected `DeleteCondition` within the inter-workload dependency.
 

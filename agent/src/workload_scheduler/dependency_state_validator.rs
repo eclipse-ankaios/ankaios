@@ -74,7 +74,9 @@ mod tests {
             generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
             AddCondition, DeleteCondition, ExecutionState,
         },
-        test_utils::generate_test_deleted_workload_with_dependencies,
+        test_utils::{
+            generate_test_deleted_workload, generate_test_deleted_workload_with_dependencies,
+        },
     };
     use std::collections::HashMap;
 
@@ -86,6 +88,7 @@ mod tests {
     const RUNTIME: &str = "runtime";
 
     // [utest->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
+    // [utest->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
     #[test]
     fn utest_create_fulfilled() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
@@ -110,23 +113,23 @@ mod tests {
     // [utest->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
     #[test]
     fn utest_create_fulfilled_no_dependencies() {
-        let mut workload_with_dependencies = generate_test_workload_spec_with_param(
+        let mut workload_spec = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
             WORKLOAD_NAME_1.to_string(),
             RUNTIME.to_string(),
         );
 
-        workload_with_dependencies.dependencies.clear(); // no inter-workload dependencies
+        workload_spec.dependencies.clear(); // no inter-workload dependencies
 
         let parameter_storage_mock = MockParameterStorage::default();
 
         assert!(DependencyStateValidator::create_fulfilled(
-            &workload_with_dependencies,
+            &workload_spec,
             &parameter_storage_mock
         ));
     }
 
-    // [utest->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
+    // [utest->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
     #[test]
     fn utest_create_fulfilled_no_workload_state_known() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
@@ -145,6 +148,7 @@ mod tests {
     }
 
     // [utest->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
+    // [utest->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
     #[test]
     fn utest_create_fulfilled_unfulfilled_execution_state() {
         let workload_with_dependencies = generate_test_workload_spec_with_dependencies(
@@ -167,6 +171,7 @@ mod tests {
     }
 
     // [utest->swdd~workload-ready-to-delete-on-fulfilled-dependencies~1]
+    // [utest->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
     #[test]
     fn utest_delete_fulfilled() {
         let deleted_workload_with_dependencies = generate_test_deleted_workload_with_dependencies(
@@ -191,6 +196,7 @@ mod tests {
     }
 
     // [utest->swdd~workload-ready-to-delete-on-fulfilled-dependencies~1]
+    // [utest->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
     #[test]
     fn utest_delete_fulfilled_unfulfilled_execution_state() {
         let deleted_workload_with_dependencies = generate_test_deleted_workload_with_dependencies(
@@ -215,6 +221,22 @@ mod tests {
     }
 
     // [utest->swdd~workload-ready-to-delete-on-fulfilled-dependencies~1]
+    #[test]
+    fn utest_delete_fulfilled_no_dependencies() {
+        let mut deleted_workload =
+            generate_test_deleted_workload(AGENT_A.to_string(), WORKLOAD_NAME_1.to_string());
+
+        deleted_workload.dependencies.clear(); // no inter-workload dependencies
+
+        let parameter_storage_mock = MockParameterStorage::default();
+
+        assert!(DependencyStateValidator::delete_fulfilled(
+            &deleted_workload,
+            &parameter_storage_mock
+        ));
+    }
+
+    // [utest->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
     #[test]
     fn utest_delete_fulfilled_no_workload_state_known() {
         let deleted_workload_with_dependencies = generate_test_deleted_workload_with_dependencies(
