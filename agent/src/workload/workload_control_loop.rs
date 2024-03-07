@@ -184,10 +184,12 @@ impl WorkloadControlLoop {
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
         Fut: Future<Output = ControlLoopState<WorkloadId, StChecker>>,
     {
+        control_loop_state.instance_name = new_workload_spec.instance_name.clone();
+
         control_loop_state
             .update_state_tx
             .report_workload_execution_state(
-                &new_workload_spec.instance_name,
+                &control_loop_state.instance_name,
                 ExecutionState::starting_triggered(),
             )
             .await;
@@ -208,14 +210,13 @@ impl WorkloadControlLoop {
                 );
                 control_loop_state.workload_id = Some(new_workload_id);
                 control_loop_state.state_checker = Some(new_state_checker);
-                control_loop_state.instance_name = new_workload_spec.instance_name.clone();
                 control_loop_state
             }
             Err(err) => {
                 control_loop_state
                     .update_state_tx
                     .report_workload_execution_state(
-                        &new_workload_spec.instance_name,
+                        &control_loop_state.instance_name,
                         ExecutionState::starting_failed(err.to_string()),
                     )
                     .await;
