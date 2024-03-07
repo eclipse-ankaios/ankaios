@@ -66,7 +66,7 @@ Test Ankaios Podman update workload from empty state
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~update-desired-state-with-invalid-version~1]
-Test Ankaios Podman Update workload with invalid format version
+Test Ankaios Podman Update workload with invalid api version
     [Setup]    Run Keywords    Setup Ankaios
 
     # Preconditions
@@ -84,7 +84,7 @@ Test Ankaios Podman Update workload with invalid format version
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~update-desired-state-with-missing-version~1]
-Test Ankaios Podman Update workload with missing format version
+Test Ankaios Podman Update workload with missing api version
     [Setup]    Run Keywords    Setup Ankaios
 
     # Preconditions

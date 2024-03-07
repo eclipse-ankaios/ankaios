@@ -25,7 +25,7 @@ use crate::objects::{
 #[cfg(feature = "test_utils")]
 pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State {
     State {
-        format_version: "v0.1".into(),
+        api_version: "v0.1".into(),
         workloads: workloads
             .into_iter()
             .map(|v| (v.instance_name.workload_name().to_owned(), v.into()))
@@ -42,7 +42,7 @@ pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> crate::obje
 
     CompleteState {
         desired_state: State {
-            format_version: "v0.1".into(),
+            api_version: "v0.1".into(),
             workloads: workloads
                 .clone()
                 .into_iter()
@@ -82,7 +82,7 @@ pub fn generate_test_state() -> State {
     ankaios_workloads.insert(workload_name_2, workload_2.into());
 
     State {
-        format_version: "v0.1".into(),
+        api_version: "v0.1".into(),
         workloads: ankaios_workloads,
     }
 }
@@ -96,7 +96,7 @@ pub fn generate_test_proto_state() -> proto::State {
     proto_workloads.insert(workload_name_2, generate_test_proto_workload());
 
     proto::State {
-        format_version: "v0.1".into(),
+        api_version: "v0.1".into(),
         workloads: proto_workloads,
     }
 }

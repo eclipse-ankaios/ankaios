@@ -17,7 +17,7 @@ A workload specification must contain the following information:
 Example `startup-config.yaml` file:
 
 ```yaml
-formatVersion: v0.1
+apiVersion: v0.1
 workloads:
   nginx: # this is used as the workload name which is 'nginx'
     runtime: podman

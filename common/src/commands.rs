@@ -437,14 +437,14 @@ mod tests {
         ($expression:ident) => {
             $expression::CompleteState {
                 startup_state: $expression::State {
-                    format_version: "v0.1".into(),
+                    api_version: "v0.1".into(),
                     workloads: vec![("startup".into(), workload!($expression))]
                         .into_iter()
                         .collect(),
                 }
                 .into(),
                 desired_state: $expression::State {
-                    format_version: "v0.1".into(),
+                    api_version: "v0.1".into(),
                     workloads: vec![("desired".into(), workload!($expression))]
                         .into_iter()
                         .collect(),
@@ -602,11 +602,11 @@ mod tests {
         };
         proto_request_content.new_state = Some(proto::CompleteState {
             startup_state: Some(proto::State {
-                format_version: "v0.1".into(),
+                api_version: "v0.1".into(),
                 ..Default::default()
             }),
             desired_state: Some(proto::State {
-                format_version: "v0.1".into(),
+                api_version: "v0.1".into(),
                 ..Default::default()
             }),
             ..Default::default()
@@ -645,7 +645,7 @@ mod tests {
             .as_mut()
             .unwrap()
             .startup_state = Some(proto::State {
-            format_version: "v0.1".into(),
+            api_version: "v0.1".into(),
             ..Default::default()
         });
         proto_request_content
@@ -653,7 +653,7 @@ mod tests {
             .as_mut()
             .unwrap()
             .desired_state = Some(proto::State {
-            format_version: "v0.1".into(),
+            api_version: "v0.1".into(),
             ..Default::default()
         });
 
@@ -825,11 +825,11 @@ mod tests {
             unreachable!()
         };
         proto_content.startup_state = Some(proto::State {
-            format_version: "v0.1".into(),
+            api_version: "v0.1".into(),
             ..Default::default()
         });
         proto_content.desired_state = Some(proto::State {
-            format_version: "v0.1".into(),
+            api_version: "v0.1".into(),
             ..Default::default()
         });
 

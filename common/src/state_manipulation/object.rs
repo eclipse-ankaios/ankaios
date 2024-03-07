@@ -699,7 +699,7 @@ mod tests {
 
         pub fn generate_test_state() -> Mapping {
             Mapping::default()
-                .entry("formatVersion", "v0.1")
+                .entry("apiVersion", "v0.1")
                 .entry(
                     "workloads",
                     Mapping::default().entry(

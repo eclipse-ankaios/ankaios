@@ -8,10 +8,10 @@ Example: `ank get state` returns the complete state of Ankaios system:
 
 ```bash
 startupState:
-  formatVersion: v0.1
+  apiVersion: v0.1
   workloads: {}
 desiredState:
-  formatVersion: v0.1
+  apiVersion: v0.1
   workloads:
     hello-pod:
       agent: agent_B
@@ -81,7 +81,7 @@ It is not necessary to provide the whole structure of the the [CompleteState](./
 
 ```bash
 desiredState:
-  formatVersion: v0.1
+  apiVersion: v0.1
   workloads:
     nginx:
       restart: false
@@ -100,7 +100,7 @@ The object field mask can be constructed using the field names of the [CompleteS
 
    ```yaml
     desiredState:
-      formatVersion: v0.1
+      apiVersion: v0.1
       workloads:
         nginx:
           agent: agent_A
@@ -119,7 +119,7 @@ The object field mask can be constructed using the field names of the [CompleteS
 
    ```yaml
    desiredState:
-     formatVersion: v0.1
+     apiVersion: v0.1
      workloads:
        nginx:
          runtimeConfig: |
@@ -131,7 +131,7 @@ The object field mask can be constructed using the field names of the [CompleteS
 
    ```yaml title="new-state.yaml"
    desiredState:
-     formatVersion: v0.1
+     apiVersion: v0.1
      workloads:
        nginx:
          restart: false

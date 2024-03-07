@@ -105,9 +105,9 @@ fn generate_compact_state_output(
     let mut compact_state = serde_yaml::Value::Mapping(Default::default());
     for mask in object_field_mask {
         let splitted_masks: Vec<&str> = mask.split('.').collect();
-        // [impl->swdd~cli-returns-format-version-with-desired-state~1]
-        // [impl->swdd~cli-returns-format-version-with-startup-state~1]
-        append_format_version(&deserialized_state, &splitted_masks, &mut compact_state);
+        // [impl->swdd~cli-returns-api-version-with-desired-state~1]
+        // [impl->swdd~cli-returns-api-version-with-startup-state~1]
+        append_api_version(&deserialized_state, &splitted_masks, &mut compact_state);
 
         if let Some(filtered_mapping) = get_filtered_value(&deserialized_state, &splitted_masks) {
             update_compact_state(
@@ -121,31 +121,31 @@ fn generate_compact_state_output(
     convert_to_output(compact_state)
 }
 
-fn append_format_version(
+fn append_api_version(
     deserialized_state: &serde_yaml::Value,
     mask: &[&str],
     new_compact_state: &mut serde_yaml::Value,
 ) {
-    let format_version_sub_mask = "formatVersion";
-    let (format_version_mask, format_version_value) = match mask.first() {
+    let api_version_sub_mask = "apiVersion";
+    let (api_version_mask, api_version_value) = match mask.first() {
         Some(top_mask) if *top_mask == "startupState" => (
-            vec![top_mask, format_version_sub_mask],
+            vec![top_mask, api_version_sub_mask],
             deserialized_state
                 .get(top_mask)
-                .and_then(|value| value.get(format_version_sub_mask)),
+                .and_then(|value| value.get(api_version_sub_mask)),
         ),
         Some(top_mask) if *top_mask == "desiredState" => (
-            vec![top_mask, format_version_sub_mask],
+            vec![top_mask, api_version_sub_mask],
             deserialized_state
                 .get(top_mask)
-                .and_then(|value| value.get(format_version_sub_mask)),
+                .and_then(|value| value.get(api_version_sub_mask)),
         ),
         _ => (Vec::new(), None),
     };
-    if let Some(version_value) = format_version_value {
+    if let Some(version_value) = api_version_value {
         update_compact_state(
             new_compact_state,
-            &format_version_mask,
+            &api_version_mask,
             version_value.to_owned(),
         );
     }
@@ -1645,7 +1645,7 @@ mod tests {
     }
 
     // [utest -> swdd~cli-returns-desired-state-from-server~1]
-    // [utest->swdd~cli-returns-format-version-with-desired-state~1]
+    // [utest->swdd~cli-returns-api-version-with-desired-state~1]
     #[tokio::test]
     async fn get_state_single_field_of_desired_state() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1698,14 +1698,15 @@ mod tests {
             .await
             .unwrap();
 
-        let expected_single_field_result_text = "desiredState:\n  formatVersion: v0.1\n  workloads:\n    name3:\n      runtime: runtime\n";
+        let expected_single_field_result_text =
+            "desiredState:\n  apiVersion: v0.1\n  workloads:\n    name3:\n      runtime: runtime\n";
 
         assert_eq!(cmd_text, expected_single_field_result_text);
     }
 
     // [utest->swdd~cli-provides-object-field-mask-arg-to-get-partial-desired-state~1]
     // [utest->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
-    // [utest->swdd~cli-returns-format-version-with-desired-state~1]
+    // [utest->swdd~cli-returns-api-version-with-desired-state~1]
     #[tokio::test]
     async fn get_state_multiple_fields_of_desired_state() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1762,11 +1763,11 @@ mod tests {
             .await
             .unwrap();
         assert!(matches!(cmd_text,
-            txt if txt == *"desiredState:\n  formatVersion: v0.1\n  workloads:\n    name1:\n      runtime: runtime\n    name2:\n      runtime: runtime\n" ||
-            txt == *"desiredState:\n  formatVersion: v0.1\n  workloads:\n    name2:\n      runtime: runtime\n    name1:\n      runtime: runtime\n"));
+            txt if txt == *"desiredState:\n  apiVersion: v0.1\n  workloads:\n    name1:\n      runtime: runtime\n    name2:\n      runtime: runtime\n" ||
+            txt == *"desiredState:\n  apiVersion: v0.1\n  workloads:\n    name2:\n      runtime: runtime\n    name1:\n      runtime: runtime\n"));
     }
 
-    // [utest->swdd~cli-returns-format-version-with-startup-state~1]
+    // [utest->swdd~cli-returns-api-version-with-startup-state~1]
     #[tokio::test]
     async fn get_state_multiple_fields_of_startup_and_desired_state() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1780,8 +1781,8 @@ mod tests {
                 "runtime".to_string(),
             )]);
         // Just for testing purpose here -> check that the filtering takes the correct version
-        test_data.startup_state.format_version = "vStart".into();
-        test_data.desired_state.format_version = "vDesired".into();
+        test_data.startup_state.api_version = "vStart".into();
+        test_data.desired_state.api_version = "vDesired".into();
 
         let complete_state = vec![FromServer::Response(Response {
             request_id: "TestCli".to_owned(),
@@ -1815,12 +1816,12 @@ mod tests {
             .await
             .unwrap();
         assert!(matches!(cmd_text,
-            txt if txt == *"startupState:\n  formatVersion: vStart\n  workloads: {}\ndesiredState:\n  formatVersion: vDesired\n  workloads:\n    name1:\n      runtime: runtime\n" ||
-            txt == *"desiredState:\n  formatVersion: vDesired\n  workloads:\n    name1:\n      runtime: runtime\nstartupState:\n  formatVersion: vStart\n  workloads: {}\n"));
+            txt if txt == *"startupState:\n  apiVersion: vStart\n  workloads: {}\ndesiredState:\n  apiVersion: vDesired\n  workloads:\n    name1:\n      runtime: runtime\n" ||
+            txt == *"desiredState:\n  apiVersion: vDesired\n  workloads:\n    name1:\n      runtime: runtime\nstartupState:\n  apiVersion: vStart\n  workloads: {}\n"));
     }
 
     #[tokio::test]
-    async fn get_state_single_field_without_format_version() {
+    async fn get_state_single_field_without_api_version() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -2110,7 +2111,7 @@ mod tests {
 
         let expected_state = r#"{
             "desiredState": {
-                "formatVersion": "v0.1",
+                "apiVersion": "v0.1",
                 "workloads": {
                   "name1": {
                     "agent": "agent_A",
@@ -2166,7 +2167,7 @@ mod tests {
 
         let expected_state = r#"{
             "desiredState": {
-                "formatVersion": "v0.1",
+                "apiVersion": "v0.1",
                 "workloads": {
                     "name1": {
                         "agent": "agent_A",
@@ -2439,7 +2440,7 @@ mod tests {
     #[test]
     fn utest_parse_manifest_ok() {
         let manifest_content = io::Cursor::new(
-            b"formatVersion: \"v0.1\"\nworkloads:
+            b"apiVersion: \"v0.1\"\nworkloads:
         simple:
           runtime: podman
           agent: agent_A
@@ -2701,7 +2702,7 @@ mod tests {
     fn utest_generate_state_obj_and_filter_masks_from_manifests_ok() {
         let manifest_file_name = "manifest.yaml";
         let manifest_content = io::Cursor::new(
-            b"formatVersion: \"v0.1\"\nworkloads:
+            b"apiVersion: \"v0.1\"\nworkloads:
         simple:
           runtime: podman
           agent: agent_A
@@ -2750,7 +2751,7 @@ mod tests {
     fn utest_generate_state_obj_and_filter_masks_from_manifests_delete_mode_ok() {
         let manifest_file_name = "manifest.yaml";
         let manifest_content = io::Cursor::new(
-            b"formatVersion: \"v0.1\"\nworkloads:
+            b"apiVersion: \"v0.1\"\nworkloads:
         simple:
           runtime: podman
           agent: agent_A
@@ -2785,7 +2786,7 @@ mod tests {
     #[test]
     fn utest_generate_state_obj_and_filter_masks_from_manifests_no_workload_provided() {
         let manifest_file_name = "manifest.yaml";
-        let manifest_content = io::Cursor::new(b"formatVersion: \"v0.1\"");
+        let manifest_content = io::Cursor::new(b"apiVersion: \"v0.1\"");
         let mut manifests: Vec<InputSourcePair> =
             vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
 
@@ -2811,7 +2812,7 @@ mod tests {
             .await;
 
         let manifest_content = io::Cursor::new(
-            b"formatVersion: \"v0.1\"\nworkloads:
+            b"apiVersion: \"v0.1\"\nworkloads:
     simple_manifest1:
       runtime: podman
       agent: agent_A
@@ -2895,7 +2896,7 @@ mod tests {
             .await;
 
         let manifest_content = io::Cursor::new(
-            b"formatVersion: \"v0.1\"\nworkloads:
+            b"apiVersion: \"v0.1\"\nworkloads:
         simple_manifest1:
           runtime: podman
           agent: agent_A

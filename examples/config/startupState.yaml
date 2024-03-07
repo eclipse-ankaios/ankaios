@@ -1,4 +1,4 @@
-formatVersion: v0.1
+apiVersion: v0.1
 workloads:
   control_interface_example:
     runtime: podman

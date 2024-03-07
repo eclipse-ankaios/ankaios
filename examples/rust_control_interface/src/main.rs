@@ -68,7 +68,7 @@ fn create_request_to_add_new_workload() -> ToServer {
             request_content: Some(RequestContent::UpdateStateRequest(UpdateStateRequest {
                 new_state: Some(CompleteState {
                     desired_state: Some(State {
-                        format_version: "v0.1".into(),
+                        api_version: "v0.1".into(),
                         workloads: new_workloads,
                     }),
                     ..Default::default()

@@ -209,10 +209,10 @@ impl AnkaiosServer {
                         // [impl->swdd~update-desired-state-with-invalid-version~1]
                         // [impl->swdd~update-desired-state-with-missing-version~1]
                         if !State::is_compatible_format(
-                            &update_state_request.state.desired_state.format_version,
+                            &update_state_request.state.desired_state.api_version,
                         ) {
                             log::warn!("The CompleteState in the request has wrong format. Received '{}', expected '{}' -> ignoring the request.",
-                                update_state_request.state.desired_state.format_version, State::default().format_version);
+                                update_state_request.state.desired_state.api_version, State::default().api_version);
 
                             self.to_agents
                                 .error(
@@ -220,8 +220,8 @@ impl AnkaiosServer {
                                     common::commands::Error {
                                         message: format!(
                                             "Unsupported API version. Received '{}', expected '{}'",
-                                            update_state_request.state.desired_state.format_version,
-                                            State::default().format_version
+                                            update_state_request.state.desired_state.api_version,
+                                            State::default().api_version
                                         ),
                                     },
                                 )
@@ -1337,7 +1337,7 @@ mod tests {
 
         let update_state = CompleteState {
             desired_state: State {
-                format_version: "incompatible_version".to_string(),
+                api_version: "incompatible_version".to_string(),
                 ..Default::default()
             },
             ..Default::default()
@@ -1355,7 +1355,7 @@ mod tests {
 
         let error_message = format!(
             "Unsupported API version. Received 'incompatible_version', expected '{}'",
-            State::default().format_version
+            State::default().api_version
         );
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
@@ -1374,7 +1374,7 @@ mod tests {
 
     // [utest->swdd~update-desired-state-with-missing-version~1]
     #[tokio::test]
-    async fn utest_server_rejects_update_state_without_format_version() {
+    async fn utest_server_rejects_update_state_without_api_version() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
@@ -1402,7 +1402,7 @@ mod tests {
 
         let error_message = format!(
             "Unsupported API version. Received '', expected '{}'",
-            State::default().format_version
+            State::default().api_version
         );
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(

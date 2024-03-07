@@ -28,7 +28,7 @@ const CURRENT_API_VERSION: &str = "v0.1";
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct State {
-    pub format_version: String,
+    pub api_version: String,
     #[serde(default, serialize_with = "serialize_to_ordered_map")]
     pub workloads: HashMap<String, StoredWorkloadSpec>,
 }
@@ -36,7 +36,7 @@ pub struct State {
 impl Default for State {
     fn default() -> Self {
         Self {
-            format_version: CURRENT_API_VERSION.into(),
+            api_version: CURRENT_API_VERSION.into(),
             workloads: Default::default(),
         }
     }
@@ -45,7 +45,7 @@ impl Default for State {
 impl From<State> for proto::State {
     fn from(item: State) -> Self {
         proto::State {
-            format_version: item.format_version,
+            api_version: item.api_version,
             workloads: item
                 .workloads
                 .into_iter()
@@ -60,7 +60,7 @@ impl TryFrom<proto::State> for State {
 
     fn try_from(item: proto::State) -> Result<Self, Self::Error> {
         Ok(State {
-            format_version: item.format_version,
+            api_version: item.api_version,
             workloads: item
                 .workloads
                 .into_iter()
@@ -71,8 +71,8 @@ impl TryFrom<proto::State> for State {
 }
 
 impl State {
-    pub fn is_compatible_format(format_version: &String) -> bool {
-        format_version == CURRENT_API_VERSION
+    pub fn is_compatible_format(api_version: &String) -> bool {
+        api_version == CURRENT_API_VERSION
     }
 }
 
@@ -135,34 +135,34 @@ mod tests {
             ..Default::default()
         };
         assert!(State::is_compatible_format(
-            &state_compatible_version.format_version
+            &state_compatible_version.api_version
         ));
     }
 
     #[test]
     fn utest_state_rejects_incompatible_state() {
         let state_incompatible_version = State {
-            format_version: "incompatible_version".to_string(),
+            api_version: "incompatible_version".to_string(),
             ..Default::default()
         };
         assert!(!State::is_compatible_format(
-            &state_incompatible_version.format_version
+            &state_incompatible_version.api_version
         ));
     }
 
     #[test]
-    fn utest_state_rejects_state_without_format_version() {
+    fn utest_state_rejects_state_without_api_version() {
         let state_proto_no_version = proto::State {
             ..Default::default()
         };
         let state_ankaios_no_version = State::try_from(state_proto_no_version).unwrap();
 
-        assert_eq!(state_ankaios_no_version.format_version, "".to_string());
+        assert_eq!(state_ankaios_no_version.api_version, "".to_string());
 
-        let file_without_format_version = "";
-        let deserialization_result = serde_yaml::from_str::<State>(file_without_format_version)
+        let file_without_api_version = "";
+        let deserialization_result = serde_yaml::from_str::<State>(file_without_api_version)
             .unwrap_err()
             .to_string();
-        assert_eq!(deserialization_result, "missing field `formatVersion`");
+        assert_eq!(deserialization_result, "missing field `apiVersion`");
     }
 }

@@ -135,7 +135,7 @@ fn create_update_workload_request() -> proto::ToServer {
                 proto::UpdateStateRequest {
                     new_state: Some(proto::CompleteState {
                         desired_state: Some(proto::State {
-                            format_version: "v0.1".to_string(),
+                            api_version: "v0.1".to_string(),
                             workloads: new_workloads,
                         }),
                         ..Default::default()

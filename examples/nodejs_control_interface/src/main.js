@@ -20,7 +20,7 @@ function create_request_to_add_new_workload(root) {
             updateStateRequest: {
                 newState: {
                     desiredState: {
-                        formatVersion: "v0.1",
+                        apiVersion: "v0.1",
                         workloads: {
                             dynamic_nginx: {
                                 agent: "agent_A",

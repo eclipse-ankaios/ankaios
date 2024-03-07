@@ -301,11 +301,11 @@ mod tests {
                     response_content: Some(proto::response::ResponseContent::CompleteState(
                         proto::CompleteState {
                             desired_state: Some(api::proto::State {
-                                format_version: "v0.1".into(),
+                                api_version: "v0.1".into(),
                                 ..Default::default()
                             }),
                             startup_state: Some(api::proto::State {
-                                format_version: "v0.1".into(),
+                                api_version: "v0.1".into(),
                                 ..Default::default()
                             }),
                             workload_states: vec![],
