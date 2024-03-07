@@ -93,7 +93,7 @@ impl RuntimeManager {
             .await;
 
         if !workload_operations.is_empty() {
-            self.process_workloads_operations(workload_operations).await;
+            self.execute_workload_operations(workload_operations).await;
         }
     }
 
@@ -136,7 +136,7 @@ impl RuntimeManager {
             .enqueue_filtered_workload_operations(workload_operations, workload_state_db)
             .await;
 
-        self.process_workloads_operations(ready_workload_operations)
+        self.execute_workload_operations(ready_workload_operations)
             .await;
     }
 
@@ -325,7 +325,7 @@ impl RuntimeManager {
         workload_operations
     }
 
-    async fn process_workloads_operations(&mut self, workload_operations: Vec<WorkloadOperation>) {
+    async fn execute_workload_operations(&mut self, workload_operations: Vec<WorkloadOperation>) {
         for wl_operation in workload_operations {
             match wl_operation {
                 WorkloadOperation::Create(workload_spec) => {
