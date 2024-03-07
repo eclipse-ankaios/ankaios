@@ -139,8 +139,7 @@ status: approved
 Upon transitioning from the 'stopping' or 'waiting_to_stop' state to either 'running', 'succeeded', or 'failed', the workload execution state shall yield again a 'stopping' state.
 
 Rationale:
-This hysteresis is especially needed is the the stopping operation is in progress, but the workload is still running and is reported to be running.
-To prevent flipping the state multiple times, the new value must be dependent on the old one and remain in `stopping`.
+This hysteresis is particularly necessary when the stopping operation is in progress, but the workload is still running and reported to be running. To prevent the state from flipping multiple times, the new value must depend on the old one and remain in the 'stopping' state.
 
 Tags:
 - Objects
