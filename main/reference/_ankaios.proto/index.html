@@ -981,6 +981,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#stopping" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stopping
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#succeeded" class="md-nav__link">
     <span class="md-ellipsis">
       Succeeded
@@ -1801,6 +1810,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#stopping" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stopping
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#succeeded" class="md-nav__link">
     <span class="md-ellipsis">
       Succeeded
@@ -1910,6 +1928,7 @@
 <li><a href="#ankaios-Pending">Pending</a></li>
 <li><a href="#ankaios-Removed">Removed</a></li>
 <li><a href="#ankaios-Running">Running</a></li>
+<li><a href="#ankaios-Stopping">Stopping</a></li>
 <li>
 <p><a href="#ankaios-Succeeded">Succeeded</a></p>
 </li>
@@ -1962,10 +1981,10 @@
 </thead>
 <tbody>
 <tr>
-<td>name</td>
-<td><a href="#string">string</a></td>
+<td>instanceName</td>
+<td><a href="#ankaios-WorkloadInstanceName">WorkloadInstanceName</a></td>
 <td></td>
-<td>The name of the workload.</td>
+<td>The instance name of the workload.</td>
 </tr>
 <tr>
 <td>runtime</td>
@@ -2142,10 +2161,10 @@ This is usually answered with a <a href="#completestate">CompleteState</a> messa
 </thead>
 <tbody>
 <tr>
-<td>name</td>
-<td><a href="#string">string</a></td>
+<td>instanceName</td>
+<td><a href="#ankaios-WorkloadInstanceName">WorkloadInstanceName</a></td>
 <td></td>
-<td>The name of the workload.</td>
+<td>The instance name of the workload.</td>
 </tr>
 <tr>
 <td>dependencies</td>
@@ -2236,6 +2255,12 @@ This is usually answered with a <a href="#completestate">CompleteState</a> messa
 <td><a href="#ankaios-Running">Running</a></td>
 <td></td>
 <td>The workload is operational.</td>
+</tr>
+<tr>
+<td>stopping</td>
+<td><a href="#ankaios-Stopping">Stopping</a></td>
+<td></td>
+<td>The workload is scheduled for stopping.</td>
 </tr>
 <tr>
 <td>succeeded</td>
@@ -2696,10 +2721,10 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 <td>The name of the owning Agent.</td>
 </tr>
 <tr>
-<td>configId</td>
+<td>id</td>
 <td><a href="#string">string</a></td>
 <td></td>
-<td>A unique identifier of the runtime config.</td>
+<td>A unique identifier of the workload.</td>
 </tr>
 </tbody>
 </table>
@@ -2721,12 +2746,6 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 <td><a href="#ankaios-WorkloadInstanceName">WorkloadInstanceName</a></td>
 <td></td>
 <td></td>
-</tr>
-<tr>
-<td>workloadId</td>
-<td><a href="#string">string</a></td>
-<td></td>
-<td>Normally, the Id is provided to the workload by the runtime. The Id may not be available in all execution states.</td>
 </tr>
 <tr>
 <td>executionState</td>
@@ -2932,19 +2951,33 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 <td>The workload is operational.</td>
 </tr>
 <tr>
-<td>RUNNING_WAITING_TO_STOP</td>
-<td>1</td>
-<td>The deletion of the workload will be triggered once neither &#39;pending&#39; nor &#39;running&#39; workload depending on it exists.</td>
-</tr>
-<tr>
-<td>RUNNING_STOPPING</td>
-<td>2</td>
-<td>Stopping the workload was scheduled at the corresponding runtime.</td>
-</tr>
-<tr>
 <td>RUNNING_DELETE_FAILED</td>
 <td>8</td>
 <td>The deletion of the workload by the runtime failed.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ankaios-Stopping"></a></p>
+<h3 id="stopping">Stopping<a class="headerlink" href="#stopping" title="Permanent link">&para;</a></h3>
+<p>The workload is scheduled for stopping.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>STOPPING</td>
+<td>0</td>
+<td>The workload is being stopped.</td>
+</tr>
+<tr>
+<td>STOPPING_WAITING_TO_STOP</td>
+<td>1</td>
+<td>The deletion of the workload will be triggered once neither &#39;pending&#39; nor &#39;running&#39; workload depending on it exists.</td>
 </tr>
 </tbody>
 </table>
