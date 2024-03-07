@@ -135,7 +135,7 @@ impl WorkloadControlLoop {
 
         // [impl->swdd~agent-workload-control-loop-limit-restart-attempts~1]
         if restart_counter.limit_exceeded() {
-            log::info!(
+            log::warn!(
                 "Abort restarts: reached maximum amount of restarts ('{}')",
                 restart_counter.limit()
             );

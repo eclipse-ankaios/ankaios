@@ -62,11 +62,8 @@ pub enum RunningSubstate {
 }
 
 impl From<i32> for RunningSubstate {
-    fn from(x: i32) -> Self {
-        match x {
-            x if x == RunningSubstate::Ok as i32 => RunningSubstate::Ok,
-            _ => RunningSubstate::Ok,
-        }
+    fn from(_x: i32) -> Self {
+        RunningSubstate::Ok
     }
 }
 
@@ -111,11 +108,8 @@ pub enum SucceededSubstate {
 }
 
 impl From<i32> for SucceededSubstate {
-    fn from(x: i32) -> Self {
-        match x {
-            x if x == SucceededSubstate::Ok as i32 => SucceededSubstate::Ok,
-            _ => SucceededSubstate::Ok,
-        }
+    fn from(_x: i32) -> Self {
+        SucceededSubstate::Ok
     }
 }
 
@@ -171,7 +165,7 @@ pub enum ExecutionStateEnum {
 
 // [impl->swdd~common-workload-state-transitions~1]
 impl ExecutionState {
-    pub fn transition(self, incoming: ExecutionState) -> ExecutionState {
+    pub fn transition(&self, incoming: ExecutionState) -> ExecutionState {
         match (&self.state, &incoming.state) {
             (
                 ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
@@ -187,7 +181,7 @@ impl ExecutionState {
                     self,
                     incoming
                 );
-                self
+                self.clone()
             }
             _ => incoming,
         }

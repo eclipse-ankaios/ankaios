@@ -151,9 +151,7 @@ impl AgentManager {
             .workload_state_store
             .get_state_of_workload(new_workload_state.instance_name.workload_name())
         {
-            // TODO: fix this shit
             new_workload_state.execution_state = old_execution_state
-                .clone()
                 .transition(new_workload_state.execution_state);
         }
 
