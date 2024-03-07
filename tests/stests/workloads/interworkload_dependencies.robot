@@ -52,6 +52,7 @@ Test Ankaios observes the inter-workload dependencies when creating workloads
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~agent-reports-pending-delete-workload-state~1]
+# [stest->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
 Test Ankaios observes the inter-workload dependencies when deleting workloads
     [Documentation]    Perform a delete of an workload only when its delete dependencies are fulfilled.
     [Setup]    Run Keywords    Setup Ankaios
@@ -69,6 +70,8 @@ Test Ankaios observes the inter-workload dependencies when deleting workloads
     Then the workload "backend" shall not exist on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
+# [stest->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
 Test Ankaios CLI update workload with pending delete
     [Documentation]    Perform an update with pending delete only when the delete dependencies are fulfilled.
     [Setup]    Run Keywords    Setup Ankaios
@@ -91,6 +94,8 @@ Test Ankaios CLI update workload with pending delete
     And the workload "backend" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
+# [stest->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
 Test Ankaios CLI update workload with pending create
     [Documentation]    Perform the delete part of an update immediately but wait for the create until the create dependencies are fulfilled.
     [Setup]    Run Keywords    Setup Ankaios

@@ -365,6 +365,7 @@ mod tests {
     const WORKLOAD_NAME_1: &str = "workload_1";
     const RUNTIME: &str = "runtime";
 
+    // [utest->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_enqueue_and_report_workload_state_for_pending_create() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -417,6 +418,7 @@ mod tests {
         assert!(ready_workload_operations.is_empty());
     }
 
+    // [utest->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_no_enqueue_and_report_for_ready_create() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -472,6 +474,7 @@ mod tests {
             .await;
     }
 
+    // [utest->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_enqueue_and_report_workload_state_for_pending_delete() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -523,6 +526,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_no_enqueue_and_report_workload_state_for_ready_delete() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -577,6 +581,7 @@ mod tests {
             .await;
     }
 
+    // [utest->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_enqueue_and_report_workload_state_for_pending_update_delete_at_most_once() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -648,6 +653,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_enqueue_and_report_workload_state_for_pending_update_at_most_once() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -719,6 +725,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_enqueue_and_report_workload_state_for_pending_update_create_at_most_once() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -844,6 +851,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_no_enqueue_and_report_pending_state_on_fulfilled_update_at_most_once() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -899,6 +907,7 @@ mod tests {
         assert!(workload_state_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_enqueue_filtered_workload_operations_get_next_ready_workload_operations() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1338,6 +1347,7 @@ mod tests {
         assert!(workload_state_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_next_workload_operations_remove_ready_create_from_queue() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1375,6 +1385,7 @@ mod tests {
         assert!(workload_scheduler.queue.is_empty());
     }
 
+    // [utest->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_next_workload_operations_remove_ready_delete_from_queue() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1412,6 +1423,7 @@ mod tests {
         assert!(workload_scheduler.queue.is_empty());
     }
 
+    // [utest->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_next_workload_operations_remove_ready_update_create_at_most_once_from_queue() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1465,6 +1477,7 @@ mod tests {
         assert!(workload_scheduler.queue.is_empty());
     }
 
+    // [utest->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_next_workload_operations_remove_ready_update_delete_at_most_once_from_queue() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

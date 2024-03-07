@@ -1676,6 +1676,7 @@ mod tests {
             .await;
     }
 
+    // [utest->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_update_workload_state_create_workload_with_fulfilled_dependencies() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1729,6 +1730,7 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
+    // [utest->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_update_workload_state_no_create_workload_when_dependencies_not_fulfilled() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1766,6 +1768,7 @@ mod tests {
         assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
+    // [utest->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_update_workload_state_delete_workload_dependencies_with_fulfilled_dependencies()
     {
@@ -1810,6 +1813,7 @@ mod tests {
         assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
+    // [utest->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_update_workload_state_delete_workload_dependencies_not_fulfilled() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
