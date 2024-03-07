@@ -151,8 +151,8 @@ impl AgentManager {
             .workload_state_store
             .get_state_of_workload(new_workload_state.instance_name.workload_name())
         {
-            new_workload_state.execution_state = old_execution_state
-                .transition(new_workload_state.execution_state);
+            new_workload_state.execution_state =
+                old_execution_state.transition(new_workload_state.execution_state);
         }
 
         log::debug!(
@@ -187,7 +187,9 @@ impl AgentManager {
 mod tests {
     use super::*;
     use crate::agent_manager::AgentManager;
-    use crate::workload_state::workload_state_store::MockWorkloadStateStore;
+    use crate::workload_state::workload_state_store::{
+        mock_parameter_storage_new_returns, MockWorkloadStateStore,
+    };
     use common::{
         commands::{Response, ResponseContent, UpdateWorkloadState},
         from_server_interface::FromServerInterface,
@@ -212,11 +214,8 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let mock_wl_state_store_context = MockWorkloadStateStore::new_context();
-        mock_wl_state_store_context
-            .expect()
-            .once()
-            .return_once(MockWorkloadStateStore::default);
+        let mock_wl_state_store_context = MockWorkloadStateStore::default();
+        mock_parameter_storage_new_returns(mock_wl_state_store_context);
 
         let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
         let (to_server, _) = channel(BUFFER_SIZE);
@@ -290,16 +289,9 @@ mod tests {
 
         let mut mock_wl_state_store = MockWorkloadStateStore::default();
         mock_wl_state_store
-            .expect_update_workload_state()
-            .with(mockall::predicate::eq(workload_state.clone()))
-            .once()
-            .return_const(());
-
-        let mock_wl_state_store_context = MockWorkloadStateStore::new_context();
-        mock_wl_state_store_context
-            .expect()
-            .once()
-            .return_once(|| mock_wl_state_store);
+            .expected_update_workload_state_parameters
+            .push_back(workload_state.clone());
+        mock_parameter_storage_new_returns(mock_wl_state_store);
 
         let mut agent_manager = AgentManager::new(
             AGENT_NAME.to_string(),
@@ -327,17 +319,8 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let mut mock_wl_state_store = MockWorkloadStateStore::default();
-        mock_wl_state_store
-            .expect_update_workload_state()
-            .never()
-            .return_const(());
-
-        let mock_wl_state_store_context = MockWorkloadStateStore::new_context();
-        mock_wl_state_store_context
-            .expect()
-            .once()
-            .return_once(|| mock_wl_state_store);
+        let mock_wl_state_store = MockWorkloadStateStore::default();
+        mock_parameter_storage_new_returns(mock_wl_state_store);
 
         let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
         let (to_server, _) = channel(BUFFER_SIZE);
@@ -374,11 +357,8 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let mock_wl_state_store_context = MockWorkloadStateStore::new_context();
-        mock_wl_state_store_context
-            .expect()
-            .once()
-            .return_once(MockWorkloadStateStore::default);
+        let mock_wl_state_store_context = MockWorkloadStateStore::default();
+        mock_parameter_storage_new_returns(mock_wl_state_store_context);
 
         let (to_manager, manager_receiver) = channel(BUFFER_SIZE);
         let (to_server, _) = channel(BUFFER_SIZE);
@@ -443,24 +423,16 @@ mod tests {
 
         let mut mock_wl_state_store = MockWorkloadStateStore::default();
 
-        let execution_state = Box::leak(Box::new(Some(ExecutionState::stopping_triggered())));
-        mock_wl_state_store
-            .expect_get_state_of_workload()
-            .with(mockall::predicate::eq(WORKLOAD_1_NAME))
-            .once()
-            .return_const(execution_state.as_ref());
+        mock_wl_state_store.states_storage.insert(
+            WORKLOAD_1_NAME.to_string(),
+            ExecutionState::stopping_triggered(),
+        );
 
         mock_wl_state_store
-            .expect_update_workload_state()
-            .with(mockall::predicate::eq(wl_state_after_hysteresis.clone()))
-            .once()
-            .return_const(());
+            .expected_update_workload_state_parameters
+            .push_back(wl_state_after_hysteresis.clone());
 
-        let mock_wl_state_store_context = MockWorkloadStateStore::new_context();
-        mock_wl_state_store_context
-            .expect()
-            .once()
-            .return_once(|| mock_wl_state_store);
+        mock_parameter_storage_new_returns(mock_wl_state_store);
 
         let mut mock_runtime_manager = RuntimeManager::default();
         mock_runtime_manager

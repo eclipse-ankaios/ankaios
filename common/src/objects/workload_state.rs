@@ -23,7 +23,6 @@ use crate::std_extensions::UnreachableOption;
 use super::WorkloadInstanceName;
 
 const TRIGGERED_MSG: &str = "Triggered at runtime.";
-const WAITING_MSG: &str = "Waiting for workload dependencies.";
 const NO_MORE_RETRIES_MSG: &str = "No more retries.";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -396,14 +395,14 @@ impl ExecutionState {
     pub fn waiting_to_start() -> Self {
         ExecutionState {
             state: ExecutionStateEnum::Pending(PendingSubstate::WaitingToStart),
-            additional_info: WAITING_MSG.to_string(),
+            ..Default::default()
         }
     }
 
     pub fn waiting_to_stop() -> Self {
         ExecutionState {
             state: ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop),
-            additional_info: WAITING_MSG.to_string(),
+            ..Default::default()
         }
     }
 

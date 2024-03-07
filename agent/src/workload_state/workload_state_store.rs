@@ -14,9 +14,8 @@
 
 use common::objects::{ExecutionState, WorkloadState};
 use std::collections::HashMap;
-
 #[cfg(test)]
-use mockall::automock;
+use std::collections::VecDeque;
 
 type WorkloadStates = HashMap<String, common::objects::ExecutionState>;
 
@@ -24,7 +23,6 @@ pub struct WorkloadStateStore {
     states_storage: WorkloadStates,
 }
 
-#[cfg_attr(test, automock)]
 impl WorkloadStateStore {
     pub fn new() -> Self {
         Self {
@@ -44,6 +42,56 @@ impl WorkloadStateStore {
         } else {
             self.states_storage.remove(&workload_name);
         }
+    }
+}
+
+#[cfg(test)]
+static NEW_MOCK_WL_STATE_STORE: std::sync::Mutex<Option<MockWorkloadStateStore>> =
+    std::sync::Mutex::new(None);
+
+#[cfg(test)]
+pub fn mock_parameter_storage_new_returns(mock_parameter_storage: MockWorkloadStateStore) {
+    *NEW_MOCK_WL_STATE_STORE.lock().unwrap() = Some(mock_parameter_storage);
+}
+
+#[cfg(test)]
+#[derive(Default)]
+pub struct MockWorkloadStateStore {
+    pub expected_update_workload_state_parameters: VecDeque<WorkloadState>,
+    pub states_storage: HashMap<String, ExecutionState>,
+}
+
+#[cfg(test)]
+impl MockWorkloadStateStore {
+    pub fn new() -> MockWorkloadStateStore {
+        NEW_MOCK_WL_STATE_STORE
+            .lock()
+            .expect("Could not get lock for NEW_MOCK_WL_STATE_STORE")
+            .take()
+            .expect("Return value for MockWorkloadStateStore::new() not set")
+    }
+
+    pub fn update_workload_state(&mut self, workload_state: WorkloadState) {
+        let expected_workload_state = self
+            .expected_update_workload_state_parameters
+            .pop_front()
+            .expect("No further call for update_workload_state expected");
+        assert_eq!(
+            expected_workload_state, workload_state,
+            "Expected workload state {:?}, got {:?}",
+            expected_workload_state, workload_state
+        );
+    }
+
+    pub fn get_state_of_workload<'a>(&'a self, workload_name: &str) -> Option<&'a ExecutionState> {
+        self.states_storage.get(workload_name)
+    }
+}
+
+#[cfg(test)]
+impl Drop for MockWorkloadStateStore {
+    fn drop(&mut self) {
+        assert!(self.expected_update_workload_state_parameters.is_empty());
     }
 }
 
