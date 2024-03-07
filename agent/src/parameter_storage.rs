@@ -14,9 +14,8 @@
 
 use common::objects::{ExecutionState, WorkloadState};
 use std::collections::HashMap;
-
 #[cfg(test)]
-use mockall::automock;
+use std::collections::VecDeque;
 
 type WorkloadStates = HashMap<String, common::objects::ExecutionState>;
 
@@ -24,7 +23,6 @@ pub struct ParameterStorage {
     states_storage: WorkloadStates,
 }
 
-#[cfg_attr(test, automock)]
 impl ParameterStorage {
     pub fn new() -> Self {
         Self {
@@ -44,6 +42,56 @@ impl ParameterStorage {
         } else {
             self.states_storage.remove(&workload_name);
         }
+    }
+}
+
+#[cfg(test)]
+static NEW_MOCK_PARAMETER_STORAGE: std::sync::Mutex<Option<MockParameterStorage>> =
+    std::sync::Mutex::new(None);
+
+#[cfg(test)]
+pub fn mock_parameter_storage_new_returns(mock_parameter_storage: MockParameterStorage) {
+    *NEW_MOCK_PARAMETER_STORAGE.lock().unwrap() = Some(mock_parameter_storage);
+}
+
+#[cfg(test)]
+#[derive(Default)]
+pub struct MockParameterStorage {
+    pub expected_update_workload_state_parameters: VecDeque<WorkloadState>,
+    pub states_storage: HashMap<String, ExecutionState>,
+}
+
+#[cfg(test)]
+impl MockParameterStorage {
+    pub fn new() -> MockParameterStorage {
+        NEW_MOCK_PARAMETER_STORAGE
+            .lock()
+            .expect("Could not get lock for NEW_MOCK_PARAMETER_STORAGE")
+            .take()
+            .expect("Return value for MockParameterStorage::new() not set")
+    }
+
+    pub fn update_workload_state(&mut self, workload_state: WorkloadState) {
+        let expected_workload_state = self
+            .expected_update_workload_state_parameters
+            .pop_front()
+            .expect("No further call for update_workload_state expected");
+        assert_eq!(
+            expected_workload_state, workload_state,
+            "Expected workload state {:?}, got {:?}",
+            expected_workload_state, workload_state
+        );
+    }
+
+    pub fn get_state_of_workload<'a>(&'a self, workload_name: &str) -> Option<&'a ExecutionState> {
+        self.states_storage.get(workload_name)
+    }
+}
+
+#[cfg(test)]
+impl Drop for MockParameterStorage {
+    fn drop(&mut self) {
+        assert!(self.expected_update_workload_state_parameters.is_empty());
     }
 }
 
