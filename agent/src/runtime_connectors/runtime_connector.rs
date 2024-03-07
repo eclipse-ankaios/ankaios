@@ -3,7 +3,7 @@ use std::{fmt::Display, path::PathBuf};
 use async_trait::async_trait;
 
 use common::{
-    objects::{AgentName, WorkloadExecutionInstanceName, WorkloadSpec},
+    objects::{AgentName, WorkloadInstanceName, WorkloadSpec},
     to_server_interface::ToServerSender,
 };
 
@@ -44,7 +44,7 @@ where
     async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError>;
+    ) -> Result<Vec<WorkloadInstanceName>, RuntimeError>;
 
     async fn create_workload(
         &self,
@@ -55,7 +55,7 @@ where
 
     async fn get_workload_id(
         &self,
-        instance_name: &WorkloadExecutionInstanceName,
+        instance_name: &WorkloadInstanceName,
     ) -> Result<WorkloadId, RuntimeError>;
 
     async fn start_checker(
@@ -101,7 +101,7 @@ pub mod test {
 
     use async_trait::async_trait;
     use common::{
-        objects::{AgentName, ExecutionState, WorkloadExecutionInstanceName, WorkloadSpec},
+        objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec},
         to_server_interface::ToServerSender,
     };
     use tokio::sync::Mutex;
@@ -162,17 +162,14 @@ pub mod test {
 
     #[derive(Debug)]
     pub enum RuntimeCall {
-        GetReusableWorkloads(
-            AgentName,
-            Result<Vec<WorkloadExecutionInstanceName>, RuntimeError>,
-        ),
+        GetReusableWorkloads(AgentName, Result<Vec<WorkloadInstanceName>, RuntimeError>),
         CreateWorkload(
             WorkloadSpec,
             Option<PathBuf>,
             ToServerSender,
             Result<(String, StubStateChecker), RuntimeError>,
         ),
-        GetWorkloadId(WorkloadExecutionInstanceName, Result<String, RuntimeError>),
+        GetWorkloadId(WorkloadInstanceName, Result<String, RuntimeError>),
         StartChecker(
             String,
             WorkloadSpec,
@@ -284,7 +281,7 @@ pub mod test {
         async fn get_reusable_workloads(
             &self,
             agent_name: &AgentName,
-        ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
+        ) -> Result<Vec<WorkloadInstanceName>, RuntimeError> {
             match self.get_expected_call().await {
                 RuntimeCall::GetReusableWorkloads(expected_agent_name, result)
                     if expected_agent_name == *agent_name =>
@@ -325,7 +322,7 @@ pub mod test {
 
         async fn get_workload_id(
             &self,
-            instance_name: &WorkloadExecutionInstanceName,
+            instance_name: &WorkloadInstanceName,
         ) -> Result<String, RuntimeError> {
             match self.get_expected_call().await {
                 RuntimeCall::GetWorkloadId(expected_instance_name, result)

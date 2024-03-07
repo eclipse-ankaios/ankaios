@@ -3,10 +3,7 @@ use std::path::PathBuf;
 use async_trait::async_trait;
 
 use common::{
-    objects::{
-        AgentName, ExecutionState, WorkloadExecutionInstanceName, WorkloadInstanceName,
-        WorkloadSpec,
-    },
+    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec},
     std_extensions::UnreachableOption,
     to_server_interface::ToServerSender,
 };
@@ -91,7 +88,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
     async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
+    ) -> Result<Vec<WorkloadInstanceName>, RuntimeError> {
         // [impl->swdd~podman-list-of-existing-workloads-uses-labels~1]
         let res = PodmanCli::list_workload_names_by_label("agent", agent_name.get())
             .await
@@ -101,7 +98,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
 
         Ok(res
             .iter()
-            .filter_map(|x| WorkloadExecutionInstanceName::new(x))
+            .filter_map(|x| WorkloadInstanceName::new(x))
             .collect())
     }
 
@@ -117,16 +114,16 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
 
         let workload_id = PodmanCli::podman_run(
             workload_cfg.into(),
-            workload_spec.instance_name().to_string().as_str(),
-            workload_spec.agent.as_str(),
+            &workload_spec.instance_name.to_string(),
+            workload_spec.instance_name.agent_name(),
             control_interface_path,
         )
         .await
         .map_err(RuntimeError::Create)?;
 
         log::debug!(
-            "The workload '{}' has been created with id '{}'",
-            workload_spec.name,
+            "The workload '{}' has been created with internal id '{}'",
+            workload_spec.instance_name,
             workload_id
         );
 
@@ -141,7 +138,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
 
     async fn get_workload_id(
         &self,
-        instance_name: &WorkloadExecutionInstanceName,
+        instance_name: &WorkloadInstanceName,
     ) -> Result<PodmanWorkloadId, RuntimeError> {
         // [impl->swdd~podman-get-workload-id-uses-label~1]
         let res = PodmanCli::list_workload_ids_by_label("name", instance_name.to_string().as_str())
@@ -174,8 +171,8 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         PodmanCli::reset_ps_cache().await;
 
         log::debug!(
-            "Starting the checker for the workload '{}' with id '{}'",
-            workload_spec.name,
+            "Starting the checker for the workload '{}' with internal id '{}'",
+            workload_spec.instance_name,
             workload_id.id
         );
         let checker = GenericPollingStateChecker::start_checker(
@@ -210,8 +207,9 @@ mod tests {
     use std::path::PathBuf;
 
     use common::{
-        objects::{AgentName, ExecutionState, WorkloadExecutionInstanceName},
-        test_utils::generate_test_workload_spec_with_param,
+        objects::{
+            generate_test_workload_spec_with_param, AgentName, ExecutionState, WorkloadInstanceName,
+        },
         to_server_interface::ToServer,
     };
     use mockall::Sequence;
@@ -257,8 +255,8 @@ mod tests {
         assert_eq!(
             res,
             vec![
-                WorkloadExecutionInstanceName::new("container1.hash.dummy_agent").unwrap(),
-                WorkloadExecutionInstanceName::new("container2.hash.dummy_agent").unwrap()
+                WorkloadInstanceName::new("container1.hash.dummy_agent").unwrap(),
+                WorkloadInstanceName::new("container2.hash.dummy_agent").unwrap()
             ]
         );
     }
@@ -445,8 +443,7 @@ mod tests {
             .expect()
             .return_const(Ok(vec!["test_workload_id".to_string()]));
 
-        let workload_name =
-            WorkloadExecutionInstanceName::new("container1.hash.dummy_agent").unwrap();
+        let workload_name = WorkloadInstanceName::new("container1.hash.dummy_agent").unwrap();
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime.get_workload_id(&workload_name).await;
@@ -466,8 +463,7 @@ mod tests {
         let context = PodmanCli::list_workload_ids_by_label_context();
         context.expect().return_const(Ok(Vec::new()));
 
-        let workload_name =
-            WorkloadExecutionInstanceName::new("container1.hash.dummy_agent").unwrap();
+        let workload_name = WorkloadInstanceName::new("container1.hash.dummy_agent").unwrap();
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime.get_workload_id(&workload_name).await;
@@ -487,8 +483,7 @@ mod tests {
         let context = PodmanCli::list_workload_ids_by_label_context();
         context.expect().return_const(Err("simulated error".into()));
 
-        let workload_name =
-            WorkloadExecutionInstanceName::new("container1.hash.dummy_agent").unwrap();
+        let workload_name = WorkloadInstanceName::new("container1.hash.dummy_agent").unwrap();
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime.get_workload_id(&workload_name).await;

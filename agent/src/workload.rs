@@ -54,15 +54,14 @@ impl Display for WorkloadError {
     }
 }
 
-//#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum WorkloadCommand {
     Delete,
-    Update(Box<WorkloadSpec>, Option<PathBuf>),
+    Update(Option<Box<WorkloadSpec>>, Option<PathBuf>),
     Restart(Box<WorkloadSpec>, Option<PathBuf>),
     Create(Box<WorkloadSpec>, Option<PathBuf>),
 }
 
-// #[derive(Debug)]
 pub struct Workload {
     name: String,
     channel: WorkloadCommandSender,
@@ -86,7 +85,7 @@ impl Workload {
     // [impl->swdd~agent-workload-obj-update-command~1]
     pub async fn update(
         &mut self,
-        spec: WorkloadSpec,
+        spec: Option<WorkloadSpec>,
         control_interface: Option<PipesChannelContext>,
     ) -> Result<(), WorkloadError> {
         log::info!("Updating workload '{}'.", self.name);
@@ -155,21 +154,20 @@ impl Workload {
 
 #[cfg(test)]
 mod tests {
-
     use std::path::PathBuf;
     use std::time::Duration;
 
     use common::{
-        commands::{CompleteState, Response, ResponseContent},
+        commands::{Response, ResponseContent},
         from_server_interface::FromServer,
-        test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
+        objects::{generate_test_workload_spec_with_param, CompleteState},
+        test_utils::generate_test_complete_state,
     };
     use tokio::{sync::mpsc, time::timeout};
 
     use crate::{
         control_interface::MockPipesChannelContext,
-        workload::WorkloadCommandSender,
-        workload::{Workload, WorkloadCommand, WorkloadError},
+        workload::{Workload, WorkloadCommand, WorkloadCommandSender, WorkloadError},
     };
 
     const RUNTIME_NAME: &str = "runtime1";
@@ -245,20 +243,23 @@ mod tests {
         );
 
         test_workload
-            .update(workload_spec.clone(), Some(new_control_interface_mock))
+            .update(
+                Some(workload_spec.clone()),
+                Some(new_control_interface_mock),
+            )
             .await
             .unwrap();
 
         let expected_workload_spec = Box::new(workload_spec);
         let expected_pipes_path_buf = PathBuf::from(PIPES_LOCATION);
 
-        assert!(matches!(
-            timeout(Duration::from_millis(200), workload_command_receiver.recv()).await,
+        assert_eq!(
             Ok(Some(WorkloadCommand::Update(
-                boxed_workload_spec,
-                Some(pipes_path_buf)
-            )))
-        if expected_workload_spec == boxed_workload_spec && expected_pipes_path_buf == pipes_path_buf));
+                Some(expected_workload_spec),
+                Some(expected_pipes_path_buf)
+            ))),
+            timeout(Duration::from_millis(200), workload_command_receiver.recv()).await
+        );
     }
 
     // [utest->swdd~agent-workload-obj-update-command~1]
@@ -299,7 +300,10 @@ mod tests {
 
         assert!(matches!(
             test_workload
-                .update(workload_spec.clone(), Some(new_control_interface_mock))
+                .update(
+                    Some(workload_spec.clone()),
+                    Some(new_control_interface_mock)
+                )
                 .await,
             Err(WorkloadError::Communication(_))
         ));

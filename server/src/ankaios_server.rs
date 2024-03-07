@@ -16,8 +16,9 @@ mod cycle_check;
 mod delete_graph;
 mod server_state;
 
-use common::commands::{ApiVersion, CompleteState, Request, UpdateWorkload};
+use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
+use common::objects::{ApiVersion, CompleteState};
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
 
@@ -96,6 +97,27 @@ impl AnkaiosServer {
                 ToServer::AgentHello(method_obj) => {
                     log::info!("Received AgentHello from '{}'", method_obj.agent_name);
 
+                    // [impl->swdd~server-informs-a-newly-connected-agent-workload-states~1]
+                    // [impl->swdd~server-sends-all-workload-states-on-agent-connect~1]
+                    let workload_states = self
+                        .workload_state_db
+                        .get_workload_state_excluding_agent(&method_obj.agent_name);
+
+                    if !workload_states.is_empty() {
+                        log::debug!(
+                            "Sending initial UpdateWorkloadState to agent '{}' with workload states: '{:?}'",
+                            method_obj.agent_name,
+                            workload_states,
+                        );
+
+                        self.to_agents
+                            .update_workload_state(workload_states)
+                            .await
+                            .unwrap_or_illegal_state();
+                    } else {
+                        log::debug!("No workload states to send.");
+                    }
+
                     // Send this agent all workloads in the current state which are assigned to him
                     // [impl->swdd~agent-from-agent-field~1]
                     let added_workloads = self
@@ -117,26 +139,6 @@ impl AnkaiosServer {
                         )
                         .await
                         .unwrap_or_illegal_state();
-
-                    // [impl->swdd~server-informs-a-newly-connected-agent-workload-states~1]
-                    let workload_states = self
-                        .workload_state_db
-                        .get_workload_state_excluding_agent(&method_obj.agent_name);
-
-                    if !workload_states.is_empty() {
-                        log::debug!(
-                            "Sending initial UpdateWorkloadState to agent '{}' with workload states: '{:?}'",
-                            method_obj.agent_name,
-                            workload_states,
-                        );
-
-                        self.to_agents
-                            .update_workload_state(workload_states)
-                            .await
-                            .unwrap_or_illegal_state();
-                    } else {
-                        log::debug!("No workload states to send.");
-                    }
                 }
                 ToServer::AgentGone(method_obj) => {
                     log::debug!("Received AgentGone from '{}'", method_obj.agent_name);
@@ -183,7 +185,7 @@ impl AnkaiosServer {
                                 self.to_agents
                                     .complete_state(
                                         request_id,
-                                        common::commands::CompleteState {
+                                        common::objects::CompleteState {
                                             ..Default::default()
                                         },
                                     )
@@ -237,11 +239,13 @@ impl AnkaiosServer {
                                         added_workloads.len(),
                                         deleted_workloads.len()
                                     );
-                                let added_workloads_names =
-                                    added_workloads.iter().map(|x| x.name.to_owned()).collect();
+                                let added_workloads_names = added_workloads
+                                    .iter()
+                                    .map(|x| x.instance_name.to_string())
+                                    .collect();
                                 let deleted_workloads_names = deleted_workloads
                                     .iter()
-                                    .map(|x| x.name.to_owned())
+                                    .map(|x| x.instance_name.to_string())
                                     .collect();
 
                                 let from_server_command =
@@ -296,7 +300,7 @@ impl AnkaiosServer {
 
                     // [impl->swdd~server-stores-workload-state~1]
                     self.workload_state_db
-                        .proccess_new_states(method_obj.workload_states.clone());
+                        .process_new_states(method_obj.workload_states.clone());
 
                     // [impl->swdd~server-forwards-workload-state~1]
                     self.to_agents
@@ -336,14 +340,18 @@ mod tests {
     use super::AnkaiosServer;
     use crate::ankaios_server::server_state::{MockServerState, UpdateStateError};
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
+
     use common::commands::{
-        ApiVersion, CompleteStateRequest, Error, Response, ResponseContent, UpdateStateSuccess,
-        UpdateWorkload, UpdateWorkloadState,
+        self, CompleteStateRequest, Response, ResponseContent, UpdateStateSuccess, UpdateWorkload,
+        UpdateWorkloadState,
     };
-    use common::objects::{DeletedWorkload, ExecutionState, State};
-    use common::test_utils::generate_test_workload_spec_with_param;
+    use common::from_server_interface::FromServer;
+    use common::objects::{
+        generate_test_stored_workload_spec, generate_test_workload_spec_with_param, ApiVersion,
+        CompleteState, DeletedWorkload, ExecutionState, State,
+    };
+
     use common::to_server_interface::ToServerInterface;
-    use common::{commands::CompleteState, from_server_interface::FromServer};
 
     const AGENT_A: &str = "agent_A";
     const AGENT_B: &str = "agent_B";
@@ -363,15 +371,11 @@ mod tests {
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         // contains a self cycle to workload A
-        let workload = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            "workload A".to_string(),
-            RUNTIME_NAME.to_string(),
-        );
+        let workload = generate_test_stored_workload_spec(AGENT_A, RUNTIME_NAME);
 
         let startup_state = CompleteState {
             desired_state: State {
-                workloads: HashMap::from([(workload.name.clone(), workload)]),
+                workloads: HashMap::from([("workload A".to_string(), workload)]),
             },
             ..Default::default()
         };
@@ -415,8 +419,8 @@ mod tests {
         let new_state = CompleteState {
             desired_state: State {
                 workloads: HashMap::from([(
-                    updated_workload.name.clone(),
-                    updated_workload.clone(),
+                    updated_workload.instance_name.workload_name().to_owned(),
+                    updated_workload.clone().into(),
                 )]),
             },
             ..Default::default()
@@ -425,8 +429,10 @@ mod tests {
         // fix new state by deleting the dependencies
         let mut fixed_state = new_state.clone();
         updated_workload.dependencies.clear();
-        fixed_state.desired_state.workloads =
-            HashMap::from([(updated_workload.name.clone(), updated_workload.clone())]);
+        fixed_state.desired_state.workloads = HashMap::from([(
+            updated_workload.instance_name.workload_name().to_owned(),
+            updated_workload.clone().into(),
+        )]);
 
         let update_mask = vec!["desiredState.workloads".to_string()];
 
@@ -502,7 +508,7 @@ mod tests {
             FromServer::Response(Response {
                 request_id: REQUEST_ID_A.into(),
                 response_content: ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
-                    added_workloads: vec!["workload A".into()],
+                    added_workloads: vec![updated_workload.instance_name.to_string()],
                     deleted_workloads: Vec::new(),
                 }),
             })
@@ -530,7 +536,10 @@ mod tests {
 
         let startup_state = CompleteState {
             desired_state: State {
-                workloads: HashMap::from([(workload.name.clone(), workload.clone())]),
+                workloads: HashMap::from([(
+                    workload.instance_name.workload_name().to_owned(),
+                    workload.clone().into(),
+                )]),
             },
             ..Default::default()
         };
@@ -652,9 +661,8 @@ mod tests {
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
-            FromServer::UpdateWorkload(UpdateWorkload {
-                added_workloads: vec![w2],
-                deleted_workloads: vec![]
+            FromServer::UpdateWorkloadState(UpdateWorkloadState {
+                workload_states: vec![test_wl_1_state_running]
             }),
             from_server_command
         );
@@ -662,8 +670,9 @@ mod tests {
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
-            FromServer::UpdateWorkloadState(UpdateWorkloadState {
-                workload_states: vec![test_wl_1_state_running]
+            FromServer::UpdateWorkload(UpdateWorkload {
+                added_workloads: vec![w2],
+                deleted_workloads: vec![]
             }),
             from_server_command
         );
@@ -731,7 +740,7 @@ mod tests {
 
         let update_state = CompleteState {
             desired_state: State {
-                workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
+                workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone().into())]
                     .into_iter()
                     .collect(),
             },
@@ -779,8 +788,14 @@ mod tests {
                 request_id: REQUEST_ID_A.to_string(),
                 response_content: common::commands::ResponseContent::UpdateStateSuccess(
                     UpdateStateSuccess {
-                        added_workloads: added_workloads.into_iter().map(|x| x.name).collect(),
-                        deleted_workloads: deleted_workloads.into_iter().map(|x| x.name).collect()
+                        added_workloads: added_workloads
+                            .into_iter()
+                            .map(|x| x.instance_name.to_string())
+                            .collect(),
+                        deleted_workloads: deleted_workloads
+                            .into_iter()
+                            .map(|x| x.instance_name.to_string())
+                            .collect()
                     }
                 )
             }),
@@ -802,11 +817,8 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let mut w1 = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME_NAME.to_string(),
-        );
+        let mut w1 =
+            generate_test_stored_workload_spec(AGENT_A.to_owned(), RUNTIME_NAME.to_string());
         w1.runtime_config = "changed".to_string();
 
         let update_state = CompleteState {
@@ -869,11 +881,7 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let w1 = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME_NAME.to_string(),
-        );
+        let w1 = generate_test_stored_workload_spec(AGENT_A.to_owned(), RUNTIME_NAME.to_string());
 
         let update_state = CompleteState {
             desired_state: State {
@@ -935,28 +943,16 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let w1 = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_1.to_owned(),
-            RUNTIME_NAME.to_string(),
-        );
+        let w1 = generate_test_stored_workload_spec(AGENT_A.to_owned(), RUNTIME_NAME.to_string());
 
-        let w2 = generate_test_workload_spec_with_param(
-            AGENT_A.to_owned(),
-            WORKLOAD_NAME_2.to_owned(),
-            RUNTIME_NAME.to_string(),
-        );
+        let w2 = generate_test_stored_workload_spec(AGENT_A.to_owned(), RUNTIME_NAME.to_string());
 
-        let w3 = generate_test_workload_spec_with_param(
-            AGENT_B.to_owned(),
-            WORKLOAD_NAME_3.to_owned(),
-            RUNTIME_NAME.to_string(),
-        );
+        let w3 = generate_test_stored_workload_spec(AGENT_B.to_owned(), RUNTIME_NAME.to_string());
 
         let workloads = HashMap::from([
-            (w1.name.clone(), w1),
-            (w2.name.clone(), w2),
-            (w3.name.clone(), w3),
+            (WORKLOAD_NAME_1.to_owned(), w1),
+            (WORKLOAD_NAME_2.to_owned(), w2),
+            (WORKLOAD_NAME_3.to_owned(), w3),
         ]);
 
         let current_complete_state = CompleteState {
@@ -1153,7 +1149,7 @@ mod tests {
         updated_w1.restart = false;
         let update_state = CompleteState {
             desired_state: State {
-                workloads: vec![(WORKLOAD_NAME_1.to_owned(), updated_w1.clone())]
+                workloads: vec![(WORKLOAD_NAME_1.to_owned(), updated_w1.clone().into())]
                     .into_iter()
                     .collect(),
             },
@@ -1163,8 +1159,7 @@ mod tests {
 
         let added_workloads = vec![updated_w1.clone()];
         let deleted_workloads = vec![DeletedWorkload {
-            agent: w1.agent.clone(),
-            name: w1.name.clone(),
+            instance_name: w1.instance_name.clone(),
             dependencies: HashMap::new(),
         }];
 
@@ -1234,10 +1229,9 @@ mod tests {
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
             FromServer::UpdateWorkload(UpdateWorkload {
-                added_workloads: vec![updated_w1],
+                added_workloads: vec![updated_w1.clone()],
                 deleted_workloads: vec![DeletedWorkload {
-                    agent: w1.agent.clone(),
-                    name: w1.name.clone(),
+                    instance_name: w1.instance_name.clone(),
                     dependencies: HashMap::new(),
                 }]
             }),
@@ -1252,7 +1246,7 @@ mod tests {
                     added_workloads,
                     deleted_workloads
                 })
-            }) if request_id == REQUEST_ID_A && added_workloads == vec!["workload_1"] && deleted_workloads == vec!["workload_1"]
+            }) if request_id == REQUEST_ID_A && added_workloads == vec![updated_w1.instance_name.to_string()] && deleted_workloads == vec![updated_w1.instance_name.to_string()]
         ));
 
         assert!(comm_middle_ware_receiver.try_recv().is_err());
@@ -1315,7 +1309,7 @@ mod tests {
         assert_eq!(
             FromServer::Response(Response {
                 request_id: REQUEST_ID_A.to_string(),
-                response_content: ResponseContent::Error(Error {
+                response_content: ResponseContent::Error(commands::Error {
                     message: error_message
                 }),
             }),
@@ -1362,7 +1356,7 @@ mod tests {
         assert_eq!(
             FromServer::Response(Response {
                 request_id: REQUEST_ID_A.to_string(),
-                response_content: ResponseContent::Error(Error {
+                response_content: ResponseContent::Error(commands::Error {
                     message: error_message
                 }),
             }),

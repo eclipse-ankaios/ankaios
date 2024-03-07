@@ -19,6 +19,17 @@
 mod state;
 pub use state::State;
 
+mod complete_state;
+pub use complete_state::{ApiVersion, CompleteState};
+
+mod stored_workload_spec;
+#[cfg(any(feature = "test_utils", test))]
+pub use stored_workload_spec::{
+    generate_test_stored_workload_spec, generate_test_stored_workload_spec_with_config,
+};
+
+pub use stored_workload_spec::StoredWorkloadSpec;
+
 mod workload_state;
 #[cfg(any(feature = "test_utils", test))]
 pub use workload_state::{
@@ -28,19 +39,22 @@ pub use workload_state::{
 pub use workload_state::{ExecutionState, ExecutionStateEnum, WorkloadState};
 
 mod workload_spec;
+#[cfg(any(feature = "test_utils", test))]
+pub use workload_spec::{
+    generate_test_workload_spec, generate_test_workload_spec_with_dependencies,
+    generate_test_workload_spec_with_param, generate_test_workload_spec_with_runtime_config,
+};
+
 pub use workload_spec::{
     get_workloads_per_agent, AddCondition, DeleteCondition, DeletedWorkload,
-    DeletedWorkloadCollection, WorkloadCollection, WorkloadSpec,
+    DeletedWorkloadCollection, FulfilledBy, WorkloadCollection, WorkloadSpec,
 };
 
 mod tag;
 pub use tag::Tag;
 
-mod workload_execution_instance_name;
-pub use workload_execution_instance_name::{
-    ConfigHash, WorkloadExecutionInstanceName, WorkloadExecutionInstanceNameBuilder,
-    WorkloadInstanceName,
-};
+mod workload_instance_name;
+pub use workload_instance_name::{ConfigHash, WorkloadInstanceName, WorkloadInstanceNameBuilder};
 
 mod agent_name;
 pub use agent_name::AgentName;

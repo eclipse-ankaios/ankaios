@@ -100,7 +100,7 @@ def get_volume_names_from_podman():
     logger.trace(vol_names)
     return vol_names
 
-def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_in_sec=1):
+def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_in_sec=0.25):
         start_time = get_time_secs()
         logger.trace(run_command("ps aux | grep ank").stdout)
         logger.trace(run_command("podman ps -a").stdout)
@@ -119,7 +119,7 @@ def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_i
             logger.trace(table)
         return list()
 
-def wait_for_execution_state(command, workload_name, expected_state, timeout=10, next_try_in_sec=1):
+def wait_for_execution_state(command, workload_name, expected_state, timeout=10, next_try_in_sec=0.25):
         start_time = get_time_secs()
         res = run_command(command)
         table = table_to_list(res.stdout if res else "")
@@ -134,7 +134,7 @@ def wait_for_execution_state(command, workload_name, expected_state, timeout=10,
             logger.trace(table)
         return list()
 
-def wait_for_workload_removal(command, workload_name, expected_agent_name, timeout=10, next_try_in_sec=1):
+def wait_for_workload_removal(command, workload_name, expected_agent_name, timeout=10, next_try_in_sec=0.25):
         start_time = get_time_secs()
         res = run_command(command)
         table = table_to_list(res.stdout if res else "")

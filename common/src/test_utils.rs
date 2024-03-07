@@ -17,22 +17,26 @@ use std::collections::HashMap;
 use api::proto;
 use serde::{Serialize, Serializer};
 
-use crate::objects::{AddCondition, DeleteCondition, DeletedWorkload, State, Tag, WorkloadSpec};
+use crate::objects::{
+    generate_test_workload_spec_with_param, DeleteCondition, DeletedWorkload, State,
+    WorkloadInstanceName, WorkloadSpec,
+};
 
 #[cfg(feature = "test_utils")]
 pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State {
     State {
-        workloads: workloads.into_iter().map(|v| (v.name.clone(), v)).collect(),
+        workloads: workloads
+            .into_iter()
+            .map(|v| (v.instance_name.workload_name().to_owned(), v.into()))
+            .collect(),
     }
 }
 
 #[cfg(feature = "test_utils")]
-pub fn generate_test_complete_state(
-    workloads: Vec<WorkloadSpec>,
-) -> crate::commands::CompleteState {
+pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> crate::objects::CompleteState {
     use crate::{
-        commands::CompleteState,
-        objects::{ExecutionState, WorkloadExecutionInstanceName, WorkloadState},
+        objects::CompleteState,
+        objects::{ExecutionState, WorkloadState},
     };
 
     CompleteState {
@@ -40,18 +44,13 @@ pub fn generate_test_complete_state(
             workloads: workloads
                 .clone()
                 .into_iter()
-                .map(|v| (v.name.clone(), v))
+                .map(|v| (v.instance_name.workload_name().to_owned(), v.into()))
                 .collect(),
         },
         workload_states: workloads
             .into_iter()
             .map(|v| WorkloadState {
-                instance_name: WorkloadExecutionInstanceName::builder()
-                    .workload_name(&v.name)
-                    .agent_name(&v.agent)
-                    .config(&v.runtime_config)
-                    .build(),
-                workload_id: "some strange Id".to_string(),
+                instance_name: v.instance_name,
                 execution_state: ExecutionState::running(),
             })
             .collect(),
@@ -65,14 +64,20 @@ pub fn generate_test_state() -> State {
 
     let mut ankaios_workloads = HashMap::new();
 
-    let mut workload_1 = generate_test_workload_spec();
-    let mut workload_2 = generate_test_workload_spec();
+    let workload_1 = generate_test_workload_spec_with_param(
+        "agent".to_owned(),
+        "workload_name_1".to_owned(),
+        "runtime".to_owned(),
+    );
 
-    workload_1.name = "workload_name_1".to_string();
-    workload_2.name = "workload_name_2".to_string();
+    let workload_2 = generate_test_workload_spec_with_param(
+        "agent".to_owned(),
+        "workload_name_2".to_owned(),
+        "runtime".to_owned(),
+    );
 
-    ankaios_workloads.insert(workload_name_1, workload_1);
-    ankaios_workloads.insert(workload_name_2, workload_2);
+    ankaios_workloads.insert(workload_name_1, workload_1.into());
+    ankaios_workloads.insert(workload_name_2, workload_2.into());
 
     State {
         workloads: ankaios_workloads,
@@ -90,13 +95,6 @@ pub fn generate_test_proto_state() -> proto::State {
     proto::State {
         workloads: proto_workloads,
     }
-}
-
-fn generate_test_dependencies() -> HashMap<String, AddCondition> {
-    HashMap::from([
-        (String::from("workload A"), AddCondition::AddCondRunning),
-        (String::from("workload C"), AddCondition::AddCondSucceeded),
-    ])
 }
 
 fn generate_test_proto_dependencies() -> HashMap<String, i32> {
@@ -126,34 +124,6 @@ fn generate_test_proto_delete_dependencies() -> HashMap<String, i32> {
     )])
 }
 
-pub fn generate_test_workload_spec_with_param(
-    agent_name: String,
-    workload_name: String,
-    runtime_name: String,
-) -> crate::objects::WorkloadSpec {
-    WorkloadSpec {
-        dependencies: generate_test_dependencies(),
-        restart: true,
-        runtime: runtime_name,
-        name: workload_name,
-        agent: agent_name,
-        tags: vec![Tag {
-            key: "key".into(),
-            value: "value".into(),
-        }],
-        runtime_config: "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
-            .to_string(),
-    }
-}
-
-pub fn generate_test_workload_spec() -> WorkloadSpec {
-    generate_test_workload_spec_with_param(
-        "agent".to_string(),
-        "name".to_string(),
-        "runtime".to_string(),
-    )
-}
-
 pub fn generate_test_proto_workload() -> proto::Workload {
     proto::Workload {
         agent: String::from("agent"),
@@ -173,16 +143,36 @@ pub fn generate_test_deleted_workload(
     agent: String,
     name: String,
 ) -> crate::objects::DeletedWorkload {
+    let instance_name = WorkloadInstanceName::builder()
+        .agent_name(agent)
+        .workload_name(name)
+        .config(&String::from("config"))
+        .build();
     DeletedWorkload {
-        agent,
-        name,
+        instance_name,
         dependencies: generate_test_delete_dependencies(),
     }
 }
 
+pub fn generate_test_deleted_workload_with_dependencies(
+    agent: String,
+    name: String,
+    dependencies: HashMap<String, DeleteCondition>,
+) -> crate::objects::DeletedWorkload {
+    let mut deleted_workload = generate_test_deleted_workload(agent, name);
+    deleted_workload.dependencies = dependencies;
+    deleted_workload
+}
+
 pub fn generate_test_proto_deleted_workload() -> proto::DeletedWorkload {
+    let instance_name = WorkloadInstanceName::builder()
+        .agent_name("agent")
+        .workload_name("workload X")
+        .config(&String::from("config"))
+        .build();
+
     proto::DeletedWorkload {
-        name: "workload X".to_string(),
+        instance_name: Some(instance_name.into()),
         dependencies: generate_test_proto_delete_dependencies(),
     }
 }

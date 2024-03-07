@@ -12,7 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::{self, RequestContent};
+use crate::{
+    commands::{self, RequestContent},
+    objects::CompleteState,
+};
 use api::proto;
 use async_trait::async_trait;
 use std::fmt;
@@ -69,7 +72,7 @@ pub trait ToServerInterface {
     async fn update_state(
         &self,
         request_id: String,
-        state: commands::CompleteState,
+        state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<(), ToServerError>;
     async fn update_workload_state(
@@ -104,7 +107,7 @@ impl ToServerInterface for ToServerSender {
     async fn update_state(
         &self,
         request_id: String,
-        state: commands::CompleteState,
+        state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<(), ToServerError> {
         Ok(self
@@ -228,7 +231,7 @@ mod tests {
                     proto::UpdateStateRequest {
                         update_mask: vec!["test_update_mask_field".to_owned()],
                         new_state: Some(proto::CompleteState {
-                            format_version: Some(common::commands::ApiVersion::default().into()),
+                            format_version: Some(common::objects::ApiVersion::default().into()),
                             desired_state: Some(proto::State {
                                 workloads: HashMap::from([(
                                     "test_workload".to_owned(),
@@ -249,13 +252,12 @@ mod tests {
             request_id: "request_id".to_owned(),
             request_content: RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
                 update_mask: vec!["test_update_mask_field".to_owned()],
-                state: crate::commands::CompleteState {
+                state: crate::objects::CompleteState {
                     desired_state: crate::objects::State {
                         workloads: HashMap::from([(
                             "test_workload".to_owned(),
-                            crate::objects::WorkloadSpec {
-                                name: "test_workload".to_owned(),
-                                agent: "test_agent".to_owned(),
+                            crate::objects::StoredWorkloadSpec {
+                                agent: "test_agent".to_string(),
                                 ..Default::default()
                             },
                         )]),

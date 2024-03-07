@@ -1,35 +1,37 @@
 workloads:
-  workload_A:
+  frontend:
     runtime: podman
     agent: agent_A
-    restart: true
+    restart: false
     dependencies:
-      workload_B: ADD_COND_SUCCEEDED
+      backend:
+        ADD_COND_RUNNING
     tags:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
       image: docker.io/nginx:latest
-      commandOptions: ["-p", "8081:80"]
-  workload_B:
-    runtime: podman
-    agent: agent_B
-    restart: true
-    dependencies:
-      workload_C: ADD_COND_SUCCEEDED
-    tags:
-      - key: owner
-        value: Ankaios team
-    runtimeConfig: |
-      image: docker.io/alpine:latest
-      commandArgs: [ "echo", "Hello Ankaios"]
-  workload_D:
+      commandOptions: ["-p", "8083:80"]
+  backend:
     runtime: podman
     agent: agent_A
-    restart: true
+    restart: false
+    dependencies:
+      init_backend:
+        ADD_COND_SUCCEEDED
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: docker.io/nginx:latest
+      commandOptions: ["-p", "8082:80"]
+  init_backend:
+    runtime: podman
+    agent: agent_A
+    restart: false
     tags:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
       image: docker.io/alpine:latest
-      commandArgs: [ "echo", "Hello Ankaios"]
+      commandArgs: ["echo", "init_backend"]

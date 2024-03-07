@@ -12,13 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::fmt::Display;
+use crate::objects::{CompleteState, DeletedWorkload, WorkloadSpec};
 
-use crate::objects::{DeletedWorkload, State, WorkloadSpec, WorkloadState};
 use api::proto;
 use serde::{Deserialize, Serialize};
-
-const CURRENT_API_VERSION: &str = "v0.1";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AgentHello {
@@ -277,88 +274,6 @@ impl From<Error> for proto::Error {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
-pub struct ApiVersion {
-    pub version: String,
-}
-
-impl Default for ApiVersion {
-    fn default() -> Self {
-        Self {
-            version: CURRENT_API_VERSION.to_string(),
-        }
-    }
-}
-
-impl From<ApiVersion> for proto::ApiVersion {
-    fn from(item: ApiVersion) -> proto::ApiVersion {
-        proto::ApiVersion {
-            version: item.version,
-        }
-    }
-}
-
-impl From<proto::ApiVersion> for ApiVersion {
-    fn from(item: proto::ApiVersion) -> Self {
-        ApiVersion {
-            version: item.version,
-        }
-    }
-}
-
-impl Display for ApiVersion {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "'{}'", self.version)
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct CompleteState {
-    pub format_version: ApiVersion,
-    #[serde(default)]
-    pub startup_state: State,
-    #[serde(default)]
-    pub desired_state: State,
-    #[serde(default)]
-    pub workload_states: Vec<WorkloadState>,
-}
-
-impl From<CompleteState> for proto::CompleteState {
-    fn from(item: CompleteState) -> proto::CompleteState {
-        proto::CompleteState {
-            format_version: Some(proto::ApiVersion::from(item.format_version)),
-            startup_state: Some(proto::State::from(item.startup_state)),
-            desired_state: Some(proto::State::from(item.desired_state)),
-            workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
-        }
-    }
-}
-
-impl TryFrom<proto::CompleteState> for CompleteState {
-    type Error = String;
-
-    fn try_from(item: proto::CompleteState) -> Result<Self, Self::Error> {
-        Ok(CompleteState {
-            format_version: item
-                .format_version
-                .unwrap_or_else(|| proto::ApiVersion {
-                    version: "".to_string(),
-                })
-                .into(),
-            startup_state: item.startup_state.unwrap_or_default().try_into()?,
-            desired_state: item.desired_state.unwrap_or_default().try_into()?,
-            workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
-        })
-    }
-}
-
-impl CompleteState {
-    pub fn is_compatible_format(format_version: &ApiVersion) -> bool {
-        format_version.version == CURRENT_API_VERSION
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct UpdateStateSuccess {
@@ -414,12 +329,12 @@ mod tests {
     mod ankaios {
         pub use crate::{
             commands::{
-                ApiVersion, CompleteState, CompleteStateRequest, Error, Request, RequestContent,
-                Response, ResponseContent, UpdateStateRequest, UpdateStateSuccess,
-                UpdateWorkloadState,
+                CompleteStateRequest, Error, Request, RequestContent, Response, ResponseContent,
+                UpdateStateRequest, UpdateStateSuccess, UpdateWorkloadState,
             },
             objects::{
-                ExecutionState, State, WorkloadExecutionInstanceName, WorkloadSpec, WorkloadState,
+                ApiVersion, CompleteState, ExecutionState, State, StoredWorkloadSpec,
+                WorkloadInstanceName, WorkloadState,
             },
         };
     }
@@ -432,7 +347,6 @@ mod tests {
     const WORKLOAD_NAME_2: &str = "workload_name_2";
     const WORKLOAD_NAME_3: &str = "workload_name_3";
     const HASH: &str = "hash_1";
-    const WORKLOAD_ID: &str = "workload_id_1";
     const ERROR_MESSAGE: &str = "error_message";
 
     macro_rules! update_workload_state {
@@ -528,13 +442,13 @@ mod tests {
                 }
                 .into(),
                 startup_state: $expression::State {
-                    workloads: vec![("startup".into(), workload!($expression, "startup"))]
+                    workloads: vec![("startup".into(), workload!($expression))]
                         .into_iter()
                         .collect(),
                 }
                 .into(),
                 desired_state: $expression::State {
-                    workloads: vec![("desired".into(), workload!($expression, "desired"))]
+                    workloads: vec![("desired".into(), workload!($expression))]
                         .into_iter()
                         .collect(),
                 }
@@ -545,14 +459,13 @@ mod tests {
     }
 
     macro_rules! workload {
-        (proto, $name:expr) => {
+        (proto) => {
             proto::Workload {
                 ..Default::default()
             }
         };
-        (ankaios, $name:expr) => {
-            ankaios::WorkloadSpec {
-                name: $name.into(),
+        (ankaios) => {
+            ankaios::StoredWorkloadSpec {
                 ..Default::default()
             }
         };
@@ -568,12 +481,11 @@ mod tests {
                 }
             }
             ankaios::WorkloadState {
-                instance_name: ankaios::WorkloadExecutionInstanceName::builder()
+                instance_name: ankaios::WorkloadInstanceName::builder()
                     .workload_name(WORKLOAD_NAME_1)
                     .config(&HashableString(HASH.into()))
                     .agent_name(AGENT_NAME)
                     .build(),
-                workload_id: WORKLOAD_ID.into(),
                 execution_state: ankaios::ExecutionState::running(),
             }
         }};
@@ -582,10 +494,9 @@ mod tests {
                 instance_name: proto::WorkloadInstanceName {
                     workload_name: WORKLOAD_NAME_1.into(),
                     agent_name: AGENT_NAME.into(),
-                    config_id: HASH.into(),
+                    id: HASH.into(),
                 }
                 .into(),
-                workload_id: WORKLOAD_ID.into(),
                 execution_state: proto::ExecutionState {
                     execution_state_enum: proto::ExecutionStateEnum::Running(
                         proto::Running::Ok.into(),

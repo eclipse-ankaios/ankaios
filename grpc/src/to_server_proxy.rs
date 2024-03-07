@@ -200,8 +200,9 @@ mod tests {
 
     use super::{forward_from_ankaios_to_proto, forward_from_proto_to_ankaios, GRPCStreaming};
     use async_trait::async_trait;
+    use common::test_utils::generate_test_complete_state;
     use common::{
-        test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
+        objects::generate_test_workload_spec_with_param,
         to_server_interface::{ToServer, ToServerInterface},
     };
     use tokio::sync::mpsc;

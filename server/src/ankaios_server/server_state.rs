@@ -16,10 +16,11 @@ use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
 use crate::workload_state_db::WorkloadStateDB;
+use common::objects::WorkloadInstanceName;
 use common::std_extensions::IllegalStateResult;
 use common::{
-    commands::{CompleteState, CompleteStateRequest},
-    objects::{DeletedWorkload, State, WorkloadSpec},
+    commands::CompleteStateRequest,
+    objects::{CompleteState, DeletedWorkload, State, WorkloadSpec},
     state_manipulation::{Object, Path},
 };
 use std::fmt::Display;
@@ -78,18 +79,16 @@ fn extract_added_and_deleted_workloads(
             // The new workload is identical with existing or updated. Lets check if it is an update.
             if wls != new_wls {
                 // [impl->swdd~server-detects-changed-workload~1]
-                added_workloads.push(new_wls.clone());
+                added_workloads.push(WorkloadSpec::from((wl_name.to_owned(), new_wls.clone())));
                 deleted_workloads.push(DeletedWorkload {
-                    agent: wls.agent.clone(),
-                    name: wl_name.clone(),
+                    instance_name: WorkloadInstanceName::from((wl_name.to_owned(), wls)),
                     ..Default::default()
                 });
             }
         } else {
             // [impl->swdd~server-detects-deleted-workload~1]
             deleted_workloads.push(DeletedWorkload {
-                agent: wls.agent.clone(),
-                name: wl_name.clone(),
+                instance_name: WorkloadInstanceName::from((wl_name.to_owned(), wls)),
                 ..Default::default()
             });
         }
@@ -102,7 +101,10 @@ fn extract_added_and_deleted_workloads(
         .iter()
         .for_each(|(new_wl_name, new_wls)| {
             if !desired_state.workloads.contains_key(new_wl_name) {
-                added_workloads.push(new_wls.clone());
+                added_workloads.push(WorkloadSpec::from((
+                    new_wl_name.to_owned(),
+                    new_wls.clone(),
+                )));
             }
         });
 
@@ -204,9 +206,11 @@ impl ServerState {
         self.state
             .desired_state
             .workloads
-            .clone()
-            .into_values()
-            .filter(|workload_spec| workload_spec.agent.eq(agent_name))
+            .iter()
+            .filter(|(_, workload)| workload.agent.eq(agent_name))
+            .map(|(workload_name, workload)| {
+                WorkloadSpec::from((workload_name.clone(), workload.clone()))
+            })
             .collect()
     }
 
@@ -225,11 +229,11 @@ impl ServerState {
                 );
 
                 if let Some((added_workloads, mut deleted_workloads)) = cmd {
-                    let start_nodes: Vec<&String> = added_workloads
+                    let start_nodes: Vec<&str> = added_workloads
                         .iter()
                         .filter_map(|w| {
                             if !w.dependencies.is_empty() {
-                                Some(&w.name)
+                                Some(w.instance_name.workload_name())
                             } else {
                                 None
                             }
@@ -275,9 +279,12 @@ mod tests {
     use std::collections::HashMap;
 
     use common::{
-        commands::{CompleteState, CompleteStateRequest},
-        objects::{DeletedWorkload, State, WorkloadSpec},
-        test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
+        commands::CompleteStateRequest,
+        objects::{
+            generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
+            CompleteState, DeletedWorkload, State, StoredWorkloadSpec, WorkloadSpec,
+        },
+        test_utils::generate_test_complete_state,
     };
 
     use crate::{
@@ -324,7 +331,7 @@ mod tests {
         let request_complete_state = CompleteStateRequest { field_mask: vec![] };
 
         let mut workload_state_db = WorkloadStateDB::default();
-        workload_state_db.proccess_new_states(server_state.state.workload_states.clone());
+        workload_state_db.process_new_states(server_state.state.workload_states.clone());
 
         let mut complete_state = server_state
             .get_complete_state_by_field_mask(&request_complete_state, &workload_state_db)
@@ -383,7 +390,7 @@ mod tests {
         };
 
         let mut workload_state_db = WorkloadStateDB::default();
-        workload_state_db.proccess_new_states(server_state.state.workload_states.clone());
+        workload_state_db.process_new_states(server_state.state.workload_states.clone());
 
         let mut complete_state = server_state
             .get_complete_state_by_field_mask(&request_complete_state, &workload_state_db)
@@ -397,11 +404,15 @@ mod tests {
         });
 
         let mut expected_complete_state = server_state.state.clone();
+
         expected_complete_state.desired_state.workloads = HashMap::from([
-            (w1.name.clone(), w1.clone()),
             (
-                w3.name.clone(),
-                WorkloadSpec {
+                w1.instance_name.workload_name().to_owned(),
+                w1.clone().into(),
+            ),
+            (
+                w3.instance_name.workload_name().to_owned(),
+                StoredWorkloadSpec {
                     agent: AGENT_B.to_string(),
                     ..Default::default()
                 },
@@ -434,7 +445,7 @@ mod tests {
         };
 
         let mut workload_state_db = WorkloadStateDB::default();
-        workload_state_db.proccess_new_states(server_state.state.workload_states.clone());
+        workload_state_db.process_new_states(server_state.state.workload_states.clone());
 
         let mut complete_state = server_state
             .get_complete_state_by_field_mask(&request_complete_state, &workload_state_db)
@@ -448,8 +459,10 @@ mod tests {
         });
 
         let mut expected_complete_state = server_state.state.clone();
-        expected_complete_state.desired_state.workloads =
-            HashMap::from([(w1.name.clone(), w1.clone())]);
+        expected_complete_state.desired_state.workloads = HashMap::from([(
+            w1.instance_name.workload_name().to_owned(),
+            w1.clone().into(),
+        )]);
         expected_complete_state.workload_states.clear();
         assert_eq!(expected_complete_state, complete_state);
     }
@@ -481,7 +494,11 @@ mod tests {
         };
 
         let mut workloads = server_state.get_workloads_for_agent(&AGENT_A.to_string());
-        workloads.sort_by(|left, right| left.name.cmp(&right.name));
+        workloads.sort_by(|left, right| {
+            left.instance_name
+                .workload_name()
+                .cmp(right.instance_name.workload_name())
+        });
         assert_eq!(workloads, vec![w1, w2]);
 
         let workloads = server_state.get_workloads_for_agent(&AGENT_B.to_string());
@@ -496,29 +513,19 @@ mod tests {
     fn utest_server_state_update_state_reject_state_with_cyclic_dependencies() {
         let _ = env_logger::builder().is_test(true).try_init();
 
-        let workload = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_1.to_string(),
-            RUNTIME.to_string(),
-        );
+        let workload = generate_test_stored_workload_spec(AGENT_A.to_string(), RUNTIME.to_string());
 
         // workload has a self cycle to workload A
-        let new_workload_1 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            "workload A".to_string(),
-            RUNTIME.to_string(),
-        );
+        let new_workload_1 =
+            generate_test_stored_workload_spec(AGENT_A.to_string(), RUNTIME.to_string());
 
-        let mut new_workload_2 = generate_test_workload_spec_with_param(
-            AGENT_A.to_string(),
-            WORKLOAD_NAME_1.to_string(),
-            RUNTIME.to_string(),
-        );
+        let mut new_workload_2 =
+            generate_test_stored_workload_spec(AGENT_A.to_string(), RUNTIME.to_string());
         new_workload_2.dependencies.clear();
 
         let old_state = CompleteState {
             desired_state: State {
-                workloads: HashMap::from([(workload.name.clone(), workload)]),
+                workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
             },
             ..Default::default()
         };
@@ -526,8 +533,8 @@ mod tests {
         let rejected_new_state = CompleteState {
             desired_state: State {
                 workloads: HashMap::from([
-                    (new_workload_1.name.clone(), new_workload_1),
-                    (new_workload_2.name.clone(), new_workload_2),
+                    ("workload A".to_string(), new_workload_1),
+                    (WORKLOAD_NAME_1.to_string(), new_workload_2),
                 ]),
             },
             ..Default::default()
@@ -604,7 +611,7 @@ mod tests {
         expected
             .desired_state
             .workloads
-            .insert(new_workload.name.clone(), new_workload.clone());
+            .insert(WORKLOAD_NAME_1.to_owned(), new_workload.clone());
 
         let mut delete_graph_mock = MockDeleteGraph::new();
         delete_graph_mock.expect_insert().once().return_const(());
@@ -810,15 +817,24 @@ mod tests {
         assert!(added_deleted_workloads.is_some());
 
         let (mut added_workloads, deleted_workloads) = added_deleted_workloads.unwrap();
-        added_workloads.sort_by(|left, right| left.name.cmp(&right.name));
+        added_workloads.sort_by(|left, right| {
+            left.instance_name
+                .workload_name()
+                .cmp(right.instance_name.workload_name())
+        });
 
         let mut expected_added_workloads: Vec<WorkloadSpec> = new_state
             .clone()
             .desired_state
             .workloads
-            .into_values()
+            .iter()
+            .map(|(name, spec)| (name.to_owned(), spec.to_owned()).into())
             .collect();
-        expected_added_workloads.sort_by(|left, right| left.name.cmp(&right.name));
+        expected_added_workloads.sort_by(|left, right| {
+            left.instance_name
+                .workload_name()
+                .cmp(right.instance_name.workload_name())
+        });
 
         assert_eq!(added_workloads, expected_added_workloads);
 
@@ -857,18 +873,25 @@ mod tests {
         let expected_added_workloads: Vec<WorkloadSpec> = Vec::new();
         assert_eq!(added_workloads, expected_added_workloads);
 
-        deleted_workloads.sort_by(|left, right| left.name.cmp(&right.name));
+        deleted_workloads.sort_by(|left, right| {
+            left.instance_name
+                .workload_name()
+                .cmp(right.instance_name.workload_name())
+        });
         let mut expected_deleted_workloads: Vec<DeletedWorkload> = current_complete_state
             .desired_state
             .workloads
             .iter()
-            .map(|(k, v)| DeletedWorkload {
-                agent: v.agent.clone(),
-                name: k.clone(),
+            .map(|(name, workload_spec)| DeletedWorkload {
+                instance_name: (name.to_owned(), workload_spec).into(),
                 dependencies: HashMap::new(),
             })
             .collect();
-        expected_deleted_workloads.sort_by(|left, right| left.name.cmp(&right.name));
+        expected_deleted_workloads.sort_by(|left, right| {
+            left.instance_name
+                .workload_name()
+                .cmp(right.instance_name.workload_name())
+        });
         assert_eq!(deleted_workloads, expected_deleted_workloads);
 
         assert_eq!(server_state.state, CompleteState::default());
@@ -892,13 +915,13 @@ mod tests {
 
         let updated_workload = generate_test_workload_spec_with_param(
             AGENT_B.into(),
-            workload_to_update.name.clone(),
+            WORKLOAD_NAME_1.to_string(),
             "runtime_2".into(),
         );
         new_complete_state
             .desired_state
             .workloads
-            .insert(workload_to_update.name.clone(), updated_workload.clone());
+            .insert(WORKLOAD_NAME_1.to_string(), updated_workload.clone().into());
 
         let mut delete_graph_mock = MockDeleteGraph::new();
         delete_graph_mock.expect_insert().once().return_const(());
@@ -924,8 +947,7 @@ mod tests {
         assert_eq!(
             deleted_workloads,
             vec![DeletedWorkload {
-                agent: workload_to_update.agent.clone(),
-                name: workload_to_update.name.clone(),
+                instance_name: (WORKLOAD_NAME_1.to_string(), workload_to_update).into(),
                 dependencies: HashMap::new(),
             }]
         );
@@ -937,8 +959,6 @@ mod tests {
     // [utest->swdd~server-state-adds-delete-conditions-to-deleted-workload~1]
     #[test]
     fn utest_server_state_update_state_store_and_add_delete_conditions() {
-        let _ = env_logger::builder().is_test(true).try_init();
-
         let workload = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
             WORKLOAD_NAME_1.to_string(),
@@ -947,16 +967,26 @@ mod tests {
 
         let current_complete_state = CompleteState {
             desired_state: State {
-                workloads: HashMap::from([(workload.name.clone(), workload.clone())]),
+                workloads: HashMap::from([(
+                    workload.instance_name.workload_name().to_owned(),
+                    workload.clone().into(),
+                )]),
             },
             ..Default::default()
         };
 
-        let mut new_workload = workload.clone();
-        new_workload.agent = AGENT_B.to_string();
+        let new_workload = generate_test_workload_spec_with_param(
+            AGENT_B.to_string(),
+            workload.instance_name.workload_name().to_owned(),
+            RUNTIME.to_string(),
+        );
+
         let new_complete_state = CompleteState {
             desired_state: State {
-                workloads: HashMap::from([(new_workload.name.clone(), new_workload.clone())]),
+                workloads: HashMap::from([(
+                    new_workload.instance_name.workload_name().to_owned(),
+                    new_workload.clone().into(),
+                )]),
             },
             ..Default::default()
         };
@@ -972,8 +1002,7 @@ mod tests {
         delete_graph_mock
             .expect_apply_delete_conditions_to()
             .with(mockall::predicate::eq(vec![DeletedWorkload {
-                name: workload.name.clone(),
-                agent: workload.agent.clone(),
+                instance_name: workload.instance_name,
                 dependencies: HashMap::new(),
             }]))
             .once()

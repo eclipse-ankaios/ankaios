@@ -26,7 +26,7 @@ use std::collections::{HashSet, VecDeque};
 /// * `start_nodes` - Start visiting the graph only for the passed workloads
 ///                   if [`None`] the search is started from all workloads of the state
 ///
-pub fn dfs(state: &State, start_nodes: Option<Vec<&String>>) -> Option<String> {
+pub fn dfs(state: &State, start_nodes: Option<Vec<&str>>) -> Option<String> {
     log::trace!(
         "Execute cyclic dependency check with start_nodes = {:?}",
         start_nodes
@@ -38,20 +38,24 @@ pub fn dfs(state: &State, start_nodes: Option<Vec<&String>>) -> Option<String> {
     from the stack and the procedure is repeated until a cycle is detected or all workloads are visited once.
     With pushing and popping to the stack the search is done in the depth inside the dependency graph.
     The stack simulates what the recursion stack represents in the recursive dfs algorithm. */
-    let mut stack: VecDeque<&String> = VecDeque::new();
+    let mut stack: VecDeque<&str> = VecDeque::new();
 
     // used to prevent visiting nodes repeatedly
-    let mut visited: HashSet<&String> = HashSet::with_capacity(state.workloads.len());
+    let mut visited: HashSet<&str> = HashSet::with_capacity(state.workloads.len());
 
     /* although the path container is used for lookups,
     measurements have shown that it is faster than associative data structure within this code path */
-    let mut path: VecDeque<&String> = VecDeque::with_capacity(state.workloads.len());
+    let mut path: VecDeque<&str> = VecDeque::with_capacity(state.workloads.len());
 
     // start visiting workloads in the graph only for a subset of workloads (e.g. in case of a an update) or for all
-    let mut workloads_to_visit: Vec<&String> = if let Some(nodes) = start_nodes {
+    let mut workloads_to_visit: Vec<&str> = if let Some(nodes) = start_nodes {
         nodes
     } else {
-        state.workloads.keys().collect()
+        state
+            .workloads
+            .keys()
+            .map(|workload_names| workload_names.as_str())
+            .collect()
     };
     /* sort the keys of the map to have an constant equal outcome
     because the current data structure is randomly ordered because of HashMap's random seed */
@@ -82,9 +86,9 @@ pub fn dfs(state: &State, start_nodes: Option<Vec<&String>>) -> Option<String> {
                 dependencies.sort();
 
                 for dependency in dependencies {
-                    if !visited.contains(dependency) {
+                    if !visited.contains(dependency.as_str()) {
                         stack.push_front(dependency);
-                    } else if path.contains(&dependency) {
+                    } else if path.contains(&dependency.as_str()) {
                         // [impl->swdd~cycle-detection-stops-on-the-first-cycle~1]
                         log::debug!("workload '{dependency}' is part of a cycle.");
                         return Some(dependency.to_string());
@@ -114,8 +118,8 @@ pub fn dfs(state: &State, start_nodes: Option<Vec<&String>>) -> Option<String> {
 mod tests {
     use super::*;
     use common::{
-        objects::AddCondition,
-        test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
+        objects::{generate_test_stored_workload_spec, AddCondition},
+        test_utils::generate_test_complete_state,
     };
     use std::{collections::HashSet, ops::Deref};
 
@@ -596,11 +600,8 @@ mod tests {
 
         fn with_workloads(mut self, workloads: &[&str]) -> Self {
             for w in workloads {
-                let mut test_workload_spec = generate_test_workload_spec_with_param(
-                    AGENT_NAME.into(),
-                    w.to_string(),
-                    RUNTIME.into(),
-                );
+                let mut test_workload_spec =
+                    generate_test_stored_workload_spec(AGENT_NAME, RUNTIME);
                 test_workload_spec.dependencies.clear();
                 self.0.workloads.insert(w.to_string(), test_workload_spec);
             }

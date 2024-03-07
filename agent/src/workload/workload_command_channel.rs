@@ -64,12 +64,12 @@ impl WorkloadCommandSender {
 
     pub async fn update(
         &self,
-        workload_spec: WorkloadSpec,
+        workload_spec: Option<WorkloadSpec>,
         control_interface_path: Option<PathBuf>,
     ) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
         self.sender
             .send(WorkloadCommand::Update(
-                Box::new(workload_spec),
+                workload_spec.map(Box::new),
                 control_interface_path,
             ))
             .await
@@ -91,7 +91,7 @@ impl WorkloadCommandSender {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::test_utils::generate_test_workload_spec;
+    use common::objects::generate_test_workload_spec;
     const PIPES_LOCATION: &str = "/some/path";
 
     use mockall::lazy_static;
@@ -115,7 +115,7 @@ mod tests {
         let workload_command = workload_command_receiver.recv().await.unwrap();
 
         assert!(
-            matches!(workload_command, WorkloadCommand::Create(workload_spec, control_interface_path) if workload_spec.name == WORKLOAD_SPEC.name && control_interface_path == *CONTROL_INTERFACE_PATH)
+            matches!(workload_command, WorkloadCommand::Create(workload_spec, control_interface_path) if workload_spec.instance_name == WORKLOAD_SPEC.instance_name && control_interface_path == *CONTROL_INTERFACE_PATH)
         );
     }
 
@@ -132,7 +132,7 @@ mod tests {
         let workload_command = workload_command_receiver.recv().await.unwrap();
 
         assert!(
-            matches!(workload_command, WorkloadCommand::Restart(workload_spec, control_interface_path) if workload_spec.name == WORKLOAD_SPEC.name && control_interface_path == *CONTROL_INTERFACE_PATH)
+            matches!(workload_command, WorkloadCommand::Restart(workload_spec, control_interface_path) if workload_spec.instance_name == WORKLOAD_SPEC.instance_name && control_interface_path == *CONTROL_INTERFACE_PATH)
         );
     }
 
@@ -141,15 +141,19 @@ mod tests {
     async fn utest_send_update() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
+        let workload_spec = WORKLOAD_SPEC.clone();
+        let control_interface = CONTROL_INTERFACE_PATH.clone();
+
         workload_command_sender
-            .update(WORKLOAD_SPEC.clone(), CONTROL_INTERFACE_PATH.clone())
+            .update(Some(workload_spec.clone()), control_interface.clone())
             .await
             .unwrap();
 
         let workload_command = workload_command_receiver.recv().await.unwrap();
 
-        assert!(
-            matches!(workload_command, WorkloadCommand::Update(workload_spec, control_interface_path) if workload_spec.name == WORKLOAD_SPEC.name && control_interface_path == *CONTROL_INTERFACE_PATH)
+        assert_eq!(
+            WorkloadCommand::Update(Some(Box::new(workload_spec)), control_interface.clone()),
+            workload_command
         );
     }
 

@@ -1,0 +1,24 @@
+workloads:
+  frontend:
+    runtime: podman
+    agent: agent_A
+    restart: false
+    dependencies:
+      backend:
+        ADD_COND_RUNNING
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: docker.io/nginx:latest
+      commandOptions: ["-p", "8083:80"]
+  backend:
+    runtime: podman
+    agent: agent_A
+    restart: false
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: docker.io/nginx:latest
+      commandOptions: ["-p", "8082:80"]

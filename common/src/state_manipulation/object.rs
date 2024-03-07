@@ -15,7 +15,7 @@
 use std::collections::HashSet;
 
 use super::Path;
-use crate::{commands::CompleteState, objects::State};
+use crate::objects::{CompleteState, State};
 use serde_yaml::{
     from_value,
     mapping::{Entry::Occupied, Entry::Vacant},
@@ -257,9 +257,11 @@ impl Object {
 #[cfg(test)]
 mod tests {
     use crate::{
-        commands::{ApiVersion, CompleteState},
-        objects::{generate_test_workload_state_with_agent, ExecutionState, State},
-        test_utils::{generate_test_state_from_workloads, generate_test_workload_spec},
+        objects::{
+            generate_test_workload_spec, generate_test_workload_state_with_agent, ApiVersion,
+            CompleteState, ExecutionState, State,
+        },
+        test_utils::generate_test_state_from_workloads,
     };
     use serde_yaml::Value;
 
@@ -691,9 +693,8 @@ mod tests {
                             Mapping::default()
                                 .entry("agentName", "agent")
                                 .entry("workloadName", "workload A")
-                                .entry("hash", config_hash.hash_config()),
+                                .entry("id", config_hash.hash_config()),
                         )
-                        .entry("workloadId", "some strange Id")
                         .entry(
                             "executionState",
                             Mapping::default()
@@ -712,7 +713,6 @@ mod tests {
                         "name",
                         Mapping::default()
                             .entry("agent", "agent")
-                            .entry("name", "name")
                             .entry(
                                 "tags",
                                 vec![Mapping::default()

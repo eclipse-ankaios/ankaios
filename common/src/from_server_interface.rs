@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands;
-use crate::objects::{DeletedWorkload, WorkloadSpec, WorkloadState};
+use crate::objects::{CompleteState, DeletedWorkload, WorkloadSpec, WorkloadState};
 use api::proto;
 use async_trait::async_trait;
 use std::fmt;
@@ -102,7 +102,7 @@ pub trait FromServerInterface {
     async fn complete_state(
         &self,
         request_id: String,
-        complete_state: commands::CompleteState,
+        complete_state: CompleteState,
     ) -> Result<(), FromServerInterfaceError>;
     async fn success(&self, request_id: String) -> Result<(), FromServerInterfaceError>;
     async fn update_state_success(
@@ -155,7 +155,7 @@ impl FromServerInterface for FromServerSender {
     async fn complete_state(
         &self,
         request_id: String,
-        complete_state: commands::CompleteState,
+        complete_state: CompleteState,
     ) -> Result<(), FromServerInterfaceError> {
         Ok(self
             .send(FromServer::Response(commands::Response {
@@ -226,7 +226,7 @@ mod tests {
     use crate::{
         commands,
         from_server_interface::FromServer,
-        objects::WorkloadSpec,
+        objects::{self, WorkloadInstanceName, WorkloadSpec},
         test_utils::{generate_test_deleted_workload, generate_test_proto_deleted_workload},
     };
 
@@ -234,21 +234,27 @@ mod tests {
 
     #[test]
     fn utest_convert_from_server_to_proto_update_workload() {
+        let instance_name = WorkloadInstanceName::builder()
+            .workload_name("test_workload")
+            .build();
         let test_ex_com = FromServer::UpdateWorkload(commands::UpdateWorkload {
             added_workloads: vec![WorkloadSpec {
-                name: "test_workload".to_owned(),
+                instance_name,
                 runtime: "tes_runtime".to_owned(),
                 ..Default::default()
             }],
             deleted_workloads: vec![generate_test_deleted_workload(
-                "agent X".to_string(),
+                "agent".to_string(),
                 "workload X".to_string(),
             )],
         });
         let expected_ex_com = Ok(proto::FromServer {
             from_server_enum: Some(FromServerEnum::UpdateWorkload(proto::UpdateWorkload {
                 added_workloads: vec![AddedWorkload {
-                    name: "test_workload".to_owned(),
+                    instance_name: Some(proto::WorkloadInstanceName {
+                        workload_name: "test_workload".to_owned(),
+                        ..Default::default()
+                    }),
                     runtime: "tes_runtime".to_owned(),
                     ..Default::default()
                 }],
@@ -294,7 +300,7 @@ mod tests {
                     request_id: "req_id".to_owned(),
                     response_content: Some(proto::response::ResponseContent::CompleteState(
                         proto::CompleteState {
-                            format_version: Some(commands::ApiVersion::default().into()),
+                            format_version: Some(objects::ApiVersion::default().into()),
                             desired_state: Some(api::proto::State::default()),
                             startup_state: Some(api::proto::State::default()),
                             workload_states: vec![],

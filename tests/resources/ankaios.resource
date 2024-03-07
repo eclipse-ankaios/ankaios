@@ -126,20 +126,19 @@ Ankaios agent is started with name "${name}"
     ...    env:RUST_LOG=debug
 
 Podman has deleted all existing containers
-    Run Process    podman    rm    -a    -f    timeout=20    shell=True
+    Run Process    podman    rm    --all    --force    --time    2    timeout=20    shell=True
 
 Podman has deleted all existing pods
-    Run Process    podman    pod    stop    -a    &&    podman    pod    rm    -a    -f    timeout=20    shell=True
+    Run Process    podman    pod    rm    --all    --force    --time    2    timeout=20    shell=True
 
 Podman has deleted all existing volumes
-    Run Process    podman    volume    rm    -a    timeout=20    shell=True
+    Run Process    podman    volume    rm    --all    --force    timeout=20    shell=True
 
 all workloads of agent "${agent_name}" have an initial execution state
     ${list_result}=    Wait For Initial Execution State
     ...    %{ANK_BIN_DIR}${/}ank get workloads
     ...    ${agent_name}
     ...    60
-    ...    5
     Should Not Be Empty
     ...    ${list_result}
     ...    msg=Timeout: Workloads on agent '${agent_name}' do not have the expected initial execution states!
