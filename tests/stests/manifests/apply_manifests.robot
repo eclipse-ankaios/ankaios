@@ -33,7 +33,7 @@ ${manifest_no_agent_name_yaml_file}    ${EMPTY}
 # [stest->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
 # [stest->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
 # [stest->swdd~cli-apply-send-update-state~1]
-Test Ankaios apply worklaod specifications via Ankaios Manifest files
+Test Ankaios apply workload specifications via Ankaios Manifest files
     [Setup]           Run Keywords    Setup Ankaios
     ...        AND    Set Global Variable    ${simple_yaml_file}    ${CONFIGS_DIR}/simple.yaml
     ...        AND    Set Global Variable    ${manifest1_yaml_file}    ${CONFIGS_DIR}/manifest1.yaml
@@ -52,7 +52,7 @@ Test Ankaios apply worklaod specifications via Ankaios Manifest files
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
-Test Ankaios apply worklaod specifications via Ankaios Manifest content through stdin
+Test Ankaios apply workload specifications via Ankaios Manifest content through stdin
     [Setup]           Run Keywords    Setup Ankaios
     ...        AND    Set Global Variable    ${simple_yaml_file}    ${CONFIGS_DIR}/simple.yaml
     ...        AND    Set Global Variable    ${manifest1_yaml_file}    ${CONFIGS_DIR}/manifest1.yaml
@@ -69,7 +69,7 @@ Test Ankaios apply worklaod specifications via Ankaios Manifest content through 
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
-Test Ankaios apply worklaod specification overwriting the agent names
+Test Ankaios apply workload specification overwriting the agent names
     [Setup]           Run Keywords    Setup Ankaios
     ...        AND    Set Global Variable    ${simple_yaml_file}    ${CONFIGS_DIR}/simple.yaml
     ...        AND    Set Global Variable    ${manifest1_yaml_file}    ${CONFIGS_DIR}/manifest1.yaml
@@ -86,8 +86,26 @@ Test Ankaios apply worklaod specification overwriting the agent names
     And the workload "nginx_from_manifest1" shall have the execution state "Running(Ok)" on agent "agent_B" within "20" seconds
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
+Test Ankaios apply workload specification defining the agent names
+    [Setup]           Run Keywords    Setup Ankaios
+    ...        AND    Set Global Variable    ${simple_yaml_file}    ${CONFIGS_DIR}/simple.yaml
+    ...        AND    Set Global Variable    ${manifest_no_agent}    ${CONFIGS_DIR}/manifest_no_agent_name.yaml
+
+    # Preconditions
+    Given Ankaios server is started with config "${simple_yaml_file}"
+    And Ankaios agent is started with name "agent_A"
+    And Ankaios agent is started with name "agent_B"
+    And all workloads of agent "agent_A" have an initial execution state
+    # Actions
+    When user triggers "ank apply --agent agent_B ${manifest_no_agent}"
+    # Asserts
+    Then the last command shall finish with exit code "0"
+    And the workload "nginx_from_manifest1" shall have the execution state "Running(Ok)" on agent "agent_B" within "20" seconds
+    [Teardown]    Clean up Ankaios
+
 # [stest->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
-Test Ankaios apply worklaod specification without agent name
+Test Ankaios apply workload specification without agent name
     [Setup]           Run Keywords    Setup Ankaios
     ...        AND    Set Global Variable    ${simple_yaml_file}    ${CONFIGS_DIR}/simple.yaml
     ...        AND    Set Global Variable    ${manifest_no_agent_name_yaml_file}    ${CONFIGS_DIR}/manifest_no_agent_name.yaml
@@ -103,7 +121,7 @@ Test Ankaios apply worklaod specification without agent name
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-apply-send-update-state-for-deletion~1]
-Test Ankaios apply worklaod specifications via Ankaios Manifest files for deletion
+Test Ankaios apply workload specifications via Ankaios Manifest files for deletion
     [Setup]           Run Keywords    Setup Ankaios
     ...        AND    Set Global Variable    ${manifest12_yaml_file}    ${CONFIGS_DIR}/manifest12.yaml
     ...        AND    Set Global Variable    ${manifest1_yaml_file}    ${CONFIGS_DIR}/manifest1.yaml
@@ -121,7 +139,7 @@ Test Ankaios apply worklaod specifications via Ankaios Manifest files for deleti
     And the workload "nginx_from_manifest2" shall not exist within "20" seconds
     [Teardown]    Clean up Ankaios
 
-Test Ankaios apply worklaod specifications via Ankaios Manifest content through stdin for deletion
+Test Ankaios apply workload specifications via Ankaios Manifest content through stdin for deletion
     [Setup]           Run Keywords    Setup Ankaios
     ...        AND    Set Global Variable    ${simple_yaml_file}    ${CONFIGS_DIR}/simple.yaml
     ...        AND    Set Global Variable    ${manifest1_yaml_file}    ${CONFIGS_DIR}/manifest1.yaml
