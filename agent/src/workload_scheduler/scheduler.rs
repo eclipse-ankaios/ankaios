@@ -1029,7 +1029,10 @@ mod tests {
 
         assert_execution_state_sequence(
             workload_state_receiver,
-            vec![ExecutionState::waiting_to_start()],
+            vec![(
+                &instance_name_new_workload,
+                ExecutionState::waiting_to_start(),
+            )],
         )
         .await;
     }

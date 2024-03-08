@@ -2499,6 +2499,42 @@ mod tests {
         assert!(table_output.is_empty())
     }
 
+    #[test]
+    fn utest_handle_agent_overwrite_missing_agent_name() {
+        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
+
+        let state = test_utils::generate_test_state_from_workloads(vec![
+            generate_test_workload_spec_with_param(
+                "agent_A".to_string(),
+                "wl1".to_string(),
+                "runtime_X".to_string(),
+            ),
+        ]);
+
+        let expected_state = test_utils::generate_test_state_from_workloads(vec![
+            generate_test_workload_spec_with_param(
+                "overwritten_agent_name".to_string(),
+                "wl1".to_string(),
+                "runtime_X".to_string(),
+            ),
+        ]);
+
+        let mut obj: Object = state.try_into().unwrap();
+
+        obj.remove(&"workloads.wl1.agent".into()).unwrap();
+
+        assert_eq!(
+            handle_agent_overwrite(
+                &vec!["workloads.wl1".into()],
+                &Some("overwritten_agent_name".to_string()),
+                obj,
+                &mut table_output
+            )
+            .unwrap(),
+            expected_state
+        );
+    }
+
     // [utest->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
     // [utest->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
     #[test]

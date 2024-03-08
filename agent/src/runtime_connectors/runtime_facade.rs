@@ -557,15 +557,18 @@ mod tests {
             ownable_runtime_mock,
         ));
 
-        test_runtime_facade.delete_workload(workload_instance_name, &wl_state_sender);
+        test_runtime_facade.delete_workload(workload_instance_name.clone(), &wl_state_sender);
 
         tokio::task::yield_now().await;
 
         assert_execution_state_sequence(
             wl_state_receiver,
             vec![
-                ExecutionState::stopping_triggered(),
-                ExecutionState::removed(),
+                (
+                    &workload_instance_name,
+                    ExecutionState::stopping_triggered(),
+                ),
+                (&workload_instance_name, ExecutionState::removed()),
             ],
         )
         .await;

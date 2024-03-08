@@ -57,9 +57,9 @@ impl WorkloadStateSenderInterface for WorkloadStateSender {
 #[cfg(test)]
 pub async fn assert_execution_state_sequence(
     mut state_change_rx: WorkloadStateReceiver,
-    expected_states: Vec<ExecutionState>,
+    expected_states: Vec<(&WorkloadInstanceName, ExecutionState)>,
 ) {
-    for expected_execution_state in expected_states {
+    for expected_state in expected_states {
         assert_eq!(
             tokio::time::timeout(
                 std::time::Duration::from_millis(200),
@@ -67,9 +67,11 @@ pub async fn assert_execution_state_sequence(
             )
             .await
             .unwrap()
-            .unwrap()
-            .execution_state,
-            expected_execution_state
+            .unwrap(),
+            WorkloadState {
+                instance_name: expected_state.0.clone(),
+                execution_state: expected_state.1
+            }
         );
     }
 }

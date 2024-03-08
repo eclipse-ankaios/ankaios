@@ -540,6 +540,7 @@ mod tests {
         workload_command_sender.clone().delete().await.unwrap();
 
         let old_instance_name = old_workload_spec.instance_name.clone();
+        let new_instance_name = new_workload_spec.instance_name.clone();
         let control_loop_state = ControlLoopState {
             instance_name: old_instance_name.clone(),
             workload_id: Some(OLD_WORKLOAD_ID.to_string()),
@@ -561,11 +562,11 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                ExecutionState::stopping_triggered(),
-                ExecutionState::removed(),
-                ExecutionState::starting_triggered(),
-                ExecutionState::stopping_triggered(),
-                ExecutionState::removed(),
+                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::removed()),
+                (&new_instance_name, ExecutionState::starting_triggered()),
+                (&new_instance_name, ExecutionState::stopping_triggered()),
+                (&new_instance_name, ExecutionState::removed()),
             ],
         )
         .await;
@@ -630,8 +631,8 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                ExecutionState::stopping_triggered(),
-                ExecutionState::removed(),
+                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::removed()),
             ],
         )
         .await;
@@ -722,10 +723,10 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                ExecutionState::stopping_triggered(),
-                ExecutionState::removed(),
-                ExecutionState::stopping_triggered(),
-                ExecutionState::removed(),
+                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::removed()),
+                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::removed()),
             ],
         )
         .await;
@@ -785,8 +786,9 @@ mod tests {
         workload_command_sender.clone().delete().await.unwrap();
 
         let old_instance_name = old_workload_spec.instance_name.clone();
+        let new_instance_name = new_workload_spec.instance_name.clone();
         let control_loop_state = ControlLoopState {
-            instance_name: old_instance_name,
+            instance_name: old_instance_name.clone(),
             workload_id: None,
             state_checker: None,
             update_state_tx: state_change_tx.clone(),
@@ -806,11 +808,11 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                ExecutionState::stopping_triggered(),
-                ExecutionState::removed(),
-                ExecutionState::starting_triggered(),
-                ExecutionState::stopping_triggered(),
-                ExecutionState::removed(),
+                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::removed()),
+                (&new_instance_name, ExecutionState::starting_triggered()),
+                (&new_instance_name, ExecutionState::stopping_triggered()),
+                (&new_instance_name, ExecutionState::removed()),
             ],
         )
         .await;
@@ -870,7 +872,7 @@ mod tests {
 
         let old_instance_name = old_workload_spec.instance_name.clone();
         let control_loop_state = ControlLoopState {
-            instance_name: old_instance_name,
+            instance_name: old_instance_name.clone(),
             workload_id: Some(OLD_WORKLOAD_ID.to_string()),
             state_checker: Some(old_mock_state_checker),
             update_state_tx: state_change_tx.clone(),
@@ -890,10 +892,13 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                ExecutionState::stopping_triggered(),
-                ExecutionState::delete_failed("some delete error"),
-                ExecutionState::stopping_triggered(),
-                ExecutionState::removed(),
+                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (
+                    &old_instance_name,
+                    ExecutionState::delete_failed("some delete error"),
+                ),
+                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::removed()),
             ],
         )
         .await;
@@ -954,8 +959,9 @@ mod tests {
         workload_command_sender.clone().delete().await.unwrap();
 
         let old_instance_name = old_workload_spec.instance_name.clone();
+        let new_instance_name = new_workload_spec.instance_name.clone();
         let control_loop_state = ControlLoopState {
-            instance_name: old_instance_name,
+            instance_name: old_instance_name.clone(),
             workload_id: Some(OLD_WORKLOAD_ID.to_string()),
             state_checker: Some(old_mock_state_checker),
             update_state_tx: state_change_tx.clone(),
@@ -975,12 +981,15 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                ExecutionState::stopping_triggered(),
-                ExecutionState::removed(),
-                ExecutionState::starting_triggered(),
-                ExecutionState::starting_failed("some create error"),
-                ExecutionState::stopping_triggered(),
-                ExecutionState::removed(),
+                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::removed()),
+                (&new_instance_name, ExecutionState::starting_triggered()),
+                (
+                    &new_instance_name,
+                    ExecutionState::starting_failed("some create error"),
+                ),
+                (&new_instance_name, ExecutionState::stopping_triggered()),
+                (&new_instance_name, ExecutionState::removed()),
             ],
         )
         .await;
@@ -1021,7 +1030,7 @@ mod tests {
         let instance_name = workload_spec.instance_name.clone();
 
         let control_loop_state = ControlLoopState {
-            instance_name,
+            instance_name: instance_name.clone(),
             workload_id: Some(OLD_WORKLOAD_ID.to_string()),
             state_checker: Some(mock_state_checker),
             update_state_tx: state_change_tx.clone(),
@@ -1041,8 +1050,8 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                ExecutionState::stopping_triggered(),
-                ExecutionState::removed(),
+                (&instance_name, ExecutionState::stopping_triggered()),
+                (&instance_name, ExecutionState::removed()),
             ],
         )
         .await;
@@ -1089,7 +1098,7 @@ mod tests {
         let instance_name = workload_spec.instance_name.clone();
 
         let control_loop_state = ControlLoopState {
-            instance_name,
+            instance_name: instance_name.clone(),
             workload_id: Some(OLD_WORKLOAD_ID.to_string()),
             state_checker: Some(mock_state_checker),
             update_state_tx: state_change_tx.clone(),
@@ -1109,10 +1118,13 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                ExecutionState::stopping_triggered(),
-                ExecutionState::delete_failed("some delete error"),
-                ExecutionState::stopping_triggered(),
-                ExecutionState::removed(),
+                (&instance_name, ExecutionState::stopping_triggered()),
+                (
+                    &instance_name,
+                    ExecutionState::delete_failed("some delete error"),
+                ),
+                (&instance_name, ExecutionState::stopping_triggered()),
+                (&instance_name, ExecutionState::removed()),
             ],
         )
         .await;
@@ -1505,7 +1517,7 @@ mod tests {
         });
 
         let control_loop_state = ControlLoopState {
-            instance_name,
+            instance_name: instance_name.clone(),
             workload_id: None,
             state_checker: None,
             update_state_tx: state_change_tx.clone(),
@@ -1525,13 +1537,19 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                ExecutionState::starting_triggered(),
-                ExecutionState::starting_failed("some create error"),
-                ExecutionState::starting_triggered(),
-                ExecutionState::starting_failed("some create error"),
-                ExecutionState::restart_failed_no_retry(),
-                ExecutionState::stopping_triggered(),
-                ExecutionState::removed(),
+                (&instance_name, ExecutionState::starting_triggered()),
+                (
+                    &instance_name,
+                    ExecutionState::starting_failed("some create error"),
+                ),
+                (&instance_name, ExecutionState::starting_triggered()),
+                (
+                    &instance_name,
+                    ExecutionState::starting_failed("some create error"),
+                ),
+                (&instance_name, ExecutionState::restart_failed_no_retry()),
+                (&instance_name, ExecutionState::stopping_triggered()),
+                (&instance_name, ExecutionState::removed()),
             ],
         )
         .await;
