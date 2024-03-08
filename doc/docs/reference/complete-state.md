@@ -81,7 +81,6 @@ It is not necessary to provide the whole structure of the the [CompleteState](./
 
 ```bash
 desiredState:
-  apiVersion: v0.1
   workloads:
     nginx:
       restart: false
@@ -100,7 +99,6 @@ The object field mask can be constructed using the field names of the [CompleteS
 
    ```yaml
     desiredState:
-      apiVersion: v0.1
       workloads:
         nginx:
           agent: agent_A
@@ -119,7 +117,6 @@ The object field mask can be constructed using the field names of the [CompleteS
 
    ```yaml
    desiredState:
-     apiVersion: v0.1
      workloads:
        nginx:
          runtimeConfig: |
@@ -131,7 +128,6 @@ The object field mask can be constructed using the field names of the [CompleteS
 
    ```yaml title="new-state.yaml"
    desiredState:
-     apiVersion: v0.1
      workloads:
        nginx:
          restart: false
