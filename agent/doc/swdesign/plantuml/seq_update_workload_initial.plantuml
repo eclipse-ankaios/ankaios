@@ -38,12 +38,16 @@ loop for each runtime connector
             runtime_manager -> runtime_manager++--: create control interface
 
             alt found running workload has different config
-                runtime_manager -> wl_facade++: replace workload
+                runtime_manager -> wl_facade++: delete workload
                 wl_facade ->> wl_facade ++: decopule the specific actions
-                wl_facade -> runtime++: perform replace actions
+                wl_facade -> runtime++: perform delete actions
                 runtime -->> wl_facade--
-                deactivate wl_facade
                 wl_facade -->> runtime_manager--
+                runtime_manager -> runtime_manager ++--: add workload
+                note right
+                    see add workload digram for details
+                endnote
+                deactivate wl_facade
             else found running workload is identical to required workload
                 runtime_manager -> wl_facade++: resume workload
                 wl_facade ->> wl_facade ++: decopule the specific actions
@@ -79,6 +83,6 @@ runtime_manager -->> manager --
 
 manager ->> server --++: forward UpdateWorkloadState
 
-... 
+...
 
 @enduml
