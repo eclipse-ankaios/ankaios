@@ -105,10 +105,6 @@ fn generate_compact_state_output(
     let mut compact_state = serde_yaml::Value::Mapping(Default::default());
     for mask in object_field_mask {
         let splitted_masks: Vec<&str> = mask.split('.').collect();
-        // [impl->swdd~cli-returns-api-version-with-desired-state~1]
-        // [impl->swdd~cli-returns-api-version-with-startup-state~1]
-        append_api_version(&deserialized_state, &splitted_masks, &mut compact_state);
-
         if let Some(filtered_mapping) = get_filtered_value(&deserialized_state, &splitted_masks) {
             update_compact_state(
                 &mut compact_state,
@@ -119,36 +115,6 @@ fn generate_compact_state_output(
     }
 
     convert_to_output(compact_state)
-}
-
-fn append_api_version(
-    deserialized_state: &serde_yaml::Value,
-    mask: &[&str],
-    new_compact_state: &mut serde_yaml::Value,
-) {
-    let api_version_sub_mask = "apiVersion";
-    let (api_version_mask, api_version_value) = match mask.first() {
-        Some(top_mask) if *top_mask == "startupState" => (
-            vec![top_mask, api_version_sub_mask],
-            deserialized_state
-                .get(top_mask)
-                .and_then(|value| value.get(api_version_sub_mask)),
-        ),
-        Some(top_mask) if *top_mask == "desiredState" => (
-            vec![top_mask, api_version_sub_mask],
-            deserialized_state
-                .get(top_mask)
-                .and_then(|value| value.get(api_version_sub_mask)),
-        ),
-        _ => (Vec::new(), None),
-    };
-    if let Some(version_value) = api_version_value {
-        update_compact_state(
-            new_compact_state,
-            &api_version_mask,
-            version_value.to_owned(),
-        );
-    }
 }
 
 fn get_filtered_value<'a>(
@@ -1699,7 +1665,7 @@ mod tests {
             .unwrap();
 
         let expected_single_field_result_text =
-            "desiredState:\n  apiVersion: v0.1\n  workloads:\n    name3:\n      runtime: runtime\n";
+            "desiredState:\n  workloads:\n    name3:\n      runtime: runtime\n";
 
         assert_eq!(cmd_text, expected_single_field_result_text);
     }
@@ -1763,61 +1729,8 @@ mod tests {
             .await
             .unwrap();
         assert!(matches!(cmd_text,
-            txt if txt == *"desiredState:\n  apiVersion: v0.1\n  workloads:\n    name1:\n      runtime: runtime\n    name2:\n      runtime: runtime\n" ||
-            txt == *"desiredState:\n  apiVersion: v0.1\n  workloads:\n    name2:\n      runtime: runtime\n    name1:\n      runtime: runtime\n"));
-    }
-
-    // [utest->swdd~cli-returns-api-version-with-startup-state~1]
-    #[tokio::test]
-    async fn get_state_multiple_fields_of_startup_and_desired_state() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let mut test_data =
-            test_utils::generate_test_complete_state(vec![generate_test_workload_spec_with_param(
-                "agent_A".to_string(),
-                "name1".to_string(),
-                "runtime".to_string(),
-            )]);
-        // Just for testing purpose here -> check that the filtering takes the correct version
-        test_data.startup_state.api_version = "vStart".into();
-        test_data.desired_state.api_version = "vDesired".into();
-
-        let complete_state = vec![FromServer::Response(Response {
-            request_id: "TestCli".to_owned(),
-            response_content: ResponseContent::CompleteState(Box::new(test_data.clone())),
-        })];
-
-        let mut mock_client = MockGRPCCommunicationsClient::default();
-        mock_client
-            .expect_run()
-            .return_once(|_r, to_cli| prepare_server_response(complete_state, to_cli));
-
-        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
-        mock_new
-            .expect()
-            .return_once(move |_name, _server_address| mock_client);
-
-        let mut cmd = CliCommands::init(
-            3000,
-            "TestCli".to_string(),
-            Url::parse("http://localhost").unwrap(),
-        );
-
-        let cmd_text = cmd
-            .get_state(
-                vec![
-                    "startupState".to_owned(),
-                    "desiredState.workloads.name1.runtime".to_owned(),
-                ],
-                crate::cli::OutputFormat::Yaml,
-            )
-            .await
-            .unwrap();
-        assert!(matches!(cmd_text,
-            txt if txt == *"startupState:\n  apiVersion: vStart\n  workloads: {}\ndesiredState:\n  apiVersion: vDesired\n  workloads:\n    name1:\n      runtime: runtime\n" ||
-            txt == *"desiredState:\n  apiVersion: vDesired\n  workloads:\n    name1:\n      runtime: runtime\nstartupState:\n  apiVersion: vStart\n  workloads: {}\n"));
+            txt if txt == *"desiredState:\n  workloads:\n    name1:\n      runtime: runtime\n    name2:\n      runtime: runtime\n" ||
+            txt == *"desiredState:\n  workloads:\n    name2:\n      runtime: runtime\n    name1:\n      runtime: runtime\n"));
     }
 
     #[tokio::test]
@@ -2111,7 +2024,6 @@ mod tests {
 
         let expected_state = r#"{
             "desiredState": {
-                "apiVersion": "v0.1",
                 "workloads": {
                   "name1": {
                     "agent": "agent_A",
@@ -2167,7 +2079,6 @@ mod tests {
 
         let expected_state = r#"{
             "desiredState": {
-                "apiVersion": "v0.1",
                 "workloads": {
                     "name1": {
                         "agent": "agent_A",
