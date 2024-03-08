@@ -1,7 +1,0 @@
-workloads:
-  nginx_from_manifest1:
-    runtime: podman
-    restart: true
-    runtimeConfig: |
-      image: docker.io/nginx:latest
-      commandOptions: ["-p", "8081:80"]

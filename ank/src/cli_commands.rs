@@ -222,20 +222,20 @@ mod apply_manifests {
 
     // [impl->swdd~cli-apply-supports-ankaios-manifest~1]
     pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
-        let state_obj_parsing_check: State = serde_yaml::from_reader(&mut manifest.1)
-            .map_err(|err| format!("Invalid manifest data provided: {}", err))?;
-        match Object::try_from(state_obj_parsing_check) {
+        let state_obj_parsing_check: serde_yaml::Value =
+            serde_yaml::from_reader(&mut manifest.1)
+                .map_err(|err| format!("Invalid manifest data provided: {}", err))?;
+        match Object::try_from(&state_obj_parsing_check) {
             Err(err) => Err(format!(
                 "Error while parsing the manifest data.\nError: {err}"
             )),
             Ok(obj) => {
-                let mut workload_paths: HashSet<common::state_manipulation::Path> = HashSet::new();
+                let mut workload_paths: HashSet<Path> = HashSet::new();
                 for path in Vec::<Path>::from(&obj) {
                     let parts = path.parts();
                     if parts.len() > 1 {
-                        let _ = &mut workload_paths.insert(common::state_manipulation::Path::from(
-                            format!("{}.{}", parts[0], parts[1]),
-                        ));
+                        let _ = &mut workload_paths
+                            .insert(Path::from(format!("{}.{}", parts[0], parts[1])));
                     }
                 }
 
@@ -246,34 +246,46 @@ mod apply_manifests {
 
     // [impl->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     pub fn handle_agent_overwrite(
+        filter_masks: &Vec<common::state_manipulation::Path>,
         desired_agent: &Option<String>,
-        state_obj: &mut State,
+        mut state_obj: Object,
         table_output: &mut [ApplyManifestTableDisplay],
-    ) -> Result<(), String> {
+    ) -> Result<State, String> {
         // No agent name specified through cli!
         if desired_agent.is_none() {
-            let agent_names: HashSet<String> =
-                HashSet::from_iter(state_obj.clone().workloads.into_values().map(|wl| wl.agent));
-            // Agent name not specified in a workload spec!
             // [impl->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
-            if agent_names.is_empty() || agent_names.contains("") {
-                return Err(
-                    "No agent name specified -> use '--agent' option to specify!".to_owned(),
-                );
+            for field in filter_masks {
+                let path = &format!("{}.agent", String::from(field));
+                if state_obj.get(&path.into()).is_none() {
+                    return Err(
+                        "No agent name specified -> use '--agent' option to specify!".to_owned(),
+                    );
+                }
             }
         }
         // An agent name specified through cli -> do an agent name overwrite!
         else {
             let desired_agent_name = desired_agent.as_ref().unwrap().to_string();
-            for (_, wl) in &mut state_obj.workloads.iter_mut() {
-                wl.agent = desired_agent_name.to_string();
+            for field in filter_masks {
+                let path = &format!("{}.agent", String::from(field));
+                if state_obj
+                    .set(
+                        &path.into(),
+                        serde_yaml::Value::String(desired_agent_name.to_owned()),
+                    )
+                    .is_err()
+                {
+                    return Err("Could not find workload to update.".to_owned());
+                }
             }
             table_output.iter_mut().for_each(|row| {
                 row.base_info.agent = desired_agent_name.to_string();
             })
         }
 
-        Ok(())
+        state_obj
+            .try_into()
+            .map_err(|err| format!("Invalid manifest data provided: {}", err))
     }
 
     pub fn update_request_obj(
@@ -330,7 +342,7 @@ mod apply_manifests {
     ) -> Vec<String> {
         let mut filter_masks = paths
             .iter()
-            .map(|path| format!("{}.{}.{}", prefix, path.parts()[0], path.parts()[1]))
+            .map(|path| format!("{}.{}", prefix, String::from(path)))
             .collect::<Vec<String>>();
         filter_masks.sort();
         filter_masks.dedup();
@@ -372,12 +384,8 @@ mod apply_manifests {
                 ..Default::default()
             }
         } else {
-            let mut state_from_req_obj: common::objects::State = req_obj.try_into().unwrap();
-            handle_agent_overwrite(
-                &apply_args.agent_name,
-                &mut state_from_req_obj,
-                table_output,
-            )?;
+            let state_from_req_obj =
+                handle_agent_overwrite(&req_paths, &apply_args.agent_name, req_obj, table_output)?;
             CompleteState {
                 desired_state: state_from_req_obj,
                 ..Default::default()

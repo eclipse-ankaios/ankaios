@@ -90,7 +90,7 @@ Test Ankaios apply workload specification overwriting the agent names
 Test Ankaios apply workload specification defining the agent names
     [Setup]           Run Keywords    Setup Ankaios
     ...        AND    Set Global Variable    ${simple_yaml_file}    ${CONFIGS_DIR}/simple.yaml
-    ...        AND    Set Global Variable    ${manifest_no_agent}    ${CONFIGS_DIR}/manifest_no_agent_name.yaml
+    ...        AND    Set Global Variable    ${manifest_no_agent}   ${CONFIGS_DIR}/manifest_no_agent_name.yaml
 
     # Preconditions
     Given Ankaios server is started with config "${simple_yaml_file}"
@@ -101,7 +101,7 @@ Test Ankaios apply workload specification defining the agent names
     When user triggers "ank apply --agent agent_B ${manifest_no_agent}"
     # Asserts
     Then the last command shall finish with exit code "0"
-    And the workload "nginx_from_manifest1" shall have the execution state "Running(Ok)" on agent "agent_B" within "20" seconds
+    And the workload "nginx_from_manifest_no_agent_name" shall have the execution state "Running(Ok)" on agent "agent_B" within "20" seconds
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
