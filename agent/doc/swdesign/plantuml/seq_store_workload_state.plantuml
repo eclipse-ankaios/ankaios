@@ -8,13 +8,13 @@ end box
 box "Ankaios Agent"
     participant "Listen to Ankaios\nServer task" as listen_to_server
     participant "AgentManager" as manager
-    participant "ParameterStorage" as storage
+    participant "WorkloadStateStore" as wl_state_store
 end box
 
 activate server
 activate listen_to_server
 activate manager
-activate storage
+activate wl_state_store
 
 server ->> listen_to_server ++: UpdateWorkloadState
 note left
@@ -23,6 +23,6 @@ end note
 listen_to_server ->> manager --++: UpdateWorkloadState
 
 loop for each workload in the list
-    manager -> storage --++: update_workload_state
+    manager -> wl_state_store --++: update_workload_state
 end
 @enduml

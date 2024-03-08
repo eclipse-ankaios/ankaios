@@ -170,60 +170,7 @@ Needs:
 - utest
 - itest
 
-#### AgentManager shall receive workload states of the workloads it manages
-`swdd~agent-manager-receives-workload-states-of-its-workloads~1`
-
-Status: approved
-
-The AgentManager shall receive the workload states of the workloads it manages.
-
-Rationale: The agent uses the workload states of its workloads for handling inter-workload dependencies of workloads on the same agent.
-
-Tags:
-- AgentManager
-
-Needs:
-- impl
-- utest
-
-#### AgentManager shall store the workload states of the workloads it manages
-`swdd~agent-stores-workload-states-of-its-workloads~1`
-
-Status: approved
-
-The AgentManager shall store the workload states of the workloads it manages into the ParameterStorage.
-
-Comment: Empty workload states are not stored and skipped.
-
-Rationale: This ensures that the execution states of a workload and its inter-workload dependencies on the same agent are available.
-
-Tags:
-- AgentManager
-- ParameterStorage
-
-Needs:
-- impl
-- utest
-
-#### AgentManager shall send the workload states of the workload it manages to the server
-`swdd~agent-sends-workload-states-of-its-workloads-to-server~1`
-
-Status: approved
-
-When the AgentManager receives the workload states of the workload it manages, then the AgentManager shall send the workload states to the Ankaios server.
-
-Comment: Empty workload states are not sent.
-
-Rationale: The Ankaios server stores the workload states of the workloads managed by the Ankaios agent.
-
-Tags:
-- AgentManager
-
-Needs:
-- impl
-- utest
-
-#### Agent shall trigger workloads if its inter-workload dependencies are fulfilled
+#### Agent executes workload operations with fulfilled dependencies on receiving new workloads or workload states
 `swdd~agent-updates-workloads-with-fulfilled-dependencies~1`
 
 Status: approved
@@ -2369,9 +2316,15 @@ Needs:
 
 ### Handling UpdateWorkloadState
 
-After the Ankaios agent is started it receives an information about Workload States of other Workloads running in other agents. This information is needed for dependency management inside the Ankaios cluster.
+After the Ankaios agent is started it receives an information about Workload States of other Workloads running in other agents. In addition, the agent receives and stores workload states of the workloads it manages itself. This information is needed for inter-workload dependency management inside the Ankaios cluster.
 
-![Storing a Workload State](plantuml/seq_store_workload_state.svg)
+The following diagram shows the workflow of receiving workload states from other Ankaios agents from the Ankaios server:
+
+![Storing a Workload State of another agent](plantuml/seq_store_workload_state.svg)
+
+The following diagram shows the workflow of receiving workload states of workloads managed by the Ankaios agent itself:
+
+![Storing a Workload State of own workloads](plantuml/seq_store_own_workload_state.svg)
 
 #### AgentManager stores all Workload States
 `swdd~agent-manager-stores-all-workload-states~1`
@@ -2386,6 +2339,59 @@ The `UpdateWorkloadState` contains workload states of other workloads. The Workl
 Tags:
 - AgentManager
 - ParameterStorage
+
+Needs:
+- impl
+- utest
+
+#### AgentManager shall receive workload states of the workloads it manages
+`swdd~agent-manager-receives-workload-states-of-its-workloads~1`
+
+Status: approved
+
+The AgentManager shall receive the workload states of the workloads it manages.
+
+Rationale: The agent uses the workload states of its workloads for handling inter-workload dependencies of workloads on the same agent.
+
+Tags:
+- AgentManager
+
+Needs:
+- impl
+- utest
+
+#### AgentManager shall store the workload states of the workloads it manages
+`swdd~agent-stores-workload-states-of-its-workloads~1`
+
+Status: approved
+
+The AgentManager shall store the workload states of the workloads it manages into the ParameterStorage.
+
+Comment: Empty workload states are not stored and skipped.
+
+Rationale: This ensures that the execution states of a workload and its inter-workload dependencies on the same agent are available.
+
+Tags:
+- AgentManager
+- ParameterStorage
+
+Needs:
+- impl
+- utest
+
+#### AgentManager shall send the workload states of the workload it manages to the server
+`swdd~agent-sends-workload-states-of-its-workloads-to-server~1`
+
+Status: approved
+
+When the AgentManager receives the workload states of the workload it manages, then the AgentManager shall send the workload states to the Ankaios server.
+
+Comment: Empty workload states are not sent.
+
+Rationale: The Ankaios server stores the workload states of the workloads managed by the Ankaios agent.
+
+Tags:
+- AgentManager
 
 Needs:
 - impl
