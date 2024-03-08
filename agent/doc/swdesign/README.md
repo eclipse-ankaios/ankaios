@@ -2318,7 +2318,7 @@ Needs:
 
 After the Ankaios agent is started it receives an information about Workload States of other Workloads running in other agents. In addition, the agent receives and stores workload states of the workloads it manages itself. This information is needed for inter-workload dependency management inside the Ankaios cluster.
 
-The following diagram shows the workflow of receiving workload states from other Ankaios agents from the Ankaios server:
+The following diagram shows the workflow of receiving workload states of other Ankaios agents from the Ankaios server:
 
 ![Storing a Workload State of another agent](plantuml/seq_store_workload_state.svg)
 
