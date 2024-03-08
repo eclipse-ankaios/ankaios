@@ -868,8 +868,8 @@ mod tests {
         commands::{self, Request, RequestContent, Response, ResponseContent},
         from_server_interface::{FromServer, FromServerSender},
         objects::{
-            self, generate_test_workload_spec_with_param, CompleteState, ExecutionState,
-            StoredWorkloadSpec, Tag, WorkloadInstanceName, WorkloadSpec,
+            self, generate_test_workload_spec_with_param, CompleteState, ExecutionState, State,
+            StoredWorkloadSpec, Tag,
         },
         state_manipulation::{Object, Path},
         test_utils::{self, generate_test_complete_state},
@@ -2265,14 +2265,17 @@ mod tests {
     }
 
     #[test]
-    fn utest_parse_manifest_failed_invalid_manifest_content() {
+    fn utest_parse_manifest_invalid_manifest_content() {
         let manifest_content = io::Cursor::new(b"invalid manifest content");
 
-        assert!(parse_manifest(&mut (
+        let (obj, paths) = parse_manifest(&mut (
             "invalid_manifest_content".to_string(),
-            Box::new(manifest_content)
+            Box::new(manifest_content),
         ))
-        .is_err());
+        .unwrap();
+
+        assert!(TryInto::<State>::try_into(obj).is_err());
+        assert!(paths.is_empty());
     }
 
     #[test]
@@ -2392,93 +2395,84 @@ mod tests {
     #[test]
     fn utest_handle_agent_overwrite_agent_name_provided_through_agent_flag() {
         let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
-        let mut state = test_utils::generate_test_state_from_workloads(vec![WorkloadSpec {
-            ..Default::default()
-        }]);
 
-        let instance_name = WorkloadInstanceName::builder()
-            .agent_name("overwritten_agent_name")
-            .build();
+        let state = test_utils::generate_test_state_from_workloads(vec![
+            generate_test_workload_spec_with_param(
+                "agent_A".to_string(),
+                "wl1".to_string(),
+                "runtime_X".to_string(),
+            ),
+        ]);
 
-        let expected_state = test_utils::generate_test_state_from_workloads(vec![WorkloadSpec {
-            instance_name,
-            ..Default::default()
-        }]);
+        let expected_state = test_utils::generate_test_state_from_workloads(vec![
+            generate_test_workload_spec_with_param(
+                "overwritten_agent_name".to_string(),
+                "wl1".to_string(),
+                "runtime_X".to_string(),
+            ),
+        ]);
 
         assert_eq!(
-            Ok(()),
             handle_agent_overwrite(
+                &vec!["workloads.wl1".into()],
                 &Some("overwritten_agent_name".to_string()),
-                &mut state,
+                state.try_into().unwrap(),
                 &mut table_output
             )
+            .unwrap(),
+            expected_state
         );
-        assert_eq!(expected_state, state);
     }
 
     #[test]
     fn utest_handle_agent_overwrite_one_agent_name_provided_in_workload_specs() {
         let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
 
-        let instance_name = WorkloadInstanceName::builder()
-            .agent_name("agent_name")
-            .build();
-
-        let mut state = test_utils::generate_test_state_from_workloads(vec![
-            WorkloadSpec {
-                instance_name: instance_name.clone(),
-                ..Default::default()
-            },
-            WorkloadSpec {
-                instance_name: instance_name.clone(),
-                ..Default::default()
-            },
-        ]);
-
-        let expected_state = test_utils::generate_test_state_from_workloads(vec![
-            WorkloadSpec {
-                instance_name: instance_name.clone(),
-                ..Default::default()
-            },
-            WorkloadSpec {
-                instance_name: instance_name.clone(),
-                ..Default::default()
-            },
+        let state = test_utils::generate_test_state_from_workloads(vec![
+            generate_test_workload_spec_with_param(
+                "agent_A".to_string(),
+                "wl1".to_string(),
+                "runtime_X".to_string(),
+            ),
         ]);
 
         assert_eq!(
-            Ok(()),
-            handle_agent_overwrite(&None, &mut state, &mut table_output)
+            handle_agent_overwrite(
+                &vec!["workloads.wl1".into()],
+                &None,
+                state.clone().try_into().unwrap(),
+                &mut table_output
+            )
+            .unwrap(),
+            state
         );
-        assert_eq!(expected_state, state);
     }
 
     #[test]
     fn utest_handle_agent_overwrite_multiple_agent_names_provided_in_workload_specs() {
         let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
-
-        let mut state = test_utils::generate_test_state_from_workloads(vec![
-            WorkloadSpec {
-                instance_name: WorkloadInstanceName::builder()
-                    .agent_name("agent_name_1")
-                    .workload_name("wl1")
-                    .config(&String::from("config"))
-                    .build(),
-                ..Default::default()
-            },
-            WorkloadSpec {
-                instance_name: WorkloadInstanceName::builder()
-                    .agent_name("agent_name_2")
-                    .workload_name("wl2")
-                    .config(&String::from("config"))
-                    .build(),
-                ..Default::default()
-            },
+        let state = test_utils::generate_test_state_from_workloads(vec![
+            generate_test_workload_spec_with_param(
+                "agent_A".to_string(),
+                "wl1".to_string(),
+                "runtime_X".to_string(),
+            ),
+            generate_test_workload_spec_with_param(
+                "agent_B".to_string(),
+                "wl2".to_string(),
+                "runtime_X".to_string(),
+            ),
         ]);
 
         assert_eq!(
-            Ok(()),
-            handle_agent_overwrite(&None, &mut state, &mut table_output)
+            handle_agent_overwrite(
+                &vec!["workloads.wl1".into(), "workloads.wl2".into()],
+                &None,
+                state.clone().try_into().unwrap(),
+                &mut table_output
+            )
+            .unwrap(),
+            state
         );
     }
 
@@ -2486,20 +2480,21 @@ mod tests {
     #[test]
     fn utest_handle_agent_overwrite_no_agent_name_provided_at_all() {
         let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
-        let mut state = test_utils::generate_test_state_from_workloads(vec![
-            WorkloadSpec {
-                instance_name: WorkloadInstanceName::builder().workload_name("wl1").build(),
-                ..Default::default()
-            },
-            WorkloadSpec {
-                instance_name: WorkloadInstanceName::builder().workload_name("wl2").build(),
-                ..Default::default()
-            },
+        let state = test_utils::generate_test_state_from_workloads(vec![
+            generate_test_workload_spec_with_param(
+                "agent_A".to_string(),
+                "wl1".to_string(),
+                "runtime_X".to_string(),
+            ),
         ]);
+
+        let mut obj: Object = state.try_into().unwrap();
+
+        obj.remove(&"workloads.wl1.agent".into()).unwrap();
 
         assert_eq!(
             Err("No agent name specified -> use '--agent' option to specify!".to_string()),
-            handle_agent_overwrite(&None, &mut state, &mut table_output)
+            handle_agent_overwrite(&vec!["workloads.wl1".into()], &None, obj, &mut table_output)
         );
         assert!(table_output.is_empty())
     }
