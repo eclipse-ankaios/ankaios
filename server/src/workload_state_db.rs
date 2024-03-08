@@ -76,7 +76,7 @@ impl WorkloadStateDB {
         }
     }
 
-    // [impl->swdd~server-sets-state-of-new-workload-to-pending-initial~1]
+    // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
     pub fn initial_state(&mut self, workload_specs: &Vec<WorkloadSpec>) {
         for spec in workload_specs {
             self.stored_states
@@ -85,18 +85,19 @@ impl WorkloadStateDB {
                 .entry(spec.instance_name.to_owned())
                 .or_insert(WorkloadState {
                     instance_name: spec.instance_name.to_owned(),
-                    execution_state: ExecutionState::initial(),
+                    execution_state: if spec.instance_name.agent_name().is_empty() {
+                        ExecutionState::not_scheduled()
+                    } else {
+                        ExecutionState::initial()
+                    },
                 });
         }
     }
 
     // [impl->swdd~server-deletes-removed-workload-state~1]
-    fn remove(&mut self, state_to_remove: WorkloadState) {
-        if let Some(agent_states) = self
-            .stored_states
-            .get_mut(state_to_remove.instance_name.agent_name())
-        {
-            agent_states.remove(&state_to_remove.instance_name);
+    pub fn remove(&mut self, instance_name: &WorkloadInstanceName) {
+        if let Some(agent_states) = self.stored_states.get_mut(instance_name.agent_name()) {
+            agent_states.remove(instance_name);
         }
     }
 
@@ -104,7 +105,7 @@ impl WorkloadStateDB {
     pub fn process_new_states(&mut self, workload_states: Vec<WorkloadState>) {
         workload_states.into_iter().for_each(|workload_state| {
             if workload_state.execution_state.is_removed() {
-                self.remove(workload_state);
+                self.remove(&workload_state.instance_name);
             } else {
                 self.stored_states
                     .entry(workload_state.instance_name.agent_name().to_owned())
@@ -132,7 +133,10 @@ impl Default for WorkloadStateDB {
 mod tests {
     use std::collections::HashMap;
 
-    use common::objects::{generate_test_workload_state_with_agent, ExecutionState};
+    use common::objects::{
+        generate_test_workload_spec_with_runtime_config, generate_test_workload_state_with_agent,
+        ExecutionState,
+    };
 
     use super::WorkloadStateDB;
 
@@ -432,6 +436,50 @@ mod tests {
                 AGENT_A,
                 ExecutionState::starting("additional_info"),
             )]
+        )
+    }
+
+    // [utest->swdd~server-sets-state-of-new-workloads-to-pending~1]
+    #[test]
+    fn utest_workload_states_initial_state() {
+        let mut wls_db = WorkloadStateDB::new();
+
+        let wl_state_1 = generate_test_workload_spec_with_runtime_config(
+            "".to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            "some runtime".to_string(),
+            "config".to_string(),
+        );
+        let wl_state_3 = generate_test_workload_spec_with_runtime_config(
+            AGENT_B.to_string(),
+            WORKLOAD_NAME_3.to_string(),
+            "some runtime".to_string(),
+            "config".to_string(),
+        );
+
+        wls_db.initial_state(&vec![wl_state_1, wl_state_3]);
+
+        let mut wls_res = wls_db.get_all_workload_states();
+        wls_res.sort_by(|a, b| {
+            a.instance_name
+                .workload_name()
+                .cmp(b.instance_name.workload_name())
+        });
+
+        assert_eq!(
+            wls_res,
+            vec![
+                generate_test_workload_state_with_agent(
+                    WORKLOAD_NAME_1,
+                    "",
+                    ExecutionState::not_scheduled(),
+                ),
+                generate_test_workload_state_with_agent(
+                    WORKLOAD_NAME_3,
+                    AGENT_B,
+                    ExecutionState::initial(),
+                )
+            ]
         )
     }
 }

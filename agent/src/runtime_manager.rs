@@ -33,8 +33,7 @@ use crate::workload_scheduler::scheduler::WorkloadScheduler;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_state::workload_state_store::WorkloadStateStore;
 use crate::{
-    runtime_connectors::RuntimeFacade,
-    workload_operation::{WorkloadOperation, WorkloadOperations},
+    runtime_connectors::RuntimeFacade, workload_operation::WorkloadOperation,
     workload_state::WorkloadStateSender,
 };
 
@@ -92,7 +91,8 @@ impl RuntimeManager {
     ) {
         let workload_operations = self
             .workload_queue
-            .next_workload_operations(workload_state_db);
+            .next_workload_operations(workload_state_db)
+            .await;
 
         if !workload_operations.is_empty() {
             self.process_workloads_operations(workload_operations).await;
@@ -126,7 +126,7 @@ impl RuntimeManager {
                 .await;
         }
 
-        let workload_operations: WorkloadOperations =
+        let workload_operations: Vec<WorkloadOperation> =
             self.transform_into_workload_operations(added_workloads, deleted_workloads);
 
         let ready_workload_operations = self
@@ -243,13 +243,13 @@ impl RuntimeManager {
                                     instance_name.workload_name()
                                 );
 
-                                runtime.delete_workload(instance_name);
+                                runtime.delete_workload(instance_name, &self.update_state_tx);
                                 new_added_workloads.push(new_workload_spec);
                             }
                         } else {
                             // No added workload matches the found running one => delete it
                             // [impl->swdd~agent-existing-workloads-delete-unneeded~1]
-                            runtime.delete_workload(instance_name);
+                            runtime.delete_workload(instance_name, &self.update_state_tx);
                         }
                     }
                 }
@@ -266,8 +266,8 @@ impl RuntimeManager {
         &self,
         added_workloads: Vec<WorkloadSpec>,
         deleted_workloads: Vec<DeletedWorkload>,
-    ) -> WorkloadOperations {
-        let mut workload_operations: WorkloadOperations = Vec::new();
+    ) -> Vec<WorkloadOperation> {
+        let mut workload_operations: Vec<WorkloadOperation> = Vec::new();
         // transform into a hashmap to be able to search for updates
         // [impl->swdd~agent-updates-deleted-and-added-workloads~1]
         let mut added_workloads: HashMap<String, WorkloadSpec> = added_workloads
@@ -322,12 +322,15 @@ impl RuntimeManager {
         workload_operations
     }
 
-    async fn process_workloads_operations(&mut self, workload_operations: WorkloadOperations) {
+    async fn process_workloads_operations(&mut self, workload_operations: Vec<WorkloadOperation>) {
         for wl_operation in workload_operations {
             match wl_operation {
                 WorkloadOperation::Create(workload_spec) => self.add_workload(workload_spec).await,
-                WorkloadOperation::Update(workload_spec, _) => {
-                    self.update_workload(workload_spec).await
+                WorkloadOperation::Update(new_workload_spec, _) => {
+                    self.update_workload(new_workload_spec).await
+                }
+                WorkloadOperation::UpdateDeleteOnly(deleted_workload) => {
+                    self.update_delete_only(deleted_workload).await
                 }
                 WorkloadOperation::Delete(deleted_workload) => {
                     self.delete_workload(deleted_workload).await
@@ -392,7 +395,10 @@ impl RuntimeManager {
                 self.control_interface_tx.clone(),
                 &workload_spec,
             );
-            if let Err(err) = workload.update(workload_spec, control_interface).await {
+            if let Err(err) = workload
+                .update(Some(workload_spec), control_interface)
+                .await
+            {
                 log::error!("Failed to update workload '{}': '{}'", workload_name, err);
             }
         } else {
@@ -402,6 +408,15 @@ impl RuntimeManager {
             );
             // [impl->swdd~agent-add-on-update-missing-workload~1]
             self.add_workload(workload_spec).await;
+        }
+    }
+
+    async fn update_delete_only(&mut self, deleted_workload: DeletedWorkload) {
+        let workload_name = deleted_workload.instance_name.workload_name().to_owned();
+        if let Some(workload) = self.workloads.get_mut(&workload_name) {
+            if let Err(err) = workload.update(None, None).await {
+                log::error!("Failed to update workload '{}': '{}'", workload_name, err);
+            }
         }
     }
 
@@ -1084,8 +1099,14 @@ mod tests {
             .expect_update()
             .once()
             .with(
-                predicate::function(|workload_spec: &WorkloadSpec| {
-                    workload_spec.instance_name.workload_name() == WORKLOAD_1_NAME
+                predicate::function(|workload_spec: &Option<WorkloadSpec>| {
+                    workload_spec.is_some()
+                        && workload_spec
+                            .as_ref()
+                            .unwrap()
+                            .instance_name
+                            .workload_name()
+                            == WORKLOAD_1_NAME
                 }),
                 predicate::function(|control_interface: &Option<PipesChannelContext>| {
                     control_interface.is_some()
@@ -1320,7 +1341,13 @@ mod tests {
             .expect_update()
             .once()
             .withf(|workload_spec, control_interface| {
-                workload_spec.instance_name.workload_name() == WORKLOAD_1_NAME
+                workload_spec.is_some()
+                    && workload_spec
+                        .as_ref()
+                        .unwrap()
+                        .instance_name
+                        .workload_name()
+                        == WORKLOAD_1_NAME
                     && control_interface.is_some()
             })
             .return_once(move |_, _| Ok(()));

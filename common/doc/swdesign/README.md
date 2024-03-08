@@ -107,18 +107,16 @@ Ankaios shall support the following execution states with substates for a worklo
     * starting failed
 - running
     * ok
-    * delete failed
 - stopping
     * waiting to stop
     * stopping
+    * delete failed
 - succeeded
     * ok
-    * delete failed
 - failed
     * exec failed
     * unknown
     * lost
-    * delete failed
 - not scheduled
 - removed
 
@@ -131,18 +129,17 @@ Needs:
 
 The Following diagram shows all Ankaios workload states and the possible transitions between them:
 
-![Workload states](plantuml/state_workload_execution_states.svg)
+![Workload states](drawio/state_workload_execution_all_states.drawio.svg)
 
 #### Workload state transitions
 `swdd~common-workload-state-transitions~1`
 
 status: approved
 
-A workload execution state transition from `stopping` state to `running`, `succeeded` or `failed` yields again a `stopping` state.
+Upon transitioning from the 'stopping' or 'waiting_to_stop' state to either 'running', 'succeeded', or 'failed', the workload execution state shall yield again a 'stopping' state.
 
 Rationale:
-This hysteresis is especially needed if a workload has transitioned to a `stopping` state. It could be that the stopping is is progress, but the workload is still running and is reported to be running.
-To prevent flipping the state multiple times, the new value must be dependent on the old one and remain in `stopping`.
+This hysteresis is particularly necessary when the stopping operation is in progress, but the workload is still running and reported to be running. To prevent the state from flipping multiple times, the new value must depend on the old one and remain in the 'stopping' state.
 
 Tags:
 - Objects

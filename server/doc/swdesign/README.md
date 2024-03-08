@@ -127,11 +127,11 @@ Needs:
 - utest
 
 #### Server sets all new workloads to pending state
-`swdd~server-sets-state-of-new-workload-to-pending-initial~1`
+`swdd~server-sets-state-of-new-workloads-to-pending~1`
 
 Status: approved
 
-When the Ankaios server adds a new workload to its desired state, the workload state of this workload shall be set to Pending(Initial).
+When the Ankaios server adds a new workload to its desired state, the workload state of this workload shall be set to `Pending(Initial)` if the workload is assigned to an agent or to `NotScheduled` otherwise.
 
 Tags:
 - AnkaiosServer
@@ -650,6 +650,27 @@ When the ServerState deletes a workload from its State,
 the ServerState shall insert the DeleteConditions from the delete graph into the `DeletedWorkload` message.
 
 Rationale: The DeleteConditions allow an Ankaios agent to determine the correct circumstances when a workload is allowed to be deleted.
+
+Tags:
+- ServerState
+- DeleteGraph
+
+Needs:
+- impl
+- utest
+
+#### Server handles deleted workloads for empty agent
+`swdd~server-handles-deleted-workload-for-empty-agent~1`
+
+Status: approved
+
+When the Ankaios server distributes `DeletedWorkload` message and a deleted workload is not scheduled (agent is empty), the Ankaios server shall handle the deletion.
+
+Rationale:
+There is no agent that can take care of the operation so the sever has to handle it.
+
+Comment:
+Handling the operation includes deleting the workload, its state and notifying other agents about the change.
 
 Tags:
 - ServerState

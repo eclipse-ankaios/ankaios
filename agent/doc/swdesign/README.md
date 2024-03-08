@@ -161,6 +161,23 @@ Needs:
 - utest
 - itest
 
+#### AgentManager shall execute hysteresis on workload states of the workloads it manages
+`swdd~agent-manager-hysteresis_on-workload-states-of-its-workloads~1`
+
+Status: approved
+
+When the AgentManager receives workload states of workloads it manages, it shall execute hysteresis on the workload state as defined by the transitions between workload states.
+
+Rationale:
+A workload could still be running for some time while the stopping of the workload is in progress. The hysteresis on workload states takes care of a consistent transition between states.
+
+Tags:
+- AgentManager
+
+Needs:
+- impl
+- utest
+
 #### All communication with the Server through middleware
 `swdd~communication-to-from-agent-middleware~1`
 
@@ -344,7 +361,7 @@ Status: approved
 When the RuntimeManager creates new workload objects via the RuntimeFacade, the RuntimeManager shall store the Workload in a list of running workloads.
 
 Comment:
-Please note that the object creation is targeted here and thus also resume or replace of running workloads is in scope.
+Please note that the object creation is targeted here and thus also resuming of running workloads is in scope.
 
 Rationale:
 The workload object is later used to update or delete the workload. The object also stores the ControlInterface for the workload and manages it during the lifetime of the workload.
@@ -487,47 +504,6 @@ Needs:
 - impl
 - utest
 
-##### RuntimeManager handles existing workloads replace updated Workloads
-`swdd~agent-existing-workloads-replace-updated~1`
-
-Status: approved
-
-When handling existing workloads, for each found existing workload which is requested to be started and for which a change in the configuration was detected, the RuntimeManager shall request the RuntimeFacade to replace the workload.
-
-Comment:
-The RuntimeManager can check if the specified workload is already running, but was updated by comparing the new workload execution instance name with that of the running instance.
-
-Tags:
-- RuntimeManager
--
-Needs:
-- impl
-- utest
-
-##### RuntimeFacade replace Workload
-`swdd~agent-replace-workload~1`
-
-Status: approved
-
-When requested, the RuntimeFacade replaces a workload by:
-* request the wrapped runtime to delete the old workload
-* start the WorkloadControlLoop waiting for WorkloadCommands
-* request the create of the workload with the new config by sending a create command to the WorkloadControlLoop
-* return a new workload object containing a WorkloadCommandSender to communicate with the WorkloadControlLoop
-
-Comment:
-No need to specifically ask for starting the state checker at that point as runtimes are expected to always create a state checker when creating a workload.
-
-Rationale:
-The task handling stop and update commands is needed to ensure maintaining the order of the commands for a workload while not blocking Ankaios to wait until one command is complete.
-
-Tags:
-- RuntimeFacade
-
-Needs:
-- impl
-- utest
-
 ##### RuntimeManager handles existing workloads deletes unneeded workloads
 `swdd~agent-existing-workloads-delete-unneeded~1`
 
@@ -545,12 +521,14 @@ Needs:
 - utest
 
 ##### RuntimeFacade delete old workload
-`swdd~agent-delete-old-workload~1`
+`swdd~agent-delete-old-workload~2`
 
 Status: approved
 
-When requested, the RuntimeFacade deletes a workload by:
+When requested, the RuntimeFacade shall delete a workload by:
+* sending a `Stopping(Stopping)` with additional information "Triggered at runtime." workload state for that workload
 * deleting the workload via the runtime
+* sending a `Removed` workload state for that workload after the deletion was successful or `Stopping(DeleteFailed)` upon failure
 
 Comment:
 This delete is done by the specific runtime for a workload Id. No internal workload object is involved in this action.
@@ -629,13 +607,17 @@ Needs:
 - utest
 
 ##### WorkloadControlLoop executes create command
-`swdd~agent-workload-control-loop-executes-create~1`
+`swdd~agent-workload-control-loop-executes-create~2`
 
 Status: approved
 
 When the WorkloadControlLoop receives an create command, the WorkloadControlLoop shall:
+* send a `Pending(Starting)` with additional information "Triggered at runtime." workload state for that workload
 * create a new workload via the corresponding runtime connector (which creates and starts a state checker)
-* store the Id and reference to the state checker for the created workload inside the WorkloadControlLoop
+* upon successful creation of the workload:
+    * store the Id and reference to the state checker for the created workload inside the WorkloadControlLoop
+* upon failed creation of the workload:
+    * send a `Pending(StartingFailed)` workload state for that workload
 
 Comment:
 For details on the runtime connector specific actions, e.g., create, see the specific runtime connector workflows.
@@ -651,15 +633,13 @@ Needs:
 - utest
 
 ##### WorkloadControlLoop executes update command
-`swdd~agent-workload-control-loop-executes-update~1`
+`swdd~agent-workload-control-loop-executes-update~2`
 
 Status: approved
 
 When the WorkloadControlLoop started during the creation of the workload object receives an update command, the WorkloadControlLoop shall:
-* delete the old workload via the corresponding runtime connector
-* stop the state checker for the workload
-* create a new workload via the corresponding runtime connector (which creates and starts a state checker)
-* store the new Id and reference to the state checker inside the WorkloadControlLoop
+* execute a delete command for the old configuration of the workload
+* execute a create command for the new configuration of the workload
 
 Comment:
 For details on the runtime connector specific actions, e.g., delete, see the specific runtime connector workflows.
@@ -776,15 +756,19 @@ Needs:
 - utest
 
 ##### WorkloadControlLoop executes delete command
-`swdd~agent-workload-control-loop-executes-delete~1`
+`swdd~agent-workload-control-loop-executes-delete~2`
 
 Status: approved
 
 When the WorkloadControlLoop started during the creation of the workload object receives a delete command, the WorkloadControlLoop shall:
-* delete the old workload via the corresponding runtime connector
-* stop the state checker for the workload
-* send a removed workload state for that workload
-* stop the WorkloadControlLoop
+* send a `Stopping(Stopping)` workload state for that workload
+* delete the old workload via the corresponding runtime connector blocking the execution
+* upon successful deletion of the workload:
+    * stop the state checker for the workload
+    * send a `Removed` workload state for that workload
+    * stop the WorkloadControlLoop
+* upon failed deletion of the workload:
+    * send a `Stopping(DeleteFailed)` workload state for that workload
 
 Comment:
 For details on the runtime connector specific actions, e.g., delete, see the specific runtime connector workflows.
@@ -957,11 +941,11 @@ Needs:
 - stest
 
 ##### WorkloadControlLoop sets execution state of workload to failed after reaching the restart limit
-`swdd~agent-workload-control-loop-restart-limit-set-execution-state~1`
+`swdd~agent-workload-control-loop-restart-limit-set-execution-state~2`
 
 Status: approved
 
-When the WorkloadControlLoop receives a restart command and the maximum amount of restart attempts is reached, the WorkloadControlLoop shall set the execution state of the workload to `ExecFailed`.
+When the WorkloadControlLoop receives a restart command and the maximum amount of restart attempts is reached, the WorkloadControlLoop shall set the execution state of the workload to `Pending(StartingFailed)` with additional information "No more retries.".
 
 Rationale:
 The workload has a well defined state after reaching the restart attempt limit indicating that the create of the workload has failed.

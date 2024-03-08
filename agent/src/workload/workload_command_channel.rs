@@ -64,12 +64,12 @@ impl WorkloadCommandSender {
 
     pub async fn update(
         &self,
-        workload_spec: WorkloadSpec,
+        workload_spec: Option<WorkloadSpec>,
         control_interface_path: Option<PathBuf>,
     ) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
         self.sender
             .send(WorkloadCommand::Update(
-                Box::new(workload_spec),
+                workload_spec.map(Box::new),
                 control_interface_path,
             ))
             .await
@@ -102,7 +102,7 @@ mod tests {
             Some(PathBuf::from(PIPES_LOCATION));
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~1]
+    // [utest->swdd~agent-workload-control-loop-executes-create~2]
     #[tokio::test]
     async fn utest_send_create() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
@@ -119,7 +119,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~1]
+    // [utest->swdd~agent-workload-control-loop-executes-create~2]
     #[tokio::test]
     async fn utest_send_restart() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
@@ -136,24 +136,28 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~1]
+    // [utest->swdd~agent-workload-control-loop-executes-create~2]
     #[tokio::test]
     async fn utest_send_update() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
+        let workload_spec = WORKLOAD_SPEC.clone();
+        let control_interface = CONTROL_INTERFACE_PATH.clone();
+
         workload_command_sender
-            .update(WORKLOAD_SPEC.clone(), CONTROL_INTERFACE_PATH.clone())
+            .update(Some(workload_spec.clone()), control_interface.clone())
             .await
             .unwrap();
 
         let workload_command = workload_command_receiver.recv().await.unwrap();
 
-        assert!(
-            matches!(workload_command, WorkloadCommand::Update(workload_spec, control_interface_path) if workload_spec.instance_name == WORKLOAD_SPEC.instance_name && control_interface_path == *CONTROL_INTERFACE_PATH)
+        assert_eq!(
+            WorkloadCommand::Update(Some(Box::new(workload_spec)), control_interface.clone()),
+            workload_command
         );
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~1]
+    // [utest->swdd~agent-workload-control-loop-executes-create~2]
     #[tokio::test]
     async fn utest_send_delete() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();

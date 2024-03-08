@@ -22,7 +22,8 @@ use crate::std_extensions::UnreachableOption;
 
 use super::WorkloadInstanceName;
 
-const TRIGGERED_MSG: &str = "triggered at runtime";
+const TRIGGERED_MSG: &str = "Triggered at runtime.";
+const NO_MORE_RETRIES_MSG: &str = "No more retries.";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PendingSubstate {
@@ -60,11 +61,8 @@ pub enum RunningSubstate {
 }
 
 impl From<i32> for RunningSubstate {
-    fn from(x: i32) -> Self {
-        match x {
-            x if x == RunningSubstate::Ok as i32 => RunningSubstate::Ok,
-            _ => RunningSubstate::Ok,
-        }
+    fn from(_x: i32) -> Self {
+        RunningSubstate::Ok
     }
 }
 
@@ -109,11 +107,8 @@ pub enum SucceededSubstate {
 }
 
 impl From<i32> for SucceededSubstate {
-    fn from(x: i32) -> Self {
-        match x {
-            x if x == SucceededSubstate::Ok as i32 => SucceededSubstate::Ok,
-            _ => SucceededSubstate::Ok,
-        }
+    fn from(_x: i32) -> Self {
+        SucceededSubstate::Ok
     }
 }
 
@@ -168,25 +163,25 @@ pub enum ExecutionStateEnum {
 }
 
 // [impl->swdd~common-workload-state-transitions~1]
-impl ExecutionStateEnum {
-    pub fn transition(self, incoming: ExecutionStateEnum) -> ExecutionStateEnum {
-        match self {
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
-            | ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop) => match incoming {
+impl ExecutionState {
+    pub fn transition(&self, incoming: ExecutionState) -> ExecutionState {
+        match (&self.state, &incoming.state) {
+            (
+                ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+                | ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop),
                 ExecutionStateEnum::Running(RunningSubstate::Ok)
                 | ExecutionStateEnum::Succeeded(SucceededSubstate::Ok)
                 | ExecutionStateEnum::Failed(FailedSubstate::ExecFailed)
                 | ExecutionStateEnum::Failed(FailedSubstate::Lost)
-                | ExecutionStateEnum::Failed(FailedSubstate::Unknown) => {
-                    log::trace!(
-                        "Skipping transition from '{}' to '{}' state.",
-                        self,
-                        incoming
-                    );
-                    self
-                }
-                _ => incoming,
-            },
+                | ExecutionStateEnum::Failed(FailedSubstate::Unknown),
+            ) => {
+                log::trace!(
+                    "Skipping transition from '{}' to '{}' state.",
+                    self,
+                    incoming
+                );
+                self.clone()
+            }
             _ => incoming,
         }
     }
@@ -316,7 +311,7 @@ impl ExecutionState {
     pub fn restart_failed_no_retry() -> Self {
         ExecutionState {
             state: ExecutionStateEnum::Pending(PendingSubstate::StartingFailed),
-            additional_info: "No more retries.".to_string(),
+            additional_info: NO_MORE_RETRIES_MSG.to_string(),
         }
     }
 
@@ -400,20 +395,27 @@ impl ExecutionState {
     pub fn waiting_to_start() -> Self {
         ExecutionState {
             state: ExecutionStateEnum::Pending(PendingSubstate::WaitingToStart),
-            additional_info: "waiting for workload dependencies.".to_string(),
+            ..Default::default()
         }
     }
 
     pub fn waiting_to_stop() -> Self {
         ExecutionState {
             state: ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop),
-            additional_info: "waiting for workload dependencies.".to_string(),
+            ..Default::default()
         }
     }
 
     pub fn initial() -> Self {
         ExecutionState {
             state: ExecutionStateEnum::Pending(PendingSubstate::Initial),
+            ..Default::default()
+        }
+    }
+
+    pub fn not_scheduled() -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::NotScheduled,
             ..Default::default()
         }
     }
@@ -552,57 +554,52 @@ mod tests {
     use api::proto::{self};
 
     use crate::objects::{
-        workload_state::{FailedSubstate, RunningSubstate, StoppingSubstate, SucceededSubstate},
-        ExecutionState, ExecutionStateEnum, WorkloadInstanceName, WorkloadState,
+        workload_state::NO_MORE_RETRIES_MSG, ExecutionState, WorkloadInstanceName, WorkloadState,
     };
 
     // [utest->swdd~common-workload-state-transitions~1]
     #[test]
     fn utest_execution_state_transition_hysteresis() {
         assert_eq!(
-            ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop)
-                .transition(ExecutionStateEnum::Running(RunningSubstate::Ok)),
-            ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop)
+            ExecutionState::waiting_to_stop().transition(ExecutionState::running()),
+            ExecutionState::waiting_to_stop()
         );
         assert_eq!(
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
-                .transition(ExecutionStateEnum::Running(RunningSubstate::Ok)),
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+            ExecutionState::stopping_triggered().transition(ExecutionState::running()),
+            ExecutionState::stopping_triggered()
         );
         assert_eq!(
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
-                .transition(ExecutionStateEnum::Succeeded(SucceededSubstate::Ok)),
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+            ExecutionState::stopping_triggered().transition(ExecutionState::succeeded()),
+            ExecutionState::stopping_triggered()
         );
         assert_eq!(
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
-                .transition(ExecutionStateEnum::Failed(FailedSubstate::ExecFailed)),
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+            ExecutionState::stopping_triggered()
+                .transition(ExecutionState::failed("failed for some reason")),
+            ExecutionState::stopping_triggered()
         );
         assert_eq!(
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
-                .transition(ExecutionStateEnum::Failed(FailedSubstate::Lost)),
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+            ExecutionState::stopping_triggered().transition(ExecutionState::lost()),
+            ExecutionState::stopping_triggered()
         );
         assert_eq!(
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
-                .transition(ExecutionStateEnum::Failed(FailedSubstate::Unknown)),
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+            ExecutionState::stopping_triggered()
+                .transition(ExecutionState::unknown("I lost the thing")),
+            ExecutionState::stopping_triggered()
         );
         assert_eq!(
-            ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
-                .transition(ExecutionStateEnum::Stopping(StoppingSubstate::DeleteFailed)),
-            ExecutionStateEnum::Stopping(StoppingSubstate::DeleteFailed)
+            ExecutionState::stopping_triggered().transition(ExecutionState::delete_failed(
+                "mi mi mi, I could not delete it..."
+            )),
+            ExecutionState::delete_failed("mi mi mi, I could not delete it...")
         );
         assert_eq!(
-            ExecutionStateEnum::Stopping(StoppingSubstate::DeleteFailed)
-                .transition(ExecutionStateEnum::Running(RunningSubstate::Ok)),
-            ExecutionStateEnum::Running(RunningSubstate::Ok)
+            ExecutionState::delete_failed("mi mi mi, I could not delete it...")
+                .transition(ExecutionState::running()),
+            ExecutionState::running()
         );
         assert_eq!(
-            ExecutionStateEnum::Running(RunningSubstate::Ok)
-                .transition(ExecutionStateEnum::Failed(FailedSubstate::ExecFailed)),
-            ExecutionStateEnum::Failed(FailedSubstate::ExecFailed)
+            ExecutionState::running().transition(ExecutionState::failed("crashed")),
+            ExecutionState::failed("crashed")
         );
     }
 
@@ -682,7 +679,7 @@ mod tests {
         );
         assert_eq!(
             proto::ExecutionState {
-                additional_info: "No more retries.".to_string(),
+                additional_info: NO_MORE_RETRIES_MSG.to_string(),
                 execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
                     proto::Pending::StartingFailed.into(),
                 )),
@@ -785,7 +782,7 @@ mod tests {
         assert_eq!(
             ExecutionState::restart_failed_no_retry(),
             proto::ExecutionState {
-                additional_info: "No more retries.".to_string(),
+                additional_info: NO_MORE_RETRIES_MSG.to_string(),
                 execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
                     proto::Pending::StartingFailed.into(),
                 )),
@@ -887,7 +884,7 @@ mod tests {
         );
         assert_eq!(
             ExecutionState::restart_failed_no_retry().to_string(),
-            String::from("Pending(StartingFailed): 'No more retries.'")
+            format!("Pending(StartingFailed): '{}'", NO_MORE_RETRIES_MSG)
         );
         assert_eq!(
             ExecutionState::removed().to_string(),
