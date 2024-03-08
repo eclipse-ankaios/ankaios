@@ -37,9 +37,18 @@ The AgentManager is the entry component in the Ankaios agent and is responsible,
 
 The initial setup of the Ankaios agent is done in the main.rs and is also counted as part of this unit.
 
+### WorkloadOperation
+
+The RuntimeManager and the WorkloadScheduler use the WorkloadOperations to distinguish between the operations that shall be done on a workload.
+A WorkloadOperation represents a create, update or a delete operation of a workload and contains the workload configuration needed to execute the corresponding operation.
+
 ### RuntimeManager
 
-The RuntimeManager holds a list of RuntimeFacades (more precisely a list of runtime connectors wrapped into a RuntimeFacade) and a list of running workloads. It is also responsible for handling the update workload calls including the workload reuse and the logic of translating the added and deleted workload lists into commands to a RuntimeFacade or a WorkloadObject.
+The RuntimeManager holds a list of RuntimeFacades (more precisely a list of runtime connectors wrapped into a RuntimeFacade) and a list of running workloads. It is also responsible for handling the update workload calls including the workload reuse and the logic of translating the added and deleted workload lists into commands to a RuntimeFacade or a WorkloadObject. In addition, the RuntimeManager requests the WorkloadScheduler for WorkloadOperations with fulfilled inter-workload dependencies and executes the ready operations on the runtime through the RuntimeFacade.
+
+### WorkloadScheduler
+
+The WorkloadScheduler schedules the WorkloadOperations of workloads that have inter-workload dependencies. It uses an internal queue to temporarily store pending WorkloadOperations as long as the inter-workload dependencies are not in the expected state. The WorkloadScheduler uses the add conditions and delete conditions of workloads to schedule the WorkloadOperations.
 
 ### RuntimeFacade
 
@@ -65,10 +74,6 @@ The WorkloadCommandSender is a communication channel and responsible for sending
 ### WorkloadObject
 
 A WorkloadObject represents a workload inside the Ankaios agent. It holds the control interface and the sender of the WorkloadCommandSender to send WorkloadCommands to the WorkloadControlLoop.
-
-### WorkloadOperation
-
-A WorkloadOperation represents create, update and delete operations the Ankaios agent executes on the corresponding runtimes.
 
 ### ParameterStorage
 
