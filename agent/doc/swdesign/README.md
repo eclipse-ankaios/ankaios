@@ -947,14 +947,18 @@ Needs:
 
 Status: approved
 
-When handling existing workloads, for each found existing workload which is requested to be started and for which a change in the configuration was detected, the RuntimeManager shall request the RuntimeFacade to replace the workload.
+When the agent handles existing workloads, for each found existing workload which is requested to be started and for which a change in the configuration was detected, the RuntimeManager shall do the following:
 
-Comment:
-The RuntimeManager can check if the specified workload is already running, but was updated by comparing the new workload execution instance name with that of the running instance.
+- request the RuntimeFacade to delete the existing workload
+- request the RuntimeFacade to create the workload
+
+Comment: The RuntimeManager can check if the specified workload is already running, but was updated by comparing the new workload execution instance name with that of the running instance. The delete operation is executed immediately without considering the `DeleteCondition`s of the workload. The create operation is executed with considering the inter-workload dependencies of the workload.
+
+Rationale: The immediate delete prevents the worst case that the workload is existing a long period of time on the Runtime while the create is still pending because of unfulfilled inter-workload dependencies. The Ankaios agent cannot consider the `DeleteCondition`s because the information about the delete dependencies of the existing workload is not available anymore after an agent restart.
 
 Tags:
 - RuntimeManager
--
+
 Needs:
 - impl
 - utest
@@ -990,7 +994,7 @@ Status: approved
 
 When handling existing workloads, for each found existing workload that is not in the provided list of initial workloads, the RuntimeManager shall request the RuntimeFacade to delete the workload.
 
-If the the RuntimeManager finds an existing Workload that is not in the provided list of initial workloads, the Ankaios Agent shall stop the existing Workload.
+Comment: If the the RuntimeManager finds an existing Workload that is not in the provided list of initial workloads, the Ankaios Agent shall stop the existing Workload. The Ankaios agent cannot consider the `DeleteCondition`s of the existing workload because the information is not available after an agent restart.
 
 Tags:
 - RuntimeManager
