@@ -155,7 +155,7 @@ Needs:
 - impl
 - itest
 
-#### AgentManager shall listen for request from the Server
+#### AgentManager listens for requests from the Server
 `swdd~agent-manager-listens-requests-from-server~1`
 
 Status: approved
@@ -285,8 +285,7 @@ The following diagram show the general steps the Ankaios Agent takes when receiv
 
 Status: approved
 
-When the RuntimeManager receives the workloads of an `UpdateWorkload` message, then the RuntimeManager shall transform the workloads inside the message
-into a list of `WorkloadOperation`s containing workloads to create, update and delete.
+When the RuntimeManager receives the workloads of an `UpdateWorkload` message, then the RuntimeManager shall transform the workloads inside the message into a list of `WorkloadOperation`s containing workloads to create, update and delete.
 
 Comment: The list of `WorkloadOperation`s contains the actions on the workloads the RuntimeManager shall perform.
 
@@ -963,7 +962,8 @@ The following diagram describes the inter-workload dependency management when th
 
 Status: approved
 
-When the agent receives an `UpdateWorkloadState` or an `UpdateWorkload` message, then the agent shall create, update or delete workloads having fulfilled inter-workload dependency conditions.
+When the agent receives an `UpdateWorkloadState` or an `UpdateWorkload` message,
+and there are workloads with fulfilled inter-workload dependency conditions, then the agent shall create, update or delete those workloads.
 
 Comment: The Ankaios agent receives workload states from the Ankaios server and from the workloads the agent manages itself. Empty workload states are ignored.
 
@@ -979,12 +979,12 @@ Needs:
 - utest
 - stest
 
-#### Agent shall enqueue workload operations with unfulfilled inter-workload dependency states into waiting queue
+#### Agent enqueues workload operations with unfulfilled inter-workload dependency states into waiting queue
 `swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1`
 
 Status: approved
 
-When the RuntimeManager receives a `WorkloadOperation` containing a workload with an unfulfilled inter-workload dependency,
+When the RuntimeManager receives a `WorkloadOperation` containing a workload with unsatisfied inter-workload dependencies,
 the WorkloadScheduler shall put the workload operation into a waiting queue.
 
 Rationale: The workload shall only be started when its inter-workload dependencies are in the desired configured state.
@@ -1003,7 +1003,7 @@ Needs:
 
 Status: approved
 
-When the AgentManager receives an `UpdateWorkload` message from the server, then the RuntimeManager shall update the workloads the message contains.
+When the AgentManager receives an `UpdateWorkload` message from the server, then the RuntimeManager shall update the workloads contained within the message.
 
 Comment: The `UpdateWorkload` message contains workloads to create, update and delete.
 
@@ -1017,7 +1017,7 @@ Needs:
 - impl
 - utest
 
-#### The agent shall enqueue create workload operations with unfulfilled inter-workload dependencies
+#### The agent enqueues create workload operations with unfulfilled inter-workload dependencies
 `swdd~agent-enqueues-pending-create-workload-operations~1`
 
 Status: approved
@@ -1037,7 +1037,7 @@ Needs:
 - impl
 - utest
 
-#### The agent shall enqueue delete workload operations with unfulfilled inter-workload dependencies
+#### The agent enqueues delete workload operations with unfulfilled inter-workload dependencies
 `swdd~agent-enqueues-pending-delete-workload-operations~1`
 
 Status: approved
@@ -1060,7 +1060,7 @@ Needs:
 - impl
 - utest
 
-#### The agent shall enqueue update workload operations with unfulfilled delete dependencies
+#### The agent enqueues update workload operations with unfulfilled delete dependencies
 `swdd~agent-enqueues-pending-update-delete-workload-operations~1`
 
 Status: approved
@@ -1082,7 +1082,7 @@ Needs:
 - impl
 - utest
 
-#### The agent shall enqueue create workload operations for updates with fulfilled delete dependencies
+#### The agent enqueues create workload operations for updates with fulfilled delete dependencies
 `swdd~agent-enqueues-pending-create-on-update-workload-operations~1`
 
 Status: approved
@@ -1101,7 +1101,7 @@ Needs:
 - impl
 - utest
 
-#### The agent shall perform updates with fulfilled delete dependencies immediately
+#### The agent executes updates with fulfilled delete dependencies immediately
 `swdd~agent-perform-update-delete-only~1`
 
 Status: approved
@@ -1111,7 +1111,7 @@ and the workload is an inter-workload dependency of at least one other workload
 and the workload has fulfilled `DeleteCondition`s,
 then the agent shall delete the workload immediately.
 
-Rationale: With default update strategy `AT_MOST_ONCE` the agent shall delete an updated workload with fulfilled delete conditions immediately. This prevents sthe old workload from existing on the Runtime for a long period of time until the create of the new workload can be executed.
+Rationale: With the default update strategy `AT_MOST_ONCE`, the agent shall immediately delete an updated workload with fulfilled delete conditions. This prevents the old workload from persisting on the Runtime for an extended period until the creation of the new workload can be executed.
 
 Tags:
 - RuntimeManager
@@ -1122,7 +1122,7 @@ Needs:
 - impl
 - utest
 
-#### The agent shall report the workload state pending for workloads with unfulfilled AddConditions
+#### The agent reports workload state pending for workloads with unfulfilled AddConditions
 `swdd~agent-reports-pending-create-workload-state~1`
 
 Status: approved
@@ -1142,7 +1142,7 @@ Needs:
 - utest
 - stest
 
-#### The agent shall report workload state stopping for workloads with unfulfilled DeleteConditions
+#### The agent reports workload state stopping for workloads with unfulfilled DeleteConditions
 `swdd~agent-reports-pending-delete-workload-state~1`
 
 Status: approved
@@ -1162,7 +1162,7 @@ Needs:
 - utest
 - stest
 
-#### The agent shall report workload state stopping for updated workloads with unfulfilled DeleteConditions
+#### The agent reports workload state stopping for updated workloads with unfulfilled DeleteConditions
 `swdd~agent-reports-pending-delete-workload-state-on-pending-update-delete~1`
 
 Status: approved
@@ -1182,7 +1182,7 @@ Needs:
 - utest
 - stest
 
-#### The agent shall report workload state pending for updated workloads with fulfilled DeleteConditions
+#### The agent reports workload state pending for updated workloads with fulfilled DeleteConditions
 `swdd~agent-reports-pending-create-workload-state-on-pending-update-create~1`
 
 Status: approved
@@ -1202,7 +1202,7 @@ Needs:
 - utest
 - stest
 
-#### The agent shall not enqueue a delete only operation of an update
+#### The agent enqueues a delete only operation of an update
 `swdd~agent-shall-not-enqueue-update-delete-only-workload-operation~1`
 
 Status: approved
@@ -1248,7 +1248,7 @@ Needs:
 - impl
 - utest
 
-#### ExecutionStates of inter-workload dependencies shall fulfill the AddConditions
+#### ExecutionState of inter-workload dependency fulfills the AddConditions
 `swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1`
 
 Status: approved
@@ -1273,12 +1273,12 @@ Needs:
 - impl
 - utest
 
-#### ExecutionStates of inter-workload dependencies shall fulfill the DeleteConditions
+#### ExecutionState of workload fulfills the DeleteConditions of an inter-workload dependency
 `swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1`
 
 Status: approved
 
-The `ExecutionState` of an inter-workload dependency shall fulfill the `DeleteCondition` according to the following table:
+The `ExecutionState` of a workload shall fulfill the `DeleteCondition` of an inter-workload dependency according to the following table:
 
 | ExecutionState                                                           | DeleteCondition                               |
 |--------------------------------------------------------------------------|-----------------------------------------------|
@@ -2358,7 +2358,7 @@ Needs:
 - impl
 - utest
 
-#### AgentManager shall receive workload states of the workloads it manages
+#### AgentManager receives workload states of the workloads it manages
 `swdd~agent-manager-receives-workload-states-of-its-workloads~1`
 
 Status: approved
@@ -2374,7 +2374,7 @@ Needs:
 - impl
 - utest
 
-#### AgentManager shall store the workload states of the workloads it manages
+#### AgentManager stores the workload states of the workloads it manages
 `swdd~agent-stores-workload-states-of-its-workloads~1`
 
 Status: approved
@@ -2393,14 +2393,14 @@ Needs:
 - impl
 - utest
 
-#### AgentManager shall send the workload states of the workload it manages to the server
+#### AgentManager sends the workload states of the workload it manages to the server
 `swdd~agent-sends-workload-states-of-its-workloads-to-server~1`
 
 Status: approved
 
 When the AgentManager receives the workload states of the workload it manages, then the AgentManager shall send the workload states to the Ankaios server.
 
-Comment: Empty workload states are not sent.
+Comment: Empty workload states are omitted.
 
 Rationale: The Ankaios server stores the workload states of the workloads managed by the Ankaios agent.
 

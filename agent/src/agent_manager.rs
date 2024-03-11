@@ -145,7 +145,6 @@ impl AgentManager {
         }
     }
 
-    //
     async fn store_and_forward_own_workload_states(&mut self, to_server_msg: ToServer) {
         log::debug!("Storing and forwarding own workload states.");
 
