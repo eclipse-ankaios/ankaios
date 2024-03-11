@@ -18,7 +18,7 @@ mod server_state;
 
 use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
-use common::objects::{ApiVersion, CompleteState};
+use common::objects::{ApiVersion, CompleteState, DeletedWorkload, ExecutionState, WorkloadState};
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
 
@@ -66,6 +66,9 @@ impl AnkaiosServer {
         if let Some(state) = startup_state {
             match self.server_state.update(state, vec![]) {
                 Ok(Some((added_workloads, deleted_workloads))) => {
+                    // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
+                    self.workload_state_db.initial_state(&added_workloads);
+
                     let from_server_command = FromServer::UpdateWorkload(UpdateWorkload {
                         added_workloads,
                         deleted_workloads,
@@ -88,6 +91,34 @@ impl AnkaiosServer {
         }
         self.listen_to_agents().await;
         Ok(())
+    }
+
+    // [impl->swdd~server-handles-deleted-workload-for-empty-agent~1]
+    async fn handle_unscheduled_deleted_workloads(
+        &mut self,
+        mut deleted_workloads: Vec<DeletedWorkload>,
+    ) -> Vec<DeletedWorkload> {
+        let mut deleted_states = vec![];
+        deleted_workloads.retain(|deleted_wl| {
+            if deleted_wl.instance_name.agent_name().is_empty() {
+                self.workload_state_db.remove(&deleted_wl.instance_name);
+                deleted_states.push(WorkloadState {
+                    instance_name: deleted_wl.instance_name.clone(),
+                    execution_state: ExecutionState::removed(),
+                });
+
+                return false;
+            }
+            true
+        });
+        if !deleted_states.is_empty() {
+            self.to_agents
+                .update_workload_state(deleted_states)
+                .await
+                .unwrap_or_illegal_state();
+        }
+
+        deleted_workloads
     }
 
     async fn listen_to_agents(&mut self) {
@@ -233,12 +264,16 @@ impl AnkaiosServer {
                             .server_state
                             .update(update_state_request.state, update_state_request.update_mask)
                         {
-                            Ok(Some((added_workloads, deleted_workloads))) => {
+                            Ok(Some((added_workloads, mut deleted_workloads))) => {
                                 log::info!(
                                         "The update has {} new or updated workloads, {} workloads to delete",
                                         added_workloads.len(),
                                         deleted_workloads.len()
                                     );
+
+                                // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
+                                self.workload_state_db.initial_state(&added_workloads);
+
                                 let added_workloads_names = added_workloads
                                     .iter()
                                     .map(|x| x.instance_name.to_string())
@@ -247,6 +282,11 @@ impl AnkaiosServer {
                                     .iter()
                                     .map(|x| x.instance_name.to_string())
                                     .collect();
+
+                                // [impl->swdd~server-handles-deleted-workload-for-empty-agent~1]
+                                deleted_workloads = self
+                                    .handle_unscheduled_deleted_workloads(deleted_workloads)
+                                    .await;
 
                                 let from_server_command =
                                     FromServer::UpdateWorkload(UpdateWorkload {
@@ -348,7 +388,8 @@ mod tests {
     use common::from_server_interface::FromServer;
     use common::objects::{
         generate_test_stored_workload_spec, generate_test_workload_spec_with_param, ApiVersion,
-        CompleteState, DeletedWorkload, ExecutionState, State,
+        CompleteState, DeletedWorkload, ExecutionState, ExecutionStateEnum, PendingSubstate, State,
+        WorkloadState,
     };
 
     use common::to_server_interface::ToServerInterface;
@@ -520,11 +561,12 @@ mod tests {
         server_task.abort();
     }
 
+    // [utest->swdd~server-sets-state-of-new-workloads-to-pending~1]
     // [utest->swdd~server-uses-async-channels~1]
     #[tokio::test]
     async fn utest_server_start_with_valid_startup_config() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let (_to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
@@ -544,7 +586,7 @@ mod tests {
             ..Default::default()
         };
 
-        let added_workloads = vec![workload];
+        let added_workloads = vec![workload.clone()];
         let deleted_workloads = vec![];
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
@@ -563,7 +605,13 @@ mod tests {
 
         server.server_state = mock_server_state;
 
-        let server_task = tokio::spawn(async move { server.start(Some(startup_state)).await });
+        // let server_task = tokio::spawn(async move { server.start(Some(startup_state)).await });
+
+        let server_handle = server.start(Some(startup_state));
+
+        // The receiver in the server receives the messages and terminates the infinite waiting-loop
+        drop(to_server);
+        tokio::join!(server_handle).0.unwrap();
 
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
@@ -573,7 +621,20 @@ mod tests {
         });
         assert_eq!(from_server_command, expected_from_server_command);
 
-        server_task.abort();
+        assert_eq!(
+            server
+                .workload_state_db
+                .get_workload_state_for_agent(AGENT_A),
+            vec![WorkloadState {
+                instance_name: workload.instance_name,
+                execution_state: ExecutionState {
+                    state: ExecutionStateEnum::Pending(PendingSubstate::Initial),
+                    additional_info: Default::default()
+                }
+            }]
+        );
+
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
     // [utest->swdd~server-uses-async-channels~1]
@@ -1124,6 +1185,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-sets-state-of-new-workloads-to-pending~1]
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
@@ -1248,6 +1310,19 @@ mod tests {
                 })
             }) if request_id == REQUEST_ID_A && added_workloads == vec![updated_w1.instance_name.to_string()] && deleted_workloads == vec![updated_w1.instance_name.to_string()]
         ));
+
+        assert_eq!(
+            server
+                .workload_state_db
+                .get_workload_state_for_agent(AGENT_A),
+            vec![WorkloadState {
+                instance_name: w1.instance_name,
+                execution_state: ExecutionState {
+                    state: ExecutionStateEnum::Pending(PendingSubstate::Initial),
+                    additional_info: Default::default()
+                }
+            }]
+        );
 
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }

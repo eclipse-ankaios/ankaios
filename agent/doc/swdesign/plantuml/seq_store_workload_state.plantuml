@@ -8,7 +8,7 @@ end box
 box "Ankaios Agent"
     participant "Listen to Ankaios\nServer task" as listen_to_server
     participant "AgentManager" as manager
-    participant "ParameterStorage" as storage
+    participant "WorkloadStateStore" as storage
 end box
 
 activate server

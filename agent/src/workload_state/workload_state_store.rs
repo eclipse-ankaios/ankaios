@@ -19,11 +19,11 @@ use std::collections::VecDeque;
 
 type WorkloadStates = HashMap<String, common::objects::ExecutionState>;
 
-pub struct ParameterStorage {
+pub struct WorkloadStateStore {
     states_storage: WorkloadStates,
 }
 
-impl ParameterStorage {
+impl WorkloadStateStore {
     pub fn new() -> Self {
         Self {
             states_storage: HashMap::new(),
@@ -46,29 +46,29 @@ impl ParameterStorage {
 }
 
 #[cfg(test)]
-static NEW_MOCK_PARAMETER_STORAGE: std::sync::Mutex<Option<MockParameterStorage>> =
+static NEW_MOCK_WL_STATE_STORE: std::sync::Mutex<Option<MockWorkloadStateStore>> =
     std::sync::Mutex::new(None);
 
 #[cfg(test)]
-pub fn mock_parameter_storage_new_returns(mock_parameter_storage: MockParameterStorage) {
-    *NEW_MOCK_PARAMETER_STORAGE.lock().unwrap() = Some(mock_parameter_storage);
+pub fn mock_parameter_storage_new_returns(mock_parameter_storage: MockWorkloadStateStore) {
+    *NEW_MOCK_WL_STATE_STORE.lock().unwrap() = Some(mock_parameter_storage);
 }
 
 #[cfg(test)]
 #[derive(Default)]
-pub struct MockParameterStorage {
+pub struct MockWorkloadStateStore {
     pub expected_update_workload_state_parameters: VecDeque<WorkloadState>,
     pub states_storage: HashMap<String, ExecutionState>,
 }
 
 #[cfg(test)]
-impl MockParameterStorage {
-    pub fn new() -> MockParameterStorage {
-        NEW_MOCK_PARAMETER_STORAGE
+impl MockWorkloadStateStore {
+    pub fn new() -> MockWorkloadStateStore {
+        NEW_MOCK_WL_STATE_STORE
             .lock()
-            .expect("Could not get lock for NEW_MOCK_PARAMETER_STORAGE")
+            .expect("Could not get lock for NEW_MOCK_WL_STATE_STORE")
             .take()
-            .expect("Return value for MockParameterStorage::new() not set")
+            .expect("Return value for MockWorkloadStateStore::new() not set")
     }
 
     pub fn update_workload_state(&mut self, workload_state: WorkloadState) {
@@ -89,7 +89,7 @@ impl MockParameterStorage {
 }
 
 #[cfg(test)]
-impl Drop for MockParameterStorage {
+impl Drop for MockWorkloadStateStore {
     fn drop(&mut self) {
         assert!(self.expected_update_workload_state_parameters.is_empty());
     }
@@ -97,12 +97,12 @@ impl Drop for MockParameterStorage {
 
 #[cfg(test)]
 mod tests {
-    use super::ParameterStorage;
+    use super::WorkloadStateStore;
     use common::objects::ExecutionState;
 
     #[test]
     fn utest_update_storage_empty_storage_add_one() {
-        let mut storage = ParameterStorage::new();
+        let mut storage = WorkloadStateStore::new();
         assert!(storage.states_storage.is_empty());
 
         let test_update = common::objects::generate_test_workload_state_with_agent(
@@ -128,7 +128,7 @@ mod tests {
 
     #[test]
     fn utest_update_storage_removed_gets_state_deleted() {
-        let mut storage = ParameterStorage::new();
+        let mut storage = WorkloadStateStore::new();
         assert!(storage.states_storage.is_empty());
 
         let test_update = common::objects::generate_test_workload_state_with_agent(
@@ -149,7 +149,7 @@ mod tests {
 
     #[test]
     fn utest_update_storage_update_record() {
-        let mut storage = ParameterStorage::new();
+        let mut storage = WorkloadStateStore::new();
         assert!(storage.states_storage.is_empty());
 
         let test_update = common::objects::generate_test_workload_state_with_agent(
@@ -178,7 +178,7 @@ mod tests {
 
     #[test]
     fn utest_update_storage_add_multiple_records() {
-        let mut storage = ParameterStorage::new();
+        let mut storage = WorkloadStateStore::new();
         assert!(storage.states_storage.is_empty());
 
         let agent_name_a = String::from("test_agent_a");
@@ -227,7 +227,7 @@ mod tests {
 
     #[test]
     fn utest_get_state_of_workload() {
-        let mut parameter_storage = ParameterStorage::new();
+        let mut parameter_storage = WorkloadStateStore::new();
         parameter_storage
             .states_storage
             .insert("workload_1".to_owned(), ExecutionState::running());
@@ -240,7 +240,7 @@ mod tests {
 
     #[test]
     fn utest_get_state_of_workload_not_existing_workload() {
-        let mut parameter_storage = ParameterStorage::new();
+        let mut parameter_storage = WorkloadStateStore::new();
         parameter_storage
             .states_storage
             .insert("workload_1".to_owned(), ExecutionState::running());

@@ -1,0 +1,4 @@
+desiredState:
+  workloads:
+    simple:
+      agent: ""

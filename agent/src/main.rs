@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use common::communications_client::CommunicationsClient;
-use common::objects::AgentName;
+use common::objects::{AgentName, WorkloadState};
 use common::to_server_interface::ToServer;
 use generic_polling_state_checker::GenericPollingStateChecker;
 use std::collections::HashMap;
@@ -22,7 +22,6 @@ use tokio::try_join;
 mod agent_manager;
 mod cli;
 mod control_interface;
-mod parameter_storage;
 mod runtime_connectors;
 #[cfg(test)]
 pub mod test_helper;
@@ -32,6 +31,8 @@ mod generic_polling_state_checker;
 mod runtime_manager;
 mod workload;
 mod workload_scheduler;
+
+mod workload_state;
 
 use common::from_server_interface::FromServer;
 use common::std_extensions::{GracefulExitResult, IllegalStateResult, UnreachableResult};
@@ -66,7 +67,7 @@ async fn main() {
     let (to_manager, manager_receiver) = tokio::sync::mpsc::channel::<FromServer>(BUFFER_SIZE);
     let (to_server, server_receiver) = tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
     let (workload_state_sender, workload_state_receiver) =
-        tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
+        tokio::sync::mpsc::channel::<WorkloadState>(BUFFER_SIZE);
 
     let run_directory = args
         .get_run_directory()
