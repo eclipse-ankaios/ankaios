@@ -25,6 +25,7 @@ use common::{
     commands::{CompleteStateRequest, Response, ResponseContent},
     from_server_interface::{FromServer, FromServerReceiver},
     objects::{CompleteState, State, StoredWorkloadSpec, Tag},
+    state_manipulation::{Object, Path},
     to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
 
@@ -608,49 +609,91 @@ impl CliCommands {
         }
     }
 
+    fn add_default_workload_spec_per_update_mask(
+        update_mask: &Vec<String>,
+        complete_state: &mut CompleteState,
+    ) {
+        for field_mask in update_mask {
+            let path: Path = field_mask.into();
+
+            // if we want to set an attribute of a workload create a default object for the workload
+            if path.parts().len() >= 4
+                && path.parts()[0] == "desiredState"
+                && path.parts()[1] == "workloads"
+            {
+                let stored_workload = StoredWorkloadSpec {
+                    agent: "".to_string(),
+                    runtime: "".to_string(),
+                    runtime_config: "".to_string(),
+                    ..Default::default()
+                };
+
+                complete_state
+                    .desired_state
+                    .workloads
+                    .insert(path.parts()[2].to_string(), stored_workload);
+            }
+        }
+    }
+
     pub async fn set_state(
         &mut self,
         object_field_mask: Vec<String>,
         state_object_file: Option<String>,
-    ) {
+    ) -> Result<(), CliError> {
         output_debug!(
             "Got: object_field_mask={:?} state_object_file={:?}",
             object_field_mask,
             state_object_file
         );
-        let mut complete_state_input = CompleteState::default();
+
+        let mut complete_state = CompleteState::default();
         if let Some(state_object_file) = state_object_file {
             let state_object_data =
                 read_file_to_string(state_object_file)
                     .await
                     .unwrap_or_else(|error| {
-                        panic!("Could not read the state object file.\nError: {error}")
+                        panic!("Could not read the state object file.\nError: {}", error)
                     });
+            let value: serde_yaml::Value = serde_yaml::from_str(&state_object_data)?;
+            let x = Object::try_from(&value)?;
 
-            // [impl -> swdd~cli-supports-yaml-to-set-desired-state~1]
-            match serde_yaml::from_str(&state_object_data) {
-                Ok(parsed_complete_state) => complete_state_input = parsed_complete_state,
-                Err(error) => {
-                    output_and_error!("Error while parsing the state object data: '{error}'.");
-                }
+            // This here is a workaround for the default workload specs
+            Self::add_default_workload_spec_per_update_mask(
+                &object_field_mask,
+                &mut complete_state,
+            );
+
+            // now overwrite with the values from the field mask
+            let mut complete_state_object: Object = complete_state.try_into()?;
+            for field_mask in &object_field_mask {
+                let path: Path = field_mask.into();
+
+                complete_state_object
+                    .set(
+                        &path,
+                        x.get(&path)
+                            .ok_or(CliError::ExecutionError(format!(
+                                "Specified update mask '{field_mask}' not found in the input config.",
+                            )))?
+                            .clone(),
+                    )
+                    .map_err(|err| CliError::ExecutionError(err.to_string()))?;
             }
+            complete_state = complete_state_object.try_into()?;
         }
 
         output_debug!(
             "Send UpdateState request with the CompleteState {:?}",
-            complete_state_input.clone()
+            complete_state
         );
         // send update request
         self.to_server
-            .update_state(
-                self.cli_name.to_owned(),
-                complete_state_input,
-                object_field_mask,
-            )
+            .update_state(self.cli_name.to_owned(), complete_state, object_field_mask)
             .await
-            .unwrap_or_else(|err| {
-                output_and_error!("Update state failed: '{}'", err);
-            });
+            .map_err(|err| CliError::ExecutionError(err.to_string()))?;
+
+        Ok(())
     }
 
     // [impl->swdd~cli-provides-list-of-workloads~1]
