@@ -55,7 +55,7 @@ impl AgentManager {
     }
 
     pub async fn start(&mut self) {
-        log::info!("Starting ...");
+        log::info!("Awaiting commands from the server ...");
         loop {
             tokio::select! {
                 from_server_msg = self.from_server_receiver.recv() => {
@@ -110,7 +110,7 @@ impl AgentManager {
                 if !new_workload_states.is_empty() {
                     // [impl->swdd~agent-manager-stores-all-workload-states~1]
                     for new_workload_state in new_workload_states {
-                        log::info!("The server reports workload state '{:?}' for the workload '{}' in the agent '{}'", new_workload_state.execution_state,
+                        log::debug!("The server reports workload state '{:?}' for the workload '{}' in the agent '{}'", new_workload_state.execution_state,
                     new_workload_state.instance_name.workload_name(), new_workload_state.instance_name.agent_name());
                         self.workload_state_store
                             .update_workload_state(new_workload_state);
