@@ -12,11 +12,8 @@ box "Ankaios Agent"
 end box
 
 activate server
-activate listen_to_server
-activate manager
-activate wl_state_store
 
-server ->> listen_to_server ++: UpdateWorkloadState
+server ->> listen_to_server --++: UpdateWorkloadState
 note left
         ""agentName: Agent 1""
 end note

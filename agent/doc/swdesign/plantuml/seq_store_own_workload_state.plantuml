@@ -16,16 +16,12 @@ box "Ankaios Server"
 end box
 
 activate state_checker_task
-activate listen_to_state_checker
-activate manager
-activate wl_state_storage
 
-state_checker_task ->> listen_to_state_checker ++: WorkloadState
+state_checker_task ->> listen_to_state_checker --++: WorkloadState
 listen_to_state_checker ->> manager --++: WorkloadState
 manager -> wl_state_storage ++: update_workload_state
 wl_state_storage -->> manager --
-deactivate wl_state_storage
 manager ->> server++: send UpdateWorkloadState
-server -->> manager--
+server -->> manager --
 deactivate manager
 @enduml
