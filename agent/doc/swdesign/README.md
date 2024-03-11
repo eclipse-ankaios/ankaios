@@ -944,7 +944,7 @@ Needs:
 - impl
 - utest
 
-#### Inter-workload dependencies of workloads
+### Inter-workload dependencies of workloads
 
 When the Ankaios agent receives an `UpdateWorkload` message, it checks for each workload inside the message if all dependencies are fulfilling the specified conditions to create, update or delete the workload. The agent puts workloads with unfulfilled dependencies internally on a waiting queue and executes the workload operations for ready workloads immediately.
 
@@ -1299,7 +1299,7 @@ Needs:
 - impl
 - utest
 
-#### Restart of workloads
+### Restart of workloads
 
 The following diagram describes the restart behavior when a workload is created and the create fails:
 
@@ -1309,7 +1309,7 @@ The following diagram describes the restart behavior when an update command is r
 
 ![Restart Workload On Update With Create Failure](plantuml/seq_restart_workload_on_update_with_create_failure.svg)
 
-##### WorkloadControlLoop restarts a workload on failing create
+#### WorkloadControlLoop restarts a workload on failing create
 `swdd~agent-workload-control-loop-restart-workload-on-create-failure~1`
 
 Status: approved
@@ -1330,7 +1330,7 @@ Needs:
 - utest
 - stest
 
-##### WorkloadControlLoop requests restart of a workload on failing restart attempt
+#### WorkloadControlLoop requests restart of a workload on failing restart attempt
 `swdd~agent-workload-control-loop-request-restarts-on-failing-restart-attempt~1`
 
 Status: approved
@@ -1351,7 +1351,7 @@ Needs:
 - utest
 - stest
 
-##### WorkloadControlLoop restarts a workload
+#### WorkloadControlLoop restarts a workload
 `swdd~agent-workload-control-loop-executes-restart~1`
 
 Status: approved
@@ -1368,7 +1368,7 @@ Needs:
 - utest
 - stest
 
-##### WorkloadControlLoop stops restarts after the defined maximum amount of restart attempts
+#### WorkloadControlLoop stops restarts after the defined maximum amount of restart attempts
 `swdd~agent-workload-control-loop-limit-restart-attempts~1`
 
 Status: approved
@@ -1386,7 +1386,7 @@ Needs:
 - utest
 - stest
 
-##### WorkloadControlLoop sets execution state of workload to failed after reaching the restart limit
+#### WorkloadControlLoop sets execution state of workload to failed after reaching the restart limit
 `swdd~agent-workload-control-loop-restart-limit-set-execution-state~1`
 
 Status: approved
@@ -1404,7 +1404,7 @@ Needs:
 - utest
 - stest
 
-##### WorkloadControlLoop prevents restarts when receiving other workload commands
+#### WorkloadControlLoop prevents restarts when receiving other workload commands
 `swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1`
 
 Status: approved
@@ -1425,7 +1425,7 @@ Needs:
 - utest
 - stest
 
-##### WorkloadControlLoop resets restart attempts when receiving an update
+#### WorkloadControlLoop resets restart attempts when receiving an update
 `swdd~agent-workload-control-loop-reset-restart-attempts-on-update~1`
 
 Status: approved
@@ -1445,11 +1445,11 @@ Needs:
 - impl
 - utest
 
-#### Runtime connector workflows
+### Runtime connector workflows
 
 Ankaios supports multiple runtimes by providing a runtime connector trait specifying the functions that shall be implemented by the runtime.
 
-##### Functions required by the runtime connector trait
+#### Functions required by the runtime connector trait
 `swdd~functions-required-by-runtime-connector~1`
 
 Status: approved
@@ -1478,11 +1478,11 @@ Needs:
 - impl
 - utest
 
-##### Podman runtime connector
+#### Podman runtime connector
 
 This section describes features specific to the podman runtime connector which can run containerized workloads using the [Podman](https://podman.io/) container engine.
 
-###### Podman runtime connector implements the runtime connector trait
+##### Podman runtime connector implements the runtime connector trait
 `swdd~podman-implements-runtime-connector~1`
 
 Status: approved
@@ -1498,7 +1498,7 @@ Tags:
 Needs:
 - impl
 
-###### Podman runtime connector uses CLI
+##### Podman runtime connector uses CLI
 `swdd~podman-uses-podman-cli~1`
 
 Status: approved
@@ -1512,7 +1512,7 @@ Needs:
 - impl
 - utest
 
-###### Podman get name returns `podman`
+##### Podman get name returns `podman`
 `swdd~podman-name-returns-podman~1`
 
 Status: approved
@@ -1526,7 +1526,7 @@ Needs:
 - impl
 - utest
 
-###### Podman list of existing workloads uses labels
+##### Podman list of existing workloads uses labels
 `swdd~podman-list-of-existing-workloads-uses-labels~1`
 
 Status: approved
@@ -1541,7 +1541,7 @@ Needs:
 - impl
 - utest
 
-###### Podman create workload runs the workload object
+##### Podman create workload runs the workload object
 `swdd~podman-create-workload-runs-workload~1`
 
 Status: approved
@@ -1561,7 +1561,7 @@ Needs:
 - utest
 - stest
 
-###### Podman create workload returns workload id
+##### Podman create workload returns workload id
 `swdd~podman-create-workload-returns-workload-id~1`
 
 Status: approved
@@ -1576,7 +1576,7 @@ Needs:
 - impl
 - utest
 
-###### Podman create workload creates labels
+##### Podman create workload creates labels
 `swdd~podman-create-workload-creates-labels~1`
 
 Status: approved
@@ -1593,7 +1593,7 @@ Needs:
 - impl
 - utest
 
-###### Podman create workload sets optionally container name
+##### Podman create workload sets optionally container name
 `swdd~podman-create-workload-sets-optionally-container-name~1`
 
 Status: approved
@@ -1609,7 +1609,7 @@ Needs:
 - utest
 - stest
 
-###### Podman create workload optionally mounts FIFO files
+##### Podman create workload optionally mounts FIFO files
 `swdd~podman-create-workload-mounts-fifo-files~1`
 
 Status: approved
@@ -1625,7 +1625,7 @@ Needs:
 - impl
 - utest
 
-###### Podman get workload id uses label
+##### Podman get workload id uses label
 `swdd~podman-get-workload-id-uses-label~1`
 
 Status: approved
@@ -1640,7 +1640,7 @@ Needs:
 - impl
 - utest
 
-###### Podman start state checker starts PodmanStateGetter
+##### Podman start state checker starts PodmanStateGetter
 `swdd~podman-start-checker-starts-podman-state-checker~1`
 
 Status: approved
@@ -1657,7 +1657,7 @@ Tags:
 Needs:
 - impl
 
-###### Podman delete workload stops and removes workload
+##### Podman delete workload stops and removes workload
 `swdd~podman-delete-workload-stops-and-removes-workload~1`
 
 Status: approved
@@ -1673,11 +1673,11 @@ Needs:
 - utest
 - stest
 
-##### Podman-kube runtime connector
+#### Podman-kube runtime connector
 
 This section describes features specific to the podman-kube runtime connector which focuses especially on Kubernetes manifests that are started using the `podman play kube` command.
 
-###### Podman-kube runtime connector implements the runtime connector trait
+##### Podman-kube runtime connector implements the runtime connector trait
 `swdd~podman-kube-implements-runtime-connector~1`
 
 Status: approved
@@ -1693,7 +1693,7 @@ Tags:
 Needs:
 - impl
 
-###### Podman-kube runtime connector uses CLI
+##### Podman-kube runtime connector uses CLI
 `swdd~podman-kube-uses-podman-cli~1`
 
 Status: approved
@@ -1707,7 +1707,7 @@ Needs:
 - impl
 - utest
 
-###### Podman-kube get name returns `podman-kube`
+##### Podman-kube get name returns `podman-kube`
 `swdd~podman-kube-name-returns-podman-kube~1`
 
 Status: approved
@@ -1721,7 +1721,7 @@ Needs:
 - impl
 - utest
 
-###### Podman-kube create workload apply the manifest file
+##### Podman-kube create workload apply the manifest file
 `swdd~podman-kube-create-workload-apply-manifest~1`
 
 Status: approved
@@ -1737,7 +1737,7 @@ Needs:
 - utest
 - stest
 
-###### Podman-kube workload id
+##### Podman-kube workload id
 `swdd~podman-kube-workload-id`
 
 Status: approved
@@ -1759,7 +1759,7 @@ Tags:
 Needs:
 - impl
 
-###### Podman-kube create workload returns workload id
+##### Podman-kube create workload returns workload id
 `swdd~podman-kube-create-workload-returns-workload-id~1`
 
 Status: approved
@@ -1774,7 +1774,7 @@ Needs:
 - impl
 - utest
 
-###### Podman-kube create workload creates config volume
+##### Podman-kube create workload creates config volume
 `swdd~podman-kube-create-workload-creates-config-volume~1`
 
 Status: approved
@@ -1804,7 +1804,7 @@ Needs:
 - utest
 - stest
 
-###### Podman-kube create workload creates pods volume
+##### Podman-kube create workload creates pods volume
 `swdd~podman-kube-create-workload-creates-pods-volume~1`
 
 Status: approved
@@ -1827,7 +1827,7 @@ Needs:
 - utest
 - stest
 
-###### Podman-kube create continues if it cannot create volumes
+##### Podman-kube create continues if it cannot create volumes
 `swdd~podman-kube-create-continues-if-cannot-create-volume~1`
 
 Status: approved
@@ -1847,7 +1847,7 @@ Needs:
 - impl
 - utest
 
-###### Podman-kube create starts PodmanKubeStateGetter
+##### Podman-kube create starts PodmanKubeStateGetter
 `swdd~podman-kube-create-starts-podman-kube-state-getter~1`
 
 Status: approved
@@ -1861,7 +1861,7 @@ Tags:
 Needs:
 - impl
 
-###### Podman-kube list of existing workloads uses config volumes
+##### Podman-kube list of existing workloads uses config volumes
 `swdd~podman-kube-list-existing-workloads-using-config-volumes~1`
 
 Status: approved
@@ -1876,7 +1876,7 @@ Needs:
 - impl
 - utest
 
-###### Podman-kube get workload id uses volumes
+##### Podman-kube get workload id uses volumes
 `swdd~podman-kube-get-workload-id-uses-volumes~1`
 
 Status: approved
@@ -1891,7 +1891,7 @@ Needs:
 - impl
 - utest
 
-###### Podman-kube delete workload downs manifest file
+##### Podman-kube delete workload downs manifest file
 `swdd~podman-kube-delete-workload-downs-manifest-file~1`
 
 Status: approved
@@ -1907,7 +1907,7 @@ Needs:
 - utest
 - stest
 
-###### Podman-kube delete workload remove volumes
+##### Podman-kube delete workload remove volumes
 `swdd~podman-kube-delete-removes-volumes~1`
 
 Status: approved
