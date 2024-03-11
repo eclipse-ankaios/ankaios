@@ -965,7 +965,7 @@ Status: approved
 When the agent receives an `UpdateWorkloadState` or an `UpdateWorkload` message,
 and there are workloads with fulfilled inter-workload dependency conditions, then the agent shall create, update or delete those workloads.
 
-Comment: The Ankaios agent receives workload states from the Ankaios server and from the workloads the agent manages itself. Empty workload states are ignored.
+Comment: The Ankaios agent receives workload states from both the Ankaios server and its managed workloads, and it disregards any empty workload states.
 
 Rationale: Whenever the agent receives new workload states or updates of workloads, the dependencies of a workload might be fulfilled.
 
