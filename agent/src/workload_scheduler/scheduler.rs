@@ -16,7 +16,7 @@
 use crate::workload_scheduler::dependency_state_validator::DependencyStateValidator;
 use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
 use common::objects::{DeletedWorkload, ExecutionState, WorkloadInstanceName, WorkloadSpec};
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt::Display};
 
 use crate::workload_operation::WorkloadOperation;
 #[cfg_attr(test, mockall_double::double)]
@@ -47,6 +47,14 @@ impl WorkloadScheduler {
             queue: WorkloadOperationQueue::new(),
             workload_state_sender: workload_state_tx,
         }
+    }
+
+    fn put_on_queue<T>(&mut self, workload_name: T, pending_entry: PendingEntry)
+    where
+        T: Into<String> + Display + 'static,
+    {
+        log::debug!("Putting workload '{}' on waiting queue.", workload_name);
+        self.queue.insert(workload_name.into(), pending_entry);
     }
 
     pub async fn enqueue_filtered_workload_operations(
@@ -136,7 +144,7 @@ impl WorkloadScheduler {
                             deleted_workload,
                         ));
                     } else {
-                        self.queue.insert(
+                        self.put_on_queue(
                             new_workload_spec.instance_name.workload_name().to_owned(),
                             PendingEntry::UpdateCreate(new_workload_spec, deleted_workload),
                         );
@@ -183,7 +191,7 @@ impl WorkloadScheduler {
                     .await;
             }
 
-            self.queue.insert(
+            self.put_on_queue(
                 new_workload_spec.instance_name.workload_name().to_owned(),
                 PendingEntry::Create(new_workload_spec),
             );
@@ -227,7 +235,7 @@ impl WorkloadScheduler {
             self.report_pending_create_state(&new_workload_spec.instance_name)
                 .await;
 
-            self.queue.insert(
+            self.put_on_queue(
                 new_workload_spec.instance_name.workload_name().to_owned(),
                 PendingEntry::UpdateCreate(new_workload_spec, deleted_workload.clone()),
             );
@@ -240,7 +248,7 @@ impl WorkloadScheduler {
                     .await;
             }
 
-            self.queue.insert(
+            self.put_on_queue(
                 new_workload_spec.instance_name.workload_name().to_owned(),
                 PendingEntry::UpdateDelete(new_workload_spec, deleted_workload),
             );
@@ -263,7 +271,7 @@ impl WorkloadScheduler {
                     .await;
             }
 
-            self.queue.insert(
+            self.put_on_queue(
                 deleted_workload.instance_name.workload_name().to_owned(),
                 PendingEntry::Delete(deleted_workload),
             );
