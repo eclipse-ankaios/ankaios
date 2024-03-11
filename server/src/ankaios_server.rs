@@ -18,7 +18,7 @@ mod server_state;
 
 use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
-use common::objects::{CompleteState, DeletedWorkload, ExecutionState, WorkloadState, State};
+use common::objects::{CompleteState, DeletedWorkload, ExecutionState, State, WorkloadState};
 
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
@@ -388,9 +388,8 @@ mod tests {
     };
     use common::from_server_interface::FromServer;
     use common::objects::{
-        generate_test_stored_workload_spec, generate_test_workload_spec_with_param, ApiVersion,
-        CompleteState, DeletedWorkload, ExecutionState, ExecutionStateEnum, PendingSubstate, State,
-        WorkloadState,
+        generate_test_stored_workload_spec, generate_test_workload_spec_with_param, CompleteState,
+        DeletedWorkload, ExecutionState, ExecutionStateEnum, PendingSubstate, State, WorkloadState,
     };
 
     use common::to_server_interface::ToServerInterface;
