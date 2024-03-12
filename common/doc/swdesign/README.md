@@ -110,6 +110,7 @@ Ankaios shall support the following execution states with substates for a worklo
 - stopping
     * waiting to stop
     * stopping
+    * requested at runtime
     * delete failed
 - succeeded
     * ok
