@@ -1,15 +1,15 @@
 use async_trait::async_trait;
-use common::{
-    objects::{AgentName, WorkloadInstanceName, WorkloadSpec},
-    to_server_interface::ToServerSender,
-};
+use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
 #[cfg(test)]
 use mockall::automock;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::PipesChannelContext;
 
-use crate::runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker};
+use crate::{
+    runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker},
+    workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
+};
 
 use crate::workload::workload_control_loop::WorkloadControlLoop;
 #[cfg_attr(test, mockall_double::double)]
@@ -29,25 +29,21 @@ pub trait RuntimeFacade: Send + Sync + 'static {
         &self,
         runtime_workload: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
-        update_state_tx: &ToServerSender,
-    ) -> Workload;
-
-    fn replace_workload(
-        &self,
-        existing_workload_name: WorkloadInstanceName,
-        new_workload_spec: WorkloadSpec,
-        control_interface: Option<PipesChannelContext>,
-        update_state_tx: &ToServerSender,
+        update_state_tx: &WorkloadStateSender,
     ) -> Workload;
 
     fn resume_workload(
         &self,
         runtime_workload: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
-        update_state_tx: &ToServerSender,
+        update_state_tx: &WorkloadStateSender,
     ) -> Workload;
 
-    fn delete_workload(&self, instance_name: WorkloadInstanceName);
+    fn delete_workload(
+        &self,
+        instance_name: WorkloadInstanceName,
+        update_state_tx: &WorkloadStateSender,
+    );
 }
 
 pub struct GenericRuntimeFacade<
@@ -91,7 +87,7 @@ impl<
         &self,
         workload_spec: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
-        update_state_tx: &ToServerSender,
+        update_state_tx: &WorkloadStateSender,
     ) -> Workload {
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
@@ -133,81 +129,12 @@ impl<
         Workload::new(workload_name, workload_channel_sender, control_interface)
     }
 
-    // [impl->swdd~agent-replace-workload~1]
-    fn replace_workload(
-        &self,
-        old_instance_name: WorkloadInstanceName,
-        new_workload_spec: WorkloadSpec,
-        control_interface: Option<PipesChannelContext>,
-        update_state_tx: &ToServerSender,
-    ) -> Workload {
-        let runtime = self.runtime.to_owned();
-        let update_state_tx = update_state_tx.clone();
-        let control_interface_path = control_interface
-            .as_ref()
-            .map(|control_interface| control_interface.get_api_location());
-
-        let workload_name = new_workload_spec.instance_name.workload_name().to_owned();
-        log::info!(
-            "Replacing '{}' workload '{}'.",
-            runtime.name(),
-            workload_name,
-        );
-
-        let (workload_channel_sender, command_receiver) = WorkloadCommandSender::new();
-        let workload_channel = workload_channel_sender.clone();
-        tokio::spawn(async move {
-            let instance_name = new_workload_spec.instance_name.clone();
-            let workload_name = instance_name.workload_name();
-            match runtime.get_workload_id(&old_instance_name).await {
-                Ok(old_id) => runtime
-                    .delete_workload(&old_id)
-                    .await
-                    .unwrap_or_else(|err| {
-                        log::warn!(
-                            "Failed to delete workload when replacing workload '{}': '{}'",
-                            workload_name,
-                            err
-                        )
-                    }),
-                Err(err) => log::warn!(
-                    "Failed to get workload id when replacing workload '{}': '{}'",
-                    workload_name,
-                    err
-                ),
-            }
-
-            workload_channel
-                .create(new_workload_spec, control_interface_path)
-                .await
-                .unwrap_or_else(|err| {
-                    log::warn!("Failed to send restart workload command: '{}'", err);
-                });
-
-            // replace workload_id and state_checker through Option directly and pass in None if create_workload fails
-            let control_loop_state = ControlLoopState {
-                instance_name,
-                workload_id: None,
-                state_checker: None,
-                update_state_tx,
-                runtime,
-                command_receiver,
-                workload_channel,
-                restart_counter: RestartCounter::new(),
-            };
-
-            WorkloadControlLoop::run(control_loop_state).await;
-        });
-
-        Workload::new(workload_name, workload_channel_sender, control_interface)
-    }
-
     // [impl->swdd~agent-resume-workload~1]
     fn resume_workload(
         &self,
         workload_spec: WorkloadSpec,
         control_interface: Option<PipesChannelContext>,
-        update_state_tx: &ToServerSender,
+        update_state_tx: &WorkloadStateSender,
     ) -> Workload {
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
         let runtime = self.runtime.to_owned();
@@ -267,8 +194,13 @@ impl<
     }
 
     // [impl->swdd~agent-delete-old-workload~1]
-    fn delete_workload(&self, instance_name: WorkloadInstanceName) {
+    fn delete_workload(
+        &self,
+        instance_name: WorkloadInstanceName,
+        update_state_tx: &WorkloadStateSender,
+    ) {
         let runtime = self.runtime.to_owned();
+        let update_state_tx = update_state_tx.clone();
 
         log::info!(
             "Deleting '{}' workload '{}' on agent '{}'",
@@ -278,9 +210,31 @@ impl<
         );
 
         tokio::spawn(async move {
-            runtime
-                .delete_workload(&runtime.get_workload_id(&instance_name).await?)
-                .await
+            update_state_tx
+                .report_workload_execution_state(
+                    &instance_name,
+                    ExecutionState::stopping_triggered(),
+                )
+                .await;
+
+            if let Ok(id) = runtime.get_workload_id(&instance_name).await {
+                if let Err(err) = runtime.delete_workload(&id).await {
+                    update_state_tx
+                        .report_workload_execution_state(
+                            &instance_name,
+                            ExecutionState::delete_failed(err),
+                        )
+                        .await;
+
+                    return; // The early exit is needed to skip sending the removed message.
+                }
+            } else {
+                log::debug!("Workload '{}' already gone.", instance_name);
+            }
+
+            update_state_tx
+                .report_workload_execution_state(&instance_name, ExecutionState::removed())
+                .await;
         });
     }
 }
@@ -295,19 +249,18 @@ impl<
 
 #[cfg(test)]
 mod tests {
-    use common::{
-        objects::{generate_test_workload_spec_with_param, WorkloadInstanceName},
-        to_server_interface::ToServer,
+    use common::objects::{
+        generate_test_workload_spec_with_param, ExecutionState, WorkloadInstanceName,
     };
 
     use crate::{
         control_interface::MockPipesChannelContext,
         runtime_connectors::{
             runtime_connector::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
-            OwnableRuntime,
+            GenericRuntimeFacade, OwnableRuntime, RuntimeFacade,
         },
-        runtime_connectors::{GenericRuntimeFacade, RuntimeFacade},
         workload::MockWorkload,
+        workload_state::assert_execution_state_sequence,
     };
 
     const RUNTIME_NAME: &str = "runtime1";
@@ -315,7 +268,6 @@ mod tests {
     const WORKLOAD_1_NAME: &str = "workload1";
     const WORKLOAD_ID: &str = "workload_id_1";
     const PIPES_LOCATION: &str = "/some/path";
-    const OLD_WORKLOAD_ID: &str = "old_workload_id";
     const TEST_CHANNEL_BUFFER_SIZE: usize = 20;
 
     // [utest->swdd~agent-facade-forwards-list-reusable-workloads-call~1]
@@ -370,8 +322,8 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
+        let (wl_state_sender, _wl_state_receiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -385,7 +337,7 @@ mod tests {
             .expect(vec![RuntimeCall::CreateWorkload(
                 workload_spec.clone(),
                 Some(PIPES_LOCATION.into()),
-                to_server.clone(),
+                wl_state_sender.clone(),
                 Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
             )])
             .await;
@@ -399,7 +351,7 @@ mod tests {
         let _workload = test_runtime_facade.create_workload(
             workload_spec.clone(),
             Some(control_interface_mock),
-            &to_server,
+            &wl_state_sender,
         );
 
         tokio::task::yield_now().await;
@@ -422,8 +374,8 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
+        let (wl_state_sender, _wl_state_receiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -442,7 +394,7 @@ mod tests {
                 RuntimeCall::StartChecker(
                     WORKLOAD_ID.to_string(),
                     workload_spec.clone(),
-                    to_server.clone(),
+                    wl_state_sender.clone(),
                     Ok(StubStateChecker::new()),
                 ),
             ])
@@ -457,7 +409,7 @@ mod tests {
         let _workload = test_runtime_facade.resume_workload(
             workload_spec.clone(),
             Some(control_interface_mock),
-            &to_server,
+            &wl_state_sender,
         );
 
         tokio::task::yield_now().await;
@@ -480,8 +432,8 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
+        let (wl_state_sender, _wl_state_receiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -509,7 +461,7 @@ mod tests {
         let _workload = test_runtime_facade.resume_workload(
             workload_spec.clone(),
             Some(control_interface_mock),
-            &to_server,
+            &wl_state_sender,
         );
 
         tokio::task::yield_now().await;
@@ -532,8 +484,8 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
+        let (wl_state_sender, _wl_state_receiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -552,7 +504,7 @@ mod tests {
                 RuntimeCall::StartChecker(
                     WORKLOAD_ID.to_string(),
                     workload_spec.clone(),
-                    to_server.clone(),
+                    wl_state_sender.clone(),
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some state checker error".to_string(),
                     )),
@@ -569,222 +521,7 @@ mod tests {
         let _workload = test_runtime_facade.resume_workload(
             workload_spec.clone(),
             Some(control_interface_mock),
-            &to_server,
-        );
-
-        tokio::task::yield_now().await;
-
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~agent-replace-workload~1]
-    #[tokio::test]
-    async fn utest_runtime_facade_replace_workload_all_success() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let mut control_interface_mock = MockPipesChannelContext::default();
-        control_interface_mock
-            .expect_get_api_location()
-            .once()
-            .return_const(PIPES_LOCATION);
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
-
-        let mock_workload = MockWorkload::default();
-        let new_workload_context = MockWorkload::new_context();
-        new_workload_context
-            .expect()
-            .once()
-            .return_once(|_, _, _| mock_workload);
-
-        let old_workload_instance_name = WorkloadInstanceName::builder()
-            .workload_name(WORKLOAD_1_NAME)
-            .config(&"config".to_string())
-            .build();
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::GetWorkloadId(
-                    old_workload_instance_name.clone(),
-                    Ok(OLD_WORKLOAD_ID.to_string()),
-                ),
-                RuntimeCall::DeleteWorkload(OLD_WORKLOAD_ID.to_string(), Ok(())),
-                RuntimeCall::CreateWorkload(
-                    workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    to_server.clone(),
-                    Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
-                ),
-            ])
-            .await;
-
-        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
-            Box::new(runtime_mock.clone());
-        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
-            ownable_runtime_mock,
-        ));
-
-        let _workload = test_runtime_facade.replace_workload(
-            old_workload_instance_name,
-            workload_spec.clone(),
-            Some(control_interface_mock),
-            &to_server,
-        );
-
-        tokio::task::yield_now().await;
-
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~agent-replace-workload~1]
-    #[tokio::test]
-    async fn utest_runtime_facade_replace_workload_get_id_fails() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let mut control_interface_mock = MockPipesChannelContext::default();
-        control_interface_mock
-            .expect_get_api_location()
-            .once()
-            .return_const(PIPES_LOCATION);
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
-
-        let mock_workload = MockWorkload::default();
-        let new_workload_context = MockWorkload::new_context();
-        new_workload_context
-            .expect()
-            .once()
-            .return_once(|_, _, _| mock_workload);
-
-        let old_workload_instance_name = WorkloadInstanceName::builder()
-            .workload_name(WORKLOAD_1_NAME)
-            .config(&"config".to_string())
-            .build();
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::GetWorkloadId(
-                    old_workload_instance_name.clone(),
-                    Err(crate::runtime_connectors::RuntimeError::List(
-                        "some error".to_string(),
-                    )),
-                ),
-                // The expectation is that delete is not called as the workload is now gone
-                RuntimeCall::CreateWorkload(
-                    workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    to_server.clone(),
-                    Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
-                ),
-            ])
-            .await;
-
-        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
-            Box::new(runtime_mock.clone());
-        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
-            ownable_runtime_mock,
-        ));
-
-        let _workload = test_runtime_facade.replace_workload(
-            old_workload_instance_name,
-            workload_spec.clone(),
-            Some(control_interface_mock),
-            &to_server,
-        );
-
-        tokio::task::yield_now().await;
-
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~agent-replace-workload~1]
-    #[tokio::test]
-    async fn utest_runtime_facade_replace_workload_delete_fails_create_still_called() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let mut control_interface_mock = MockPipesChannelContext::default();
-        control_interface_mock
-            .expect_get_api_location()
-            .once()
-            .return_const(PIPES_LOCATION);
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let (to_server, _server_receiver) =
-            tokio::sync::mpsc::channel::<ToServer>(TEST_CHANNEL_BUFFER_SIZE);
-
-        let mock_workload = MockWorkload::default();
-        let new_workload_context = MockWorkload::new_context();
-        new_workload_context
-            .expect()
-            .once()
-            .return_once(|_, _, _| mock_workload);
-
-        let old_workload_instance_name = WorkloadInstanceName::builder()
-            .workload_name(WORKLOAD_1_NAME)
-            .config(&"config".to_string())
-            .build();
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::GetWorkloadId(
-                    old_workload_instance_name.clone(),
-                    Ok(OLD_WORKLOAD_ID.to_string()),
-                ),
-                RuntimeCall::DeleteWorkload(
-                    OLD_WORKLOAD_ID.to_string(),
-                    Err(crate::runtime_connectors::RuntimeError::Delete(
-                        "some delete error".to_string(),
-                    )),
-                ),
-                // the expectation is that create will still be called although delete failed
-                RuntimeCall::CreateWorkload(
-                    workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    to_server.clone(),
-                    Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
-                ),
-            ])
-            .await;
-
-        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
-            Box::new(runtime_mock.clone());
-        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
-            ownable_runtime_mock,
-        ));
-
-        let _workload = test_runtime_facade.replace_workload(
-            old_workload_instance_name,
-            workload_spec.clone(),
-            Some(control_interface_mock),
-            &to_server,
+            &wl_state_sender,
         );
 
         tokio::task::yield_now().await;
@@ -796,6 +533,9 @@ mod tests {
     #[tokio::test]
     async fn utest_runtime_facade_delete_workload() {
         let mut runtime_mock = MockRuntimeConnector::new();
+
+        let (wl_state_sender, wl_state_receiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
 
         let workload_instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME)
@@ -817,9 +557,21 @@ mod tests {
             ownable_runtime_mock,
         ));
 
-        test_runtime_facade.delete_workload(workload_instance_name);
+        test_runtime_facade.delete_workload(workload_instance_name.clone(), &wl_state_sender);
 
         tokio::task::yield_now().await;
+
+        assert_execution_state_sequence(
+            wl_state_receiver,
+            vec![
+                (
+                    &workload_instance_name,
+                    ExecutionState::stopping_triggered(),
+                ),
+                (&workload_instance_name, ExecutionState::removed()),
+            ],
+        )
+        .await;
 
         runtime_mock.assert_all_expectations().await;
     }

@@ -1,9 +1,6 @@
 use std::{cmp::min, path::PathBuf};
 
-use common::{
-    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec},
-    to_server_interface::ToServerSender,
-};
+use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
 
 use async_trait::async_trait;
 use futures_util::TryFutureExt;
@@ -19,6 +16,7 @@ use crate::{
     runtime_connectors::{
         podman_cli, RuntimeConnector, RuntimeError, RuntimeStateGetter, StateChecker,
     },
+    workload_state::WorkloadStateSender,
 };
 
 use super::podman_kube_runtime_config::PodmanKubeRuntimeConfig;
@@ -104,7 +102,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         &self,
         workload_spec: WorkloadSpec,
         _control_interface_path: Option<PathBuf>,
-        update_state_tx: ToServerSender,
+        update_state_tx: WorkloadStateSender,
     ) -> Result<(PodmanKubeWorkloadId, GenericPollingStateChecker), RuntimeError> {
         let instance_name = workload_spec.instance_name.clone();
 
@@ -221,7 +219,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
         &self,
         workload_id: &PodmanKubeWorkloadId,
         workload_spec: WorkloadSpec,
-        update_state_tx: ToServerSender,
+        update_state_tx: WorkloadStateSender,
     ) -> Result<GenericPollingStateChecker, RuntimeError> {
         // [impl->swdd~podman-kube-state-getter-reset-cache~1]
         PodmanCli::reset_ps_cache().await;

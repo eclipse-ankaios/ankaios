@@ -91,7 +91,9 @@ async fn main() {
                 );
                 // [impl -> swdd~cli-provides-set-desired-state~1]
                 // [impl -> swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~1]
-                cmd.set_state(object_field_mask, state_object_file).await;
+                if let Err(err) = cmd.set_state(object_field_mask, state_object_file).await {
+                    output_and_error!("Failed to set state: '{}'", err)
+                }
             }
             None => unreachable!("Unreachable code."),
         },

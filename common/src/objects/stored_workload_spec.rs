@@ -22,12 +22,14 @@ use crate::helpers::serialize_to_ordered_map;
 use super::{AddCondition, Tag, WorkloadInstanceName, WorkloadSpec};
 
 #[derive(Debug, Serialize, Default, Deserialize, Clone, PartialEq, Eq)]
-#[serde(default, rename_all = "camelCase")]
+#[serde(rename_all = "camelCase")]
 pub struct StoredWorkloadSpec {
     pub agent: String,
+    #[serde(default)]
     pub tags: Vec<Tag>,
-    #[serde(serialize_with = "serialize_to_ordered_map")]
+    #[serde(default, serialize_with = "serialize_to_ordered_map")]
     pub dependencies: HashMap<String, AddCondition>,
+    #[serde(default)]
     pub restart: bool,
     pub runtime: String,
     pub runtime_config: String,
@@ -144,7 +146,4 @@ pub fn generate_test_stored_workload_spec(
 
 // [utest->swdd~common-object-serialization~1]
 #[cfg(test)]
-mod tests {
-
-
-}
+mod tests {}

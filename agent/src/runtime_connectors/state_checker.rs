@@ -1,12 +1,11 @@
 use async_trait::async_trait;
 
-use common::{
-    objects::{ExecutionState, WorkloadSpec},
-    to_server_interface::ToServerSender,
-};
+use common::objects::{ExecutionState, WorkloadSpec};
 
 #[cfg(test)]
 use mockall::automock;
+
+use crate::workload_state::WorkloadStateSender;
 
 // [impl->swdd~agent-general-runtime-state-getter-interface~1]
 #[async_trait]
@@ -28,7 +27,7 @@ where
     fn start_checker(
         workload_spec: &WorkloadSpec,
         workload_id: WorkloadId,
-        manager_interface: ToServerSender,
+        manager_interface: WorkloadStateSender,
         state_getter: impl RuntimeStateGetter<WorkloadId>,
     ) -> Self;
     async fn stop_checker(self);

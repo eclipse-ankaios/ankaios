@@ -36,7 +36,10 @@ pub use workload_state::{
     generate_test_workload_state, generate_test_workload_state_with_agent,
     generate_test_workload_state_with_workload_spec,
 };
-pub use workload_state::{ExecutionState, ExecutionStateEnum, WorkloadState};
+pub use workload_state::{
+    ExecutionState, ExecutionStateEnum, FailedSubstate, PendingSubstate, RunningSubstate,
+    StoppingSubstate, SucceededSubstate, WorkloadState,
+};
 
 mod workload_spec;
 #[cfg(any(feature = "test_utils", test))]
