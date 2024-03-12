@@ -287,4 +287,20 @@ mod tests {
             deleted_workloads[1]
         );
     }
+
+    #[test]
+    fn utest_remove_entry() {
+        let mut delete_graph = DeleteGraph::default();
+
+        delete_graph.delete_graph.insert(
+            WORKLOAD_NAME_1.to_owned(),
+            HashMap::from([(
+                WORKLOAD_NAME_2.to_owned(),
+                DeleteCondition::DelCondNotPendingNorRunning,
+            )]),
+        );
+
+        assert!(delete_graph.remove_entry(WORKLOAD_NAME_1));
+        assert!(!delete_graph.remove_entry("not existing workload"));
+    }
 }
