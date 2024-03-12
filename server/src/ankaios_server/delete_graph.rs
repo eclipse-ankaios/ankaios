@@ -52,6 +52,10 @@ impl DeleteGraph {
             }
         }
     }
+
+    pub fn remove_entry(&mut self, workload_name: &str) -> bool {
+        self.delete_graph.remove(workload_name).is_some()
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////

@@ -16,7 +16,7 @@ use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
 use crate::workload_state_db::WorkloadStateDB;
-use common::objects::WorkloadInstanceName;
+use common::objects::{WorkloadInstanceName, WorkloadState};
 use common::{
     commands::CompleteStateRequest,
     objects::{CompleteState, DeletedWorkload, State, WorkloadSpec},
@@ -232,6 +232,21 @@ impl ServerState {
                 }
             }
             Err(error) => Err(error),
+        }
+    }
+
+    pub fn remove_deleted_workloads_from_delete_graph(
+        &mut self,
+        new_workload_states: &[WorkloadState],
+    ) {
+        for wl_state in new_workload_states {
+            if wl_state.execution_state.is_removed()
+                && self
+                    .delete_graph
+                    .remove_entry(wl_state.instance_name.workload_name())
+            {
+                log::debug!("Removed '{}' from delete graph.", wl_state.instance_name);
+            }
         }
     }
 }

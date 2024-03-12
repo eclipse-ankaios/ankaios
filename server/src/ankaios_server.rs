@@ -342,6 +342,9 @@ impl AnkaiosServer {
                     self.workload_state_db
                         .process_new_states(method_obj.workload_states.clone());
 
+                    self.server_state
+                        .remove_deleted_workloads_from_delete_graph(&method_obj.workload_states);
+
                     // [impl->swdd~server-forwards-workload-state~1]
                     self.to_agents
                         .update_workload_state(method_obj.workload_states)
