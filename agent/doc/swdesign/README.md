@@ -980,6 +980,26 @@ Needs:
 - utest
 - stest
 
+#### Agent keeps workloads with unfulfilled inter-workload dependencies in waiting queue
+`swdd~agent-keeps-workloads-with-unfulfilled-workload-dependencies-in-queue~1`
+
+Status: approved
+
+When the agent receives an `UpdateWorkloadState` or an `UpdateWorkload` message,
+and there are workloads with unfulfilled inter-workload dependency conditions,
+then the agent shall keep the workload operation of those workloads inside the waiting queue.
+
+Comment: The pending workload state is not reported again for retained workloads.
+
+Rationale: The workload operations cannot be executed because their inter-workload dependencies are not in the desired state.
+
+Tags:
+- WorkloadScheduler
+
+Needs:
+- impl
+- utest
+
 #### Agent enqueues workload operations with unfulfilled inter-workload dependency states into waiting queue
 `swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1`
 
