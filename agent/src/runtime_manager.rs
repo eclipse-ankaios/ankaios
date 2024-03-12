@@ -944,8 +944,10 @@ mod tests {
         assert!(runtime_manager.workloads.is_empty());
     }
 
+    // [utest->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
     #[tokio::test]
-    async fn utest_handle_update_workload_initial_call_add_workload_with_dependencies() {
+    async fn utest_handle_update_workload_initial_call_add_workload_with_unfulfilled_dependencies()
+    {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -992,8 +994,9 @@ mod tests {
         assert!(runtime_manager.workloads.is_empty());
     }
 
+    // [utest->swdd~agent-existing-workloads-replace-updated~1]
     #[tokio::test]
-    async fn utest_handle_update_workload_initial_call_replace_workload_with_not_fulfilled_dependencies(
+    async fn utest_handle_update_workload_initial_call_replace_workload_with_unfulfilled_dependencies(
     ) {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
@@ -1443,6 +1446,7 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
+    // [utest->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_handle_update_workload_subsequent_add_workload_with_not_fulfilled_dependencies()
     {
@@ -1560,6 +1564,7 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
+    // [utest->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_handle_update_workload_subsequent_deleted_workload_with_not_fulfilled_dependencies(
     ) {
