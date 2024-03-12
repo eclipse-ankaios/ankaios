@@ -213,7 +213,7 @@ impl<
             update_state_tx
                 .report_workload_execution_state(
                     &instance_name,
-                    ExecutionState::stopping_triggered(),
+                    ExecutionState::stopping_requested(),
                 )
                 .await;
 
@@ -566,7 +566,7 @@ mod tests {
             vec![
                 (
                     &workload_instance_name,
-                    ExecutionState::stopping_triggered(),
+                    ExecutionState::stopping_requested(),
                 ),
                 (&workload_instance_name, ExecutionState::removed()),
             ],
