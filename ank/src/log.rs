@@ -1,18 +1,23 @@
-use std::{env, fmt, process::exit};
+use std::{env, fmt, process::exit, sync::Mutex};
+
+use crossterm::{cursor, style::Stylize};
 
 pub const VERBOSITY_KEY: &str = "VERBOSE";
 pub const QUIET_KEY: &str = "SILENT";
 
-/// Prints the message, if the CLI command is not called with `--quiet` flag
-#[macro_export]
-macro_rules! println {
-    ( $ ( $ arg : tt ) + ) => { $crate::log::println_fn ( format_args ! ( $ ( $ arg ) + ) ) }
-}
+static CLEANUP_STRING: Mutex<String> = Mutex::new(String::new());
 
 /// Prints the message, if the CLI command is not called with `--quiet` flag
 #[macro_export]
-macro_rules! print {
-    ( $ ( $ arg : tt ) + ) => { $crate::log::print_fn ( format_args ! ( $ ( $ arg ) + ) ) }
+macro_rules! output {
+    ( $ ( $ arg : tt ) + ) => { $crate::log::output_fn ( format_args ! ( $ ( $ arg ) + ) ) }
+}
+
+/// Prints the message, if the CLI command is not called with `--quiet` flag
+/// If the previous test was written with this command, the old output is overwritten.
+#[macro_export]
+macro_rules! output_update {
+    ( $ ( $ arg : tt ) + ) => { $crate::log::output_update_fn ( format_args ! ( $ ( $ arg ) + ) ) }
 }
 
 // [impl->swdd~cli-use-proprietary-tracing~1]
@@ -37,7 +42,7 @@ macro_rules! output_debug {
 }
 
 pub(crate) fn output_and_error_fn(args: fmt::Arguments<'_>) {
-    eprintln!("\x1b[31m\x1b[1merror:\x1b[0m {}", args);
+    eprintln!("{} {}", "error:".bold().red(), args);
     exit(1);
 }
 
@@ -48,19 +53,38 @@ pub(crate) fn output_and_exit_fn(args: fmt::Arguments<'_>) {
 
 pub(crate) fn output_debug_fn(args: fmt::Arguments<'_>) {
     if is_verbose() {
-        std::println!("\x1b[94mdebug:\x1b[0m {}", args);
+        std::println!("{} {}{}", "debug:".blue(), args, cursor::SavePosition);
     }
 }
 
-pub(crate) fn println_fn(args: fmt::Arguments<'_>) {
+pub(crate) fn output_fn(args: fmt::Arguments<'_>) {
     if !is_quiet() {
-        std::println!("{}", args);
+        std::println!("{}{}", args, cursor::SavePosition);
     }
 }
 
-pub(crate) fn print_fn(args: fmt::Arguments<'_>) {
+pub(crate) fn prepare_updatable() {
     if !is_quiet() {
-        std::print!("{}", args);
+        std::print!("{}", cursor::SavePosition);
+        *CLEANUP_STRING.lock().unwrap() = "".into();
+    }
+}
+
+pub(crate) fn output_update_fn(args: fmt::Arguments<'_>) {
+    if !is_quiet() {
+        std::println!(
+            "{}{}{}{}",
+            cursor::RestorePosition,
+            CLEANUP_STRING.lock().unwrap(),
+            cursor::RestorePosition,
+            args
+        );
+
+        *CLEANUP_STRING.lock().unwrap() = args
+            .to_string()
+            .chars()
+            .map(|x| if x == '\n' { '\n' } else { ' ' })
+            .collect();
     }
 }
 
