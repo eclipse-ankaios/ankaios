@@ -48,6 +48,7 @@ impl TryFrom<UpdateStateSuccess> for ParsedUpdateStateSuccess {
 
 pub trait WaitListDisplayTrait: Display {
     fn update(&mut self, workload_state: &WorkloadState);
+    fn step_spinner(&mut self);
 }
 
 pub struct WaitList<T> {
@@ -86,6 +87,11 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
             };
         }
 
+        output_update!("{}", &self.display);
+    }
+
+    pub fn step_spinner(&mut self) {
+        self.display.step_spinner();
         output_update!("{}", &self.display);
     }
 

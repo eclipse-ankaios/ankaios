@@ -14,10 +14,11 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    fmt,
+    fmt::{self, Display},
     time::Duration,
 };
 mod wait_list;
+use tokio::time::interval;
 use wait_list::WaitList;
 
 #[cfg(not(test))]
@@ -56,6 +57,7 @@ use self::wait_list::WaitListDisplayTrait;
 
 const BUFFER_SIZE: usize = 20;
 const WAIT_TIME_MS: Duration = Duration::from_millis(3000);
+const SPINNER: [&str; 4] = ["|", "/", "-", "\\"];
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CliError {
@@ -454,7 +456,7 @@ impl WorkloadBaseTableDisplay {
         }
     }
 }
-#[derive(Debug, Tabled)]
+#[derive(Debug, Tabled, Clone)]
 #[tabled(rename_all = "UPPERCASE")]
 struct GetWorkloadTableDisplay {
     #[tabled(inline)]
@@ -468,14 +470,25 @@ struct GetWorkloadTableDisplay {
 
 struct WaitListDisplay {
     data: HashMap<WorkloadInstanceName, GetWorkloadTableDisplay>,
+    spinner: Spinner,
 }
 
-impl std::fmt::Display for WaitListDisplay {
+impl Display for WaitListDisplay {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let data: Vec<_> = self
+            .data
+            .values()
+            .map(|x| {
+                let mut x = x.to_owned();
+                x.execution_state = format!("{} {}", self.spinner, x.execution_state);
+                x
+            })
+            .collect();
+
         write!(
             f,
             "{}",
-            Table::new(self.data.values()).with(tabled::settings::Style::blank())
+            Table::new(data).with(tabled::settings::Style::blank())
         )
     }
 }
@@ -486,6 +499,27 @@ impl WaitListDisplayTrait for WaitListDisplay {
             entry.execution_state = workload_state.execution_state.state.to_string();
             entry.additional_info = workload_state.execution_state.additional_info.clone();
         }
+    }
+
+    fn step_spinner(&mut self) {
+        self.spinner.step();
+    }
+}
+
+#[derive(Default)]
+struct Spinner {
+    pos: usize,
+}
+
+impl Spinner {
+    pub fn step(&mut self) {
+        self.pos = (self.pos + 1) % SPINNER.len();
+    }
+}
+
+impl Display for Spinner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", SPINNER[self.pos])
     }
 }
 
@@ -952,11 +986,32 @@ impl CliCommands {
             update_state_success,
             WaitListDisplay {
                 data: workloads.into_iter().collect(),
+                spinner: Default::default(),
             },
         );
 
         wait_list.update(x);
+        let mut spinner_interval = interval(Duration::from_millis(100));
+
         while !wait_list.is_empty() {
+
+            tokio::select! {
+                server_message = self.from_server.recv() => {
+                    let Some(server_message) = server_message else {
+                        return Err(CliError::ExecutionError(
+                            "Connection to server interrupted".into(),
+                        ));
+                    };
+                    if let FromServer::UpdateWorkloadState(update_workload_state) = server_message {
+                        wait_list.update(update_workload_state.workload_states);
+                    } else {
+                        output_debug!("Received unexpected message: {:?}", server_message);
+                    }
+                }
+                _ = spinner_interval.tick() => {
+                    wait_list.step_spinner();
+                }
+            }
             let Some(server_message) = self.from_server.recv().await else {
                 return Err(CliError::ExecutionError(
                     "Connection to server interrupted".into(),
