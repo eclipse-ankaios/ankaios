@@ -342,6 +342,7 @@ impl AnkaiosServer {
                     self.workload_state_db
                         .process_new_states(method_obj.workload_states.clone());
 
+                    // [impl->swdd~server-removes-obsolete-delete-conditions-from-delete-graph~1]
                     self.server_state
                         .remove_deleted_workloads_from_delete_graph(&method_obj.workload_states);
 
@@ -1455,6 +1456,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~server-removes-obsolete-delete-conditions-from-delete-graph~1]
     #[tokio::test]
     async fn utest_server_triggers_delete_of_actually_removed_workloads_from_delete_graph() {
         let _ = env_logger::builder().is_test(true).try_init();

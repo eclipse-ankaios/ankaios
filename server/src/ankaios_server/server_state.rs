@@ -239,6 +239,7 @@ impl ServerState {
         &mut self,
         new_workload_states: &[WorkloadState],
     ) {
+        // [impl->swdd~server-removes-obsolete-delete-conditions-from-delete-graph~1]
         self.delete_graph
             .remove_deleted_workloads_from_delete_graph(new_workload_states);
     }
@@ -929,6 +930,7 @@ mod tests {
         assert!(added_deleted_workloads.is_some());
     }
 
+    // [utest->swdd~server-removes-obsolete-delete-conditions-from-delete-graph~1]
     #[test]
     fn utest_remove_deleted_workloads_from_delete_graph() {
         let mut mock_delete_graph = MockDeleteGraph::default();

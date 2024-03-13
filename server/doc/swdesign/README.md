@@ -680,6 +680,29 @@ Needs:
 - impl
 - utest
 
+#### Server removes obsolete delete conditions from delete graph
+`swdd~server-removes-obsolete-delete-conditions-from-delete-graph~1`
+
+Status: approved
+
+When the Ankaios server receives an `UpdateWorkloadState` message
+and the message contains the WorkloadState `Removed` for a workload
+and the workload has an entry inside the delete graph,
+then the server shall delete the entry from the delete graph.
+
+Comment: The server ignores WorkloadStates from workloads that do not have an entry in the delete graph.
+
+Rationale: The entry should not exist after the workload has actually been deleted.
+
+Tags:
+- AnkaiosServer
+- ServerState
+- DeleteGraph
+
+Needs:
+- impl
+- utest
+
 ## Data view
 
 ## Error management view
