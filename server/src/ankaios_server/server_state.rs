@@ -239,15 +239,8 @@ impl ServerState {
         &mut self,
         new_workload_states: &[WorkloadState],
     ) {
-        for wl_state in new_workload_states {
-            if wl_state.execution_state.is_removed()
-                && self
-                    .delete_graph
-                    .remove_entry(wl_state.instance_name.workload_name())
-            {
-                log::debug!("Removed '{}' from delete graph.", wl_state.instance_name);
-            }
-        }
+        self.delete_graph
+            .remove_deleted_workloads_from_delete_graph(new_workload_states);
     }
 }
 
@@ -934,6 +927,24 @@ mod tests {
             .update(new_complete_state.clone(), update_mask)
             .unwrap();
         assert!(added_deleted_workloads.is_some());
+    }
+
+    #[test]
+    fn utest_remove_deleted_workloads_from_delete_graph() {
+        let mut mock_delete_graph = MockDeleteGraph::default();
+        mock_delete_graph
+            .expect_remove_deleted_workloads_from_delete_graph()
+            .once()
+            .return_const(());
+
+        let mut server_state = ServerState {
+            delete_graph: mock_delete_graph,
+            ..Default::default()
+        };
+
+        let workload_states = vec![];
+
+        server_state.remove_deleted_workloads_from_delete_graph(&workload_states);
     }
 
     fn generate_test_old_state() -> CompleteState {

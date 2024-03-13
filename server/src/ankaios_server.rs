@@ -666,6 +666,11 @@ mod tests {
         );
 
         let mut mock_server_state = MockServerState::new();
+
+        mock_server_state
+            .expect_remove_deleted_workloads_from_delete_graph()
+            .return_const(());
+
         let mut seq = mockall::Sequence::new();
         mock_server_state
             .expect_get_workloads_for_agent()
@@ -1135,7 +1140,12 @@ mod tests {
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
-        let mock_server_state = MockServerState::new();
+        let mut mock_server_state = MockServerState::new();
+        mock_server_state
+            .expect_remove_deleted_workloads_from_delete_graph()
+            .once()
+            .return_const(());
+
         server.server_state = mock_server_state;
 
         // send update_workload_state for first agent which is then stored in the workload_state_db in ankaios server
@@ -1443,5 +1453,35 @@ mod tests {
 
         server_task.abort();
         assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_server_triggers_delete_of_actually_removed_workloads_from_delete_graph() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+
+        let mut mock_server_state = MockServerState::new();
+
+        let workload_states = vec![common::objects::generate_test_workload_state(
+            WORKLOAD_NAME_1,
+            ExecutionState::removed(),
+        )];
+
+        mock_server_state
+            .expect_remove_deleted_workloads_from_delete_graph()
+            .with(mockall::predicate::eq(workload_states.clone()))
+            .return_const(());
+        server.server_state = mock_server_state;
+
+        let server_task = tokio::spawn(async move { server.start(None).await });
+
+        let update_workload_state_result = to_server.update_workload_state(workload_states).await;
+        assert!(update_workload_state_result.is_ok());
+
+        server_task.abort();
     }
 }
