@@ -12,7 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{fmt, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+    time::Duration,
+};
 mod wait_list;
 use wait_list::WaitList;
 
@@ -26,7 +30,7 @@ use tests::read_to_string_mock as read_file_to_string;
 use common::{
     commands::{CompleteStateRequest, Response, ResponseContent},
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::{CompleteState, State, StoredWorkloadSpec, Tag},
+    objects::{CompleteState, State, StoredWorkloadSpec, Tag, WorkloadInstanceName},
     state_manipulation::{Object, Path},
     to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
@@ -44,8 +48,11 @@ use url::Url;
 
 use crate::{
     cli::{ApplyArgs, OutputFormat},
-    output_and_error, output_debug,
+    cli_commands::wait_list::ParsedUpdateStateSuccess,
+    output, output_and_error, output_debug,
 };
+
+use self::wait_list::WaitListDisplayTrait;
 
 const BUFFER_SIZE: usize = 20;
 const WAIT_TIME_MS: Duration = Duration::from_millis(3000);
@@ -459,6 +466,29 @@ struct GetWorkloadTableDisplay {
     additional_info: String,
 }
 
+struct WaitListDisplay {
+    data: HashMap<WorkloadInstanceName, GetWorkloadTableDisplay>,
+}
+
+impl std::fmt::Display for WaitListDisplay {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            Table::new(self.data.values()).with(tabled::settings::Style::blank())
+        )
+    }
+}
+
+impl WaitListDisplayTrait for WaitListDisplay {
+    fn update(&mut self, workload_state: &common::objects::WorkloadState) {
+        if let Some(entry) = self.data.get_mut(&workload_state.instance_name) {
+            entry.execution_state = workload_state.execution_state.state.to_string();
+            entry.additional_info = workload_state.execution_state.additional_info.clone();
+        }
+    }
+}
+
 impl GetWorkloadTableDisplay {
     fn new(
         name: &str,
@@ -701,28 +731,65 @@ impl CliCommands {
     // [impl->swdd~cli-provides-list-of-workloads~1]
     // [impl->swdd~cli-blocks-until-ankaios-server-responds-list-workloads~1]
     // [impl->swdd~cli-shall-print-empty-table~1]
-    pub async fn get_workloads(
+    pub async fn get_workloads_table(
         &mut self,
         agent_name: Option<String>,
         state: Option<String>,
         workload_name: Vec<String>,
     ) -> Result<String, CliError> {
+        let mut workload_infos = self.get_workloads().await?;
+        output_debug!("The table before filtering:\n{:?}", workload_infos);
+
+        // [impl->swdd~cli-shall-filter-list-of-workloads~1]
+        if let Some(agent_name) = agent_name {
+            workload_infos.retain(|wi| wi.1.base_info.agent == agent_name);
+        }
+
+        // [impl->swdd~cli-shall-filter-list-of-workloads~1]
+        if let Some(state) = state {
+            workload_infos.retain(|wi| wi.1.execution_state.to_lowercase() == state.to_lowercase());
+        }
+
+        // [impl->swdd~cli-shall-filter-list-of-workloads~1]
+        if !workload_name.is_empty() {
+            workload_infos.retain(|wi| workload_name.iter().any(|wn| wn == &wi.1.base_info.name));
+        }
+
+        // The order of workloads in RequestCompleteState is not sable -> make sure that the user sees always the same order.
+        // [impl->swdd~cli-shall-sort-list-of-workloads~1]
+        workload_infos.sort_by_key(|wi| wi.1.base_info.name.clone());
+
+        output_debug!("The table after filtering:\n{:?}", workload_infos);
+
+        // [impl->swdd~cli-shall-present-list-workloads-as-table~1]
+        Ok(Table::new(workload_infos.iter().map(|x| &x.1))
+            .with(Style::blank())
+            .to_string())
+    }
+
+    async fn get_workloads(
+        &mut self,
+    ) -> Result<Vec<(WorkloadInstanceName, GetWorkloadTableDisplay)>, CliError> {
         // [impl->swdd~cli-returns-list-of-workloads-from-server~1]
         let res_complete_state = self.get_complete_state(&Vec::new()).await?;
 
-        let mut workload_infos: Vec<GetWorkloadTableDisplay> = res_complete_state
-            .workload_states
-            .into_iter()
-            .map(|wl_state| {
-                GetWorkloadTableDisplay::new(
-                    wl_state.instance_name.workload_name(),
-                    wl_state.instance_name.agent_name(),
-                    Default::default(),
-                    &wl_state.execution_state.state.to_string(),
-                    &wl_state.execution_state.additional_info.to_string(),
-                )
-            })
-            .collect();
+        let mut workload_infos: Vec<(WorkloadInstanceName, GetWorkloadTableDisplay)> =
+            res_complete_state
+                .workload_states
+                .into_iter()
+                .map(|wl_state| {
+                    (
+                        wl_state.instance_name.clone(),
+                        GetWorkloadTableDisplay::new(
+                            wl_state.instance_name.workload_name(),
+                            wl_state.instance_name.agent_name(),
+                            Default::default(),
+                            &wl_state.execution_state.state.to_string(),
+                            &wl_state.execution_state.additional_info.to_string(),
+                        ),
+                    )
+                })
+                .collect();
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
         for wi in &mut workload_infos {
@@ -731,37 +798,14 @@ impl CliCommands {
                 .workloads
                 .iter()
                 .find(|&(wl_name, wl_spec)| {
-                    *wl_name == wi.base_info.name && wl_spec.agent == wi.base_info.agent
+                    *wl_name == wi.1.base_info.name && wl_spec.agent == wi.1.base_info.agent
                 })
             {
-                wi.runtime = found_wl_spec.runtime.clone();
+                wi.1.runtime = found_wl_spec.runtime.clone();
             }
         }
-        output_debug!("The table before filtering:\n{:?}", workload_infos);
 
-        // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-        if let Some(agent_name) = agent_name {
-            workload_infos.retain(|wi| wi.base_info.agent == agent_name);
-        }
-
-        // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-        if let Some(state) = state {
-            workload_infos.retain(|wi| wi.execution_state.to_lowercase() == state.to_lowercase());
-        }
-
-        // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-        if !workload_name.is_empty() {
-            workload_infos.retain(|wi| workload_name.iter().any(|wn| wn == &wi.base_info.name));
-        }
-
-        // The order of workloads in RequestCompleteState is not sable -> make sure that the user sees always the same order.
-        // [impl->swdd~cli-shall-sort-list-of-workloads~1]
-        workload_infos.sort_by_key(|wi| wi.base_info.name.clone());
-
-        output_debug!("The table after filtering:\n{:?}", workload_infos);
-
-        // [impl->swdd~cli-shall-present-list-workloads-as-table~1]
-        Ok(Table::new(workload_infos).with(Style::blank()).to_string())
+        Ok(workload_infos)
     }
 
     // [impl->swdd~cli-provides-delete-workload~1]
@@ -875,11 +919,42 @@ impl CliCommands {
         };
 
         output_debug!("Got update success: {:?}", update_state_success);
-        let mut wait_list = WaitList::new(update_state_success).map_err(|error| {
-            CliError::ExecutionError(format!(
-                "Could not parse UpdateStateSuccess message: {error}"
-            ))
-        })?;
+
+        let update_state_success = ParsedUpdateStateSuccess::try_from(update_state_success)
+            .map_err(|error| {
+                CliError::ExecutionError(format!(
+                    "Could not parse UpdateStateSuccess message: {error}"
+                ))
+            })?;
+
+        let mut changed_workloads = HashSet::<String>::from_iter(
+            update_state_success
+                .added_workloads
+                .iter()
+                .map(|x| x.workload_name().into()),
+        );
+        changed_workloads.extend(
+            update_state_success
+                .deleted_workloads
+                .iter()
+                .map(|x| x.workload_name().into()),
+        );
+
+        if changed_workloads.is_empty() {
+            output!("No workloads to update");
+            return Ok(());
+        }
+
+        let mut workloads = self.get_workloads().await.unwrap();
+        workloads.retain(|x| changed_workloads.contains(&x.1.base_info.name));
+
+        let mut wait_list = WaitList::new(
+            update_state_success,
+            WaitListDisplay {
+                data: workloads.into_iter().collect(),
+            },
+        );
+
         wait_list.update(x);
         while !wait_list.is_empty() {
             let Some(server_message) = self.from_server.recv().await else {
@@ -1126,7 +1201,7 @@ mod tests {
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
         );
-        let cmd_text = cmd.get_workloads(None, None, Vec::new()).await;
+        let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
         let expected_empty_table: Vec<GetWorkloadTableDisplay> = Vec::new();
@@ -1186,7 +1261,7 @@ mod tests {
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
         );
-        let cmd_text = cmd.get_workloads(None, None, Vec::new()).await;
+        let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
         let expected_table: Vec<GetWorkloadTableDisplay> = vec![
@@ -1262,7 +1337,7 @@ mod tests {
             Url::parse("http://localhost").unwrap(),
         );
         let cmd_text = cmd
-            .get_workloads(None, None, vec!["name1".to_string()])
+            .get_workloads_table(None, None, vec!["name1".to_string()])
             .await;
         assert!(cmd_text.is_ok());
 
@@ -1323,7 +1398,7 @@ mod tests {
             Url::parse("http://localhost").unwrap(),
         );
         let cmd_text = cmd
-            .get_workloads(Some("agent_B".to_string()), None, Vec::new())
+            .get_workloads_table(Some("agent_B".to_string()), None, Vec::new())
             .await;
         assert!(cmd_text.is_ok());
 
@@ -1393,7 +1468,7 @@ mod tests {
             Url::parse("http://localhost").unwrap(),
         );
         let cmd_text = cmd
-            .get_workloads(None, Some("Failed".to_string()), Vec::new())
+            .get_workloads_table(None, Some("Failed".to_string()), Vec::new())
             .await;
         assert!(cmd_text.is_ok());
 
@@ -1439,7 +1514,7 @@ mod tests {
             Url::parse("http://localhost").unwrap(),
         );
 
-        let cmd_text = cmd.get_workloads(None, None, Vec::new()).await;
+        let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
         let expected_empty_table: Vec<GetWorkloadTableDisplay> =

@@ -12,45 +12,24 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{
-    cmp::max,
-    collections::{HashMap, HashSet},
-    io::{self, Write},
-};
+use std::{collections::HashSet, fmt::Display};
 
 use common::{
     commands::UpdateStateSuccess,
     objects::{WorkloadInstanceName, WorkloadState},
 };
 
-use crate::{print, println};
+use crate::{log::prepare_updatable, output_update};
 
-pub struct WaitList {
-    pub added_workloads: HashSet<WorkloadInstanceName>,
-    pub deleted_workloads: HashSet<WorkloadInstanceName>,
+pub struct ParsedUpdateStateSuccess {
+    pub added_workloads: Vec<WorkloadInstanceName>,
+    pub deleted_workloads: Vec<WorkloadInstanceName>,
 }
 
-impl WaitList {
-    pub fn new(value: UpdateStateSuccess) -> Result<Self, String> {
-        let mut workloads =
-            Vec::with_capacity(value.added_workloads.len() + value.deleted_workloads.len());
-        workloads.append(
-            &mut value
-                .added_workloads
-                .iter()
-                .cloned()
-                .map(|x| format!("starting {x}"))
-                .collect(),
-        );
-        workloads.append(
-            &mut value
-                .deleted_workloads
-                .iter()
-                .cloned()
-                .map(|x| format!("stopping {x}"))
-                .collect(),
-        );
+impl TryFrom<UpdateStateSuccess> for ParsedUpdateStateSuccess {
+    type Error = String;
 
+    fn try_from(value: UpdateStateSuccess) -> Result<Self, Self::Error> {
         Ok(Self {
             added_workloads: value
                 .added_workloads
@@ -65,37 +44,49 @@ impl WaitList {
                 .collect::<Result<_, String>>()?,
         })
     }
+}
+
+pub trait WaitListDisplayTrait: Display {
+    fn update(&mut self, workload_state: &WorkloadState);
+}
+
+pub struct WaitList<T> {
+    pub added_workloads: HashSet<WorkloadInstanceName>,
+    pub deleted_workloads: HashSet<WorkloadInstanceName>,
+    display: T,
+}
+
+impl<T: WaitListDisplayTrait> WaitList<T> {
+    pub fn new(value: ParsedUpdateStateSuccess, display: T) -> Self {
+        prepare_updatable();
+        Self {
+            added_workloads: value.added_workloads.into_iter().collect(),
+            deleted_workloads: value.deleted_workloads.into_iter().collect(),
+            display,
+        }
+    }
 
     pub fn update(&mut self, values: impl IntoIterator<Item = WorkloadState>) {
         for workload in values.into_iter() {
+            self.display.update(&workload);
             match workload.execution_state.state {
                 common::objects::ExecutionStateEnum::Running(_) => {
-                    self.remove_added(workload.instance_name)
+                    self.added_workloads.remove(&workload.instance_name);
                 }
                 common::objects::ExecutionStateEnum::Succeeded(_) => {
-                    self.remove_added(workload.instance_name)
+                    self.added_workloads.remove(&workload.instance_name);
                 }
                 common::objects::ExecutionStateEnum::Failed(_) => {
-                    self.remove_added(workload.instance_name)
+                    self.added_workloads.remove(&workload.instance_name);
                 }
                 common::objects::ExecutionStateEnum::Removed => {
-                    self.remove_deleted(workload.instance_name)
+                    self.deleted_workloads.remove(&workload.instance_name);
                 }
                 _ => {}
             };
         }
-    }
 
-    fn remove_added(&mut self, name: WorkloadInstanceName) {
-        if self.added_workloads.remove(&name) {
-            println!("Workload {name} started");
-        }
-    }
-
-    fn remove_deleted(&mut self, name: WorkloadInstanceName) {
-        if self.deleted_workloads.remove(&name) {
-            println!("Workload {name} removed");
-        }
+        output_update!("{}", &self.display);
     }
 
     pub fn is_empty(&self) -> bool {
