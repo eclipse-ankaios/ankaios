@@ -339,7 +339,7 @@ impl WorkloadControlLoop {
         // [impl->swdd~agent-workload-control-loop-reset-restart-attempts-on-update~1]
         control_loop_state.restart_counter.reset();
 
-        // [impl->swdd~agent-perform-update-delete-only~1]
+        // [impl->swdd~agent-workload-control-loop-executes-update-delete-only~1]
         if let Some(spec) = new_workload_spec {
             // [impl->swdd~agent-workload-control-loop-update-create-failed-allows-retry~1]
             control_loop_state = Self::create(
@@ -576,7 +576,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-perform-update-delete-only~1]
+    // [utest->swdd~agent-workload-control-loop-executes-update-delete-only~1]
     #[tokio::test]
     async fn utest_workload_obj_run_update_delete_only() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -643,7 +643,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-perform-update-delete-only~1]
+    // [utest->swdd~agent-workload-control-loop-executes-update-delete-only~1]
     #[tokio::test]
     async fn utest_workload_obj_run_update_after_update_delete_only() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

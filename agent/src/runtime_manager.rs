@@ -131,9 +131,8 @@ impl RuntimeManager {
         let workload_operations: Vec<WorkloadOperation> =
             self.transform_into_workload_operations(added_workloads, deleted_workloads);
 
-        // [impl->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
+        // [impl->swdd~agent-handles-new-workload-operations]
         // [impl->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
-        // [impl->swdd~agent-perform-update-delete-only~1]
         let ready_workload_operations = self
             .workload_queue
             .enqueue_filtered_workload_operations(workload_operations, workload_state_db)
@@ -340,7 +339,7 @@ impl RuntimeManager {
                     self.update_workload(new_workload_spec).await
                 }
                 WorkloadOperation::UpdateDeleteOnly(deleted_workload) => {
-                    // [impl->swdd~agent-perform-update-delete-only~1]
+                    // [impl->swdd~agent-executes-update-delete-only-workload-operation~1]
                     self.update_delete_only(deleted_workload).await
                 }
                 WorkloadOperation::Delete(deleted_workload) => {
@@ -423,7 +422,7 @@ impl RuntimeManager {
         }
     }
 
-    // [impl->swdd~agent-perform-update-delete-only~1]
+    // [impl->swdd~agent-executes-update-delete-only-workload-operation~1]
     async fn update_delete_only(&mut self, deleted_workload: DeletedWorkload) {
         let workload_name = deleted_workload.instance_name.workload_name().to_owned();
         if let Some(workload) = self.workloads.get_mut(&workload_name) {
@@ -944,7 +943,7 @@ mod tests {
         assert!(runtime_manager.workloads.is_empty());
     }
 
-    // [utest->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
+    // [utest->swdd~agent-handles-new-workload-operations]
     #[tokio::test]
     async fn utest_handle_update_workload_initial_call_add_workload_with_unfulfilled_dependencies()
     {
@@ -1446,7 +1445,7 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
-    // [utest->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
+    // [utest->swdd~agent-handles-new-workload-operations]
     #[tokio::test]
     async fn utest_handle_update_workload_subsequent_add_workload_with_not_fulfilled_dependencies()
     {
@@ -1494,7 +1493,7 @@ mod tests {
         assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
-    // [utest->swdd~agent-perform-update-delete-only~1]
+    // [utest->swdd~agent-executes-update-delete-only-workload-operation~1]
     #[tokio::test]
     async fn utest_handle_update_workload_subsequent_update_delete_only_with_fulfilled_delete_dependencies(
     ) {
@@ -1564,7 +1563,7 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
-    // [utest->swdd~agent-enqueues-workload-operations-with-unfulfilled-dependencies~1]
+    // [utest->swdd~agent-handles-new-workload-operations]
     #[tokio::test]
     async fn utest_handle_update_workload_subsequent_deleted_workload_with_not_fulfilled_dependencies(
     ) {
@@ -2125,7 +2124,7 @@ mod tests {
             .await;
     }
 
-    // [utest->swdd~agent-perform-update-delete-only~1]
+    // [utest->swdd~agent-executes-update-delete-only-workload-operation~1]
     #[tokio::test]
     async fn utest_execute_workload_operations_update_delete_only() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
