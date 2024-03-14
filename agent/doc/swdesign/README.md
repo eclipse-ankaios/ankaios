@@ -304,7 +304,7 @@ Status: approved
 
 When the RuntimeManager receives the workloads of an `UpdateWorkload` message, then the RuntimeManager shall transform the workloads inside the message into a list of `WorkloadOperation`s containing workloads to create, update and delete.
 
-Comment: The list of `WorkloadOperation`s contains the actions on the workloads the RuntimeManager shall perform.
+Comment: The list of `WorkloadOperation`s contains the actions on the workloads which the RuntimeManager shall perform.
 
 Rationale: The inter-workload dependency handling requires the concrete information about the type of operation performed on the workload.
 
