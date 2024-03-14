@@ -244,7 +244,7 @@ impl WorkloadControlLoop {
             .update_state_tx
             .report_workload_execution_state(
                 &control_loop_state.instance_name,
-                ExecutionState::stopping_triggered(),
+                ExecutionState::stopping_requested(),
             )
             .await;
 
@@ -300,7 +300,7 @@ impl WorkloadControlLoop {
             .update_state_tx
             .report_workload_execution_state(
                 &control_loop_state.instance_name,
-                ExecutionState::stopping_triggered(),
+                ExecutionState::stopping_requested(),
             )
             .await;
 
@@ -562,10 +562,10 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::stopping_requested()),
                 (&old_instance_name, ExecutionState::removed()),
                 (&new_instance_name, ExecutionState::starting_triggered()),
-                (&new_instance_name, ExecutionState::stopping_triggered()),
+                (&new_instance_name, ExecutionState::stopping_requested()),
                 (&new_instance_name, ExecutionState::removed()),
             ],
         )
@@ -631,7 +631,7 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::stopping_requested()),
                 (&old_instance_name, ExecutionState::removed()),
             ],
         )
@@ -723,9 +723,9 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::stopping_requested()),
                 (&old_instance_name, ExecutionState::removed()),
-                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::stopping_requested()),
                 (&old_instance_name, ExecutionState::removed()),
             ],
         )
@@ -808,10 +808,10 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::stopping_requested()),
                 (&old_instance_name, ExecutionState::removed()),
                 (&new_instance_name, ExecutionState::starting_triggered()),
-                (&new_instance_name, ExecutionState::stopping_triggered()),
+                (&new_instance_name, ExecutionState::stopping_requested()),
                 (&new_instance_name, ExecutionState::removed()),
             ],
         )
@@ -892,12 +892,12 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::stopping_requested()),
                 (
                     &old_instance_name,
                     ExecutionState::delete_failed("some delete error"),
                 ),
-                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::stopping_requested()),
                 (&old_instance_name, ExecutionState::removed()),
             ],
         )
@@ -981,14 +981,14 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::stopping_requested()),
                 (&old_instance_name, ExecutionState::removed()),
                 (&new_instance_name, ExecutionState::starting_triggered()),
                 (
                     &new_instance_name,
                     ExecutionState::starting_failed("some create error"),
                 ),
-                (&new_instance_name, ExecutionState::stopping_triggered()),
+                (&new_instance_name, ExecutionState::stopping_requested()),
                 (&new_instance_name, ExecutionState::removed()),
             ],
         )
@@ -1050,7 +1050,7 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&instance_name, ExecutionState::stopping_triggered()),
+                (&instance_name, ExecutionState::stopping_requested()),
                 (&instance_name, ExecutionState::removed()),
             ],
         )
@@ -1118,12 +1118,12 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&instance_name, ExecutionState::stopping_triggered()),
+                (&instance_name, ExecutionState::stopping_requested()),
                 (
                     &instance_name,
                     ExecutionState::delete_failed("some delete error"),
                 ),
-                (&instance_name, ExecutionState::stopping_triggered()),
+                (&instance_name, ExecutionState::stopping_requested()),
                 (&instance_name, ExecutionState::removed()),
             ],
         )
@@ -1548,7 +1548,7 @@ mod tests {
                     ExecutionState::starting_failed("some create error"),
                 ),
                 (&instance_name, ExecutionState::restart_failed_no_retry()),
-                (&instance_name, ExecutionState::stopping_triggered()),
+                (&instance_name, ExecutionState::stopping_requested()),
                 (&instance_name, ExecutionState::removed()),
             ],
         )

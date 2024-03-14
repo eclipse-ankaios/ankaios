@@ -78,6 +78,7 @@ impl Display for RunningSubstate {
 pub enum StoppingSubstate {
     Stopping = 0,
     WaitingToStop = 1,
+    RequestedAtRuntime = 2,
     DeleteFailed = 8,
 }
 
@@ -85,6 +86,9 @@ impl From<i32> for StoppingSubstate {
     fn from(x: i32) -> Self {
         match x {
             x if x == StoppingSubstate::WaitingToStop as i32 => StoppingSubstate::WaitingToStop,
+            x if x == StoppingSubstate::RequestedAtRuntime as i32 => {
+                StoppingSubstate::RequestedAtRuntime
+            }
             x if x == StoppingSubstate::DeleteFailed as i32 => StoppingSubstate::DeleteFailed,
             _ => StoppingSubstate::Stopping,
         }
@@ -96,6 +100,7 @@ impl Display for StoppingSubstate {
         match self {
             StoppingSubstate::Stopping => write!(f, "Stopping"),
             StoppingSubstate::WaitingToStop => write!(f, "WaitingToStop"),
+            StoppingSubstate::RequestedAtRuntime => write!(f, "RequestedAtRuntime"),
             StoppingSubstate::DeleteFailed => write!(f, "DeleteFailed"),
         }
     }
@@ -167,7 +172,7 @@ impl ExecutionState {
     pub fn transition(&self, incoming: ExecutionState) -> ExecutionState {
         match (&self.state, &incoming.state) {
             (
-                ExecutionStateEnum::Stopping(StoppingSubstate::Stopping)
+                ExecutionStateEnum::Stopping(StoppingSubstate::RequestedAtRuntime)
                 | ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop),
                 ExecutionStateEnum::Running(RunningSubstate::Ok)
                 | ExecutionStateEnum::Succeeded(SucceededSubstate::Ok)
@@ -371,10 +376,10 @@ impl ExecutionState {
         }
     }
 
-    pub fn stopping_triggered() -> Self {
+    pub fn stopping_requested() -> Self {
         ExecutionState {
-            state: ExecutionStateEnum::Stopping(StoppingSubstate::Stopping),
-            additional_info: TRIGGERED_MSG.to_string(),
+            state: ExecutionStateEnum::Stopping(StoppingSubstate::RequestedAtRuntime),
+            ..Default::default()
         }
     }
 
@@ -565,29 +570,29 @@ mod tests {
             ExecutionState::waiting_to_stop()
         );
         assert_eq!(
-            ExecutionState::stopping_triggered().transition(ExecutionState::running()),
-            ExecutionState::stopping_triggered()
+            ExecutionState::stopping_requested().transition(ExecutionState::running()),
+            ExecutionState::stopping_requested()
         );
         assert_eq!(
-            ExecutionState::stopping_triggered().transition(ExecutionState::succeeded()),
-            ExecutionState::stopping_triggered()
+            ExecutionState::stopping_requested().transition(ExecutionState::succeeded()),
+            ExecutionState::stopping_requested()
         );
         assert_eq!(
-            ExecutionState::stopping_triggered()
+            ExecutionState::stopping_requested()
                 .transition(ExecutionState::failed("failed for some reason")),
-            ExecutionState::stopping_triggered()
+            ExecutionState::stopping_requested()
         );
         assert_eq!(
-            ExecutionState::stopping_triggered().transition(ExecutionState::lost()),
-            ExecutionState::stopping_triggered()
+            ExecutionState::stopping_requested().transition(ExecutionState::lost()),
+            ExecutionState::stopping_requested()
         );
         assert_eq!(
-            ExecutionState::stopping_triggered()
+            ExecutionState::stopping_requested()
                 .transition(ExecutionState::unknown("I lost the thing")),
-            ExecutionState::stopping_triggered()
+            ExecutionState::stopping_requested()
         );
         assert_eq!(
-            ExecutionState::stopping_triggered().transition(ExecutionState::delete_failed(
+            ExecutionState::stopping_requested().transition(ExecutionState::delete_failed(
                 "mi mi mi, I could not delete it..."
             )),
             ExecutionState::delete_failed("mi mi mi, I could not delete it...")
