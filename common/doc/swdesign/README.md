@@ -110,6 +110,7 @@ Ankaios shall support the following execution states with substates for a worklo
 - stopping
     * waiting to stop
     * stopping
+    * requested at runtime
     * delete failed
 - succeeded
     * ok
@@ -129,7 +130,7 @@ Needs:
 
 The Following diagram shows all Ankaios workload states and the possible transitions between them:
 
-![Workload states](drawio/state_workload_execution_all_states.drawio.svg)
+![Workload states](drawio/state_workload_execution_all_states_simple.drawio.svg)
 
 #### Workload state transitions
 `swdd~common-workload-state-transitions~1`
