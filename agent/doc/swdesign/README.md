@@ -958,8 +958,8 @@ The following diagram describes the inter-workload dependency management when th
 
 ![Inter-workload dependency management on new workload states](plantuml/seq_inter-workload_dependencies_on_update_workload_state.svg)
 
-#### Agent schedules workload operations
-`swdd~agent-handle-workloads-with-fulfilled-dependencies~1`
+#### Agent handles workload with fulfilled dependencies
+`swdd~agent-handles-workloads-with-fulfilled-dependencies~1`
 
 Status: approved
 
