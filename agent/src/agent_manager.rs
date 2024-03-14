@@ -92,7 +92,6 @@ impl AgentManager {
                     method_obj.deleted_workloads);
 
                 // [impl->swdd~agent-handles-update-workload-requests~1]
-                // [impl->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
                 self.runtime_manager
                     .handle_update_workload(
                         method_obj.added_workloads,
@@ -119,7 +118,7 @@ impl AgentManager {
                         self.workload_state_store
                             .update_workload_state(new_workload_state);
                     }
-                    // [impl->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
+                    // [impl->swdd~agent-handles-update-workload-state-requests~1]
                     self.runtime_manager
                         .update_workloads_on_fulfilled_dependencies(&self.workload_state_store)
                         .await;
@@ -170,7 +169,7 @@ impl AgentManager {
             .update_workload_state(new_workload_state.clone());
 
         // notify the runtime manager s.t. dependencies and restarts can be handled
-        // [impl->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
+        // [impl->swdd~agent-handles-update-workload-state-requests~1]
         self.runtime_manager
             .update_workloads_on_fulfilled_dependencies(&self.workload_state_store)
             .await;
@@ -274,6 +273,7 @@ mod tests {
     // [utest->swdd~agent-manager-listens-requests-from-server~1]
     // [utest->swdd~agent-uses-async-channels~1]
     // [utest->swdd~agent-manager-stores-all-workload-states~1]
+    // [utest->swdd~agent-handles-update-workload-state-requests~1]
     #[tokio::test]
     async fn utest_agent_manager_update_workload_states() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -410,7 +410,7 @@ mod tests {
     // [utest->swdd~agent-manager-receives-workload-states-of-its-workloads~1]
     // [utest->swdd~agent-stores-workload-states-of-its-workloads~1]
     // [utest->swdd~agent-sends-workload-states-of-its-workloads-to-server~1]
-    // [utest->swdd~agent-updates-workloads-with-fulfilled-dependencies~1]
+    // [utest->swdd~agent-handles-update-workload-state-requests~1]
     // [utest->swdd~agent-manager-hysteresis_on-workload-states-of-its-workloads~1]
     #[tokio::test]
     async fn utest_agent_manager_receives_own_workload_states() {
