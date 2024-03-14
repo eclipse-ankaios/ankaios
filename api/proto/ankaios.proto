@@ -179,7 +179,6 @@ enum Pending {
 */
 enum Running {
   RUNNING_OK = 0; /// The workload is operational.
-  RUNNING_DELETE_FAILED = 8; /// The deletion of the workload by the runtime failed.
 }
 
 /**
@@ -188,6 +187,8 @@ enum Running {
 enum Stopping {
     STOPPING = 0; /// The workload is being stopped.
     STOPPING_WAITING_TO_STOP = 1; /// The deletion of the workload will be triggered once neither 'pending' nor 'running' workload depending on it exists.
+    STOPPING_REQUESTED_AT_RUNTIME = 2; /// This is an Ankaios generated state returned when the stopping was explicitly trigged by the user and the request was sent to the runtime.
+    STOPPING_DELETE_FAILED = 8; /// The deletion of the workload by the runtime failed.
   }
 
 /**
@@ -195,7 +196,6 @@ enum Stopping {
 */
 enum Succeeded {
   SUCCEEDED_OK = 0; /// The workload has successfully finished operation.
-  SUCCEEDED_DELETE_FAILED = 8; /// The deletion of the workload by the runtime failed.
 }
 
 /**
@@ -205,7 +205,6 @@ enum Failed {
   FAILED_EXEC_FAILED = 0; /// The workload has failed during operation
   FAILED_UNKNOWN = 1; /// The workload is in an unsupported by Ankaios runtime state. The workload was possibly altered outside of Ankaios.
   FAILED_LOST = 2; /// The workload cannot be found anymore. The workload was possibly altered outside of Ankaios or was auto-removed by the runtime.
-  FAILED_DELETE_FAILED = 8; /// The deletion of the workload by the runtime failed.
 }
 
 /**
