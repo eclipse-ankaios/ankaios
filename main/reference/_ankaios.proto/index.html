@@ -2854,11 +2854,6 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 <td>2</td>
 <td>The workload cannot be found anymore. The workload was possibly altered outside of Ankaios or was auto-removed by the runtime.</td>
 </tr>
-<tr>
-<td>FAILED_DELETE_FAILED</td>
-<td>8</td>
-<td>The deletion of the workload by the runtime failed.</td>
-</tr>
 </tbody>
 </table>
 <p><a name="ankaios-NotScheduled"></a></p>
@@ -2950,11 +2945,6 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 <td>0</td>
 <td>The workload is operational.</td>
 </tr>
-<tr>
-<td>RUNNING_DELETE_FAILED</td>
-<td>8</td>
-<td>The deletion of the workload by the runtime failed.</td>
-</tr>
 </tbody>
 </table>
 <p><a name="ankaios-Stopping"></a></p>
@@ -2979,6 +2969,16 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 <td>1</td>
 <td>The deletion of the workload will be triggered once neither &#39;pending&#39; nor &#39;running&#39; workload depending on it exists.</td>
 </tr>
+<tr>
+<td>STOPPING_REQUESTED_AT_RUNTIME</td>
+<td>2</td>
+<td>This is an Ankaios generated state returned when the stopping was explicitly trigged by the user and the request was sent to the runtime.</td>
+</tr>
+<tr>
+<td>STOPPING_DELETE_FAILED</td>
+<td>8</td>
+<td>The deletion of the workload by the runtime failed.</td>
+</tr>
 </tbody>
 </table>
 <p><a name="ankaios-Succeeded"></a></p>
@@ -2997,11 +2997,6 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 <td>SUCCEEDED_OK</td>
 <td>0</td>
 <td>The workload has successfully finished operation.</td>
-</tr>
-<tr>
-<td>SUCCEEDED_DELETE_FAILED</td>
-<td>8</td>
-<td>The deletion of the workload by the runtime failed.</td>
 </tr>
 </tbody>
 </table>
