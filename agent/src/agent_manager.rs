@@ -431,14 +431,14 @@ mod tests {
         let wl_state_after_hysteresis = common::objects::generate_test_workload_state_with_agent(
             WORKLOAD_1_NAME,
             AGENT_NAME,
-            ExecutionState::stopping_triggered(),
+            ExecutionState::stopping_requested(),
         );
 
         let mut mock_wl_state_store = MockWorkloadStateStore::default();
 
         mock_wl_state_store.states_storage.insert(
             WORKLOAD_1_NAME.to_string(),
-            ExecutionState::stopping_triggered(),
+            ExecutionState::stopping_requested(),
         );
 
         mock_wl_state_store

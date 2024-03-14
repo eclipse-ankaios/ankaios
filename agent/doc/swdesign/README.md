@@ -617,7 +617,7 @@ Needs:
 Status: approved
 
 When requested, the RuntimeFacade shall delete a workload by:
-* sending a `Stopping(Stopping)` with additional information "Triggered at runtime." workload state for that workload
+* sending a `Stopping(RequestedAtRuntime)` workload state for that workload
 * deleting the workload via the runtime
 * sending a `Removed` workload state for that workload after the deletion was successful or `Stopping(DeleteFailed)` upon failure
 
@@ -852,7 +852,7 @@ Needs:
 Status: approved
 
 When the WorkloadControlLoop started during the creation of the workload object receives a delete command, the WorkloadControlLoop shall:
-* send a `Stopping(Stopping)` workload state for that workload
+* send a `Stopping(RequestedAtRuntime)` workload state for that workload
 * delete the old workload via the corresponding runtime connector blocking the execution
 * upon successful deletion of the workload:
     * stop the state checker for the workload
