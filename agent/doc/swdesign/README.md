@@ -308,7 +308,7 @@ Comment: The list of `WorkloadOperation`s contains the actions on the workloads 
 
 Rationale: The inter-workload dependency handling requires the concrete information about the type of operation performed on the workload.
 
-Tags:on the workloads
+Tags:
 - RuntimeManager
 - WorkloadOperation
 
