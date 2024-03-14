@@ -48,6 +48,7 @@ impl TryFrom<UpdateStateSuccess> for ParsedUpdateStateSuccess {
 
 pub trait WaitListDisplayTrait: Display {
     fn update(&mut self, workload_state: &WorkloadState);
+    fn set_complete(&mut self, workload: &WorkloadInstanceName);
     fn step_spinner(&mut self);
 }
 
@@ -73,15 +74,19 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
             match workload.execution_state.state {
                 common::objects::ExecutionStateEnum::Running(_) => {
                     self.added_workloads.remove(&workload.instance_name);
+                    self.display.set_complete(&workload.instance_name)
                 }
                 common::objects::ExecutionStateEnum::Succeeded(_) => {
                     self.added_workloads.remove(&workload.instance_name);
+                    self.display.set_complete(&workload.instance_name)
                 }
                 common::objects::ExecutionStateEnum::Failed(_) => {
                     self.added_workloads.remove(&workload.instance_name);
+                    self.display.set_complete(&workload.instance_name)
                 }
                 common::objects::ExecutionStateEnum::Removed => {
                     self.deleted_workloads.remove(&workload.instance_name);
+                    self.display.set_complete(&workload.instance_name)
                 }
                 _ => {}
             };

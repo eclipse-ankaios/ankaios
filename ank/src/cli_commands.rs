@@ -470,18 +470,25 @@ struct GetWorkloadTableDisplay {
 
 struct WaitListDisplay {
     data: HashMap<WorkloadInstanceName, GetWorkloadTableDisplay>,
+    not_completed: HashSet<WorkloadInstanceName>,
     spinner: Spinner,
 }
 
 impl Display for WaitListDisplay {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        output_debug!("foo: {:?}", self.not_completed);
         let data: Vec<_> = self
             .data
-            .values()
-            .map(|x| {
-                let mut x = x.to_owned();
-                x.execution_state = format!("{} {}", self.spinner, x.execution_state);
-                x
+            .iter()
+            .map(|(workload_name, table_entry)| {
+                let mut table_entry = table_entry.to_owned();
+                if self.not_completed.contains(workload_name) {
+                    table_entry.execution_state =
+                        format!("{} {}", self.spinner, table_entry.execution_state);
+                } else {
+                    table_entry.execution_state = format!("  {}", table_entry.execution_state);
+                }
+                table_entry
             })
             .collect();
 
@@ -499,6 +506,10 @@ impl WaitListDisplayTrait for WaitListDisplay {
             entry.execution_state = workload_state.execution_state.state.to_string();
             entry.additional_info = workload_state.execution_state.additional_info.clone();
         }
+    }
+
+    fn set_complete(&mut self, workload: &WorkloadInstanceName) {
+        self.not_completed.remove(workload);
     }
 
     fn step_spinner(&mut self) {
@@ -754,12 +765,8 @@ impl CliCommands {
             complete_state
         );
         // send update request
-        self.to_server
-            .update_state(self.cli_name.to_owned(), complete_state, object_field_mask)
+        self.internal_set_state(complete_state, object_field_mask)
             .await
-            .map_err(|err| CliError::ExecutionError(err.to_string()))?;
-
-        Ok(())
     }
 
     // [impl->swdd~cli-provides-list-of-workloads~1]
@@ -865,18 +872,7 @@ impl CliCommands {
         });
 
         let update_mask = vec!["desiredState".to_string()];
-        if new_state.desired_state != complete_state.desired_state {
-            output_debug!("Sending the new state {:?}", new_state);
-            self.to_server
-                .update_state(self.cli_name.to_owned(), *new_state, update_mask)
-                .await
-                .map_err(|err| CliError::ExecutionError(err.to_string()))?;
-        } else {
-            // [impl->swdd~no-delete-workloads-when-not-found~1]
-            output_debug!("Current and new states are identical -> nothing to do");
-        }
-
-        Ok(())
+        self.internal_set_state(*new_state, update_mask).await
     }
 
     // [impl->swdd~cli-provides-run-workload~1]
@@ -889,8 +885,6 @@ impl CliCommands {
         agent_name: String,
         tags_strings: Vec<(String, String)>,
     ) -> Result<(), CliError> {
-        let request_id = uuid::Uuid::new_v4().to_string();
-
         let tags: Vec<Tag> = tags_strings
             .into_iter()
             .map(|(k, v)| Tag { key: k, value: v })
@@ -914,6 +908,16 @@ impl CliCommands {
             .insert(workload_name, new_workload);
 
         let update_mask = vec!["desiredState".to_string()];
+
+        self.internal_set_state(new_state, update_mask).await
+    }
+
+    async fn internal_set_state(
+        &mut self,
+        new_state: CompleteState,
+        update_mask: Vec<String>,
+    ) -> Result<(), CliError> {
+        let request_id = uuid::Uuid::new_v4().to_string();
         output_debug!("Sending the new state {:?}", new_state);
         self.to_server
             .update_state(request_id.clone(), new_state, update_mask)
@@ -961,32 +965,23 @@ impl CliCommands {
                 ))
             })?;
 
-        let mut changed_workloads = HashSet::<String>::from_iter(
-            update_state_success
-                .added_workloads
-                .iter()
-                .map(|x| x.workload_name().into()),
-        );
-        changed_workloads.extend(
-            update_state_success
-                .deleted_workloads
-                .iter()
-                .map(|x| x.workload_name().into()),
-        );
+        let mut changed_workloads =
+            HashSet::from_iter(update_state_success.added_workloads.iter().cloned());
+        changed_workloads.extend(update_state_success.deleted_workloads.iter().cloned());
 
         if changed_workloads.is_empty() {
             output!("No workloads to update");
             return Ok(());
         }
 
-        let mut workloads = self.get_workloads().await.unwrap();
-        workloads.retain(|x| changed_workloads.contains(&x.1.base_info.name));
+        let workloads = self.get_workloads().await.unwrap();
 
         let mut wait_list = WaitList::new(
             update_state_success,
             WaitListDisplay {
                 data: workloads.into_iter().collect(),
                 spinner: Default::default(),
+                not_completed: changed_workloads,
             },
         );
 
@@ -994,6 +989,7 @@ impl CliCommands {
         let mut spinner_interval = interval(Duration::from_millis(100));
 
         while !wait_list.is_empty() {
+            output_debug!("Got messsage");
 
             tokio::select! {
                 server_message = self.from_server.recv() => {
@@ -1012,23 +1008,12 @@ impl CliCommands {
                     wait_list.step_spinner();
                 }
             }
-            let Some(server_message) = self.from_server.recv().await else {
-                return Err(CliError::ExecutionError(
-                    "Connection to server interrupted".into(),
-                ));
-            };
-            let FromServer::UpdateWorkloadState(update_workload_state) = server_message else {
-                output_debug!("Received unexpected message: {:?}", server_message);
-                continue;
-            };
-            wait_list.update(update_workload_state.workload_states);
         }
-
         Ok(())
     }
 
     // [impl->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
-    pub async fn apply_manifests(&mut self, apply_args: ApplyArgs) -> Result<String, String> {
+    pub async fn apply_manifests(&mut self, apply_args: ApplyArgs) -> Result<(), CliError> {
         use apply_manifests::*;
         match apply_args.get_input_sources() {
             Ok(mut manifests) => {
@@ -1038,49 +1023,15 @@ impl CliCommands {
                         &mut manifests,
                         &apply_args,
                         &mut table_output,
-                    )?;
-
-                let request_id: &str = &self.cli_name;
+                    )
+                    .map_err(CliError::ExecutionError)?;
 
                 // [impl->swdd~cli-apply-send-update-state~1]
                 // [impl->swdd~cli-apply-send-update-state-for-deletion~1]
-                match self
-                    .to_server
-                    .update_state(request_id.to_string(), complete_state_req_obj, filter_masks)
+                self.internal_set_state(complete_state_req_obj, filter_masks)
                     .await
-                {
-                    Ok(_) => {
-                        let poll_complete_state_response = async {
-                            loop {
-                                match self.from_server.recv().await {
-                                    Some(FromServer::Response(Response {
-                                        request_id: req_id,
-                                        response_content: _,
-                                    })) if req_id == request_id => {
-                                        return Ok(tabled::Table::new(table_output)
-                                            .with(tabled::settings::Style::blank())
-                                            .to_string());
-                                    }
-                                    None => return Err("Channel preliminary closed."),
-                                    Some(_) => (),
-                                }
-                            }
-                        };
-                        match tokio::time::timeout(WAIT_TIME_MS, poll_complete_state_response).await
-                        {
-                            Ok(Ok(res)) => Ok(res),
-                            Ok(Err(err)) => Err(format!(
-                                "Error response received from server.\nError: {err}"
-                            )),
-                            Err(_) => Err(format!(
-                                "Failed get response from server in time (timeout={WAIT_TIME_MS:?})."
-                            )),
-                        }
-                    }
-                    Err(err) => Err(err.to_string()),
-                }
             }
-            Err(err) => Err(err.to_string()),
+            Err(err) => Err(CliError::ExecutionError(err.to_string())),
         }
     }
 }
