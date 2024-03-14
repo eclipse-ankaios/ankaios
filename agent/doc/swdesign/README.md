@@ -1024,7 +1024,7 @@ Needs:
 
 Status: approved
 
-When the AgentManager receives an `UpdateWorkload` message from the server, then the RuntimeManager shall update the workloads contained within the message.
+When the AgentManager receives an `UpdateWorkload` message from the server, then the RuntimeManager shall handle the workloads contained within the message.
 
 Comment: The `UpdateWorkload` message contains workloads to create, update and delete.
 
