@@ -1002,8 +1002,8 @@ Needs:
 
 Status: approved
 
-When the RuntimeManager receives an `UpdateWorkload` containing a workload with unsatisfied inter-workload dependencies,
-the WorkloadScheduler shall put the workload operation into a waiting queue.
+When the RuntimeManager handles a `WorkloadOperation` with unsatisfied inter-workload dependencies,
+then the WorkloadScheduler shall put the workload operation into a waiting queue.
 
 Rationale: The workload shall only be started when its inter-workload dependencies are in the desired configured state.
 
