@@ -11,7 +11,9 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use common::objects::{AddCondition, DeleteCondition, DeletedWorkload, WorkloadSpec};
+use common::objects::{
+    AddCondition, DeleteCondition, DeletedWorkload, WorkloadSpec, WorkloadState,
+};
 use std::collections::HashMap;
 
 #[cfg(test)]
@@ -52,6 +54,23 @@ impl DeleteGraph {
             }
         }
     }
+
+    // [impl->swdd~server-removes-obsolete-delete-graph-entires~1]
+    pub fn remove_deleted_workloads_from_delete_graph(
+        &mut self,
+        workload_states: &[WorkloadState],
+    ) {
+        for wl_state in workload_states {
+            if wl_state.execution_state.is_removed()
+                && self
+                    .delete_graph
+                    .remove(wl_state.instance_name.workload_name())
+                    .is_some()
+            {
+                log::debug!("Removed '{}' from delete graph.", wl_state.instance_name);
+            }
+        }
+    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -65,7 +84,8 @@ impl DeleteGraph {
 mod tests {
     use super::{AddCondition, DeleteCondition, DeleteGraph};
     use common::objects::{
-        generate_test_workload_spec_with_param, DeletedWorkload, WorkloadInstanceName,
+        generate_test_workload_spec_with_param, generate_test_workload_state_with_agent,
+        DeletedWorkload, ExecutionState, WorkloadInstanceName,
     };
     use std::collections::HashMap;
 
@@ -282,5 +302,77 @@ mod tests {
             },
             deleted_workloads[1]
         );
+    }
+
+    // [utest->swdd~server-removes-obsolete-delete-graph-entires~1]
+    #[test]
+    fn utest_remove_deleted_workloads_from_delete_graph_delete_entries() {
+        let mut delete_graph = DeleteGraph::default();
+
+        delete_graph.delete_graph.insert(
+            WORKLOAD_NAME_1.to_owned(),
+            HashMap::from([(
+                WORKLOAD_NAME_2.to_owned(),
+                DeleteCondition::DelCondNotPendingNorRunning,
+            )]),
+        );
+
+        let workload_states = [generate_test_workload_state_with_agent(
+            WORKLOAD_NAME_1,
+            AGENT_A,
+            ExecutionState::removed(),
+        )];
+
+        delete_graph.remove_deleted_workloads_from_delete_graph(&workload_states);
+
+        assert!(delete_graph.delete_graph.is_empty());
+    }
+
+    // [utest->swdd~server-removes-obsolete-delete-graph-entires~1]
+    #[test]
+    fn utest_remove_deleted_workloads_from_delete_graph_keep_entries() {
+        let mut delete_graph = DeleteGraph::default();
+
+        delete_graph.delete_graph.insert(
+            WORKLOAD_NAME_1.to_owned(),
+            HashMap::from([(
+                WORKLOAD_NAME_2.to_owned(),
+                DeleteCondition::DelCondNotPendingNorRunning,
+            )]),
+        );
+
+        let workload_states = [generate_test_workload_state_with_agent(
+            WORKLOAD_NAME_2,
+            AGENT_A,
+            ExecutionState::running(),
+        )];
+
+        delete_graph.remove_deleted_workloads_from_delete_graph(&workload_states);
+
+        assert!(delete_graph.delete_graph.contains_key(WORKLOAD_NAME_1));
+    }
+
+    // [utest->swdd~server-removes-obsolete-delete-graph-entires~1]
+    #[test]
+    fn utest_remove_deleted_workloads_from_delete_graph_ignore_not_relevant_workload_states() {
+        let mut delete_graph = DeleteGraph::default();
+
+        delete_graph.delete_graph.insert(
+            WORKLOAD_NAME_1.to_owned(),
+            HashMap::from([(
+                WORKLOAD_NAME_2.to_owned(),
+                DeleteCondition::DelCondNotPendingNorRunning,
+            )]),
+        );
+
+        let workload_states = [generate_test_workload_state_with_agent(
+            WORKLOAD_NAME_3,
+            AGENT_A,
+            ExecutionState::removed(),
+        )];
+
+        delete_graph.remove_deleted_workloads_from_delete_graph(&workload_states);
+
+        assert!(delete_graph.delete_graph.contains_key(WORKLOAD_NAME_1));
     }
 }
