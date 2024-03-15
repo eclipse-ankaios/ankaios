@@ -703,10 +703,7 @@ Needs:
 
 Status: approved
 
-When the ServerState receives a trigger to cleanup its state, the ServerState shall:
-
-* provide the new workload states to the DeleteGraph
-* request the DeleteGraph to delete all entries for which there is a WorkloadState `Removed` in the list of new workload states
+When the ServerState receives a trigger to cleanup its state, the ServerState shall request the DeleteGraph to delete all entries for which there is a WorkloadState `Removed` in the list of provided workload states.
 
 Comment:
 The DeleteGraph ignores WorkloadStates from workloads that do not have an entry in the delete graph.
