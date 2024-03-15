@@ -104,7 +104,6 @@ pub trait FromServerInterface {
         request_id: String,
         complete_state: CompleteState,
     ) -> Result<(), FromServerInterfaceError>;
-    async fn success(&self, request_id: String) -> Result<(), FromServerInterfaceError>;
     async fn update_state_success(
         &self,
         request_id: String,
@@ -163,15 +162,6 @@ impl FromServerInterface for FromServerSender {
                 response_content: commands::ResponseContent::CompleteState(Box::new(
                     complete_state,
                 )),
-            }))
-            .await?)
-    }
-
-    async fn success(&self, request_id: String) -> Result<(), FromServerInterfaceError> {
-        Ok(self
-            .send(FromServer::Response(commands::Response {
-                request_id,
-                response_content: commands::ResponseContent::Success,
             }))
             .await?)
     }
