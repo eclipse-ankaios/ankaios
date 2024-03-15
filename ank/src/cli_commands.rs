@@ -945,12 +945,24 @@ impl CliCommands {
                             "Received unexpected response for request ID: '{}'",
                             response.request_id
                         );
-                    } else if let ResponseContent::UpdateStateSuccess(update_state_success) =
-                        response.response_content
-                    {
-                        break update_state_success;
                     } else {
-                        output_debug!("Received unexpected Response: '{:?}'", response);
+                        match response.response_content {
+                            ResponseContent::UpdateStateSuccess(update_state_success) => {
+                                break update_state_success
+                            }
+                            ResponseContent::Error(error) => {
+                                return Err(CliError::ExecutionError(format!(
+                                    "SetState failed with: '{}'",
+                                    error.message
+                                )));
+                            }
+                            response_content => {
+                                return Err(CliError::ExecutionError(format!(
+                                    "Received unexpected response: {:?}",
+                                    response_content
+                                )));
+                            }
+                        }
                     }
                 }
                 FromServer::UpdateWorkloadState(mut update_workload_state) => {
