@@ -1224,7 +1224,7 @@ Needs:
 
 Status: approved
 
-When the workload states of all workloads fulfill the respective `DeleteCondition` of an inter-workload dependency, then the inter-workload dependency is ready to delete.
+When the WorkloadScheduler checks if a workload fulfills all its configured `DeleteCondition`s, then the DependencyStateValidator shall execute the checks and provide the outcome.
 
 Tags:
 - WorkloadScheduler
