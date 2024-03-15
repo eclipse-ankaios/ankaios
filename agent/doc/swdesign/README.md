@@ -1209,7 +1209,7 @@ Needs:
 
 Status: approved
 
-When the workload state of all inter-workload dependencies of a workload fulfill their configured `AddCondition`, then the Workload is ready to create.
+When the WorkloadScheduler checks if a workload fulfills all its configured `AddCondition`s, then the DependencyStateValidator shall execute the checks and provide the outcome.
 
 Tags:
 - WorkloadScheduler
