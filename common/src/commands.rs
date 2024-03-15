@@ -209,7 +209,6 @@ impl TryFrom<proto::Response> for Response {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum ResponseContent {
-    Success,
     Error(Error),
     CompleteState(Box<CompleteState>),
     UpdateStateSuccess(UpdateStateSuccess),
@@ -218,10 +217,6 @@ pub enum ResponseContent {
 impl From<ResponseContent> for proto::response::ResponseContent {
     fn from(value: ResponseContent) -> Self {
         match value {
-            ResponseContent::Success => {
-                proto::response::ResponseContent::Success(proto::Success {})
-            }
-
             ResponseContent::Error(error) => proto::response::ResponseContent::Error(error.into()),
             ResponseContent::CompleteState(complete_state) => {
                 proto::response::ResponseContent::CompleteState((*complete_state).into())
@@ -238,7 +233,6 @@ impl TryFrom<proto::response::ResponseContent> for ResponseContent {
 
     fn try_from(value: proto::response::ResponseContent) -> Result<Self, String> {
         match value {
-            proto::response::ResponseContent::Success(_) => Ok(ResponseContent::Success),
             proto::response::ResponseContent::Error(error) => {
                 Ok(ResponseContent::Error(error.into()))
             }
@@ -321,7 +315,7 @@ mod tests {
         pub use api::proto::{
             execution_state::ExecutionStateEnum, request::RequestContent,
             response::ResponseContent, ApiVersion, CompleteState, CompleteStateRequest, Error,
-            ExecutionState, Request, Response, Running, State, Success, UpdateStateRequest,
+            ExecutionState, Request, Response, Running, State, UpdateStateRequest,
             UpdateStateSuccess, UpdateWorkloadState, Workload, WorkloadInstanceName, WorkloadState,
         };
     }
@@ -392,21 +386,6 @@ mod tests {
                 state: complete_state!(ankaios),
                 update_mask: vec![FIELD_1.into(), FIELD_2.into()],
             }))
-        };
-    }
-
-    macro_rules! success_response {
-        (proto) => {
-            proto::Response {
-                request_id: REQUEST_ID.into(),
-                response_content: proto::ResponseContent::Success(proto::Success {}).into(),
-            }
-        };
-        (ankaios) => {
-            ankaios::Response {
-                request_id: REQUEST_ID.into(),
-                response_content: ankaios::ResponseContent::Success,
-            }
         };
     }
 
@@ -731,28 +710,6 @@ mod tests {
         assert_eq!(
             ankaios::Request::try_from(proto_request).unwrap_err(),
             "Request has no content"
-        );
-    }
-
-    #[test]
-    fn utest_converts_to_proto_success_response() {
-        let ankaios_success_response = success_response!(ankaios);
-        let proto_success_response = success_response!(proto);
-
-        assert_eq!(
-            proto::Response::from(ankaios_success_response),
-            proto_success_response
-        );
-    }
-
-    #[test]
-    fn utest_converts_from_proto_success_response() {
-        let proto_success_response = success_response!(proto);
-        let ankaios_success_response = success_response!(ankaios);
-
-        assert_eq!(
-            ankaios::Response::try_from(proto_success_response).unwrap(),
-            ankaios_success_response
         );
     }
 
