@@ -680,22 +680,43 @@ Needs:
 - impl
 - utest
 
-#### Server removes obsolete delete conditions from delete graph
-`swdd~server-removes-obsolete-delete-conditions-from-delete-graph~1`
+#### Server cleans up state
+`swdd~server-cleans-up-state~1`
 
 Status: approved
 
-When the Ankaios server receives an `UpdateWorkloadState` message
-and the message contains the WorkloadState `Removed` for a workload
-and the workload has an entry inside the delete graph,
-then the server shall delete the entry from the delete graph.
+When the Ankaios Server receives new workload states, then the Ankaios Server shall:
+* provide the new workload states to the ServerState
+* trigger the ServerState to cleanup its state
 
-Comment: The server ignores WorkloadStates from workloads that do not have an entry in the delete graph.
-
-Rationale: The entry should not exist after the workload has actually been deleted.
+Rationale:
+The server state should not have any obsolete entries.
 
 Tags:
 - AnkaiosServer
+- ServerState
+
+Needs:
+- impl
+- utest
+
+#### Server removes obsolete entries from delete graph
+`swdd~server-removes-obsolete-delete-graph-entires~1`
+
+Status: approved
+
+When the ServerState receives a trigger to cleanup its state, the ServerState shall:
+
+* provide the new workload states to the DeleteGraph
+* request the DeleteGraph to delete all entries for which there is a WorkloadState `Removed` in the list of new workload states
+
+Comment:
+The DeleteGraph ignores WorkloadStates from workloads that do not have an entry in the delete graph.
+
+Rationale:
+The entry should not exist after the workload has actually been deleted.
+
+Tags:
 - ServerState
 - DeleteGraph
 

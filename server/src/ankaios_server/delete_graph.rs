@@ -55,7 +55,7 @@ impl DeleteGraph {
         }
     }
 
-    // [impl->swdd~server-removes-obsolete-delete-conditions-from-delete-graph~1]
+    // [impl->swdd~server-removes-obsolete-delete-graph-entires~1]
     pub fn remove_deleted_workloads_from_delete_graph(
         &mut self,
         workload_states: &[WorkloadState],
@@ -304,7 +304,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~server-removes-obsolete-delete-conditions-from-delete-graph~1]
+    // [utest->swdd~server-removes-obsolete-delete-graph-entires~1]
     #[test]
     fn utest_remove_deleted_workloads_from_delete_graph_delete_entries() {
         let mut delete_graph = DeleteGraph::default();
@@ -328,7 +328,7 @@ mod tests {
         assert!(delete_graph.delete_graph.is_empty());
     }
 
-    // [utest->swdd~server-removes-obsolete-delete-conditions-from-delete-graph~1]
+    // [utest->swdd~server-removes-obsolete-delete-graph-entires~1]
     #[test]
     fn utest_remove_deleted_workloads_from_delete_graph_keep_entries() {
         let mut delete_graph = DeleteGraph::default();
@@ -352,7 +352,7 @@ mod tests {
         assert!(delete_graph.delete_graph.contains_key(WORKLOAD_NAME_1));
     }
 
-    // [utest->swdd~server-removes-obsolete-delete-conditions-from-delete-graph~1]
+    // [utest->swdd~server-removes-obsolete-delete-graph-entires~1]
     #[test]
     fn utest_remove_deleted_workloads_from_delete_graph_ignore_not_relevant_workload_states() {
         let mut delete_graph = DeleteGraph::default();

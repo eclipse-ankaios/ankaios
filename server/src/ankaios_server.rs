@@ -342,9 +342,8 @@ impl AnkaiosServer {
                     self.workload_state_db
                         .process_new_states(method_obj.workload_states.clone());
 
-                    // [impl->swdd~server-removes-obsolete-delete-conditions-from-delete-graph~1]
-                    self.server_state
-                        .remove_deleted_workloads_from_delete_graph(&method_obj.workload_states);
+                    // [impl->swdd~server-cleans-up-state~1]
+                    self.server_state.cleanup_state(&method_obj.workload_states);
 
                     // [impl->swdd~server-forwards-workload-state~1]
                     self.to_agents
@@ -668,9 +667,7 @@ mod tests {
 
         let mut mock_server_state = MockServerState::new();
 
-        mock_server_state
-            .expect_remove_deleted_workloads_from_delete_graph()
-            .return_const(());
+        mock_server_state.expect_cleanup_state().return_const(());
 
         let mut seq = mockall::Sequence::new();
         mock_server_state
@@ -1143,7 +1140,7 @@ mod tests {
         let mut server = AnkaiosServer::new(server_receiver, to_agents);
         let mut mock_server_state = MockServerState::new();
         mock_server_state
-            .expect_remove_deleted_workloads_from_delete_graph()
+            .expect_cleanup_state()
             .once()
             .return_const(());
 
@@ -1456,7 +1453,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
-    // [utest->swdd~server-removes-obsolete-delete-conditions-from-delete-graph~1]
+    // [utest->swdd~server-cleans-up-state~1]
     #[tokio::test]
     async fn utest_server_triggers_delete_of_actually_removed_workloads_from_delete_graph() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1474,7 +1471,7 @@ mod tests {
         )];
 
         mock_server_state
-            .expect_remove_deleted_workloads_from_delete_graph()
+            .expect_cleanup_state()
             .with(mockall::predicate::eq(workload_states.clone()))
             .return_const(());
         server.server_state = mock_server_state;

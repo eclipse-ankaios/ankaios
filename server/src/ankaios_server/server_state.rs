@@ -235,11 +235,9 @@ impl ServerState {
         }
     }
 
-    pub fn remove_deleted_workloads_from_delete_graph(
-        &mut self,
-        new_workload_states: &[WorkloadState],
-    ) {
-        // [impl->swdd~server-removes-obsolete-delete-conditions-from-delete-graph~1]
+    // [impl->swdd~server-cleans-up-state~1]
+    pub fn cleanup_state(&mut self, new_workload_states: &[WorkloadState]) {
+        // [impl->swdd~server-removes-obsolete-delete-graph-entires~1]
         self.delete_graph
             .remove_deleted_workloads_from_delete_graph(new_workload_states);
     }
@@ -930,7 +928,7 @@ mod tests {
         assert!(added_deleted_workloads.is_some());
     }
 
-    // [utest->swdd~server-removes-obsolete-delete-conditions-from-delete-graph~1]
+    // [utest->swdd~server-removes-obsolete-delete-graph-entires~1]
     #[test]
     fn utest_remove_deleted_workloads_from_delete_graph() {
         let mut mock_delete_graph = MockDeleteGraph::default();
@@ -946,7 +944,7 @@ mod tests {
 
         let workload_states = vec![];
 
-        server_state.remove_deleted_workloads_from_delete_graph(&workload_states);
+        server_state.cleanup_state(&workload_states);
     }
 
     fn generate_test_old_state() -> CompleteState {
