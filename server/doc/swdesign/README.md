@@ -685,9 +685,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios Server receives new workload states, then the Ankaios Server shall:
-* provide the new workload states to the ServerState
-* trigger the ServerState to cleanup its state
+When the Ankaios Server receives new workload states, then the Ankaios Server shall trigger the ServerState to cleanup its internal state providing it the new workload states.
 
 Rationale:
 The server state should not have any obsolete entries.
