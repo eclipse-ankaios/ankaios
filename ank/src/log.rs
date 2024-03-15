@@ -54,37 +54,43 @@ pub(crate) fn output_and_exit_fn(args: fmt::Arguments<'_>) {
 pub(crate) fn output_debug_fn(args: fmt::Arguments<'_>) {
     if is_verbose() {
         std::println!("{} {}{}", "debug:".blue(), args, cursor::SavePosition);
+        *CLEANUP_STRING.lock().unwrap() = "".into();
     }
 }
 
 pub(crate) fn output_fn(args: fmt::Arguments<'_>) {
     if !is_quiet() {
         std::println!("{}{}", args, cursor::SavePosition);
-    }
-}
-
-pub(crate) fn prepare_updatable() {
-    if !is_quiet() {
-        std::print!("{}", cursor::SavePosition);
         *CLEANUP_STRING.lock().unwrap() = "".into();
     }
 }
 
 pub(crate) fn output_update_fn(args: fmt::Arguments<'_>) {
     if !is_quiet() {
+        let args = args.to_string();
+        let mut cleanup_string = CLEANUP_STRING.lock().unwrap();
+        let up = cleanup_string.chars().filter(|c| *c == '\n').count() as u16;
+        let up_string = if up > 0 {
+            cursor::MoveUp(up).to_string()
+        } else {
+            "".to_string()
+        };
         std::println!(
-            "{}{}{}{}",
-            cursor::RestorePosition,
-            CLEANUP_STRING.lock().unwrap(),
-            cursor::RestorePosition,
+            "{}{}{}{}{}{}",
+            cursor::MoveToColumn(0),
+            up_string,
+            cleanup_string,
+            cursor::MoveToColumn(0),
+            up_string,
             args
         );
 
-        *CLEANUP_STRING.lock().unwrap() = args
-            .to_string()
+        let mut new_cleanup_string: String = args
             .chars()
             .map(|x| if x == '\n' { '\n' } else { ' ' })
             .collect();
+        new_cleanup_string.push('\n');
+        *cleanup_string = new_cleanup_string;
     }
 }
 

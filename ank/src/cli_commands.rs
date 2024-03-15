@@ -471,23 +471,28 @@ struct GetWorkloadTableDisplay {
 struct WaitListDisplay {
     data: HashMap<WorkloadInstanceName, GetWorkloadTableDisplay>,
     not_completed: HashSet<WorkloadInstanceName>,
+    completed: HashSet<WorkloadInstanceName>,
     spinner: Spinner,
 }
 
 impl Display for WaitListDisplay {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         output_debug!("foo: {:?}", self.not_completed);
+        let current_spinner = self.spinner.to_string();
         let data: Vec<_> = self
             .data
             .iter()
             .map(|(workload_name, table_entry)| {
                 let mut table_entry = table_entry.to_owned();
-                if self.not_completed.contains(workload_name) {
-                    table_entry.execution_state =
-                        format!("{} {}", self.spinner, table_entry.execution_state);
+                let update_state_symbol = if self.completed.contains(workload_name) {
+                    COMPLETED_SYMBOL
+                } else if self.not_completed.contains(workload_name) {
+                    &current_spinner
                 } else {
-                    table_entry.execution_state = format!("  {}", table_entry.execution_state);
-                }
+                    IGNORED_SYMBOL
+                };
+                table_entry.execution_state =
+                    format!("{} {}", update_state_symbol, table_entry.execution_state);
                 table_entry
             })
             .collect();
@@ -510,6 +515,7 @@ impl WaitListDisplayTrait for WaitListDisplay {
 
     fn set_complete(&mut self, workload: &WorkloadInstanceName) {
         self.not_completed.remove(workload);
+        self.completed.insert(workload.clone());
     }
 
     fn step_spinner(&mut self) {
@@ -982,6 +988,7 @@ impl CliCommands {
                 data: workloads.into_iter().collect(),
                 spinner: Default::default(),
                 not_completed: changed_workloads,
+                completed: Default::default(),
             },
         );
 

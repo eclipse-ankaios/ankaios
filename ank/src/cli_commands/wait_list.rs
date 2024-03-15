@@ -19,7 +19,7 @@ use common::{
     objects::{WorkloadInstanceName, WorkloadState},
 };
 
-use crate::{log::prepare_updatable, output_update};
+use crate::output_update;
 
 pub struct ParsedUpdateStateSuccess {
     pub added_workloads: Vec<WorkloadInstanceName>,
@@ -60,7 +60,6 @@ pub struct WaitList<T> {
 
 impl<T: WaitListDisplayTrait> WaitList<T> {
     pub fn new(value: ParsedUpdateStateSuccess, display: T) -> Self {
-        prepare_updatable();
         Self {
             added_workloads: value.added_workloads.into_iter().collect(),
             deleted_workloads: value.deleted_workloads.into_iter().collect(),
