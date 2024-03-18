@@ -693,15 +693,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#apiversion" class="md-nav__link">
-    <span class="md-ellipsis">
-      ApiVersion
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#completestate" class="md-nav__link">
     <span class="md-ellipsis">
       CompleteState
@@ -1534,15 +1525,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#apiversion" class="md-nav__link">
-    <span class="md-ellipsis">
-      ApiVersion
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#completestate" class="md-nav__link">
     <span class="md-ellipsis">
       CompleteState
@@ -1895,7 +1877,6 @@
 <li><a href="#ankaios-AddedWorkload">AddedWorkload</a></li>
 <li><a href="#ankaios-AddedWorkload-DependenciesEntry">AddedWorkload.DependenciesEntry</a></li>
 <li><a href="#ankaios-AgentHello">AgentHello</a></li>
-<li><a href="#ankaios-ApiVersion">ApiVersion</a></li>
 <li><a href="#ankaios-CompleteState">CompleteState</a></li>
 <li><a href="#ankaios-CompleteStateRequest">CompleteStateRequest</a></li>
 <li><a href="#ankaios-DeletedWorkload">DeletedWorkload</a></li>
@@ -2067,26 +2048,6 @@
 </tr>
 </tbody>
 </table>
-<p><a name="ankaios-ApiVersion"></a></p>
-<h3 id="apiversion">ApiVersion<a class="headerlink" href="#apiversion" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Type</th>
-<th>Label</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>version</td>
-<td><a href="#string">string</a></td>
-<td></td>
-<td>The current version of the API.</td>
-</tr>
-</tbody>
-</table>
 <p><a name="ankaios-CompleteState"></a></p>
 <h3 id="completestate">CompleteState<a class="headerlink" href="#completestate" title="Permanent link">&para;</a></h3>
 <p>A message containing the complete state of the Ankaios system.
@@ -2101,12 +2062,6 @@ This is a response to the <a href="#completestaterequest">CompleteStateRequest</
 </tr>
 </thead>
 <tbody>
-<tr>
-<td>format_version</td>
-<td><a href="#ankaios-ApiVersion">ApiVersion</a></td>
-<td></td>
-<td>The current version of the API.</td>
-</tr>
 <tr>
 <td>startupState</td>
 <td><a href="#ankaios-State">State</a></td>
@@ -2409,6 +2364,12 @@ This is usually answered with a <a href="#completestate">CompleteState</a> messa
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>apiVersion</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>The current version of the API.</td>
+</tr>
 <tr>
 <td>workloads</td>
 <td><a href="#ankaios-State-WorkloadsEntry">State.WorkloadsEntry</a></td>
