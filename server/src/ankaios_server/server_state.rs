@@ -16,7 +16,7 @@ use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
 use crate::workload_state_db::WorkloadStateDB;
-use common::objects::WorkloadInstanceName;
+use common::objects::{WorkloadInstanceName, WorkloadState};
 use common::{
     commands::CompleteStateRequest,
     objects::{CompleteState, DeletedWorkload, State, WorkloadSpec},
@@ -232,6 +232,13 @@ impl ServerState {
             }
             Err(error) => Err(error),
         }
+    }
+
+    // [impl->swdd~server-cleans-up-state~1]
+    pub fn cleanup_state(&mut self, new_workload_states: &[WorkloadState]) {
+        // [impl->swdd~server-removes-obsolete-delete-graph-entires~1]
+        self.delete_graph
+            .remove_deleted_workloads_from_delete_graph(new_workload_states);
     }
 }
 
@@ -922,6 +929,25 @@ mod tests {
             .update(new_complete_state.clone(), update_mask)
             .unwrap();
         assert!(added_deleted_workloads.is_some());
+    }
+
+    // [utest->swdd~server-removes-obsolete-delete-graph-entires~1]
+    #[test]
+    fn utest_remove_deleted_workloads_from_delete_graph() {
+        let mut mock_delete_graph = MockDeleteGraph::default();
+        mock_delete_graph
+            .expect_remove_deleted_workloads_from_delete_graph()
+            .once()
+            .return_const(());
+
+        let mut server_state = ServerState {
+            delete_graph: mock_delete_graph,
+            ..Default::default()
+        };
+
+        let workload_states = vec![];
+
+        server_state.cleanup_state(&workload_states);
     }
 
     fn generate_test_old_state() -> CompleteState {
