@@ -314,7 +314,7 @@ mod tests {
         pub use api::proto::{
             execution_state::ExecutionStateEnum, request::RequestContent,
             response::ResponseContent, CompleteState, CompleteStateRequest, Error, ExecutionState,
-            Request, Response, Running, State, Success, UpdateStateRequest, UpdateStateSuccess,
+            Request, Response, Running, State, UpdateStateRequest, UpdateStateSuccess,
             UpdateWorkloadState, Workload, WorkloadInstanceName, WorkloadState,
         };
     }
