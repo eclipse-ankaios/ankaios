@@ -1,7 +1,3 @@
-formatVersion:
-  version: "v0.1"
-startupState:
-  workloads: {}
 desiredState:
   workloads:
     nginx:
@@ -14,4 +10,3 @@ desiredState:
       runtimeConfig: |
         image: docker.io/nginx:latest
         commandOptions: ["-p", "8081:80", "--name", "test_workload1"]
-workloadStates: []

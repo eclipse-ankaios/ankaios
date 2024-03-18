@@ -274,20 +274,35 @@ Needs:
 - impl
 - utest
 
-#### CLI returns `formatVersion` with the desired state
-`swdd~cli-returns-format-version-with-desired-state~1`
+#### CLI returns `apiVersion` with the desired state
+`swdd~cli-returns-api-version-with-desired-state~1`
 
 Status: approved
 
-When the user invokes the CLI with a request to the get desired state,
-the CLI shall always display the field `formatVersion` together with the requested desired state.
+When the user invokes the CLI with a request to get the desired state,
+the CLI shall always display the field `apiVersion` of the desired state together with the requested desired state.
 
 Rationale:
 Output of the `ank get state` can be (and it is meant to be) used as input for the command `ank set state`.
-The `ank set state` requires the formatVersion, therefore the `ank get state` must display `formatVersion` too.
+The `ank set state` requires the apiVersion, therefore the `ank get state` must display `apiVersion` too.
 
 Tags:
 - GetDesiredState
+
+Needs:
+- impl
+- utest
+
+#### CLI returns `apiVersion` with the startup state
+`swdd~cli-returns-api-version-with-startup-state~1`
+
+Status: approved
+
+When the user invokes the CLI with a request to get startup state,
+the CLI shall always display the field `apiVersion` of the startup state together with the requested startup state.
+
+Tags:
+- GetStartupState
 
 Needs:
 - impl
@@ -537,7 +552,7 @@ The Ankaios manifest is a YAML (or a JSON) file composed of a list of workload s
 
 ```yaml
 # Example of a list of two workload specifications with the names 'nginx' and 'hello1'.
-formatVersion: "v0.1"
+apiVersion: "v0.1"
 workloads:
   nginx:
     agent: agent_A

@@ -1,3 +1,4 @@
+apiVersion: v0.1
 workloads:
   workload_A:
     runtime: podman

@@ -18,7 +18,8 @@ mod server_state;
 
 use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
-use common::objects::{ApiVersion, CompleteState, DeletedWorkload, ExecutionState, WorkloadState};
+use common::objects::{CompleteState, DeletedWorkload, ExecutionState, State, WorkloadState};
+
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
 
@@ -236,20 +237,20 @@ impl AnkaiosServer {
 
                         // [impl->swdd~update-desired-state-with-invalid-version~1]
                         // [impl->swdd~update-desired-state-with-missing-version~1]
-                        if !CompleteState::is_compatible_format(
-                            &update_state_request.state.format_version,
+                        if !State::is_compatible_format(
+                            &update_state_request.state.desired_state.api_version,
                         ) {
-                            log::warn!("The CompleteState in the request has wrong format. Received {}, expected {} -> ignoring the request.",
-                                update_state_request.state.format_version, ApiVersion::default());
+                            log::warn!("The CompleteState in the request has wrong format. Received '{}', expected '{}' -> ignoring the request.",
+                                update_state_request.state.desired_state.api_version, State::default().api_version);
 
                             self.to_agents
                                 .error(
                                     request_id,
                                     common::commands::Error {
                                         message: format!(
-                                            "Unsupported API version. Received {}, expected {}",
-                                            update_state_request.state.format_version,
-                                            ApiVersion::default()
+                                            "Unsupported API version. Received '{}', expected '{}'",
+                                            update_state_request.state.desired_state.api_version,
+                                            State::default().api_version
                                         ),
                                     },
                                 )
@@ -390,9 +391,8 @@ mod tests {
     };
     use common::from_server_interface::FromServer;
     use common::objects::{
-        generate_test_stored_workload_spec, generate_test_workload_spec_with_param, ApiVersion,
-        CompleteState, DeletedWorkload, ExecutionState, ExecutionStateEnum, PendingSubstate, State,
-        WorkloadState,
+        generate_test_stored_workload_spec, generate_test_workload_spec_with_param, CompleteState,
+        DeletedWorkload, ExecutionState, ExecutionStateEnum, PendingSubstate, State, WorkloadState,
     };
 
     use common::to_server_interface::ToServerInterface;
@@ -420,6 +420,7 @@ mod tests {
         let startup_state = CompleteState {
             desired_state: State {
                 workloads: HashMap::from([("workload A".to_string(), workload)]),
+                ..Default::default()
             },
             ..Default::default()
         };
@@ -466,6 +467,7 @@ mod tests {
                     updated_workload.instance_name.workload_name().to_owned(),
                     updated_workload.clone().into(),
                 )]),
+                ..Default::default()
             },
             ..Default::default()
         };
@@ -585,6 +587,7 @@ mod tests {
                     workload.instance_name.workload_name().to_owned(),
                     workload.clone().into(),
                 )]),
+                ..Default::default()
             },
             ..Default::default()
         };
@@ -810,6 +813,7 @@ mod tests {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone().into())]
                     .into_iter()
                     .collect(),
+                ..Default::default()
             },
             ..Default::default()
         };
@@ -893,6 +897,7 @@ mod tests {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
                     .into_iter()
                     .collect(),
+                ..Default::default()
             },
             ..Default::default()
         };
@@ -955,6 +960,7 @@ mod tests {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), w1.clone())]
                     .into_iter()
                     .collect(),
+                ..Default::default()
             },
             ..Default::default()
         };
@@ -1023,7 +1029,10 @@ mod tests {
         ]);
 
         let current_complete_state = CompleteState {
-            desired_state: State { workloads },
+            desired_state: State {
+                workloads,
+                ..Default::default()
+            },
             ..Default::default()
         };
         let request_id = format!("{AGENT_A}@my_request_id");
@@ -1225,6 +1234,7 @@ mod tests {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), updated_w1.clone().into())]
                     .into_iter()
                     .collect(),
+                ..Default::default()
             },
             ..Default::default()
         };
@@ -1371,8 +1381,9 @@ mod tests {
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
         let update_state = CompleteState {
-            format_version: ApiVersion {
-                version: "incompatible_version".to_string(),
+            desired_state: State {
+                api_version: "incompatible_version".to_string(),
+                ..Default::default()
             },
             ..Default::default()
         };
@@ -1388,8 +1399,8 @@ mod tests {
         assert!(update_state_result.is_ok());
 
         let error_message = format!(
-            "Unsupported API version. Received 'incompatible_version', expected {}",
-            ApiVersion::default()
+            "Unsupported API version. Received 'incompatible_version', expected '{}'",
+            State::default().api_version
         );
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
@@ -1408,7 +1419,7 @@ mod tests {
 
     // [utest->swdd~update-desired-state-with-missing-version~1]
     #[tokio::test]
-    async fn utest_server_rejects_update_state_without_format_version() {
+    async fn utest_server_rejects_update_state_without_api_version() {
         let _ = env_logger::builder().is_test(true).try_init();
         let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
         let (to_agents, mut comm_middle_ware_receiver) =
@@ -1435,8 +1446,8 @@ mod tests {
         assert!(update_state_result.is_ok());
 
         let error_message = format!(
-            "Unsupported API version. Received '', expected {}",
-            ApiVersion::default()
+            "Unsupported API version. Received '', expected '{}'",
+            State::default().api_version
         );
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
