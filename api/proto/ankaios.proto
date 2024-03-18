@@ -231,14 +231,11 @@ message UpdateWorkloadState {
 message Response {
   string requestId = 1;
   oneof ResponseContent {
-    Success success = 2;
     Error error = 3;
     CompleteState completeState = 4;
     UpdateStateSuccess UpdateStateSuccess = 5;
   }
 }
-
-message Success {}
 
 message Error {
   string message = 1;
