@@ -280,7 +280,7 @@ Needs:
 Status: approved
 
 When the user invokes the CLI with a request to get the desired state,
-the CLI shall always display the field `apiVersion` of the desired state together with the requested desired state.
+the CLI shall display the field `apiVersion` of the desired state together with the requested desired state.
 
 Rationale:
 Output of the `ank get state` can be (and it is meant to be) used as input for the command `ank set state`.
@@ -299,7 +299,7 @@ Needs:
 Status: approved
 
 When the user invokes the CLI with a request to get startup state,
-the CLI shall always display the field `apiVersion` of the startup state together with the requested startup state.
+the CLI shall display the field `apiVersion` of the startup state together with the requested startup state.
 
 Tags:
 - GetStartupState
