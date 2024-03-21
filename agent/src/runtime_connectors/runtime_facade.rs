@@ -193,7 +193,7 @@ impl<
         Workload::new(workload_name, workload_channel, control_interface)
     }
 
-    // [impl->swdd~agent-delete-old-workload~1]
+    // [impl->swdd~agent-delete-old-workload~2]
     fn delete_workload(
         &self,
         instance_name: WorkloadInstanceName,
@@ -529,7 +529,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-delete-old-workload~1]
+    // [utest->swdd~agent-delete-old-workload~2]
     #[tokio::test]
     async fn utest_runtime_facade_delete_workload() {
         let mut runtime_mock = MockRuntimeConnector::new();
