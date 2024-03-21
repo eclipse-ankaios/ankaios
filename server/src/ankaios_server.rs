@@ -65,6 +65,15 @@ impl AnkaiosServer {
 
     pub async fn start(&mut self, startup_state: Option<CompleteState>) -> Result<(), String> {
         if let Some(state) = startup_state {
+            if !State::is_compatible_format(&state.desired_state.api_version) {
+                let message = format!(
+                    "Unsupported API version. Received '{}', expected '{}'",
+                    state.desired_state.api_version,
+                    State::default().api_version
+                );
+                return Err(message);
+            }
+
             match self.server_state.update(state, vec![]) {
                 Ok(Some((added_workloads, deleted_workloads))) => {
                     // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
@@ -440,9 +449,35 @@ mod tests {
         server.server_state = mock_server_state;
 
         let result = server.start(Some(startup_state)).await;
-        assert!(result.is_err());
+        assert_eq!(
+            result,
+            Err("workload dependency 'workload_A part of cycle.' is part of a cycle.".into())
+        );
 
         assert!(comm_middle_ware_receiver.try_recv().is_err());
+    }
+
+    // [utest->swdd~server-fails-on-invalid-startup-state~1]
+    #[tokio::test]
+    async fn utest_server_start_fail_on_startup_config_with_invalid_version() {
+        let (_to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, _comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let startup_state = CompleteState {
+            desired_state: State {
+                api_version: "invalidVersion".into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let result = server.start(Some(startup_state)).await;
+        assert_eq!(
+            result,
+            Err("Unsupported API version. Received 'invalidVersion', expected 'v0.1'".into())
+        );
     }
 
     // [utest->swdd~server-continues-on-invalid-updated-state~1]
