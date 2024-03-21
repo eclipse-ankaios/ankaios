@@ -108,8 +108,6 @@ impl FileSystem {
                             .permissions();
 
                         // Use 'rwxrwxrwx' permissions on the base folder e.g. /tmp/ankaios
-                        // to allow everyone to read/write from/to it.
-                        // This needs to be re-evaluated again when adding security features!!!
                         let desired_mode = umask::Mode::all();
                         if umask::Mode::from(current_base_path_permissions.mode()).to_string()
                             != desired_mode.without_any_extra().to_string()
