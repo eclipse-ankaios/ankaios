@@ -159,7 +159,6 @@ impl ServerState {
         workload_state_db: &WorkloadStateDB,
     ) -> Result<CompleteState, String> {
         let current_complete_state = CompleteState {
-            format_version: self.state.format_version.clone(),
             desired_state: self.state.desired_state.clone(),
             startup_state: self.state.startup_state.clone(),
             workload_states: workload_state_db.get_all_workload_states(),
@@ -434,6 +433,7 @@ mod tests {
         let old_state = CompleteState {
             desired_state: State {
                 workloads: HashMap::from([(WORKLOAD_NAME_1.to_string(), workload)]),
+                ..Default::default()
             },
             ..Default::default()
         };
@@ -444,6 +444,7 @@ mod tests {
                     ("workload A".to_string(), new_workload_1),
                     (WORKLOAD_NAME_1.to_string(), new_workload_2),
                 ]),
+                ..Default::default()
             },
             ..Default::default()
         };
@@ -879,6 +880,7 @@ mod tests {
                     workload.instance_name.workload_name().to_owned(),
                     workload.clone().into(),
                 )]),
+                ..Default::default()
             },
             ..Default::default()
         };
@@ -895,6 +897,7 @@ mod tests {
                     new_workload.instance_name.workload_name().to_owned(),
                     new_workload.clone().into(),
                 )]),
+                ..Default::default()
             },
             ..Default::default()
         };

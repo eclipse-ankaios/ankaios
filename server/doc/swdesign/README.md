@@ -380,7 +380,7 @@ Needs:
 Status: approved
 
 When the Ankaios Server responses to a GetCompleteState request and the request contains a `field_mask`,
-the response includes the filed `format_version` and the fields listed in the `field_mask`.
+the response includes the filed `api_version` and the fields listed in the `field_mask`.
 
 Tags:
 - ControlInterface

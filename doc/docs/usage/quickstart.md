@@ -11,6 +11,7 @@ The startup configuration file contains all of the workloads and their configura
 Let's modify the default config which is stored in `/etc/ankaios/state.yaml`:
 
 ```yaml
+apiVersion: v0.1
 workloads:
   nginx:
     runtime: podman
@@ -53,15 +54,14 @@ ank get state
 which creates:
 
 ```yaml
-formatVersion:
-  version: v0.1
 startupState:
+  apiVersion: v0.1
   workloads: {}
 desiredState:
+  apiVersion: v0.1
   workloads:
     nginx:
       agent: agent_A
-      name: nginx
       tags:
       - key: owner
         value: Ankaios team
@@ -75,8 +75,7 @@ workloadStates:
 - instanceName:
     agentName: agent_A
     workloadName: nginx
-    hash: 7d6ea2b79cea1e401beee1553a9d3d7b5bcbb37f1cfdb60db1fbbcaa140eb17d
-  workloadId: 90996c5fb5393c07c784d5f27ea9c29a81e5604f48e6592913bfac2c89fe1413
+    id: 7d6ea2b79cea1e401beee1553a9d3d7b5bcbb37f1cfdb60db1fbbcaa140eb17d
   executionState:
     state: Running
     subState: Ok

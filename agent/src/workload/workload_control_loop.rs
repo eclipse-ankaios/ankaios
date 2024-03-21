@@ -210,7 +210,6 @@ impl WorkloadControlLoop {
                 );
                 control_loop_state.workload_id = Some(new_workload_id);
                 control_loop_state.state_checker = Some(new_state_checker);
-                control_loop_state.instance_name = new_workload_spec.instance_name.clone();
                 control_loop_state
             }
             Err(err) => {

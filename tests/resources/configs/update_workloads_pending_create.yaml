@@ -1,3 +1,4 @@
+apiVersion: v0.1
 workloads:
   after_backend:
     runtime: podman

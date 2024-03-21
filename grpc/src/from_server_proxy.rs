@@ -279,7 +279,7 @@ mod tests {
         generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
         StoredWorkloadSpec,
     };
-    use common::objects::{ApiVersion, CompleteState, State, WorkloadSpec};
+    use common::objects::{CompleteState, State, WorkloadSpec};
     use common::test_utils::*;
     use tokio::sync::mpsc::error::TryRecvError;
     use tokio::{
@@ -676,12 +676,13 @@ mod tests {
         let test_complete_state = CompleteState {
             desired_state: State {
                 workloads: startup_workloads.clone(),
+                ..Default::default()
             },
             startup_state: State {
                 workloads: startup_workloads.clone(),
+                ..Default::default()
             },
             workload_states: vec![],
-            ..Default::default()
         };
 
         let complete_state_result = to_manager
@@ -703,7 +704,6 @@ mod tests {
             Some(FromServerEnum::Response(proto::Response {
                 request_id,
                 response_content: Some(proto::response::ResponseContent::CompleteState(proto::CompleteState{
-                    format_version: Some(format_version),
                     desired_state: Some(desired_state),
                     startup_state: Some(startup_state),
                     workload_states}))
@@ -711,7 +711,6 @@ mod tests {
             })) if request_id == my_request_id
             && desired_state == test_complete_state.desired_state.into()
             && startup_state ==test_complete_state.startup_state.into()
-            && format_version == test_complete_state.format_version.into()
             && workload_states == vec![]
         ));
     }
@@ -726,7 +725,6 @@ mod tests {
 
         let proto_complete_state =
             proto::response::ResponseContent::CompleteState(proto::CompleteState {
-                format_version: Some(ApiVersion::default().into()),
                 desired_state: Some(State::default().into()),
                 startup_state: Some(proto::State {
                     workloads: [(
@@ -737,6 +735,7 @@ mod tests {
                         },
                     )]
                     .into(),
+                    ..Default::default()
                 }),
                 workload_states: vec![],
             });
@@ -785,14 +784,12 @@ mod tests {
         let my_request_id = "my_request_id".to_owned();
 
         let test_complete_state = CompleteState {
-            format_version: ApiVersion::default(),
             desired_state: State::default(),
             startup_state: State::default(),
             workload_states: vec![],
         };
 
         let proto_complete_state = proto::CompleteState {
-            format_version: Some(ApiVersion::default().into()),
             desired_state: Some(test_complete_state.desired_state.clone().into()),
             startup_state: Some(test_complete_state.startup_state.clone().into()),
             workload_states: vec![],
