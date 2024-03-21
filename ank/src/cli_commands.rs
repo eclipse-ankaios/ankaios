@@ -57,7 +57,9 @@ use self::wait_list::WaitListDisplayTrait;
 
 const BUFFER_SIZE: usize = 20;
 const WAIT_TIME_MS: Duration = Duration::from_millis(3000);
-const SPINNER: [&str; 4] = ["|", "/", "-", "\\"];
+const SPINNER_SYMBOLS: [&str; 4] = ["|", "/", "-", "\\"];
+pub(crate) const COMPLETED_SYMBOL: &str = "*";
+pub(crate) const IGNORED_SYMBOL: &str = " ";
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CliError {
@@ -530,13 +532,13 @@ struct Spinner {
 
 impl Spinner {
     pub fn step(&mut self) {
-        self.pos = (self.pos + 1) % SPINNER.len();
+        self.pos = (self.pos + 1) % SPINNER_SYMBOLS.len();
     }
 }
 
 impl Display for Spinner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", SPINNER[self.pos])
+        write!(f, "{}", SPINNER_SYMBOLS[self.pos])
     }
 }
 
