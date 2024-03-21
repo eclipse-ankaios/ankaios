@@ -586,6 +586,8 @@ impl CliCommands {
         );
 
         let res_complete_state = self.get_complete_state(&object_field_mask).await?;
+        // [impl->swdd~cli-returns-api-version-with-desired-state~1]
+        // [impl->swdd~cli-returns-api-version-with-startup-state~1]
         // [impl->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
         match generate_compact_state_output(&res_complete_state, object_field_mask, output_format) {
             Ok(res) => Ok(res),
@@ -1659,6 +1661,49 @@ mod tests {
 
         let expected_text = serde_json::to_string_pretty(&test_data).unwrap();
         assert_eq!(cmd_text, expected_text);
+    }
+
+    // [utest->swdd~cli-returns-api-version-with-startup-state~1]
+    #[tokio::test]
+    async fn get_state_startup_state() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let test_data = CompleteState::default();
+
+        let complete_state = vec![FromServer::Response(Response {
+            request_id: "TestCli".to_owned(),
+            response_content: ResponseContent::CompleteState(Box::new(test_data.clone())),
+        })];
+
+        let mut mock_client = MockGRPCCommunicationsClient::default();
+        mock_client
+            .expect_run()
+            .return_once(|_r, to_cli| prepare_server_response(complete_state, to_cli));
+
+        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
+        mock_new
+            .expect()
+            .return_once(move |_name, _server_address| mock_client);
+
+        let mut cmd = CliCommands::init(
+            3000,
+            "TestCli".to_string(),
+            Url::parse("http://localhost").unwrap(),
+        );
+        let cmd_text = cmd
+            .get_state(
+                vec!["startupState".to_owned()],
+                crate::cli::OutputFormat::Yaml,
+            )
+            .await
+            .unwrap();
+
+        let expected_single_field_result_text =
+            "startupState:\n  apiVersion: v0.1\n  workloads: {}\n";
+
+        assert_eq!(cmd_text, expected_single_field_result_text);
     }
 
     // [utest -> swdd~cli-returns-desired-state-from-server~1]
