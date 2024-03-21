@@ -65,6 +65,15 @@ impl AnkaiosServer {
 
     pub async fn start(&mut self, startup_state: Option<CompleteState>) -> Result<(), String> {
         if let Some(state) = startup_state {
+            if !State::is_compatible_format(&state.desired_state.api_version) {
+                let message = format!(
+                    "Unsupported API version. Received '{}', expected '{}'",
+                    state.desired_state.api_version,
+                    State::default().api_version
+                );
+                return Err(message);
+            }
+
             match self.server_state.update(state, vec![]) {
                 Ok(Some((added_workloads, deleted_workloads))) => {
                     // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
