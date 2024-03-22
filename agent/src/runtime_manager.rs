@@ -363,6 +363,7 @@ impl RuntimeManager {
         // [impl->swdd~agent-uses-specified-runtime~1]
         // [impl->swdd~agent-skips-unknown-runtime~1]
         if let Some(runtime) = self.runtime_map.get(&workload_spec.runtime) {
+            // [impl->swdd~agent-executes-create-workload-operation~1]
             let workload =
                 runtime.create_workload(workload_spec, control_interface, &self.update_state_tx);
             // [impl->swdd~agent-stores-running-workload~1]
@@ -381,6 +382,7 @@ impl RuntimeManager {
             .workloads
             .remove(deleted_workload.instance_name.workload_name())
         {
+            // [impl->swdd~agent-executes-delete-workload-operation~1]
             if let Err(err) = workload.delete().await {
                 log::error!(
                     "Failed to delete workload '{}': '{}'",
@@ -406,6 +408,8 @@ impl RuntimeManager {
                 self.control_interface_tx.clone(),
                 &workload_spec,
             );
+
+            // [impl->swdd~agent-executes-update-workload-operation~1]
             if let Err(err) = workload
                 .update(Some(workload_spec), control_interface)
                 .await

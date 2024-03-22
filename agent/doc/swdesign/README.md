@@ -340,7 +340,7 @@ Needs:
 
 Status: approved
 
-When the RuntimeManager receives the `WorkloadOperation` to create a workload, then the RuntimeManager shall request the RuntimeFacade to create the workload.
+When the RuntimeManager receives a create `WorkloadOperation` with fulfilled inter-workload dependencies, then the RuntimeManager shall request the RuntimeFacade to create the workload.
 
 Tags:
 - RuntimeManager
@@ -354,10 +354,11 @@ Needs:
 
 Status: approved
 
-When the RuntimeManager receives the `WorkloadOperation` to update a workload, then the RuntimeManager shall request the RuntimeFacade to update the workload.
+When the RuntimeManager receives an update `WorkloadOperation` with fulfilled inter-workload dependencies, then the RuntimeManager shall request the WorkloadObject to update the workload.
 
 Tags:
 - RuntimeManager
+- WorkloadObject
 
 Needs:
 - impl
@@ -368,10 +369,11 @@ Needs:
 
 Status: approved
 
-When the RuntimeManager receives the `WorkloadOperation` to delete a workload, then the RuntimeManager shall request the RuntimeFacade to delete the workload.
+When the RuntimeManager receives an delete `WorkloadOperation` with fulfilled inter-workload dependencies, then the RuntimeManager shall request the WorkloadObject to delete the workload.
 
 Tags:
 - RuntimeManager
+- WorkloadObject
 
 Needs:
 - impl
@@ -382,7 +384,10 @@ Needs:
 
 Status: approved
 
-When the RuntimeManager receives the update delete only `WorkloadOperation`, then the RuntimeManager shall request the WorkloadObject to update the workload with only deleting the existing workload.
+When the RuntimeManager receives an update delete only `WorkloadOperation`, then the RuntimeManager shall request the WorkloadObject to update the workload with only deleting the existing workload by passing no workload to the WorkloadObject.
+
+Comment:
+The update only operation is only triggered internally when an update with update strategy `AT_MOST_ONCE` has fulfilled `DeleteConditions`. The inter-workload dependencies are therefore always fulfilled when the RuntimeManager receives this operation.
 
 Tags:
 - RuntimeManager
