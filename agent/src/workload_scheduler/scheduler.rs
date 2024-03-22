@@ -58,6 +58,8 @@ impl WorkloadScheduler {
         self.queue.insert(workload_name.into(), pending_entry);
     }
 
+    // [impl->swdd~agent-handles-new-workload-operations]
+    // [impl->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
     pub async fn enqueue_filtered_workload_operations(
         &mut self,
         new_workload_operations: Vec<WorkloadOperation>,
@@ -79,6 +81,8 @@ impl WorkloadScheduler {
                 }
                 WorkloadOperation::Update(new_workload_spec, deleted_workload) => {
                     ready_workload_operations.extend(
+                        // [impl->swdd~agent-enqueues-update-with-unfulfilled-delete~1]
+                        // [impl->swdd~agent-enqueues-update-with-unfulfilled-delete~1]
                         self.enqueue_pending_update(
                             new_workload_spec,
                             deleted_workload,
@@ -98,6 +102,7 @@ impl WorkloadScheduler {
                         .await,
                     );
                 }
+                // [impl->swdd~agent-shall-not-enqueue-update-delete-only-workload-operation~1]
                 WorkloadOperation::UpdateDeleteOnly(_) => {
                     log::warn!("Skip UpdateDeleteOnly. This shall never be enqueued.")
                 }
@@ -109,6 +114,8 @@ impl WorkloadScheduler {
         ready_workload_operations
     }
 
+    // [impl->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
+    // [impl->swdd~agent-keeps-workloads-with-unfulfilled-workload-dependencies-in-queue~1]
     pub async fn next_workload_operations(
         &mut self,
         workload_state_db: &WorkloadStateStore,
@@ -136,6 +143,7 @@ impl WorkloadScheduler {
                     );
                 }
                 PendingEntry::UpdateCreate(new_workload_spec, deleted_workload) => {
+                    // [impl->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
                     if DependencyStateValidator::create_fulfilled(
                         &new_workload_spec,
                         workload_state_db,
@@ -177,6 +185,7 @@ impl WorkloadScheduler {
         ready_workload_operations
     }
 
+    // [impl->swdd~agent-enqueues-unfulfilled-create~1]
     async fn enqueue_pending_create(
         &mut self,
         new_workload_spec: WorkloadSpec,
@@ -184,6 +193,7 @@ impl WorkloadScheduler {
         notify_on_new_entry: bool,
     ) -> Vec<WorkloadOperation> {
         let mut ready_workload_operations = Vec::new();
+        // [impl->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
         if DependencyStateValidator::create_fulfilled(&new_workload_spec, workload_state_db) {
             ready_workload_operations.push(WorkloadOperation::Create(new_workload_spec));
         } else {
@@ -209,12 +219,16 @@ impl WorkloadScheduler {
         notify_on_new_entry: bool,
     ) -> Vec<WorkloadOperation> {
         let mut ready_workload_operations = Vec::new();
+
+        // [impl->swdd~workload-ready-to-create-on-fulfilled-dependencies~1]
         let create_fulfilled =
             DependencyStateValidator::create_fulfilled(&new_workload_spec, workload_state_db);
 
+        // [impl->swdd~workload-ready-to-delete-on-fulfilled-dependencies~1]
         let delete_fulfilled =
             DependencyStateValidator::delete_fulfilled(&deleted_workload, workload_state_db);
 
+        // [impl->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
         if create_fulfilled && delete_fulfilled {
             // dependencies for create and delete are fulfilled, the update can be done immediately
             ready_workload_operations.push(WorkloadOperation::Update(
@@ -224,6 +238,7 @@ impl WorkloadScheduler {
             return ready_workload_operations;
         }
 
+        // [impl->swdd~agent-handles-update-with-fulfilled-delete~1]
         if delete_fulfilled {
             /* For an update with pending create dependencies but fulfilled delete dependencies
             the delete can be done immediately but the create must wait in the queue.
@@ -243,6 +258,8 @@ impl WorkloadScheduler {
 
             ready_workload_operations.push(WorkloadOperation::UpdateDeleteOnly(deleted_workload));
         } else {
+            // [impl->swdd~agent-enqueues-update-with-unfulfilled-delete~1]
+
             // For an update with pending delete dependencies, the whole update is pending.
             if notify_on_new_entry {
                 self.report_pending_delete_state(&deleted_workload.instance_name)
@@ -257,6 +274,7 @@ impl WorkloadScheduler {
         ready_workload_operations
     }
 
+    // [impl->swdd~agent-enqueues-unfulfilled-delete~1]
     async fn enqueue_pending_delete(
         &mut self,
         deleted_workload: DeletedWorkload,
@@ -264,6 +282,8 @@ impl WorkloadScheduler {
         notify_on_new_entry: bool,
     ) -> Vec<WorkloadOperation> {
         let mut ready_workload_operations = Vec::new();
+
+        // [impl->swdd~workload-ready-to-delete-on-fulfilled-dependencies~1]
         if DependencyStateValidator::delete_fulfilled(&deleted_workload, workload_state_db) {
             ready_workload_operations.push(WorkloadOperation::Delete(deleted_workload));
         } else {
@@ -328,6 +348,8 @@ mod tests {
     const WORKLOAD_NAME_1: &str = "workload_1";
     const RUNTIME: &str = "runtime";
 
+    // [utest->swdd~agent-handles-new-workload-operations]
+    // [utest->swdd~agent-enqueues-unfulfilled-create~1]
     #[tokio::test]
     async fn utest_enqueue_and_report_workload_state_for_pending_create() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -378,6 +400,7 @@ mod tests {
         assert!(ready_workload_operations.is_empty());
     }
 
+    // [utest->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_no_enqueue_and_report_for_ready_create() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -416,6 +439,7 @@ mod tests {
         assert!(workload_state_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~agent-enqueues-unfulfilled-create~1]
     #[tokio::test]
     #[should_panic]
     async fn utest_report_pending_create_state_closed_receiver() {
@@ -433,6 +457,8 @@ mod tests {
             .await;
     }
 
+    // [utest->swdd~agent-handles-new-workload-operations]
+    // [utest->swdd~agent-enqueues-unfulfilled-delete~1]
     #[tokio::test]
     async fn utest_enqueue_and_report_workload_state_for_pending_delete() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -482,6 +508,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_no_enqueue_and_report_workload_state_for_ready_delete() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -517,6 +544,7 @@ mod tests {
         assert!(workload_state_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~agent-enqueues-unfulfilled-delete~1]
     #[tokio::test]
     #[should_panic]
     async fn utest_report_pending_delete_state_closed_receiver() {
@@ -536,6 +564,8 @@ mod tests {
             .await;
     }
 
+    // [utest->swdd~agent-handles-new-workload-operations]
+    // [utest->swdd~agent-enqueues-update-with-unfulfilled-delete~1]
     #[tokio::test]
     async fn utest_enqueue_and_report_workload_state_for_pending_update_delete_at_most_once() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -605,6 +635,8 @@ mod tests {
         );
     }
 
+    // [utest->swdd~agent-handles-new-workload-operations]
+    // [utest->swdd~agent-enqueues-update-with-unfulfilled-delete~1]
     #[tokio::test]
     async fn utest_enqueue_and_report_workload_state_for_pending_update_at_most_once() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -674,6 +706,8 @@ mod tests {
         );
     }
 
+    // [utest->swdd~agent-handles-new-workload-operations]
+    // [utest->swdd~agent-handles-update-with-fulfilled-delete~1]
     #[tokio::test]
     async fn utest_enqueue_and_report_workload_state_for_pending_update_create_at_most_once() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -745,6 +779,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~agent-handles-update-with-fulfilled-delete~1]
     #[tokio::test]
     async fn utest_immediate_delete_for_pending_update_create_at_most_once() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -797,6 +832,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_no_enqueue_and_report_pending_state_on_fulfilled_update_at_most_once() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -852,6 +888,7 @@ mod tests {
         assert!(workload_state_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_enqueue_filtered_workload_operations_get_next_ready_workload_operations() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -903,6 +940,7 @@ mod tests {
         assert!(workload_scheduler.queue.is_empty());
     }
 
+    // [utest->swdd~agent-shall-not-enqueue-update-delete-only-workload-operation~1]
     #[tokio::test]
     async fn utest_enqueue_filtered_workload_operations_ignore_update_delete_only_workload_operations(
     ) {
@@ -931,6 +969,7 @@ mod tests {
         assert!(workload_scheduler.queue.is_empty());
     }
 
+    // [utest->swdd~agent-handles-update-with-fulfilled-delete~1]
     #[tokio::test]
     async fn utest_next_workload_operations_enqueue_pending_update_create_on_delete_fulfilled_update(
     ) {
@@ -993,6 +1032,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~agent-handles-update-with-fulfilled-delete~1]
     #[tokio::test]
     async fn utest_next_workload_operations_report_pending_create_on_delete_fulfilled_update() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1046,6 +1086,8 @@ mod tests {
         .await;
     }
 
+    // [utest->swdd~agent-keeps-workloads-with-unfulfilled-workload-dependencies-in-queue~1]
+    // [utest->swdd~agent-enqueues-unfulfilled-delete~1]
     #[tokio::test]
     async fn utest_next_workload_operations_keep_pending_delete_in_queue() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1081,6 +1123,7 @@ mod tests {
             .contains_key(instance_name_deleted_workload.workload_name()));
     }
 
+    // [utest->swdd~agent-keeps-workloads-with-unfulfilled-workload-dependencies-in-queue~1]
     #[tokio::test]
     async fn utest_next_workload_operations_no_report_pending_delete_on_reenqueue() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1112,6 +1155,7 @@ mod tests {
         assert!(workload_state_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~agent-keeps-workloads-with-unfulfilled-workload-dependencies-in-queue~1]
     #[tokio::test]
     async fn utest_next_workload_operations_keep_pending_create_in_queue() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1150,6 +1194,7 @@ mod tests {
             .contains_key(instance_name_create_workload.workload_name()));
     }
 
+    // [utest->swdd~agent-keeps-workloads-with-unfulfilled-workload-dependencies-in-queue~1]
     #[tokio::test]
     async fn utest_next_workload_operations_no_report_pending_create_on_reenqueue() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1184,6 +1229,7 @@ mod tests {
         assert!(workload_state_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~agent-keeps-workloads-with-unfulfilled-workload-dependencies-in-queue~1]
     #[tokio::test]
     async fn utest_next_workload_operations_keep_pending_update_in_queue() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1236,6 +1282,7 @@ mod tests {
             .contains_key(instance_name.workload_name()));
     }
 
+    // [utest->swdd~agent-keeps-workloads-with-unfulfilled-workload-dependencies-in-queue~1]
     #[tokio::test]
     async fn utest_next_workload_operations_no_report_pending_delete_on_pending_update_reenqueue() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1284,6 +1331,110 @@ mod tests {
         assert!(workload_state_receiver.try_recv().is_err());
     }
 
+    // [utest->swdd~agent-keeps-workloads-with-unfulfilled-workload-dependencies-in-queue~1]
+    #[tokio::test]
+    async fn utest_next_workload_operations_keep_pending_update_create_in_queue() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (workload_state_sender, _workload_state_receiver) = channel(1);
+        let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
+
+        let mock_dependency_state_validator_create_context =
+            MockDependencyStateValidator::create_fulfilled_context();
+        mock_dependency_state_validator_create_context
+            .expect()
+            .return_const(false);
+
+        let mock_dependency_state_validator_delete_context =
+            MockDependencyStateValidator::delete_fulfilled_context();
+        mock_dependency_state_validator_delete_context
+            .expect()
+            .return_const(true);
+
+        let ready_workload_spec = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME.to_owned(),
+        );
+
+        let instance_name = ready_workload_spec.instance_name.clone();
+
+        let pending_deleted_workload = generate_test_deleted_workload(
+            instance_name.agent_name().to_owned(),
+            instance_name.workload_name().to_owned(),
+        );
+
+        workload_scheduler.queue.insert(
+            instance_name.workload_name().to_owned(),
+            PendingEntry::UpdateCreate(
+                ready_workload_spec.clone(),
+                pending_deleted_workload.clone(),
+            ),
+        );
+
+        let ready_workload_operations = workload_scheduler
+            .next_workload_operations(&MockWorkloadStateStore::default())
+            .await;
+
+        assert!(ready_workload_operations.is_empty());
+
+        assert!(workload_scheduler
+            .queue
+            .contains_key(instance_name.workload_name()));
+    }
+
+    // [utest->swdd~agent-keeps-workloads-with-unfulfilled-workload-dependencies-in-queue~1]
+    #[tokio::test]
+    async fn utest_next_workload_operations_no_report_pending_create_on_pending_update_create_reenqueue(
+    ) {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+        let (workload_state_sender, mut workload_state_receiver) = channel(1);
+        let mut workload_scheduler = WorkloadScheduler::new(workload_state_sender);
+
+        let mock_dependency_state_validator_create_context =
+            MockDependencyStateValidator::create_fulfilled_context();
+        mock_dependency_state_validator_create_context
+            .expect()
+            .return_const(false);
+
+        let mock_dependency_state_validator_delete_context =
+            MockDependencyStateValidator::delete_fulfilled_context();
+        mock_dependency_state_validator_delete_context
+            .expect()
+            .return_const(true);
+
+        let ready_workload_spec = generate_test_workload_spec_with_param(
+            AGENT_A.to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME.to_owned(),
+        );
+
+        let instance_name = ready_workload_spec.instance_name.clone();
+
+        let pending_deleted_workload = generate_test_deleted_workload(
+            instance_name.agent_name().to_owned(),
+            instance_name.workload_name().to_owned(),
+        );
+
+        workload_scheduler.queue.insert(
+            instance_name.workload_name().to_owned(),
+            PendingEntry::UpdateCreate(
+                ready_workload_spec.clone(),
+                pending_deleted_workload.clone(),
+            ),
+        );
+
+        workload_scheduler
+            .next_workload_operations(&MockWorkloadStateStore::default())
+            .await;
+
+        assert!(workload_state_receiver.try_recv().is_err());
+    }
+
+    // [utest->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_next_workload_operations_remove_ready_create_from_queue() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1321,6 +1472,7 @@ mod tests {
         assert!(workload_scheduler.queue.is_empty());
     }
 
+    // [utest->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_next_workload_operations_remove_ready_delete_from_queue() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1358,6 +1510,7 @@ mod tests {
         assert!(workload_scheduler.queue.is_empty());
     }
 
+    // [utest->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_next_workload_operations_remove_ready_update_create_at_most_once_from_queue() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1411,6 +1564,7 @@ mod tests {
         assert!(workload_scheduler.queue.is_empty());
     }
 
+    // [utest->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_next_workload_operations_remove_ready_update_delete_at_most_once_from_queue() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

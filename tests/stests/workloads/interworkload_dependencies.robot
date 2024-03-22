@@ -27,6 +27,9 @@ ${new_state_yaml_file}          ${EMPTY}
 
 
 *** Test Cases ***
+# [stest->swdd~agent-handles-new-workload-operations]
+# [stest->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
+# [stest->swdd~agent-enqueues-unfulfilled-create~1]
 Test Ankaios observes the inter-workload dependencies when creating workloads
     [Documentation]    Perform a create of an workload only if its start dependencies are fulfilled.
     [Setup]    Run Keywords    Setup Ankaios
@@ -48,7 +51,8 @@ Test Ankaios observes the inter-workload dependencies when creating workloads
     And the workload "error_notifier" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     [Teardown]    Clean up Ankaios
 
-
+# [stest->swdd~agent-handles-new-workload-operations]
+# [stest->swdd~agent-enqueues-unfulfilled-delete~1]
 Test Ankaios observes the inter-workload dependencies when deleting workloads
     [Documentation]    Perform a delete of an workload only when its delete dependencies are fulfilled.
     [Setup]    Run Keywords    Setup Ankaios
@@ -66,6 +70,9 @@ Test Ankaios observes the inter-workload dependencies when deleting workloads
     Then the workload "backend" shall not exist on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~agent-handles-new-workload-operations]
+# [stest->swdd~agent-enqueues-update-with-unfulfilled-delete~1]
+# [stest->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
 Test Ankaios CLI update workload with pending delete
     [Documentation]    Perform an update with pending delete only when the delete dependencies are fulfilled.
     [Setup]    Run Keywords    Setup Ankaios
@@ -88,6 +95,9 @@ Test Ankaios CLI update workload with pending delete
     And the workload "backend" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~agent-handles-new-workload-operations]
+# [stest->swdd~agent-handles-update-with-fulfilled-delete~1]
+# [stest->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
 Test Ankaios CLI update workload with pending create
     [Documentation]    Perform the delete part of an update immediately but wait for the create until the create dependencies are fulfilled.
     [Setup]    Run Keywords    Setup Ankaios

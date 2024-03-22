@@ -164,6 +164,7 @@ pub enum AddCondition {
 }
 
 impl FulfilledBy<ExecutionState> for AddCondition {
+    // [impl->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
     fn fulfilled_by(&self, other: &ExecutionState) -> bool {
         match self {
             AddCondition::AddCondRunning => (*other).is_running(),
@@ -197,6 +198,7 @@ pub enum DeleteCondition {
 }
 
 impl FulfilledBy<ExecutionState> for DeleteCondition {
+    // [impl->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
     fn fulfilled_by(&self, other: &ExecutionState) -> bool {
         if other.is_waiting_to_start() {
             return true;
@@ -579,6 +581,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1]
     #[test]
     fn utest_add_condition_fulfilled_by_fulfilled() {
         let add_condition = AddCondition::AddCondRunning;
@@ -591,6 +594,7 @@ mod tests {
         assert!(add_condition.fulfilled_by(&ExecutionState::failed("some failure".to_string())));
     }
 
+    // [utest->swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1]
     #[test]
     fn utest_delete_condition_fulfilled_by() {
         let delete_condition = DeleteCondition::DelCondNotPendingNorRunning;

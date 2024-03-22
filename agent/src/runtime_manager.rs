@@ -85,6 +85,7 @@ impl RuntimeManager {
         }
     }
 
+    // [impl->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
     pub async fn update_workloads_on_fulfilled_dependencies(
         &mut self,
         workload_state_db: &WorkloadStateStore,
@@ -95,10 +96,11 @@ impl RuntimeManager {
             .await;
 
         if !workload_operations.is_empty() {
-            self.process_workloads_operations(workload_operations).await;
+            self.execute_workload_operations(workload_operations).await;
         }
     }
 
+    // [impl->swdd~agent-handles-update-workload-requests~1]
     pub async fn handle_update_workload(
         &mut self,
         mut added_workloads: Vec<WorkloadSpec>,
@@ -129,12 +131,14 @@ impl RuntimeManager {
         let workload_operations: Vec<WorkloadOperation> =
             self.transform_into_workload_operations(added_workloads, deleted_workloads);
 
+        // [impl->swdd~agent-handles-new-workload-operations]
+        // [impl->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
         let ready_workload_operations = self
             .workload_queue
             .enqueue_filtered_workload_operations(workload_operations, workload_state_db)
             .await;
 
-        self.process_workloads_operations(ready_workload_operations)
+        self.execute_workload_operations(ready_workload_operations)
             .await;
     }
 
@@ -262,6 +266,7 @@ impl RuntimeManager {
         new_added_workloads
     }
 
+    // [impl->swdd~agent-transforms-update-workload-message-to-workload-operations~1]
     fn transform_into_workload_operations(
         &self,
         added_workloads: Vec<WorkloadSpec>,
@@ -322,17 +327,23 @@ impl RuntimeManager {
         workload_operations
     }
 
-    async fn process_workloads_operations(&mut self, workload_operations: Vec<WorkloadOperation>) {
+    async fn execute_workload_operations(&mut self, workload_operations: Vec<WorkloadOperation>) {
         for wl_operation in workload_operations {
             match wl_operation {
-                WorkloadOperation::Create(workload_spec) => self.add_workload(workload_spec).await,
+                WorkloadOperation::Create(workload_spec) => {
+                    // [impl->swdd~agent-executes-create-workload-operation~1]
+                    self.add_workload(workload_spec).await
+                }
                 WorkloadOperation::Update(new_workload_spec, _) => {
+                    // [impl->swdd~agent-executes-update-workload-operation~1]
                     self.update_workload(new_workload_spec).await
                 }
                 WorkloadOperation::UpdateDeleteOnly(deleted_workload) => {
+                    // [impl->swdd~agent-executes-update-delete-only-workload-operation~1]
                     self.update_delete_only(deleted_workload).await
                 }
                 WorkloadOperation::Delete(deleted_workload) => {
+                    // [impl->swdd~agent-executes-delete-workload-operation~1]
                     self.delete_workload(deleted_workload).await
                 }
             }
@@ -352,6 +363,7 @@ impl RuntimeManager {
         // [impl->swdd~agent-uses-specified-runtime~1]
         // [impl->swdd~agent-skips-unknown-runtime~1]
         if let Some(runtime) = self.runtime_map.get(&workload_spec.runtime) {
+            // [impl->swdd~agent-executes-create-workload-operation~1]
             let workload =
                 runtime.create_workload(workload_spec, control_interface, &self.update_state_tx);
             // [impl->swdd~agent-stores-running-workload~1]
@@ -370,6 +382,7 @@ impl RuntimeManager {
             .workloads
             .remove(deleted_workload.instance_name.workload_name())
         {
+            // [impl->swdd~agent-executes-delete-workload-operation~1]
             if let Err(err) = workload.delete().await {
                 log::error!(
                     "Failed to delete workload '{}': '{}'",
@@ -395,6 +408,8 @@ impl RuntimeManager {
                 self.control_interface_tx.clone(),
                 &workload_spec,
             );
+
+            // [impl->swdd~agent-executes-update-workload-operation~1]
             if let Err(err) = workload
                 .update(Some(workload_spec), control_interface)
                 .await
@@ -411,6 +426,7 @@ impl RuntimeManager {
         }
     }
 
+    // [impl->swdd~agent-executes-update-delete-only-workload-operation~1]
     async fn update_delete_only(&mut self, deleted_workload: DeletedWorkload) {
         let workload_name = deleted_workload.instance_name.workload_name().to_owned();
         if let Some(workload) = self.workloads.get_mut(&workload_name) {
@@ -516,6 +532,7 @@ mod tests {
 
     // [utest->swdd~agent-initial-list-existing-workloads~1]
     // [utest->swdd~agent-supports-multiple-runtime-connectors~1]
+    // [utest->swdd~agent-handles-update-workload-requests~1]
     #[tokio::test]
     async fn utest_handle_update_workload_initial_call_handle() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -915,7 +932,7 @@ mod tests {
             .once()
             .return_const(());
 
-        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
+        let (_, mut runtime_manager, _wl_state_receiver) = RuntimeManagerBuilder::default()
             .with_runtime(
                 RUNTIME_NAME,
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
@@ -930,8 +947,10 @@ mod tests {
         assert!(runtime_manager.workloads.is_empty());
     }
 
+    // [utest->swdd~agent-handles-new-workload-operations]
     #[tokio::test]
-    async fn utest_handle_update_workload_initial_call_add_workload_with_dependencies() {
+    async fn utest_handle_update_workload_initial_call_add_workload_with_unfulfilled_dependencies()
+    {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -978,8 +997,9 @@ mod tests {
         assert!(runtime_manager.workloads.is_empty());
     }
 
+    // [utest->swdd~agent-existing-workloads-replace-updated~1]
     #[tokio::test]
-    async fn utest_handle_update_workload_initial_call_replace_workload_with_not_fulfilled_dependencies(
+    async fn utest_handle_update_workload_initial_call_replace_workload_with_unfulfilled_dependencies(
     ) {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
@@ -1045,6 +1065,7 @@ mod tests {
     }
 
     // [utest->swdd~agent-updates-deleted-and-added-workloads~1]
+    // [utest->swdd~agent-handles-update-workload-requests~1]
     #[tokio::test]
     async fn utest_handle_update_workload_subsequent_update_on_add_and_delete() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1428,6 +1449,7 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
+    // [utest->swdd~agent-handles-new-workload-operations]
     #[tokio::test]
     async fn utest_handle_update_workload_subsequent_add_workload_with_not_fulfilled_dependencies()
     {
@@ -1475,6 +1497,77 @@ mod tests {
         assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
+    // [utest->swdd~agent-executes-update-delete-only-workload-operation~1]
+    #[tokio::test]
+    async fn utest_handle_update_workload_subsequent_update_delete_only_with_fulfilled_delete_dependencies(
+    ) {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let new_workload = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let old_workload =
+            generate_test_deleted_workload(AGENT_NAME.to_string(), WORKLOAD_1_NAME.to_string());
+
+        let workload_operations = vec![WorkloadOperation::UpdateDeleteOnly(old_workload.clone())];
+
+        let mut mock_workload_scheduler = MockWorkloadScheduler::default();
+        mock_workload_scheduler
+            .expect_enqueue_filtered_workload_operations()
+            .once()
+            .return_const(workload_operations);
+
+        let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
+        mock_workload_scheduler_context
+            .expect()
+            .once()
+            .return_once(|_| mock_workload_scheduler);
+
+        let runtime_facade_mock = MockRuntimeFacade::new();
+        let (_, mut runtime_manager, _wl_state_receiver) = RuntimeManagerBuilder::default()
+            .with_runtime(
+                RUNTIME_NAME,
+                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+            )
+            .build();
+
+        runtime_manager.initial_workload_list_received = true;
+
+        let mut workload_mock = MockWorkload::default();
+        workload_mock
+            .expect_update()
+            .once()
+            .with(
+                predicate::eq(None), // in case of update delete only there is no new workload spec
+                predicate::function(|control_interface: &Option<PipesChannelContext>| {
+                    control_interface.is_none()
+                }),
+            )
+            .return_once(move |_, _| Ok(()));
+
+        runtime_manager
+            .workloads
+            .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
+
+        let added_workloads = vec![new_workload];
+        let deleted_workloads = vec![old_workload];
+        // workload is in added and deleted workload vec
+        runtime_manager
+            .handle_update_workload(
+                added_workloads,
+                deleted_workloads,
+                &MockWorkloadStateStore::default(),
+            )
+            .await;
+        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+    }
+
+    // [utest->swdd~agent-handles-new-workload-operations]
     #[tokio::test]
     async fn utest_handle_update_workload_subsequent_deleted_workload_with_not_fulfilled_dependencies(
     ) {
@@ -1685,6 +1778,7 @@ mod tests {
             .await;
     }
 
+    // [utest->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_update_workload_state_create_workload_with_fulfilled_dependencies() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1739,6 +1833,7 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
+    // [utest->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_update_workload_state_no_create_workload_when_dependencies_not_fulfilled() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1777,6 +1872,7 @@ mod tests {
         assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
+    // [utest->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_update_workload_state_delete_workload_dependencies_with_fulfilled_dependencies()
     {
@@ -1822,6 +1918,7 @@ mod tests {
         assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
+    // [utest->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
     #[tokio::test]
     async fn utest_update_workload_state_delete_workload_dependencies_not_fulfilled() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1857,5 +1954,259 @@ mod tests {
         server_receiver.close();
 
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+    }
+
+    // [utest->swdd~agent-transforms-update-workload-message-to-workload-operations~1]
+    #[tokio::test]
+    async fn utest_transform_update_state_message_into_workload_operations_create() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
+        mock_workload_scheduler_context
+            .expect()
+            .once()
+            .return_once(|_| MockWorkloadScheduler::default());
+
+        let (_server_receiver, runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default().build();
+
+        let new_workload = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_owned(),
+            WORKLOAD_1_NAME.to_owned(),
+            RUNTIME_NAME.to_owned(),
+        );
+        let added_workloads = vec![new_workload.clone()];
+        let deleted_workloads = vec![];
+        let workload_operations =
+            runtime_manager.transform_into_workload_operations(added_workloads, deleted_workloads);
+
+        assert_eq!(
+            vec![WorkloadOperation::Create(new_workload)],
+            workload_operations
+        );
+    }
+
+    // [utest->swdd~agent-transforms-update-workload-message-to-workload-operations~1]
+    #[tokio::test]
+    async fn utest_transform_update_state_message_into_workload_operations_delete() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
+        mock_workload_scheduler_context
+            .expect()
+            .once()
+            .return_once(|_| MockWorkloadScheduler::default());
+
+        let (_server_receiver, runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default().build();
+        let added_workloads = vec![];
+        let deleted_workload =
+            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+        let deleted_workloads = vec![deleted_workload.clone()];
+        let workload_operations =
+            runtime_manager.transform_into_workload_operations(added_workloads, deleted_workloads);
+
+        assert_eq!(
+            vec![WorkloadOperation::Delete(deleted_workload)],
+            workload_operations
+        );
+    }
+
+    // [utest->swdd~agent-transforms-update-workload-message-to-workload-operations~1]
+    #[tokio::test]
+    async fn utest_transform_update_state_message_into_workload_operations_update() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
+        mock_workload_scheduler_context
+            .expect()
+            .once()
+            .return_once(|_| MockWorkloadScheduler::default());
+
+        let (_server_receiver, runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default().build();
+
+        let new_workload = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_owned(),
+            WORKLOAD_1_NAME.to_owned(),
+            RUNTIME_NAME.to_owned(),
+        );
+        let added_workloads = vec![new_workload.clone()];
+        let deleted_workload =
+            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+        let deleted_workloads = vec![deleted_workload.clone()];
+        let workload_operations =
+            runtime_manager.transform_into_workload_operations(added_workloads, deleted_workloads);
+
+        assert_eq!(
+            vec![WorkloadOperation::Update(new_workload, deleted_workload)],
+            workload_operations
+        );
+    }
+
+    // [utest->swdd~agent-executes-create-workload-operation~1]
+    #[tokio::test]
+    async fn utest_execute_workload_operations_create() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
+        mock_workload_scheduler_context
+            .expect()
+            .once()
+            .return_once(|_| MockWorkloadScheduler::default());
+
+        let pipes_channel_mock = MockPipesChannelContext::new_context();
+        pipes_channel_mock
+            .expect()
+            .once()
+            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+
+        let mut runtime_facade_mock = MockRuntimeFacade::new();
+        runtime_facade_mock
+            .expect_create_workload()
+            .once()
+            .return_once(|_, _, _| MockWorkload::default());
+
+        let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default()
+                .with_runtime(
+                    RUNTIME_NAME,
+                    Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+                )
+                .build();
+
+        let new_workload = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_owned(),
+            WORKLOAD_1_NAME.to_owned(),
+            RUNTIME_NAME.to_owned(),
+        );
+        let workload_operations = vec![WorkloadOperation::Create(new_workload)];
+        runtime_manager
+            .execute_workload_operations(workload_operations)
+            .await;
+    }
+
+    // [utest->swdd~agent-executes-delete-workload-operation~1]
+    #[tokio::test]
+    async fn utest_execute_workload_operations_delete() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
+        mock_workload_scheduler_context
+            .expect()
+            .once()
+            .return_once(|_| MockWorkloadScheduler::default());
+
+        let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default().build();
+
+        let mut workload_mock = MockWorkload::default();
+        workload_mock
+            .expect_delete()
+            .once()
+            .return_once(move || Ok(()));
+
+        runtime_manager
+            .workloads
+            .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
+
+        let deleted_workload =
+            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+        let workload_operations = vec![WorkloadOperation::Delete(deleted_workload)];
+        runtime_manager
+            .execute_workload_operations(workload_operations)
+            .await;
+    }
+
+    // [utest->swdd~agent-executes-update-delete-only-workload-operation~1]
+    #[tokio::test]
+    async fn utest_execute_workload_operations_update_delete_only() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
+        mock_workload_scheduler_context
+            .expect()
+            .once()
+            .return_once(|_| MockWorkloadScheduler::default());
+
+        let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default().build();
+
+        let mut workload_mock = MockWorkload::default();
+        workload_mock
+            .expect_update()
+            .once()
+            .return_once(move |_, _| Ok(()));
+
+        runtime_manager
+            .workloads
+            .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
+
+        let deleted_workload =
+            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+
+        let workload_operations = vec![WorkloadOperation::UpdateDeleteOnly(deleted_workload)];
+        runtime_manager
+            .execute_workload_operations(workload_operations)
+            .await;
+    }
+
+    // [utest->swdd~agent-executes-update-workload-operation~1]
+    #[tokio::test]
+    async fn utest_execute_workload_operations_update() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
+        mock_workload_scheduler_context
+            .expect()
+            .once()
+            .return_once(|_| MockWorkloadScheduler::default());
+
+        let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
+            RuntimeManagerBuilder::default().build();
+
+        let pipes_channel_mock = MockPipesChannelContext::new_context();
+        pipes_channel_mock
+            .expect()
+            .once()
+            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+
+        let mut workload_mock = MockWorkload::default();
+        workload_mock
+            .expect_update()
+            .once()
+            .return_once(move |_, _| Ok(()));
+
+        runtime_manager
+            .workloads
+            .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
+
+        let new_workload = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_owned(),
+            WORKLOAD_1_NAME.to_owned(),
+            RUNTIME_NAME.to_owned(),
+        );
+
+        let deleted_workload =
+            generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());
+
+        let workload_operations = vec![WorkloadOperation::Update(new_workload, deleted_workload)];
+        runtime_manager
+            .execute_workload_operations(workload_operations)
+            .await;
     }
 }
