@@ -130,7 +130,9 @@ Ankaios automatically defines implicit dependencies internally to prevent a work
 
 Ankaios does not explicitly delete a workload when its dependency is deleted. Instead, a delete of a dependency is delayed until all dependent workloads have been deleted. As long as the dependency cannot be deleted, it has the ExecutionState `Stopping(WaitingToStop)`.
 
-In the previous example, the workload `logger` depends on the `storage_provider` with dependency type `running`. When the user deletes the dependency `storage_provider`, Ankaios delays the delete until the dependent workload `logger` is neither pending nor running.
+In the previous example, the workload `logger` depends on the `storage_provider` with dependency type `running`. When the user updates or deletes the dependency `storage_provider`, Ankaios delays the delete until the dependent workload `logger` is neither pending nor running.
+
+If an update has fulfilled delete conditions but unfulfilled add conditions, Ankaios does not delay the entire update. Instead, the delete operation is executed directly.
 
 !!! Note
 
