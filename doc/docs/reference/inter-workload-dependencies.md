@@ -10,7 +10,7 @@ There are two types of inter-workload dependencies supported by Ankaios:
 
 The user configures [explicit inter-workload dependencies](#explicit-inter-workload-dependencies) within a workload's configuration, which Ankaios considers when starting the workload. Ankaios starts workloads with dependencies only when all dependencies are met, allowing the user to define a specific sequence for starting workloads.
 
-Ankaios defines [implicit inter-workload dependencies](#implicit-inter-workload-dependencies) inter-workload dependencies internally and takes them into account when a dependency is deleted.
+Ankaios defines [implicit inter-workload dependencies](#implicit-inter-workload-dependencies) internally and takes them into account when a dependency is deleted.
 
 ## Explicit inter-workload dependencies
 
