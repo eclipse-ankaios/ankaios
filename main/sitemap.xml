@@ -101,6 +101,11 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://eclipse-ankaios.github.io/ankaios/main/reference/inter-workload-dependencies/</loc>
+         <lastmod>2024-03-25</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/reference/resource-usage/</loc>
          <lastmod>2024-03-25</lastmod>
          <changefreq>daily</changefreq>
