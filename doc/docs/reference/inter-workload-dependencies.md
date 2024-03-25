@@ -70,7 +70,7 @@ workloads:
     runtime: podman
     agent: agent_A
     dependencies:
-      storage_provider: ADD_COND_RUNNING # (1)
+      storage_provider: ADD_COND_RUNNING # (1)!
     runtimeConfig: |
       image: alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sleep" ]
@@ -79,12 +79,12 @@ workloads:
     runtime: podman
     agent: agent_B
     dependencies:
-      init_storage: ADD_COND_SUCCEEDED # (2)
+      init_storage: ADD_COND_SUCCEEDED # (2)!
     runtimeConfig: |
       image: alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sh" ]
       commandArgs: [ "-c", "sleep 5; exit 1" ]
-  init_storage: # (3)
+  init_storage: # (3)!
     runtime: podman
     agent: agent_B
     runtimeConfig: |
@@ -95,7 +95,7 @@ workloads:
     runtime: podman
     agent: agent_A
     dependencies:
-      storage_provider: ADD_COND_FAILED # (4)
+      storage_provider: ADD_COND_FAILED # (4)!
     runtimeConfig: |
       image: alpine:latest
       commandArgs: [ "echo", "report failed storage provider"]
