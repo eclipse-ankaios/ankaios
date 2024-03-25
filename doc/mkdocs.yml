@@ -78,6 +78,7 @@ nav:
     - reference/control-interface.md
     - reference/startup-configuration.md
     - reference/complete-state.md
+    - reference/resource-usage.md
     - reference/glossary.md
   - Development:
     - development/build.md

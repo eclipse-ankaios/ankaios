@@ -1,0 +1,16 @@
+desiredState:
+  apiVersion: v0.1
+  workloads:
+    workload_C:
+      runtime: podman
+      agent: agent_B
+      restart: true
+      dependencies:
+        workload_D: ADD_COND_SUCCEEDED
+        workload_A: ADD_COND_RUNNING
+      tags:
+        - key: owner
+          value: Ankaios team
+      runtimeConfig: |
+        image: alpine:latest
+        commandArgs: [ "echo", "Hello Ankaios"]

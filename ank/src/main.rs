@@ -44,16 +44,16 @@ async fn main() {
 
     match args.command {
         cli::Commands::Get(get_args) => match get_args.command {
-            // [impl->swdd~cli-provides-get-current-state~1]
-            // [impl->swdd~cli-provides-object-field-mask-arg-to-get-partial-current-state~1]
+            // [impl->swdd~cli-provides-get-desired-state~1]
+            // [impl->swdd~cli-provides-object-field-mask-arg-to-get-partial-desired-state~1]
             Some(cli::GetCommands::State {
                 object_field_mask,
                 output_format,
             }) => {
-                // [impl -> swdd~cli-provides-get-current-state~1]
-                // [impl -> swdd~cli-blocks-until-ankaios-server-responds-get-current-state~1]
+                // [impl -> swdd~cli-provides-get-desired-state~1]
+                // [impl -> swdd~cli-blocks-until-ankaios-server-responds-get-desired-state~1]
                 if let Ok(out_text) = cmd.get_state(object_field_mask, output_format).await {
-                    // [impl -> swdd~cli-returns-current-state-from-server~1]
+                    // [impl -> swdd~cli-returns-desired-state-from-server~1]
                     output_and_exit!("{}", out_text);
                 } else {
                     output_and_error!("Could not retrieve state.");
@@ -79,7 +79,7 @@ async fn main() {
             None => unreachable!("Unreachable code."),
         },
         cli::Commands::Set(set_args) => match set_args.command {
-            // [impl->swdd~cli-provides-set-current-state~1]
+            // [impl->swdd~cli-provides-set-desired-state~1]
             Some(cli::SetCommands::State {
                 object_field_mask,
                 state_object_file,
@@ -89,9 +89,11 @@ async fn main() {
                     object_field_mask,
                     state_object_file
                 );
-                // [impl -> swdd~cli-provides-set-current-state~1]
-                // [impl -> swdd~cli-blocks-until-ankaios-server-responds-set-current-state~1]
-                cmd.set_state(object_field_mask, state_object_file).await;
+                // [impl -> swdd~cli-provides-set-desired-state~1]
+                // [impl -> swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~1]
+                if let Err(err) = cmd.set_state(object_field_mask, state_object_file).await {
+                    output_and_error!("Failed to set state: '{}'", err)
+                }
             }
             None => unreachable!("Unreachable code."),
         },
@@ -138,6 +140,13 @@ async fn main() {
             }
             None => unreachable!("Unreachable code."),
         },
+        cli::Commands::Apply(apply_args) => {
+            let res = cmd.apply_manifests(apply_args).await;
+            match res {
+                Ok(output) => output_and_exit!("{}", output),
+                Err(err) => output_and_error!("{}", err),
+            }
+        }
     }
 
     cmd.shut_down().await;

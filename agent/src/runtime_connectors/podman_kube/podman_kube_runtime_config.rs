@@ -40,7 +40,7 @@ impl TryFrom<&WorkloadSpec> for PodmanKubeRuntimeConfig {
 
 #[cfg(test)]
 mod tests {
-    use common::test_utils::generate_test_workload_spec_with_param;
+    use common::objects::generate_test_workload_spec_with_param;
 
     use super::{PodmanKubeRuntimeConfig, PODMAN_KUBE_RUNTIME_NAME};
 

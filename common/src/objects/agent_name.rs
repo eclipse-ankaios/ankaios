@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::objects::workload_execution_instance_name::INSTANCE_NAME_SEPARATOR;
+use crate::objects::workload_instance_name::INSTANCE_NAME_SEPARATOR;
 
 // [impl->swdd~common-object-representation~1]
 

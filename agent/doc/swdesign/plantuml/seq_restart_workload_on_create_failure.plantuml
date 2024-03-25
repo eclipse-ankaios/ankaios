@@ -12,7 +12,7 @@ activate runtime_facade
 runtime_facade ->> runtime_facade ++: spawn create workload
 runtime_facade -> workload_command ++: send create
 workload_command -->> runtime_facade--
-runtime_facade -> workload_control_loop ++--: run
+runtime_facade -> workload_control_loop --++: run
 deactivate runtime_facade
 workload_control_loop -> workload_command++: wait for command
 workload_command -->> workload_control_loop --++: receive create

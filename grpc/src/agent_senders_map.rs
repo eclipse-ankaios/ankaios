@@ -19,13 +19,13 @@ use common::std_extensions::IllegalStateResult;
 use tokio::sync::mpsc::Sender;
 use tonic::Status;
 
-use api::proto::ExecutionRequest;
+use api::proto::FromServer;
 
 type ShareableHashMap<K, V> = Arc<Mutex<HashMap<K, V>>>;
 
 #[derive(Debug, Clone)]
 pub struct AgentSendersMap {
-    agent_senders: ShareableHashMap<String, Sender<Result<ExecutionRequest, Status>>>,
+    agent_senders: ShareableHashMap<String, Sender<Result<FromServer, Status>>>,
 }
 
 // Beside improving readability by hiding the lock steps, this trait helps improve the
@@ -41,7 +41,7 @@ impl AgentSendersMap {
         }
     }
 
-    pub fn get(&self, name: &str) -> Option<Sender<Result<ExecutionRequest, Status>>> {
+    pub fn get(&self, name: &str) -> Option<Sender<Result<FromServer, Status>>> {
         self.agent_senders
             .lock()
             .unwrap_or_illegal_state()
@@ -49,7 +49,7 @@ impl AgentSendersMap {
             .cloned()
     }
 
-    pub fn insert(&self, name: &str, sender: Sender<Result<ExecutionRequest, Status>>) {
+    pub fn insert(&self, name: &str, sender: Sender<Result<FromServer, Status>>) {
         self.agent_senders
             .lock()
             .unwrap_or_illegal_state()

@@ -6,7 +6,7 @@ ANKAIOS_SERVER_SOCKET="0.0.0.0:25551"
 ANKAIOS_SERVER_URL="http://${ANKAIOS_SERVER_SOCKET}"
 DEFAULT_ANKAIOS_BIN_PATH="/usr/local/bin"
 
-display_usage() {  
+display_usage() {
     echo -e "Usage: $0 EXAMPLE"
     echo -e "Build and run a control interface example."
     echo -e "  EXAMPLE: subfolder of the example, e.g. rust_control_interface"
@@ -54,6 +54,14 @@ fi
 echo Build control interface example ...
 podman build "${@:2}" -t control_interface_prod:0.1 -f examples/$1/Dockerfile ${SCRIPT_DIR}/../
 echo done.
+
+if pgrep -x "ank-server" >/dev/null
+then
+  echo -e "\nAbort startup. Ankaios server is already running."
+  echo "Shutdown the Ankaios server instance manually or"
+  echo -e "if 'run_example.sh' was executed previously,\nexecute 'shutdown_example.sh' afterwards to stop the example."
+  exit 3
+fi
 
 run_ankaios &
 

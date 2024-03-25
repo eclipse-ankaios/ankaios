@@ -44,7 +44,7 @@ setup_verify_arch() {
     esac
 }
 
-display_usage() {  
+display_usage() {
     echo -e "Usage: $0 [-v] [-i] [-t] [-s] [-a]"
     echo -e "Install Ankaios on a system."
     echo -e "  -v VERSION: Ankaios specific VERSION to install. Default: latest version."
@@ -92,7 +92,7 @@ while getopts v:i:t:s:a: opt; do
 done
 
 # Use absolute path for tar -C option otherwise relative paths as script argument are failing on tar extraction
-case $BIN_DESTINATION in 
+case $BIN_DESTINATION in
     /*) ;;
     *) BIN_DESTINATION="$(pwd)/${BIN_DESTINATION}";;
 esac
@@ -188,19 +188,16 @@ fi
 
 # Write sample state startup config
 if [[ "$INSTALL_TYPE" == server || "$INSTALL_TYPE" == both ]]; then
-    if ! [ -s "$FILE_STARTUP_STATE" ]; then 
+    if ! [ -s "$FILE_STARTUP_STATE" ]; then
         $SVC_SUDO mkdir -p "${CONFIG_DEST}"
         $SVC_SUDO tee "$FILE_STARTUP_STATE" >/dev/null << EOF
 # Per default no workload is started. Adapt the file according to your needs.
+apiVersion: v0.1
 workloads:
 #   nginx:
 #     runtime: podman
 #     agent: agent_A
 #     restart: true
-#     updateStrategy: AT_MOST_ONCE
-#     accessRights:
-#       allow: []
-#       deny: []
 #     tags:
 #       - key: owner
 #         value: Ankaios team
@@ -217,7 +214,7 @@ fi
 # Write uninstall script
 ${BIN_SUDO} tee "${BIN_DESTINATION}/${BASEFILE_ANK_UNINSTALL}" >/dev/null << EOF
 #!/bin/bash
-[ \$(id -u) -eq 0 ] || exec sudo \$0 \$@ 
+[ \$(id -u) -eq 0 ] || exec sudo \$0 \$@
 
 if command -v systemctl >/dev/null; then
     if [ -s "${FILE_ANK_SERVER_SERVICE}" ]; then

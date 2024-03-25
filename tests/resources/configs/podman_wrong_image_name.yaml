@@ -1,16 +1,12 @@
+apiVersion: v0.1
 workloads:
   hello1:
     runtime: podman
     agent: agent_A
     restart: true
-    updateStrategy: AT_MOST_ONCE
-    accessRights:
-      allow: []
-      deny: []
     tags:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
       image: image_typo:latest
       commandOptions: [ "--entrypoint", "/bin/true" ]
-

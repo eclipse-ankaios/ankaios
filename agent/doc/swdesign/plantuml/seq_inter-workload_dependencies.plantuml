@@ -1,0 +1,60 @@
+@startuml seq_inter-workload_dependencies
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "Ankaios Agent"
+    participant "AgentManager" as agent_manager
+    participant "RuntimeManager" as runtime_manager
+    participant "WorkloadScheduler" as scheduler
+    participant "WorkloadStateStore" as wl_state_store
+end box
+
+box "Ankaios Server"
+    participant "Ankaios Server" as server
+end box
+
+
+activate server
+
+... Ankaios Agent startup ...
+
+note over agent_manager, server
+The call to the Agent Manager is simpliefied here. The actuall call goes over the Communication Middleware.
+end note
+
+agent_manager <<- server --++: UpdateWorkload
+agent_manager ->> runtime_manager --++: update workload
+runtime_manager -> runtime_manager++: transform received workloads\ninto concrete workload operations
+runtime_manager -> scheduler++: filter and enqueue workloads with\nunfulfilled inter-workload dependencies
+loop for each workload operation
+    loop for each dependency of workload
+        scheduler -> wl_state_store ++: Get workload state
+        wl_state_store -->> scheduler --: workload state
+        scheduler -> scheduler ++: Compare workload state\nwith specified condition
+        note right
+            Depending on the workload operation
+            the AddCondition or the DeleteCondition is compared.
+        end note
+        opt AddCondition not fulfilled by workload state
+            break dependencies not fulfilled
+            end
+        end
+    end
+
+    alt all dependencies of workload fulfilled
+        scheduler -> scheduler ++: Insert workload operation\ninto ready operations
+        deactivate scheduler
+    else
+        scheduler -> scheduler ++: Insert workload operation\n into waiting queue
+        deactivate scheduler
+    end
+    deactivate scheduler
+end
+scheduler -->> runtime_manager--: workload operations with\nalready fulfilled dependencies
+runtime_manager ->> runtime_manager++: execute ready\nworkload operations
+note right
+Actual workload operations like
+create, update and delete are decoupled
+through the RuntimeFacade and the WorkloadObject.
+See specific update workload diagrams for more details.
+end note
+@enduml

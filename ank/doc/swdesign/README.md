@@ -67,7 +67,7 @@ This also includes error handling when the user enters unsupported command or fo
 ### CliCommands
 
 The CliCommands implements the commands.
-It uses ExecutionCommand Channel and StateChangeCommand Channel to interact with the server.
+It uses FromServer Channel and ToServer Channel to interact with the server.
 
 ### External Libraries
 
@@ -75,7 +75,7 @@ It uses ExecutionCommand Channel and StateChangeCommand Channel to interact with
 
 The Communication Middleware is responsible for the connection between the Ankaios Server and the Ankaios Agent or the Ankaios CLI.
 
-#### ExecutionCommand Channel, StateChangeCommand Channel
+#### FromServer Channel, ToServer Channel
 
 The channels are defined in the `common` library.
 
@@ -172,89 +172,89 @@ Needs:
 
 ### `ank get state`
 
-![Get current state](plantuml/seq_get_state.svg)
+![Get desired state](plantuml/seq_get_state.svg)
 
-#### CLI provides the get current state
-`swdd~cli-provides-get-current-state~1`
+#### CLI provides the get desired state
+`swdd~cli-provides-get-desired-state~1`
 
 Status: approved
 
-The Ankaios CLI shall provide a function to get the current state.
+The Ankaios CLI shall provide a function to get the desired state.
 
 Tags:
-- GetCurrentState
+- GetDesiredState
 
 Needs:
 - impl
 - utest
 
-#### CLI blocks until the Ankaios Server responds to the request to get the current state
-`swdd~cli-blocks-until-ankaios-server-responds-get-current-state~1`
+#### CLI blocks until the Ankaios Server responds to the request to get the desired state
+`swdd~cli-blocks-until-ankaios-server-responds-get-desired-state~1`
 
 Status: approved
 
-When the user invokes the CLI with a request to the get current state, the CLI shall block and wait until the response from the Ankaios Server is received.
+When the user invokes the CLI with a request to the get desired state, the CLI shall block and wait until the response from the Ankaios Server is received.
 
 Tags:
-- GetCurrentState
+- GetDesiredState
 
 Needs:
 - impl
 - utest
 
-#### CLI returns the current state from Ankaios Server via CLI communication interface
-`swdd~cli-returns-current-state-from-server~1`
+#### CLI returns the desired state from Ankaios Server via CLI communication interface
+`swdd~cli-returns-desired-state-from-server~1`
 
 Status: approved
 
-When the CLI receives the current state from Ankaios Server, the CLI shall return this response to the user.
+When the CLI receives the desired state from Ankaios Server, the CLI shall return this response to the user.
 
 Tags:
-- GetCurrentState
+- GetDesiredState
 
 Needs:
 - impl
 - utest
 
-#### CLI shall support presenting the current state as JSON
-`swdd~cli-shall-support-current-state-json~1`
+#### CLI shall support presenting the desired state as JSON
+`swdd~cli-shall-support-desired-state-json~1`
 
 Status: approved
 
-When the CLI receives the current state from Ankaios Server via CLI communication interface,
-the CLI shall support the possibility to present the current state as a JSON to the user.
+When the CLI receives the desired state from Ankaios Server via CLI communication interface,
+the CLI shall support the possibility to present the desired state as a JSON to the user.
 
 Tags:
-- GetCurrentState
+- GetDesiredState
 
 Needs:
 - impl
 - utest
 
-#### CLI shall support presenting the current state as YAML
-`swdd~cli-shall-support-current-state-yaml~1`
+#### CLI shall support presenting the desired state as YAML
+`swdd~cli-shall-support-desired-state-yaml~1`
 
 Status: approved
 
-When the CLI receives the current state from Ankaios Server via CLI communication interface,
-the CLI shall support the possibility to present the current state as a YAML to the user.
+When the CLI receives the desired state from Ankaios Server via CLI communication interface,
+the CLI shall support the possibility to present the desired state as a YAML to the user.
 
 Tags:
-- GetCurrentState
+- GetDesiredState
 
 Needs:
 - impl
 - utest
 
-#### CLI provides object field mask as arguments to get only the given parts of current state
-`swdd~cli-provides-object-field-mask-arg-to-get-partial-current-state~1`
+#### CLI provides object field mask as arguments to get only the given parts of desired state
+`swdd~cli-provides-object-field-mask-arg-to-get-partial-desired-state~1`
 
 Status: approved
 
-The Ankaios CLI shall provide an option to request and deliver only a part of the current state.
+The Ankaios CLI shall provide an option to request and deliver only a part of the desired state.
 
 Tags:
-- GetCurrentState
+- GetDesiredState
 
 Needs:
 - impl
@@ -268,7 +268,41 @@ Status: approved
 When an object field mask is provided as additional argument, the Ankaios CLI shall return the compact state containing the values of the given fields.
 
 Tags:
-- GetCurrentState
+- GetDesiredState
+
+Needs:
+- impl
+- utest
+
+#### CLI returns `apiVersion` with the desired state
+`swdd~cli-returns-api-version-with-desired-state~1`
+
+Status: approved
+
+When the user invokes the CLI with a request to get the desired state,
+the CLI shall display the field `apiVersion` of the desired state together with the requested desired state.
+
+Rationale:
+Output of the `ank get state` can be (and it is meant to be) used as input for the command `ank set state`.
+The `ank set state` requires the apiVersion, therefore the `ank get state` must display `apiVersion` too.
+
+Tags:
+- GetDesiredState
+
+Needs:
+- impl
+- utest
+
+#### CLI returns `apiVersion` with the startup state
+`swdd~cli-returns-api-version-with-startup-state~1`
+
+Status: approved
+
+When the user invokes the CLI with a request to get startup state,
+the CLI shall display the field `apiVersion` of the startup state together with the requested startup state.
+
+Tags:
+- GetStartupState
 
 Needs:
 - impl
@@ -328,10 +362,14 @@ Status: approved
 
 When the CLI receives the list of workloads from the Ankaios Server via CLI communication interface, the CLI shall present the list as a table with following columns:
 
-| WORKLOAD NAME | AGENT | RUNTIME | EXECUTION STATE |
-| ------------- | ----- | ------- | --------------- |
-| workload1     | agent | runtime | state           |
-| workload2     | agent | runtime | state           |
+| WORKLOAD NAME | AGENT | RUNTIME | EXECUTION STATE | ADDITIONAL INFO    |
+| ------------- | ----- | ------- | --------------- | ------------------ |
+| workload1     | agent | runtime | state           | state related info |
+| workload2     | agent | runtime | state           | state related info |
+
+Note:
+The column runtime is not filled when the workload has been deleted.
+This can happen when the workload has been deleted from the current state and the workload state is reported as "removed".
 
 Tags:
 - GetWorkloads
@@ -382,46 +420,46 @@ Needs:
 
 ### `ank set state`
 
-![Set current state](plantuml/seq_set_state.svg)
+![Set desired state](plantuml/seq_set_state.svg)
 
-#### CLI provides a function to set the current state
-`swdd~cli-provides-set-current-state~1`
+#### CLI provides a function to set the desired state
+`swdd~cli-provides-set-desired-state~1`
 
 Status: approved
 
-The Ankaios CLI shall provide a function to set the current state.
+The Ankaios CLI shall provide a function to set the desired state.
 
 Tags:
-- SetCurrentState
+- SetDesiredState
 
 Needs:
 - swdd
 - impl
 - utest
 
-#### CLI blocks until the Ankaios Server responds to the request to set the current state
-`swdd~cli-blocks-until-ankaios-server-responds-set-current-state~1`
+#### CLI blocks until the Ankaios Server responds to the request to set the desired state
+`swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~1`
 
 Status: approved
 
-When the user invokes the CLI with a request to set the current state, the CLI shall block and wait until the response from the Ankaios Server is received.
+When the user invokes the CLI with a request to set the desired state, the CLI shall block and wait until the response from the Ankaios Server is received.
 
 Tags:
-- SetCurrentState
+- SetDesiredState
 
 Needs:
 - impl
 - utest
 
-#### CLI shall support YAML files with the state object to set current state
-`swdd~cli-supports-yaml-to-set-current-state~1`
+#### CLI shall support YAML files with the state object to set desired state
+`swdd~cli-supports-yaml-to-set-desired-state~1`
 
 Status: approved
 
-When the user invokes the CLI with a request to the set current state, the CLI shall support files in YAML format with the state object.
+When the user invokes the CLI with a request to the set desired state, the CLI shall support files in YAML format with the state object.
 
 Tags:
-- SetCurrentState
+- SetDesiredState
 
 Needs:
 - impl
@@ -505,6 +543,156 @@ Tags:
 Needs:
 - impl
 - utest
+
+### `ank apply [-d] [--agent agent_name] <manifest.yaml> ...`
+
+#### Ankaios manifest
+
+The Ankaios manifest is a YAML (or a JSON) file composed of a list of workload specifications under the `workloads` keyword.
+
+```yaml
+# Example of a list of two workload specifications with the names 'nginx' and 'hello1'.
+apiVersion: "v0.1"
+workloads:
+  nginx:
+    agent: agent_A
+    restart: true
+    runtime: podman
+    runtimeConfig: |
+      image: docker.io/nginx:latest
+      commandOptions: ["-p", "8081:80"]
+  hello1:
+    # For this workload the following are not set:
+    # - agent name
+    restart: true
+    runtime: podman
+    runtimeConfig: |
+      image: alpine:latest
+      commandOptions: [ "--rm"]
+      commandArgs: [ "echo", "Hello Ankaios"]
+```
+
+#### CLI supports Ankaios manifest
+`swdd~cli-apply-supports-ankaios-manifest~1`
+
+Status: approved
+
+The Ankaios CLI apply command shall support the Ankaios manifest file format.
+
+Tags:
+- AnkaiosManifest
+
+Needs:
+- impl
+- utest
+
+#### CLI provides a function to accept a list of Ankaios manifest files
+`swdd~cli-apply-accepts-list-of-ankaios-manifests~1`
+
+Status: approved
+
+When the user calls the Ankaios Cli `apply` command with one or multiple files,
+the Ankaios CLI shall process the content of all provided files.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI provides a function to accept an Ankaios manifest content from `stdin`
+`swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1`
+
+Status: approved
+
+When the user calls the Ankaios CLI `apply` command with a file named `-`,
+the Ankaios CLI shall read data from stdin.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI generates a state object from Ankaios manifests
+`swdd~cli-apply-generates-state-object-from-ankaios-manifests~1`
+
+Status: approved
+
+When the user does not provide the optional argument `-d`
+and the Ankaios CLI accepts the manifest content from file(s) or from `stdin`,
+the Ankaios CLI shall parse the manifest content into a state object.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI generates filter masks from Ankaios manifests
+`swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1`
+
+Status: approved
+
+When the Ankaios CLI accepts the manifest content from file(s) or from `stdin`,
+the Ankaios CLI shall parse the manifest content into a list of filter masks.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI sends update state request for `ank apply ...`
+`swdd~cli-apply-send-update-state~1`
+
+Status: approved
+
+When the user calls the Ankaios CLI `apply` command,
+the Ankaios CLI shall send an update state request to the Ankaios server, containing the state object and filter mask generated from the given input files.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI sends update state request for `ank apply -d ...`
+`swdd~cli-apply-send-update-state-for-deletion~1`
+
+Status: approved
+
+When the user calls the Ankaios CLI `apply` command with the `-d` flag,
+the Ankaios CLI shall send an update state request to the Ankaios server, containing an empty state object and the filter mask generated from the given input files.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI provides a function to overwrite the agent names
+`swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1`
+
+Status: approved
+
+When the user provides the optional argument `--agent`
+and the Ankaios CLI parses the manifest content into a state object,
+the Ankaios CLI shall overwrite the agent names in the state object, built as specified in the manifest content, with the one given by the argument.
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI emits an error on absence of agent name
+`swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1`
+
+Status: approved
+
+When the agent name is not specified in a workload specification
+and the user does not provide the agent name via the optional argument `--agent`
+and the user calls the Ankaios CLI `apply` command,
+the Ankaios CLI shall create a list of filter masks from all `workloads` in the `desiredState` of all given files.
+
+Needs:
+- impl
+- utest
+- stest
 
 ## Data view
 

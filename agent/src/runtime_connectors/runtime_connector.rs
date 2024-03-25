@@ -2,12 +2,9 @@ use std::{fmt::Display, path::PathBuf};
 
 use async_trait::async_trait;
 
-use common::{
-    objects::{AgentName, WorkloadExecutionInstanceName, WorkloadSpec},
-    state_change_interface::StateChangeSender,
-};
+use common::objects::{AgentName, WorkloadInstanceName, WorkloadSpec};
 
-use crate::runtime_connectors::StateChecker;
+use crate::{runtime_connectors::StateChecker, workload_state::WorkloadStateSender};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuntimeError {
@@ -20,13 +17,13 @@ impl Display for RuntimeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RuntimeError::Create(msg) => {
-                write!(f, "Could not create workload: '{}'", msg)
+                write!(f, "{}", msg)
             }
             RuntimeError::Delete(msg) => {
-                write!(f, "Could not delete workload '{}'", msg)
+                write!(f, "{}", msg)
             }
             RuntimeError::List(msg) => {
-                write!(f, "Could not get a list of workloads '{}'", msg)
+                write!(f, "{}", msg)
             }
         }
     }
@@ -37,32 +34,32 @@ impl Display for RuntimeError {
 pub trait RuntimeConnector<WorkloadId, StChecker>: Sync + Send
 where
     StChecker: StateChecker<WorkloadId> + Send + Sync,
-    WorkloadId: Send + Sync + 'static,
+    WorkloadId: ToString + Send + Sync + 'static,
 {
     fn name(&self) -> String;
 
     async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError>;
+    ) -> Result<Vec<WorkloadInstanceName>, RuntimeError>;
 
     async fn create_workload(
         &self,
         runtime_workload_config: WorkloadSpec,
         control_interface_path: Option<PathBuf>,
-        update_state_tx: StateChangeSender,
+        update_state_tx: WorkloadStateSender,
     ) -> Result<(WorkloadId, StChecker), RuntimeError>;
 
     async fn get_workload_id(
         &self,
-        instance_name: &WorkloadExecutionInstanceName,
+        instance_name: &WorkloadInstanceName,
     ) -> Result<WorkloadId, RuntimeError>;
 
     async fn start_checker(
         &self,
         workload_id: &WorkloadId,
         runtime_workload_config: WorkloadSpec,
-        update_state_tx: StateChangeSender,
+        update_state_tx: WorkloadStateSender,
     ) -> Result<StChecker, RuntimeError>;
 
     async fn delete_workload(&self, workload_id: &WorkloadId) -> Result<(), RuntimeError>;
@@ -71,7 +68,7 @@ where
 pub trait OwnableRuntime<WorkloadId, StChecker>: RuntimeConnector<WorkloadId, StChecker>
 where
     StChecker: StateChecker<WorkloadId> + Send + Sync,
-    WorkloadId: Send + Sync + 'static,
+    WorkloadId: ToString + Send + Sync + 'static,
 {
     fn to_owned(&self) -> Box<dyn RuntimeConnector<WorkloadId, StChecker>>;
 }
@@ -80,7 +77,7 @@ impl<R, WorkloadId, StChecker> OwnableRuntime<WorkloadId, StChecker> for R
 where
     R: RuntimeConnector<WorkloadId, StChecker> + Clone + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync,
-    WorkloadId: Send + Sync + 'static,
+    WorkloadId: ToString + Send + Sync + 'static,
 {
     fn to_owned(&self) -> Box<dyn RuntimeConnector<WorkloadId, StChecker>> {
         Box::new(self.clone())
@@ -100,20 +97,20 @@ pub mod test {
     use std::{collections::VecDeque, path::PathBuf, sync::Arc};
 
     use async_trait::async_trait;
-    use common::{
-        objects::{AgentName, ExecutionState, WorkloadExecutionInstanceName, WorkloadSpec},
-        state_change_interface::StateChangeSender,
-    };
+    use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
     use tokio::sync::Mutex;
 
-    use crate::runtime_connectors::{RuntimeStateGetter, StateChecker};
+    use crate::{
+        runtime_connectors::{RuntimeStateGetter, StateChecker},
+        workload_state::WorkloadStateSender,
+    };
 
     use super::{RuntimeConnector, RuntimeError};
 
     #[async_trait]
     impl RuntimeStateGetter<String> for StubStateChecker {
         async fn get_state(&self, _workload_id: &String) -> ExecutionState {
-            ExecutionState::ExecRunning
+            ExecutionState::running()
         }
     }
 
@@ -139,7 +136,7 @@ pub mod test {
         fn start_checker(
             _workload_spec: &WorkloadSpec,
             _workload_id: String,
-            _manager_interface: StateChangeSender,
+            _manager_interface: WorkloadStateSender,
             _state_getter: impl RuntimeStateGetter<String>,
         ) -> Self {
             log::info!("Starting the checker ;)");
@@ -162,21 +159,18 @@ pub mod test {
 
     #[derive(Debug)]
     pub enum RuntimeCall {
-        GetReusableWorkloads(
-            AgentName,
-            Result<Vec<WorkloadExecutionInstanceName>, RuntimeError>,
-        ),
+        GetReusableWorkloads(AgentName, Result<Vec<WorkloadInstanceName>, RuntimeError>),
         CreateWorkload(
             WorkloadSpec,
             Option<PathBuf>,
-            StateChangeSender,
+            WorkloadStateSender,
             Result<(String, StubStateChecker), RuntimeError>,
         ),
-        GetWorkloadId(WorkloadExecutionInstanceName, Result<String, RuntimeError>),
+        GetWorkloadId(WorkloadInstanceName, Result<String, RuntimeError>),
         StartChecker(
             String,
             WorkloadSpec,
-            StateChangeSender,
+            WorkloadStateSender,
             Result<StubStateChecker, RuntimeError>,
         ),
         DeleteWorkload(String, Result<(), RuntimeError>),
@@ -284,7 +278,7 @@ pub mod test {
         async fn get_reusable_workloads(
             &self,
             agent_name: &AgentName,
-        ) -> Result<Vec<WorkloadExecutionInstanceName>, RuntimeError> {
+        ) -> Result<Vec<WorkloadInstanceName>, RuntimeError> {
             match self.get_expected_call().await {
                 RuntimeCall::GetReusableWorkloads(expected_agent_name, result)
                     if expected_agent_name == *agent_name =>
@@ -302,7 +296,7 @@ pub mod test {
             &self,
             runtime_workload_config: WorkloadSpec,
             control_interface_path: Option<PathBuf>,
-            update_state_tx: StateChangeSender,
+            update_state_tx: WorkloadStateSender,
         ) -> Result<(String, StubStateChecker), RuntimeError> {
             match self.get_expected_call().await {
                 RuntimeCall::CreateWorkload(
@@ -325,7 +319,7 @@ pub mod test {
 
         async fn get_workload_id(
             &self,
-            instance_name: &WorkloadExecutionInstanceName,
+            instance_name: &WorkloadInstanceName,
         ) -> Result<String, RuntimeError> {
             match self.get_expected_call().await {
                 RuntimeCall::GetWorkloadId(expected_instance_name, result)
@@ -344,7 +338,7 @@ pub mod test {
             &self,
             workload_id: &String,
             runtime_workload_config: WorkloadSpec,
-            update_state_tx: StateChangeSender,
+            update_state_tx: WorkloadStateSender,
         ) -> Result<StubStateChecker, RuntimeError> {
             match self.get_expected_call().await {
                 RuntimeCall::StartChecker(

@@ -1,6 +1,7 @@
 # Config file for cargo deny
 # For all options see https://github.com/EmbarkStudios/cargo-deny/blob/main/deny.template.toml
 
+# If you add a license in the following section also consider changing about.toml
 [licenses]
 allow = [
     "MIT",

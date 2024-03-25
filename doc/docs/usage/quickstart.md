@@ -11,15 +11,12 @@ The startup configuration file contains all of the workloads and their configura
 Let's modify the default config which is stored in `/etc/ankaios/state.yaml`:
 
 ```yaml
+apiVersion: v0.1
 workloads:
   nginx:
     runtime: podman
     agent: agent_A
     restart: true
-    updateStrategy: AT_MOST_ONCE
-    accessRights:
-      allow: []
-      deny: []
     tags:
       - key: owner
         value: Ankaios team
@@ -57,35 +54,32 @@ ank get state
 which creates:
 
 ```yaml
-requestId: ank-cli
 startupState:
+  apiVersion: v0.1
   workloads: {}
-  configs: {}
-  cronJobs: {}
-currentState:
+desiredState:
+  apiVersion: v0.1
   workloads:
     nginx:
       agent: agent_A
-      name: nginx
       tags:
       - key: owner
         value: Ankaios team
       dependencies: {}
-      updateStrategy: AT_MOST_ONCE
       restart: true
-      accessRights:
-        allow: []
-        deny: []
       runtime: podman
       runtimeConfig: |
         image: docker.io/nginx:latest
         commandOptions: ["-p", "8081:80"]
-  configs: {}
-  cronJobs: {}
 workloadStates:
-- workloadName: nginx
-  agentName: agent_A
-  executionState: ExecRunning
+- instanceName:
+    agentName: agent_A
+    workloadName: nginx
+    id: 7d6ea2b79cea1e401beee1553a9d3d7b5bcbb37f1cfdb60db1fbbcaa140eb17d
+  executionState:
+    state: Running
+    subState: Ok
+    additionalInfo: ''
 ```
 
 or
@@ -97,8 +91,8 @@ ank get workloads
 which results in:
 
 ```text
- WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE
- nginx           agent_A   podman    Running
+WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE   ADDITIONAL INFO
+ nginx           agent_A   podman    Running(Ok)
 ```
 
 Ankaios also supports adding and removing workloads dynamically.
@@ -115,10 +109,10 @@ commandArgs: [ "sh", "-c", "echo $MESSAGE"]'
 ```
 
 We can check the state again with `ank get state` and see, that the workload
-`helloworld` has been added to `currentState.workloads` and the execution
+`helloworld` has been added to `desiredState.workloads` and the execution
 state is available in `workloadStates`.
 
-As the workload had a one time job its state is `ExecSucceeded` and we can
+As the workload had a one time job its state is `Succeeded(Ok)` and we can
 delete it from the state again with:
 
 ```shell

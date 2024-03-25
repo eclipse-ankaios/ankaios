@@ -20,11 +20,12 @@ pub mod commands;
 pub mod communications_client;
 pub mod communications_error;
 pub mod communications_server;
-pub mod execution_interface;
+pub mod from_server_interface;
 pub mod helpers;
 pub mod objects;
 pub mod request_id_prepending;
-pub mod state_change_interface;
+pub mod state_manipulation;
 pub mod std_extensions;
 #[cfg(feature = "test_utils")]
 pub mod test_utils;
+pub mod to_server_interface;

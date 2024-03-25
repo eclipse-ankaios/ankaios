@@ -34,16 +34,18 @@ Test Ankaios CLI update workload
     ...    AND    Set Global Variable    ${default_state_yaml_file}    ${CONFIGS_DIR}/default.yaml
     ...    AND    Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_update_workload_new_state.yaml
     # Preconditions
-    Given Ankaios server is started with config "${default_state_yaml_file}"
+    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    And Ankaios server is started with config "${default_state_yaml_file}"
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     And the command "curl localhost:8081" finished with exit code "0"
     # Actions
     When user triggers "ank get state > ${new_state_yaml_file}"
-    And user updates the state "${new_state_yaml_file}" with "currentState.workloads.nginx.runtimeConfig.commandOptions=['-p', '8082:80']"
-    And user triggers "ank set state -f ${new_state_yaml_file} currentState.workloads.nginx"
+    And user updates the state "${new_state_yaml_file}" with "desiredState.workloads.nginx.runtimeConfig.commandOptions=['-p', '8082:80']"
+    And user triggers "ank set state -f ${new_state_yaml_file} desiredState.workloads.nginx"
     # Asserts
-    Then the workload "nginx" shall have the execution state "Running" on agent "agent_A" within "30" seconds
+    Then the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
     And the command "curl localhost:8082" shall finish with exit code "0" within "10" seconds
     [Teardown]    Clean up Ankaios
 
@@ -59,6 +61,42 @@ Test Ankaios Podman update workload from empty state
     # Actions
     When user triggers "ank get workloads"
     Then list of workloads shall be empty
-    When user triggers "ank set state --file ${CONFIGS_DIR}/update_state_create_one_workload.yaml currentState.workloads"
-    Then the workload "nginx" shall have the execution state "Running" on agent "agent_A" within "30" seconds
+    When user triggers "ank set state --file ${CONFIGS_DIR}/update_state_create_one_workload.yaml desiredState.workloads"
+    Then the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
+    [Teardown]    Clean up Ankaios
+
+# [stest->swdd~update-desired-state-with-invalid-version~1]
+Test Ankaios Podman Update workload with invalid api version
+    [Setup]    Run Keywords    Setup Ankaios
+
+    # Preconditions
+    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    And Ankaios server is started without config
+    And Ankaios agent is started with name "agent_A"
+    # Actions
+    When user triggers "ank get workloads"
+    Then list of workloads shall be empty
+    When user triggers "ank set state --file ${CONFIGS_DIR}/update_state_invalid_version.yaml desiredState"
+    And user triggers "ank get workloads"
+    Then list of workloads shall be empty
+
+    [Teardown]    Clean up Ankaios
+
+# [stest->swdd~update-desired-state-with-missing-version~1]
+Test Ankaios Podman Update workload with missing api version
+    [Setup]    Run Keywords    Setup Ankaios
+
+    # Preconditions
+    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    And Ankaios server is started without config
+    And Ankaios agent is started with name "agent_A"
+    # Actions
+    When user triggers "ank get workloads"
+    Then list of workloads shall be empty
+    When user triggers "ank set state --file ${CONFIGS_DIR}/update_state_missing_version.yaml desiredState"
+    And user triggers "ank get workloads"
+    Then list of workloads shall be empty
+
     [Teardown]    Clean up Ankaios

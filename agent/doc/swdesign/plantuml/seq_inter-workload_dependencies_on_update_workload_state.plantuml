@@ -1,0 +1,46 @@
+@startuml seq_inter-workload_dependencies_on_update_workload_state
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "Ankaios Agent"
+    participant "AgentManager" as agent_manager
+    participant "RuntimeManager" as runtime_manager
+    participant "WorkloadScheduler" as scheduler
+    participant "WorkloadStateStore" as wl_state_store
+end box
+
+[o->> agent_manager ++: New workload states
+note right
+The agent receives workload states
+from other agents via the server and
+from workloads that it manages itself.
+end note
+agent_manager ->> runtime_manager --++: Execute workload operations\nwith fulfilled dependencies
+runtime_manager -> scheduler ++: Next ready workload operations
+loop for each workload operation in waiting queue
+    loop for each dependency of workload
+        scheduler -> wl_state_store ++: Get workload state
+        wl_state_store -->> scheduler --: workload state
+        scheduler -> scheduler ++: Compare workload state\nwith specified condition
+        note right
+            Depending on the workload operation
+            the AddCondition or the DeleteCondition is compared.
+        end note
+        opt AddCondition not fulfilled by workload state
+            break dependencies not fulfilled
+            end
+        end
+    end
+
+    opt all dependencies of workload fulfilled
+    scheduler -> scheduler ++: Move workload operation\nfrom waiting queue\ninto ready operations
+    end
+end
+scheduler -->> runtime_manager --++: ready workload operations
+runtime_manager ->> runtime_manager++: execute ready\nworkload operations
+note right
+Actual workload operations like
+create, update and delete are decoupled
+through the RuntimeFacade and the WorkloadObject.
+See specific update workload diagrams for more details.
+end note
+@enduml

@@ -19,28 +19,45 @@
 mod state;
 pub use state::State;
 
-mod workload_state;
-pub use workload_state::{ExecutionState, WorkloadState};
+mod complete_state;
+pub use complete_state::CompleteState;
 
-mod workload_spec;
-pub use workload_spec::{
-    get_workloads_per_agent, AddCondition, DeleteCondition, DeletedWorkload,
-    DeletedWorkloadCollection, UpdateStrategy, WorkloadCollection, WorkloadSpec,
+mod stored_workload_spec;
+#[cfg(any(feature = "test_utils", test))]
+pub use stored_workload_spec::{
+    generate_test_stored_workload_spec, generate_test_stored_workload_spec_with_config,
 };
 
-mod cronjob;
-pub use cronjob::{Cronjob, Interval};
+pub use stored_workload_spec::StoredWorkloadSpec;
+
+mod workload_state;
+#[cfg(any(feature = "test_utils", test))]
+pub use workload_state::{
+    generate_test_workload_state, generate_test_workload_state_with_agent,
+    generate_test_workload_state_with_workload_spec,
+};
+pub use workload_state::{
+    ExecutionState, ExecutionStateEnum, FailedSubstate, PendingSubstate, RunningSubstate,
+    StoppingSubstate, SucceededSubstate, WorkloadState,
+};
+
+mod workload_spec;
+#[cfg(any(feature = "test_utils", test))]
+pub use workload_spec::{
+    generate_test_workload_spec, generate_test_workload_spec_with_dependencies,
+    generate_test_workload_spec_with_param, generate_test_workload_spec_with_runtime_config,
+};
+
+pub use workload_spec::{
+    get_workloads_per_agent, AddCondition, DeleteCondition, DeletedWorkload,
+    DeletedWorkloadCollection, FulfilledBy, WorkloadCollection, WorkloadSpec,
+};
 
 mod tag;
 pub use tag::Tag;
 
-mod access_rights;
-pub use access_rights::{AccessRights, AccessRightsRule, PatchOperation};
-
-mod workload_execution_instance_name;
-pub use workload_execution_instance_name::{
-    WorkloadExecutionInstanceName, WorkloadExecutionInstanceNameBuilder, WorkloadInstanceName,
-};
+mod workload_instance_name;
+pub use workload_instance_name::{ConfigHash, WorkloadInstanceName, WorkloadInstanceNameBuilder};
 
 mod agent_name;
 pub use agent_name::AgentName;

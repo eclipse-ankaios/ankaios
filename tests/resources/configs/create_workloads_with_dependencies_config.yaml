@@ -1,0 +1,51 @@
+apiVersion: v0.1
+workloads:
+  logger:
+    runtime: podman
+    agent: agent_A
+    restart: false
+    dependencies:
+      storage_provider: ADD_COND_RUNNING
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: docker.io/alpine:latest
+      commandOptions: [ "--entrypoint", "/bin/sleep" ]
+      commandArgs: [ "1" ]
+  storage_provider:
+    runtime: podman
+    agent: agent_B
+    restart: false
+    dependencies:
+      filesystem_init: ADD_COND_SUCCEEDED
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: docker.io/alpine:latest
+      commandOptions: [ "--entrypoint", "/bin/sh" ]
+      commandArgs: [ "-c", "sleep 2; exit 1" ]
+  filesystem_init:
+    runtime: podman
+    agent: agent_B
+    restart: false
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: docker.io/alpine:latest
+      commandOptions: [ "--entrypoint", "/bin/sleep" ]
+      commandArgs: [ "1" ]
+  error_notifier:
+    runtime: podman
+    agent: agent_A
+    restart: false
+    dependencies:
+      storage_provider: ADD_COND_FAILED
+    tags:
+      - key: owner
+        value: Ankaios team
+    runtimeConfig: |
+      image: docker.io/alpine:latest
+      commandArgs: [ "echo", "Send error notifications."]

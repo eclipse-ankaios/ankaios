@@ -11,45 +11,24 @@ A workload specification must contain the following information:
 * `runtime`, specify the type of the runtime. Currently supported values are `podman` and `podman-kube`.
 * `agent`, specify the name of the owning agent which is going to execute the workload.
 * `restart`, specify if the workload shall be restarted when it exits (not implemented yet).
-* `updateStrategy`, specify the update strategy (not implemented yet) which can be one of the following values:
-  * `UNSPECIFIED`
-  * `AT_LEAST_ONCE`
-  * `AT_MOST_ONCE`
-* `accessRights`, specify lists of access rules for `allow` and `deny` (not implemented yet; shall be set to empty list for both).
 * `tags`, specify a list of `key` `value`  pairs.
 * `runtimeConfig`, specify as a _string_ the configuration for the [runtime](./glossary.md#runtime) whose configuration structure is specific for each runtime, e.g., for `podman` runtime the [PodmanRuntimeConfig](#podmanruntimeconfig) is used.
 
 Example `startup-config.yaml` file:
 
 ```yaml
+apiVersion: v0.1
 workloads:
   nginx: # this is used as the workload name which is 'nginx'
     runtime: podman
     agent: agent_A
     restart: true
-    updateStrategy: AT_MOST_ONCE
-    accessRights:
-      allow: []
-      deny: []
     tags:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
       image: docker.io/nginx:latest
       commandOptions: ["-p", "8081:80"]
-  api_sample: # this is used as the workload name which is 'api_sample'
-    runtime: podman
-    agent: agent_A
-    restart: true
-    updateStrategy: AT_MOST_ONCE
-    accessRights:
-      allow: []
-      deny: []
-    tags:
-      - key: owner
-        value: Ankaios team
-    runtimeConfig: |
-      image: ankaios_workload_api_example
 ```
 
 ### PodmanRuntimeConfig

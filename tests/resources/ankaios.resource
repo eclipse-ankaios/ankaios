@@ -27,7 +27,8 @@ Library             ankaios_library.py
 
 *** Variables ***
 ${CURRENT_RESULT}       ${EMPTY}
-${TEST_FOLDER_NAME}     ${EMPTY}
+${SERVER_PROCESS_HANDLE}       ${EMPTY}
+${TEST_FOLDER_NAME}    ${EMPTY}
 
 
 *** Keywords ***
@@ -63,6 +64,13 @@ Run in foreground
     ${run_result}=    Run Process    @{cmd}    shell=True
     RETURN    ${run_result}
 
+the last command finished with exit code "${exit_code}"
+    ${exit_code_int}=    Convert To Integer    ${exit_code}
+    Should Be Equal    ${CURRENT_RESULT.rc}    ${exit_code_int}
+
+the last command finished with an error
+    Should Not Be Equal    ${CURRENT_RESULT.rc}    ${0}
+
 the command "${cli_command}" finished with exit code "${exit_code}" within "${timeout}" seconds
     ${start_time}=    Get Time Secs
     ${run_result}=    Create Dictionary
@@ -86,12 +94,22 @@ the command "${cli_command}" finished with exit code "${exit_code}" within "${ti
     END
 
 Ankaios server is started with config "${config_path}"
-    Start Process
+    ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
     ...    --startup-config
     ...    ${config_path}
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
     ...    env:RUST_LOG=debug
+    RETURN    ${server_process}
+
+Ankaios server is started with an invalid config "${config_path}"
+    ${SERVER_PROCESS_HANDLE}=        Ankaios server is started with config "${config_path}"
+    Set Global Variable    ${SERVER_PROCESS_HANDLE}
+
+the Ankaios server shall exit with an error code
+    ${process_result}=    Wait For Process    ${SERVER_PROCESS_HANDLE}    timeout=3 s    on_timeout=continue
+    Process Should Be Stopped    ${SERVER_PROCESS_HANDLE}
+    Should Not Be Equal As Integers   ${process_result.rc}    0
 
 Ankaios server is started without config
     Start Process
@@ -108,20 +126,19 @@ Ankaios agent is started with name "${name}"
     ...    env:RUST_LOG=debug
 
 Podman has deleted all existing containers
-    Run Process    podman    rm    -a    -f    timeout=20    shell=True
+    Run Process    podman    rm    --all    --force    --time    2    timeout=20    shell=True
 
 Podman has deleted all existing pods
-    Run Process    podman    pod    stop    -a    &&    podman    pod    rm    -a    -f    timeout=20    shell=True
+    Run Process    podman    pod    rm    --all    --force    --time    2    timeout=20    shell=True
 
 Podman has deleted all existing volumes
-    Run Process    podman    volume    rm    -a    timeout=20    shell=True
+    Run Process    podman    volume    rm    --all    --force    timeout=20    shell=True
 
 all workloads of agent "${agent_name}" have an initial execution state
     ${list_result}=    Wait For Initial Execution State
     ...    %{ANK_BIN_DIR}${/}ank get workloads
     ...    ${agent_name}
     ...    60
-    ...    5
     Should Not Be Empty
     ...    ${list_result}
     ...    msg=Timeout: Workloads on agent '${agent_name}' do not have the expected initial execution states!
@@ -130,6 +147,13 @@ user triggers "${cli_command}"
     ${cmd}=    Split Command Line    ${cli_command}
     Set List Value    ${cmd}    0    %{ANK_BIN_DIR}${/}${cmd}[0]
     ${CURRENT_RESULT}=    Run Process    @{cmd}    timeout=20    shell=True
+    Log    ${CURRENT_RESULT.stdout}
+    Set Global Variable    ${CURRENT_RESULT}
+
+user triggers "${cli_command}" passing "${ankaios_manifest_file}" through stdin
+    ${cmd}=    Split Command Line    ${cli_command}
+    Set List Value    ${cmd}    0    %{ANK_BIN_DIR}${/}${cmd}[0]
+    ${CURRENT_RESULT}=    Run Process    @{cmd}    timeout=20    shell=True    stdin=${ankaios_manifest_file}
     Log    ${CURRENT_RESULT.stdout}
     Set Global Variable    ${CURRENT_RESULT}
 
@@ -162,6 +186,34 @@ the workload "${workload_name}" shall not exist
     &{workload_table}=    table to dict    ${list_result}    WORKLOAD NAME
     Dictionary Should Not Contain Key    ${workload_table}    ${workload_name}
 
+the workload "${workload_name}" shall not exist on agent "${expected_agent_name}" within "${timeout}" seconds
+    Should Be True    ${timeout} >= 0    msg='timeout' must be greater than or equal to 0!
+    @{list_result}=    Create List
+    IF    ${timeout} >= 0
+        @{list_result}=    Wait For Workload Removal
+        ...    %{ANK_BIN_DIR}${/}ank get workloads
+        ...    ${workload_name}
+        ...    ${expected_agent_name}
+        ...    ${timeout}
+    END
+    Should Be Empty
+    ...    ${list_result}
+    ...    msg=Timeout: Workload '${workload_name}' found on agent '${expected_agent_name}'!
+
+the workload "${workload_name}" shall not exist within "${timeout}" seconds
+    Should Be True    ${timeout} >= 0    msg='timeout' must be greater than or equal to 0!
+    @{list_result}=    Create List
+    IF    ${timeout} >= 0
+        @{list_result}=    Wait For Workload Removal
+        ...    %{ANK_BIN_DIR}${/}ank get workloads
+        ...    ${workload_name}
+        ...    ""
+        ...    ${timeout}
+    END
+    Should Be Empty
+    ...    ${list_result}
+    ...    msg=Timeout: Workload '${workload_name}' found!
+
 user executes system app "${cli_command}"
     ${cmd}=    Split Command Line    ${cli_command}    escaping=True
     ${CURRENT_RESULT}=    Run Process    @{cmd}    timeout=20    shell=True
@@ -193,7 +245,7 @@ volumes for "${workload_name}" shall exist on "${agent_name}" within "${timeout}
     ...    1
     ...    msg=Volume '${workload_name}.{hash}.${agent_name}.pods' not found in podman!
 
-volumes for "${workload_name}" shall not exists on "${agent_name}" within "${timeout}" seconds
+volumes for "${workload_name}" shall not exist on "${agent_name}" within "${timeout}" seconds
     ${start_time}=    Get Time Secs
     ${volume_names}=    Create List
     ${workload_dot_agent}=    To X Dot Y Format    ${workload_name}    ${agent_name}
@@ -286,3 +338,9 @@ podman shall have a container for workload "${workload_name}" with custom name "
 
 podman shall not have a container for workload "${workload_name}" on agent "${agent_name}"
     podman shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "1" seconds
+
+the last command shall finish with an error
+    the last command finished with an error
+
+the last command shall finish with exit code "${exit_code}"
+    the last command finished with exit code "${exit_code}"

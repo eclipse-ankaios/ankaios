@@ -30,11 +30,11 @@
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=agent",
-                    "--package=agent"
+                    "--bin=ank-agent",
+                    "--package=ank-agent"
                 ],
                 "filter": {
-                    "name": "agent",
+                    "name": "ank-agent",
                     "kind": "bin"
                 }
             },
@@ -49,11 +49,11 @@
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=agent",
-                    "--package=agent"
+                    "--bin=ank-agent",
+                    "--package=ank-agent"
                 ],
                 "filter": {
-                    "name": "agent",
+                    "name": "ank-agent",
                     "kind": "bin"
                 }
             },
@@ -67,11 +67,11 @@
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=server",
-                    "--package=server"
+                    "--bin=ank-server",
+                    "--package=ank-server"
                 ],
                 "filter": {
-                    "name": "server",
+                    "name": "ank-server",
                     "kind": "bin"
                 }
             },
@@ -86,11 +86,11 @@
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=server",
-                    "--package=server"
+                    "--bin=ank-server",
+                    "--package=ank-server"
                 ],
                 "filter": {
-                    "name": "server",
+                    "name": "ank-server",
                     "kind": "bin"
                 }
             },

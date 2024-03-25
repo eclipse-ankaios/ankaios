@@ -81,7 +81,7 @@ The following sections showcase in Rust some important parts of the communicatio
 
 ### Sending request message from a workload to Ankaios server
 
-To send out a request message from the workload to the Ankaios Server the request message needs to be serialized using the generated serializing function, then encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) and then written directly into the `output` FIFO file. The type of request message is [StateChangeRequest](_ankaios.proto.md#statechangerequest).
+To send out a request message from the workload to the Ankaios Server the request message needs to be serialized using the generated serializing function, then encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) and then written directly into the `output` FIFO file. The type of request message is [ToServer](_ankaios.proto.md#toserver).
 
 ```mermaid
 ---
@@ -89,8 +89,8 @@ title: Send request message via control interface
 ---
 flowchart TD
     begin([Start])
-    req_msg(Fill StateChangeRequest message)
-    ser_msg(Serialize StateChangeRequest message using the generated serializing function)
+    req_msg(Fill ToServer message)
+    ser_msg(Serialize ToServer message using the generated serializing function)
     enc_bytes(Encode as length-delimited varint)
     output("Write encoded bytes to /run/ankaios/control_interface/output")
     fin([end])
@@ -111,15 +111,13 @@ use std::{collections::HashMap, fs::File, io::Write, path::Path};
 
 const ANKAIOS_CONTROL_INTERFACE_BASE_PATH: &str = "/run/ankaios/control_interface";
 
-fn create_update_workload_request() -> proto::StateChangeRequest {
+fn create_update_workload_request() -> proto::ToServer {
     let new_workloads = HashMap::from([(
         "dynamic_nginx".to_string(),
         proto::Workload {
             runtime: "podman".to_string(),
             agent: "agent_A".to_string(),
             restart: false,
-            update_strategy: proto::UpdateStrategy::AtMostOnce.into(),
-            access_rights: None,
             tags: vec![proto::Tag {
                 key: "owner".to_string(),
                 value: "Ankaios team".to_string(),
@@ -130,22 +128,22 @@ fn create_update_workload_request() -> proto::StateChangeRequest {
         },
     )]);
 
-    proto::StateChangeRequest {
-        state_change_request_enum: Some(
-            proto::state_change_request::StateChangeRequestEnum::UpdateState(
+    proto::ToServer {
+        to_server_enum: Some(proto::to_server::ToServerEnum::Request(proto::Request {
+            request_id: "request_id".to_string(),
+            request_content: Some(proto::request::RequestContent::UpdateStateRequest(
                 proto::UpdateStateRequest {
                     new_state: Some(proto::CompleteState {
-                        current_state: Some(proto::State {
+                        desired_state: Some(proto::State {
+                            api_version: "v0.1".to_string(),
                             workloads: new_workloads,
-                            configs: HashMap::default(),
-                            cronjobs: HashMap::default(),
                         }),
                         ..Default::default()
                     }),
-                    update_mask: vec!["currentState.workloads.dynamic_nginx".to_string()],
+                    update_mask: vec!["desiredState.workloads.dynamic_nginx".to_string()],
                 },
-            ),
-        ),
+            )),
+        })),
     }
 }
 
@@ -157,7 +155,7 @@ fn write_to_control_interface() {
 
     let protobuf_update_workload_request = create_update_workload_request();
 
-    println!("{}", &format!("Sending StateChangeRequest containing details for adding the dynamic workload \"dynamic_nginx\": {:#?}", protobuf_update_workload_request));
+    println!("{}", &format!("Sending UpdateStateRequest containing details for adding the dynamic workload \"dynamic_nginx\": {:#?}", protobuf_update_workload_request));
 
     sc_req
         .write_all(&protobuf_update_workload_request.encode_length_delimited_to_vec())
@@ -167,12 +165,11 @@ fn write_to_control_interface() {
 fn main() {
     write_to_control_interface();
 }
-
 ```
 
 ### Processing response message from Ankaios server
 
-To process a response message from the Ankaios Server the workload needs to read out the bytes from the `input` FIFO file. As the bytes are encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) with a variable length, the length needs to be decoded and extracted first. Then the length can be used to decode and deserialize the read bytes to a response message object for further processing. The type of the response message is [ExecutionRequest](_ankaios.proto.md#executionrequest).
+To process a response message from the Ankaios Server the workload needs to read out the bytes from the `input` FIFO file. As the bytes are encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) with a variable length, the length needs to be decoded and extracted first. Then the length can be used to decode and deserialize the read bytes to a response message object for further processing. The type of the response message is [FromServer](_ankaios.proto.md#fromserver).
 
 ```mermaid
 ---
@@ -182,8 +179,8 @@ flowchart TD
     begin([Start])
     input("Read bytes from /run/ankaios/control_interface/input")
     dec_length(Get length from read length delimited varint encoded bytes)
-    deser_msg(Decode and deserialize ExecutionRequest message using decoded length and the generated functions)
-    further_processing(Process ExecutionRequest message object)
+    deser_msg(Decode and deserialize FromServer message using decoded length and the generated functions)
+    further_processing(Process FromServer message object)
     fin([end])
 
     begin --> input
@@ -237,9 +234,9 @@ fn read_from_control_interface() {
 
     loop {
         if let Ok(binary) = read_protobuf_data(&mut ex_req) {
-            let proto = proto::ExecutionRequest::decode(&mut Box::new(binary.as_ref()));
+            let proto = proto::FromServer::decode(&mut Box::new(binary.as_ref()));
 
-            println!("{}", &format!("Receiving ExecutionRequest containing the workload states of the current state: {:#?}", proto));
+            println!("{}", &format!("Receiving FromServer containing the workload states of the current state: {:#?}", proto));
         }
     }
 }
@@ -247,5 +244,4 @@ fn read_from_control_interface() {
 fn main() {
     read_from_control_interface();
 }
-
 ```

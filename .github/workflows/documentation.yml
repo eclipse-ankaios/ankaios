@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: "${{ github.workflow }}-${{ github.head_ref || github.ref }}"
+  group: "documentation-${{ github.head_ref || github.ref }}"
   cancel-in-progress: true
 
 jobs:
@@ -23,8 +23,8 @@ jobs:
     outputs:
       documentation: ${{ steps.filter.outputs.documentation }}
     steps:
-    - uses: actions/checkout@v3.5.3
-    - uses: dorny/paths-filter@v2.11.1
+    - uses: actions/checkout@v4.1.1
+    - uses: dorny/paths-filter@v3.0.0
       id: filter
       with:
         filters: |
@@ -38,9 +38,9 @@ jobs:
     if: ${{ needs.documentation_changes.outputs.documentation == 'true' || github.ref_name == 'main' || github.ref_type == 'tag' }}
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.7.0
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.8.0
     steps:
-      - uses: actions/checkout@v3.5.3
+      - uses: actions/checkout@v4.1.1
       - name: Prepare commit to branch gh-pages
         run: |
             git config --global --add safe.directory $PWD
@@ -70,11 +70,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: git checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.1.1
         with:
           show-progress: ''
       - name: markdownlint-cli2-action
-        uses: DavidAnson/markdownlint-cli2-action@v9
+        uses: DavidAnson/markdownlint-cli2-action@v15.0.0
         with:
           globs: |
             **/*.md

@@ -17,43 +17,43 @@ use std::collections::HashMap;
 use api::proto;
 use serde::{Serialize, Serializer};
 
-use crate::commands::CompleteState;
 use crate::objects::{
-    AccessRights, AddCondition, Cronjob, DeleteCondition, DeletedWorkload, Interval, State, Tag,
-    UpdateStrategy, WorkloadSpec, WorkloadState,
+    generate_test_workload_spec_with_param, DeleteCondition, DeletedWorkload, State,
+    WorkloadInstanceName, WorkloadSpec,
 };
 
 #[cfg(feature = "test_utils")]
 pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State {
     State {
-        workloads: workloads.into_iter().map(|v| (v.name.clone(), v)).collect(),
-        configs: HashMap::new(),
-        cron_jobs: HashMap::new(),
+        api_version: "v0.1".into(),
+        workloads: workloads
+            .into_iter()
+            .map(|v| (v.instance_name.workload_name().to_owned(), v.into()))
+            .collect(),
     }
 }
 
 #[cfg(feature = "test_utils")]
-pub fn generate_test_complete_state(
-    request_id: String,
-    workloads: Vec<WorkloadSpec>,
-) -> CompleteState {
+pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> crate::objects::CompleteState {
+    use crate::{
+        objects::CompleteState,
+        objects::{ExecutionState, WorkloadState},
+    };
+
     CompleteState {
-        current_state: State {
+        desired_state: State {
+            api_version: "v0.1".into(),
             workloads: workloads
                 .clone()
                 .into_iter()
-                .map(|v| (v.name.clone(), v))
+                .map(|v| (v.instance_name.workload_name().to_owned(), v.into()))
                 .collect(),
-            configs: HashMap::new(),
-            cron_jobs: HashMap::new(),
         },
-        request_id,
         workload_states: workloads
             .into_iter()
             .map(|v| WorkloadState {
-                workload_name: v.name.clone(),
-                agent_name: v.agent,
-                execution_state: crate::objects::ExecutionState::ExecRunning,
+                instance_name: v.instance_name,
+                execution_state: ExecutionState::running(),
             })
             .collect(),
         ..Default::default()
@@ -63,69 +63,42 @@ pub fn generate_test_complete_state(
 pub fn generate_test_state() -> State {
     let workload_name_1 = "workload_name_1".to_string();
     let workload_name_2 = "workload_name_2".to_string();
-    let config_key_1 = "key1".to_string();
-    let config_value_1 = "value1".to_string();
-    let config_key_2 = "key2".to_string();
-    let config_value_2 = "value2".to_string();
-    let cronjob_name_1 = "cronjob1".to_string();
-    let cronjob_name_2 = "cronjob2".to_string();
 
     let mut ankaios_workloads = HashMap::new();
 
-    let mut workload_1 = generate_test_workload_spec();
-    let mut workload_2 = generate_test_workload_spec();
+    let workload_1 = generate_test_workload_spec_with_param(
+        "agent".to_owned(),
+        "workload_name_1".to_owned(),
+        "runtime".to_owned(),
+    );
 
-    workload_1.name = "workload_name_1".to_string();
-    workload_2.name = "workload_name_2".to_string();
+    let workload_2 = generate_test_workload_spec_with_param(
+        "agent".to_owned(),
+        "workload_name_2".to_owned(),
+        "runtime".to_owned(),
+    );
 
-    ankaios_workloads.insert(workload_name_1, workload_1);
-    ankaios_workloads.insert(workload_name_2, workload_2);
-    let mut ankaios_configs = HashMap::new();
-    ankaios_configs.insert(config_key_1, config_value_1);
-    ankaios_configs.insert(config_key_2, config_value_2);
-    let mut ankaios_cronjobs = HashMap::new();
-    ankaios_cronjobs.insert(cronjob_name_1, generate_test_cronjob());
-    ankaios_cronjobs.insert(cronjob_name_2, generate_test_cronjob());
+    ankaios_workloads.insert(workload_name_1, workload_1.into());
+    ankaios_workloads.insert(workload_name_2, workload_2.into());
 
     State {
+        api_version: "v0.1".into(),
         workloads: ankaios_workloads,
-        configs: ankaios_configs,
-        cron_jobs: ankaios_cronjobs,
     }
 }
 
 pub fn generate_test_proto_state() -> proto::State {
     let workload_name_1 = "workload_name_1".to_string();
     let workload_name_2 = "workload_name_2".to_string();
-    let config_key_1 = "key1".to_string();
-    let config_value_1 = "value1".to_string();
-    let config_key_2 = "key2".to_string();
-    let config_value_2 = "value2".to_string();
-    let cronjob_name_1 = "cronjob1".to_string();
-    let cronjob_name_2 = "cronjob2".to_string();
 
     let mut proto_workloads = HashMap::new();
     proto_workloads.insert(workload_name_1, generate_test_proto_workload());
     proto_workloads.insert(workload_name_2, generate_test_proto_workload());
-    let mut proto_configs = HashMap::new();
-    proto_configs.insert(config_key_1, config_value_1);
-    proto_configs.insert(config_key_2, config_value_2);
-    let mut proto_cronjobs = HashMap::new();
-    proto_cronjobs.insert(cronjob_name_1, generate_test_proto_cronjob());
-    proto_cronjobs.insert(cronjob_name_2, generate_test_proto_cronjob());
 
     proto::State {
+        api_version: "v0.1".into(),
         workloads: proto_workloads,
-        configs: proto_configs,
-        cronjobs: proto_cronjobs,
     }
-}
-
-fn generate_test_dependencies() -> HashMap<String, AddCondition> {
-    HashMap::from([
-        (String::from("workload A"), AddCondition::AddCondRunning),
-        (String::from("workload C"), AddCondition::AddCondSucceeded),
-    ])
 }
 
 fn generate_test_proto_dependencies() -> HashMap<String, i32> {
@@ -142,48 +115,17 @@ fn generate_test_proto_dependencies() -> HashMap<String, i32> {
 }
 
 fn generate_test_delete_dependencies() -> HashMap<String, DeleteCondition> {
-    HashMap::from([
-        (String::from("workload A"), DeleteCondition::DelCondNotPendingNorRunning),
-    ])
+    HashMap::from([(
+        String::from("workload A"),
+        DeleteCondition::DelCondNotPendingNorRunning,
+    )])
 }
 
 fn generate_test_proto_delete_dependencies() -> HashMap<String, i32> {
-    HashMap::from([
-        (
-            String::from("workload A"),
-            proto::DeleteCondition::DelCondNotPendingNorRunning.into(),
-        )
-    ])
-}
-
-pub fn generate_test_workload_spec_with_param(
-    agent_name: String,
-    workload_name: String,
-    runtime_name: String,
-) -> crate::objects::WorkloadSpec {
-    WorkloadSpec {
-        dependencies: generate_test_dependencies(),
-        update_strategy: UpdateStrategy::Unspecified,
-        restart: true,
-        access_rights: AccessRights::default(),
-        runtime: runtime_name,
-        name: workload_name,
-        agent: agent_name,
-        tags: vec![Tag {
-            key: "key".into(),
-            value: "value".into(),
-        }],
-        runtime_config: "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
-            .to_string(),
-    }
-}
-
-pub fn generate_test_workload_spec() -> WorkloadSpec {
-    generate_test_workload_spec_with_param(
-        "agent".to_string(),
-        "name".to_string(),
-        "runtime".to_string(),
-    )
+    HashMap::from([(
+        String::from("workload A"),
+        proto::DeleteCondition::DelCondNotPendingNorRunning.into(),
+    )])
 }
 
 pub fn generate_test_proto_workload() -> proto::Workload {
@@ -191,8 +133,6 @@ pub fn generate_test_proto_workload() -> proto::Workload {
         agent: String::from("agent"),
         dependencies: generate_test_proto_dependencies(),
         restart: true,
-        update_strategy: proto::UpdateStrategy::Unspecified.into(),
-        access_rights: None,
         runtime: String::from("runtime"),
         runtime_config: "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
             .to_string(),
@@ -207,52 +147,40 @@ pub fn generate_test_deleted_workload(
     agent: String,
     name: String,
 ) -> crate::objects::DeletedWorkload {
+    let instance_name = WorkloadInstanceName::builder()
+        .agent_name(agent)
+        .workload_name(name)
+        .config(&String::from("config"))
+        .build();
     DeletedWorkload {
-        agent,
-        name,
+        instance_name,
         dependencies: generate_test_delete_dependencies(),
     }
 }
 
+pub fn generate_test_deleted_workload_with_dependencies(
+    agent: String,
+    name: String,
+    dependencies: HashMap<String, DeleteCondition>,
+) -> crate::objects::DeletedWorkload {
+    let mut deleted_workload = generate_test_deleted_workload(agent, name);
+    deleted_workload.dependencies = dependencies;
+    deleted_workload
+}
+
 pub fn generate_test_proto_deleted_workload() -> proto::DeletedWorkload {
+    let instance_name = WorkloadInstanceName::builder()
+        .agent_name("agent")
+        .workload_name("workload X")
+        .config(&String::from("config"))
+        .build();
+
     proto::DeletedWorkload {
-        name: "workload X".to_string(),
+        instance_name: Some(instance_name.into()),
         dependencies: generate_test_proto_delete_dependencies(),
     }
 }
 
-pub fn generate_test_cronjob() -> Cronjob {
-    Cronjob {
-        workload: String::from("some job"),
-        interval: Interval {
-            hours: 4,
-            minutes: 3,
-            seconds: 42,
-        },
-    }
-}
-
-pub fn generate_test_proto_cronjob() -> proto::Cronjob {
-    proto::Cronjob {
-        workload: String::from("some job"),
-        interval: Some(proto::Interval {
-            hours: 4,
-            minutes: 3,
-            seconds: 42,
-        }),
-    }
-}
-
-pub fn generate_test_cronjob_empty_interval() -> Cronjob {
-    Cronjob {
-        workload: String::from("some job"),
-        interval: Interval {
-            hours: 0,
-            minutes: 0,
-            seconds: 0,
-        },
-    }
-}
 pub struct MockAllContextSync {
     mutex_tokio: tokio::sync::Mutex<()>,
     mutex_std: std::sync::Mutex<()>,

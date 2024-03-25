@@ -1,0 +1,13 @@
+desiredState:
+  apiVersion: "invalidVersion"
+  workloads:
+    nginx:
+      runtime: podman
+      agent: agent_A
+      restart: true
+      tags:
+        - key: owner
+          value: Ankaios team
+      runtimeConfig: |
+        image: docker.io/nginx:latest
+        commandOptions: ["-p", "8081:80", "--name", "test_workload1"]

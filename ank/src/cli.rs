@@ -53,6 +53,8 @@ pub enum Commands {
     Delete(DeleteArgs),
     #[command(arg_required_else_help = true)]
     Run(RunArgs),
+    #[command(arg_required_else_help = true)]
+    Apply(ApplyArgs),
 }
 
 /// Retrieve information about the current Ankaios system
@@ -77,7 +79,7 @@ pub enum GetCommands {
         /// Specify the output format
         #[arg(short = 'o', value_enum, default_value_t = OutputFormat::Yaml)]
         output_format: OutputFormat,
-        /// Select which parts of the state object shall be output e.g. 'currentState.workloads.nginx' [default: empty = the complete state]
+        /// Select which parts of the state object shall be output e.g. 'desiredState.workloads.nginx' [default: empty = the complete state]
         object_field_mask: Vec<String>,
     },
     /// Information about workloads of the Ankaios system
@@ -107,7 +109,7 @@ pub struct SetArgs {
 pub enum SetCommands {
     /// State information of Ankaios system
     State {
-        /// Select which parts of the state object shall be updated e.g. 'currentState.workloads.nginx'
+        /// Select which parts of the state object shall be updated e.g. 'desiredState.workloads.nginx'
         #[arg(required = true)]
         object_field_mask: Vec<String>,
         /// A file containing the new State Object Description in yaml format
@@ -168,6 +170,20 @@ pub enum RunCommands {
         #[arg(long = "tags", value_parser = parse_key_val::<String, String>)]
         tags: Vec<(String, String)>,
     },
+}
+
+/// Apply Ankaios manifest content or file(s)
+#[derive(clap::Args, Debug)]
+pub struct ApplyArgs {
+    #[arg(value_name = "Ankaios manifest file(s) or '-' for stdin")]
+    pub manifest_files: Vec<String>,
+    /// Specify on which agent to apply the Ankaios manifests.
+    /// If not specified, the agent(s) must be specified in the Ankaios manifest(s)
+    #[arg(long = "agent")]
+    pub agent_name: Option<String>,
+    /// Delete mode activated
+    #[arg(short)]
+    pub delete_mode: bool,
 }
 
 fn parse_key_val<K, V>(s: &str) -> Result<(K, V), Box<dyn Error + Send + Sync + 'static>>

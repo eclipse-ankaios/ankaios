@@ -35,40 +35,40 @@ Allowing dependencies in other direction would cause a cyclic dependency.
 The Common library is a collection of independent units (structures, interfaces) used by other components of Ankaios.
 For this reason it is useless to draw a structural diagram for this library.
 
-### ExecutionCommandChannel
+### FromServerChannel
 
-Simplifies sending and receiving `ExecutionCommand`s. Internally uses a multi-producer, single-consumer channel from Tokio.
+Simplifies sending and receiving `FromServer` messages. Internally uses a multi-producer, single-consumer channel from Tokio.
 
-#### Provide `ExecutionCommandChannel`
-`swdd~execution-command-channel~1`
+#### Provide `FromServerChannel`
+`swdd~from-server-channel~1`
 
 Status: approved
 
-The Common library shall provide an asynchronous communication channel that supports sending and receiving the `ExecutionCommand`.
+The Common library shall provide an asynchronous communication channel that supports sending and receiving the `FromServer` message.
 
 Rationale: The communication channels are especially needed in order to abstract the Communication Middleware.
 
 Tags:
-- ExecutionCommandChannel
+- FromServerChannel
 
 Needs:
 - impl
 
-### StateChangeCommandChannel
+### ToServerChannel
 
-Simplifies sending and receiving `StateChangeCommand`s. Internally uses a multi-producer, single-consumer channel from Tokio.
+Simplifies sending and receiving `ToServer` messages. Internally uses a multi-producer, single-consumer channel from Tokio.
 
-#### Provide `StateChangeCommandChannel`
-`swdd~state-change-command-channel~1`
+#### Provide `ToServerChannel`
+`swdd~to-server-channel~1`
 
 Status: approved
 
-The Common library shall provide an asynchronous communication channel that supports sending and receiving the `StateChangeCommand`.
+The Common library shall provide an asynchronous communication channel that supports sending and receiving the `ToServer` message.
 
 Rationale: The communication channels are especially needed in order to abstract the Communication Middleware.
 
 Tags:
-- StateChangeCommandChannel
+- ToServerChannel
 
 Needs:
 - impl
@@ -76,7 +76,7 @@ Needs:
 ### Objects
 
 Definitions of objects which are needed in all other components of Ankaios.
-These objects especially include objects which needs to be sent through for the `ExecutionCommandChannel` and `StateChangeCommandChannel`.
+These objects especially include objects which needs to be sent through for the `FromServerChannel` and `ToServerChannel`.
 
 #### Provide common object representation
 `swdd~common-object-representation~1`
@@ -93,22 +93,33 @@ Needs:
 - utest
 
 #### Ankaios supported workload states
-`swdd~common-supported-workload-states~1`
+`swdd~common-workload-states-supported-states~1`
 
 Status: approved
 
-Ankaios shall support the following execution states for a workload:
+Ankaios shall support the following execution states with substates for a workload:
 
+- agent disconnected
 - pending
-- waiting_to_start
-- starting
+    * initial
+    * starting
+    * waiting to start
+    * starting failed
 - running
-- succeeded
-- failed
-- waiting_to_stop
+    * ok
 - stopping
+    * waiting to stop
+    * stopping
+    * requested at runtime
+    * delete failed
+- succeeded
+    * ok
+- failed
+    * exec failed
+    * unknown
+    * lost
+- not scheduled
 - removed
-- unknown
 
 Tags:
 - Objects
@@ -119,7 +130,63 @@ Needs:
 
 The Following diagram shows all Ankaios workload states and the possible transitions between them:
 
-![Workload states](plantuml/state_workload_execution_states.svg)
+![Workload states](drawio/state_workload_execution_all_states_simple.drawio.svg)
+
+#### Workload state transitions
+`swdd~common-workload-state-transitions~1`
+
+status: approved
+
+Upon transitioning from the 'stopping' or 'waiting_to_stop' state to either 'running', 'succeeded', or 'failed', the workload execution state shall yield again a 'stopping' state.
+
+Rationale:
+This hysteresis is particularly necessary when the stopping operation is in progress, but the workload is still running and reported to be running. To prevent the state from flipping multiple times, the new value must depend on the old one and remain in the 'stopping' state.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+
+#### Ankaios workload execution state additional information
+`swdd~common-workload-state-additional-information~1`
+
+Status: approved
+
+Ankaios shall support a string with additional information for the workload execution state.
+
+Rationale:
+The additional information could be provided by the runtime and is helpful for debugging purposes.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+
+#### Ankaios workload execution state identification
+`swdd~common-workload-state-identification~1`
+
+Status: approved
+
+Ankaios shall support workload execution state identification by the combination of:
+
+- workload name
+- assigned agent name
+- runtime config hash
+- workload id (optional depending on the execution state as provided by the runtime)
+
+Rationale:
+The workload id is additionally needed for identification to support restarts of workloads with 'at least once' update strategy.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
 
 #### Workload add conditions for dependencies
 `swdd~workload-add-conditions-for-dependencies~1`

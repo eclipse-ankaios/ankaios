@@ -11,7 +11,7 @@ env:
   CARGO_TERM_COLOR: always
 
 concurrency:
-  group: "${{ github.workflow }}-${{ github.head_ref || github.ref }}"
+  group: "build-${{ github.head_ref || github.ref }}"
   cancel-in-progress: true
 
 jobs:
@@ -19,10 +19,10 @@ jobs:
     name: Test and build Linux amd64
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.7.0
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.8.0
       options: --privileged
     steps:
-      - uses: actions/checkout@v3.5.3
+      - uses: actions/checkout@v4.1.1
       - uses: Swatinem/rust-cache@v2.6.2
 
         # If the next step fails, then a license used by a new dependency is currently
@@ -31,6 +31,15 @@ jobs:
         # removed.
       - name: Check licenses
         run: cargo deny check
+
+      - name: Create license report
+        run: |
+          mkdir -p build
+          cargo about generate about.hbs > build/licenses.html
+      - uses: actions/upload-artifact@v3.1.2
+        with:
+          name: licenses
+          path: build/licenses.html
 
       - name: Run tests
         run: RUST_LOG=debug cargo nextest run
@@ -83,10 +92,10 @@ jobs:
     name: Build Linux arm64
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.7.0
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.8.0
       options: --user root
     steps:
-      - uses: actions/checkout@v3.5.3
+      - uses: actions/checkout@v4.1.1
 
       - name: Build linux-arm64 release-mode
         run: |
@@ -110,10 +119,10 @@ jobs:
     name: Build requirements tracing
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.7.0
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.8.0
       options: --user root
     steps:
-      - uses: actions/checkout@v3.5.3
+      - uses: actions/checkout@v4.1.1
       - run: |
           mkdir -p dist
           oft trace $(find . -type d -name "src" -o -name "doc") -a swdd,utest,itest,stest,impl -o html -f dist/req_tracing_report.html || true

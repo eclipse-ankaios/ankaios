@@ -1,0 +1,27 @@
+desiredState:
+  apiVersion: v0.1
+  workloads:
+    after_backend:
+      agent: agent_A
+      tags:
+      - key: owner
+        value: Ankaios team
+      dependencies:
+        backend: ADD_COND_SUCCEEDED
+      restart: false
+      runtime: podman
+      runtimeConfig: |
+        image: docker.io/alpine:latest
+        commandArgs: ["echo", "Changed runtime config."]
+    backend:
+      agent: agent_A
+      tags:
+      - key: owner
+        value: Ankaios team
+      dependencies: {}
+      restart: false
+      runtime: podman
+      runtimeConfig: |
+        image: docker.io/alpine:latest
+        commandArgs: ["echo", "backend succeeded"]
+workloadStates: []

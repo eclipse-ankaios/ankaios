@@ -9,7 +9,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 concurrency:
-  group: "${{ github.workflow }}-${{ github.head_ref || github.ref }}"
+  group: "release-${{ github.head_ref || github.ref }}"
   cancel-in-progress: true
 
 jobs:
@@ -24,7 +24,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3.5.3
+      - uses: actions/checkout@v4.1.1
       - name: Download artifacts for ankaios-linux-amd64-bin
         uses: actions/download-artifact@v3.0.2
         with:
@@ -45,6 +45,11 @@ jobs:
         with:
           name: code-coverage
           path: dist/coverage
+      - name: Download license report
+        uses: actions/download-artifact@v3.0.2
+        with:
+          name: licenses
+          path: dist/
       - name: Package release artifacts
         run: tools/create_release.sh
       - name: Upload release artifacts
@@ -59,4 +64,5 @@ jobs:
           linux-amd64/ankaios-linux-amd64.tar.gz \
           linux-amd64/ankaios-linux-amd64.tar.gz.sha512sum.txt \
           linux-arm64/ankaios-linux-arm64.tar.gz \
-          linux-arm64/ankaios-linux-arm64.tar.gz.sha512sum.txt
+          linux-arm64/ankaios-linux-arm64.tar.gz.sha512sum.txt \
+          licenses.html

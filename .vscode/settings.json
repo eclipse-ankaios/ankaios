@@ -1,11 +1,16 @@
 {
     "cSpell.words": [
         "ankaios",
+        "automock",
         "Comms",
-        "VecDeque",
+        "Elektrobit",
+        "mockall",
         "Northstar",
+        "proto",
         "protobuf",
-        "swdd"
+        "Substate",
+        "swdd",
+        "VecDeque"
     ],
     "markdown-preview-github-styles.colorTheme": "light",
     "hediet.vscode-drawio.theme": "min",
@@ -17,11 +22,10 @@
     "rust-analyzer.cargo.unsetTest": [
         "api",
         "common",
-        "agent",
-        "server",
+        "ank-agent",
+        "ank-server",
         "grpc",
         "ank",
-        "examples/workload_api_example"
     ],
     "yaml.schemas": {
         "https://squidfunk.github.io/mkdocs-material/schema.json": "mkdocs.yml"
@@ -32,5 +36,6 @@
         "tag:yaml.org,2002:python/name:materialx.emoji.to_svg",
         "tag:yaml.org,2002:python/name:materialx.emoji.twemoji",
         "tag:yaml.org,2002:python/name:pymdownx.superfences.fence_code_format"
-    ]
+    ],
+    "plantuml.jar": "/usr/local/bin/plantuml.jar"
 }

@@ -18,72 +18,477 @@ use serde::{Deserialize, Serialize};
 
 use api::proto;
 
-// [impl->swdd~common-supported-workload-states~1]
-#[derive(Debug, Default, PartialEq, Eq, Clone, Serialize, Deserialize)]
-pub enum ExecutionState {
-    #[default]
-    ExecUnknown = 0,
-    ExecPending = 1,
-    ExecWaitingToStart = 2,
-    ExecStarting = 3,
-    ExecRunning = 4,
-    ExecSucceeded = 5,
-    ExecFailed = 6,
-    ExecWaitingToStop = 7,
-    ExecStopping = 8,
-    ExecRemoved = 10,
+use crate::std_extensions::UnreachableOption;
+
+use super::WorkloadInstanceName;
+
+const TRIGGERED_MSG: &str = "Triggered at runtime.";
+const NO_MORE_RETRIES_MSG: &str = "No more retries.";
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum PendingSubstate {
+    Initial = 0,
+    WaitingToStart = 1,
+    Starting = 2,
+    StartingFailed = 8,
 }
 
-impl From<i32> for ExecutionState {
+impl From<i32> for PendingSubstate {
     fn from(x: i32) -> Self {
         match x {
-            x if x == ExecutionState::ExecPending as i32 => ExecutionState::ExecPending,
-            x if x == ExecutionState::ExecWaitingToStart as i32 => {
-                ExecutionState::ExecWaitingToStart
+            x if x == PendingSubstate::Initial as i32 => PendingSubstate::Initial,
+            x if x == PendingSubstate::WaitingToStart as i32 => PendingSubstate::WaitingToStart,
+            x if x == PendingSubstate::Starting as i32 => PendingSubstate::Starting,
+            _ => PendingSubstate::StartingFailed,
+        }
+    }
+}
+
+impl Display for PendingSubstate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PendingSubstate::Initial => write!(f, "Initial"),
+            PendingSubstate::WaitingToStart => write!(f, "WaitingToStart"),
+            PendingSubstate::Starting => write!(f, "Starting"),
+            PendingSubstate::StartingFailed => write!(f, "StartingFailed"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum RunningSubstate {
+    Ok = 0,
+}
+
+impl From<i32> for RunningSubstate {
+    fn from(_x: i32) -> Self {
+        RunningSubstate::Ok
+    }
+}
+
+impl Display for RunningSubstate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RunningSubstate::Ok => write!(f, "Ok"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum StoppingSubstate {
+    Stopping = 0,
+    WaitingToStop = 1,
+    RequestedAtRuntime = 2,
+    DeleteFailed = 8,
+}
+
+impl From<i32> for StoppingSubstate {
+    fn from(x: i32) -> Self {
+        match x {
+            x if x == StoppingSubstate::WaitingToStop as i32 => StoppingSubstate::WaitingToStop,
+            x if x == StoppingSubstate::RequestedAtRuntime as i32 => {
+                StoppingSubstate::RequestedAtRuntime
             }
-            x if x == ExecutionState::ExecStarting as i32 => ExecutionState::ExecStarting,
-            x if x == ExecutionState::ExecRunning as i32 => ExecutionState::ExecRunning,
-            x if x == ExecutionState::ExecSucceeded as i32 => ExecutionState::ExecSucceeded,
-            x if x == ExecutionState::ExecFailed as i32 => ExecutionState::ExecFailed,
-            x if x == ExecutionState::ExecWaitingToStop as i32 => ExecutionState::ExecWaitingToStop,
-            x if x == ExecutionState::ExecStopping as i32 => ExecutionState::ExecStopping,
-            x if x == ExecutionState::ExecRemoved as i32 => ExecutionState::ExecRemoved,
-            _ => ExecutionState::ExecUnknown,
+            x if x == StoppingSubstate::DeleteFailed as i32 => StoppingSubstate::DeleteFailed,
+            _ => StoppingSubstate::Stopping,
+        }
+    }
+}
+
+impl Display for StoppingSubstate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StoppingSubstate::Stopping => write!(f, "Stopping"),
+            StoppingSubstate::WaitingToStop => write!(f, "WaitingToStop"),
+            StoppingSubstate::RequestedAtRuntime => write!(f, "RequestedAtRuntime"),
+            StoppingSubstate::DeleteFailed => write!(f, "DeleteFailed"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum SucceededSubstate {
+    Ok = 0,
+}
+
+impl From<i32> for SucceededSubstate {
+    fn from(_x: i32) -> Self {
+        SucceededSubstate::Ok
+    }
+}
+
+impl Display for SucceededSubstate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SucceededSubstate::Ok => write!(f, "Ok"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum FailedSubstate {
+    ExecFailed = 0,
+    Unknown = 1,
+    Lost = 2,
+}
+
+impl From<i32> for FailedSubstate {
+    fn from(x: i32) -> Self {
+        match x {
+            x if x == FailedSubstate::ExecFailed as i32 => FailedSubstate::ExecFailed,
+            x if x == FailedSubstate::Unknown as i32 => FailedSubstate::Unknown,
+            x if x == FailedSubstate::Lost as i32 => FailedSubstate::Lost,
+            _ => FailedSubstate::Unknown,
+        }
+    }
+}
+
+impl Display for FailedSubstate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FailedSubstate::ExecFailed => write!(f, "ExecFailed"),
+            FailedSubstate::Unknown => write!(f, "Unknown"),
+            FailedSubstate::Lost => write!(f, "Lost"),
+        }
+    }
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "state", content = "subState")]
+pub enum ExecutionStateEnum {
+    AgentDisconnected,
+    Pending(PendingSubstate),
+    Running(RunningSubstate),
+    Stopping(StoppingSubstate),
+    Succeeded(SucceededSubstate),
+    Failed(FailedSubstate),
+    #[default]
+    NotScheduled,
+    Removed,
+}
+
+// [impl->swdd~common-workload-state-transitions~1]
+impl ExecutionState {
+    pub fn transition(&self, incoming: ExecutionState) -> ExecutionState {
+        match (&self.state, &incoming.state) {
+            (
+                ExecutionStateEnum::Stopping(StoppingSubstate::RequestedAtRuntime)
+                | ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop),
+                ExecutionStateEnum::Running(RunningSubstate::Ok)
+                | ExecutionStateEnum::Succeeded(SucceededSubstate::Ok)
+                | ExecutionStateEnum::Failed(FailedSubstate::ExecFailed)
+                | ExecutionStateEnum::Failed(FailedSubstate::Lost)
+                | ExecutionStateEnum::Failed(FailedSubstate::Unknown),
+            ) => {
+                log::trace!(
+                    "Skipping transition from '{}' to '{}' state.",
+                    self,
+                    incoming
+                );
+                self.clone()
+            }
+            _ => incoming,
+        }
+    }
+}
+
+impl From<ExecutionStateEnum> for proto::execution_state::ExecutionStateEnum {
+    fn from(item: ExecutionStateEnum) -> Self {
+        match item {
+            ExecutionStateEnum::AgentDisconnected => {
+                proto::execution_state::ExecutionStateEnum::AgentDisconnected(
+                    proto::AgentDisconnected::AgentDisconnected as i32,
+                )
+            }
+            ExecutionStateEnum::Pending(value) => {
+                proto::execution_state::ExecutionStateEnum::Pending(value as i32)
+            }
+            ExecutionStateEnum::Running(value) => {
+                proto::execution_state::ExecutionStateEnum::Running(value as i32)
+            }
+            ExecutionStateEnum::Succeeded(value) => {
+                proto::execution_state::ExecutionStateEnum::Succeeded(value as i32)
+            }
+            ExecutionStateEnum::Failed(value) => {
+                proto::execution_state::ExecutionStateEnum::Failed(value as i32)
+            }
+            ExecutionStateEnum::NotScheduled => {
+                proto::execution_state::ExecutionStateEnum::NotScheduled(
+                    proto::NotScheduled::NotScheduled as i32,
+                )
+            }
+            ExecutionStateEnum::Removed => {
+                proto::execution_state::ExecutionStateEnum::Removed(proto::Removed::Removed as i32)
+            }
+            ExecutionStateEnum::Stopping(value) => {
+                proto::execution_state::ExecutionStateEnum::Stopping(value as i32)
+            }
+        }
+    }
+}
+
+impl From<proto::execution_state::ExecutionStateEnum> for ExecutionStateEnum {
+    fn from(item: proto::execution_state::ExecutionStateEnum) -> Self {
+        match item {
+            proto::execution_state::ExecutionStateEnum::AgentDisconnected(_) => {
+                ExecutionStateEnum::AgentDisconnected
+            }
+            proto::execution_state::ExecutionStateEnum::Pending(value) => {
+                ExecutionStateEnum::Pending(value.into())
+            }
+            proto::execution_state::ExecutionStateEnum::Running(value) => {
+                ExecutionStateEnum::Running(value.into())
+            }
+            proto::execution_state::ExecutionStateEnum::Stopping(value) => {
+                ExecutionStateEnum::Stopping(value.into())
+            }
+            proto::execution_state::ExecutionStateEnum::Succeeded(value) => {
+                ExecutionStateEnum::Succeeded(value.into())
+            }
+            proto::execution_state::ExecutionStateEnum::Failed(value) => {
+                ExecutionStateEnum::Failed(value.into())
+            }
+            proto::execution_state::ExecutionStateEnum::NotScheduled(_) => {
+                ExecutionStateEnum::NotScheduled
+            }
+            proto::execution_state::ExecutionStateEnum::Removed(_) => ExecutionStateEnum::Removed,
+        }
+    }
+}
+
+// [impl->swdd~common-workload-states-supported-states~1]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ExecutionState {
+    #[serde(flatten)]
+    pub state: ExecutionStateEnum,
+    // [impl->swdd~common-workload-state-additional-information~1]
+    pub additional_info: String,
+}
+
+impl ExecutionState {
+    pub fn is_removed(&self) -> bool {
+        ExecutionStateEnum::Removed == self.state
+    }
+
+    pub fn is_pending(&self) -> bool {
+        matches!(self.state, ExecutionStateEnum::Pending(_))
+    }
+
+    pub fn is_running(&self) -> bool {
+        ExecutionStateEnum::Running(RunningSubstate::Ok) == self.state
+    }
+
+    pub fn is_succeeded(&self) -> bool {
+        ExecutionStateEnum::Succeeded(SucceededSubstate::Ok) == self.state
+    }
+
+    pub fn is_failed(&self) -> bool {
+        ExecutionStateEnum::Failed(FailedSubstate::ExecFailed) == self.state
+    }
+
+    pub fn is_not_pending_nor_running(&self) -> bool {
+        !self.is_pending() && !self.is_running()
+    }
+
+    pub fn is_waiting_to_start(&self) -> bool {
+        ExecutionStateEnum::Pending(PendingSubstate::WaitingToStart) == self.state
+    }
+
+    pub fn is_waiting_to_stop(&self) -> bool {
+        ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop) == self.state
+    }
+
+    pub fn agent_disconnected() -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::AgentDisconnected,
+            ..Default::default()
+        }
+    }
+
+    pub fn starting_failed(additional_info: impl ToString) -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Pending(PendingSubstate::StartingFailed),
+            additional_info: additional_info.to_string(),
+        }
+    }
+
+    pub fn restart_failed_no_retry() -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Pending(PendingSubstate::StartingFailed),
+            additional_info: NO_MORE_RETRIES_MSG.to_string(),
+        }
+    }
+
+    pub fn removed() -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Removed,
+            ..Default::default()
+        }
+    }
+
+    pub fn unknown(additional_info: impl ToString) -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Failed(FailedSubstate::Unknown),
+            additional_info: additional_info.to_string(),
+        }
+    }
+
+    pub fn starting(additional_info: impl ToString) -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Pending(PendingSubstate::Starting),
+            additional_info: additional_info.to_string(),
+        }
+    }
+
+    pub fn starting_triggered() -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Pending(PendingSubstate::Starting),
+            additional_info: TRIGGERED_MSG.to_string(),
+        }
+    }
+
+    pub fn failed(additional_info: impl ToString) -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Failed(FailedSubstate::ExecFailed),
+            additional_info: additional_info.to_string(),
+        }
+    }
+
+    pub fn succeeded() -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Succeeded(SucceededSubstate::Ok),
+            ..Default::default()
+        }
+    }
+
+    pub fn running() -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Running(RunningSubstate::Ok),
+            ..Default::default()
+        }
+    }
+
+    pub fn stopping(additional_info: impl ToString) -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Stopping(StoppingSubstate::Stopping),
+            additional_info: additional_info.to_string(),
+        }
+    }
+
+    pub fn stopping_requested() -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Stopping(StoppingSubstate::RequestedAtRuntime),
+            ..Default::default()
+        }
+    }
+
+    pub fn delete_failed(additional_info: impl ToString) -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Stopping(StoppingSubstate::DeleteFailed),
+            additional_info: additional_info.to_string(),
+        }
+    }
+
+    pub fn lost() -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Failed(FailedSubstate::Lost),
+            ..Default::default()
+        }
+    }
+
+    pub fn waiting_to_start() -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Pending(PendingSubstate::WaitingToStart),
+            ..Default::default()
+        }
+    }
+
+    pub fn waiting_to_stop() -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Stopping(StoppingSubstate::WaitingToStop),
+            ..Default::default()
+        }
+    }
+
+    pub fn initial() -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Pending(PendingSubstate::Initial),
+            ..Default::default()
+        }
+    }
+
+    pub fn not_scheduled() -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::NotScheduled,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<ExecutionState> for proto::ExecutionState {
+    fn from(item: ExecutionState) -> Self {
+        proto::ExecutionState {
+            additional_info: item.additional_info,
+            execution_state_enum: Some(item.state.into()),
+        }
+    }
+}
+
+impl From<proto::ExecutionState> for ExecutionState {
+    fn from(item: proto::ExecutionState) -> Self {
+        ExecutionState {
+            additional_info: item.additional_info,
+            state: item
+                .execution_state_enum
+                .unwrap_or(proto::execution_state::ExecutionStateEnum::Failed(
+                    proto::Failed::Unknown as i32,
+                ))
+                .into(),
+        }
+    }
+}
+
+impl Display for ExecutionStateEnum {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self {
+            ExecutionStateEnum::AgentDisconnected => write!(f, "AgentDisconnected"),
+            ExecutionStateEnum::Pending(substate) => write!(f, "Pending({substate})"),
+            ExecutionStateEnum::Running(substate) => write!(f, "Running({substate})"),
+            ExecutionStateEnum::Stopping(substate) => write!(f, "Stopping({substate})"),
+            ExecutionStateEnum::Succeeded(substate) => {
+                write!(f, "Succeeded({substate})")
+            }
+            ExecutionStateEnum::Failed(substate) => write!(f, "Failed({substate})"),
+            ExecutionStateEnum::NotScheduled => write!(f, "NotScheduled"),
+            ExecutionStateEnum::Removed => write!(f, "Removed"),
         }
     }
 }
 
 impl Display for ExecutionState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ExecutionState::ExecPending => write!(f, "Pending"),
-            ExecutionState::ExecWaitingToStart => write!(f, "WaitingToStart"),
-            ExecutionState::ExecStarting => write!(f, "Starting"),
-            ExecutionState::ExecRunning => write!(f, "Running"),
-            ExecutionState::ExecSucceeded => write!(f, "Succeeded"),
-            ExecutionState::ExecFailed => write!(f, "Failed"),
-            ExecutionState::ExecWaitingToStop => write!(f, "WaitingToStop"),
-            ExecutionState::ExecStopping => write!(f, "Stopping"),
-            ExecutionState::ExecRemoved => write!(f, "Removed"),
-            ExecutionState::ExecUnknown => write!(f, "Unknown"),
+        if !self.additional_info.is_empty() {
+            write!(f, "{}: '{}'", self.state, self.additional_info)
+        } else {
+            write!(f, "{}", self.state)
         }
     }
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct WorkloadState {
-    pub workload_name: String,
-    pub agent_name: String,
+    // [impl->swdd~common-workload-state-identification~1s]
+    pub instance_name: WorkloadInstanceName,
     pub execution_state: ExecutionState,
 }
 
 impl From<WorkloadState> for proto::WorkloadState {
     fn from(item: WorkloadState) -> Self {
         proto::WorkloadState {
-            agent_name: item.agent_name,
-            workload_name: item.workload_name,
-            execution_state: item.execution_state as i32,
+            instance_name: Some(item.instance_name.into()),
+            execution_state: Some(item.execution_state.into()),
         }
     }
 }
@@ -91,9 +496,16 @@ impl From<WorkloadState> for proto::WorkloadState {
 impl From<proto::WorkloadState> for WorkloadState {
     fn from(item: proto::WorkloadState) -> Self {
         WorkloadState {
-            agent_name: item.agent_name,
-            workload_name: item.workload_name,
-            execution_state: item.execution_state.into(),
+            instance_name: item.instance_name.unwrap_or_unreachable().into(),
+            execution_state: item
+                .execution_state
+                .unwrap_or(proto::ExecutionState {
+                    additional_info: "Cannot covert, proceeding with unknown".to_owned(),
+                    execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Failed(
+                        proto::Failed::Unknown as i32,
+                    )),
+                })
+                .into(),
         }
     }
 }
@@ -106,106 +518,410 @@ impl From<proto::WorkloadState> for WorkloadState {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_workload_state_with_agent(
+    workload_name: &str,
+    agent_name: &str,
+    execution_state: ExecutionState,
+) -> WorkloadState {
+    WorkloadState {
+        instance_name: WorkloadInstanceName::builder()
+            .workload_name(workload_name)
+            .agent_name(agent_name)
+            .config(&"config".to_string())
+            .build(),
+        execution_state,
+    }
+}
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_workload_state_with_workload_spec(
+    workload_spec: &super::WorkloadSpec,
+    execution_state: ExecutionState,
+) -> WorkloadState {
+    WorkloadState {
+        instance_name: workload_spec.instance_name.clone(),
+        execution_state,
+    }
+}
+
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_workload_state(
+    workload_name: &str,
+    execution_state: ExecutionState,
+) -> WorkloadState {
+    generate_test_workload_state_with_agent(workload_name, "agent_name", execution_state)
+}
+
 // [utest->swdd~common-conversions-between-ankaios-and-proto~1]
 // [utest->swdd~common-object-representation~1]
 #[cfg(test)]
 mod tests {
-    use api::proto;
+    use api::proto::{self};
 
-    use crate::objects::{ExecutionState, WorkloadState};
+    use crate::objects::{
+        workload_state::NO_MORE_RETRIES_MSG, ExecutionState, WorkloadInstanceName, WorkloadState,
+    };
 
+    // [utest->swdd~common-workload-state-transitions~1]
+    #[test]
+    fn utest_execution_state_transition_hysteresis() {
+        assert_eq!(
+            ExecutionState::waiting_to_stop().transition(ExecutionState::running()),
+            ExecutionState::waiting_to_stop()
+        );
+        assert_eq!(
+            ExecutionState::stopping_requested().transition(ExecutionState::running()),
+            ExecutionState::stopping_requested()
+        );
+        assert_eq!(
+            ExecutionState::stopping_requested().transition(ExecutionState::succeeded()),
+            ExecutionState::stopping_requested()
+        );
+        assert_eq!(
+            ExecutionState::stopping_requested()
+                .transition(ExecutionState::failed("failed for some reason")),
+            ExecutionState::stopping_requested()
+        );
+        assert_eq!(
+            ExecutionState::stopping_requested().transition(ExecutionState::lost()),
+            ExecutionState::stopping_requested()
+        );
+        assert_eq!(
+            ExecutionState::stopping_requested()
+                .transition(ExecutionState::unknown("I lost the thing")),
+            ExecutionState::stopping_requested()
+        );
+        assert_eq!(
+            ExecutionState::stopping_requested().transition(ExecutionState::delete_failed(
+                "mi mi mi, I could not delete it..."
+            )),
+            ExecutionState::delete_failed("mi mi mi, I could not delete it...")
+        );
+        assert_eq!(
+            ExecutionState::delete_failed("mi mi mi, I could not delete it...")
+                .transition(ExecutionState::running()),
+            ExecutionState::running()
+        );
+        assert_eq!(
+            ExecutionState::running().transition(ExecutionState::failed("crashed")),
+            ExecutionState::failed("crashed")
+        );
+    }
+
+    // [utest->swdd~common-workload-state-identification~1]
     #[test]
     fn utest_converts_to_proto_workload_state() {
+        let additional_info = "some additional info";
         let ankaios_wl_state = WorkloadState {
-            workload_name: "john".to_string(),
-            agent_name: "strange".to_string(),
-            execution_state: ExecutionState::ExecRunning,
+            execution_state: ExecutionState::starting(additional_info),
+            instance_name: WorkloadInstanceName::builder()
+                .workload_name("john")
+                .agent_name("strange")
+                .build(),
         };
 
         let proto_wl_state = proto::WorkloadState {
-            workload_name: "john".to_string(),
-            agent_name: "strange".to_string(),
-            execution_state: proto::ExecutionState::ExecRunning.into(),
+            execution_state: Some(proto::ExecutionState {
+                additional_info: additional_info.to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
+                    proto::Pending::Starting.into(),
+                )),
+            }),
+            instance_name: Some(proto::WorkloadInstanceName {
+                workload_name: "john".to_string(),
+                agent_name: "strange".to_string(),
+                ..Default::default()
+            }),
         };
 
         assert_eq!(proto::WorkloadState::from(ankaios_wl_state), proto_wl_state);
     }
 
+    // [utest->swdd~common-workload-state-identification~1]
     #[test]
     fn utest_converts_to_ankaios_workload_state() {
         let ankaios_wl_state = WorkloadState {
-            workload_name: "john".to_string(),
-            agent_name: "strange".to_string(),
-            execution_state: ExecutionState::ExecRunning,
+            execution_state: ExecutionState::running(),
+            instance_name: WorkloadInstanceName::builder()
+                .workload_name("john")
+                .agent_name("strange")
+                .build(),
         };
 
         let proto_wl_state = proto::WorkloadState {
-            workload_name: "john".to_string(),
-            agent_name: "strange".to_string(),
-            execution_state: proto::ExecutionState::ExecRunning.into(),
+            execution_state: Some(proto::ExecutionState {
+                additional_info: "".to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Running(
+                    proto::Running::Ok.into(),
+                )),
+            }),
+            instance_name: Some(proto::WorkloadInstanceName {
+                workload_name: "john".to_string(),
+                agent_name: "strange".to_string(),
+                ..Default::default()
+            }),
         };
 
         assert_eq!(WorkloadState::from(proto_wl_state), ankaios_wl_state);
     }
 
-    // [utest->// [impl->swdd~common-supported-workload-states~1]]
+    // [utest->swdd~common-workload-state-additional-information~1]
+    // [utest->swdd~common-workload-states-supported-states~1]
     #[test]
-    fn utest_execution_state_from_int_mapping() {
-        assert_eq!(ExecutionState::ExecUnknown, ExecutionState::from(0));
-        assert_eq!(ExecutionState::ExecPending, ExecutionState::from(1));
-        assert_eq!(ExecutionState::ExecWaitingToStart, ExecutionState::from(2));
-        assert_eq!(ExecutionState::ExecStarting, ExecutionState::from(3));
-        assert_eq!(ExecutionState::ExecRunning, ExecutionState::from(4));
-        assert_eq!(ExecutionState::ExecSucceeded, ExecutionState::from(5));
-        assert_eq!(ExecutionState::ExecFailed, ExecutionState::from(6));
-        assert_eq!(ExecutionState::ExecWaitingToStop, ExecutionState::from(7));
-        assert_eq!(ExecutionState::ExecStopping, ExecutionState::from(8));
-        assert_eq!(ExecutionState::ExecRemoved, ExecutionState::from(10));
-        assert_eq!(ExecutionState::ExecUnknown, ExecutionState::from(100));
+    fn utest_execution_state_to_proto_mapping() {
+        let additional_info = "some additional info";
+
+        assert_eq!(
+            proto::ExecutionState {
+                additional_info: "".to_string(),
+                execution_state_enum: Some(
+                    proto::execution_state::ExecutionStateEnum::AgentDisconnected(
+                        proto::AgentDisconnected::AgentDisconnected.into(),
+                    )
+                ),
+            },
+            ExecutionState::agent_disconnected().into(),
+        );
+        assert_eq!(
+            proto::ExecutionState {
+                additional_info: NO_MORE_RETRIES_MSG.to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
+                    proto::Pending::StartingFailed.into(),
+                )),
+            },
+            ExecutionState::restart_failed_no_retry().into(),
+        );
+        assert_eq!(
+            proto::ExecutionState {
+                additional_info: "".to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Removed(
+                    proto::Removed::Removed.into(),
+                )),
+            },
+            ExecutionState::removed().into(),
+        );
+
+        assert_eq!(
+            proto::ExecutionState {
+                additional_info: additional_info.to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Failed(
+                    proto::Failed::Unknown.into(),
+                )),
+            },
+            ExecutionState::unknown(additional_info).into(),
+        );
+        assert_eq!(
+            proto::ExecutionState {
+                additional_info: additional_info.to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
+                    proto::Pending::Starting.into(),
+                )),
+            },
+            ExecutionState::starting(additional_info).into(),
+        );
+        assert_eq!(
+            proto::ExecutionState {
+                additional_info: additional_info.to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Failed(
+                    proto::Failed::ExecFailed.into(),
+                )),
+            },
+            ExecutionState::failed(additional_info).into(),
+        );
+        assert_eq!(
+            proto::ExecutionState {
+                additional_info: "".to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Succeeded(
+                    proto::Succeeded::Ok.into(),
+                )),
+            },
+            ExecutionState::succeeded().into(),
+        );
+        assert_eq!(
+            proto::ExecutionState {
+                additional_info: "".to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Running(
+                    proto::Running::Ok.into(),
+                )),
+            },
+            ExecutionState::running().into(),
+        );
+        assert_eq!(
+            proto::ExecutionState {
+                additional_info: additional_info.to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Stopping(
+                    proto::Stopping::Stopping.into(),
+                )),
+            },
+            ExecutionState::stopping(additional_info).into(),
+        );
+        assert_eq!(
+            proto::ExecutionState {
+                additional_info: "".to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Failed(
+                    proto::Failed::Lost.into(),
+                )),
+            },
+            ExecutionState::lost().into(),
+        );
     }
 
-    // [utest->// [impl->swdd~common-supported-workload-states~1]]
+    // [utest->swdd~common-workload-state-additional-information~1]
+    // [utest->swdd~common-workload-states-supported-states~1]
+    #[test]
+    fn utest_execution_state_from_proto_mapping() {
+        let additional_info = "some additional info";
+
+        assert_eq!(
+            ExecutionState::agent_disconnected(),
+            proto::ExecutionState {
+                additional_info: "".to_string(),
+                execution_state_enum: Some(
+                    proto::execution_state::ExecutionStateEnum::AgentDisconnected(
+                        proto::AgentDisconnected::AgentDisconnected.into(),
+                    )
+                ),
+            }
+            .into(),
+        );
+        assert_eq!(
+            ExecutionState::restart_failed_no_retry(),
+            proto::ExecutionState {
+                additional_info: NO_MORE_RETRIES_MSG.to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
+                    proto::Pending::StartingFailed.into(),
+                )),
+            }
+            .into(),
+        );
+        assert_eq!(
+            ExecutionState::removed(),
+            proto::ExecutionState {
+                additional_info: "".to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Removed(
+                    proto::Removed::Removed.into(),
+                )),
+            }
+            .into(),
+        );
+
+        assert_eq!(
+            ExecutionState::unknown(additional_info),
+            proto::ExecutionState {
+                additional_info: additional_info.to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Failed(
+                    proto::Failed::Unknown.into(),
+                )),
+            }
+            .into(),
+        );
+        assert_eq!(
+            ExecutionState::starting(additional_info),
+            proto::ExecutionState {
+                additional_info: additional_info.to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
+                    proto::Pending::Starting.into(),
+                )),
+            }
+            .into(),
+        );
+        assert_eq!(
+            ExecutionState::failed(additional_info),
+            proto::ExecutionState {
+                additional_info: additional_info.to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Failed(
+                    proto::Failed::ExecFailed.into(),
+                )),
+            }
+            .into(),
+        );
+        assert_eq!(
+            ExecutionState::succeeded(),
+            proto::ExecutionState {
+                additional_info: "".to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Succeeded(
+                    proto::Succeeded::Ok.into(),
+                )),
+            }
+            .into(),
+        );
+        assert_eq!(
+            ExecutionState::running(),
+            proto::ExecutionState {
+                additional_info: "".to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Running(
+                    proto::Running::Ok.into(),
+                )),
+            }
+            .into(),
+        );
+        assert_eq!(
+            ExecutionState::stopping(additional_info),
+            proto::ExecutionState {
+                additional_info: additional_info.to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Stopping(
+                    proto::Stopping::Stopping.into(),
+                )),
+            }
+            .into(),
+        );
+        assert_eq!(
+            ExecutionState::lost(),
+            proto::ExecutionState {
+                additional_info: "".to_string(),
+                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Failed(
+                    proto::Failed::Lost.into(),
+                )),
+            }
+            .into(),
+        );
+    }
+
+    // [utest->swdd~common-workload-state-additional-information~1]
+    // [utest->swdd~common-workload-states-supported-states~1]
     #[test]
     fn utest_execution_state_to_string_basic_mapping() {
+        let additional_info = "some additional info";
+
         assert_eq!(
-            ExecutionState::ExecPending.to_string(),
-            String::from("Pending")
+            ExecutionState::agent_disconnected().to_string(),
+            String::from("AgentDisconnected")
         );
         assert_eq!(
-            ExecutionState::ExecWaitingToStart.to_string(),
-            String::from("WaitingToStart")
+            ExecutionState::restart_failed_no_retry().to_string(),
+            format!("Pending(StartingFailed): '{}'", NO_MORE_RETRIES_MSG)
         );
         assert_eq!(
-            ExecutionState::ExecStarting.to_string(),
-            String::from("Starting")
-        );
-        assert_eq!(
-            ExecutionState::ExecRunning.to_string(),
-            String::from("Running")
-        );
-        assert_eq!(
-            ExecutionState::ExecSucceeded.to_string(),
-            String::from("Succeeded")
-        );
-        assert_eq!(
-            ExecutionState::ExecFailed.to_string(),
-            String::from("Failed")
-        );
-        assert_eq!(
-            ExecutionState::ExecWaitingToStop.to_string(),
-            String::from("WaitingToStop")
-        );
-        assert_eq!(
-            ExecutionState::ExecRemoved.to_string(),
+            ExecutionState::removed().to_string(),
             String::from("Removed")
         );
         assert_eq!(
-            ExecutionState::ExecStopping.to_string(),
-            String::from("Stopping")
+            ExecutionState::unknown(additional_info).to_string(),
+            format!("Failed(Unknown): '{additional_info}'")
         );
         assert_eq!(
-            ExecutionState::ExecUnknown.to_string(),
-            String::from("Unknown")
+            ExecutionState::starting(additional_info).to_string(),
+            format!("Pending(Starting): '{additional_info}'")
+        );
+        assert_eq!(
+            ExecutionState::failed(additional_info).to_string(),
+            format!("Failed(ExecFailed): '{additional_info}'")
+        );
+        assert_eq!(
+            ExecutionState::succeeded().to_string(),
+            String::from("Succeeded(Ok)")
+        );
+        assert_eq!(
+            ExecutionState::running().to_string(),
+            String::from("Running(Ok)")
+        );
+        assert_eq!(
+            ExecutionState::stopping(additional_info).to_string(),
+            format!("Stopping(Stopping): '{additional_info}'")
+        );
+        assert_eq!(
+            ExecutionState::lost().to_string(),
+            String::from("Failed(Lost)")
         );
     }
 }

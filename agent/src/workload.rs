@@ -18,14 +18,18 @@ pub mod workload_control_loop;
 
 // public api exports
 pub use workload_command_channel::WorkloadCommandSender;
-pub use workload_control_loop::{ControlLoopState, RestartCounter, WorkloadControlLoop};
+#[cfg(test)]
+pub use workload_control_loop::WorkloadControlLoop;
+pub use workload_control_loop::{ControlLoopState, RestartCounter};
 
 use std::{fmt::Display, path::PathBuf};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::PipesChannelContext;
 use common::{
-    commands::CompleteState, execution_interface::ExecutionCommand, objects::WorkloadSpec,
+    commands::{self, ResponseContent},
+    from_server_interface::FromServer,
+    objects::WorkloadSpec,
 };
 
 #[cfg(test)]
@@ -50,15 +54,14 @@ impl Display for WorkloadError {
     }
 }
 
-//#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum WorkloadCommand {
     Delete,
-    Update(Box<WorkloadSpec>, Option<PathBuf>),
+    Update(Option<Box<WorkloadSpec>>, Option<PathBuf>),
     Restart(Box<WorkloadSpec>, Option<PathBuf>),
     Create(Box<WorkloadSpec>, Option<PathBuf>),
 }
 
-// #[derive(Debug)]
 pub struct Workload {
     name: String,
     channel: WorkloadCommandSender,
@@ -82,7 +85,7 @@ impl Workload {
     // [impl->swdd~agent-workload-obj-update-command~1]
     pub async fn update(
         &mut self,
-        spec: WorkloadSpec,
+        spec: Option<WorkloadSpec>,
         control_interface: Option<PipesChannelContext>,
     ) -> Result<(), WorkloadError> {
         log::info!("Updating workload '{}'.", self.name);
@@ -119,9 +122,10 @@ impl Workload {
     }
 
     // [impl->swdd~agent-forward-responses-to-control-interface-pipe~1]
-    pub async fn send_complete_state(
+    pub async fn forward_response(
         &mut self,
-        complete_state: CompleteState,
+        request_id: String,
+        response_content: ResponseContent,
     ) -> Result<(), WorkloadError> {
         let control_interface =
             self.control_interface
@@ -131,7 +135,10 @@ impl Workload {
                 ))?;
         control_interface
             .get_input_pipe_sender()
-            .send(ExecutionCommand::CompleteState(Box::new(complete_state)))
+            .send(FromServer::Response(commands::Response {
+                request_id,
+                response_content,
+            }))
             .await
             .map_err(|err| WorkloadError::CompleteState(err.to_string()))
     }
@@ -147,21 +154,20 @@ impl Workload {
 
 #[cfg(test)]
 mod tests {
-
     use std::path::PathBuf;
     use std::time::Duration;
 
     use common::{
-        commands::CompleteState,
-        execution_interface::ExecutionCommand,
-        test_utils::{generate_test_complete_state, generate_test_workload_spec_with_param},
+        commands::{Response, ResponseContent},
+        from_server_interface::FromServer,
+        objects::{generate_test_workload_spec_with_param, CompleteState},
+        test_utils::generate_test_complete_state,
     };
     use tokio::{sync::mpsc, time::timeout};
 
     use crate::{
         control_interface::MockPipesChannelContext,
-        workload::WorkloadCommandSender,
-        workload::{Workload, WorkloadCommand, WorkloadError},
+        workload::{Workload, WorkloadCommand, WorkloadCommandSender, WorkloadError},
     };
 
     const RUNTIME_NAME: &str = "runtime1";
@@ -237,20 +243,23 @@ mod tests {
         );
 
         test_workload
-            .update(workload_spec.clone(), Some(new_control_interface_mock))
+            .update(
+                Some(workload_spec.clone()),
+                Some(new_control_interface_mock),
+            )
             .await
             .unwrap();
 
         let expected_workload_spec = Box::new(workload_spec);
         let expected_pipes_path_buf = PathBuf::from(PIPES_LOCATION);
 
-        assert!(matches!(
-            timeout(Duration::from_millis(200), workload_command_receiver.recv()).await,
+        assert_eq!(
             Ok(Some(WorkloadCommand::Update(
-                boxed_workload_spec,
-                Some(pipes_path_buf)
-            )))
-        if expected_workload_spec == boxed_workload_spec && expected_pipes_path_buf == pipes_path_buf));
+                Some(expected_workload_spec),
+                Some(expected_pipes_path_buf)
+            ))),
+            timeout(Duration::from_millis(200), workload_command_receiver.recv()).await
+        );
     }
 
     // [utest->swdd~agent-workload-obj-update-command~1]
@@ -291,7 +300,10 @@ mod tests {
 
         assert!(matches!(
             test_workload
-                .update(workload_spec.clone(), Some(new_control_interface_mock))
+                .update(
+                    Some(workload_spec.clone()),
+                    Some(new_control_interface_mock)
+                )
                 .await,
             Err(WorkloadError::Communication(_))
         ));
@@ -334,39 +346,40 @@ mod tests {
             .await;
 
         let (workload_command_sender, _) = WorkloadCommandSender::new();
-        let (state_change_tx, mut state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, mut to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut control_interface_mock = MockPipesChannelContext::default();
         control_interface_mock
             .expect_get_input_pipe_sender()
             .once()
-            .return_const(state_change_tx);
+            .return_const(to_server_tx);
 
         let mut test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
             workload_command_sender,
             Some(control_interface_mock),
         );
-        let complete_state = generate_test_complete_state(
-            format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-            vec![generate_test_workload_spec_with_param(
+        let complete_state =
+            generate_test_complete_state(vec![generate_test_workload_spec_with_param(
                 AGENT_NAME.to_string(),
                 WORKLOAD_1_NAME.to_string(),
                 RUNTIME_NAME.to_string(),
-            )],
-        );
+            )]);
 
         test_workload
-            .send_complete_state(complete_state.clone())
+            .forward_response(
+                format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
+                common::commands::ResponseContent::CompleteState(Box::new(complete_state.clone())),
+            )
             .await
             .unwrap();
 
-        let expected_complete_state_box = Box::new(complete_state);
+        let expected_complete_state = complete_state;
 
         assert!(matches!(
-            timeout(Duration::from_millis(200), state_change_rx.recv()).await,
-            Ok(Some(ExecutionCommand::CompleteState(complete_state_box)))
-        if expected_complete_state_box == complete_state_box));
+            timeout(Duration::from_millis(200), to_server_rx.recv()).await,
+            Ok(Some(FromServer::Response(Response{request_id: _, response_content: ResponseContent::CompleteState(complete_state)})))
+        if expected_complete_state == *complete_state));
     }
 
     // [utest->swdd~agent-forward-responses-to-control-interface-pipe~1]
@@ -377,15 +390,15 @@ mod tests {
             .await;
 
         let (workload_command_sender, _) = WorkloadCommandSender::new();
-        let (state_change_tx, state_change_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
+        let (to_server_tx, to_server_rx) = mpsc::channel(TEST_WL_COMMAND_BUFFER_SIZE);
 
-        drop(state_change_rx);
+        drop(to_server_rx);
 
         let mut control_interface_mock = MockPipesChannelContext::default();
         control_interface_mock
             .expect_get_input_pipe_sender()
             .once()
-            .return_const(state_change_tx);
+            .return_const(to_server_tx);
 
         let mut test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
@@ -395,7 +408,12 @@ mod tests {
         let complete_state = CompleteState::default();
 
         assert!(matches!(
-            test_workload.send_complete_state(complete_state).await,
+            test_workload
+                .forward_response(
+                    "".to_owned(),
+                    ResponseContent::CompleteState(Box::new(complete_state))
+                )
+                .await,
             Err(WorkloadError::CompleteState(_))
         ));
     }
@@ -414,7 +432,12 @@ mod tests {
         let complete_state = CompleteState::default();
 
         assert!(matches!(
-            test_workload.send_complete_state(complete_state).await,
+            test_workload
+                .forward_response(
+                    "".to_owned(),
+                    ResponseContent::CompleteState(Box::new(complete_state))
+                )
+                .await,
             Err(WorkloadError::CompleteState(_))
         ));
     }

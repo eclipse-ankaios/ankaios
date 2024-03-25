@@ -39,7 +39,8 @@ Test Ankaios Podman delete kube workload
     # Actions
     When user triggers "ank delete workload hello-k8s"
     # Asserts
-    Then the workload "hello-k8s" shall not exist
-    And podman shall not have a container for workload "hello-pod-hello-container" on agent "agent_A"
-    And volumes for "hello-k8s" shall not exists on "agent_A" within "30" seconds
+    Then podman shall not have a container for workload "hello-pod-hello-container" on agent "agent_A"
+    And volumes for "hello-k8s" shall not exist on "agent_A" within "20" seconds
+    And podman shall not have a container for workload "hello-k8s" on agent "agent_A" within "20" seconds
+    And the workload "hello-k8s" shall not exist on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios

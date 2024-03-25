@@ -1,0 +1,16 @@
+apiVersion: v0.1
+workloads:
+  nginx_from_manifest1:
+    runtime: podman
+    restart: true
+    agent: agent_A
+    runtimeConfig: |
+      image: docker.io/nginx:latest
+      commandOptions: ["-p", "8081:80"]
+  nginx_from_manifest2:
+    runtime: podman
+    agent: agent_A
+    restart: true
+    runtimeConfig: |
+      image: docker.io/nginx:latest
+      commandOptions: ["-p", "8082:80"]
