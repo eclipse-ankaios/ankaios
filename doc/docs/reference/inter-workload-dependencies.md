@@ -25,12 +25,14 @@ Ankaios supports the following dependency types:
 The user configures the `AddCondition` for each dependency in the `dependencies` field to define one or multiple dependencies for a workload.
 
 ```yaml
-logger:
-  agent: agent_A
-  runtime: podman
-  dependencies:
-    storage_provider: ADD_COND_RUNNING
-  ...
+apiVersion: v0.1
+workloads:
+  logger:
+    agent: agent_A
+    runtime: podman
+    dependencies:
+      storage_provider: ADD_COND_RUNNING
+    ...
 ```
 
 When the `storage_provider` is operational, Ankaios starts the `logger` workload. The ExecutionState of the workload remains `Pending(WaitingToStart)` until all dependencies are met.
