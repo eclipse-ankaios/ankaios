@@ -938,7 +938,7 @@ mod tests {
         "desiredState": {
             "workloads": {
                 "nginx": {
-                    "restart": true,
+                    "restart": ALWAYS,
                     "agent": "agent_A"
                 },
                 "hello1": {
@@ -2045,7 +2045,7 @@ mod tests {
                         "workload A": "ADD_COND_RUNNING",
                         "workload C": "ADD_COND_SUCCEEDED"
                     },
-                    "restart": true,
+                    "restart": "ALWAYS",
                     "runtime": "podman",
                     "runtimeConfig": "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
                     }
@@ -2100,7 +2100,7 @@ mod tests {
                             "workload A": "ADD_COND_RUNNING",
                             "workload C": "ADD_COND_SUCCEEDED"
                         },
-                        "restart": true,
+                        "restart": "ALWAYS",
                         "runtime": "podman",
                         "runtimeConfig": "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
                     },
@@ -2134,7 +2134,7 @@ mod tests {
             get_filtered_value(&deserialized_map, &["desiredState", "workloads", "nginx"]).unwrap();
         assert_eq!(
             result.get("restart").unwrap(),
-            &serde_yaml::Value::Bool(true)
+            &serde_yaml::Value::String("ALWAYS".into())
         );
     }
 
@@ -2243,7 +2243,7 @@ mod tests {
                     .get("workloads")
                     .and_then(|next| next.get("nginx").and_then(|next| next.get("restart"))))
                 .unwrap(),
-            &serde_yaml::Value::Bool(true)
+            &serde_yaml::Value::String("ALWAYS".into())
         );
     }
 
@@ -2656,7 +2656,7 @@ mod tests {
         simple:
           runtime: podman
           agent: agent_A
-          restart: true
+          restart: ALWAYS
           updateStrategy: AT_MOST_ONCE
           accessRights:
             allow: []

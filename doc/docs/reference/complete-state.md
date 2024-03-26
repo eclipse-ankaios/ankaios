@@ -19,7 +19,7 @@ desiredState:
       - key: owner
         value: Ankaios team
       dependencies: {}
-      restart: true
+      restart: ALWAYS
       runtime: podman-kube
       runtimeConfig: |
         manifest: |
@@ -28,7 +28,7 @@ desiredState:
           metadata:
             name: hello-pod
           spec:
-            restartPolicy: Never
+            Restart: Never
             containers:
             - name: looper
               image: alpine:latest
@@ -46,7 +46,7 @@ desiredState:
       - key: owner
         value: Ankaios team
       dependencies: {}
-      restart: true
+      restart: NEVER
       runtime: podman
       runtimeConfig: |
         image: alpine:latest
@@ -58,7 +58,6 @@ desiredState:
       - key: owner
         value: Ankaios team
       dependencies: {}
-      restart: true
       runtime: podman
       runtimeConfig: |
         image: alpine:latest
@@ -69,7 +68,7 @@ desiredState:
       - key: owner
         value: Ankaios team
       dependencies: {}
-      restart: true
+      restart: ON_FAILURE
       runtime: podman
       runtimeConfig: |
         image: docker.io/nginx:latest
@@ -83,7 +82,7 @@ It is not necessary to provide the whole structure of the the [CompleteState](./
 desiredState:
   workloads:
     nginx:
-      restart: false
+      restart: ALWAYS
 ```
 
 ## Object field mask
@@ -106,7 +105,7 @@ The object field mask can be constructed using the field names of the [CompleteS
           - key: owner
             value: Ankaios team
           dependencies: {}
-          restart: true
+          restart: ALWAYS
           runtime: podman
           runtimeConfig: |
             image: docker.io/nginx:latest
@@ -124,11 +123,11 @@ The object field mask can be constructed using the field names of the [CompleteS
            commandOptions: ["-p", "8081:80"]
    ```
 
-3. Example `ank set state -f new-state.yaml desiredState.workloads.nginx.restart` changes the restart behavior of nginx workload to `false`:
+3. Example `ank set state -f new-state.yaml desiredState.workloads.nginx.restart` changes the restart behavior of nginx workload to `NEVER`:
 
    ```yaml title="new-state.yaml"
    desiredState:
      workloads:
        nginx:
-         restart: false
+         restart: NEVER
    ```

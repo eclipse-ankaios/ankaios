@@ -10,7 +10,7 @@ A workload specification must contain the following information:
 * `workload name`_(via field key)_, specify the workload name to identify the workload in the Ankaios system.
 * `runtime`, specify the type of the runtime. Currently supported values are `podman` and `podman-kube`.
 * `agent`, specify the name of the owning agent which is going to execute the workload.
-* `restart`, specify if the workload shall be restarted when it exits (not implemented yet).
+* `restart`, specify how the workload should be restarted upon exiting (not implemented yet).
 * `tags`, specify a list of `key` `value`  pairs.
 * `runtimeConfig`, specify as a _string_ the configuration for the [runtime](./glossary.md#runtime) whose configuration structure is specific for each runtime, e.g., for `podman` runtime the [PodmanRuntimeConfig](#podmanruntimeconfig) is used.
 
@@ -22,7 +22,7 @@ workloads:
   nginx: # this is used as the workload name which is 'nginx'
     runtime: podman
     agent: agent_A
-    restart: true
+    restart: ALWAYS
     tags:
       - key: owner
         value: Ankaios team

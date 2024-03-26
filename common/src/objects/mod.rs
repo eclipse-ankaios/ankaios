@@ -50,7 +50,7 @@ pub use workload_spec::{
 
 pub use workload_spec::{
     get_workloads_per_agent, AddCondition, DeleteCondition, DeletedWorkload,
-    DeletedWorkloadCollection, FulfilledBy, WorkloadCollection, WorkloadSpec,
+    DeletedWorkloadCollection, FulfilledBy, Restart, WorkloadCollection, WorkloadSpec,
 };
 
 mod tag;

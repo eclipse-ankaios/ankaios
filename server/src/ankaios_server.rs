@@ -400,7 +400,8 @@ mod tests {
     use common::from_server_interface::FromServer;
     use common::objects::{
         generate_test_stored_workload_spec, generate_test_workload_spec_with_param, CompleteState,
-        DeletedWorkload, ExecutionState, ExecutionStateEnum, PendingSubstate, State, WorkloadState,
+        DeletedWorkload, ExecutionState, ExecutionStateEnum, PendingSubstate, Restart, State,
+        WorkloadState,
     };
 
     use common::to_server_interface::ToServerInterface;
@@ -1262,7 +1263,7 @@ mod tests {
         );
 
         let mut updated_w1 = w1.clone();
-        updated_w1.restart = false;
+        updated_w1.restart = Restart::Never;
         let update_state = CompleteState {
             desired_state: State {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), updated_w1.clone().into())]

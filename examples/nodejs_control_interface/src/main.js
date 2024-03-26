@@ -25,7 +25,7 @@ function create_request_to_add_new_workload(root) {
                             dynamic_nginx: {
                                 agent: "agent_A",
                                 runtime: "podman",
-                                restart: true,
+                                restart: NEVER,
                                 runtimeConfig: "image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]"
                             }
                         }

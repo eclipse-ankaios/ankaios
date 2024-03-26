@@ -72,7 +72,7 @@ pub struct WorkloadSpec {
     pub tags: Vec<Tag>,
     #[serde(serialize_with = "serialize_to_ordered_map")]
     pub dependencies: HashMap<String, AddCondition>,
-    pub restart: bool,
+    pub restart: Restart,
     pub runtime: String,
     pub runtime_config: String,
 }
@@ -87,7 +87,7 @@ impl TryFrom<proto::AddedWorkload> for WorkloadSpec {
                 .into_iter()
                 .map(|(k, v)| Ok((k, v.try_into()?)))
                 .collect::<Result<HashMap<String, AddCondition>, String>>()?,
-            restart: workload.restart,
+            restart: workload.restart.try_into()?,
             runtime: workload.runtime,
             instance_name: workload.instance_name.ok_or("No instance name")?.into(),
             tags: workload.tags.into_iter().map(|x| x.into()).collect(),
@@ -105,7 +105,7 @@ impl From<WorkloadSpec> for proto::AddedWorkload {
                 .into_iter()
                 .map(|(k, v)| (k, v as i32))
                 .collect(),
-            restart: workload.restart,
+            restart: workload.restart as i32,
             runtime: workload.runtime,
             runtime_config: workload.runtime_config,
             tags: workload.tags.into_iter().map(|x| x.into()).collect(),
@@ -148,6 +148,28 @@ pub fn get_workloads_per_agent(
     }
 
     agent_workloads
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Restart {
+    #[default]
+    Never,
+    OnFailure,
+    Always,
+}
+
+impl TryFrom<i32> for Restart {
+    type Error = String;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            x if x == Restart::Never as i32 => Ok(Restart::Never),
+            x if x == Restart::OnFailure as i32 => Ok(Restart::OnFailure),
+            x if x == Restart::Always as i32 => Ok(Restart::Always),
+            _ => Err(format!("Received an unknown value '{value}' as Restart.")),
+        }
+    }
 }
 
 pub trait FulfilledBy<T> {
@@ -277,7 +299,7 @@ pub fn generate_test_workload_spec_with_runtime_config(
     WorkloadSpec {
         instance_name,
         dependencies: generate_test_dependencies(),
-        restart: true,
+        restart: Restart::Always,
         runtime: runtime_name,
         tags: vec![Tag {
             key: "key".into(),
@@ -369,7 +391,7 @@ mod tests {
                     proto::AddCondition::AddCondSucceeded.into(),
                 ),
             ]),
-            restart: true,
+            restart: proto::Restart::Always.into(),
             runtime: String::from("runtime"),
             runtime_config: workload_spec.runtime_config.clone(),
             tags: vec![proto::Tag {
@@ -388,7 +410,7 @@ mod tests {
                 (String::from("workload A"), AddCondition::AddCondRunning),
                 (String::from("workload C"), AddCondition::AddCondSucceeded),
             ]),
-            restart: true,
+            restart: Restart::Always,
             runtime: String::from("runtime"),
             instance_name: WorkloadInstanceName::builder()
                 .agent_name("agent")
@@ -414,7 +436,7 @@ mod tests {
                     proto::AddCondition::AddCondSucceeded.into(),
                 ),
             ]),
-            restart: true,
+            restart: proto::Restart::Always.into(),
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
             tags: vec![],
@@ -441,7 +463,7 @@ mod tests {
                     proto::AddCondition::AddCondSucceeded.into(),
                 ),
             ]),
-            restart: true,
+            restart: proto::Restart::Always.into(),
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
             tags: vec![],

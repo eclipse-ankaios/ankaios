@@ -197,7 +197,7 @@ workloads:
 #   nginx:
 #     runtime: podman
 #     agent: agent_A
-#     restart: true
+#     restart: NEVER
 #     tags:
 #       - key: owner
 #         value: Ankaios team

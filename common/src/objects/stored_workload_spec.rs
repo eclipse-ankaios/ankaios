@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::helpers::serialize_to_ordered_map;
 
-use super::{AddCondition, Tag, WorkloadInstanceName, WorkloadSpec};
+use super::{AddCondition, Restart, Tag, WorkloadInstanceName, WorkloadSpec};
 
 #[derive(Debug, Serialize, Default, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -30,7 +30,7 @@ pub struct StoredWorkloadSpec {
     #[serde(default, serialize_with = "serialize_to_ordered_map")]
     pub dependencies: HashMap<String, AddCondition>,
     #[serde(default)]
-    pub restart: bool,
+    pub restart: Restart,
     pub runtime: String,
     pub runtime_config: String,
 }
@@ -47,7 +47,7 @@ impl TryFrom<proto::Workload> for StoredWorkloadSpec {
                 .into_iter()
                 .map(|(k, v)| Ok((k, v.try_into()?)))
                 .collect::<Result<HashMap<String, AddCondition>, String>>()?,
-            restart: value.restart,
+            restart: value.restart.try_into()?,
             runtime: value.runtime,
             runtime_config: value.runtime_config,
         })
@@ -63,7 +63,7 @@ impl From<StoredWorkloadSpec> for proto::Workload {
                 .into_iter()
                 .map(|(k, v)| (k, v as i32))
                 .collect(),
-            restart: workload.restart,
+            restart: workload.restart as i32,
             runtime: workload.runtime,
             runtime_config: workload.runtime_config,
             tags: workload.tags.into_iter().map(|x| x.into()).collect(),
@@ -121,7 +121,7 @@ pub fn generate_test_stored_workload_spec_with_config(
             (String::from("workload A"), AddCondition::AddCondRunning),
             (String::from("workload C"), AddCondition::AddCondSucceeded),
         ]),
-        restart: true,
+        restart: Restart::Always,
         runtime: runtime_name.into(),
         tags: vec![Tag {
             key: "key".into(),

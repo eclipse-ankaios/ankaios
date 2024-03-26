@@ -3,7 +3,7 @@ workloads:
   nginx:
     runtime: podman
     agent: agent_A
-    restart: true
+    restart: ON_FAILURE
     tags:
       - key: owner
         value: Ankaios team
@@ -13,7 +13,6 @@ workloads:
   hello1:
     runtime: podman
     agent: agent_B
-    restart: true
     tags:
       - key: owner
         value: Ankaios team
@@ -24,17 +23,17 @@ workloads:
   hello2:
     runtime: podman
     agent: agent_B
-    restart: true
+    restart: ALWAYS
     tags:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: alpine:latest
-      commandArgs: [ "echo", "Hello Ankaios"]
+      commandOptions: [ "--entrypoint", "/bin/sh" ]
+      commandArgs: [ "-c", "echo 'Always restarted.'; sleep 2"]
   hello-pod:
     runtime: podman-kube
     agent: agent_B
-    restart: true
+    restart: NEVER
     tags:
       - key: owner
         value: Ankaios team
@@ -45,7 +44,7 @@ workloads:
         metadata:
           name: hello-pod
         spec:
-          restartPolicy: Never
+          Restart: Never
           containers:
           - name: looper
             image: alpine:latest
