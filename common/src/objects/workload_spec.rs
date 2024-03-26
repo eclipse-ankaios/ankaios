@@ -152,6 +152,7 @@ pub fn get_workloads_per_agent(
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+// [impl->swdd~agent-supports-restart-policies~1]
 pub enum Restart {
     #[default]
     Never,
@@ -167,7 +168,9 @@ impl TryFrom<i32> for Restart {
             x if x == Restart::Never as i32 => Ok(Restart::Never),
             x if x == Restart::OnFailure as i32 => Ok(Restart::OnFailure),
             x if x == Restart::Always as i32 => Ok(Restart::Always),
-            _ => Err(format!("Received an unknown value '{value}' as Restart.")),
+            _ => Err(format!(
+                "Received an unknown value '{value}' as restart policy."
+            )),
         }
     }
 }
@@ -627,5 +630,20 @@ mod tests {
 
         let delete_condition = DeleteCondition::DelCondNotPendingNorRunning;
         assert!(delete_condition.fulfilled_by(&ExecutionState::waiting_to_start()));
+    }
+
+    // [utest->swdd~agent-supports-restart-policies~1]
+    #[test]
+    fn utest_restart_to_int() {
+        assert_eq!(Restart::try_from(0).unwrap(), Restart::Never);
+        assert_eq!(Restart::try_from(1).unwrap(), Restart::OnFailure);
+        assert_eq!(Restart::try_from(2).unwrap(), Restart::Always);
+
+        assert_eq!(
+            Restart::try_from(100),
+            Err::<Restart, String>(
+                "Received an unknown value '100' as restart policy.".to_string()
+            )
+        );
     }
 }

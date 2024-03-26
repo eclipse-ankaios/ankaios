@@ -1290,6 +1290,31 @@ Needs:
 - impl
 - utest
 
+### Restart policies of workloads
+
+#### Agent supports restart policies
+`swdd~agent-supports-restart-policies~1`
+
+Status: approved
+
+The Ankaios agent shall support the following restart conditions for a workload:
+
+* `NEVER`: The workload is never restarted. Once the container exits, it remains in the exited state.
+* `ON_FAILURE`: If the workload exits with a non-zero exit code, it will be restarted.
+* `ALWAYS`: The workload is restarted upon termination, regardless of the exit code.
+
+Comment:
+The default condition is `NEVER`.
+
+Rationale:
+In some cases, workloads must remain operational at all times, even if they fail or exit successfully.
+
+Tags:
+
+Needs:
+- impl
+- utest
+
 ### Restart of workloads
 
 The following diagram describes the restart behavior when a workload is created and the create fails:

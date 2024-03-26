@@ -309,7 +309,7 @@ message Tag {
 * An enum type describing the restart behavior of a workload.
 */
 enum Restart {
-  NEVER = 0; /// The workload is never restarted.
+  NEVER = 0; /// The workload is never restarted. Once the workload exits, it remains in the exited state.
   ON_FAILURE = 1; /// If the workload exits with a non-zero exit code, it will be restarted.
   ALWAYS = 2; /// The workload is restarted upon termination, regardless of the exit code.
 }
