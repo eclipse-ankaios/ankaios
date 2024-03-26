@@ -380,7 +380,7 @@ Needs:
 Status: approved
 
 When the Ankaios Server responses to a GetCompleteState request and the request contains a `field_mask`,
-the response includes the filed `format_version` and the fields listed in the `field_mask`.
+the response includes the filed `api_version` and the fields listed in the `field_mask`.
 
 Tags:
 - ControlInterface
@@ -671,6 +671,45 @@ There is no agent that can take care of the operation so the sever has to handle
 
 Comment:
 Handling the operation includes deleting the workload, its state and notifying other agents about the change.
+
+Tags:
+- ServerState
+- DeleteGraph
+
+Needs:
+- impl
+- utest
+
+#### Server cleans up state
+`swdd~server-cleans-up-state~1`
+
+Status: approved
+
+When the Ankaios Server receives new workload states, then the Ankaios Server shall trigger the ServerState to cleanup its internal state providing it the new workload states.
+
+Rationale:
+The server state should not have any obsolete entries.
+
+Tags:
+- AnkaiosServer
+- ServerState
+
+Needs:
+- impl
+- utest
+
+#### Server removes obsolete entries from delete graph
+`swdd~server-removes-obsolete-delete-graph-entires~1`
+
+Status: approved
+
+When the ServerState receives a trigger to cleanup its state, the ServerState shall request the DeleteGraph to delete all entries for which there is a WorkloadState `Removed` in the list of provided workload states.
+
+Comment:
+The DeleteGraph ignores WorkloadStates from workloads that do not have an entry in the delete graph.
+
+Rationale:
+The entry should not exist after the workload has actually been deleted.
 
 Tags:
 - ServerState

@@ -33,13 +33,22 @@ The following diagram shows the structural view of the Ankaios Agent:
 
 ### AgentManager
 
-The AgentManager is the entry component in the Ankaios agent and is responsible, amongst others, for receiving commands from the server and forwarding them to the RuntimeManager and for authorizing requests from the workloads to the Ankaios Server.
+The AgentManager is the entry component in the Ankaios agent and is responsible, amongst others, for receiving commands from the server and forwarding them to the RuntimeManager and for authorizing requests from the workloads to the Ankaios server.
 
-The initial setup of the Ankaios agent is done in the main.rs is also counted as part of this unit.
+The initial setup of the Ankaios agent is done in the main.rs and is also counted as part of this unit.
+
+### WorkloadOperation
+
+The RuntimeManager and the WorkloadScheduler use the WorkloadOperations to distinguish between the operations that shall be done on a workload.
+A WorkloadOperation represents a create, update or a delete operation of a workload and contains the workload configuration needed to execute the corresponding operation.
 
 ### RuntimeManager
 
-The RuntimeManager holds a list of RuntimeFacades (more precisely a list of runtime connectors wrapped into a RuntimeFacade) and a list of running workloads. It is also responsible for handling the update workload calls including the workload reuse and the logic of translating the added and deleted workload lists into commands to a RuntimeFacade or a WorkloadObject.
+The RuntimeManager holds a list of RuntimeFacades (more precisely a list of runtime connectors wrapped into a RuntimeFacade) and a list of running workloads. It is also responsible for handling the update workload calls including the workload reuse and the logic of translating the added and deleted workload lists into commands to a RuntimeFacade or a WorkloadObject. In addition, the RuntimeManager requests the WorkloadScheduler for WorkloadOperations with fulfilled inter-workload dependencies and executes the ready operations on the runtime through the RuntimeFacade.
+
+### WorkloadScheduler
+
+The WorkloadScheduler schedules the WorkloadOperations of workloads that have inter-workload dependencies. It uses an internal queue to temporarily store pending WorkloadOperations as long as the inter-workload dependencies are not in the expected state. The WorkloadScheduler uses the add conditions and delete conditions of workloads to schedule the WorkloadOperations.
 
 ### RuntimeFacade
 
@@ -146,7 +155,7 @@ Needs:
 - impl
 - itest
 
-#### AgentManager shall listen for request from the Server
+#### AgentManager listens for requests from the Server
 `swdd~agent-manager-listens-requests-from-server~1`
 
 Status: approved
@@ -288,6 +297,106 @@ The following diagram show the general steps the Ankaios Agent takes when receiv
 
 ![Handling UpdateWorkload](plantuml/seq_update_workload.svg)
 
+#### Agent handles UpdateWorkload requests from the server
+`swdd~agent-handles-update-workload-requests~1`
+
+Status: approved
+
+When the AgentManager receives an `UpdateWorkload` message from the server, then the RuntimeManager shall handle the workloads contained within the message.
+
+Comment: The `UpdateWorkload` message contains workloads to create, update and delete.
+
+Rationale: This ensures separation between receiving the requests from the server and performing the requested actions.
+
+Tags:
+- AgentManager
+- RuntimeManager
+
+Needs:
+- impl
+- utest
+
+#### RuntimeManager transforms UpdateWorkload message into WorkloadOperations
+`swdd~agent-transforms-update-workload-message-to-workload-operations~1`
+
+Status: approved
+
+When the RuntimeManager receives the workloads of an `UpdateWorkload` message, then the RuntimeManager shall transform the workloads inside the message into a list of `WorkloadOperation`s containing workloads to create, update and delete.
+
+Comment: The list of `WorkloadOperation`s contains the actions on the workloads which the RuntimeManager shall perform.
+
+Rationale: The inter-workload dependency handling requires the concrete information about the type of operation performed on the workload.
+
+Tags:
+- RuntimeManager
+- WorkloadOperation
+
+Needs:
+- impl
+- utest
+
+#### RuntimeManager executes create workload operation
+`swdd~agent-executes-create-workload-operation~1`
+
+Status: approved
+
+When the RuntimeManager receives a create `WorkloadOperation` with fulfilled inter-workload dependencies, then the RuntimeManager shall request the RuntimeFacade to create the workload.
+
+Tags:
+- RuntimeManager
+
+Needs:
+- impl
+- utest
+
+#### RuntimeManager executes update workload operation
+`swdd~agent-executes-update-workload-operation~1`
+
+Status: approved
+
+When the RuntimeManager receives an update `WorkloadOperation` with fulfilled inter-workload dependencies, then the RuntimeManager shall request the WorkloadObject to update the workload.
+
+Tags:
+- RuntimeManager
+- WorkloadObject
+
+Needs:
+- impl
+- utest
+
+#### RuntimeManager executes delete workload operation
+`swdd~agent-executes-delete-workload-operation~1`
+
+Status: approved
+
+When the RuntimeManager receives an delete `WorkloadOperation` with fulfilled inter-workload dependencies, then the RuntimeManager shall request the WorkloadObject to delete the workload.
+
+Tags:
+- RuntimeManager
+- WorkloadObject
+
+Needs:
+- impl
+- utest
+
+#### RuntimeManager executes update delete only workload operation
+`swdd~agent-executes-update-delete-only-workload-operation~1`
+
+Status: approved
+
+When the RuntimeManager receives an update delete only `WorkloadOperation`, then the RuntimeManager shall request the WorkloadObject to update the workload with only deleting the existing workload by passing no workload to the WorkloadObject.
+
+Comment:
+The update only operation is only triggered internally when an update with update strategy `AT_MOST_ONCE` has fulfilled `DeleteConditions`. The inter-workload dependencies are therefore always fulfilled when the RuntimeManager receives this operation.
+
+Tags:
+- RuntimeManager
+- WorkloadObject
+
+Needs:
+- impl
+- utest
+
 #### RuntimeManager creates Control Interface Instance for each workload
 `swdd~agent-create-control-interface-pipes-per-workload~1`
 
@@ -384,7 +493,7 @@ The following diagram and the subsequent requirements show the steps the Ankaios
 
 Status: approved
 
-After receiving the complete list of added workloads from the Ankaios Sever at the initial connection establishment, the RuntimeManager shall handle existing workloads.
+After receiving the complete list of added workloads from the Ankaios server at the initial connection establishment, the RuntimeManager shall handle existing workloads.
 
 Comment:
 In case the Agent was already running, the RuntimeManager can take care of Workloads that were started in an earlier execution. Some of these workloads can be reused, some have to be updated and some stopped.
@@ -504,6 +613,27 @@ Needs:
 - impl
 - utest
 
+##### RuntimeManager handles existing workloads replace updated Workloads
+`swdd~agent-existing-workloads-replace-updated~1`
+
+Status: approved
+
+When the agent handles existing workloads, for each found existing workload which is requested to be started and for which a change in the configuration was detected, the RuntimeManager shall do the following:
+
+- request the RuntimeFacade to delete the existing workload
+- request the RuntimeFacade to create the workload
+
+Comment: The RuntimeManager can check if the specified workload is already running, but was updated by comparing the new workload execution instance name with that of the running instance. The delete operation is executed immediately without considering the `DeleteCondition`s of the workload. The create operation is executed with considering the inter-workload dependencies of the workload.
+
+Rationale: The immediate delete prevents the worst case that the workload is existing a long period of time on the Runtime while the create is still pending because of unfulfilled inter-workload dependencies. The Ankaios agent cannot consider the `DeleteCondition`s because the information about the delete dependencies of the existing workload is not available anymore after an agent restart.
+
+Tags:
+- RuntimeManager
+
+Needs:
+- impl
+- utest
+
 ##### RuntimeManager handles existing workloads deletes unneeded workloads
 `swdd~agent-existing-workloads-delete-unneeded~1`
 
@@ -511,7 +641,7 @@ Status: approved
 
 When handling existing workloads, for each found existing workload that is not in the provided list of initial workloads, the RuntimeManager shall request the RuntimeFacade to delete the workload.
 
-If the the RuntimeManager finds an existing Workload that is not in the provided list of initial workloads, the Ankaios Agent shall stop the existing Workload.
+Comment: If the the RuntimeManager finds an existing Workload that is not in the provided list of initial workloads, the Ankaios Agent shall stop the existing Workload. The Ankaios agent cannot consider the `DeleteCondition`s of the existing workload because the information is not available after an agent restart.
 
 Tags:
 - RuntimeManager
@@ -526,7 +656,7 @@ Needs:
 Status: approved
 
 When requested, the RuntimeFacade shall delete a workload by:
-* sending a `Stopping(Stopping)` with additional information "Triggered at runtime." workload state for that workload
+* sending a `Stopping(RequestedAtRuntime)` workload state for that workload
 * deleting the workload via the runtime
 * sending a `Removed` workload state for that workload after the deletion was successful or `Stopping(DeleteFailed)` upon failure
 
@@ -654,6 +784,28 @@ Needs:
 - impl
 - utest
 
+##### WorkloadControlLoop executes update delete only
+`swdd~agent-workload-control-loop-executes-update-delete-only~1`
+
+Status: approved
+
+When the WorkloadControlLoop started during the creation of the workload object receives an update command
+and the update command contains no new workload,
+then the WorkloadControlLoop shall execute a delete command for the old configuration of the workload.
+
+Comment:
+For details on the runtime connector specific delete action, see the specific runtime connector workflows.
+
+Rationale:
+The WorkloadControlLoop allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
 ##### WorkloadControlLoop update broken allowed
 `swdd~agent-workload-control-loop-update-broken-allowed~1`
 
@@ -761,7 +913,7 @@ Needs:
 Status: approved
 
 When the WorkloadControlLoop started during the creation of the workload object receives a delete command, the WorkloadControlLoop shall:
-* send a `Stopping(Stopping)` workload state for that workload
+* send a `Stopping(RequestedAtRuntime)` workload state for that workload
 * delete the old workload via the corresponding runtime connector blocking the execution
 * upon successful deletion of the workload:
     * stop the state checker for the workload
@@ -853,7 +1005,292 @@ Needs:
 - impl
 - utest
 
-#### Restart of workloads
+### Inter-workload dependencies of workloads
+
+When the Ankaios agent receives an `UpdateWorkload` message, it checks for each workload inside the message if all dependencies are fulfilling the specified conditions to create, update or delete the workload. The agent puts workloads with unfulfilled dependencies internally on a waiting queue and executes the workload operations for ready workloads immediately.
+
+The following diagram describes the inter-workload dependency management when the Ankaios agent receives an `UpdateWorkload` message from the Ankaios server:
+
+![Inter-workload dependency management](plantuml/seq_inter-workload_dependencies.svg)
+
+Whenever the Ankaios agent receives a new workload state from other agents via the server or from the workloads it manages, the agent checks if the dependencies of pending workload operations inside the waiting queue are fulfilled. The Ankaios agent executes the workload operations having fulfilled dependencies.
+
+The following diagram describes the inter-workload dependency management when the Ankaios agent receives new workload states:
+
+![Inter-workload dependency management on new workload states](plantuml/seq_inter-workload_dependencies_on_update_workload_state.svg)
+
+#### Agent handles workload with fulfilled dependencies
+`swdd~agent-handles-workloads-with-fulfilled-dependencies~1`
+
+Status: approved
+
+When the RuntimeManager is triggered for new workload states,
+the RuntimeManager shall:
+
+* receive a list of workload operations containing workloads with fulfilled inter-workload dependencies from the WorkloadScheduler
+* execute the received workload operations
+
+Rationale: Whenever the agent receives new workload states, the dependencies of a workload might be fulfilled.
+
+Tags:
+- RuntimeManager
+- WorkloadScheduler
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Agent handles new workload operations
+`swdd~agent-handles-new-workload-operations`
+
+Status: approved
+
+When the RuntimeManager handles new `WorkloadOperation`s,
+then the RuntimeManager shall:
+
+* provide the list of `WorkloadOperation`s to the WorkloadScheduler
+* receive a list of workload operations containing workloads with fulfilled inter-workload dependencies from the WorkloadScheduler
+* execute the received workload operations
+
+Rationale: Whenever there are new workload operations to process there might be workloads with unfulfilled inter-workload dependencies or fulfilled operations.
+
+Tags:
+- RuntimeManager
+- WorkloadScheduler
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Agent handles UpdateWorkloadState requests from the server
+`swdd~agent-handles-update-workload-state-requests~1`
+
+Status: approved
+
+When the AgentManager receives an `UpdateWorkloadState` message from the server, then the AgentManager shall trigger the RuntimeManager.
+
+Rationale: The RuntimeManager needs this information for the inter-workload dependency management.
+
+Tags:
+- AgentManager
+- RuntimeManager
+
+Needs:
+- impl
+- utest
+
+#### Agent enqueues create with unfulfilled add conditions
+`swdd~agent-enqueues-unfulfilled-create~1`
+
+Status: approved
+
+When the WorkloadScheduler handles an create `WorkloadOperation`,
+and the workload has at least one inter-workload dependency
+and the workload has at least one unfulfilled `AddCondition` from one of its inter-workload dependencies,
+then the WorkloadScheduler shall:
+
+* put the create `WorkloadOperation` into a waiting queue
+* report the workload state `Pending(WaitingToStart)`
+
+Tags:
+- WorkloadScheduler
+
+Needs:
+- impl
+- utest
+- stest
+
+#### The agent enqueues delete with unfulfilled delete conditions
+`swdd~agent-enqueues-unfulfilled-delete~1`
+
+Status: approved
+
+When the WorkloadScheduler receives a new delete `WorkloadOperation`,
+and the workload is an inter-workload dependency of at least one other workload
+and the workload has at least one unfulfilled `DeleteCondition`,
+then the WorkloadScheduler shall:
+
+* put the delete `WorkloadOperation` into a waiting queue
+* report the workload state `Stopping(WaitingToStop)`
+
+Comment: The Ankaios server defines and inserts internally the `DeleteCondition`s for inter-workload dependencies.
+
+Rationale: A workload that is an inter-workload dependency of other workloads shall only be deleted if the workload states of other workloads fulfill the `DeleteCondition`s
+of the inter-workload dependency.
+
+Tags:
+- WorkloadScheduler
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Agent handles update with fulfilled delete conditions
+`swdd~agent-handles-update-with-fulfilled-delete~1`
+
+Status: approved
+
+When the WorkloadScheduler handles an update `WorkloadOperation`,
+and the workload inside the operation is an inter-workload dependency of at least one other workload
+and the workload has fulfilled `DeleteCondition`s, then the WorkloadScheduler shall:
+
+* put a create `WorkloadOperation` containing the new workload into a waiting queue
+* report the workload state `Pending(WaitingToStart)` for the new workload
+* schedule the update delete only `WorkloadOperation`
+
+Rationale: The default update strategy `AT_MOST_ONCE` requires that the agent shall only create the new workload of that update when the old workload is deleted regardless of the `AddCondition` from the inter-workload dependencies of the create are fulfilled or not.
+
+Tags:
+- WorkloadScheduler
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Agent enqueues update with unfulfilled delete conditions
+`swdd~agent-enqueues-update-with-unfulfilled-delete~1`
+
+Status: approved
+
+When the WorkloadScheduler handles an update `WorkloadOperation`,
+and the workload inside the operation is an inter-workload dependency of at least one other workload
+and the workload inside the workload operation has unfulfilled `DeleteCondition`s, then the WorkloadScheduler shall:
+
+* put the whole update `WorkloadOperation` into a waiting queue
+* report the workload state `Stopping(WaitingToStop)`
+
+Rationale: The default update strategy `AT_MOST_ONCE` requires that the agent shall only create the new workload of that update when the old workload is deleted regardless of the `AddCondition` from the inter-workload dependencies of the create are fulfilled or not.
+
+Tags:
+- WorkloadScheduler
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Agent keeps workloads with unfulfilled inter-workload dependencies in waiting queue
+`swdd~agent-keeps-workloads-with-unfulfilled-workload-dependencies-in-queue~1`
+
+Status: approved
+
+When the agent receives an `UpdateWorkloadState` or an `UpdateWorkload` message,
+and there are workload entries with unfulfilled inter-workload dependency conditions inside the waiting queue,
+then the agent shall keep the workload operation of those workloads inside the waiting queue.
+
+Comment: The pending workload state is not reported again for retained workloads.
+
+Rationale: The workload operations cannot be executed because their inter-workload dependencies are not in the desired state.
+
+Tags:
+- WorkloadScheduler
+
+Needs:
+- impl
+- utest
+
+#### The agent ignores a delete only operation of an update
+`swdd~agent-shall-not-enqueue-update-delete-only-workload-operation~1`
+
+Status: approved
+
+The WorkloadScheduler shall not put the update delete only `WorkloadOperation` into a waiting queue.
+
+Rationale: The update delete only workload operation is internally created when the delete operation of a pending update is ready.
+
+Tags:
+- WorkloadScheduler
+
+Needs:
+- impl
+- utest
+
+#### A workload is ready to create when all of its inter-workload dependencies are fulfilled
+`swdd~workload-ready-to-create-on-fulfilled-dependencies~1`
+
+Status: approved
+
+When the WorkloadScheduler checks if a workload fulfills all its configured `AddCondition`s, then the DependencyStateValidator shall execute the checks and provide the outcome.
+
+Tags:
+- WorkloadScheduler
+- DependencyStateValidator
+
+Needs:
+- impl
+- utest
+
+#### An inter-workload dependency is ready to delete when all of its inter-workload dependencies are fulfilled
+`swdd~workload-ready-to-delete-on-fulfilled-dependencies~1`
+
+Status: approved
+
+When the WorkloadScheduler checks if a workload fulfills all its configured `DeleteCondition`s, then the DependencyStateValidator shall execute the checks and provide the outcome.
+
+Tags:
+- WorkloadScheduler
+- DependencyStateValidator
+
+Needs:
+- impl
+- utest
+
+#### ExecutionState of inter-workload dependency fulfills the AddConditions
+`swdd~execution-states-of-workload-dependencies-fulfill-add-conditions~1`
+
+Status: approved
+
+The `ExecutionState` of an inter-workload dependency shall fulfill the `AddCondition` according to the following table:
+
+| ExecutionState     | AddCondition        |
+|--------------------|---------------------|
+| Running(Ok)        | ADD_COND_RUNNING    |
+| Succeeded(Ok)      | ADD_COND_SUCCEEDED  |
+| Failed(ExecFailed) | ADD_COND_FAILED     |
+
+Comment: When no execution state is available for an inter-workload dependency the `AddCondition` is not fulfilled, because the information might be available only later when the inter-workload dependency is processed the first time of Ankaios.
+
+Rationale: The agent must be able to recognize when all inter-workload dependencies of a workload reach their configured expected conditions to create a workload.
+
+Tags:
+- DependencyStateValidator
+- AddCondition
+
+Needs:
+- impl
+- utest
+
+#### ExecutionState of workload fulfills the DeleteConditions of an inter-workload dependency
+`swdd~execution-states-of-workload-dependencies-fulfill-delete-conditions~1`
+
+Status: approved
+
+The `ExecutionState` of a workload shall fulfill the `DeleteCondition` of an inter-workload dependency according to the following table:
+
+| ExecutionState                                                           | DeleteCondition                               |
+|--------------------------------------------------------------------------|-----------------------------------------------|
+| All besides Running(Ok) or Pending(S) where S represents all sub states. | DelCondNotPendingNorRunning                   |
+| Running(Ok)                                                              | DelCondRunning                                |
+| Pending(WaitingToStart)                                                  | DelCondNotPendingNorRunning or DelCondRunning |
+
+Comment: The ExecutionState `Pending(WaitingToStart)` fulfills any `DeleteCondition` to prevent a deadlock situation where a workload is `Stopping(WaitingToStop)`
+and one of its dependency is `Pending(WaitingToStart)`. When no execution state of the dependent workload is available the `DeleteCondition` is fulfilled, because the workload is already deleted.
+
+Rationale: The agent must be able to recognize when all workloads of an inter-workload dependency fulfill the expected `DeleteCondition` within the inter-workload dependency.
+
+Tags:
+- DependencyStateValidator
+- DeleteCondition
+
+Needs:
+- impl
+- utest
+
+### Restart of workloads
 
 The following diagram describes the restart behavior when a workload is created and the create fails:
 
@@ -863,7 +1300,7 @@ The following diagram describes the restart behavior when an update command is r
 
 ![Restart Workload On Update With Create Failure](plantuml/seq_restart_workload_on_update_with_create_failure.svg)
 
-##### WorkloadControlLoop restarts a workload on failing create
+#### WorkloadControlLoop restarts a workload on failing create
 `swdd~agent-workload-control-loop-restart-workload-on-create-failure~1`
 
 Status: approved
@@ -884,7 +1321,7 @@ Needs:
 - utest
 - stest
 
-##### WorkloadControlLoop requests restart of a workload on failing restart attempt
+#### WorkloadControlLoop requests restart of a workload on failing restart attempt
 `swdd~agent-workload-control-loop-request-restarts-on-failing-restart-attempt~1`
 
 Status: approved
@@ -905,7 +1342,7 @@ Needs:
 - utest
 - stest
 
-##### WorkloadControlLoop restarts a workload
+#### WorkloadControlLoop restarts a workload
 `swdd~agent-workload-control-loop-executes-restart~1`
 
 Status: approved
@@ -922,7 +1359,7 @@ Needs:
 - utest
 - stest
 
-##### WorkloadControlLoop stops restarts after the defined maximum amount of restart attempts
+#### WorkloadControlLoop stops restarts after the defined maximum amount of restart attempts
 `swdd~agent-workload-control-loop-limit-restart-attempts~1`
 
 Status: approved
@@ -958,7 +1395,7 @@ Needs:
 - utest
 - stest
 
-##### WorkloadControlLoop prevents restarts when receiving other workload commands
+#### WorkloadControlLoop prevents restarts when receiving other workload commands
 `swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1`
 
 Status: approved
@@ -979,7 +1416,7 @@ Needs:
 - utest
 - stest
 
-##### WorkloadControlLoop resets restart attempts when receiving an update
+#### WorkloadControlLoop resets restart attempts when receiving an update
 `swdd~agent-workload-control-loop-reset-restart-attempts-on-update~1`
 
 Status: approved
@@ -999,11 +1436,11 @@ Needs:
 - impl
 - utest
 
-#### Runtime connector workflows
+### Runtime connector workflows
 
 Ankaios supports multiple runtimes by providing a runtime connector trait specifying the functions that shall be implemented by the runtime.
 
-##### Functions required by the runtime connector trait
+#### Functions required by the runtime connector trait
 `swdd~functions-required-by-runtime-connector~1`
 
 Status: approved
@@ -1032,11 +1469,11 @@ Needs:
 - impl
 - utest
 
-##### Podman runtime connector
+#### Podman runtime connector
 
 This section describes features specific to the podman runtime connector which can run containerized workloads using the [Podman](https://podman.io/) container engine.
 
-###### Podman runtime connector implements the runtime connector trait
+##### Podman runtime connector implements the runtime connector trait
 `swdd~podman-implements-runtime-connector~1`
 
 Status: approved
@@ -1052,7 +1489,7 @@ Tags:
 Needs:
 - impl
 
-###### Podman runtime connector uses CLI
+##### Podman runtime connector uses CLI
 `swdd~podman-uses-podman-cli~1`
 
 Status: approved
@@ -1066,7 +1503,7 @@ Needs:
 - impl
 - utest
 
-###### Podman get name returns `podman`
+##### Podman get name returns `podman`
 `swdd~podman-name-returns-podman~1`
 
 Status: approved
@@ -1080,7 +1517,7 @@ Needs:
 - impl
 - utest
 
-###### Podman list of existing workloads uses labels
+##### Podman list of existing workloads uses labels
 `swdd~podman-list-of-existing-workloads-uses-labels~1`
 
 Status: approved
@@ -1095,7 +1532,7 @@ Needs:
 - impl
 - utest
 
-###### Podman create workload runs the workload object
+##### Podman create workload runs the workload object
 `swdd~podman-create-workload-runs-workload~1`
 
 Status: approved
@@ -1115,7 +1552,7 @@ Needs:
 - utest
 - stest
 
-###### Podman create workload returns workload id
+##### Podman create workload returns workload id
 `swdd~podman-create-workload-returns-workload-id~1`
 
 Status: approved
@@ -1130,7 +1567,7 @@ Needs:
 - impl
 - utest
 
-###### Podman create workload creates labels
+##### Podman create workload creates labels
 `swdd~podman-create-workload-creates-labels~1`
 
 Status: approved
@@ -1147,7 +1584,7 @@ Needs:
 - impl
 - utest
 
-###### Podman create workload sets optionally container name
+##### Podman create workload sets optionally container name
 `swdd~podman-create-workload-sets-optionally-container-name~1`
 
 Status: approved
@@ -1163,7 +1600,7 @@ Needs:
 - utest
 - stest
 
-###### Podman create workload optionally mounts FIFO files
+##### Podman create workload optionally mounts FIFO files
 `swdd~podman-create-workload-mounts-fifo-files~1`
 
 Status: approved
@@ -1179,7 +1616,7 @@ Needs:
 - impl
 - utest
 
-###### Podman get workload id uses label
+##### Podman get workload id uses label
 `swdd~podman-get-workload-id-uses-label~1`
 
 Status: approved
@@ -1194,7 +1631,7 @@ Needs:
 - impl
 - utest
 
-###### Podman start state checker starts PodmanStateGetter
+##### Podman start state checker starts PodmanStateGetter
 `swdd~podman-start-checker-starts-podman-state-checker~1`
 
 Status: approved
@@ -1211,7 +1648,7 @@ Tags:
 Needs:
 - impl
 
-###### Podman delete workload stops and removes workload
+##### Podman delete workload stops and removes workload
 `swdd~podman-delete-workload-stops-and-removes-workload~1`
 
 Status: approved
@@ -1227,11 +1664,11 @@ Needs:
 - utest
 - stest
 
-##### Podman-kube runtime connector
+#### Podman-kube runtime connector
 
 This section describes features specific to the podman-kube runtime connector which focuses especially on Kubernetes manifests that are started using the `podman play kube` command.
 
-###### Podman-kube runtime connector implements the runtime connector trait
+##### Podman-kube runtime connector implements the runtime connector trait
 `swdd~podman-kube-implements-runtime-connector~1`
 
 Status: approved
@@ -1247,7 +1684,7 @@ Tags:
 Needs:
 - impl
 
-###### Podman-kube runtime connector uses CLI
+##### Podman-kube runtime connector uses CLI
 `swdd~podman-kube-uses-podman-cli~1`
 
 Status: approved
@@ -1261,7 +1698,7 @@ Needs:
 - impl
 - utest
 
-###### Podman-kube get name returns `podman-kube`
+##### Podman-kube get name returns `podman-kube`
 `swdd~podman-kube-name-returns-podman-kube~1`
 
 Status: approved
@@ -1275,7 +1712,7 @@ Needs:
 - impl
 - utest
 
-###### Podman-kube create workload apply the manifest file
+##### Podman-kube create workload apply the manifest file
 `swdd~podman-kube-create-workload-apply-manifest~1`
 
 Status: approved
@@ -1291,7 +1728,7 @@ Needs:
 - utest
 - stest
 
-###### Podman-kube workload id
+##### Podman-kube workload id
 `swdd~podman-kube-workload-id`
 
 Status: approved
@@ -1313,7 +1750,7 @@ Tags:
 Needs:
 - impl
 
-###### Podman-kube create workload returns workload id
+##### Podman-kube create workload returns workload id
 `swdd~podman-kube-create-workload-returns-workload-id~1`
 
 Status: approved
@@ -1328,7 +1765,7 @@ Needs:
 - impl
 - utest
 
-###### Podman-kube create workload creates config volume
+##### Podman-kube create workload creates config volume
 `swdd~podman-kube-create-workload-creates-config-volume~1`
 
 Status: approved
@@ -1358,7 +1795,7 @@ Needs:
 - utest
 - stest
 
-###### Podman-kube create workload creates pods volume
+##### Podman-kube create workload creates pods volume
 `swdd~podman-kube-create-workload-creates-pods-volume~1`
 
 Status: approved
@@ -1381,7 +1818,7 @@ Needs:
 - utest
 - stest
 
-###### Podman-kube create continues if it cannot create volumes
+##### Podman-kube create continues if it cannot create volumes
 `swdd~podman-kube-create-continues-if-cannot-create-volume~1`
 
 Status: approved
@@ -1401,7 +1838,7 @@ Needs:
 - impl
 - utest
 
-###### Podman-kube create starts PodmanKubeStateGetter
+##### Podman-kube create starts PodmanKubeStateGetter
 `swdd~podman-kube-create-starts-podman-kube-state-getter~1`
 
 Status: approved
@@ -1415,7 +1852,7 @@ Tags:
 Needs:
 - impl
 
-###### Podman-kube list of existing workloads uses config volumes
+##### Podman-kube list of existing workloads uses config volumes
 `swdd~podman-kube-list-existing-workloads-using-config-volumes~1`
 
 Status: approved
@@ -1430,7 +1867,7 @@ Needs:
 - impl
 - utest
 
-###### Podman-kube get workload id uses volumes
+##### Podman-kube get workload id uses volumes
 `swdd~podman-kube-get-workload-id-uses-volumes~1`
 
 Status: approved
@@ -1445,7 +1882,7 @@ Needs:
 - impl
 - utest
 
-###### Podman-kube delete workload downs manifest file
+##### Podman-kube delete workload downs manifest file
 `swdd~podman-kube-delete-workload-downs-manifest-file~1`
 
 Status: approved
@@ -1461,7 +1898,7 @@ Needs:
 - utest
 - stest
 
-###### Podman-kube delete workload remove volumes
+##### Podman-kube delete workload remove volumes
 `swdd~podman-kube-delete-removes-volumes~1`
 
 Status: approved
@@ -1884,9 +2321,15 @@ Needs:
 
 ### Handling UpdateWorkloadState
 
-After the Ankaios agent is started it receives an information about Workload States of other Workloads running in other agents. This information is needed for dependency management inside the Ankaios cluster.
+After the Ankaios agent is started it receives an information about Workload States of other Workloads running in other agents. In addition, the agent receives and stores workload states of the workloads it manages itself. This information is needed for inter-workload dependency management inside the Ankaios cluster.
 
-![Storing a Workload State](plantuml/seq_store_workload_state.svg)
+The following diagram shows the workflow of receiving workload states of other Ankaios agents from the Ankaios server:
+
+![Storing a Workload State of another agent](plantuml/seq_store_workload_state.svg)
+
+The following diagram shows the workflow of receiving workload states of workloads managed by the Ankaios agent itself:
+
+![Storing a Workload State of own workloads](plantuml/seq_store_own_workload_state.svg)
 
 #### AgentManager stores all Workload States
 `swdd~agent-manager-stores-all-workload-states~1`
@@ -1896,11 +2339,64 @@ Status: approved
 The Ankaios Agent shall accept an `UpdateWorkloadState` message from the server and store the contained information.
 
 Comment:
-The `UpdateWorkloadState` contains workload states of other workloads. The Workload State "removed" is the default and Node-Workload pairs of this type can be represented by not being stored.
+The `UpdateWorkloadState` contains workload states of other workloads. The Workload State "removed" is the default and is represented by not being stored.
 
 Tags:
 - AgentManager
 - WorkloadStateStore
+
+Needs:
+- impl
+- utest
+
+#### AgentManager receives workload states of the workloads it manages
+`swdd~agent-manager-receives-workload-states-of-its-workloads~1`
+
+Status: approved
+
+The AgentManager shall receive the workload states of the workloads it manages.
+
+Rationale: The agent uses the workload states of its workloads for handling inter-workload dependencies of workloads on the same agent.
+
+Tags:
+- AgentManager
+
+Needs:
+- impl
+- utest
+
+#### AgentManager stores the workload states of the workloads it manages
+`swdd~agent-stores-workload-states-of-its-workloads~1`
+
+Status: approved
+
+The AgentManager shall store the workload states of the workloads it manages into the ParameterStorage.
+
+Comment: Empty workload states are not stored and skipped.
+
+Rationale: This ensures that the execution states of a workload and its inter-workload dependencies on the same agent are available.
+
+Tags:
+- AgentManager
+- WorkloadStateStore
+
+Needs:
+- impl
+- utest
+
+#### AgentManager sends the workload states of the workload it manages to the server
+`swdd~agent-sends-workload-states-of-its-workloads-to-server~1`
+
+Status: approved
+
+When the AgentManager receives the workload states of the workload it manages, then the AgentManager shall send the workload states to the Ankaios server.
+
+Comment: Empty workload states are omitted.
+
+Rationale: The Ankaios server stores the workload states of the workloads managed by the Ankaios agent.
+
+Tags:
+- AgentManager
 
 Needs:
 - impl

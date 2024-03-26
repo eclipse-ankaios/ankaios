@@ -13,7 +13,7 @@ theme:
   palette:
     - scheme: default
       toggle:
-        icon: material/brightness-7 
+        icon: material/brightness-7
         name: Switch to dark mode
       primary: teal
 
@@ -47,7 +47,7 @@ markdown_extensions:
   - pymdownx.superfences
   - pymdownx.tasklist
   - pymdownx.tabbed:
-      alternate_style: true 
+      alternate_style: true
   - toc:
       permalink: true
   - pymdownx.superfences:
@@ -77,6 +77,8 @@ nav:
     - reference/control-interface.md
     - reference/startup-configuration.md
     - reference/complete-state.md
+    - reference/inter-workload-dependencies.md
+    - reference/resource-usage.md
     - reference/glossary.md
   - Development:
     - development/build.md

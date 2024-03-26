@@ -25,6 +25,8 @@ end note
 
 agent_manager <<- server ++: UpdateWorkload
 agent_manager ->> runtime_manager --++: update workload
+runtime_manager -> runtime_manager ++: transform received workloads\ninto concrete workload operations
+runtime_manager -->> runtime_manager--
 
 loop for each worload
     runtime_manager -> runtime_manager: skip workloads with unknown runtime

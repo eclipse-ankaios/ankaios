@@ -31,7 +31,6 @@ mod generic_polling_state_checker;
 mod runtime_manager;
 mod workload;
 mod workload_scheduler;
-
 mod workload_state;
 
 use common::from_server_interface::FromServer;

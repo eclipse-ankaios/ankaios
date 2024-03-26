@@ -66,7 +66,7 @@ Test Ankaios Podman update workload from empty state
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~update-desired-state-with-invalid-version~1]
-Test Ankaios Podman Update workload with invalid format version
+Test Ankaios Podman Update workload with invalid api version
     [Setup]    Run Keywords    Setup Ankaios
 
     # Preconditions
@@ -77,14 +77,14 @@ Test Ankaios Podman Update workload with invalid format version
     # Actions
     When user triggers "ank get workloads"
     Then list of workloads shall be empty
-    When user triggers "ank set state --file ${CONFIGS_DIR}/update_state_invalid_version.yaml desiredState.workloads"
+    When user triggers "ank set state --file ${CONFIGS_DIR}/update_state_invalid_version.yaml desiredState"
     And user triggers "ank get workloads"
     Then list of workloads shall be empty
 
     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~update-desired-state-with-missing-version~1]
-Test Ankaios Podman Update workload with missing format version
+Test Ankaios Podman Update workload with missing api version
     [Setup]    Run Keywords    Setup Ankaios
 
     # Preconditions
@@ -95,7 +95,7 @@ Test Ankaios Podman Update workload with missing format version
     # Actions
     When user triggers "ank get workloads"
     Then list of workloads shall be empty
-    When user triggers "ank set state --file ${CONFIGS_DIR}/update_state_missing_version.yaml desiredState.workloads"
+    When user triggers "ank set state --file ${CONFIGS_DIR}/update_state_missing_version.yaml desiredState"
     And user triggers "ank get workloads"
     Then list of workloads shall be empty
 

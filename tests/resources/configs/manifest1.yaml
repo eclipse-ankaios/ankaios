@@ -1,3 +1,4 @@
+apiVersion: v0.1
 workloads:
   nginx_from_manifest1:
     runtime: podman

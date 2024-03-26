@@ -244,7 +244,7 @@ impl WorkloadControlLoop {
             .update_state_tx
             .report_workload_execution_state(
                 &control_loop_state.instance_name,
-                ExecutionState::stopping_triggered(),
+                ExecutionState::stopping_requested(),
             )
             .await;
 
@@ -300,7 +300,7 @@ impl WorkloadControlLoop {
             .update_state_tx
             .report_workload_execution_state(
                 &control_loop_state.instance_name,
-                ExecutionState::stopping_triggered(),
+                ExecutionState::stopping_requested(),
             )
             .await;
 
@@ -338,6 +338,7 @@ impl WorkloadControlLoop {
         // [impl->swdd~agent-workload-control-loop-reset-restart-attempts-on-update~1]
         control_loop_state.restart_counter.reset();
 
+        // [impl->swdd~agent-workload-control-loop-executes-update-delete-only~1]
         if let Some(spec) = new_workload_spec {
             // [impl->swdd~agent-workload-control-loop-update-create-failed-allows-retry~1]
             control_loop_state = Self::create(
@@ -562,10 +563,10 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::stopping_requested()),
                 (&old_instance_name, ExecutionState::removed()),
                 (&new_instance_name, ExecutionState::starting_triggered()),
-                (&new_instance_name, ExecutionState::stopping_triggered()),
+                (&new_instance_name, ExecutionState::stopping_requested()),
                 (&new_instance_name, ExecutionState::removed()),
             ],
         )
@@ -574,6 +575,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
+    // [utest->swdd~agent-workload-control-loop-executes-update-delete-only~1]
     #[tokio::test]
     async fn utest_workload_obj_run_update_delete_only() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -631,7 +633,7 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::stopping_requested()),
                 (&old_instance_name, ExecutionState::removed()),
             ],
         )
@@ -640,6 +642,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
+    // [utest->swdd~agent-workload-control-loop-executes-update-delete-only~1]
     #[tokio::test]
     async fn utest_workload_obj_run_update_after_update_delete_only() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -723,9 +726,9 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::stopping_requested()),
                 (&old_instance_name, ExecutionState::removed()),
-                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::stopping_requested()),
                 (&old_instance_name, ExecutionState::removed()),
             ],
         )
@@ -808,10 +811,10 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::stopping_requested()),
                 (&old_instance_name, ExecutionState::removed()),
                 (&new_instance_name, ExecutionState::starting_triggered()),
-                (&new_instance_name, ExecutionState::stopping_triggered()),
+                (&new_instance_name, ExecutionState::stopping_requested()),
                 (&new_instance_name, ExecutionState::removed()),
             ],
         )
@@ -892,12 +895,12 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::stopping_requested()),
                 (
                     &old_instance_name,
                     ExecutionState::delete_failed("some delete error"),
                 ),
-                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::stopping_requested()),
                 (&old_instance_name, ExecutionState::removed()),
             ],
         )
@@ -981,14 +984,14 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&old_instance_name, ExecutionState::stopping_triggered()),
+                (&old_instance_name, ExecutionState::stopping_requested()),
                 (&old_instance_name, ExecutionState::removed()),
                 (&new_instance_name, ExecutionState::starting_triggered()),
                 (
                     &new_instance_name,
                     ExecutionState::starting_failed("some create error"),
                 ),
-                (&new_instance_name, ExecutionState::stopping_triggered()),
+                (&new_instance_name, ExecutionState::stopping_requested()),
                 (&new_instance_name, ExecutionState::removed()),
             ],
         )
@@ -1050,7 +1053,7 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&instance_name, ExecutionState::stopping_triggered()),
+                (&instance_name, ExecutionState::stopping_requested()),
                 (&instance_name, ExecutionState::removed()),
             ],
         )
@@ -1118,12 +1121,12 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&instance_name, ExecutionState::stopping_triggered()),
+                (&instance_name, ExecutionState::stopping_requested()),
                 (
                     &instance_name,
                     ExecutionState::delete_failed("some delete error"),
                 ),
-                (&instance_name, ExecutionState::stopping_triggered()),
+                (&instance_name, ExecutionState::stopping_requested()),
                 (&instance_name, ExecutionState::removed()),
             ],
         )
@@ -1548,7 +1551,7 @@ mod tests {
                     ExecutionState::starting_failed("some create error"),
                 ),
                 (&instance_name, ExecutionState::restart_failed_no_retry()),
-                (&instance_name, ExecutionState::stopping_triggered()),
+                (&instance_name, ExecutionState::stopping_requested()),
                 (&instance_name, ExecutionState::removed()),
             ],
         )

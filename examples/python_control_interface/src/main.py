@@ -32,10 +32,8 @@ def create_request_to_add_new_workload():
                 requestId=REQUEST_ID,
                 updateStateRequest=ank.UpdateStateRequest(
                     newState=ank.CompleteState(
-                        format_version=ank.ApiVersion(
-                                version="v0.1"
-                        ),
                         desiredState=ank.State(
+                                apiVersion="v0.1",
                                 workloads={
                                     "dynamic_nginx": ank.Workload(
                                         agent="agent_A",

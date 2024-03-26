@@ -1,8 +1,5 @@
-formatVersion:
-  version: "invalidVersion"
-startupState:
-  workloads: {}
 desiredState:
+  apiVersion: "invalidVersion"
   workloads:
     nginx:
       runtime: podman
@@ -14,4 +11,3 @@ desiredState:
       runtimeConfig: |
         image: docker.io/nginx:latest
         commandOptions: ["-p", "8081:80", "--name", "test_workload1"]
-workloadStates: []

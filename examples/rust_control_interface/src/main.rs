@@ -13,8 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::proto::{
-    request::RequestContent, to_server::ToServerEnum, ApiVersion, CompleteState,
-    CompleteStateRequest, FromServer, Request, State, Tag, ToServer, UpdateStateRequest, Workload,
+    request::RequestContent, to_server::ToServerEnum, CompleteState, CompleteStateRequest,
+    FromServer, Request, State, Tag, ToServer, UpdateStateRequest, Workload,
 };
 use prost::Message;
 use std::{
@@ -67,10 +67,8 @@ fn create_request_to_add_new_workload() -> ToServer {
             request_id: REQUEST_ID.to_string(),
             request_content: Some(RequestContent::UpdateStateRequest(UpdateStateRequest {
                 new_state: Some(CompleteState {
-                    format_version: Some(ApiVersion {
-                        version: "v0.1".to_string(),
-                    }),
                     desired_state: Some(State {
+                        api_version: "v0.1".into(),
                         workloads: new_workloads,
                     }),
                     ..Default::default()

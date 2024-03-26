@@ -58,6 +58,7 @@ impl AgentManager {
         log::info!("Awaiting commands from the server ...");
         loop {
             tokio::select! {
+                // [impl->swdd~agent-manager-listens-requests-from-server~1]
                 from_server_msg = self.from_server_receiver.recv() => {
                     let from_server = from_server_msg
                         .ok_or("Channel to listen to server closed.".to_string())
@@ -67,6 +68,7 @@ impl AgentManager {
                         break;
                     }
                 }
+                // [impl->swdd~agent-manager-receives-workload-states-of-its-workloads~1]
                 workload_state = self.workload_state_receiver.recv() => {
                     let workload_state = workload_state
                         .ok_or("Channel to listen to own workload states closed.".to_string())
@@ -89,6 +91,7 @@ impl AgentManager {
                     method_obj.added_workloads,
                     method_obj.deleted_workloads);
 
+                // [impl->swdd~agent-handles-update-workload-requests~1]
                 self.runtime_manager
                     .handle_update_workload(
                         method_obj.added_workloads,
@@ -115,6 +118,7 @@ impl AgentManager {
                         self.workload_state_store
                             .update_workload_state(new_workload_state);
                     }
+                    // [impl->swdd~agent-handles-update-workload-state-requests~1]
                     self.runtime_manager
                         .update_workloads_on_fulfilled_dependencies(&self.workload_state_store)
                         .await;
@@ -160,14 +164,17 @@ impl AgentManager {
             new_workload_state
         );
 
+        // [impl->swdd~agent-stores-workload-states-of-its-workloads~1]
         self.workload_state_store
             .update_workload_state(new_workload_state.clone());
 
         // notify the runtime manager s.t. dependencies and restarts can be handled
+        // [impl->swdd~agent-handles-update-workload-state-requests~1]
         self.runtime_manager
             .update_workloads_on_fulfilled_dependencies(&self.workload_state_store)
             .await;
 
+        // [impl->swdd~agent-sends-workload-states-of-its-workloads-to-server~1]
         self.to_server
             .update_workload_state(vec![new_workload_state])
             .await
@@ -187,8 +194,9 @@ impl AgentManager {
 mod tests {
     use super::*;
     use crate::agent_manager::AgentManager;
-    use crate::workload_state::workload_state_store::{
-        mock_parameter_storage_new_returns, MockWorkloadStateStore,
+    use crate::workload_state::{
+        workload_state_store::{mock_parameter_storage_new_returns, MockWorkloadStateStore},
+        WorkloadStateSenderInterface,
     };
     use common::{
         commands::{Response, ResponseContent, UpdateWorkloadState},
@@ -208,6 +216,7 @@ mod tests {
 
     // [utest->swdd~agent-manager-listens-requests-from-server~1]
     // [utest->swdd~agent-uses-async-channels~1]
+    // [utest->swdd~agent-handles-update-workload-requests~1]
     #[tokio::test]
     async fn utest_agent_manager_update_workload() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -264,6 +273,7 @@ mod tests {
     // [utest->swdd~agent-manager-listens-requests-from-server~1]
     // [utest->swdd~agent-uses-async-channels~1]
     // [utest->swdd~agent-manager-stores-all-workload-states~1]
+    // [utest->swdd~agent-handles-update-workload-state-requests~1]
     #[tokio::test]
     async fn utest_agent_manager_update_workload_states() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -397,7 +407,10 @@ mod tests {
         assert!(join!(handle).0.is_ok());
     }
 
-    // [utest->swdd~agent-uses-async-channels~1]
+    // [utest->swdd~agent-manager-receives-workload-states-of-its-workloads~1]
+    // [utest->swdd~agent-stores-workload-states-of-its-workloads~1]
+    // [utest->swdd~agent-sends-workload-states-of-its-workloads-to-server~1]
+    // [utest->swdd~agent-handles-update-workload-state-requests~1]
     // [utest->swdd~agent-manager-hysteresis_on-workload-states-of-its-workloads~1]
     #[tokio::test]
     async fn utest_agent_manager_receives_own_workload_states() {
@@ -418,14 +431,14 @@ mod tests {
         let wl_state_after_hysteresis = common::objects::generate_test_workload_state_with_agent(
             WORKLOAD_1_NAME,
             AGENT_NAME,
-            ExecutionState::stopping_triggered(),
+            ExecutionState::stopping_requested(),
         );
 
         let mut mock_wl_state_store = MockWorkloadStateStore::default();
 
         mock_wl_state_store.states_storage.insert(
             WORKLOAD_1_NAME.to_string(),
-            ExecutionState::stopping_triggered(),
+            ExecutionState::stopping_requested(),
         );
 
         mock_wl_state_store
@@ -449,8 +462,6 @@ mod tests {
         );
 
         let handle = tokio::spawn(async move { agent_manager.start().await });
-
-        use crate::workload_state::WorkloadStateSenderInterface;
 
         workload_state_sender
             .report_workload_execution_state(

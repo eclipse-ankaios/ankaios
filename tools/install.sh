@@ -192,6 +192,7 @@ if [[ "$INSTALL_TYPE" == server || "$INSTALL_TYPE" == both ]]; then
         $SVC_SUDO mkdir -p "${CONFIG_DEST}"
         $SVC_SUDO tee "$FILE_STARTUP_STATE" >/dev/null << EOF
 # Per default no workload is started. Adapt the file according to your needs.
+apiVersion: v0.1
 workloads:
 #   nginx:
 #     runtime: podman

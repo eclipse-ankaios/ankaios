@@ -104,7 +104,6 @@ pub trait FromServerInterface {
         request_id: String,
         complete_state: CompleteState,
     ) -> Result<(), FromServerInterfaceError>;
-    async fn success(&self, request_id: String) -> Result<(), FromServerInterfaceError>;
     async fn update_state_success(
         &self,
         request_id: String,
@@ -167,15 +166,6 @@ impl FromServerInterface for FromServerSender {
             .await?)
     }
 
-    async fn success(&self, request_id: String) -> Result<(), FromServerInterfaceError> {
-        Ok(self
-            .send(FromServer::Response(commands::Response {
-                request_id,
-                response_content: commands::ResponseContent::Success,
-            }))
-            .await?)
-    }
-
     async fn update_state_success(
         &self,
         request_id: String,
@@ -226,7 +216,7 @@ mod tests {
     use crate::{
         commands,
         from_server_interface::FromServer,
-        objects::{self, WorkloadInstanceName, WorkloadSpec},
+        objects::{WorkloadInstanceName, WorkloadSpec},
         test_utils::{generate_test_deleted_workload, generate_test_proto_deleted_workload},
     };
 
@@ -300,9 +290,14 @@ mod tests {
                     request_id: "req_id".to_owned(),
                     response_content: Some(proto::response::ResponseContent::CompleteState(
                         proto::CompleteState {
-                            format_version: Some(objects::ApiVersion::default().into()),
-                            desired_state: Some(api::proto::State::default()),
-                            startup_state: Some(api::proto::State::default()),
+                            desired_state: Some(api::proto::State {
+                                api_version: "v0.1".into(),
+                                ..Default::default()
+                            }),
+                            startup_state: Some(api::proto::State {
+                                api_version: "v0.1".into(),
+                                ..Default::default()
+                            }),
                             workload_states: vec![],
                         },
                     )),

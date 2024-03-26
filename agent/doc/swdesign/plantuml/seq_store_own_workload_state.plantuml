@@ -1,0 +1,27 @@
+@startuml seq_store_own_workload_state
+!include ../../../../resources/doc/plantuml/clean.skin
+
+box "StateChecker of Workload"
+    participant "<<task>>\nStateChecker" as state_checker_task
+end box
+
+box "Ankaios Agent"
+    participant "<<task>>\nListen toStateChecker" as listen_to_state_checker
+    participant "AgentManager" as manager
+    participant "WorkloadStateStore" as wl_state_storage
+end box
+
+box "Ankaios Server"
+    participant "Ankaios Server" as server
+end box
+
+activate state_checker_task
+
+state_checker_task ->> listen_to_state_checker --++: WorkloadState
+listen_to_state_checker ->> manager --++: WorkloadState
+manager -> wl_state_storage ++: update_workload_state
+wl_state_storage -->> manager --
+manager ->> server++: send UpdateWorkloadState
+server -->> manager --
+deactivate manager
+@enduml
