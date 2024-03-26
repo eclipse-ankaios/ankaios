@@ -60,7 +60,12 @@ The Ankaios agent `agent_A` will now instruct podman to start the workload.
 We can watch the result with:
 
 ```shell
-$ ank get workloads
+ank get workloads
+```
+
+That command shall return:
+
+```text
  WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE   ADDITIONAL INFO
  databroker      agent_A   podman    Running(Ok)
 ```
@@ -92,7 +97,12 @@ ank apply speed-provider.yaml
 To check that the workload has been started call:
 
 ```shell
-$ ank get workloads
+ank get workloads
+```
+
+With the result:
+
+```text
  WORKLOAD NAME    AGENT     RUNTIME   EXECUTION STATE   ADDITIONAL INFO
  databroker       agent_A   podman    Running(Ok)
  speed-provider   agent_A   podman    Running(Ok)
@@ -177,7 +187,12 @@ ank apply --agent infotainment speed-consumer.yaml
 And we check that the new workload is running:
 
 ```shell
-$ ank get workloads
+ank get workloads
+```
+
+With the result:
+
+```text
  WORKLOAD NAME    AGENT          RUNTIME   EXECUTION STATE   ADDITIONAL INFO
  databroker       agent_A        podman    Running(Ok)
  speed-consumer   infotainment   podman    Running(Ok)
