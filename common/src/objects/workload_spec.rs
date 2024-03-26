@@ -460,13 +460,13 @@ mod tests {
                     String::from("workload A"),
                     proto::AddCondition::AddCondRunning.into(),
                 ),
-                (String::from("workload B"), -1),
+                (String::from("workload B"), -1), // wrong add condition
                 (
                     String::from("workload C"),
                     proto::AddCondition::AddCondSucceeded.into(),
                 ),
             ]),
-            restart: proto::Restart::Always.into(),
+            restart: -1, // wrong restart policy
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
             tags: vec![],
