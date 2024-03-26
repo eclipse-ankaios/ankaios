@@ -119,7 +119,8 @@ delete it from the state again with:
 ank delete workload helloworld
 ```
 
-For next steps see the reference documentation for the
+For next steps follow the [tutorial on sending and receiving vehicle data](tutorial-vehicle-signals.md) with workloads orchestrated by Ankaios.
+Then also check the reference documentation for the
 [startup configuration](../reference/startup-configuration.md) including the
 `podman-kube` runtime and also working with the
 [complete state data structure](../reference/complete-state.md).

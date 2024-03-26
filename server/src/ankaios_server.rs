@@ -646,8 +646,6 @@ mod tests {
 
         server.server_state = mock_server_state;
 
-        // let server_task = tokio::spawn(async move { server.start(Some(startup_state)).await });
-
         let server_handle = server.start(Some(startup_state));
 
         // The receiver in the server receives the messages and terminates the infinite waiting-loop
@@ -1532,5 +1530,93 @@ mod tests {
         assert!(update_workload_state_result.is_ok());
 
         server_task.abort();
+    }
+
+    // [utest->swdd~server-handles-deleted-workload-for-empty-agent~1]
+    #[tokio::test]
+    async fn utest_server_handles_deleted_workload_on_empty_agent() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
+        let (to_agents, mut comm_middle_ware_receiver) =
+            create_from_server_channel(common::CHANNEL_CAPACITY);
+
+        let workload_without_agent = generate_test_workload_spec_with_param(
+            "".to_owned(),
+            WORKLOAD_NAME_1.to_owned(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let workload_with_agent = generate_test_workload_spec_with_param(
+            AGENT_B.to_owned(),
+            WORKLOAD_NAME_2.to_owned(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let update_state = CompleteState::default();
+        let update_mask = vec!["desiredState.workloads".to_string()];
+
+        let deleted_workload_without_agent = DeletedWorkload {
+            instance_name: workload_without_agent.instance_name.clone(),
+            ..Default::default()
+        };
+        let deleted_workload_with_agent = DeletedWorkload {
+            instance_name: workload_with_agent.instance_name.clone(),
+            ..Default::default()
+        };
+
+        let deleted_workloads = vec![
+            deleted_workload_without_agent.clone(),
+            deleted_workload_with_agent.clone(),
+        ];
+
+        let mut server = AnkaiosServer::new(server_receiver, to_agents);
+        let mut mock_server_state = MockServerState::new();
+
+        mock_server_state
+            .expect_update()
+            .once()
+            .return_const(Ok(Some((vec![], deleted_workloads.clone()))));
+        server.server_state = mock_server_state;
+
+        let update_state_result = to_server
+            .update_state(REQUEST_ID_A.to_string(), update_state, update_mask.clone())
+            .await;
+        assert!(update_state_result.is_ok());
+
+        let server_handle = server.start(None);
+
+        // The receiver in the server receives the messages and terminates the infinite waiting-loop
+        drop(to_server);
+        tokio::join!(server_handle).0.unwrap();
+
+        // the server sends the ExecutionState removed for the workload with an empty agent name
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            FromServer::UpdateWorkloadState(UpdateWorkloadState {
+                workload_states: vec![WorkloadState {
+                    instance_name: workload_without_agent.instance_name,
+                    execution_state: ExecutionState::removed()
+                }]
+            }),
+            from_server_command
+        );
+
+        // the server sends only a deleted workload for the workload with a non-empty agent name
+        let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
+        assert_eq!(
+            FromServer::UpdateWorkload(UpdateWorkload {
+                added_workloads: vec![],
+                deleted_workloads: vec![deleted_workload_with_agent.clone()],
+            }),
+            from_server_command
+        );
+
+        // ignore UpdateStateSuccessful response
+        assert!(matches!(
+            comm_middle_ware_receiver.recv().await.unwrap(),
+            FromServer::Response(_)
+        ));
+
+        assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 }
