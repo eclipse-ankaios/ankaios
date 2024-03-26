@@ -8,7 +8,7 @@ desiredState:
         value: Ankaios team
       dependencies:
         backend: ADD_COND_SUCCEEDED
-      restart: false
+      restart: NEVER
       runtime: podman
       runtimeConfig: |
         image: docker.io/alpine:latest
@@ -19,7 +19,7 @@ desiredState:
       - key: owner
         value: Ankaios team
       dependencies: {}
-      restart: false
+      restart: NEVER
       runtime: podman
       runtimeConfig: |
         image: docker.io/alpine:latest
