@@ -109,7 +109,7 @@ The speed-provider workload provides a web UI that allows the user to enter a sp
 
 We currently have an agent running as part of the Ankaios cluster, running the databroker and the speed provider.
 The next workload we want to start is a speed consumer that consumes vehicle speed values.
-A speed consumer like for example a navigation system usually runs on a separate node for infotainment. A separate node requires a new Ankaios agent.
+A speed consumer such as a navigation system typically runs on a separate node for infotainment.  A separate node requires a new Ankaios agent.
 Let's create another Ankaios agent to connect to the existing server.
 For this tutorial we can either use a separate Linux host or use the existing one.
 Start a new agent with:
