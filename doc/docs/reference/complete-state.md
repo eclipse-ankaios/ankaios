@@ -19,7 +19,7 @@ desiredState:
       - key: owner
         value: Ankaios team
       dependencies: {}
-      restart: ALWAYS
+      restart: NEVER
       runtime: podman-kube
       runtimeConfig: |
         manifest: |
@@ -28,7 +28,7 @@ desiredState:
           metadata:
             name: hello-pod
           spec:
-            Restart: Never
+            restartPolicy: Never
             containers:
             - name: looper
               image: alpine:latest
@@ -46,7 +46,6 @@ desiredState:
       - key: owner
         value: Ankaios team
       dependencies: {}
-      restart: NEVER
       runtime: podman
       runtimeConfig: |
         image: alpine:latest
@@ -58,10 +57,12 @@ desiredState:
       - key: owner
         value: Ankaios team
       dependencies: {}
+      restart: ALWAYS
       runtime: podman
       runtimeConfig: |
         image: alpine:latest
-        commandArgs: [ "echo", "Hello Ankaios"]
+        commandOptions: [ "--entrypoint", "/bin/sh" ]
+        commandArgs: [ "-c", "echo 'Always restarted.'; sleep 2"]
     nginx:
       agent: agent_A
       tags:

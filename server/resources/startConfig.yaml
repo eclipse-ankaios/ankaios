@@ -28,6 +28,7 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
+      image: alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sh" ]
       commandArgs: [ "-c", "echo 'Always restarted.'; sleep 2"]
   hello-pod:
@@ -44,7 +45,7 @@ workloads:
         metadata:
           name: hello-pod
         spec:
-          Restart: Never
+          restartPolicy: Never
           containers:
           - name: looper
             image: alpine:latest
