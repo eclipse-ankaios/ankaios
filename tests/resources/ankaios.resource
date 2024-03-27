@@ -216,6 +216,14 @@ the workload "${workload_name}" shall not exist within "${timeout}" seconds
     ...    ${list_result}
     ...    msg=Timeout: Workload '${workload_name}' found!
 
+in the last result, the workload "${workload_name}" shall have the execution state "${expected_execution_state}" on agent "${expected_agent_name}"
+    @{list_result}=    table to list    ${CURRENT_RESULT.stdout}
+    @{list_result}=    workload with execution_state    ${list_result}    ${workload_name}    ${expected_execution_state}
+    Log List    ${list_result}
+    Should Not Be Empty
+    ...    ${list_result}
+    ...    msg=Timeout: Workload '${workload_name}' on agent '${expected_agent_name}' does not have the execution state '${expected_execution_state}'!
+
 user executes system app "${cli_command}"
     ${cmd}=    Split Command Line    ${cli_command}    escaping=True
     ${CURRENT_RESULT}=    Run Process    @{cmd}    timeout=20    shell=True
