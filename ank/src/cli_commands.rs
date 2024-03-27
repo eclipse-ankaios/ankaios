@@ -1000,10 +1000,9 @@ impl CliCommands {
         let mut spinner_interval = interval(Duration::from_millis(100));
 
         while !wait_list.is_empty() {
-            output_debug!("Got messsage");
-
             tokio::select! {
                 server_message = self.from_server.recv() => {
+                    output_debug!("Got server message: {:?}", server_message);
                     let Some(server_message) = server_message else {
                         return Err(CliError::ExecutionError(
                             "Connection to server interrupted".into(),
