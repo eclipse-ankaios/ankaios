@@ -72,20 +72,24 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
             self.display.update(&workload);
             match workload.execution_state.state {
                 common::objects::ExecutionStateEnum::Running(_) => {
-                    self.added_workloads.remove(&workload.instance_name);
-                    self.display.set_complete(&workload.instance_name)
+                    if self.added_workloads.remove(&workload.instance_name) {
+                        self.display.set_complete(&workload.instance_name)
+                    }
                 }
                 common::objects::ExecutionStateEnum::Succeeded(_) => {
-                    self.added_workloads.remove(&workload.instance_name);
-                    self.display.set_complete(&workload.instance_name)
+                    if self.added_workloads.remove(&workload.instance_name) {
+                        self.display.set_complete(&workload.instance_name)
+                    }
                 }
                 common::objects::ExecutionStateEnum::Failed(_) => {
-                    self.added_workloads.remove(&workload.instance_name);
-                    self.display.set_complete(&workload.instance_name)
+                    if self.added_workloads.remove(&workload.instance_name) {
+                        self.display.set_complete(&workload.instance_name)
+                    }
                 }
                 common::objects::ExecutionStateEnum::Removed => {
-                    self.deleted_workloads.remove(&workload.instance_name);
-                    self.display.set_complete(&workload.instance_name)
+                    if self.deleted_workloads.remove(&workload.instance_name) {
+                        self.display.set_complete(&workload.instance_name)
+                    }
                 }
                 _ => {}
             };
