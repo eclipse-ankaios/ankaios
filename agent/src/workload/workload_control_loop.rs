@@ -21,10 +21,10 @@ use futures_util::Future;
 use std::path::PathBuf;
 
 #[cfg(not(test))]
-const MAX_RESTARTS: usize = 20;
+const MAX_RETRIES: usize = 20;
 
 #[cfg(test)]
-const MAX_RESTARTS: usize = 2;
+const MAX_RETRIES: usize = 2;
 
 #[cfg(not(test))]
 const RETRY_WAITING_TIME_MS: u64 = 1000;
@@ -32,35 +32,35 @@ const RETRY_WAITING_TIME_MS: u64 = 1000;
 #[cfg(test)]
 const RETRY_WAITING_TIME_MS: u64 = 50;
 
-pub struct RestartCounter {
-    restart_counter: usize,
+pub struct RetryCounter {
+    retry_counter: usize,
 }
 
-impl RestartCounter {
+impl RetryCounter {
     pub fn new() -> Self {
-        RestartCounter { restart_counter: 1 }
+        RetryCounter { retry_counter: 1 }
     }
 
     pub fn reset(&mut self) {
-        self.restart_counter = 1;
+        self.retry_counter = 1;
     }
 
     pub fn limit(&self) -> usize {
-        MAX_RESTARTS
+        MAX_RETRIES
     }
 
     pub fn limit_exceeded(&self) -> bool {
-        self.restart_counter > MAX_RESTARTS
+        self.retry_counter > MAX_RETRIES
     }
 
-    pub fn count_restart(&mut self) {
-        if self.restart_counter <= MAX_RESTARTS {
-            self.restart_counter += 1;
+    pub fn count_retry(&mut self) {
+        if self.retry_counter <= MAX_RETRIES {
+            self.retry_counter += 1;
         }
     }
 
-    pub fn current_restart(&self) -> usize {
-        self.restart_counter
+    pub fn current_retry(&self) -> usize {
+        self.retry_counter
     }
 }
 
@@ -76,13 +76,13 @@ where
     pub runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>,
     pub command_receiver: WorkloadCommandReceiver,
     pub workload_channel: WorkloadCommandSender,
-    pub restart_counter: RestartCounter,
+    pub retry_counter: RetryCounter,
 }
 
 pub struct WorkloadControlLoop;
 
 impl WorkloadControlLoop {
-    async fn send_restart<WorkloadId, StChecker>(
+    async fn send_retry<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         runtime_workload_config: WorkloadSpec,
         control_interface_path: Option<PathBuf>,
@@ -100,16 +100,16 @@ impl WorkloadControlLoop {
         control_loop_state.workload_id = None;
         control_loop_state.state_checker = None;
 
-        // [impl->swdd~agent-workload-control-loop-restart-workload-on-create-failure~1]
+        // [impl->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
         control_loop_state
             .workload_channel
-            .restart(runtime_workload_config, control_interface_path)
+            .retry(runtime_workload_config, control_interface_path)
             .await
-            .unwrap_or_else(|err| log::info!("Could not send WorkloadCommand::Restart: '{}'", err));
+            .unwrap_or_else(|err| log::info!("Could not send WorkloadCommand::Retry: '{}'", err));
         control_loop_state
     }
 
-    async fn send_restart_delayed<WorkloadId, StChecker>(
+    async fn send_retry_delayed<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         runtime_workload_config: WorkloadSpec,
         control_interface_path: Option<PathBuf>,
@@ -121,31 +121,31 @@ impl WorkloadControlLoop {
     {
         control_loop_state.workload_id = None;
         control_loop_state.state_checker = None;
-        let restart_counter: &mut RestartCounter = &mut control_loop_state.restart_counter;
+        let retry_counter: &mut RetryCounter = &mut control_loop_state.retry_counter;
 
         log::info!(
-            "Restart '{}' out of '{}': Failed to create workload: '{}': '{}'",
-            restart_counter.current_restart(),
-            restart_counter.limit(),
+            "Retry '{}' out of '{}': Failed to create workload: '{}': '{}'",
+            retry_counter.current_retry(),
+            retry_counter.limit(),
             control_loop_state.instance_name.workload_name(),
             error_msg
         );
 
-        restart_counter.count_restart();
+        retry_counter.count_retry();
 
-        // [impl->swdd~agent-workload-control-loop-limit-restart-attempts~1]
-        if restart_counter.limit_exceeded() {
+        // [impl->swdd~agent-workload-control-loop-limits-retry-attempts~1]
+        if retry_counter.limit_exceeded() {
             log::warn!(
-                "Abort restarts: reached maximum amount of restarts ('{}')",
-                restart_counter.limit()
+                "Abort retries: reached maximum amount of retries ('{}')",
+                retry_counter.limit()
             );
 
-            // [impl->swdd~agent-workload-control-loop-restart-limit-set-execution-state~2]
+            // [impl->swdd~agent-workload-control-loop-retry-limit-set-execution-state~2]
             control_loop_state
                 .update_state_tx
                 .report_workload_execution_state(
                     &control_loop_state.instance_name,
-                    ExecutionState::restart_failed_no_retry(),
+                    ExecutionState::retry_failed_no_retry(),
                 )
                 .await;
             return control_loop_state;
@@ -153,15 +153,15 @@ impl WorkloadControlLoop {
 
         let sender = control_loop_state.workload_channel.clone();
         tokio::task::spawn(async move {
-            // [impl->swdd~agent-workload-control-loop-request-restarts-on-failing-restart-attempt~1]
+            // [impl->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
             tokio::time::sleep(tokio::time::Duration::from_millis(RETRY_WAITING_TIME_MS)).await;
-            log::debug!("Send WorkloadCommand::Restart.");
+            log::debug!("Send WorkloadCommand::Retry.");
 
             sender
-                .restart(runtime_workload_config, control_interface_path)
+                .retry(runtime_workload_config, control_interface_path)
                 .await
                 .unwrap_or_else(|err| {
-                    log::info!("Could not send WorkloadCommand::Restart: '{}'", err)
+                    log::info!("Could not send WorkloadCommand::Retry: '{}'", err)
                 });
         });
         control_loop_state
@@ -335,8 +335,8 @@ impl WorkloadControlLoop {
             )
             .await;
 
-        // [impl->swdd~agent-workload-control-loop-reset-restart-attempts-on-update~1]
-        control_loop_state.restart_counter.reset();
+        // [impl->swdd~agent-workload-control-loop-reset-retry-attempts-on-update~1]
+        control_loop_state.retry_counter.reset();
 
         // [impl->swdd~agent-workload-control-loop-executes-update-delete-only~1]
         if let Some(spec) = new_workload_spec {
@@ -345,14 +345,14 @@ impl WorkloadControlLoop {
                 control_loop_state,
                 *spec,
                 control_interface_path,
-                Self::send_restart,
+                Self::send_retry,
             )
             .await;
         }
         control_loop_state
     }
 
-    async fn restart<WorkloadId, StChecker>(
+    async fn retry_create<WorkloadId, StChecker>(
         control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         runtime_workload_config: WorkloadSpec,
         control_interface_path: Option<PathBuf>,
@@ -364,17 +364,17 @@ impl WorkloadControlLoop {
         if control_loop_state.instance_name == runtime_workload_config.instance_name
             && control_loop_state.workload_id.is_none()
         {
-            log::debug!("Next restart attempt.");
+            log::debug!("Next retry attempt.");
             Self::create(
                 control_loop_state,
                 runtime_workload_config,
                 control_interface_path,
-                Self::send_restart_delayed,
+                Self::send_retry_delayed,
             )
             .await
         } else {
-            // [impl->swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1]
-            log::debug!("Skip restart workload.");
+            // [impl->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
+            log::debug!("Skip retry creation of workload.");
             control_loop_state
         }
     }
@@ -394,7 +394,7 @@ impl WorkloadControlLoop {
                     if let Some(new_control_loop_state) = Self::delete(control_loop_state).await {
                         control_loop_state = new_control_loop_state;
                     } else {
-                        // [impl->swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1]
+                        // [impl->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
                         return;
                     }
                 }
@@ -411,11 +411,11 @@ impl WorkloadControlLoop {
 
                     log::debug!("Update workload complete");
                 }
-                // [impl->swdd~agent-workload-control-loop-executes-restart~1]
-                Some(WorkloadCommand::Restart(runtime_workload_config, control_interface_path)) => {
-                    log::debug!("Received WorkloadCommand::Restart.");
+                // [impl->swdd~agent-workload-control-loop-executes-retry~1]
+                Some(WorkloadCommand::Retry(runtime_workload_config, control_interface_path)) => {
+                    log::debug!("Received WorkloadCommand::Retry.");
 
-                    control_loop_state = Self::restart(
+                    control_loop_state = Self::retry_create(
                         control_loop_state,
                         *runtime_workload_config,
                         control_interface_path,
@@ -430,7 +430,7 @@ impl WorkloadControlLoop {
                         control_loop_state,
                         *runtime_workload_config,
                         control_interface_path,
-                        Self::send_restart,
+                        Self::send_retry,
                     )
                     .await;
                 }
@@ -466,7 +466,7 @@ mod tests {
 
     use crate::{
         runtime_connectors::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
-        workload::{ControlLoopState, RestartCounter, WorkloadCommandSender, WorkloadControlLoop},
+        workload::{ControlLoopState, RetryCounter, WorkloadCommandSender, WorkloadControlLoop},
         workload_state::assert_execution_state_sequence,
     };
 
@@ -550,7 +550,7 @@ mod tests {
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
-            restart_counter: RestartCounter::new(),
+            retry_counter: RetryCounter::new(),
         };
 
         assert!(timeout(
@@ -620,7 +620,7 @@ mod tests {
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
-            restart_counter: RestartCounter::new(),
+            retry_counter: RetryCounter::new(),
         };
 
         assert!(timeout(
@@ -713,7 +713,7 @@ mod tests {
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
-            restart_counter: RestartCounter::new(),
+            retry_counter: RetryCounter::new(),
         };
 
         assert!(timeout(
@@ -798,7 +798,7 @@ mod tests {
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
-            restart_counter: RestartCounter::new(),
+            retry_counter: RetryCounter::new(),
         };
 
         assert!(timeout(
@@ -882,7 +882,7 @@ mod tests {
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
-            restart_counter: RestartCounter::new(),
+            retry_counter: RetryCounter::new(),
         };
 
         assert!(timeout(
@@ -971,7 +971,7 @@ mod tests {
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
-            restart_counter: RestartCounter::new(),
+            retry_counter: RetryCounter::new(),
         };
 
         assert!(timeout(
@@ -1040,7 +1040,7 @@ mod tests {
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
-            restart_counter: RestartCounter::new(),
+            retry_counter: RetryCounter::new(),
         };
 
         assert!(timeout(
@@ -1108,7 +1108,7 @@ mod tests {
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
-            restart_counter: RestartCounter::new(),
+            retry_counter: RetryCounter::new(),
         };
 
         assert!(timeout(
@@ -1166,7 +1166,7 @@ mod tests {
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
-            restart_counter: RestartCounter::new(),
+            retry_counter: RetryCounter::new(),
         };
 
         assert!(timeout(
@@ -1235,7 +1235,7 @@ mod tests {
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
-            restart_counter: RestartCounter::new(),
+            retry_counter: RetryCounter::new(),
         };
 
         assert!(timeout(
@@ -1249,9 +1249,9 @@ mod tests {
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~2]
-    // [utest->swdd~agent-workload-control-loop-restart-workload-on-create-failure~1]
+    // [utest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
     #[tokio::test]
-    async fn utest_workload_obj_run_restart_successful_after_create_command_fails() {
+    async fn utest_workload_obj_run_retry_creation_successful_after_create_command_fails() {
         let _ = env_logger::builder().is_test(true).try_init();
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
@@ -1313,7 +1313,7 @@ mod tests {
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
-            restart_counter: RestartCounter::new(),
+            retry_counter: RetryCounter::new(),
         };
 
         assert!(timeout(
@@ -1327,9 +1327,9 @@ mod tests {
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~2]
-    // [utest->swdd~agent-workload-control-loop-restart-workload-on-create-failure~1]
+    // [utest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
     #[tokio::test]
-    async fn utest_workload_obj_run_create_with_restart_workload_command_channel_closed() {
+    async fn utest_workload_obj_run_create_with_retry_workload_command_channel_closed() {
         let _ = env_logger::builder().is_test(true).try_init();
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
@@ -1368,14 +1368,14 @@ mod tests {
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
-            restart_counter: RestartCounter::new(),
+            retry_counter: RetryCounter::new(),
         };
 
         let new_control_loop_state = WorkloadControlLoop::create(
             control_loop_state,
             workload_spec,
             Some(PIPES_LOCATION.into()),
-            WorkloadControlLoop::send_restart,
+            WorkloadControlLoop::send_retry,
         )
         .await;
 
@@ -1389,10 +1389,10 @@ mod tests {
             .is_err());
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-restart~1]
-    // [utest->swdd~agent-workload-control-loop-request-restarts-on-failing-restart-attempt~1]
+    // [utest->swdd~agent-workload-control-loop-executes-retry~1]
+    // [utest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
     #[tokio::test]
-    async fn utest_workload_obj_run_restart_successful_after_create_fails() {
+    async fn utest_workload_obj_run_retry_creation_successful_after_create_fails() {
         let _ = env_logger::builder().is_test(true).try_init();
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
@@ -1436,7 +1436,7 @@ mod tests {
             .await;
 
         workload_command_sender
-            .restart(workload_spec, Some(PIPES_LOCATION.into()))
+            .retry(workload_spec, Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
 
@@ -1454,7 +1454,7 @@ mod tests {
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
-            restart_counter: RestartCounter::new(),
+            retry_counter: RetryCounter::new(),
         };
 
         assert!(timeout(
@@ -1467,12 +1467,12 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-restart~1]
-    // [utest->swdd~agent-workload-control-loop-request-restarts-on-failing-restart-attempt~1]
-    // [utest->swdd~agent-workload-control-loop-limit-restart-attempts~1]
-    // [utest->swdd~agent-workload-control-loop-restart-limit-set-execution-state~2]
+    // [utest->swdd~agent-workload-control-loop-executes-retry~1]
+    // [utest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
+    // [utest->swdd~agent-workload-control-loop-limits-retry-attempts~1]
+    // [utest->swdd~agent-workload-control-loop-retry-limit-set-execution-state~2]
     #[tokio::test]
-    async fn utest_workload_obj_run_restart_attempts_exceeded_workload_creation() {
+    async fn utest_workload_obj_run_retry_attempts_exceeded_workload_creation() {
         let _ = env_logger::builder().is_test(true).try_init();
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
@@ -1492,7 +1492,7 @@ mod tests {
         let mut runtime_expectations = vec![];
 
         // instead of short vector initialization a for loop is used because RuntimeCall with its submembers shall not be clone-able.
-        for _ in 0..super::MAX_RESTARTS {
+        for _ in 0..super::MAX_RETRIES {
             runtime_expectations.push(RuntimeCall::CreateWorkload(
                 workload_spec.clone(),
                 Some(PIPES_LOCATION.into()),
@@ -1507,7 +1507,7 @@ mod tests {
         runtime_mock.expect(runtime_expectations).await;
 
         workload_command_sender
-            .restart(workload_spec.clone(), Some(PIPES_LOCATION.into()))
+            .retry(workload_spec.clone(), Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
 
@@ -1527,7 +1527,7 @@ mod tests {
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
-            restart_counter: RestartCounter::new(),
+            retry_counter: RetryCounter::new(),
         };
 
         assert!(timeout(
@@ -1550,7 +1550,7 @@ mod tests {
                     &instance_name,
                     ExecutionState::starting_failed("some create error"),
                 ),
-                (&instance_name, ExecutionState::restart_failed_no_retry()),
+                (&instance_name, ExecutionState::retry_failed_no_retry()),
                 (&instance_name, ExecutionState::stopping_requested()),
                 (&instance_name, ExecutionState::removed()),
             ],
@@ -1560,9 +1560,9 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-restart~1]
+    // [utest->swdd~agent-workload-control-loop-executes-retry~1]
     #[tokio::test]
-    async fn utest_workload_obj_run_restart_workload_command_channel_closed() {
+    async fn utest_workload_obj_run_retry_creation_workload_command_channel_closed() {
         let _ = env_logger::builder().is_test(true).try_init();
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
@@ -1601,10 +1601,10 @@ mod tests {
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
-            restart_counter: RestartCounter::new(),
+            retry_counter: RetryCounter::new(),
         };
 
-        let new_control_loop_state = WorkloadControlLoop::restart(
+        let new_control_loop_state = WorkloadControlLoop::retry_create(
             control_loop_state,
             workload_spec,
             Some(PIPES_LOCATION.into()),
@@ -1621,11 +1621,11 @@ mod tests {
             .is_err());
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-restart~1]
-    // [utest->swdd~agent-workload-control-loop-request-restarts-on-failing-restart-attempt~1]
-    // [utest->swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1]
+    // [utest->swdd~agent-workload-control-loop-executes-retry~1]
+    // [utest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
+    // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
     #[tokio::test]
-    async fn utest_workload_obj_run_restart_stop_restart_commands_on_update_command() {
+    async fn utest_workload_obj_run_retry_stop_retry_commands_on_update_command() {
         let _ = env_logger::builder().is_test(true).try_init();
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
@@ -1671,7 +1671,7 @@ mod tests {
             .await;
 
         workload_command_sender
-            .restart(workload_spec, Some(PIPES_LOCATION.into()))
+            .retry(workload_spec, Some(PIPES_LOCATION.into()))
             .await
             .unwrap();
 
@@ -1694,7 +1694,7 @@ mod tests {
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
-            restart_counter: RestartCounter::new(),
+            retry_counter: RetryCounter::new(),
         };
 
         assert!(timeout(
@@ -1707,11 +1707,11 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-restart~1]
-    // [utest->swdd~agent-workload-control-loop-request-restarts-on-failing-restart-attempt~1]
-    // [utest->swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1]
+    // [utest->swdd~agent-workload-control-loop-executes-retry~1]
+    // [utest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
+    // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
     #[tokio::test]
-    async fn utest_workload_obj_run_restart_on_update_with_create_failure() {
+    async fn utest_workload_obj_run_retry_on_update_with_create_failure() {
         let _ = env_logger::builder().is_test(true).try_init();
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
@@ -1750,7 +1750,7 @@ mod tests {
                         "some create error".to_string(),
                     )),
                 ),
-                // after 1 restart attempt the create with the new workload is successful
+                // after 1 retry attempt the create with the new workload is successful
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
@@ -1782,7 +1782,7 @@ mod tests {
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
-            restart_counter: RestartCounter::new(),
+            retry_counter: RetryCounter::new(),
         };
 
         assert!(timeout(
@@ -1795,12 +1795,12 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-restart~1]
-    // [utest->swdd~agent-workload-control-loop-request-restarts-on-failing-restart-attempt~1]
-    // [utest->swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1]
-    // [utest->swdd~agent-workload-control-loop-reset-restart-attempts-on-update~1]
+    // [utest->swdd~agent-workload-control-loop-executes-retry~1]
+    // [utest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
+    // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
+    // [utest->swdd~agent-workload-control-loop-reset-retry-attempts-on-update~1]
     #[tokio::test]
-    async fn utest_workload_obj_run_restart_reset_restart_counter_on_update() {
+    async fn utest_workload_obj_run_retry_reset_retry_counter_on_update() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1840,7 +1840,7 @@ mod tests {
                         "some create error".to_string(),
                     )),
                 ),
-                // after 1 restart attempt the create with the new workload is successful
+                // after 1 retry attempt the create with the new workload is successful
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
@@ -1864,11 +1864,11 @@ mod tests {
             workload_command_sender_clone.delete().await.unwrap();
         });
 
-        let mut restart_counter = RestartCounter::new();
-        // simulate an already incremented restart counter due to restart attempts on initial workload creation
-        restart_counter.count_restart();
-        restart_counter.count_restart();
-        assert_eq!(restart_counter.current_restart(), 3);
+        let mut retry_counter = RetryCounter::new();
+        // simulate an already incremented retry counter due to retry attempts on initial workload creation
+        retry_counter.count_retry();
+        retry_counter.count_retry();
+        assert_eq!(retry_counter.current_retry(), 3);
 
         let control_loop_state = ControlLoopState {
             instance_name,
@@ -1878,7 +1878,7 @@ mod tests {
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
-            restart_counter,
+            retry_counter,
         };
 
         assert!(timeout(
@@ -1891,11 +1891,11 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-restart~1]
-    // [utest->swdd~agent-workload-control-loop-request-restarts-on-failing-restart-attempt~1]
-    // [utest->swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1]
+    // [utest->swdd~agent-workload-control-loop-executes-retry~1]
+    // [utest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
+    // [utest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
     #[tokio::test]
-    async fn utest_workload_obj_run_restart_create_correct_workload_on_two_updates() {
+    async fn utest_workload_obj_run_retry_create_correct_workload_on_two_updates() {
         let _ = env_logger::builder().is_test(true).try_init();
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
@@ -1975,7 +1975,7 @@ mod tests {
             runtime: Box::new(runtime_mock.clone()),
             command_receiver: workload_command_receiver,
             workload_channel: workload_command_sender,
-            restart_counter: RestartCounter::new(),
+            retry_counter: RetryCounter::new(),
         };
 
         assert!(timeout(

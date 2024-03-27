@@ -49,13 +49,13 @@ impl WorkloadCommandSender {
             .await
     }
 
-    pub async fn restart(
+    pub async fn retry(
         &self,
         workload_spec: WorkloadSpec,
         control_interface_path: Option<PathBuf>,
     ) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
         self.sender
-            .send(WorkloadCommand::Restart(
+            .send(WorkloadCommand::Retry(
                 Box::new(workload_spec),
                 control_interface_path,
             ))
@@ -121,18 +121,18 @@ mod tests {
 
     // [utest->swdd~agent-workload-control-loop-executes-create~2]
     #[tokio::test]
-    async fn utest_send_restart() {
+    async fn utest_send_retry() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
         workload_command_sender
-            .restart(WORKLOAD_SPEC.clone(), CONTROL_INTERFACE_PATH.clone())
+            .retry(WORKLOAD_SPEC.clone(), CONTROL_INTERFACE_PATH.clone())
             .await
             .unwrap();
 
         let workload_command = workload_command_receiver.recv().await.unwrap();
 
         assert!(
-            matches!(workload_command, WorkloadCommand::Restart(workload_spec, control_interface_path) if workload_spec.instance_name == WORKLOAD_SPEC.instance_name && control_interface_path == *CONTROL_INTERFACE_PATH)
+            matches!(workload_command, WorkloadCommand::Retry(workload_spec, control_interface_path) if workload_spec.instance_name == WORKLOAD_SPEC.instance_name && control_interface_path == *CONTROL_INTERFACE_PATH)
         );
     }
 

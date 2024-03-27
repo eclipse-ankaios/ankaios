@@ -313,7 +313,7 @@ impl ExecutionState {
         }
     }
 
-    pub fn restart_failed_no_retry() -> Self {
+    pub fn retry_failed_no_retry() -> Self {
         ExecutionState {
             state: ExecutionStateEnum::Pending(PendingSubstate::StartingFailed),
             additional_info: NO_MORE_RETRIES_MSG.to_string(),
@@ -689,7 +689,7 @@ mod tests {
                     proto::Pending::StartingFailed.into(),
                 )),
             },
-            ExecutionState::restart_failed_no_retry().into(),
+            ExecutionState::retry_failed_no_retry().into(),
         );
         assert_eq!(
             proto::ExecutionState {
@@ -785,7 +785,7 @@ mod tests {
             .into(),
         );
         assert_eq!(
-            ExecutionState::restart_failed_no_retry(),
+            ExecutionState::retry_failed_no_retry(),
             proto::ExecutionState {
                 additional_info: NO_MORE_RETRIES_MSG.to_string(),
                 execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
@@ -888,7 +888,7 @@ mod tests {
             String::from("AgentDisconnected")
         );
         assert_eq!(
-            ExecutionState::restart_failed_no_retry().to_string(),
+            ExecutionState::retry_failed_no_retry().to_string(),
             format!("Pending(StartingFailed): '{}'", NO_MORE_RETRIES_MSG)
         );
         assert_eq!(
