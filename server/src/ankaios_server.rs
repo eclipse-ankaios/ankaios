@@ -139,7 +139,6 @@ impl AnkaiosServer {
                     log::info!("Received AgentHello from '{}'", method_obj.agent_name);
 
                     // [impl->swdd~server-informs-a-newly-connected-agent-workload-states~1]
-                    // [impl->swdd~server-sends-all-workload-states-on-agent-connect~1]
                     let workload_states = self
                         .workload_state_db
                         .get_workload_state_excluding_agent(&method_obj.agent_name);
