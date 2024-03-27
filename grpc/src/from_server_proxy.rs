@@ -56,7 +56,7 @@ pub async fn forward_from_proto_to_ankaios(
 ) -> Result<(), GrpcMiddlewareError> {
     while let Some(value) = grpc_streaming.message().await? {
         log::trace!("RESPONSE={:?}", value);
-        println!("RESPONSE={:?}", value);
+        eprintln!("RESPONSE={:?}", value);
 
         let try_block = async {
             match value
@@ -101,7 +101,7 @@ pub async fn forward_from_proto_to_ankaios(
 
         if let Err::<(), GrpcMiddlewareError>(error) = try_block {
             log::debug!("Could not forward from server message: {}", error);
-            println!("Could not forward from server message: {}", error);
+            eprintln!("Could not forward from server message: {}", error);
         }
     }
 
