@@ -99,7 +99,7 @@ Test Ankaios Podman retry creation of a workload on creation failure intercepted
 # [stest->swdd~agent-workload-control-loop-executes-retry~1]
 # [stest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
 # [stest->swdd~agent-workload-control-loop-limits-retry-attempts~1]
-# [stest->swdd~agent-workload-control-loop-retry-limit-set-execution-state~2]
+# [stest->swdd~agent-workload-control-loop-retry-limit-set-execution-state~1]
 Test Ankaios Podman stops retries after reaching the retry attempt limit
     [Setup]    Run Keywords    Setup Ankaios
     ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_podman_wrong_image_name.yaml

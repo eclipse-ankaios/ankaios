@@ -1403,7 +1403,7 @@ Needs:
 - stest
 
 ##### WorkloadControlLoop sets execution state of workload to failed after reaching the retry limit
-`swdd~agent-workload-control-loop-retry-limit-set-execution-state~2`
+`swdd~agent-workload-control-loop-retry-limit-set-execution-state~1`
 
 Status: approved
 

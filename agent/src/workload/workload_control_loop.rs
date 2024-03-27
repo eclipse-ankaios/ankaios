@@ -140,7 +140,7 @@ impl WorkloadControlLoop {
                 retry_counter.limit()
             );
 
-            // [impl->swdd~agent-workload-control-loop-retry-limit-set-execution-state~2]
+            // [impl->swdd~agent-workload-control-loop-retry-limit-set-execution-state~1]
             control_loop_state
                 .update_state_tx
                 .report_workload_execution_state(
@@ -1470,7 +1470,7 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-executes-retry~1]
     // [utest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
     // [utest->swdd~agent-workload-control-loop-limits-retry-attempts~1]
-    // [utest->swdd~agent-workload-control-loop-retry-limit-set-execution-state~2]
+    // [utest->swdd~agent-workload-control-loop-retry-limit-set-execution-state~1]
     #[tokio::test]
     async fn utest_workload_obj_run_retry_attempts_exceeded_workload_creation() {
         let _ = env_logger::builder().is_test(true).try_init();
