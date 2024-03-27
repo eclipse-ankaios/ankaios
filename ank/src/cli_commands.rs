@@ -643,7 +643,9 @@ impl CliCommands {
                         response_content: ResponseContent::CompleteState(res),
                     })) => return Ok(res),
                     None => return Err("Channel preliminary closed."),
-                    Some(_) => (),
+                    Some(message) => {
+                        output_debug!("Got unexpected message: {:?}", message)
+                    }
                 }
             }
         };
