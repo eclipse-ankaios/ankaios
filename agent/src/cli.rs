@@ -25,8 +25,8 @@ const DEFAULT_RUN_FOLDER: &str = "/tmp/ankaios/";
 const RUNFOLDER_SUFFIX: &str = "_io";
 
 #[derive(Parser, Debug)]
-#[clap( author="The Ankaios team", 
-        version=env!("CARGO_PKG_VERSION"), 
+#[clap( author="The Ankaios team",
+        version=env!("CARGO_PKG_VERSION"),
         about="Ankaios - your friendly automotive workload orchestrator.\nWhat can the agent do for you?")
 ]
 pub struct Arguments {

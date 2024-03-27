@@ -16,6 +16,7 @@ assignees: ''
 <!-- describe the goals you want to achieve with this enhancement -->
 
 ## Final result
+<!-- Before filling in the final result, summarize the use-case and/or workflow in a comment and discuss it with the committers -->
 
 ### Summary
 

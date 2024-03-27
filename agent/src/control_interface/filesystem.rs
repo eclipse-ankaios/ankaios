@@ -15,12 +15,14 @@
 use nix::errno::Errno;
 #[cfg(not(test))]
 use nix::unistd::mkfifo;
+use nix::NixPath;
 use std::ffi::OsString;
 use std::fmt::{self, Display};
 #[cfg(not(test))]
 use std::fs::{create_dir_all, metadata, remove_dir, remove_file};
 #[cfg(not(test))]
 use std::os::unix::fs::FileTypeExt;
+use std::os::unix::fs::PermissionsExt;
 #[cfg(test)]
 use tests::{create_dir_all, metadata, mkfifo, remove_dir, remove_file};
 
@@ -93,7 +95,37 @@ impl FileSystem {
     }
     pub fn make_dir(&self, path: &Path) -> Result<(), FileSystemError> {
         match create_dir_all(path) {
-            Ok(_) => Ok(()),
+            Ok(_) => {
+                if let Some(base_path) = path.parent() {
+                    if !base_path.is_empty() {
+                        let mut current_base_path_permissions = std::fs::metadata(base_path)
+                            .map_err(|err| {
+                                FileSystemError::CreateDirectory(
+                                    path.as_os_str().to_owned(),
+                                    err.kind(),
+                                )
+                            })?
+                            .permissions();
+
+                        // Use 'rwxrwxrwx' permissions on the base folder e.g. /tmp/ankaios
+                        let desired_mode = umask::Mode::all();
+                        if umask::Mode::from(current_base_path_permissions.mode()).to_string()
+                            != desired_mode.without_any_extra().to_string()
+                        {
+                            current_base_path_permissions
+                                .set_mode(desired_mode.without_any_extra().into());
+                            std::fs::set_permissions(base_path, current_base_path_permissions)
+                                .map_err(|err| {
+                                    FileSystemError::CreateDirectory(
+                                        path.as_os_str().to_owned(),
+                                        err.kind(),
+                                    )
+                                })?;
+                        }
+                    }
+                }
+                Ok(())
+            }
             Err(err) => Err(FileSystemError::CreateDirectory(
                 path.as_os_str().to_owned(),
                 err.kind(),

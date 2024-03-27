@@ -146,7 +146,4 @@ pub fn generate_test_stored_workload_spec(
 
 // [utest->swdd~common-object-serialization~1]
 #[cfg(test)]
-mod tests {
-
-
-}
+mod tests {}

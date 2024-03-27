@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speed provider</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+
+    <div class="max-w-md bg-white p-6 rounded-md shadow-md">
+        <h1 class="text-3xl font-bold mb-6">Feed current vehicle speed</h1>
+
+        <form method="post" action="/" class="mb-6">
+            <label for="vehiclespeed" class="block mb-2">Vehicle speed in km/h:</label>
+            <input type="text" name="vehiclespeed" required class="w-full border rounded p-2">
+            <button type="submit" class="mt-4 bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600">Send vehicle speed</button>
+        </form>
+
+        {% if result %}
+            <p class="text-green-600">{{ result }}</p>
+        {% endif %}
+
+    </div>
+
+</body>
+</html>

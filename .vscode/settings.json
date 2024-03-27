@@ -22,11 +22,10 @@
     "rust-analyzer.cargo.unsetTest": [
         "api",
         "common",
-        "agent",
-        "server",
+        "ank-agent",
+        "ank-server",
         "grpc",
         "ank",
-        "examples/workload_api_example"
     ],
     "yaml.schemas": {
         "https://squidfunk.github.io/mkdocs-material/schema.json": "mkdocs.yml"

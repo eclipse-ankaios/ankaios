@@ -371,7 +371,6 @@ mod tests {
             w1.instance_name.workload_name().to_owned(),
             w1.clone().into(),
         )]);
-
         assert_eq!(expected_complete_state, complete_state);
     }
 
