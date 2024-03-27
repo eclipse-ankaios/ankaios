@@ -14,7 +14,7 @@
 
 use api::proto::{
     request::RequestContent, to_server::ToServerEnum, CompleteState, CompleteStateRequest,
-    FromServer, Request, State, Tag, ToServer, UpdateStateRequest, Workload,
+    FromServer, Request, Restart, State, Tag, ToServer, UpdateStateRequest, Workload,
 };
 use prost::Message;
 use std::{
@@ -51,7 +51,7 @@ fn create_request_to_add_new_workload() -> ToServer {
         Workload {
             runtime: "podman".to_string(),
             agent: "agent_A".to_string(),
-            restart: false,
+            restart: Restart::Never.into(),
             tags: vec![Tag {
                 key: "owner".to_string(),
                 value: "Ankaios team".to_string(),

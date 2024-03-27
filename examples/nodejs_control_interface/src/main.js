@@ -14,6 +14,7 @@ function create_request_to_add_new_workload(root) {
     the update mask to add only the new workload. */
 
     ToServer = root.lookupType("ankaios.ToServer");
+    RestartEnum = root.lookupEnum("ankaios.Restart")
     let payload = {
         request: {
             requestId: REQUEST_ID,
@@ -25,7 +26,7 @@ function create_request_to_add_new_workload(root) {
                             dynamic_nginx: {
                                 agent: "agent_A",
                                 runtime: "podman",
-                                restart: NEVER,
+                                restart: RestartEnum.NEVER,
                                 runtimeConfig: "image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]"
                             }
                         }

@@ -38,7 +38,7 @@ def create_request_to_add_new_workload():
                                     "dynamic_nginx": ank.Workload(
                                         agent="agent_A",
                                         runtime="podman",
-                                        restart=True,
+                                        restart=ank.NEVER,
                                         runtimeConfig="image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]")
                         }
                     )
