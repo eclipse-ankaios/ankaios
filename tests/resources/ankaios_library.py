@@ -110,7 +110,7 @@ def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_i
 
 def workload_with_execution_state(table, workload_name, expected_state):
     logger.trace(table)
-    if table and any([row["EXECUTION STATE"].strip().contains(expected_state) for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name, table)]):
+    if table and any([row["EXECUTION STATE"].strip() == expected_state for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name, table)]):
         return table
     return list()
 
@@ -120,7 +120,7 @@ def wait_for_execution_state(command, workload_name, expected_state, timeout=10,
         table = table_to_list(res.stdout if res else "")
         logger.trace(table)
         while (get_time_secs() - start_time) < timeout:
-            if table and any([row["EXECUTION STATE"].strip().contains(expected_state) for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name, table)]):
+            if table and any([row["EXECUTION STATE"].strip() == expected_state for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name, table)]):
                 return table
 
             time.sleep(next_try_in_sec)
