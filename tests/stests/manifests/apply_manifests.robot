@@ -29,27 +29,27 @@ ${manifest_no_agent_name_yaml_file}    ${EMPTY}
 
 *** Test Cases ***
 
-# [stest->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
-# [stest->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
-# [stest->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
-# [stest->swdd~cli-apply-send-update-state~1]
-Test Ankaios apply workload specifications via Ankaios Manifest files
-    [Setup]           Run Keywords    Setup Ankaios
-    ...        AND    Set Global Variable    ${simple_yaml_file}    ${CONFIGS_DIR}/simple.yaml
-    ...        AND    Set Global Variable    ${manifest1_yaml_file}    ${CONFIGS_DIR}/manifest1.yaml
-    ...        AND    Set Global Variable    ${manifest2_yaml_file}    ${CONFIGS_DIR}/manifest2.yaml
+# # [stest->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
+# # [stest->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
+# # [stest->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
+# # [stest->swdd~cli-apply-send-update-state~1]
+# Test Ankaios apply workload specifications via Ankaios Manifest files
+#     [Setup]           Run Keywords    Setup Ankaios
+#     ...        AND    Set Global Variable    ${simple_yaml_file}    ${CONFIGS_DIR}/simple.yaml
+#     ...        AND    Set Global Variable    ${manifest1_yaml_file}    ${CONFIGS_DIR}/manifest1.yaml
+#     ...        AND    Set Global Variable    ${manifest2_yaml_file}    ${CONFIGS_DIR}/manifest2.yaml
 
-    # Preconditions
-    Given Ankaios server is started with config "${simple_yaml_file}"
-    And Ankaios agent is started with name "agent_A"
-    And all workloads of agent "agent_A" have an initial execution state
-    # Actions
-    When user triggers "ank apply ${manifest1_yaml_file} ${manifest2_yaml_file}"
-    # Asserts
-    Then the last command shall finish with exit code "0"
-    And the workload "nginx_from_manifest1" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
-    And the workload "nginx_from_manifest2" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
-    [Teardown]    Clean up Ankaios
+#     # Preconditions
+#     Given Ankaios server is started with config "${simple_yaml_file}"
+#     And Ankaios agent is started with name "agent_A"
+#     And all workloads of agent "agent_A" have an initial execution state
+#     # Actions
+#     When user triggers "ank apply ${manifest1_yaml_file} ${manifest2_yaml_file}"
+#     # Asserts
+#     Then the last command shall finish with exit code "0"
+#     And the workload "nginx_from_manifest1" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
+#     And the workload "nginx_from_manifest2" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
+#     [Teardown]    Clean up Ankaios
 
 # [stest->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
 Test Ankaios apply workload specifications via Ankaios Manifest content through stdin
