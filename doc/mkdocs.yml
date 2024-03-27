@@ -71,6 +71,7 @@ nav:
   - Getting started:
     - usage/installation.md
     - usage/quickstart.md
+    - usage/tutorial-vehicle-signals.md
   - Reference:
     - reference/api.md
     - Protocol documentation: reference/_ankaios.proto.md

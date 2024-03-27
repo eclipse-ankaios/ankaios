@@ -12,7 +12,7 @@ MD013: false
 
 # Allow some exceptions for inline HTML
 MD033:
-  allowed_elements: ['nobr', 'picture', 'source', 'img']
+  allowed_elements: ['nobr', 'picture', 'source', 'img', 'figure', 'figcaption']
 
 # Disables code block style checks because of syntax for "!!! Note"
 MD046: false
