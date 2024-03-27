@@ -148,6 +148,7 @@ user triggers "${cli_command}"
     Set List Value    ${cmd}    0    %{ANK_BIN_DIR}${/}${cmd}[0]
     ${CURRENT_RESULT}=    Run Process    @{cmd}    timeout=20    shell=True
     Log    ${CURRENT_RESULT.stdout}
+    Log    ${CURRENT_RESULT.stderr}
     Set Global Variable    ${CURRENT_RESULT}
 
 user triggers "${cli_command}" passing "${ankaios_manifest_file}" through stdin
@@ -155,6 +156,7 @@ user triggers "${cli_command}" passing "${ankaios_manifest_file}" through stdin
     Set List Value    ${cmd}    0    %{ANK_BIN_DIR}${/}${cmd}[0]
     ${CURRENT_RESULT}=    Run Process    @{cmd}    timeout=20    shell=True    stdin=${ankaios_manifest_file}
     Log    ${CURRENT_RESULT.stdout}
+    Log    ${CURRENT_RESULT.stderr}
     Set Global Variable    ${CURRENT_RESULT}
 
 the user waits "${seconds_to_wait}" seconds
