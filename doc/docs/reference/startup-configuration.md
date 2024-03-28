@@ -22,7 +22,7 @@ workloads:
   nginx: # this is used as the workload name which is 'nginx'
     runtime: podman
     agent: agent_A
-    restart: ALWAYS
+    restartPolicy: ALWAYS
     tags:
       - key: owner
         value: Ankaios team

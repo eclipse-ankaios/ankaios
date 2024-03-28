@@ -16,7 +16,7 @@ workloads:
   nginx:
     runtime: podman
     agent: agent_A
-    restart: ALWAYS
+    restartPolicy: ALWAYS
     tags:
       - key: owner
         value: Ankaios team
@@ -66,7 +66,7 @@ desiredState:
       - key: owner
         value: Ankaios team
       dependencies: {}
-      restart: ALWAYS
+      restartPolicy: ALWAYS
       runtime: podman
       runtimeConfig: |
         image: docker.io/nginx:latest

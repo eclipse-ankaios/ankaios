@@ -2,7 +2,7 @@ apiVersion: v0.1
 workloads:
   simple:
     runtime: podman
-    restart: NEVER
+    restartPolicy: NEVER
     agent: agent_A
     runtimeConfig: |
       image: alpine:latest

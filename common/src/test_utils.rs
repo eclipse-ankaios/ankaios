@@ -132,7 +132,7 @@ pub fn generate_test_proto_workload() -> proto::Workload {
     proto::Workload {
         agent: String::from("agent"),
         dependencies: generate_test_proto_dependencies(),
-        restart: proto::Restart::Always.into(),
+        restart_policy: proto::RestartPolicy::Always.into(),
         runtime: String::from("runtime"),
         runtime_config: "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
             .to_string(),

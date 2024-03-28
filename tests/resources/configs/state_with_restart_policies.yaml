@@ -3,7 +3,7 @@ workloads:
   restarted_always:
     runtime: podman
     agent: agent_A
-    restart: ALWAYS
+    restartPolicy: ALWAYS
     runtimeConfig: |
       image: alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sh" ]
@@ -11,7 +11,7 @@ workloads:
   restarted_never:
     runtime: podman
     agent: agent_A
-    restart: NEVER
+    restartPolicy: NEVER
     runtimeConfig: |
       image: alpine:latest
       commandArgs: [ "echo", "Explicitly never restarted."]
@@ -24,7 +24,7 @@ workloads:
   restarted_on_failure:
     runtime: podman
     agent: agent_A
-    restart: ON_FAILURE
+    restartPolicy: ON_FAILURE
     runtimeConfig: |
       image: alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sh" ]

@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::helpers::serialize_to_ordered_map;
 
-use super::{AddCondition, Restart, Tag, WorkloadInstanceName, WorkloadSpec};
+use super::{AddCondition, RestartPolicy, Tag, WorkloadInstanceName, WorkloadSpec};
 
 #[derive(Debug, Serialize, Default, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -30,7 +30,7 @@ pub struct StoredWorkloadSpec {
     #[serde(default, serialize_with = "serialize_to_ordered_map")]
     pub dependencies: HashMap<String, AddCondition>,
     #[serde(default)]
-    pub restart: Restart,
+    pub restart_policy: RestartPolicy,
     pub runtime: String,
     pub runtime_config: String,
 }
@@ -47,7 +47,7 @@ impl TryFrom<proto::Workload> for StoredWorkloadSpec {
                 .into_iter()
                 .map(|(k, v)| Ok((k, v.try_into()?)))
                 .collect::<Result<HashMap<String, AddCondition>, String>>()?,
-            restart: value.restart.try_into()?,
+            restart_policy: value.restart_policy.try_into()?,
             runtime: value.runtime,
             runtime_config: value.runtime_config,
         })
@@ -63,7 +63,7 @@ impl From<StoredWorkloadSpec> for proto::Workload {
                 .into_iter()
                 .map(|(k, v)| (k, v as i32))
                 .collect(),
-            restart: workload.restart as i32,
+            restart_policy: workload.restart_policy as i32,
             runtime: workload.runtime,
             runtime_config: workload.runtime_config,
             tags: workload.tags.into_iter().map(|x| x.into()).collect(),
@@ -81,7 +81,7 @@ impl From<(String, StoredWorkloadSpec)> for WorkloadSpec {
                 .build(),
             tags: spec.tags,
             dependencies: spec.dependencies,
-            restart: spec.restart,
+            restart_policy: spec.restart_policy,
             runtime: spec.runtime,
             runtime_config: spec.runtime_config,
         }
@@ -93,7 +93,7 @@ impl From<WorkloadSpec> for StoredWorkloadSpec {
         StoredWorkloadSpec {
             runtime: value.runtime,
             agent: value.instance_name.agent_name().to_owned(),
-            restart: value.restart,
+            restart_policy: value.restart_policy,
             dependencies: value.dependencies,
             tags: value.tags,
             runtime_config: value.runtime_config,
@@ -121,7 +121,7 @@ pub fn generate_test_stored_workload_spec_with_config(
             (String::from("workload A"), AddCondition::AddCondRunning),
             (String::from("workload C"), AddCondition::AddCondSucceeded),
         ]),
-        restart: Restart::Always,
+        restart_policy: RestartPolicy::Always,
         runtime: runtime_name.into(),
         tags: vec![Tag {
             key: "key".into(),

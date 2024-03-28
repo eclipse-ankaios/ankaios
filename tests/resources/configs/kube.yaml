@@ -3,7 +3,7 @@ workloads:
   hello-k8s:
     runtime: podman-kube
     agent: agent_A
-    restart: NEVER
+    restartPolicy: NEVER
     tags:
       - key: owner
         value: Ankaios team

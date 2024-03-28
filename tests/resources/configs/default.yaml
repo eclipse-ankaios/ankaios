@@ -3,7 +3,7 @@ workloads:
   nginx:
     runtime: podman
     agent: agent_A
-    restart: NEVER
+    restartPolicy: NEVER
     tags:
       - key: owner
         value: Ankaios team
@@ -13,7 +13,7 @@ workloads:
   hello1:
     runtime: podman
     agent: agent_B
-    restart: NEVER
+    restartPolicy: NEVER
     tags:
       - key: owner
         value: Ankaios team
@@ -24,7 +24,7 @@ workloads:
   hello2:
     runtime: podman
     agent: agent_B
-    restart: NEVER
+    restartPolicy: NEVER
     tags:
       - key: owner
         value: Ankaios team
@@ -34,7 +34,7 @@ workloads:
   hello3:
     runtime: podman
     agent: agent_B
-    restart: NEVER
+    restartPolicy: NEVER
     tags:
       - key: owner
         value: Ankaios team

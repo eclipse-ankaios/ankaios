@@ -19,7 +19,7 @@ desiredState:
       - key: owner
         value: Ankaios team
       dependencies: {}
-      restart: NEVER
+      restartPolicy: NEVER
       runtime: podman-kube
       runtimeConfig: |
         manifest: |
@@ -57,7 +57,7 @@ desiredState:
       - key: owner
         value: Ankaios team
       dependencies: {}
-      restart: ALWAYS
+      restartPolicy: ALWAYS
       runtime: podman
       runtimeConfig: |
         image: alpine:latest
@@ -69,7 +69,7 @@ desiredState:
       - key: owner
         value: Ankaios team
       dependencies: {}
-      restart: ON_FAILURE
+      restartPolicy: ON_FAILURE
       runtime: podman
       runtimeConfig: |
         image: docker.io/nginx:latest
@@ -83,7 +83,7 @@ It is not necessary to provide the whole structure of the the [CompleteState](./
 desiredState:
   workloads:
     nginx:
-      restart: ALWAYS
+      restartPolicy: ALWAYS
 ```
 
 ## Object field mask
@@ -106,7 +106,7 @@ The object field mask can be constructed using the field names of the [CompleteS
           - key: owner
             value: Ankaios team
           dependencies: {}
-          restart: ALWAYS
+          restartPolicy: ALWAYS
           runtime: podman
           runtimeConfig: |
             image: docker.io/nginx:latest
@@ -124,11 +124,11 @@ The object field mask can be constructed using the field names of the [CompleteS
            commandOptions: ["-p", "8081:80"]
    ```
 
-3. Example `ank set state -f new-state.yaml desiredState.workloads.nginx.restart` changes the restart behavior of nginx workload to `NEVER`:
+3. Example `ank set state -f new-state.yaml desiredState.workloads.nginx.restartPolicy` changes the restart behavior of nginx workload to `NEVER`:
 
    ```yaml title="new-state.yaml"
    desiredState:
      workloads:
        nginx:
-         restart: NEVER
+         restartPolicy: NEVER
    ```
