@@ -33,15 +33,13 @@ def table_to_list(raw):
     raw = raw.strip()
     splitted = raw.split('\n')
     header = splitted.pop(0)
-    columns = re.split(r'\s{2,}', header.strip().replace('\x1b[1G\x1b[1G ', ''))
+    columns = [(x.group(0).strip(), x.start(), x.end()) for x in re.finditer(r'(([^\s]+\s?)+\s*)', header.replace('\x1b[1G\x1b[1G ', ''))]
     logger.trace("columns: {}".format(columns))
     table = []
     for row in splitted:
-        row_items = re.split(r'\s{2,}', row.strip())
-        raw_data = {col: row_items[i] if i < len(row_items) else "" for i, col in enumerate(columns)}
         table_row = {}
-        for column_index, column_value in enumerate(columns):
-            table_row[column_value] = raw_data[column_value].strip()
+        for c in columns:
+            table_row[c[0]] = row[c[1]:c[2]].strip()
         table.append(table_row)
 
     logger.trace(table)
