@@ -1351,7 +1351,7 @@ Needs:
 
 Status: approved
 
-When the WorkloadControlLoop executes a retry of a workload and the runtime connector fails to create the workload, the WorkloadControlLoop shall request a retry of the creation of the workload within a 1 sec time interval.
+When the WorkloadControlLoop executes a retry of a workload creation and the runtime connector fails to create the workload, the WorkloadControlLoop shall request a retry of the creation of the workload within 1 sec time interval.
 
 Comment:
 The creation of a workload can fail temporarily, for example if a Runtime is still busy deleting and the workload is to be recreated. The WorkloadControlLoop uses the WorkloadCommandSender to send the WorkloadCommand Retry.
