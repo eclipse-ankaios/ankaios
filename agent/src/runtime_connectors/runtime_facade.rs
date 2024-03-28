@@ -15,7 +15,7 @@ use crate::workload::workload_control_loop::WorkloadControlLoop;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
 use crate::workload::WorkloadCommandSender;
-use crate::workload::{ControlLoopState, RestartCounter};
+use crate::workload::{ControlLoopState, RetryCounter};
 
 #[async_trait]
 #[cfg_attr(test, automock)]
@@ -109,7 +109,7 @@ impl<
                 .create(workload_spec, control_interface_path)
                 .await
                 .unwrap_or_else(|err| {
-                    log::warn!("Failed to send restart workload command: '{}'", err);
+                    log::warn!("Failed to send workload command retry: '{}'", err);
                 });
 
             let control_loop_state = ControlLoopState {
@@ -120,7 +120,7 @@ impl<
                 runtime,
                 command_receiver,
                 workload_channel,
-                restart_counter: RestartCounter::new(),
+                retry_counter: RetryCounter::new(),
             };
 
             WorkloadControlLoop::run(control_loop_state).await;
@@ -184,7 +184,7 @@ impl<
                 runtime,
                 command_receiver,
                 workload_channel: workload_channel_retry,
-                restart_counter: RestartCounter::new(),
+                retry_counter: RetryCounter::new(),
             };
 
             WorkloadControlLoop::run(control_loop_state).await;

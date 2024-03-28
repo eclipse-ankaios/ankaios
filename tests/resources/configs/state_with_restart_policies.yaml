@@ -1,0 +1,31 @@
+apiVersion: v0.1
+workloads:
+  restarted_always:
+    runtime: podman
+    agent: agent_A
+    restartPolicy: ALWAYS
+    runtimeConfig: |
+      image: alpine:latest
+      commandOptions: [ "--entrypoint", "/bin/sh" ]
+      commandArgs: [ "-c", "echo 'Always restarted.'; sleep 1"]
+  restarted_never:
+    runtime: podman
+    agent: agent_A
+    restartPolicy: NEVER
+    runtimeConfig: |
+      image: alpine:latest
+      commandArgs: [ "echo", "Explicitly never restarted."]
+  default_restarted_never: # default restart value = NEVER
+    runtime: podman
+    agent: agent_A
+    runtimeConfig: |
+      image: alpine:latest
+      commandArgs: [ "echo", "Implicitly never restarted."]
+  restarted_on_failure:
+    runtime: podman
+    agent: agent_A
+    restartPolicy: ON_FAILURE
+    runtimeConfig: |
+      image: alpine:latest
+      commandOptions: [ "--entrypoint", "/bin/sh" ]
+      commandArgs: [ "-c", "echo 'Restarted on failure.'; sleep 1; exit 1"]

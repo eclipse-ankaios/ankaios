@@ -3,7 +3,7 @@ workloads:
   workload_A:
     runtime: podman
     agent: agent_A
-    restart: true
+    restartPolicy: NEVER
     dependencies:
       workload_B: ADD_COND_SUCCEEDED
     tags:
@@ -15,7 +15,7 @@ workloads:
   workload_B:
     runtime: podman
     agent: agent_B
-    restart: true
+    restartPolicy: NEVER
     dependencies:
       workload_C: ADD_COND_SUCCEEDED
     tags:
@@ -27,7 +27,7 @@ workloads:
   workload_D:
     runtime: podman
     agent: agent_A
-    restart: true
+    restartPolicy: NEVER
     tags:
       - key: owner
         value: Ankaios team

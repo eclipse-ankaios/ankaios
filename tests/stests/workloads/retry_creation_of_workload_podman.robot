@@ -22,10 +22,10 @@ ${new_state_yaml_file}
 
 *** Test Cases ***
 
-# [stest->swdd~agent-workload-control-loop-restart-workload-on-create-failure~1]
-# [stest->swdd~agent-workload-control-loop-executes-restart~1]
-# [stest->swdd~agent-workload-control-loop-request-restarts-on-failing-restart-attempt~1]
-Test Ankaios Podman restart of a workload on creation failure
+# [stest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
+# [stest->swdd~agent-workload-control-loop-executes-retry~1]
+# [stest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
+Test Ankaios Podman retry creation of a workload on creation failure
     [Setup]    Run Keywords    Setup Ankaios
     ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_podman_alpine_sleep.yaml
     # Preconditions
@@ -44,11 +44,11 @@ Test Ankaios Podman restart of a workload on creation failure
     Then the workload "hello1" shall have the execution state "Running(Ok)" from agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~agent-workload-control-loop-restart-workload-on-create-failure~1]
-# [stest->swdd~agent-workload-control-loop-executes-restart~1]
-# [stest->swdd~agent-workload-control-loop-request-restarts-on-failing-restart-attempt~1]
-# [stest->swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1]
-Test Ankaios Podman restart of a workload on creation failure intercepted by update
+# [stest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
+# [stest->swdd~agent-workload-control-loop-executes-retry~1]
+# [stest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
+# [stest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
+Test Ankaios Podman retry creation of a workload on creation failure intercepted by update
     [Setup]    Run Keywords    Setup Ankaios
     ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_podman_alpine_sleep.yaml
     # Preconditions
@@ -69,11 +69,11 @@ Test Ankaios Podman restart of a workload on creation failure intercepted by upd
     Then the workload "hello1" shall have the execution state "Succeeded(Ok)" from agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~agent-workload-control-loop-restart-workload-on-create-failure~1]
-# [stest->swdd~agent-workload-control-loop-executes-restart~1]
-# [stest->swdd~agent-workload-control-loop-request-restarts-on-failing-restart-attempt~1]
-# [stest->swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1]
-Test Ankaios Podman restart of a workload on creation failure intercepted by delete
+# [stest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
+# [stest->swdd~agent-workload-control-loop-executes-retry~1]
+# [stest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
+# [stest->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
+Test Ankaios Podman retry creation of a workload on creation failure intercepted by delete
     [Setup]    Run Keywords    Setup Ankaios
     ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_podman_alpine_sleep.yaml
     # Preconditions
@@ -95,12 +95,12 @@ Test Ankaios Podman restart of a workload on creation failure intercepted by del
     And the workload "hello1" shall not exist on agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~agent-workload-control-loop-restart-workload-on-create-failure~1]
-# [stest->swdd~agent-workload-control-loop-executes-restart~1]
-# [stest->swdd~agent-workload-control-loop-request-restarts-on-failing-restart-attempt~1]
-# [stest->swdd~agent-workload-control-loop-limit-restart-attempts~1]
-# [stest->swdd~agent-workload-control-loop-restart-limit-set-execution-state~2]
-Test Ankaios Podman stop restarts after reaching the restart attempt limit
+# [stest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
+# [stest->swdd~agent-workload-control-loop-executes-retry~1]
+# [stest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
+# [stest->swdd~agent-workload-control-loop-limits-retry-attempts~1]
+# [stest->swdd~agent-workload-control-loop-retry-limit-set-execution-state~1]
+Test Ankaios Podman stops retries after reaching the retry attempt limit
     [Setup]    Run Keywords    Setup Ankaios
     ...        AND             Set Global Variable    ${new_state_yaml_file}    %{ANKAIOS_TEMP}/itest_podman_wrong_image_name.yaml
     # Preconditions

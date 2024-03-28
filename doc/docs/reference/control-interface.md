@@ -117,7 +117,7 @@ fn create_update_workload_request() -> proto::ToServer {
         proto::Workload {
             runtime: "podman".to_string(),
             agent: "agent_A".to_string(),
-            restart: false,
+            restart_policy: proto::RestartPolicy::Never,
             tags: vec![proto::Tag {
                 key: "owner".to_string(),
                 value: "Ankaios team".to_string(),

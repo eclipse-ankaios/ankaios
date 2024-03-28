@@ -2,7 +2,7 @@ apiVersion: v0.1
 workloads:
   nginx_from_manifest1:
     runtime: podman
-    restart: true
+    restartPolicy: NEVER
     agent: agent_A
     runtimeConfig: |
       image: docker.io/nginx:latest

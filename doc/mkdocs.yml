@@ -57,7 +57,7 @@ markdown_extensions:
           format: !!python/name:pymdownx.superfences.fence_code_format
 
 plugins:
-  - social
+  # - social breaks the doc build, it downloads google font 'Roboto' and fails with bad zip error
   - search
   - mike
 

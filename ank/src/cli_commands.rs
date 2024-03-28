@@ -938,7 +938,7 @@ mod tests {
         "desiredState": {
             "workloads": {
                 "nginx": {
-                    "restart": true,
+                    "restartPolicy": ALWAYS,
                     "agent": "agent_A"
                 },
                 "hello1": {
@@ -2045,7 +2045,7 @@ mod tests {
                         "workload A": "ADD_COND_RUNNING",
                         "workload C": "ADD_COND_SUCCEEDED"
                     },
-                    "restart": true,
+                    "restartPolicy": "ALWAYS",
                     "runtime": "podman",
                     "runtimeConfig": "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
                     }
@@ -2100,7 +2100,7 @@ mod tests {
                             "workload A": "ADD_COND_RUNNING",
                             "workload C": "ADD_COND_SUCCEEDED"
                         },
-                        "restart": true,
+                        "restartPolicy": "ALWAYS",
                         "runtime": "podman",
                         "runtimeConfig": "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
                     },
@@ -2133,8 +2133,8 @@ mod tests {
         let result =
             get_filtered_value(&deserialized_map, &["desiredState", "workloads", "nginx"]).unwrap();
         assert_eq!(
-            result.get("restart").unwrap(),
-            &serde_yaml::Value::Bool(true)
+            result.get("restartPolicy").unwrap(),
+            &serde_yaml::Value::String("ALWAYS".into())
         );
     }
 
@@ -2230,7 +2230,7 @@ mod tests {
                 "desiredState",
                 "workloads",
                 "nginx",
-                "restart",
+                "restartPolicy",
                 "createThisKey",
             ],
             serde_yaml::Value::Mapping(Default::default()),
@@ -2241,9 +2241,9 @@ mod tests {
                 .get("desiredState")
                 .and_then(|next| next
                     .get("workloads")
-                    .and_then(|next| next.get("nginx").and_then(|next| next.get("restart"))))
+                    .and_then(|next| next.get("nginx").and_then(|next| next.get("restartPolicy"))))
                 .unwrap(),
-            &serde_yaml::Value::Bool(true)
+            &serde_yaml::Value::String("ALWAYS".into())
         );
     }
 
@@ -2656,7 +2656,7 @@ mod tests {
         simple:
           runtime: podman
           agent: agent_A
-          restart: true
+          restartPolicy: ALWAYS
           updateStrategy: AT_MOST_ONCE
           accessRights:
             allow: []
