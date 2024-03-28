@@ -29,6 +29,7 @@ async fn main() {
 
     let cli_name = "ank-cli";
     env::set_var(log::VERBOSITY_KEY, args.verbose.to_string());
+    env::set_var(log::QUIET_KEY, args.quiet.to_string());
 
     output_debug!(
         "Started '{}' with the following parameters: '{:?}'",
@@ -71,7 +72,10 @@ async fn main() {
                     agent_name,
                     state,
                 );
-                match cmd.get_workloads(agent_name, state, workload_name).await {
+                match cmd
+                    .get_workloads_table(agent_name, state, workload_name)
+                    .await
+                {
                     Ok(out_text) => output_and_exit!("{}", out_text),
                     Err(error) => output_and_error!("Failed to get workloads: '{}'", error),
                 }
@@ -141,10 +145,8 @@ async fn main() {
             None => unreachable!("Unreachable code."),
         },
         cli::Commands::Apply(apply_args) => {
-            let res = cmd.apply_manifests(apply_args).await;
-            match res {
-                Ok(output) => output_and_exit!("{}", output),
-                Err(err) => output_and_error!("{}", err),
+            if let Err(err) = cmd.apply_manifests(apply_args).await {
+                output_and_error!("{}", err);
             }
         }
     }
