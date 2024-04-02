@@ -31,7 +31,7 @@ use tests::read_to_string_mock as read_file_to_string;
 use common::{
     commands::{CompleteStateRequest, Response, ResponseContent},
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::{CompleteState, State, StoredWorkloadSpec, Tag, WorkloadInstanceName},
+    objects::{CompleteState, State, StoredWorkloadSpec, Tag, WorkloadInstanceName, WorkloadState},
     state_manipulation::{Object, Path},
     to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
@@ -594,10 +594,16 @@ pub struct CliCommands {
     task: tokio::task::JoinHandle<()>,
     to_server: ToServerSender,
     from_server: FromServerReceiver,
+    no_wait: bool,
 }
 
 impl CliCommands {
-    pub fn init(response_timeout_ms: u64, cli_name: String, server_url: Url) -> Self {
+    pub fn init(
+        response_timeout_ms: u64,
+        cli_name: String,
+        server_url: Url,
+        no_wait: bool,
+    ) -> Self {
         let (task, to_server, from_server) =
             setup_cli_communication(cli_name.as_str(), server_url.clone());
         Self {
@@ -606,6 +612,7 @@ impl CliCommands {
             task,
             to_server,
             from_server,
+            no_wait,
         }
     }
 
@@ -926,7 +933,7 @@ impl CliCommands {
             .await
             .map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
-        let mut x = Vec::new();
+        let mut missed_messages = Vec::new();
 
         let update_state_success = loop {
             let Some(server_message) = self.from_server.recv().await else {
@@ -962,7 +969,7 @@ impl CliCommands {
                     }
                 }
                 FromServer::UpdateWorkloadState(mut update_workload_state) => {
-                    x.append(&mut update_workload_state.workload_states);
+                    missed_messages.append(&mut update_workload_state.workload_states);
                 }
                 other_message => {
                     output_debug!("Received unexpected message: {:?}", other_message)
@@ -979,6 +986,19 @@ impl CliCommands {
                 ))
             })?;
 
+        if self.no_wait {
+            Ok(())
+        } else {
+            self.wait_for_complete(update_state_success, missed_messages)
+                .await
+        }
+    }
+
+    async fn wait_for_complete(
+        &mut self,
+        update_state_success: ParsedUpdateStateSuccess,
+        missed_messages: Vec<WorkloadState>,
+    ) -> Result<(), CliError> {
         let mut changed_workloads =
             HashSet::from_iter(update_state_success.added_workloads.iter().cloned());
         changed_workloads.extend(update_state_success.deleted_workloads.iter().cloned());
@@ -1000,7 +1020,7 @@ impl CliCommands {
             },
         );
 
-        wait_list.update(x);
+        wait_list.update(missed_messages);
         let mut spinner_interval = interval(Duration::from_millis(100));
 
         while !wait_list.is_empty() {
@@ -1223,6 +1243,7 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
+            false,
         );
         let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
@@ -1283,6 +1304,7 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
+            false,
         );
         let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
@@ -1358,6 +1380,7 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
+            false,
         );
         let cmd_text = cmd
             .get_workloads_table(None, None, vec!["name1".to_string()])
@@ -1419,6 +1442,7 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
+            false,
         );
         let cmd_text = cmd
             .get_workloads_table(Some("agent_B".to_string()), None, Vec::new())
@@ -1489,6 +1513,7 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
+            false,
         );
         let cmd_text = cmd
             .get_workloads_table(None, Some("Failed".to_string()), Vec::new())
@@ -1535,6 +1560,7 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
+            false,
         );
 
         let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
@@ -1622,6 +1648,7 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
+            false,
         );
 
         let delete_result = cmd
@@ -1691,6 +1718,7 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
+            false,
         );
 
         let delete_result = cmd
@@ -1746,6 +1774,7 @@ mod tests {
             3000,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
+            false,
         );
         let cmd_text = cmd
             .get_state(vec![], crate::cli::OutputFormat::Yaml)
@@ -1799,6 +1828,7 @@ mod tests {
             3000,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
+            false,
         );
         let cmd_text = cmd
             .get_state(vec![], crate::cli::OutputFormat::Json)
@@ -1837,6 +1867,7 @@ mod tests {
             3000,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
+            false,
         );
         let cmd_text = cmd
             .get_state(
@@ -1897,6 +1928,7 @@ mod tests {
             3000,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
+            false,
         );
         let cmd_text = cmd
             .get_state(
@@ -1958,6 +1990,7 @@ mod tests {
             3000,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
+            false,
         );
 
         let cmd_text = cmd
@@ -2002,6 +2035,7 @@ mod tests {
             3000,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
+            false,
         );
         let cmd_text = cmd
             .get_state(
@@ -2115,6 +2149,7 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
+            false,
         );
 
         let run_workload_result = cmd
@@ -2976,6 +3011,7 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
+            false,
         );
 
         let apply_result = cmd
@@ -3066,6 +3102,7 @@ mod tests {
             RESPONSE_TIMEOUT_MS,
             "TestCli".to_string(),
             Url::parse("http://localhost").unwrap(),
+            false,
         );
 
         let apply_result = cmd

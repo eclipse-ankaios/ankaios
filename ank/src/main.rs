@@ -41,6 +41,7 @@ async fn main() {
         args.response_timeout_ms,
         cli_name.to_string(),
         args.server_url,
+        args.no_wait,
     );
 
     match args.command {
