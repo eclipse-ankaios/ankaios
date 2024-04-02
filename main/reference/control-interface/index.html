@@ -54,32 +54,6 @@
 
     
     
-      
-        <meta  property="og:type"  content="website" >
-      
-        <meta  property="og:title"  content="Control interface - Eclipse Ankaios" >
-      
-        <meta  property="og:description"  content="None" >
-      
-        <meta  property="og:image"  content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/reference/control-interface.png" >
-      
-        <meta  property="og:image:type"  content="image/png" >
-      
-        <meta  property="og:image:width"  content="1200" >
-      
-        <meta  property="og:image:height"  content="630" >
-      
-        <meta  property="og:url"  content="https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/" >
-      
-        <meta  name="twitter:card"  content="summary_large_image" >
-      
-        <meta  name="twitter:title"  content="Control interface - Eclipse Ankaios" >
-      
-        <meta  name="twitter:description"  content="None" >
-      
-        <meta  name="twitter:image"  content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/reference/control-interface.png" >
-      
-    
     
   </head>
   
@@ -1403,7 +1377,7 @@ flowchart TD
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">        </span><span class="n">proto</span>::<span class="n">Workload</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">            </span><span class="n">runtime</span>: <span class="s">&quot;podman&quot;</span><span class="p">.</span><span class="n">to_string</span><span class="p">(),</span>
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">            </span><span class="n">agent</span>: <span class="s">&quot;agent_A&quot;</span><span class="p">.</span><span class="n">to_string</span><span class="p">(),</span>
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">            </span><span class="n">restart</span>: <span class="nc">false</span><span class="p">,</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">            </span><span class="n">restart_policy</span>: <span class="nc">proto</span>::<span class="n">RestartPolicy</span>::<span class="n">Never</span><span class="p">,</span>
 <a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">            </span><span class="n">tags</span>: <span class="nc">vec</span><span class="o">!</span><span class="p">[</span><span class="n">proto</span>::<span class="n">Tag</span><span class="w"> </span><span class="p">{</span>
 <a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">                </span><span class="n">key</span>: <span class="s">&quot;owner&quot;</span><span class="p">.</span><span class="n">to_string</span><span class="p">(),</span>
 <a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">                </span><span class="n">value</span>: <span class="s">&quot;Ankaios team&quot;</span><span class="p">.</span><span class="n">to_string</span><span class="p">(),</span>
@@ -1529,9 +1503,6 @@ flowchart TD
 
 
 
-
-  
-  
 
 
 

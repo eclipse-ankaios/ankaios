@@ -54,32 +54,6 @@
 
     
     
-      
-        <meta  property="og:type"  content="website" >
-      
-        <meta  property="og:title"  content="Protocol documentation - Eclipse Ankaios" >
-      
-        <meta  property="og:description"  content="None" >
-      
-        <meta  property="og:image"  content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/reference/_ankaios.proto.png" >
-      
-        <meta  property="og:image:type"  content="image/png" >
-      
-        <meta  property="og:image:width"  content="1200" >
-      
-        <meta  property="og:image:height"  content="630" >
-      
-        <meta  property="og:url"  content="https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/" >
-      
-        <meta  name="twitter:card"  content="summary_large_image" >
-      
-        <meta  name="twitter:title"  content="Protocol documentation - Eclipse Ankaios" >
-      
-        <meta  name="twitter:description"  content="None" >
-      
-        <meta  name="twitter:image"  content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/reference/_ankaios.proto.png" >
-      
-    
     
   </head>
   
@@ -975,6 +949,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#restartpolicy" class="md-nav__link">
+    <span class="md-ellipsis">
+      RestartPolicy
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#running" class="md-nav__link">
     <span class="md-ellipsis">
       Running
@@ -1828,6 +1811,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#restartpolicy" class="md-nav__link">
+    <span class="md-ellipsis">
+      RestartPolicy
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#running" class="md-nav__link">
     <span class="md-ellipsis">
       Running
@@ -1952,6 +1944,7 @@
 <li><a href="#ankaios-NotScheduled">NotScheduled</a></li>
 <li><a href="#ankaios-Pending">Pending</a></li>
 <li><a href="#ankaios-Removed">Removed</a></li>
+<li><a href="#ankaios-RestartPolicy">RestartPolicy</a></li>
 <li><a href="#ankaios-Running">Running</a></li>
 <li><a href="#ankaios-Stopping">Stopping</a></li>
 <li>
@@ -2024,10 +2017,10 @@
 <td>A list of dependencies to other workloads with their corresponding, expected states. Can be used to enable a synchronized start of a workload.</td>
 </tr>
 <tr>
-<td>restart</td>
-<td><a href="#bool">bool</a></td>
+<td>restartPolicy</td>
+<td><a href="#ankaios-RestartPolicy">RestartPolicy</a></td>
 <td></td>
-<td>A flag indicating to restart the workload in case of an intentional or an unintentional stop of the workload.</td>
+<td>An enum value that defines the condition under which a workload is restarted.</td>
 </tr>
 <tr>
 <td>tags</td>
@@ -2636,10 +2629,10 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 <td>The name of the owning Agent.</td>
 </tr>
 <tr>
-<td>restart</td>
-<td><a href="#bool">bool</a></td>
+<td>restartPolicy</td>
+<td><a href="#ankaios-RestartPolicy">RestartPolicy</a></td>
 <td></td>
-<td>A flag indicating to restart the workload in case of an intentional or an unintentional stop of the workload.</td>
+<td>An enum value that defines the condition under which a workload is restarted.</td>
 </tr>
 <tr>
 <td>dependencies</td>
@@ -2922,6 +2915,35 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 <td>REMOVED</td>
 <td>0</td>
 <td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ankaios-RestartPolicy"></a></p>
+<h3 id="restartpolicy">RestartPolicy<a class="headerlink" href="#restartpolicy" title="Permanent link">&para;</a></h3>
+<p>An enum type describing the restart behavior of a workload.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NEVER</td>
+<td>0</td>
+<td>The workload is never restarted. Once the workload exits, it remains in the exited state.</td>
+</tr>
+<tr>
+<td>ON_FAILURE</td>
+<td>1</td>
+<td>If the workload exits with a non-zero exit code, it will be restarted.</td>
+</tr>
+<tr>
+<td>ALWAYS</td>
+<td>2</td>
+<td>The workload is restarted upon termination, regardless of the exit code.</td>
 </tr>
 </tbody>
 </table>
@@ -3226,9 +3248,6 @@ a list of update mask (same as field mask) paths needs to be provided.</p>
 
 
 
-
-  
-  
 
 
 
