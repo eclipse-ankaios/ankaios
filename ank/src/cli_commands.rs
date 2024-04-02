@@ -765,7 +765,7 @@ impl CliCommands {
             complete_state
         );
         // send update request
-        self.internal_set_state(complete_state, object_field_mask)
+        self.update_state_and_wait_for_complete(complete_state, object_field_mask)
             .await
     }
 
@@ -872,7 +872,8 @@ impl CliCommands {
         });
 
         let update_mask = vec!["desiredState".to_string()];
-        self.internal_set_state(*new_state, update_mask).await
+        self.update_state_and_wait_for_complete(*new_state, update_mask)
+            .await
     }
 
     // [impl->swdd~cli-provides-run-workload~1]
@@ -909,10 +910,11 @@ impl CliCommands {
 
         let update_mask = vec!["desiredState".to_string()];
 
-        self.internal_set_state(new_state, update_mask).await
+        self.update_state_and_wait_for_complete(new_state, update_mask)
+            .await
     }
 
-    async fn internal_set_state(
+    async fn update_state_and_wait_for_complete(
         &mut self,
         new_state: CompleteState,
         update_mask: Vec<String>,
@@ -1040,7 +1042,7 @@ impl CliCommands {
 
                 // [impl->swdd~cli-apply-send-update-state~1]
                 // [impl->swdd~cli-apply-send-update-state-for-deletion~1]
-                self.internal_set_state(complete_state_req_obj, filter_masks)
+                self.update_state_and_wait_for_complete(complete_state_req_obj, filter_masks)
                     .await
             }
             Err(err) => Err(CliError::ExecutionError(err.to_string())),
