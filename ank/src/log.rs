@@ -14,7 +14,7 @@ macro_rules! output {
 }
 
 /// Prints the message, if the CLI command is not called with `--quiet` flag
-/// If the previous test was written with this command, the old output is overwritten.
+/// If the previous text was written with this command, the old output is overwritten.
 #[macro_export]
 macro_rules! output_update {
     ( $ ( $ arg : tt ) + ) => { $crate::log::output_update_fn ( format_args ! ( $ ( $ arg ) + ) ) }
