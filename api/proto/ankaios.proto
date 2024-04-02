@@ -98,7 +98,7 @@ message AddedWorkload {
   WorkloadInstanceName instanceName = 1; /// The instance name of the workload.
   string runtime = 2; /// The name of the runtime, e.g., podman.
   map<string, AddCondition> dependencies = 3; /// A list of dependencies to other workloads with their corresponding, expected states. Can be used to enable a synchronized start of a workload.
-  bool restart = 4; /// A flag indicating to restart the workload in case of an intentional or an unintentional stop of the workload.
+  RestartPolicy restartPolicy = 4; /// An enum value that defines the condition under which a workload is restarted.
   repeated Tag tags = 5; /// A list of tags.
   string runtimeConfig = 6; /// The configuration information specific to the runtime.
 }
@@ -290,7 +290,7 @@ message State {
 */
 message Workload {
   string agent = 1; /// The name of the owning Agent.
-  bool restart = 2; /// A flag indicating to restart the workload in case of an intentional or an unintentional stop of the workload.
+  RestartPolicy restartPolicy = 2; /// An enum value that defines the condition under which a workload is restarted.
   map<string, AddCondition> dependencies = 3; /// A map of workload names and expected states to enable a synchronized start of the workload.
   repeated Tag tags = 4; /// A list of tag names.
   string runtime = 5; /// The name of the runtime e.g. podman.
@@ -303,4 +303,13 @@ message Workload {
 message Tag {
   string key = 1; /// The key of the tag.
   string value = 2; /// The value of the tag.
+}
+
+/**
+* An enum type describing the restart behavior of a workload.
+*/
+enum RestartPolicy {
+  NEVER = 0; /// The workload is never restarted. Once the workload exits, it remains in the exited state.
+  ON_FAILURE = 1; /// If the workload exits with a non-zero exit code, it will be restarted.
+  ALWAYS = 2; /// The workload is restarted upon termination, regardless of the exit code.
 }

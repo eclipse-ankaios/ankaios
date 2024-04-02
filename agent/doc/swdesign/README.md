@@ -60,7 +60,7 @@ A WorkloadCommand is used to instruct the WorkloadControlLoop to do an action on
 Thus, the following WorkloadCommands exists:
 * `Create` for creating a workload
 * `Update` for updating a workload
-* `Restart` for restarting a workload
+* `Retry` for retrying the create of an workload
 * `Delete` for deleting a workload
 
 ### WorkloadControlLoop
@@ -1290,28 +1290,53 @@ Needs:
 - impl
 - utest
 
-### Restart of workloads
+### Restart policies of workloads
 
-The following diagram describes the restart behavior when a workload is created and the create fails:
-
-![Restart Workload On Create Failure](plantuml/seq_restart_workload_on_create_failure.svg)
-
-The following diagram describes the restart behavior when an update command is received within the WorkloadControlLoop and the create of the new workload fails:
-
-![Restart Workload On Update With Create Failure](plantuml/seq_restart_workload_on_update_with_create_failure.svg)
-
-#### WorkloadControlLoop restarts a workload on failing create
-`swdd~agent-workload-control-loop-restart-workload-on-create-failure~1`
+#### Agent supports restart policies
+`swdd~agent-supports-restart-policies~1`
 
 Status: approved
 
-When the WorkloadControlLoop creates a workload and the operation fails, the WorkloadControlLoop shall restart the creation of a workload by sending the WorkloadCommand Restart to the WorkloadControlLoop of the workload.
+The Ankaios agent shall support the following restart conditions for a workload:
+
+* `NEVER`: The workload is never restarted. Once the container exits, it remains in the exited state.
+* `ON_FAILURE`: If the workload exits with a non-zero exit code, it will be restarted.
+* `ALWAYS`: The workload is restarted upon termination, regardless of the exit code.
+
+Comment:
+The default condition is `NEVER`.
+
+Rationale:
+In some cases, workloads must remain operational at all times, even if they fail or exit successfully.
+
+Tags:
+
+Needs:
+- impl
+- utest
+
+### Retry creation of workloads
+
+The following diagram describes the retry behavior when a workload is created and the create fails:
+
+![Retry Creation of Workload On Create Failure](plantuml/seq_retry_workload_creation_on_create_failure.svg)
+
+The following diagram describes the retry behavior when an update command is received within the WorkloadControlLoop and the create of the new workload fails:
+
+![Retry Creation of Workload On Update With Create Failure](plantuml/seq_retry_workload_creation_on_update_with_create_failure.svg)
+
+#### WorkloadControlLoop retries a workload on failing create
+`swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1`
+
+Status: approved
+
+When the WorkloadControlLoop creates a workload and the operation fails, the WorkloadControlLoop shall retry the creation of a workload by sending the WorkloadCommand Retry to the WorkloadControlLoop of the workload.
 
 Comment:
 Depending on the runtime, a create of a workload might fail if the workload is added again while a delete operation for a workload with the same config is still in progress.
 
 Rationale:
-The restart behavior for unsuccessful creation of a workload makes the system more resilient against runtime specific failures.
+The retry behavior for unsuccessful creation of a workload makes the system more resilient against runtime specific failures.
 
 Tags:
 - WorkloadControlLoop
@@ -1321,18 +1346,18 @@ Needs:
 - utest
 - stest
 
-#### WorkloadControlLoop requests restart of a workload on failing restart attempt
-`swdd~agent-workload-control-loop-request-restarts-on-failing-restart-attempt~1`
+#### WorkloadControlLoop requests retry of a workload creation on failing retry attempt
+`swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1`
 
 Status: approved
 
-When the WorkloadControlLoop executes a restart of a workload and the runtime connector fails to create the workload, the WorkloadControlLoop shall request a restart of the creation of the workload within a 1 sec time interval.
+When the WorkloadControlLoop executes a retry of a workload creation and the runtime connector fails to create the workload, the WorkloadControlLoop shall request a retry of the creation of the workload within 1 sec time interval.
 
 Comment:
-The creation of a workload can fail temporarily, for example if a Runtime is still busy deleting and the workload is to be recreated. The WorkloadControlLoop uses the WorkloadCommandSender to send the WorkloadCommand restart.
+The creation of a workload can fail temporarily, for example if a Runtime is still busy deleting and the workload is to be recreated. The WorkloadControlLoop uses the WorkloadCommandSender to send the WorkloadCommand Retry.
 
 Rationale:
-The restart behavior for unsuccessful creation of a workload makes the system more resilient against runtime specific failures.
+The retry behavior for unsuccessful creation of a workload makes the system more resilient against runtime specific failures.
 
 Tags:
 - WorkloadControlLoop
@@ -1342,12 +1367,12 @@ Needs:
 - utest
 - stest
 
-#### WorkloadControlLoop restarts a workload
-`swdd~agent-workload-control-loop-executes-restart~1`
+#### WorkloadControlLoop retries creation of a workload
+`swdd~agent-workload-control-loop-executes-retry~1`
 
 Status: approved
 
-When the WorkloadControlLoop receives a restart command, the WorkloadControlLoop shall:
+When the WorkloadControlLoop receives a retry command, the WorkloadControlLoop shall:
 * create a new workload via the corresponding runtime connector (which creates and starts a state checker)
 * store the new Id and reference to the state checker inside the WorkloadControlLoop
 
@@ -1359,15 +1384,15 @@ Needs:
 - utest
 - stest
 
-#### WorkloadControlLoop stops restarts after the defined maximum amount of restart attempts
-`swdd~agent-workload-control-loop-limit-restart-attempts~1`
+#### WorkloadControlLoop stops retries after the defined maximum amount of retry attempts
+`swdd~agent-workload-control-loop-limits-retry-attempts~1`
 
 Status: approved
 
-The WorkloadControlLoop shall execute a maximum of 20 restart attempts.
+The WorkloadControlLoop shall execute a maximum of 20 retry attempts.
 
 Rationale:
-Limiting the restart attempts prevents pointless attempts if the workload cannot be started due to a configuration conflict that the runtime rejects in general.
+Limiting the retry attempts prevents pointless attempts if the workload cannot be started due to a configuration conflict that the runtime rejects in general.
 
 Tags:
 - WorkloadControlLoop
@@ -1377,15 +1402,15 @@ Needs:
 - utest
 - stest
 
-##### WorkloadControlLoop sets execution state of workload to failed after reaching the restart limit
-`swdd~agent-workload-control-loop-restart-limit-set-execution-state~2`
+##### WorkloadControlLoop sets execution state of workload to failed after reaching the retry limit
+`swdd~agent-workload-control-loop-retry-limit-set-execution-state~1`
 
 Status: approved
 
-When the WorkloadControlLoop receives a restart command and the maximum amount of restart attempts is reached, the WorkloadControlLoop shall set the execution state of the workload to `Pending(StartingFailed)` with additional information "No more retries.".
+When the WorkloadControlLoop receives a retry command and the maximum amount of retry attempts is reached, the WorkloadControlLoop shall set the execution state of the workload to `Pending(StartingFailed)` with additional information "No more retries.".
 
 Rationale:
-The workload has a well defined state after reaching the restart attempt limit indicating that the create of the workload has failed.
+The workload has a well defined state after reaching the retry attempt limit indicating that the create of the workload has failed.
 
 Tags:
 - WorkloadControlLoop
@@ -1395,18 +1420,18 @@ Needs:
 - utest
 - stest
 
-#### WorkloadControlLoop prevents restarts when receiving other workload commands
-`swdd~agent-workload-control-loop-prevent-restarts-on-other-workload-commands~1`
+#### WorkloadControlLoop prevents retries when receiving other workload commands
+`swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1`
 
 Status: approved
 
-When the WorkloadControlLoop receives an update or delete from the WorkloadCommandSender, the WorkloadControlLoop shall stop triggering restart attempts.
+When the WorkloadControlLoop receives an update or delete from the WorkloadCommandSender, the WorkloadControlLoop shall stop triggering retry attempts.
 
 Comment:
-When executing the restart attempts the WorkloadControlLoop might receive other WorkloadCommands like update or delete making the restart attempts with the previous workload configuration obsolete.
+When executing the retry attempts the WorkloadControlLoop might receive other WorkloadCommands like update or delete making the retry attempts with the previous workload configuration obsolete.
 
 Rationale:
-This prevents the continuation of unnecessary restart attempts of a workload when receiving a WorkloadCommand update or delete.
+This prevents the continuation of unnecessary retry attempts of a workload when receiving a WorkloadCommand update or delete.
 
 Tags:
 - WorkloadControlLoop
@@ -1416,18 +1441,18 @@ Needs:
 - utest
 - stest
 
-#### WorkloadControlLoop resets restart attempts when receiving an update
-`swdd~agent-workload-control-loop-reset-restart-attempts-on-update~1`
+#### WorkloadControlLoop resets retry attempts when receiving an update
+`swdd~agent-workload-control-loop-reset-retry-attempts-on-update~1`
 
 Status: approved
 
-When the WorkloadControlLoop receives an update from the WorkloadCommandSender, the WorkloadControlLoop shall reset the restart counter.
+When the WorkloadControlLoop receives an update from the WorkloadCommandSender, the WorkloadControlLoop shall reset the retry counter.
 
 Comment:
-The restart counter might be already incremented when the workload that shall be updated was already failing a few times during its initial creation.
+The retry counter might be already incremented when the workload that shall be updated was already failing a few times during its initial creation.
 
 Rationale:
-This enables new restart attempts for the new workload again.
+This enables new retry attempts for the new workload again.
 
 Tags:
 - WorkloadControlLoop

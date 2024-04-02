@@ -563,10 +563,10 @@ mod tests {
             data: object::generate_test_state().into(),
         };
 
-        let res = data.get(&"workloads.name.restart".into());
+        let res = data.get(&"workloads.name.restartPolicy".into());
 
         assert!(res.is_some());
-        assert_eq!(res.expect(""), &serde_yaml::Value::from(true));
+        assert_eq!(res.expect(""), &serde_yaml::Value::from("ALWAYS"));
     }
 
     #[test]
@@ -719,7 +719,7 @@ mod tests {
                                     .entry("workload A", "ADD_COND_RUNNING")
                                     .entry("workload C", "ADD_COND_SUCCEEDED"),
                             )
-                            .entry("restart", true)
+                            .entry("restartPolicy", "ALWAYS")
                             .entry("runtime", "runtime")
                             .entry("runtimeConfig", "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"),
                     ),

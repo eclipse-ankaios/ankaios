@@ -400,7 +400,8 @@ mod tests {
     use common::from_server_interface::FromServer;
     use common::objects::{
         generate_test_stored_workload_spec, generate_test_workload_spec_with_param, CompleteState,
-        DeletedWorkload, ExecutionState, ExecutionStateEnum, PendingSubstate, State, WorkloadState,
+        DeletedWorkload, ExecutionState, ExecutionStateEnum, PendingSubstate, State,
+        WorkloadInstanceName, WorkloadState,
     };
 
     use common::to_server_interface::ToServerInterface;
@@ -1260,7 +1261,11 @@ mod tests {
         );
 
         let mut updated_w1 = w1.clone();
-        updated_w1.restart = false;
+        updated_w1.instance_name = WorkloadInstanceName::builder()
+            .workload_name(w1.instance_name.workload_name())
+            .agent_name(w1.instance_name.agent_name())
+            .config(&String::from("changed"))
+            .build();
         let update_state = CompleteState {
             desired_state: State {
                 workloads: vec![(WORKLOAD_NAME_1.to_owned(), updated_w1.clone().into())]
@@ -1361,7 +1366,7 @@ mod tests {
                     added_workloads,
                     deleted_workloads
                 })
-            }) if request_id == REQUEST_ID_A && added_workloads == vec![updated_w1.instance_name.to_string()] && deleted_workloads == vec![updated_w1.instance_name.to_string()]
+            }) if request_id == REQUEST_ID_A && added_workloads == vec![updated_w1.instance_name.to_string()] && deleted_workloads == vec![w1.instance_name.to_string()]
         ));
 
         assert_eq!(
@@ -1369,7 +1374,7 @@ mod tests {
                 .workload_state_db
                 .get_workload_state_for_agent(AGENT_A),
             vec![WorkloadState {
-                instance_name: w1.instance_name,
+                instance_name: updated_w1.instance_name,
                 execution_state: ExecutionState {
                     state: ExecutionStateEnum::Pending(PendingSubstate::Initial),
                     additional_info: Default::default()

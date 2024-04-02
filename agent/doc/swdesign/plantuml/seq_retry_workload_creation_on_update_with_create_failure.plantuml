@@ -1,4 +1,4 @@
-@startuml seq_restart_workload_on_update_with_create_failure
+@startuml seq_retry_workload_creation_on_update_with_create_failure
 !include ../../../../resources/doc/plantuml/clean.skin
 
 box "Ankaios Agent"
@@ -24,10 +24,10 @@ runtime -->> workload_control_loop--
 workload_control_loop -> runtime ++: create workload
 runtime -->> workload_control_loop--
 opt create workload fails
-    opt restart_counter < limit
-        workload_control_loop ->> workload_control_loop ++: spawn restart
-        workload_control_loop -> workload_control_loop ++--: wait predefined time \nbefore next restart
-        workload_control_loop -> workload_command ++: send restart command
+    opt retry_counter < limit
+        workload_control_loop ->> workload_control_loop ++: spawn retry
+        workload_control_loop -> workload_control_loop ++--: wait predefined time \nbefore next retry
+        workload_control_loop -> workload_command ++: send retry command
         workload_command -->> workload_control_loop
         deactivate workload_command
         deactivate workload_control_loop

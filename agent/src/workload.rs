@@ -20,7 +20,7 @@ pub mod workload_control_loop;
 pub use workload_command_channel::WorkloadCommandSender;
 #[cfg(test)]
 pub use workload_control_loop::WorkloadControlLoop;
-pub use workload_control_loop::{ControlLoopState, RestartCounter};
+pub use workload_control_loop::{ControlLoopState, RetryCounter};
 
 use std::{fmt::Display, path::PathBuf};
 
@@ -58,7 +58,7 @@ impl Display for WorkloadError {
 pub enum WorkloadCommand {
     Delete,
     Update(Option<Box<WorkloadSpec>>, Option<PathBuf>),
-    Restart(Box<WorkloadSpec>, Option<PathBuf>),
+    Retry(Box<WorkloadSpec>, Option<PathBuf>),
     Create(Box<WorkloadSpec>, Option<PathBuf>),
 }
 

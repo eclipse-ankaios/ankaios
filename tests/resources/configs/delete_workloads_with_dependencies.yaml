@@ -3,7 +3,7 @@ workloads:
   frontend:
     runtime: podman
     agent: agent_A
-    restart: false
+    restartPolicy: NEVER
     dependencies:
       backend: ADD_COND_RUNNING
     tags:
@@ -15,7 +15,7 @@ workloads:
   backend:
     runtime: podman
     agent: agent_A
-    restart: false
+    restartPolicy: NEVER
     tags:
       - key: owner
         value: Ankaios team
