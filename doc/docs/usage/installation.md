@@ -69,6 +69,30 @@ curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/download/<version>
 
 For available versions see the [list of releases](https://github.com/eclipse-ankaios/ankaios/tags).
 
+### Set the log level for `ank-server` and `ank-agent` services
+
+To configure the log levels for `ank-server` and `ank-agent` during the installation process using the provided environment variables, follow these steps:
+
+1. Set the desired log levels for each service by assigning valid values to the environment variables `INSTALL_ANK_SERVER_RUST_LOG` and `INSTALL_ANK_AGENT_RUST_LOG`. Valid values include `info`, `debug`, `warn`, `error`, or `trace`. For example:
+   * To set the log level for `ank-server` to "debug": `INSTALL_ANK_SERVER_RUST_LOG=debug`
+   * To set the log level for `ank-agent` to "info": `INSTALL_ANK_AGENT_RUST_LOG=info`
+
+2. Run the installation script, making sure to pass these environment variables as arguments if needed:
+
+For a specific version:
+
+```shell
+      curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/download/<version>/install.sh | INSTALL_ANK_SERVER_RUST_LOG=debug INSTALL_ANK_AGENT_RUST_LOG=info bash -s -- -i /usr/local/bin -t both -v <version>
+```
+
+For the latest version:
+
+```shell
+    curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/download/latest/install.sh | INSTALL_ANK_SERVER_RUST_LOG=debug INSTALL_ANK_AGENT_RUST_LOG=info bash -s -- -i /usr/local/bin -t both
+```
+
+Now, both services will output logs according to the specified log levels. If no explicit value was provided during installation, both services will default to `info` log level. You can always change the log level by updating the environment variables and reinstalling the services.
+
 ### Uninstall Ankaios
 
 If Ankaios has been installed with the installation script, it can be uninstalled with:
