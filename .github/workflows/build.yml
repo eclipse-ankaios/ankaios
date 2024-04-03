@@ -19,7 +19,7 @@ jobs:
     name: Test and build Linux amd64
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.8.0
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
@@ -92,7 +92,7 @@ jobs:
     name: Build Linux arm64
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.8.0
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
       options: --user root
     steps:
       - uses: actions/checkout@v4.1.1
@@ -119,7 +119,7 @@ jobs:
     name: Build requirements tracing
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.8.0
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
       options: --user root
     steps:
       - uses: actions/checkout@v4.1.1
