@@ -1008,12 +1008,16 @@ impl CliCommands {
             return Ok(());
         }
 
-        let workloads = self.get_workloads().await.unwrap();
+        let states_of_all_workloads = self.get_workloads().await.unwrap();
+        let states_of_changed_workloads = states_of_all_workloads
+            .into_iter()
+            .filter(|x| changed_workloads.contains(&x.0))
+            .collect::<Vec<_>>();
 
         let mut wait_list = WaitList::new(
             update_state_success,
             WaitListDisplay {
-                data: workloads.into_iter().collect(),
+                data: states_of_changed_workloads.into_iter().collect(),
                 spinner: Default::default(),
                 not_completed: changed_workloads,
                 completed: Default::default(),
