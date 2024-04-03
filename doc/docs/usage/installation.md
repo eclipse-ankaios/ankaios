@@ -73,9 +73,7 @@ For available versions see the [list of releases](https://github.com/eclipse-ank
 
 To configure the log levels for `ank-server` and `ank-agent` during the installation process using the provided environment variables, follow these steps:
 
-1. Set the desired log levels for each service by assigning valid values to the environment variables `INSTALL_ANK_SERVER_RUST_LOG` and `INSTALL_ANK_AGENT_RUST_LOG`. Valid values include `info`, `debug`, `warn`, `error`, or `trace`. For example:
-   * To set the log level for `ank-server` to "debug": `INSTALL_ANK_SERVER_RUST_LOG=debug`
-   * To set the log level for `ank-agent` to "info": `INSTALL_ANK_AGENT_RUST_LOG=info`
+1. Set the desired log levels for each service by assigning valid values to the environment variables `INSTALL_ANK_SERVER_RUST_LOG` and `INSTALL_ANK_AGENT_RUST_LOG`. For the syntax see the [documentation for `RUST_LOG`](https://docs.rs/env_logger/latest/env_logger/#enabling-logging).
 
 2. Run the installation script, making sure to pass these environment variables as arguments if needed:
 
