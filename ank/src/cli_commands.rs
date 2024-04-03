@@ -58,8 +58,7 @@ use self::wait_list::WaitListDisplayTrait;
 const BUFFER_SIZE: usize = 20;
 const WAIT_TIME_MS: Duration = Duration::from_millis(3000);
 const SPINNER_SYMBOLS: [&str; 4] = ["|", "/", "-", "\\"];
-pub(crate) const COMPLETED_SYMBOL: &str = "*";
-pub(crate) const IGNORED_SYMBOL: &str = " ";
+pub(crate) const COMPLETED_SYMBOL: &str = " ";
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CliError {
@@ -462,7 +461,6 @@ struct GetWorkloadTableDisplay {
 struct WaitListDisplay {
     data: HashMap<WorkloadInstanceName, GetWorkloadTableDisplay>,
     not_completed: HashSet<WorkloadInstanceName>,
-    completed: HashSet<WorkloadInstanceName>,
     spinner: Spinner,
 }
 
@@ -474,12 +472,10 @@ impl Display for WaitListDisplay {
             .iter()
             .map(|(workload_name, table_entry)| {
                 let mut table_entry = table_entry.to_owned();
-                let update_state_symbol = if self.completed.contains(workload_name) {
-                    COMPLETED_SYMBOL
-                } else if self.not_completed.contains(workload_name) {
+                let update_state_symbol = if self.not_completed.contains(workload_name) {
                     &current_spinner
                 } else {
-                    IGNORED_SYMBOL
+                    COMPLETED_SYMBOL
                 };
                 table_entry.execution_state =
                     format!("{} {}", update_state_symbol, table_entry.execution_state);
@@ -505,7 +501,6 @@ impl WaitListDisplayTrait for WaitListDisplay {
 
     fn set_complete(&mut self, workload: &WorkloadInstanceName) {
         self.not_completed.remove(workload);
-        self.completed.insert(workload.clone());
     }
 
     fn step_spinner(&mut self) {
@@ -1020,7 +1015,6 @@ impl CliCommands {
                 data: states_of_changed_workloads.into_iter().collect(),
                 spinner: Default::default(),
                 not_completed: changed_workloads,
-                completed: Default::default(),
             },
         );
 
