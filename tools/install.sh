@@ -127,20 +127,14 @@ if [ -z "$INSTALL_ANK_SERVER_RUST_LOG" ] ; then
     echo "No log level for ank-server provided, use default: 'info'"
     INSTALL_ANK_SERVER_RUST_LOG=${DEFAULT_LOG_LEVEL}
 else
-    if [[ ! "${INSTALL_ANK_SERVER_RUST_LOG}" =~ ^(info|debug|warn|error|trace)$ ]]; then
-        fail "Error: Invalid log level INSTALL_ANK_SERVER_RUST_LOG='${INSTALL_ANK_SERVER_RUST_LOG}' provided. Supported values are 'info|debug|warn|error|trace'."
-    fi
-    echo "Log level for ank-server provided, '${INSTALL_ANK_SERVER_RUST_LOG}'"
+    echo "Log level for ank-server provided: '${INSTALL_ANK_SERVER_RUST_LOG}'"
 fi
 
 if [ -z "$INSTALL_ANK_AGENT_RUST_LOG" ]; then
     echo "No log level for ank-agent provided, use default: 'info'"
     INSTALL_ANK_AGENT_RUST_LOG=${DEFAULT_LOG_LEVEL}
 else
-    if [[ ! "${INSTALL_ANK_AGENT_RUST_LOG}" =~ ^(info|debug|warn|error|trace)$ ]]; then
-        fail "Error: Invalid log level INSTALL_ANK_AGENT_RUST_LOG='${INSTALL_ANK_AGENT_RUST_LOG}' provided. Supported values are 'info|debug|warn|error|trace'."
-    fi
-    echo "Log level for ank-agent provided, '${INSTALL_ANK_AGENT_RUST_LOG}'"
+    echo "Log level for ank-agent provided: '${INSTALL_ANK_AGENT_RUST_LOG}'"
 fi
 
 ANKAIOS_TMP_DIR=$(mktemp -d)
