@@ -483,6 +483,7 @@ impl Display for WaitListDisplay {
             })
             .collect();
 
+        // [impl->swdd~cli-shall-present-workloads-as-table~1]
         write!(
             f,
             "{}",
@@ -766,20 +767,20 @@ impl CliCommands {
             "Send UpdateState request with the CompleteState {:?}",
             complete_state
         );
-        // send update request
+
+        // [impl->swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~2]
         self.update_state_and_wait_for_complete(complete_state, object_field_mask)
             .await
     }
 
     // [impl->swdd~cli-provides-list-of-workloads~1]
-    // [impl->swdd~cli-blocks-until-ankaios-server-responds-list-workloads~1]
-    // [impl->swdd~cli-shall-print-empty-table~1]
     pub async fn get_workloads_table(
         &mut self,
         agent_name: Option<String>,
         state: Option<String>,
         workload_name: Vec<String>,
     ) -> Result<String, CliError> {
+        // [impl->swdd~cli-blocks-until-ankaios-server-responds-list-workloads~1]
         let mut workload_infos = self.get_workloads().await?;
         output_debug!("The table before filtering:\n{:?}", workload_infos);
 
@@ -804,7 +805,8 @@ impl CliCommands {
 
         output_debug!("The table after filtering:\n{:?}", workload_infos);
 
-        // [impl->swdd~cli-shall-present-list-workloads-as-table~1]
+        // [impl->swdd~cli-shall-present-list-of-workloads~1]
+        // [impl->swdd~cli-shall-present-workloads-as-table~1]
         Ok(Table::new(workload_infos.iter().map(|x| &x.1))
             .with(Style::blank())
             .to_string())
@@ -813,7 +815,6 @@ impl CliCommands {
     async fn get_workloads(
         &mut self,
     ) -> Result<Vec<(WorkloadInstanceName, GetWorkloadTableDisplay)>, CliError> {
-        // [impl->swdd~cli-returns-list-of-workloads-from-server~1]
         let res_complete_state = self.get_complete_state(&Vec::new()).await?;
 
         let mut workload_infos: Vec<(WorkloadInstanceName, GetWorkloadTableDisplay)> =
@@ -852,7 +853,7 @@ impl CliCommands {
     }
 
     // [impl->swdd~cli-provides-delete-workload~1]
-    // [impl->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~1]
+    // [impl->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
     pub async fn delete_workloads(&mut self, workload_names: Vec<String>) -> Result<(), CliError> {
         let complete_state = self.get_complete_state(&Vec::new()).await?;
 
@@ -879,7 +880,7 @@ impl CliCommands {
     }
 
     // [impl->swdd~cli-provides-run-workload~1]
-    // [impl->swdd~cli-blocks-until-ankaios-server-responds-run-workload~1]
+    // [impl->swdd~cli-blocks-until-ankaios-server-responds-run-workload~2]
     pub async fn run_workload(
         &mut self,
         workload_name: String,
@@ -916,6 +917,7 @@ impl CliCommands {
             .await
     }
 
+    // [impl->swdd~cli-requests-update-state-with-watch~1]
     async fn update_state_and_wait_for_complete(
         &mut self,
         new_state: CompleteState,
@@ -948,12 +950,14 @@ impl CliCommands {
                             ResponseContent::UpdateStateSuccess(update_state_success) => {
                                 break update_state_success
                             }
+                            // [impl->swdd~cli-requests-update-state-with-watch-error~1]
                             ResponseContent::Error(error) => {
                                 return Err(CliError::ExecutionError(format!(
                                     "SetState failed with: '{}'",
                                     error.message
                                 )));
                             }
+                            // [impl->swdd~cli-requests-update-state-with-watch-error~1]
                             response_content => {
                                 return Err(CliError::ExecutionError(format!(
                                     "Received unexpected response: {:?}",
@@ -974,6 +978,7 @@ impl CliCommands {
 
         output_debug!("Got update success: {:?}", update_state_success);
 
+        // [impl->swdd~cli-requests-update-state-with-watch-error~1]
         let update_state_success = ParsedUpdateStateSuccess::try_from(update_state_success)
             .map_err(|error| {
                 CliError::ExecutionError(format!(
@@ -984,11 +989,13 @@ impl CliCommands {
         if self.no_wait {
             Ok(())
         } else {
+            // [impl->swdd~cli-requests-update-state-with-watch-success~1]
             self.wait_for_complete(update_state_success, missed_messages)
                 .await
         }
     }
 
+    // [impl->swdd~cli-watches-workloads~1]
     async fn wait_for_complete(
         &mut self,
         update_state_success: ParsedUpdateStateSuccess,
@@ -1059,7 +1066,6 @@ impl CliCommands {
                     .map_err(CliError::ExecutionError)?;
 
                 // [impl->swdd~cli-apply-send-update-state~1]
-                // [impl->swdd~cli-apply-send-update-state-for-deletion~1]
                 self.update_state_and_wait_for_complete(complete_state_req_obj, filter_masks)
                     .await
             }
@@ -1213,7 +1219,7 @@ mod tests {
         Ok(())
     }
 
-    // [utest->swdd~cli-shall-print-empty-table~1]
+    // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[tokio::test]
     async fn get_workloads_empty_table() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1256,8 +1262,8 @@ mod tests {
 
     // [utest->swdd~cli-provides-list-of-workloads~1]
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-list-workloads~1]
-    // [utest->swdd~cli-returns-list-of-workloads-from-server~1]
-    // [utest->swdd~cli-shall-present-list-workloads-as-table~1]
+    // [utest->swdd~cli-shall-present-list-of-workloads~1]
+    // [utest->swdd~cli-shall-present-workloads-as-table~1]
     // [utest->swdd~cli-shall-sort-list-of-workloads~1]
     #[tokio::test]
     async fn get_workloads_no_filtering() {
@@ -1523,7 +1529,7 @@ mod tests {
         assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
 
-    // [utest->swdd~cli-shall-present-list-workloads-as-table~1]
+    // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[tokio::test]
     async fn get_workloads_deleted_workload() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1580,7 +1586,7 @@ mod tests {
     }
 
     // [utest->swdd~cli-provides-delete-workload~1]
-    // [utest->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~1]
+    // [utest->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
     #[tokio::test]
     async fn delete_workloads_two_workloads() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -2047,7 +2053,7 @@ mod tests {
     }
 
     // [utest->swdd~cli-provides-run-workload~1]
-    // [utest->swdd~cli-blocks-until-ankaios-server-responds-run-workload~1]
+    // [utest->swdd~cli-blocks-until-ankaios-server-responds-run-workload~2]
     #[tokio::test]
     async fn run_workload_one_new_workload() {
         let test_workload_name = "name4".to_string();
@@ -2933,7 +2939,7 @@ mod tests {
         );
     }
 
-    //[utest->swdd~cli-apply-send-update-state-for-deletion~1]
+    //[utest->swdd~cli-apply-send-update-state~1]
     #[tokio::test]
     async fn apply_manifests_delete_mode_ok() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

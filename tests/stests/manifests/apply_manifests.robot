@@ -141,7 +141,7 @@ Test Ankaios apply workload specification without agent name
     Then the last command shall finish with an error
     [Teardown]    Clean up Ankaios
 
-# [stest->swdd~cli-apply-send-update-state-for-deletion~1]
+# [stest->swdd~cli-apply-send-update-state~1]
 Test Ankaios apply workload specifications via Ankaios Manifest files for deletion
     [Setup]           Run Keywords    Setup Ankaios
     ...        AND    Set Global Variable    ${manifest12_yaml_file}    ${CONFIGS_DIR}/manifest12.yaml

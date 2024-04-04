@@ -70,6 +70,7 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
     pub fn update(&mut self, values: impl IntoIterator<Item = WorkloadState>) {
         for workload in values.into_iter() {
             self.display.update(&workload);
+            // [impl->swdd~cli-checks-for-final-workload-state~1]
             match workload.execution_state.state {
                 common::objects::ExecutionStateEnum::Running(_) => {
                     if self.added_workloads.remove(&workload.instance_name) {

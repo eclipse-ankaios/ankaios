@@ -340,44 +340,6 @@ Needs:
 - impl
 - utest
 
-#### CLI returns the list of workloads from Ankaios Server via CLI communication interface
-`swdd~cli-returns-list-of-workloads-from-server~1`
-
-Status: approved
-
-When the CLI receives the list of workloads from Ankaios Server, the CLI shall return this response to the user.
-
-Tags:
-- GetWorkloads
-
-Needs:
-- swdd
-- impl
-- utest
-
-#### CLI shall present the list of workloads as a table
-`swdd~cli-shall-present-list-workloads-as-table~1`
-
-Status: approved
-
-When the CLI receives the list of workloads from the Ankaios Server via CLI communication interface, the CLI shall present the list as a table with following columns:
-
-| WORKLOAD NAME | AGENT | RUNTIME | EXECUTION STATE | ADDITIONAL INFO    |
-| ------------- | ----- | ------- | --------------- | ------------------ |
-| workload1     | agent | runtime | state           | state related info |
-| workload2     | agent | runtime | state           | state related info |
-
-Note:
-The column runtime is not filled when the workload has been deleted.
-This can happen when the workload has been deleted from the current state and the workload state is reported as "removed".
-
-Tags:
-- GetWorkloads
-
-Needs:
-- impl
-- utest
-
 #### CLI shall sort the list of workloads
 `swdd~cli-shall-sort-list-of-workloads~1`
 
@@ -405,14 +367,41 @@ Needs:
 - impl
 - utest
 
-#### CLI shall print empty table
-`swdd~cli-shall-print-empty-table~1`
+#### CLI present the list of workloads
+`swdd~cli-shall-present-list-of-workloads~1`
 
-When the CLI receives the list of workloads from the Ankaios Server via CLI communication interface and the list of workloads is empty,
-the CLI shall present only the header of the table to the user.
+Status: approved
+
+When the CLI receives the list of workloads from the Ankaios Server via CLI communication interface
+and CLI has sorted the list
+and the CLI has filtered the list,
+the CLI shall present the processed list of workloads to the user.
 
 Tags:
 - GetWorkloads
+
+Needs:
+- impl
+- utest
+
+#### CLI shall present workloads as a table
+`swdd~cli-shall-present-workloads-as-table~1`
+
+Status: approved
+
+When the CLI presents workloads to the user, the CLI shall display the workloads as a table with following columns:
+
+| WORKLOAD NAME | AGENT | RUNTIME | EXECUTION STATE | ADDITIONAL INFO    |
+| ------------- | ----- | ------- | --------------- | ------------------ |
+| workload1     | agent | runtime | state           | state related info |
+| workload2     | agent | runtime | state           | state related info |
+
+Note:
+The column runtime is not filled when the workload has been deleted.
+This can happen when the workload has been deleted from the current state and the workload state is reported as "removed".
+
+Tags:
+- CliCommands
 
 Needs:
 - impl
@@ -438,14 +427,96 @@ Needs:
 - utest
 
 #### CLI blocks until the Ankaios Server responds to the request to set the desired state
-`swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~1`
+`swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~2`
 
 Status: approved
 
-When the user invokes the CLI with a request to set the desired state, the CLI shall block and wait until the response from the Ankaios Server is received.
+When the user invokes the CLI with a request to set the desired state, the CLI shall request an update of the state including a watch on the updated workloads.
 
 Tags:
 - SetDesiredState
+
+Needs:
+- impl
+- utest
+
+#### CLI requests update state with watch
+`swdd~cli-requests-update-state-with-watch~1`
+
+Status: approved
+
+When the CLI executes an update of the Ankaios state including a watch on the updated workloads, the CLI shall request an update of the state from the Ankaios server.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
+#### CLI requests update state with watch error
+`swdd~cli-requests-update-state-with-watch-error~1`
+
+Status: approved
+
+When the CLI executes an update of the Ankaios state including a watch on the updated workloads and the Ankaios server responds with an error, the CLI shall present the error to the user.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
+#### CLI requests update state with watch success
+`swdd~cli-requests-update-state-with-watch-success~1`
+
+Status: approved
+
+When the CLI executes an update of the Ankaios state including a watch on the updated workloads
+and the Ankaios server responds with a success message containing the IDs of the changed workloads
+and the `no-wait` flag for the CLI is not set,
+the CLI shall watch the changed workloads.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
+#### CLI watches workloads
+`swdd~cli-watches-workloads~1`
+
+Status: approved
+
+When the CLI watches a list of workloads, the CLI shall:
+* get the desired state from the Ankaios server
+* filter only the workloads specified to watch
+* present the list of workloads to the user
+* listen for `UpdateWorkloadState` messages from the Ankaios server
+* update each workload execution state until a final state is reached
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
+#### CLI checks for final state of a workload
+`swdd~cli-checks-for-final-workload-state~1`
+
+Status: approved
+
+When the CLI checks if a workload has reached its final expected workload execution state, the CLI shall regard the state for final if the state is one of:
+* running
+* succeeded
+* failed
+* removed
+
+Tags:
+- CliCommands
 
 Needs:
 - impl
@@ -485,11 +556,11 @@ Needs:
 - utest
 
 #### CLI blocks until the Ankaios Server responds to the request to delete workloads
-`swdd~cli-blocks-until-ankaios-server-responds-delete-workload~1`
+`swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2`
 
 Status: approved
 
-When the user invokes the CLI with a request to delete workloads, the CLI shall block and wait until the response from the Ankaios Server is received.
+When the user invokes the CLI with a request to delete workloads, the CLI shall request an update of the state including a watch on the updated workloads.
 
 Tags:
 - DeleteWorkload
@@ -531,11 +602,11 @@ Needs:
 - utest
 
 #### CLI blocks until the Ankaios Server responds to the request to run workloads
-`swdd~cli-blocks-until-ankaios-server-responds-run-workload~1`
+`swdd~cli-blocks-until-ankaios-server-responds-run-workload~2`
 
 Status: approved
 
-When the user invokes the CLI with a request to run a workload, the CLI shall block and wait until the response from the Ankaios Server is received.
+When the user invokes the CLI with a request to run a workload, the CLI shall request an update of the state including a watch on the updated workloads.
 
 Tags:
 - RunWorkload
@@ -644,21 +715,10 @@ Needs:
 
 Status: approved
 
-When the user calls the Ankaios CLI `apply` command,
-the Ankaios CLI shall send an update state request to the Ankaios server, containing the state object and filter mask generated from the given input files.
-
-Needs:
-- impl
-- utest
-- stest
-
-#### CLI sends update state request for `ank apply -d ...`
-`swdd~cli-apply-send-update-state-for-deletion~1`
-
-Status: approved
-
-When the user calls the Ankaios CLI `apply` command with the `-d` flag,
-the Ankaios CLI shall send an update state request to the Ankaios server, containing an empty state object and the filter mask generated from the given input files.
+When the user calls the Ankaios CLI `apply` command
+and the CLI has generated a state object from the input
+and the CLI has generated a filter masks from the input,
+the CLI shall request an update of the state including a watch on the updated workloads.
 
 Needs:
 - impl
