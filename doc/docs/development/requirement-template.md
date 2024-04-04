@@ -1,6 +1,6 @@
 # Requirement description template
 
-All requirements in Ankaios shall be written in the same format:
+All requirements in Ankaios shall be written in the following format:
 
 ```markdown
 <Requirement title>
@@ -8,7 +8,7 @@ All requirements in Ankaios shall be written in the same format:
 
 Status: approved
 
-[When <condition separated by and>] <object> shall <do something, be in state, execute a list of actions in order/in parallel…>
+[When <condition separated by and>], <object> shall <do something | be in state | execute a list of actions in order/in parallel | …>
 
 Comment:
 <comment body>

@@ -26,4 +26,4 @@ Thus, for new features:
 * Mark the parts in the source code that actually implement the design requirement using the type `impl`, e.g., `// [impl->swdd~this-is-a-requirement~1]`
 * Mark the tests that check the implementation of the design with one of the types `utest`, `itest` or `stest` depending on the type of the test, e.g., `// [utest->swdd~this-is-a-requirement~1]` for a unit test
 
-Format of the requirement is described in the next section [Requirement description template](requirement-template.md).
+The format of a requirement is described in the next section [Requirement description template](requirement-template.md).
