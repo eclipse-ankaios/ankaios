@@ -1,6 +1,6 @@
 use std::{env, fmt, process::exit, sync::Mutex};
 
-use crossterm::{cursor, style::Stylize};
+use crossterm::{cursor, style::Stylize, terminal};
 
 pub const VERBOSITY_KEY: &str = "VERBOSE";
 pub const QUIET_KEY: &str = "SILENT";
@@ -68,6 +68,21 @@ pub(crate) fn output_fn(args: fmt::Arguments<'_>) {
 pub(crate) fn output_update_fn(args: fmt::Arguments<'_>) {
     if !is_quiet() {
         let args = args.to_string();
+
+        let terminal_width = terminal::size().unwrap_or((80, 0)).0 as usize;
+        // limit line length to terminal_width by introducing newline characters
+        let args = args
+            .split('\n')
+            .flat_map(|line| {
+                line.chars()
+                    .collect::<Vec<_>>()
+                    .chunks(terminal_width)
+                    .map(|x| x.iter().collect::<String>())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<String>>()
+            .join("\n");
+
         let mut cleanup_string = CLEANUP_STRING.lock().unwrap();
         let up = cleanup_string.chars().filter(|c| *c == '\n').count() as u16;
         let up_string = if up > 0 {
