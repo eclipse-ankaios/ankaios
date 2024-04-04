@@ -20,6 +20,7 @@ FILE_ANK_SERVER_SERVICE="${SERVICE_DEST}/${ANK_SERVER_SERVICE}.service"
 ANK_AGENT_SERVICE="ank-agent"
 FILE_ANK_AGENT_SERVICE="${SERVICE_DEST}/${ANK_AGENT_SERVICE}.service"
 BASEFILE_ANK_UNINSTALL="ank-uninstall.sh"
+DEFAULT_LOG_LEVEL="info"
 
 setup_verify_arch() {
     if [ -z "$ARCH" ]; then
@@ -122,6 +123,20 @@ else
     ANKAIOS_RELEASE_URL_SHA="${RELEASE_URL_BASE}/download/${ANKAIOS_VERSION}/${RELEASE_FILE_NAME_WITH_SHA}"
 fi
 
+if [ -z "$INSTALL_ANK_SERVER_RUST_LOG" ] ; then
+    echo "No log level for ank-server provided, use default: 'info'"
+    INSTALL_ANK_SERVER_RUST_LOG=${DEFAULT_LOG_LEVEL}
+else
+    echo "Log level for ank-server provided: '${INSTALL_ANK_SERVER_RUST_LOG}'"
+fi
+
+if [ -z "$INSTALL_ANK_AGENT_RUST_LOG" ]; then
+    echo "No log level for ank-agent provided, use default: 'info'"
+    INSTALL_ANK_AGENT_RUST_LOG=${DEFAULT_LOG_LEVEL}
+else
+    echo "Log level for ank-agent provided: '${INSTALL_ANK_AGENT_RUST_LOG}'"
+fi
+
 ANKAIOS_TMP_DIR=$(mktemp -d)
 echo "Creating tmp directory for download artifacts: '${ANKAIOS_TMP_DIR}'"
 cd "${ANKAIOS_TMP_DIR}"
@@ -160,6 +175,7 @@ if [ -d "$SERVICE_DEST" ]; then
 Description=Ankaios server
 
 [Service]
+Environment="RUST_LOG=${INSTALL_ANK_SERVER_RUST_LOG}"
 ExecStart=${BIN_DESTINATION}/ank-server $SERVER_OPT
 
 [Install]
@@ -174,6 +190,7 @@ EOF
 Description=Ankaios agent
 
 [Service]
+Environment="RUST_LOG=${INSTALL_ANK_AGENT_RUST_LOG}"
 ExecStart=${BIN_DESTINATION}/ank-agent $AGENT_OPT
 
 [Install]
