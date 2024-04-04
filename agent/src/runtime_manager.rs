@@ -19,7 +19,7 @@ use std::{
 
 use common::{
     commands::Response,
-    objects::{AgentName, DeletedWorkload, WorkloadInstanceName, WorkloadSpec},
+    objects::{AgentName, DeletedWorkload, ExecutionState, WorkloadInstanceName, WorkloadSpec},
     request_id_prepending::detach_prefix_from_request_id,
     to_server_interface::ToServerSender,
 };
@@ -33,8 +33,9 @@ use crate::workload_scheduler::scheduler::WorkloadScheduler;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_state::workload_state_store::WorkloadStateStore;
 use crate::{
-    runtime_connectors::RuntimeFacade, workload_operation::WorkloadOperation,
-    workload_state::WorkloadStateSender,
+    runtime_connectors::RuntimeFacade,
+    workload_operation::WorkloadOperation,
+    workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
 
 #[cfg_attr(test, mockall_double::double)]
@@ -394,8 +395,17 @@ impl RuntimeManager {
         } else {
             log::warn!(
                 "Workload '{}' already gone.",
-                deleted_workload.instance_name.workload_name()
+                &deleted_workload.instance_name.workload_name()
             );
+
+            // As the sender of this delete workload command expects a response,
+            // report the execution state as 'Removed'
+            self.update_state_tx
+                .report_workload_execution_state(
+                    &deleted_workload.instance_name,
+                    ExecutionState::removed(),
+                )
+                .await;
         }
     }
 
