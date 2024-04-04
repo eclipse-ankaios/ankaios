@@ -16,7 +16,7 @@ use std::{collections::HashSet, fmt::Display};
 
 use common::{
     commands::UpdateStateSuccess,
-    objects::{WorkloadInstanceName, WorkloadState},
+    objects::{PendingSubstate, WorkloadInstanceName, WorkloadState, NO_MORE_RETRIES_MSG},
 };
 
 use crate::output_update;
@@ -78,6 +78,13 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
                     }
                 }
                 common::objects::ExecutionStateEnum::Succeeded(_) => {
+                    if self.added_workloads.remove(&workload.instance_name) {
+                        self.display.set_complete(&workload.instance_name)
+                    }
+                }
+                common::objects::ExecutionStateEnum::Pending(PendingSubstate::StartingFailed)
+                    if workload.execution_state.additional_info == NO_MORE_RETRIES_MSG =>
+                {
                     if self.added_workloads.remove(&workload.instance_name) {
                         self.display.set_complete(&workload.instance_name)
                     }

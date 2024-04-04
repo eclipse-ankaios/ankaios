@@ -38,7 +38,7 @@ pub use workload_state::{
 };
 pub use workload_state::{
     ExecutionState, ExecutionStateEnum, FailedSubstate, PendingSubstate, RunningSubstate,
-    StoppingSubstate, SucceededSubstate, WorkloadState,
+    StoppingSubstate, SucceededSubstate, WorkloadState, NO_MORE_RETRIES_MSG,
 };
 
 mod workload_spec;
