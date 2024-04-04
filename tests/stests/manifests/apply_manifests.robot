@@ -42,11 +42,11 @@ Test Ankaios apply workload specifications showing progress via spinner
     When user triggers "ank apply ${manifest12_yaml_file}"
     # Asserts
     Then the last command shall finish with exit code "0"
-    And in the last result, the workload "nginx_from_manifest1" shall have the execution state "| Pending(Initial)" on agent "agent_A"
-    And in the last result, the workload "nginx_from_manifest1" shall have the execution state "| Pending(Starting)" on agent "agent_A"
+    And in the last result, the workload "nginx_from_manifest1" shall have the execution state "Pending(Initial)" on agent "agent_A"
+    And in the last result, the workload "nginx_from_manifest1" shall have the execution state "Pending(Starting)" on agent "agent_A"
     And in the last result, the workload "nginx_from_manifest1" shall have the execution state "Running(Ok)" on agent "agent_A"
-    And in the last result, the workload "nginx_from_manifest2" shall have the execution state "| Pending(Initial)" on agent "agent_A"
-    And in the last result, the workload "nginx_from_manifest2" shall have the execution state "| Pending(Starting)" on agent "agent_A"
+    And in the last result, the workload "nginx_from_manifest2" shall have the execution state "Pending(Initial)" on agent "agent_A"
+    And in the last result, the workload "nginx_from_manifest2" shall have the execution state "Pending(Starting)" on agent "agent_A"
     And in the last result, the workload "nginx_from_manifest2" shall have the execution state "Running(Ok)" on agent "agent_A"
     [Teardown]    Clean up Ankaios
 
