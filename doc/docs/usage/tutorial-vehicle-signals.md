@@ -57,17 +57,12 @@ ank apply databroker.yaml
 ```
 
 The Ankaios agent `agent_A` will now instruct podman to start the workload.
-We can watch the result with:
-
-```shell
-ank get workloads
-```
-
-That command shall return:
+The command waits until databroker is running.
+It should print:
 
 ```text
- WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE   ADDITIONAL INFO
- databroker      agent_A   podman    Running(Ok)
+ WORKLOAD NAME   AGENT     RUNTIME     EXECUTION STATE   ADDITIONAL INFO
+ databroker      agent_A   podman      Running(Ok)
 ```
 
 ## Start the speed provider
@@ -94,18 +89,12 @@ Start the workload with:
 ank apply speed-provider.yaml
 ```
 
-To check that the workload has been started call:
-
-```shell
-ank get workloads
-```
-
-With the result:
+The command waits until speed provider is running.
+It should print:
 
 ```text
- WORKLOAD NAME    AGENT     RUNTIME   EXECUTION STATE   ADDITIONAL INFO
- databroker       agent_A   podman    Running(Ok)
- speed-provider   agent_A   podman    Running(Ok)
+ WORKLOAD NAME    AGENT     RUNTIME     EXECUTION STATE   ADDITIONAL INFO
+ speed-provider   agent_A   podman      Running(Ok)
 ```
 
 The speed-provider workload provides a web UI that allows the user to enter a speed value that is then sent to the databroker. The web UI is available on <http://127.0.0.1:5000>. If your web browser is running on a different host than the Ankaios agent, replace 127.0.0.1 with the IP address of the host running the Ankaios agent.
@@ -184,13 +173,22 @@ ank apply --agent infotainment speed-consumer.yaml
     ank apply --agent infotainment speed-consumer.yaml
     ```
 
-And we check that the new workload is running:
+The command wait until speed consumer is running.
+It should print:
+
+
+```text
+ WORKLOAD NAME    AGENT          RUNTIME     EXECUTION STATE   ADDITIONAL INFO
+ speed-consumer   infotainment   podman      Running(Ok)
+```
+
+We can check all running workloads with
 
 ```shell
 ank get workloads
 ```
 
-With the result:
+With test result:
 
 ```text
  WORKLOAD NAME    AGENT          RUNTIME   EXECUTION STATE   ADDITIONAL INFO
