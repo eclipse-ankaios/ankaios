@@ -514,7 +514,7 @@ When the CLI checks if a workload has reached its final expected workload execut
 * succeeded
 * failed
 * removed
-* pending(starting_failed)
+* pending(starting_failed) with no more retries
 
 Tags:
 - CliCommands
