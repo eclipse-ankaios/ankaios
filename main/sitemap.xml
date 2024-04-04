@@ -41,6 +41,11 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://eclipse-ankaios.github.io/ankaios/main/development/requirement-template/</loc>
+         <lastmod>2024-04-04</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/development/requirement-tracing/</loc>
          <lastmod>2024-04-04</lastmod>
          <changefreq>daily</changefreq>
