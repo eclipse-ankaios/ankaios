@@ -40,6 +40,12 @@ pub struct AnkCli {
     #[clap(short = 'v', long = "verbose")]
     /// Enable debug traces
     pub verbose: bool,
+    #[clap(short = 'q', long = "quiet")]
+    /// Disable all output
+    pub quiet: bool,
+    #[clap(long = "no-wait")]
+    /// Do not wait for workloads to be created/deleted
+    pub no_wait: bool,
 }
 
 /// Supported actions

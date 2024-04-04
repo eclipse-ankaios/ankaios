@@ -146,15 +146,17 @@ all workloads of agent "${agent_name}" have an initial execution state
 user triggers "${cli_command}"
     ${cmd}=    Split Command Line    ${cli_command}
     Set List Value    ${cmd}    0    %{ANK_BIN_DIR}${/}${cmd}[0]
-    ${CURRENT_RESULT}=    Run Process    @{cmd}    timeout=20    shell=True
+    ${CURRENT_RESULT}=    Run Process    @{cmd}    timeout=20    shell=True    stdout=${TEMPDIR}/stdout.txt    stderr=${TEMPDIR}/stderr.txt
     Log    ${CURRENT_RESULT.stdout}
+    Log    ${CURRENT_RESULT.stderr}
     Set Global Variable    ${CURRENT_RESULT}
 
 user triggers "${cli_command}" passing "${ankaios_manifest_file}" through stdin
     ${cmd}=    Split Command Line    ${cli_command}
     Set List Value    ${cmd}    0    %{ANK_BIN_DIR}${/}${cmd}[0]
-    ${CURRENT_RESULT}=    Run Process    @{cmd}    timeout=20    shell=True    stdin=${ankaios_manifest_file}
+    ${CURRENT_RESULT}=    Run Process    @{cmd}    timeout=20    shell=True    stdout=${TEMPDIR}/stdout.txt    stderr=${TEMPDIR}/stderr.txt    stdin=${ankaios_manifest_file}
     Log    ${CURRENT_RESULT.stdout}
+    Log    ${CURRENT_RESULT.stderr}
     Set Global Variable    ${CURRENT_RESULT}
 
 the user waits "${seconds_to_wait}" seconds
@@ -214,9 +216,17 @@ the workload "${workload_name}" shall not exist within "${timeout}" seconds
     ...    ${list_result}
     ...    msg=Timeout: Workload '${workload_name}' found!
 
+in the last result, the workload "${workload_name}" shall have the execution state "${expected_execution_state}" on agent "${expected_agent_name}"
+    @{list_result}=    table to list    ${CURRENT_RESULT.stdout}
+    @{list_result}=    workload with execution_state    ${list_result}    ${workload_name}    ${expected_execution_state}
+    Log List    ${list_result}
+    Should Not Be Empty
+    ...    ${list_result}
+    ...    msg=Timeout: Workload '${workload_name}' on agent '${expected_agent_name}' does not have the execution state '${expected_execution_state}'!
+
 user executes system app "${cli_command}"
     ${cmd}=    Split Command Line    ${cli_command}    escaping=True
-    ${CURRENT_RESULT}=    Run Process    @{cmd}    timeout=20    shell=True
+    ${CURRENT_RESULT}=    Run Process    @{cmd}    timeout=20    shell=True    stdout=${TEMPDIR}/stdout.txt    stderr=${TEMPDIR}/stderr.txt
     Log    ${CURRENT_RESULT.stdout}
     Set Global Variable    ${CURRENT_RESULT}
 

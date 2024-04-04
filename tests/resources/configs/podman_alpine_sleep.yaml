@@ -9,5 +9,5 @@ workloads:
         value: Ankaios team
     runtimeConfig: |
       image: alpine:latest
-      commandOptions: [ "--entrypoint", "/bin/sleep" ]
+      commandOptions: [ "--entrypoint", "/bin/sleep", "--stop-signal=SIGKILL"]
       commandArgs: [ "2000" ]

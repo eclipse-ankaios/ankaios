@@ -307,6 +307,7 @@ impl AnkaiosServer {
                                     .await
                                     .unwrap_or_illegal_state();
                                 log::debug!("Send UpdateStateSuccess for request '{}'", request_id);
+                                // [impl->swdd~server-update-state-success-response~1]
                                 self.to_agents
                                     .update_state_success(
                                         request_id,
@@ -826,6 +827,7 @@ mod tests {
     // [utest->swdd~server-uses-async-channels~1]
     // [utest->swdd~server-provides-update-desired-state-interface~1]
     // [utest->swdd~server-starts-without-startup-config~1]
+    // [utest->swdd~server-update-state-success-response~1]
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states_when_requested_update_state_success()
     {

@@ -89,6 +89,7 @@ nav:
     - development/test-coverage.md
     - development/system-tests.md
     - development/requirement-tracing.md
+    - development/requirement-template.md
     - development/extending-dev-container.md
     - development/ci-cd.md
     - development/ci-cd-release.md

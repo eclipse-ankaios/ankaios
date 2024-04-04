@@ -23,7 +23,7 @@ use crate::std_extensions::UnreachableOption;
 use super::WorkloadInstanceName;
 
 const TRIGGERED_MSG: &str = "Triggered at runtime.";
-const NO_MORE_RETRIES_MSG: &str = "No more retries.";
+pub const NO_MORE_RETRIES_MSG: &str = "No more retries.";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PendingSubstate {

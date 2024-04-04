@@ -33,26 +33,13 @@ def table_to_list(raw):
     raw = raw.strip()
     splitted = raw.split('\n')
     header = splitted.pop(0)
-    columns = []
-    next_start_index = 0
-    index = header.find("  ", next_start_index)
-    while index > -1:
-        while index < len(header) and header[index] == ' ':
-            index += 1
-
-        columns.append(index)
-        next_start_index = index + 1
-        index = header.find("  ", next_start_index)
-
-    columns.append(len(header))
-
+    columns = [(x.group(0).strip(), x.start(), x.end()) for x in re.finditer(r'(([^\s]+\s?)+\s*)', header.replace('\x1b[1G\x1b[1G ', ''))]
+    logger.trace("columns: {}".format(columns))
     table = []
     for row in splitted:
-        last_column_index = 0
         table_row = {}
-        for column_index in columns:
-            table_row[header[last_column_index: column_index].strip()] = row[last_column_index: column_index].strip()
-            last_column_index = column_index
+        for c in columns:
+            table_row[c[0]] = row[c[1]:c[2]].strip()
         table.append(table_row)
 
     logger.trace(table)
@@ -118,6 +105,12 @@ def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_i
             table = table_to_list(res.stdout if res else "")
             logger.trace(table)
         return list()
+
+def workload_with_execution_state(table, workload_name, expected_state):
+    logger.trace(table)
+    if table and any([row["EXECUTION STATE"].strip() == expected_state for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name, table)]):
+        return table
+    return list()
 
 def wait_for_execution_state(command, workload_name, expected_state, timeout=10, next_try_in_sec=0.25):
         start_time = get_time_secs()
