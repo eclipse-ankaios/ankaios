@@ -446,6 +446,10 @@ Status: approved
 When the Ankaios Server gets an UpdateStateRequest with a non empty update_mask,
 the Ankaios Server replaces each field of its DesiredState listed in the update_mask, with the value of the same field of the newState from the UpdateStateRequest.
 
+Comment:
+If one field from the update_mask is not present in the DesiredState, this field is created. This can include any amount of parent fields.
+If one field from the update_mask is not present in the newState, this field is deleted from the DesiredState.
+
 Tags:
 - ControlInterface
 
@@ -453,9 +457,23 @@ Needs:
 - impl
 - utest
 
-Comment: If one field from the update_mask is not present in the DesiredState, this field is created. This can include any amount of parent fields.
+##### UpdateState success response message
+`swdd~server-update-state-success-response~1`
 
-If one field from the update_mask is not present in the newState, this field is deleted from the DesiredState.
+Status: approved
+
+When the Ankaios Server gets an UpdateStateRequest which can be successfully applied,
+the Ankaios Server shall respond to the request with the Ids of the updated workloads.
+
+Rational:
+The Ids of the added and deleted with the request workloads are required to track the progress of the update.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
 
 ##### UpdateState interface with invalid version
 `swdd~update-desired-state-with-invalid-version~1`
