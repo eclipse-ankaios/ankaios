@@ -19,7 +19,7 @@ use std::{
 
 use common::{
     commands::Response,
-    objects::{AgentName, DeletedWorkload, WorkloadInstanceName, WorkloadSpec},
+    objects::{AgentName, DeletedWorkload, ExecutionState, WorkloadInstanceName, WorkloadSpec},
     request_id_prepending::detach_prefix_from_request_id,
     to_server_interface::ToServerSender,
 };
@@ -33,8 +33,9 @@ use crate::workload_scheduler::scheduler::WorkloadScheduler;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_state::workload_state_store::WorkloadStateStore;
 use crate::{
-    runtime_connectors::RuntimeFacade, workload_operation::WorkloadOperation,
-    workload_state::WorkloadStateSender,
+    runtime_connectors::RuntimeFacade,
+    workload_operation::WorkloadOperation,
+    workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
 
 #[cfg_attr(test, mockall_double::double)]
@@ -394,8 +395,17 @@ impl RuntimeManager {
         } else {
             log::warn!(
                 "Workload '{}' already gone.",
-                deleted_workload.instance_name.workload_name()
+                &deleted_workload.instance_name.workload_name()
             );
+
+            // As the sender of this delete workload command expects a response,
+            // report the execution state as 'Removed'
+            self.update_state_tx
+                .report_workload_execution_state(
+                    &deleted_workload.instance_name,
+                    ExecutionState::removed(),
+                )
+                .await;
         }
     }
 
@@ -482,7 +492,7 @@ mod tests {
     use common::commands::ResponseContent;
     use common::objects::{
         generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
-        AddCondition, WorkloadInstanceNameBuilder,
+        AddCondition, WorkloadInstanceNameBuilder, WorkloadState,
     };
     use common::test_utils::{
         generate_test_complete_state, generate_test_deleted_workload,
@@ -1955,6 +1965,49 @@ mod tests {
         server_receiver.close();
 
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+    }
+
+    #[tokio::test]
+    async fn utest_delete_workload_on_already_removed_workload() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let instance_name = WorkloadInstanceNameBuilder::default()
+            .workload_name(WORKLOAD_1_NAME)
+            .config(&String::from("some config"))
+            .agent_name(AGENT_NAME)
+            .build();
+
+        let mock_workload_scheduler = MockWorkloadScheduler::default();
+        let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
+        mock_workload_scheduler_context
+            .expect()
+            .once()
+            .return_once(|_| mock_workload_scheduler);
+
+        let (mut server_receiver, mut runtime_manager, mut wl_state_receiver) =
+            RuntimeManagerBuilder::default().build();
+
+        runtime_manager
+            .delete_workload(DeletedWorkload {
+                instance_name,
+                dependencies: HashMap::new(),
+            })
+            .await;
+        server_receiver.close();
+        let wl_state_msg = wl_state_receiver.recv().await;
+
+        assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert_ne!(wl_state_msg, None);
+
+        let WorkloadState {
+            instance_name: actual_instance_name,
+            execution_state: actual_execution_state,
+        } = wl_state_msg.unwrap();
+
+        assert_eq!(actual_instance_name.workload_name(), WORKLOAD_1_NAME);
+        assert_eq!(actual_execution_state, ExecutionState::removed());
     }
 
     // [utest->swdd~agent-transforms-update-workload-message-to-workload-operations~1]
