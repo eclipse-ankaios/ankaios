@@ -458,6 +458,38 @@ struct GetWorkloadTableDisplay {
     additional_info: String,
 }
 
+struct GetWorkloadTableDisplayWithSpinner<'a> {
+    data: &'a GetWorkloadTableDisplay,
+    spinner: &'a str,
+}
+
+impl GetWorkloadTableDisplay {
+    const EXECUTION_STATE_POS: usize = 3;
+}
+
+impl<'a> Tabled for GetWorkloadTableDisplayWithSpinner<'a> {
+    const LENGTH: usize = GetWorkloadTableDisplay::LENGTH;
+
+    fn fields(&self) -> Vec<std::borrow::Cow<'_, str>> {
+        let mut fields = self.data.fields();
+        *(fields[GetWorkloadTableDisplay::EXECUTION_STATE_POS].to_mut()) = format!(
+            "{} {}",
+            self.spinner,
+            fields[GetWorkloadTableDisplay::EXECUTION_STATE_POS]
+        );
+        fields
+    }
+
+    fn headers() -> Vec<std::borrow::Cow<'static, str>> {
+        let mut headers = GetWorkloadTableDisplay::headers();
+        *(headers[GetWorkloadTableDisplay::EXECUTION_STATE_POS].to_mut()) = format!(
+            "  {}",
+            headers[GetWorkloadTableDisplay::EXECUTION_STATE_POS]
+        );
+        headers
+    }
+}
+
 struct WaitListDisplay {
     data: HashMap<WorkloadInstanceName, GetWorkloadTableDisplay>,
     not_completed: HashSet<WorkloadInstanceName>,
@@ -471,15 +503,15 @@ impl Display for WaitListDisplay {
             .data
             .iter()
             .map(|(workload_name, table_entry)| {
-                let mut table_entry = table_entry.to_owned();
                 let update_state_symbol = if self.not_completed.contains(workload_name) {
                     &current_spinner
                 } else {
                     COMPLETED_SYMBOL
                 };
-                table_entry.execution_state =
-                    format!("{} {}", update_state_symbol, table_entry.execution_state);
-                table_entry
+                GetWorkloadTableDisplayWithSpinner {
+                    data: table_entry,
+                    spinner: update_state_symbol,
+                }
             })
             .collect();
 
