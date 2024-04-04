@@ -493,6 +493,7 @@ Status: approved
 When the CLI watches a list of workloads, the CLI shall:
 * get the desired state from the Ankaios server
 * filter only the workloads specified to watch
+* sort the workload list alphabetically
 * present the list of workloads to the user
 * listen for `UpdateWorkloadState` messages from the Ankaios server
 * update each workload execution state until a final state is reached
