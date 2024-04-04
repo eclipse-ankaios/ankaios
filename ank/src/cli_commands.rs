@@ -499,7 +499,7 @@ struct WaitListDisplay {
 impl Display for WaitListDisplay {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let current_spinner = self.spinner.to_string();
-        let data: Vec<_> = self
+        let mut data: Vec<_> = self
             .data
             .iter()
             .map(|(workload_name, table_entry)| {
@@ -514,6 +514,7 @@ impl Display for WaitListDisplay {
                 }
             })
             .collect();
+        data.sort_by_key(|x| &x.data.base_info.name);
 
         // [impl->swdd~cli-shall-present-workloads-as-table~1]
         write!(
