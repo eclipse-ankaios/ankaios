@@ -29,6 +29,7 @@ async fn main() {
 
     let cli_name = "ank-cli";
     env::set_var(log::VERBOSITY_KEY, args.verbose.to_string());
+    env::set_var(log::QUIET_KEY, args.quiet.to_string());
 
     output_debug!(
         "Started '{}' with the following parameters: '{:?}'",
@@ -40,6 +41,7 @@ async fn main() {
         args.response_timeout_ms,
         cli_name.to_string(),
         args.server_url,
+        args.no_wait,
     );
 
     match args.command {
@@ -50,8 +52,8 @@ async fn main() {
                 object_field_mask,
                 output_format,
             }) => {
-                // [impl -> swdd~cli-provides-get-desired-state~1]
-                // [impl -> swdd~cli-blocks-until-ankaios-server-responds-get-desired-state~1]
+                // [impl->swdd~cli-provides-get-desired-state~1]
+                // [impl->swdd~cli-blocks-until-ankaios-server-responds-get-desired-state~1]
                 if let Ok(out_text) = cmd.get_state(object_field_mask, output_format).await {
                     // [impl -> swdd~cli-returns-desired-state-from-server~1]
                     output_and_exit!("{}", out_text);
@@ -60,6 +62,7 @@ async fn main() {
                 }
             }
 
+            // [impl->swdd~cli-provides-list-of-workloads~1]
             Some(cli::GetCommands::Workload {
                 workload_name,
                 agent_name,
@@ -71,7 +74,11 @@ async fn main() {
                     agent_name,
                     state,
                 );
-                match cmd.get_workloads(agent_name, state, workload_name).await {
+
+                match cmd
+                    .get_workloads_table(agent_name, state, workload_name)
+                    .await
+                {
                     Ok(out_text) => output_and_exit!("{}", out_text),
                     Err(error) => output_and_error!("Failed to get workloads: '{}'", error),
                 }
@@ -90,7 +97,7 @@ async fn main() {
                     state_object_file
                 );
                 // [impl -> swdd~cli-provides-set-desired-state~1]
-                // [impl -> swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~1]
+                // [impl -> swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~2]
                 if let Err(err) = cmd.set_state(object_field_mask, state_object_file).await {
                     output_and_error!("Failed to set state: '{}'", err)
                 }
@@ -141,10 +148,8 @@ async fn main() {
             None => unreachable!("Unreachable code."),
         },
         cli::Commands::Apply(apply_args) => {
-            let res = cmd.apply_manifests(apply_args).await;
-            match res {
-                Ok(output) => output_and_exit!("{}", output),
-                Err(err) => output_and_error!("{}", err),
+            if let Err(err) = cmd.apply_manifests(apply_args).await {
+                output_and_error!("{}", err);
             }
         }
     }

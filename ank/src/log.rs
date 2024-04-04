@@ -1,6 +1,24 @@
-use std::{env, fmt, process::exit};
+use std::{env, fmt, process::exit, sync::Mutex};
+
+use crossterm::{cursor, style::Stylize, terminal};
 
 pub const VERBOSITY_KEY: &str = "VERBOSE";
+pub const QUIET_KEY: &str = "SILENT";
+
+static CLEANUP_STRING: Mutex<String> = Mutex::new(String::new());
+
+/// Prints the message, if the CLI command is not called with `--quiet` flag
+#[macro_export]
+macro_rules! output {
+    ( $ ( $ arg : tt ) + ) => { $crate::log::output_fn ( format_args ! ( $ ( $ arg ) + ) ) }
+}
+
+/// Prints the message, if the CLI command is not called with `--quiet` flag
+/// If the previous text was written with this command, the old output is overwritten.
+#[macro_export]
+macro_rules! output_update {
+    ( $ ( $ arg : tt ) + ) => { $crate::log::output_update_fn ( format_args ! ( $ ( $ arg ) + ) ) }
+}
 
 // [impl->swdd~cli-use-proprietary-tracing~1]
 /// Prints the error message and immediately terminates the application with the exit code `1`.
@@ -24,21 +42,78 @@ macro_rules! output_debug {
 }
 
 pub(crate) fn output_and_error_fn(args: fmt::Arguments<'_>) {
-    eprintln!("\x1b[31m\x1b[1merror:\x1b[0m {}", args);
+    eprintln!("{} {}", "error:".bold().red(), args);
     exit(1);
 }
 
 pub(crate) fn output_and_exit_fn(args: fmt::Arguments<'_>) {
-    println!("{}", args);
+    std::println!("{}", args);
     exit(0);
 }
 
 pub(crate) fn output_debug_fn(args: fmt::Arguments<'_>) {
     if is_verbose() {
-        println!("\x1b[94mdebug:\x1b[0m {}", args);
+        std::println!("{} {}{}", "debug:".blue(), args, cursor::SavePosition);
+        *CLEANUP_STRING.lock().unwrap() = "".into();
+    }
+}
+
+pub(crate) fn output_fn(args: fmt::Arguments<'_>) {
+    if !is_quiet() {
+        std::println!("{}{}", args, cursor::SavePosition);
+        *CLEANUP_STRING.lock().unwrap() = "".into();
+    }
+}
+
+pub(crate) fn output_update_fn(args: fmt::Arguments<'_>) {
+    if !is_quiet() {
+        let args = args.to_string();
+
+        let terminal_width = terminal::size().unwrap_or((80, 0)).0 as usize;
+        // limit line length to terminal_width by introducing newline characters
+        let args = args
+            .split('\n')
+            .flat_map(|line| {
+                line.chars()
+                    .collect::<Vec<_>>()
+                    .chunks(terminal_width)
+                    .map(|x| x.iter().collect::<String>())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<String>>()
+            .join("\n");
+
+        let mut cleanup_string = CLEANUP_STRING.lock().unwrap();
+        let up = cleanup_string.chars().filter(|c| *c == '\n').count() as u16;
+        let up_string = if up > 0 {
+            cursor::MoveUp(up).to_string()
+        } else {
+            "".to_string()
+        };
+        std::println!(
+            "{}{}{}{}{}{}",
+            cursor::MoveToColumn(0),
+            up_string,
+            cleanup_string,
+            cursor::MoveToColumn(0),
+            up_string,
+            args
+        );
+
+        let mut new_cleanup_string: String = args
+            .chars()
+            .map(|x| if x == '\n' { '\n' } else { ' ' })
+            .collect();
+        new_cleanup_string.push('\n');
+        *cleanup_string = new_cleanup_string;
     }
 }
 
 fn is_verbose() -> bool {
     matches!(env::var(VERBOSITY_KEY), Ok(verbose) if verbose.to_lowercase() == "true")
+        && !is_quiet()
+}
+
+fn is_quiet() -> bool {
+    matches!(env::var(QUIET_KEY), Ok(quiet) if quiet.to_lowercase() == "true")
 }
