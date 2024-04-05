@@ -135,4 +135,9 @@
          <lastmod>2024-04-05</lastmod>
          <changefreq>daily</changefreq>
     </url>
+    <url>
+         <loc>https://eclipse-ankaios.github.io/ankaios/main/usage/upgrading/v0_2_to_v0_3/</loc>
+         <lastmod>2024-04-05</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
 </urlset>

@@ -8,28 +8,28 @@
       
       
       
-        <link rel="canonical" href="https://eclipse-ankaios.github.io/ankaios/main/development/requirement-template/">
+        <link rel="canonical" href="https://eclipse-ankaios.github.io/ankaios/main/usage/upgrading/v0_2_to_v0_3/">
       
       
-        <link rel="prev" href="../requirement-tracing/">
+        <link rel="prev" href="../../tutorial-vehicle-signals/">
       
       
-        <link rel="next" href="../extending-dev-container/">
+        <link rel="next" href="../../../reference/startup-configuration/">
       
       
-      <link rel="icon" href="../../assets/favicon128x128.png">
+      <link rel="icon" href="../../../assets/favicon128x128.png">
       <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.17">
     
     
       
-        <title>Requirement description template - Eclipse Ankaios</title>
+        <title>Upgrading v0.2 to v0.3 - Eclipse Ankaios</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.bcfcd587.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.bcfcd587.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.06af60db.min.css">
       
       
 
@@ -48,7 +48,7 @@
       
     
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -57,11 +57,11 @@
       
         <meta  property="og:type"  content="website" >
       
-        <meta  property="og:title"  content="Requirement description template - Eclipse Ankaios" >
+        <meta  property="og:title"  content="Upgrading v0.2 to v0.3 - Eclipse Ankaios" >
       
         <meta  property="og:description"  content="None" >
       
-        <meta  property="og:image"  content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/development/requirement-template.png" >
+        <meta  property="og:image"  content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/usage/upgrading/v0_2_to_v0_3.png" >
       
         <meta  property="og:image:type"  content="image/png" >
       
@@ -69,15 +69,15 @@
       
         <meta  property="og:image:height"  content="630" >
       
-        <meta  property="og:url"  content="https://eclipse-ankaios.github.io/ankaios/main/development/requirement-template/" >
+        <meta  property="og:url"  content="https://eclipse-ankaios.github.io/ankaios/main/usage/upgrading/v0_2_to_v0_3/" >
       
         <meta  name="twitter:card"  content="summary_large_image" >
       
-        <meta  name="twitter:title"  content="Requirement description template - Eclipse Ankaios" >
+        <meta  name="twitter:title"  content="Upgrading v0.2 to v0.3 - Eclipse Ankaios" >
       
         <meta  name="twitter:description"  content="None" >
       
-        <meta  name="twitter:image"  content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/development/requirement-template.png" >
+        <meta  name="twitter:image"  content="https://eclipse-ankaios.github.io/ankaios/main/assets/images/social/usage/upgrading/v0_2_to_v0_3.png" >
       
     
     
@@ -100,7 +100,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#requirement-description-template" class="md-skip">
+        <a href="#upgrading-v02-to-v03" class="md-skip">
           Skip to content
         </a>
       
@@ -115,7 +115,7 @@
             <div class="md-banner__inner md-grid md-typeset">
               
   You're not viewing the latest release.
-  <a href="../../..">
+  <a href="../../../..">
     <strong>Click here to go to the latest release.</strong>
   </a>
 
@@ -130,9 +130,9 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="Eclipse Ankaios" class="md-header__button md-logo" aria-label="Eclipse Ankaios" data-md-component="logo">
+    <a href="../../.." title="Eclipse Ankaios" class="md-header__button md-logo" aria-label="Eclipse Ankaios" data-md-component="logo">
       
-  <img src="../../assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="logo">
+  <img src="../../../assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="logo">
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -149,7 +149,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Requirement description template
+              Upgrading v0.2 to v0.3
             
           </span>
         </div>
@@ -256,7 +256,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../.." class="md-tabs__link">
+      <a href="../../.." class="md-tabs__link">
         
   
     
@@ -273,7 +273,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../architecture/" class="md-tabs__link">
+      <a href="../../../architecture/" class="md-tabs__link">
         
   
     
@@ -288,11 +288,13 @@
         
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../usage/installation/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../installation/" class="md-tabs__link">
           
   
   Getting started
@@ -310,7 +312,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../reference/startup-configuration/" class="md-tabs__link">
+        <a href="../../../reference/startup-configuration/" class="md-tabs__link">
           
   
   Reference
@@ -324,13 +326,11 @@
         
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../build/" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../../../development/build/" class="md-tabs__link">
           
   
   Contributing
@@ -346,7 +346,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../support/" class="md-tabs__link">
+      <a href="../../../support/" class="md-tabs__link">
         
   
     
@@ -380,9 +380,9 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="Eclipse Ankaios" class="md-nav__button md-logo" aria-label="Eclipse Ankaios" data-md-component="logo">
+    <a href="../../.." title="Eclipse Ankaios" class="md-nav__button md-logo" aria-label="Eclipse Ankaios" data-md-component="logo">
       
-  <img src="../../assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="logo">
+  <img src="../../../assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="logo">
 
     </a>
     Eclipse Ankaios
@@ -409,7 +409,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href="../../.." class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -429,7 +429,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../architecture/" class="md-nav__link">
+      <a href="../../../architecture/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -446,25 +446,30 @@
       
   
   
+    
   
   
+  
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
             
   
   <span class="md-ellipsis">
@@ -475,7 +480,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             Getting started
@@ -489,7 +494,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/installation/" class="md-nav__link">
+      <a href="../../installation/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -510,7 +515,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/quickstart/" class="md-nav__link">
+      <a href="../../quickstart/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -531,7 +536,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../usage/tutorial-vehicle-signals/" class="md-nav__link">
+      <a href="../../tutorial-vehicle-signals/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -549,25 +554,30 @@
                 
   
   
+    
   
   
+  
     
     
     
       
       
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
         
           
-          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="">
             
   
   <span class="md-ellipsis">
@@ -578,7 +588,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3_4">
             <span class="md-nav__icon md-icon"></span>
             Upgrading
@@ -589,10 +599,30 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../usage/upgrading/v0_2_to_v0_3/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Upgrading v0.2 to v0.3
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
@@ -601,6 +631,44 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#configurations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Configurations
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api" class="md-nav__link">
+    <span class="md-ellipsis">
+      API
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -668,7 +736,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/startup-configuration/" class="md-nav__link">
+      <a href="../../../reference/startup-configuration/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -689,7 +757,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/interacting-with-ankaios/" class="md-nav__link">
+      <a href="../../../reference/interacting-with-ankaios/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -710,7 +778,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/complete-state/" class="md-nav__link">
+      <a href="../../../reference/complete-state/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -731,7 +799,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/control-interface/" class="md-nav__link">
+      <a href="../../../reference/control-interface/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -752,7 +820,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/inter-workload-dependencies/" class="md-nav__link">
+      <a href="../../../reference/inter-workload-dependencies/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -773,7 +841,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/resource-usage/" class="md-nav__link">
+      <a href="../../../reference/resource-usage/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -794,7 +862,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/glossary/" class="md-nav__link">
+      <a href="../../../reference/glossary/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -815,7 +883,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/_ankaios.proto/" class="md-nav__link">
+      <a href="../../../reference/_ankaios.proto/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -840,30 +908,25 @@
       
   
   
-    
   
   
-  
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
             
   
   <span class="md-ellipsis">
@@ -874,7 +937,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             Contributing
@@ -888,7 +951,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../build/" class="md-nav__link">
+      <a href="../../../development/build/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -909,7 +972,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../rust-coding-guidelines/" class="md-nav__link">
+      <a href="../../../development/rust-coding-guidelines/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -930,7 +993,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../unit-verification/" class="md-nav__link">
+      <a href="../../../development/unit-verification/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -951,7 +1014,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../run-unit-tests/" class="md-nav__link">
+      <a href="../../../development/run-unit-tests/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -972,7 +1035,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../test-coverage/" class="md-nav__link">
+      <a href="../../../development/test-coverage/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -993,7 +1056,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../system-tests/" class="md-nav__link">
+      <a href="../../../development/system-tests/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1014,7 +1077,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../requirement-tracing/" class="md-nav__link">
+      <a href="../../../development/requirement-tracing/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1032,19 +1095,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../../development/requirement-template/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1053,7 +1107,6 @@
   
 
       </a>
-      
     </li>
   
 
@@ -1066,7 +1119,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../extending-dev-container/" class="md-nav__link">
+      <a href="../../../development/extending-dev-container/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1087,7 +1140,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ci-cd/" class="md-nav__link">
+      <a href="../../../development/ci-cd/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1108,7 +1161,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ci-cd-release/" class="md-nav__link">
+      <a href="../../../development/ci-cd-release/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1129,7 +1182,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../self-service/" class="md-nav__link">
+      <a href="../../../development/self-service/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1150,7 +1203,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../documentation-guidelines/" class="md-nav__link">
+      <a href="../../../development/documentation-guidelines/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1178,7 +1231,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../support/" class="md-nav__link">
+      <a href="../../../support/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1211,6 +1264,32 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#configurations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Configurations
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api" class="md-nav__link">
+    <span class="md-ellipsis">
+      API
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1224,7 +1303,7 @@
                   
 
   
-    <a href="https://github.com/eclipse-ankaios/ankaios/edit/main/doc/docs/development/requirement-template.md" title="Edit this page" class="md-content__button md-icon">
+    <a href="https://github.com/eclipse-ankaios/ankaios/edit/main/doc/docs/usage/upgrading/v0_2_to_v0_3.md" title="Edit this page" class="md-content__button md-icon">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4v-2m10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1 2.1 2.1Z"/></svg>
     </a>
@@ -1232,54 +1311,40 @@
   
 
 
-<h1 id="requirement-description-template">Requirement description template<a class="headerlink" href="#requirement-description-template" title="Permanent link">&para;</a></h1>
-<p>All requirements in Ankaios shall be written in the following format:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>&lt;Requirement title&gt;
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="sb">`swdd~&lt;component&gt;-&lt;descriptive requirement id&gt;~&lt;version&gt;`</span>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>Status: approved
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>[When &lt;condition separated by and&gt;], &lt;object&gt; shall &lt;do something | be in state | execute a list of actions in order/in parallel | …&gt;
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>Comment:
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>&lt;comment body&gt;
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>Rationale:
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>&lt;rationale body&gt;
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>Tags:
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="k">-</span><span class="w"> </span>&lt;tag1&gt;
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="k">-</span><span class="w"> </span>&lt;tag2&gt;
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="k">-</span><span class="w"> </span>…
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>Needs:
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="k">-</span><span class="w"> </span>[impl/utest/stest]
-</code></pre></div>
-<p>NOTE:</p>
+<h1 id="upgrading-v02-to-v03">Upgrading v0.2 to v0.3<a class="headerlink" href="#upgrading-v02-to-v03" title="Permanent link">&para;</a></h1>
+<p>When upgrading from v0.2 to v0.3, the installation script simply needs to be run again. However, due to breaking changes, some manual adjustments are required for existing configurations and workloads.</p>
+<h2 id="configurations">Configurations<a class="headerlink" href="#configurations" title="Permanent link">&para;</a></h2>
+<p><code>CompleteState</code></p>
 <ul>
-<li>Only one object is allowed.</li>
-<li>Format is markdown.</li>
-<li>Tags are the objects and subject of the requirement, which are already specified in the structural view.</li>
-<li>Requirements shall use "shall" and not "should", "will", "is" etc.</li>
+<li><code>currentState</code> has been renamed to <code>desiredState</code></li>
 </ul>
-<p>Here is an example of the requirement from the Ankaios agent:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="gu">#### AgentManager listens for requests from the Server</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="sb">`swdd~agent-manager-listens-requests-from-server~1`</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>Status: approved
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>The AgentManager shall listen for request from the Server.
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>Tags:
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="k">-</span><span class="w"> </span>AgentManager
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>Needs:
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="k">-</span><span class="w"> </span>impl
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="k">-</span><span class="w"> </span>utest
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="k">-</span><span class="w"> </span>itest
-</code></pre></div>
-<p>This requirement template has been inspired by:</p>
-<p><a href="https://aaltodoc.aalto.fi/server/api/core/bitstreams/d518c3cc-4d7d-4c69-b7db-25d2da9e847f/content">https://aaltodoc.aalto.fi/server/api/core/bitstreams/d518c3cc-4d7d-4c69-b7db-25d2da9e847f/content</a></p>
+<p><code>State</code></p>
+<ul>
+<li>New mandatory field <code>apiVersion</code> was added to avoid incompatibility issues.</li>
+<li>The boolean field <code>restart</code> has been supplemented with a <code>restartPolicy</code> enum.</li>
+<li><code>configs</code> and <code>cronjobs</code> have been removed for now as they are not implemented yet.</li>
+</ul>
+<p><code>Workload</code></p>
+<ul>
+<li><code>accessRights</code> and <code>updateStrategy</code> have been removed for now as they are not implemented yet.</li>
+</ul>
+<h2 id="api">API<a class="headerlink" href="#api" title="Permanent link">&para;</a></h2>
+<p>Application using the control interface or communicating directly with the Ankaios server (custom CLIs) need to be adapted.</p>
+<p>The two main messages have been renamed:</p>
+<ul>
+<li><code>StateChangeRequest</code> -&gt; <code>ToServer</code></li>
+<li><code>ExecutionRequest</code> -&gt; <code>FromServer</code></li>
+</ul>
+<p>A new type of <code>ToServer</code> message, <code>Request</code>, has been introduced.
+Every <code>Request</code> to the server requires a <code>requestId</code> which is used by the server for the response message. Request IDs allow sending multiple parallel requests to the server.
+The two messages <code>UpdateStateRequest</code> and <code>CompleteStateRequest</code> have been moved to the new <code>Request</code> message.</p>
+<p>A new type of <code>FromServer</code> message, <code>Response</code>, has been introduced.
+A <code>Response</code> message is always an answer from the Server to a <code>Request</code> message.
+The <code>Response</code> message contains the same <code>requestId</code> as the answered <code>Request</code> message.
+This allows to identify the correct <code>Response</code>.
+The <code>CompleteState</code> message has been moved to the new <code>Response</code> message.
+Additionally, the Ankaios server now responds to an <code>UpdateStateRequest</code> with an <code>UpdateStateSuccess</code> or <code>Error</code> message,
+which are both of type <code>Response</code>.</p>
 
 
 
@@ -1312,7 +1377,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../requirement-tracing/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Requirement tracing">
+          <a href="../../tutorial-vehicle-signals/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Tutorial: Sending and receiving vehicle signals">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
@@ -1322,20 +1387,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Requirement tracing
+                Tutorial: Sending and receiving vehicle signals
               </div>
             </div>
           </a>
         
         
           
-          <a href="../extending-dev-container/" class="md-footer__link md-footer__link--next" aria-label="Next: Extending the dev container">
+          <a href="../../../reference/startup-configuration/" class="md-footer__link md-footer__link--next" aria-label="Next: Startup configuration">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Extending the dev container
+                Startup configuration
               </div>
             </div>
             <div class="md-footer__button md-icon">
@@ -1373,10 +1438,10 @@
     </div>
     
     
-    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.tabs", "content.code.copy", "content.code.annotate", "content.action.edit", "navigation.footer"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    <script id="__config" type="application/json">{"base": "../../..", "features": ["navigation.instant", "navigation.sections", "navigation.tabs", "content.code.copy", "content.code.annotate", "content.action.edit", "navigation.footer"], "search": "../../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.1e8ae164.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.1e8ae164.min.js"></script>
       
     
   </body>
