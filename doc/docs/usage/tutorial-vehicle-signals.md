@@ -176,7 +176,6 @@ ank apply --agent infotainment speed-consumer.yaml
 The command wait until speed consumer is running.
 It should print:
 
-
 ```text
  WORKLOAD NAME    AGENT          RUNTIME     EXECUTION STATE   ADDITIONAL INFO
  speed-consumer   infotainment   podman      Running(Ok)
