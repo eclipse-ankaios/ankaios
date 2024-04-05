@@ -57,8 +57,8 @@ ank apply databroker.yaml
 ```
 
 The Ankaios agent `agent_A` will now instruct podman to start the workload.
-The command waits until databroker is running.
-It should print:
+The command waits until the databroker is running.
+It should finally print:
 
 ```text
  WORKLOAD NAME   AGENT     RUNTIME     EXECUTION STATE   ADDITIONAL INFO
@@ -89,8 +89,8 @@ Start the workload with:
 ank apply speed-provider.yaml
 ```
 
-The command waits until speed provider is running.
-It should print:
+The command waits until the speed-provider is running.
+It should finally print:
 
 ```text
  WORKLOAD NAME    AGENT     RUNTIME     EXECUTION STATE   ADDITIONAL INFO
@@ -173,7 +173,7 @@ ank apply --agent infotainment speed-consumer.yaml
     ank apply --agent infotainment speed-consumer.yaml
     ```
 
-The command wait until speed consumer is running.
+The command waits until speed consumer is running.
 It should print:
 
 ```text
@@ -187,7 +187,7 @@ We can check all running workloads with
 ank get workloads
 ```
 
-With test result:
+The output should be:
 
 ```text
  WORKLOAD NAME    AGENT          RUNTIME   EXECUTION STATE   ADDITIONAL INFO
