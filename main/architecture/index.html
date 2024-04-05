@@ -312,7 +312,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../reference/api/" class="md-tabs__link">
+        <a href="../reference/startup-configuration/" class="md-tabs__link">
           
   
   Reference
@@ -333,7 +333,7 @@
         <a href="../development/build/" class="md-tabs__link">
           
   
-  Development
+  Contributing
 
         </a>
       </li>
@@ -663,69 +663,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../reference/api/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    API
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../reference/_ankaios.proto/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Protocol documentation
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../reference/control-interface/" class="md-nav__link">
-        
-  
-  <span class="md-ellipsis">
-    Control interface
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../reference/startup-configuration/" class="md-nav__link">
         
   
@@ -747,11 +684,53 @@
   
   
     <li class="md-nav__item">
+      <a href="../reference/interacting-with-ankaios/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Interacting with Ankaios
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../reference/complete-state/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
     Working with CompleteState
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/control-interface/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Control interface
   </span>
   
 
@@ -824,6 +803,27 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/_ankaios.proto/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Protobuf data structures
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -857,7 +857,7 @@
             
   
   <span class="md-ellipsis">
-    Development
+    Contributing
   </span>
   
 
@@ -867,7 +867,7 @@
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
-            Development
+            Contributing
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -1246,19 +1246,19 @@
 
 <h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>Two executables are used for each Ankaios deployment: the Ankaios server and the Ankaios agent.</p>
+<p>Two executables are used for each Ankaios deployment: the Ankaios server and the Ankaios agent:</p>
 <p><img alt="Architecture Overview" src="../assets/architecture_overview.svg" /></p>
 <p>When started, the Ankaios server loads the configured startup state of the cluster and stores it as a desired state. To reach this desired state, the server instructs the Ankaios agents to start and stop workloads.
 Each Ankaios cluster runs exactly one instance of the Ankaios server making the server the single source of truth.</p>
 <p>A running instance of the Ankaios agent is present on every node where Ankaios needs to execute workloads.
 The Ankaios agent is responsible for starting and stopping workloads, according to the commands it gets from the Ankaios server.</p>
 <p>The Ankaios server itself does not run workloads directly so in order to start workloads on the node running the server, an Ankaios agent shall be started there too.</p>
-<p>Ankaios provides an interface, which allows workloads to change the desired state stored in the Ankaios server.
+<p>Ankaios also allows workloads to change the state stored in the Ankaios server via the <a href="../reference/control-interface/">control interface</a>.
 Workloads access this interface by sending their requests to the Ankaios agent managing them. Each request is checked by the Ankaios agent and, on successful authorization, forwarded to the Ankaios server.
-This interface can be used to e.g.:</p>
+This interface can be used to, e.g.:</p>
 <ul>
 <li>Dynamically reconfigure the system to start a parking assistant.</li>
-<li>Start additional workloads requested by a backend to collect data about the road condition.</li>
+<li>Start additional workloads requested by an OEM backend to collect data about the road condition.</li>
 </ul>
 <p>In the diagram above one of the workloads on <nobr>node 1</nobr> acts as fleet connector.
 It accesses a backend and forwards commands to the Ankaios server.

@@ -86,11 +86,6 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://eclipse-ankaios.github.io/ankaios/main/reference/api/</loc>
-         <lastmod>2024-04-05</lastmod>
-         <changefreq>daily</changefreq>
-    </url>
-    <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/reference/complete-state/</loc>
          <lastmod>2024-04-05</lastmod>
          <changefreq>daily</changefreq>
@@ -107,6 +102,11 @@
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/reference/inter-workload-dependencies/</loc>
+         <lastmod>2024-04-05</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://eclipse-ankaios.github.io/ankaios/main/reference/interacting-with-ankaios/</loc>
          <lastmod>2024-04-05</lastmod>
          <changefreq>daily</changefreq>
     </url>
