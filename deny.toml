@@ -10,10 +10,6 @@ allow = [
 ]
 private = { ignore = true }
 exceptions = [{ name = "unicode-ident", allow = ["Unicode-DFS-2016"] }]
-copyleft = "deny"
 
 [bans]
 multiple-versions = "allow"
-
-[advisories]
-vulnerability = "warn"

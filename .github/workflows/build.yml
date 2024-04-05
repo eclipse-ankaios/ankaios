@@ -30,7 +30,7 @@ jobs:
         # then it should be added to the whitelist otherwise the dependency needs to be
         # removed.
       - name: Check licenses
-        run: cargo deny check
+        run: cargo deny check licenses
 
       - name: Create license report
         run: |
