@@ -72,6 +72,8 @@ nav:
     - usage/installation.md
     - usage/quickstart.md
     - usage/tutorial-vehicle-signals.md
+    - Upgrading:
+      - usage/upgrading/v0_2_to_v0_3.md
   - Reference:
     - reference/startup-configuration.md
     - reference/interacting-with-ankaios.md
