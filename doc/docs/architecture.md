@@ -2,7 +2,7 @@
 
 ## Overview
 
-Two executables are used for each Ankaios deployment: the Ankaios server and the Ankaios agent.
+Two executables are used for each Ankaios deployment: the Ankaios server and the Ankaios agent:
 
 ![Architecture Overview](assets/architecture_overview.svg)
 
@@ -14,12 +14,12 @@ The Ankaios agent is responsible for starting and stopping workloads, according 
 
 The Ankaios server itself does not run workloads directly so in order to start workloads on the node running the server, an Ankaios agent shall be started there too.
 
-Ankaios provides an interface, which allows workloads to change the desired state stored in the Ankaios server.
+Ankaios also allows workloads to change the state stored in the Ankaios server via the [control interface](./reference/control-interface.md).
 Workloads access this interface by sending their requests to the Ankaios agent managing them. Each request is checked by the Ankaios agent and, on successful authorization, forwarded to the Ankaios server.
-This interface can be used to e.g.:
+This interface can be used to, e.g.:
 
 - Dynamically reconfigure the system to start a parking assistant.
-- Start additional workloads requested by a backend to collect data about the road condition.
+- Start additional workloads requested by an OEM backend to collect data about the road condition.
 
 In the diagram above one of the workloads on <nobr>node 1</nobr> acts as fleet connector.
 It accesses a backend and forwards commands to the Ankaios server.

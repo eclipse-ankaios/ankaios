@@ -1,6 +1,10 @@
 # Startup configuration
 
-In the Ankaios system it is mandatory to specify all the [nodes](./glossary.md#node) and [workloads](./glossary.md#workload) that are going to be ran. Currently the startup configuration is provided as a file which is in YAML file format and can be passed to the Ankaios server through a command line argument. Depending on the demands towards Ankaios, the startup configuration can later be provided in a different way.
+Depending on the use-case, the Ankaios cluster can be started with an optional predefined list of [workloads](./glossary.md#workload) - the startup configuration.
+Currently the startup configuration is provided as a file which is in YAML file format and can be passed to the Ankaios server through a command line argument.
+If Ankaios is started without or with an empty startup configuration, workloads can still be added to the cluster dynamically during runtime.
+
+**Note:** To be able to run a workload an Ankaios agent must be started on the same or on a different [node](./glossary.md#node).
 
 ## Configuration structure
 
@@ -10,7 +14,7 @@ A workload specification must contain the following information:
 * `workload name`_(via field key)_, specify the workload name to identify the workload in the Ankaios system.
 * `runtime`, specify the type of the runtime. Currently supported values are `podman` and `podman-kube`.
 * `agent`, specify the name of the owning agent which is going to execute the workload.
-* `restart`, specify how the workload should be restarted upon exiting (not implemented yet).
+* `restartPolicy`, specify how the workload should be restarted upon exiting (not implemented yet).
 * `tags`, specify a list of `key` `value`  pairs.
 * `runtimeConfig`, specify as a _string_ the configuration for the [runtime](./glossary.md#runtime) whose configuration structure is specific for each runtime, e.g., for `podman` runtime the [PodmanRuntimeConfig](#podmanruntimeconfig) is used.
 

@@ -23,7 +23,7 @@ description: Eclipse Ankaios provides workload and container orchestration for a
 Eclipse Ankaios provides workload and container orchestration for automotive
 High Performance Computing (HPC) software. While it can be used for various
 fields of applications, it is developed from scratch for automotive use cases
-and provides a slim yet powerful solution to manage containerized applications.
+and provides a slim, yet powerful solution to manage containerized applications.
 It supports various container runtimes with Podman as the first one, but other
 container runtimes and even native applications can be supported. Eclipse
 Ankaios is independent of existing communication frameworks like SOME/IP, DDS,
@@ -40,8 +40,10 @@ connects to one or more runtimes that are running the workloads.
 * For first steps see [installation](usage/installation.md) and
 [quickstart](usage/quickstart.md).
 * An overview how Ankaios works is given on the [architecture](architecture.md) page.
+* A tutorial [Sending and receiving vehicle signals
+](usage/tutorial-vehicle-signals.md) demonstrates the use of Ankaios with some workloads.
 * The API is described in the [reference](reference/control-interface.md) section.
-* For contributions have a look at the [development](development/build.md) pages.
+* For contributions have a look at the [contributing](development/build.md) pages.
 
 ## Background
 
