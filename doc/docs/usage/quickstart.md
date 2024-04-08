@@ -92,7 +92,7 @@ which results in:
 
 ```text
 WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE   ADDITIONAL INFO
- nginx           agent_A   podman    Running(Ok)
+nginx           agent_A   podman    Running(Ok)
 ```
 
 Ankaios also supports adding and removing workloads dynamically.
