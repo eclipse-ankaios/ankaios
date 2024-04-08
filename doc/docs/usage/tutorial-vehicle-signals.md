@@ -260,6 +260,7 @@ $ systemctl cat ank-server
 Description=Ankaios server
 
 [Service]
+Environment="RUST_LOG=info"
 ExecStart=/usr/local/bin/ank-server --startup-config /etc/ankaios/state.yaml
 
 [Install]
