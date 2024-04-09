@@ -1,11 +1,28 @@
 use std::{env, fmt, process::exit, sync::Mutex};
 
-use crossterm::{cursor, style::Stylize, terminal};
+#[cfg(not(test))]
+use crossterm::terminal;
+use crossterm::{cursor, style::Stylize};
+#[cfg(test)]
+use tests::terminal;
 
 pub const VERBOSITY_KEY: &str = "VERBOSE";
 pub const QUIET_KEY: &str = "SILENT";
 
 static CLEANUP_STRING: Mutex<String> = Mutex::new(String::new());
+
+#[cfg(test)]
+macro_rules! println {
+    ( $ ( $ arg : tt ) + ) => { $crate::log::mock_println_fn ( format_args ! ( $ ( $ arg ) + ) ) }
+}
+
+#[cfg(test)]
+fn mock_println_fn(args: fmt::Arguments<'_>) {
+    tests::TEST_PRINT_DATA
+        .lock()
+        .unwrap()
+        .push_str(&args.to_string());
+}
 
 /// Prints the message, if the CLI command is not called with `--quiet` flag
 #[macro_export]
@@ -47,20 +64,20 @@ pub(crate) fn output_and_error_fn(args: fmt::Arguments<'_>) {
 }
 
 pub(crate) fn output_and_exit_fn(args: fmt::Arguments<'_>) {
-    std::println!("{}", args);
+    println!("{}", args);
     exit(0);
 }
 
 pub(crate) fn output_debug_fn(args: fmt::Arguments<'_>) {
     if is_verbose() {
-        std::println!("{} {}{}", "debug:".blue(), args, cursor::SavePosition);
+        println!("{} {}{}", "debug:".blue(), args, cursor::SavePosition);
         *CLEANUP_STRING.lock().unwrap() = "".into();
     }
 }
 
 pub(crate) fn output_fn(args: fmt::Arguments<'_>) {
     if !is_quiet() {
-        std::println!("{}{}", args, cursor::SavePosition);
+        println!("{}{}", args, cursor::SavePosition);
         *CLEANUP_STRING.lock().unwrap() = "".into();
     }
 }
@@ -90,7 +107,7 @@ pub(crate) fn output_update_fn(args: fmt::Arguments<'_>) {
         } else {
             "".to_string()
         };
-        std::println!(
+        println!(
             "{}{}{}{}{}{}",
             cursor::MoveToColumn(0),
             up_string,
@@ -116,4 +133,80 @@ fn is_verbose() -> bool {
 
 fn is_quiet() -> bool {
     matches!(env::var(QUIET_KEY), Ok(quiet) if quiet.to_lowercase() == "true")
+}
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+#[cfg(test)]
+mod tests {
+    use crossterm::cursor;
+    use std::sync::Mutex;
+
+    static TEST_PRINT_LOCK: Mutex<()> = Mutex::new(());
+    pub static TEST_PRINT_DATA: Mutex<String> = Mutex::new(String::new());
+
+    #[test]
+    fn test_update_output() {
+        let _x = TEST_PRINT_LOCK.lock();
+        output_update!("abc\nd\nef");
+        *TEST_PRINT_DATA.lock().unwrap() = String::new();
+        output_update!("ABC");
+
+        let mut expected_output = String::new();
+
+        expected_output.push_str(&cursor::MoveToColumn(0).to_string());
+        expected_output.push_str(&cursor::MoveUp(3).to_string());
+        expected_output.push_str("   \n \n  \n");
+        expected_output.push_str(&cursor::MoveToColumn(0).to_string());
+        expected_output.push_str(&cursor::MoveUp(3).to_string());
+        expected_output.push_str("ABC");
+
+        assert_eq!(*TEST_PRINT_DATA.lock().unwrap(), expected_output);
+    }
+
+    #[test]
+    fn test_update_output_normal_output_in_between() {
+        let _x = TEST_PRINT_LOCK.lock();
+        output_update!("abc\nd\nef");
+        output!("hello");
+        *TEST_PRINT_DATA.lock().unwrap() = String::new();
+        output_update!("ABC");
+
+        let mut expected_output = String::new();
+
+        expected_output.push_str(&cursor::MoveToColumn(0).to_string());
+        expected_output.push_str(&cursor::MoveToColumn(0).to_string());
+        expected_output.push_str("ABC");
+
+        assert_eq!(*TEST_PRINT_DATA.lock().unwrap(), expected_output);
+    }
+
+    #[test]
+    fn test_update_output_wrap() {
+        let _x = TEST_PRINT_LOCK.lock();
+        output_update!("abcdefghijklm\nn\nop");
+        *TEST_PRINT_DATA.lock().unwrap() = String::new();
+        output_update!("abc\ndefghiklmnop\nef");
+
+        let mut expected_output = String::new();
+
+        expected_output.push_str(&cursor::MoveToColumn(0).to_string());
+        expected_output.push_str(&cursor::MoveUp(4).to_string());
+        expected_output.push_str("          \n   \n \n  \n");
+        expected_output.push_str(&cursor::MoveToColumn(0).to_string());
+        expected_output.push_str(&cursor::MoveUp(4).to_string());
+        expected_output.push_str("abc\ndefghiklmn\nop\nef");
+
+        assert_eq!(*TEST_PRINT_DATA.lock().unwrap(), expected_output);
+    }
+
+    pub mod terminal {
+        pub fn size() -> std::io::Result<(u16, u16)> {
+            Ok((10, 0))
+        }
+    }
 }
