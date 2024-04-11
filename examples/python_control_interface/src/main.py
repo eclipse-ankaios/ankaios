@@ -29,17 +29,17 @@ def create_request_to_add_new_workload():
 
     return ank.ToServer(
         request=ank.Request(
-                requestId=REQUEST_ID,
-                updateStateRequest=ank.UpdateStateRequest(
-                    newState=ank.CompleteState(
-                        desiredState=ank.State(
-                                apiVersion="v0.1",
-                                workloads={
-                                    "dynamic_nginx": ank.Workload(
-                                        agent="agent_A",
-                                        runtime="podman",
-                                        restartPolicy=ank.NEVER,
-                                        runtimeConfig="image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]")
+            requestId=REQUEST_ID,
+            updateStateRequest=ank.UpdateStateRequest(
+                newState=ank.CompleteState(
+                    desiredState=ank.State(
+                        apiVersion="v0.1",
+                        workloads={
+                            "dynamic_nginx": ank.Workload(
+                                agent="agent_A",
+                                runtime="podman",
+                                restartPolicy=ank.NEVER,
+                                runtimeConfig="image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]")
                         }
                     )
                 ),
