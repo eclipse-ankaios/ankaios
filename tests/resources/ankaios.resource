@@ -125,6 +125,9 @@ Ankaios agent is started with name "${name}"
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
     ...    env:RUST_LOG=debug
 
+Ankaios is terminated
+    Terminate All Processes    kill=True
+
 Podman has deleted all existing containers
     Run Process    podman    rm    --all    --force    --time    2    timeout=20    shell=True
 
