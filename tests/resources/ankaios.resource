@@ -100,6 +100,7 @@ Ankaios server is started with config "${config_path}"
     ...    ${config_path}
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
     ...    env:RUST_LOG=debug
+    ...    alias=ank-server
     RETURN    ${server_process}
 
 Ankaios server is started with an invalid config "${config_path}"
@@ -124,9 +125,17 @@ Ankaios agent is started with name "${name}"
     ...    ${name}
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
     ...    env:RUST_LOG=debug
+    ...    alias=${name}
 
-Ankaios is terminated
-    Terminate All Processes    kill=True
+Ankaios server is terminated
+    ${result_kill}=    Terminate Process    ank-server    kill=True
+    ${result_grep}=    Is Process Running    ank-server
+    Should Not Be True   ${result_grep}
+
+Ankaios agent with name "${name}" is terminated
+    ${result_kill}=    Terminate Process    ${name}    kill=True
+    ${result_grep}=    Is Process Running    ${name}
+    Should Not Be True   ${result_grep}
 
 Podman has deleted all existing containers
     Run Process    podman    rm    --all    --force    --time    2    timeout=20    shell=True

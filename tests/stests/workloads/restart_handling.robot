@@ -48,7 +48,7 @@ Test Ankaios restarts workloads based on their configured resetart policy.
     And the workload "default_restarted_never" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
     [Teardown]    Clean up Ankaios
 
-Test Ankaios restarts workloads based on their configured resetart policy on device restart.
+Test Ankaios restarts workloads based on their configured restart policy on device restart.
     [Documentation]    Restart workloads with restart policy set to ALWAYS or ON_FAILURE on device restart.
     [Setup]    Run Keywords    Setup Ankaios
     # Preconditions
@@ -62,7 +62,9 @@ Test Ankaios restarts workloads based on their configured resetart policy on dev
     And the workload "restarted_never" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     And the workload "default_restarted_never" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
     And the workload "restarted_on_failure" shall have the execution state "Failed(ExecFailed)" on agent "agent_B"
-    And Ankaios is terminated
+    And Ankaios server is terminated
+    And Ankaios agent with name "agent_A" is terminated
+    And Ankaios agent with name "agent_B" is terminated
     And Ankaios server is started with config "${CONFIGS_DIR}/state_with_restart_policies.yaml"
     And Ankaios agent is started with name "agent_A"
     And Ankaios agent is started with name "agent_B"
