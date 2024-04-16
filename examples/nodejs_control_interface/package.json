@@ -1,6 +1,5 @@
 {
   "name": "ci_example",
-  "version": "1.0.0",
   "description": "A Nodejs for Ankaios control interface handling",
   "main": "src/main.js",
   "scripts": {
