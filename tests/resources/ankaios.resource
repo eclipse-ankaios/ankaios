@@ -128,14 +128,14 @@ Ankaios agent is started with name "${name}"
     ...    alias=${name}
 
 Ankaios server is terminated
-    ${result_kill}=    Terminate Process    ank-server    kill=True
-    ${result_grep}=    Is Process Running    ank-server
-    Should Not Be True   ${result_grep}
+    Terminate Process    ank-server    kill=True
+    ${server_running}=    Is Process Running    ank-server
+    Should Not Be True    ${server_running}
 
 Ankaios agent with name "${name}" is terminated
-    ${result_kill}=    Terminate Process    ${name}    kill=True
-    ${result_grep}=    Is Process Running    ${name}
-    Should Not Be True   ${result_grep}
+    Terminate Process    ${name}    kill=True
+    ${agent_running}=    Is Process Running    ${name}
+    Should Not Be True    ${agent_running}
 
 Podman has deleted all existing containers
     Run Process    podman    rm    --all    --force    --time    2    timeout=20    shell=True
