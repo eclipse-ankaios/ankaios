@@ -25,6 +25,16 @@ fi\n' >> /home/$USERNAME/.bashrc
 # add an alias for the test coverage generation
 RUN echo 'alias cov="/workspaces/ankaios/tools/generate_test_coverage_report.sh"' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
 
+# add aliases for development scripts and tools
+RUN echo 'alias ankaios-start="/workspaces/ankaios/tools/dev_scripts/ankaios-start"' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
+RUN echo 'alias ankaios-clean="/workspaces/ankaios/tools/dev_scripts/ankaios-clean"' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
+RUN echo 'alias ank="/workspaces/ankaios/target/x86_64-unknown-linux-musl/debug/ank"' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
+
+# add some convinence aliases
+RUN echo 'alias ll="ls -la"' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
+RUN echo 'alias ..="cd .."' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
+RUN echo 'alias ...="cd ../.."' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
+
 USER ${USERNAME}
 
 COPY .git_commit_template.txt /home/${USERNAME}/
