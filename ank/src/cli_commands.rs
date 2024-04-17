@@ -1261,7 +1261,7 @@ mod tests {
 
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[tokio::test]
-    async fn get_workloads_empty_table() {
+    async fn utest_get_workloads_empty_table() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1306,7 +1306,7 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     // [utest->swdd~cli-shall-sort-list-of-workloads~1]
     #[tokio::test]
-    async fn get_workloads_no_filtering() {
+    async fn utest_get_workloads_no_filtering() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1382,7 +1382,7 @@ mod tests {
 
     // [utest->swdd~cli-shall-filter-list-of-workloads~1]
     #[tokio::test]
-    async fn get_workloads_filter_workload_name() {
+    async fn utest_get_workloads_filter_workload_name() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1444,7 +1444,7 @@ mod tests {
 
     // [utest->swdd~cli-shall-filter-list-of-workloads~1]
     #[tokio::test]
-    async fn get_workloads_filter_agent() {
+    async fn utest_get_workloads_filter_agent() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1515,7 +1515,7 @@ mod tests {
 
     // [utest->swdd~cli-shall-filter-list-of-workloads~1]
     #[tokio::test]
-    async fn get_workloads_filter_state() {
+    async fn utest_get_workloads_filter_state() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1571,7 +1571,7 @@ mod tests {
 
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[tokio::test]
-    async fn get_workloads_deleted_workload() {
+    async fn utest_get_workloads_deleted_workload() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1628,7 +1628,7 @@ mod tests {
     // [utest->swdd~cli-provides-delete-workload~1]
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
     #[tokio::test]
-    async fn delete_workloads_two_workloads() {
+    async fn utest_delete_workloads_two_workloads() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1703,7 +1703,7 @@ mod tests {
 
     // [utest->swdd~no-delete-workloads-when-not-found~1]
     #[tokio::test]
-    async fn delete_workloads_unknown_workload() {
+    async fn utest_delete_workloads_unknown_workload() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1776,7 +1776,7 @@ mod tests {
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-get-desired-state~1]
     // [utest->swdd~cli-provides-get-desired-state~1]
     #[tokio::test]
-    async fn get_state_complete_desired_state_yaml() {
+    async fn utest_get_state_complete_desired_state_yaml() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1830,7 +1830,7 @@ mod tests {
 
     // [utest -> swdd~cli-shall-support-desired-state-json~1]
     #[tokio::test]
-    async fn get_state_complete_desired_state_json() {
+    async fn utest_get_state_complete_desired_state_json() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1885,7 +1885,7 @@ mod tests {
 
     // [utest->swdd~cli-returns-api-version-with-startup-state~1]
     #[tokio::test]
-    async fn get_state_startup_state() {
+    async fn utest_get_state_startup_state() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1930,7 +1930,7 @@ mod tests {
     // [utest -> swdd~cli-returns-desired-state-from-server~1]
     // [utest->swdd~cli-returns-api-version-with-desired-state~1]
     #[tokio::test]
-    async fn get_state_single_field_of_desired_state() {
+    async fn utest_get_state_single_field_of_desired_state() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1992,7 +1992,7 @@ mod tests {
     // [utest->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
     // [utest->swdd~cli-returns-api-version-with-desired-state~1]
     #[tokio::test]
-    async fn get_state_multiple_fields_of_desired_state() {
+    async fn utest_get_state_multiple_fields_of_desired_state() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -2053,7 +2053,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_state_single_field_without_api_version() {
+    async fn utest_get_state_single_field_without_api_version() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -2095,7 +2095,7 @@ mod tests {
     // [utest->swdd~cli-provides-run-workload~1]
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-run-workload~2]
     #[tokio::test]
-    async fn run_workload_one_new_workload() {
+    async fn utest_run_workload_one_new_workload() {
         let test_workload_name = "name4".to_string();
         let test_workload_agent = "agent_B".to_string();
         let test_workload_runtime_name = "runtime2".to_string();
@@ -2981,7 +2981,7 @@ mod tests {
 
     //[utest->swdd~cli-apply-send-update-state~1]
     #[tokio::test]
-    async fn apply_manifests_delete_mode_ok() {
+    async fn utest_apply_manifests_delete_mode_ok() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -3070,7 +3070,7 @@ mod tests {
 
     //[utest->swdd~cli-apply-send-update-state~1]
     #[tokio::test]
-    async fn apply_manifests_ok() {
+    async fn utest_apply_manifests_ok() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
