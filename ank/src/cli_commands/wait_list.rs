@@ -19,7 +19,7 @@ use common::{
     objects::{PendingSubstate, WorkloadInstanceName, WorkloadState, NO_MORE_RETRIES_MSG},
 };
 
-use crate::output_update;
+use crate::{output, output_update};
 
 pub struct ParsedUpdateStateSuccess {
     pub added_workloads: Vec<WorkloadInstanceName>,
@@ -72,12 +72,10 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
             self.display.update(&workload);
             // [impl->swdd~cli-checks-for-final-workload-state~1]
             match workload.execution_state.state {
-                common::objects::ExecutionStateEnum::Running(_) => {
-                    if self.added_workloads.remove(&workload.instance_name) {
-                        self.display.set_complete(&workload.instance_name)
-                    }
-                }
-                common::objects::ExecutionStateEnum::Succeeded(_) => {
+                common::objects::ExecutionStateEnum::Running(_)
+                | common::objects::ExecutionStateEnum::Succeeded(_)
+                | common::objects::ExecutionStateEnum::Failed(_)
+                | common::objects::ExecutionStateEnum::NotScheduled => {
                     if self.added_workloads.remove(&workload.instance_name) {
                         self.display.set_complete(&workload.instance_name)
                     }
@@ -85,11 +83,6 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
                 common::objects::ExecutionStateEnum::Pending(PendingSubstate::StartingFailed)
                     if workload.execution_state.additional_info == NO_MORE_RETRIES_MSG =>
                 {
-                    if self.added_workloads.remove(&workload.instance_name) {
-                        self.display.set_complete(&workload.instance_name)
-                    }
-                }
-                common::objects::ExecutionStateEnum::Failed(_) => {
                     if self.added_workloads.remove(&workload.instance_name) {
                         self.display.set_complete(&workload.instance_name)
                     }
@@ -114,4 +107,18 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
     pub fn is_empty(&self) -> bool {
         self.added_workloads.is_empty() && self.deleted_workloads.is_empty()
     }
+}
+
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+
 }
