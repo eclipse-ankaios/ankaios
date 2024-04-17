@@ -82,6 +82,72 @@ where
 pub struct WorkloadControlLoop;
 
 impl WorkloadControlLoop {
+    pub async fn run<WorkloadId, StChecker>(
+        mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
+    ) where
+        WorkloadId: ToString + Send + Sync + 'static,
+        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
+    {
+        loop {
+            match control_loop_state.command_receiver.recv().await {
+                // [impl->swdd~agent-workload-control-loop-executes-delete~2]
+                Some(WorkloadCommand::Delete) => {
+                    log::debug!("Received WorkloadCommand::Delete.");
+
+                    if let Some(new_control_loop_state) = Self::delete(control_loop_state).await {
+                        control_loop_state = new_control_loop_state;
+                    } else {
+                        // [impl->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
+                        return;
+                    }
+                }
+                // [impl->swdd~agent-workload-control-loop-executes-update~2]
+                Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
+                    log::debug!("Received WorkloadCommand::Update.");
+
+                    control_loop_state = Self::update(
+                        control_loop_state,
+                        runtime_workload_config,
+                        control_interface_path,
+                    )
+                    .await;
+
+                    log::debug!("Update workload complete");
+                }
+                // [impl->swdd~agent-workload-control-loop-executes-retry~1]
+                Some(WorkloadCommand::Retry(runtime_workload_config, control_interface_path)) => {
+                    log::debug!("Received WorkloadCommand::Retry.");
+
+                    control_loop_state = Self::retry_create(
+                        control_loop_state,
+                        *runtime_workload_config,
+                        control_interface_path,
+                    )
+                    .await;
+                }
+                // [impl->swdd~agent-workload-control-loop-executes-create~2]
+                Some(WorkloadCommand::Create(runtime_workload_config, control_interface_path)) => {
+                    log::debug!("Received WorkloadCommand::Create.");
+
+                    control_loop_state = Self::create(
+                        control_loop_state,
+                        *runtime_workload_config,
+                        control_interface_path,
+                        Self::send_retry,
+                    )
+                    .await;
+                }
+                _ => {
+                    log::warn!(
+                        "Could not wait for internal stop command for workload '{}'.",
+                        control_loop_state.instance_name.workload_name(),
+                    );
+                    return;
+                }
+            }
+        }
+    }
+
     async fn send_retry<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         runtime_workload_config: WorkloadSpec,
@@ -376,72 +442,6 @@ impl WorkloadControlLoop {
             // [impl->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
             log::debug!("Skip retry creation of workload.");
             control_loop_state
-        }
-    }
-
-    pub async fn run<WorkloadId, StChecker>(
-        mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-    ) where
-        WorkloadId: ToString + Send + Sync + 'static,
-        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
-    {
-        loop {
-            match control_loop_state.command_receiver.recv().await {
-                // [impl->swdd~agent-workload-control-loop-executes-delete~2]
-                Some(WorkloadCommand::Delete) => {
-                    log::debug!("Received WorkloadCommand::Delete.");
-
-                    if let Some(new_control_loop_state) = Self::delete(control_loop_state).await {
-                        control_loop_state = new_control_loop_state;
-                    } else {
-                        // [impl->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
-                        return;
-                    }
-                }
-                // [impl->swdd~agent-workload-control-loop-executes-update~2]
-                Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
-                    log::debug!("Received WorkloadCommand::Update.");
-
-                    control_loop_state = Self::update(
-                        control_loop_state,
-                        runtime_workload_config,
-                        control_interface_path,
-                    )
-                    .await;
-
-                    log::debug!("Update workload complete");
-                }
-                // [impl->swdd~agent-workload-control-loop-executes-retry~1]
-                Some(WorkloadCommand::Retry(runtime_workload_config, control_interface_path)) => {
-                    log::debug!("Received WorkloadCommand::Retry.");
-
-                    control_loop_state = Self::retry_create(
-                        control_loop_state,
-                        *runtime_workload_config,
-                        control_interface_path,
-                    )
-                    .await;
-                }
-                // [impl->swdd~agent-workload-control-loop-executes-create~2]
-                Some(WorkloadCommand::Create(runtime_workload_config, control_interface_path)) => {
-                    log::debug!("Received WorkloadCommand::Create.");
-
-                    control_loop_state = Self::create(
-                        control_loop_state,
-                        *runtime_workload_config,
-                        control_interface_path,
-                        Self::send_retry,
-                    )
-                    .await;
-                }
-                _ => {
-                    log::warn!(
-                        "Could not wait for internal stop command for workload '{}'.",
-                        control_loop_state.instance_name.workload_name(),
-                    );
-                    return;
-                }
-            }
         }
     }
 }
