@@ -19,7 +19,10 @@ use common::{
     objects::{PendingSubstate, WorkloadInstanceName, WorkloadState, NO_MORE_RETRIES_MSG},
 };
 
-use crate::{output, output_update};
+#[cfg(test)]
+use mockall::mock;
+
+use crate::output_update;
 
 pub struct ParsedUpdateStateSuccess {
     pub added_workloads: Vec<WorkloadInstanceName>,
@@ -52,6 +55,22 @@ pub trait WaitListDisplayTrait: Display {
     fn step_spinner(&mut self);
 }
 
+#[cfg(test)]
+mock! {
+    pub MyWaitListDisplay{
+
+    }
+    impl Display for MyWaitListDisplay {
+        fn fmt<'a>(&self, formater: &mut std::fmt::Formatter<'a>) -> std::result::Result<(), std::fmt::Error>;
+    }
+
+    impl WaitListDisplayTrait for MyWaitListDisplay {
+        fn update(&mut self, workload_state: &WorkloadState);
+        fn set_complete(&mut self, workload: &WorkloadInstanceName);
+        fn step_spinner(&mut self);
+    }
+}
+
 pub struct WaitList<T> {
     pub added_workloads: HashSet<WorkloadInstanceName>,
     pub deleted_workloads: HashSet<WorkloadInstanceName>,
@@ -68,28 +87,28 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
     }
 
     pub fn update(&mut self, values: impl IntoIterator<Item = WorkloadState>) {
-        for workload in values.into_iter() {
-            self.display.update(&workload);
+        for workload_state in values.into_iter() {
+            self.display.update(&workload_state);
             // [impl->swdd~cli-checks-for-final-workload-state~1]
-            match workload.execution_state.state {
+            match workload_state.execution_state.state {
                 common::objects::ExecutionStateEnum::Running(_)
                 | common::objects::ExecutionStateEnum::Succeeded(_)
                 | common::objects::ExecutionStateEnum::Failed(_)
                 | common::objects::ExecutionStateEnum::NotScheduled => {
-                    if self.added_workloads.remove(&workload.instance_name) {
-                        self.display.set_complete(&workload.instance_name)
+                    if self.added_workloads.remove(&workload_state.instance_name) {
+                        self.display.set_complete(&workload_state.instance_name)
                     }
                 }
                 common::objects::ExecutionStateEnum::Pending(PendingSubstate::StartingFailed)
-                    if workload.execution_state.additional_info == NO_MORE_RETRIES_MSG =>
+                    if workload_state.execution_state.additional_info == NO_MORE_RETRIES_MSG =>
                 {
-                    if self.added_workloads.remove(&workload.instance_name) {
-                        self.display.set_complete(&workload.instance_name)
+                    if self.added_workloads.remove(&workload_state.instance_name) {
+                        self.display.set_complete(&workload_state.instance_name)
                     }
                 }
                 common::objects::ExecutionStateEnum::Removed => {
-                    if self.deleted_workloads.remove(&workload.instance_name) {
-                        self.display.set_complete(&workload.instance_name)
+                    if self.deleted_workloads.remove(&workload_state.instance_name) {
+                        self.display.set_complete(&workload_state.instance_name)
                     }
                 }
                 _ => {}
@@ -109,7 +128,6 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
     }
 }
 
-
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -118,7 +136,67 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
+#[cfg(any(feature = "test_utils", test))]
+fn generate_test_wait_list(
+    my_mock: MockMyWaitListDisplay,
+    added_workloads: Vec<WorkloadInstanceName>,
+    deleted_workloads: Vec<WorkloadInstanceName>,
+) -> WaitList<MockMyWaitListDisplay> {
+    let update_state_list = ParsedUpdateStateSuccess {
+        added_workloads,
+        deleted_workloads,
+    };
+
+    WaitList::new(update_state_list, my_mock)
+}
+
 #[cfg(test)]
 mod tests {
+    use common::objects::{generate_test_workload_instance_name, ExecutionState, WorkloadState};
+    use mockall::predicate::eq;
 
+    use crate::cli_commands::wait_list::generate_test_wait_list;
+
+    use super::MockMyWaitListDisplay;
+
+    const WORKLOAD_NAME_1: &str = "workload_1";
+    const WORKLOAD_NAME_2: &str = "workload_2";
+    const WORKLOAD_NAME_3: &str = "workload_3";
+
+    #[test]
+    fn utest_update_wait_list() {
+        let i_name_1 = generate_test_workload_instance_name(WORKLOAD_NAME_1);
+        let i_name_2 = generate_test_workload_instance_name(WORKLOAD_NAME_2);
+        let i_name_3 = generate_test_workload_instance_name(WORKLOAD_NAME_3);
+
+        let workload_state = WorkloadState {
+            instance_name: i_name_1.clone(),
+            execution_state: ExecutionState::running(),
+        };
+
+        let mut my_mock = MockMyWaitListDisplay::new();
+
+        my_mock
+            .expect_update()
+            .once()
+            .with(eq(workload_state.clone()))
+            .return_const(());
+        my_mock.expect_fmt().once().return_const(Ok(()));
+        my_mock
+            .expect_set_complete()
+            .once()
+            .with(eq(i_name_1.clone()))
+            .return_const(());
+
+        let mut wait_list =
+            generate_test_wait_list(my_mock, vec![i_name_1.clone(), i_name_2], vec![i_name_3]);
+
+        assert!(wait_list.added_workloads.contains(&i_name_1));
+
+        wait_list.update(vec![workload_state]);
+
+        assert!(!wait_list.added_workloads.contains(&i_name_1));
+    }
+
+    // TODO: add tests for other conditions
 }
