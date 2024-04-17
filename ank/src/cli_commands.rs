@@ -15,6 +15,7 @@
 use std::{
     collections::{HashMap, HashSet},
     fmt::{self, Display},
+    mem::take,
     time::Duration,
 };
 mod wait_list;
@@ -31,7 +32,7 @@ use tests::read_to_string_mock as read_file_to_string;
 use common::{
     commands::{CompleteStateRequest, Response, ResponseContent},
     from_server_interface::{FromServer, FromServerReceiver},
-    objects::{CompleteState, State, StoredWorkloadSpec, Tag, WorkloadInstanceName, WorkloadState},
+    objects::{CompleteState, State, StoredWorkloadSpec, Tag, WorkloadInstanceName},
     state_manipulation::{Object, Path},
     to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
@@ -624,6 +625,7 @@ pub struct CliCommands {
     to_server: ToServerSender,
     from_server: FromServerReceiver,
     no_wait: bool,
+    missed_from_server_messages: Vec<FromServer>,
 }
 
 impl CliCommands {
@@ -642,6 +644,7 @@ impl CliCommands {
             to_server,
             from_server,
             no_wait,
+            missed_from_server_messages: Vec::new(),
         }
     }
 
@@ -680,7 +683,7 @@ impl CliCommands {
                     })) => return Ok(res),
                     None => return Err("Channel preliminary closed."),
                     Some(message) => {
-                        output_debug!("Got unexpected message: {:?}", message)
+                        self.missed_from_server_messages.push(message);
                     }
                 }
             }
@@ -963,8 +966,6 @@ impl CliCommands {
             .await
             .map_err(|err| CliError::ExecutionError(err.to_string()))?;
 
-        let mut missed_messages = Vec::new();
-
         let update_state_success = loop {
             let Some(server_message) = self.from_server.recv().await else {
                 return Err(CliError::ExecutionError(
@@ -1000,11 +1001,8 @@ impl CliCommands {
                         }
                     }
                 }
-                FromServer::UpdateWorkloadState(mut update_workload_state) => {
-                    missed_messages.append(&mut update_workload_state.workload_states);
-                }
                 other_message => {
-                    output_debug!("Received unexpected message: {:?}", other_message)
+                    self.missed_from_server_messages.push(other_message);
                 }
             }
         };
@@ -1023,8 +1021,7 @@ impl CliCommands {
             Ok(())
         } else {
             // [impl->swdd~cli-requests-update-state-with-watch-success~1]
-            self.wait_for_complete(update_state_success, missed_messages)
-                .await
+            self.wait_for_complete(update_state_success).await
         }
     }
 
@@ -1032,7 +1029,6 @@ impl CliCommands {
     async fn wait_for_complete(
         &mut self,
         update_state_success: ParsedUpdateStateSuccess,
-        missed_messages: Vec<WorkloadState>,
     ) -> Result<(), CliError> {
         let mut changed_workloads =
             HashSet::from_iter(update_state_success.added_workloads.iter().cloned());
@@ -1058,7 +1054,18 @@ impl CliCommands {
             },
         );
 
-        wait_list.update(missed_messages);
+        let missed_workload_states = take(&mut self.missed_from_server_messages)
+            .into_iter()
+            .filter_map(|m| {
+                if let FromServer::UpdateWorkloadState(u) = m {
+                    Some(u)
+                } else {
+                    None
+                }
+            })
+            .flat_map(|u| u.workload_states);
+
+        wait_list.update(missed_workload_states);
         let mut spinner_interval = interval(Duration::from_millis(100));
 
         while !wait_list.is_empty() {
