@@ -112,28 +112,42 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
         let workload_cfg = PodmanRuntimeConfig::try_from(&workload_spec)
             .map_err(|err| RuntimeError::Create(err.into()))?;
 
-        let workload_id = PodmanCli::podman_run(
+        match PodmanCli::podman_run(
             workload_cfg.into(),
             &workload_spec.instance_name.to_string(),
             workload_spec.instance_name.agent_name(),
             control_interface_path,
         )
         .await
-        .map_err(RuntimeError::Create)?;
+        {
+            Ok(workload_id) => {
+                log::debug!(
+                    "The workload '{}' has been created with internal id '{}'",
+                    workload_spec.instance_name,
+                    workload_id
+                );
 
-        log::debug!(
-            "The workload '{}' has been created with internal id '{}'",
-            workload_spec.instance_name,
-            workload_id
-        );
+                let podman_workload_id = PodmanWorkloadId { id: workload_id };
+                let state_checker = self
+                    .start_checker(&podman_workload_id, workload_spec, update_state_tx)
+                    .await?;
 
-        let podman_workload_id = PodmanWorkloadId { id: workload_id };
-        let state_checker = self
-            .start_checker(&podman_workload_id, workload_spec, update_state_tx)
-            .await?;
+                // [impl->swdd~podman-create-workload-returns-workload-id~1]
+                Ok((podman_workload_id, state_checker))
+            }
+            Err(err) => {
+                log::info!("Podman has returned error '{err}', deleting broken container.");
+                match PodmanCli::remove_workloads_by_id(&workload_spec.instance_name.to_string())
+                    .await
+                {
+                    Ok(_) => log::debug!("The broken container has been deleted successfully"),
+                    Err(e) => log::info!("Container cleanup failed with error '{}'", e),
+                }
 
-        // [impl->swdd~podman-create-workload-returns-workload-id~1]
-        Ok((podman_workload_id, state_checker))
+                // No matter if we have deleted the broken container or not, we have to report that the "workload create" failed.
+                Err(RuntimeError::Create(err))
+            }
+        }
     }
 
     async fn get_workload_id(
