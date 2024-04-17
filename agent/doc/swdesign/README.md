@@ -1297,14 +1297,14 @@ Needs:
 
 Status: approved
 
-The Ankaios agent shall support the following restart conditions for a workload:
+The Ankaios agent shall support the following restart policies for a workload:
 
 * `NEVER`: The workload is never restarted. Once the container exits, it remains in the exited state.
 * `ON_FAILURE`: If the workload exits with a non-zero exit code, it will be restarted.
 * `ALWAYS`: The workload is restarted upon termination, regardless of the exit code.
 
 Comment:
-The default condition is `NEVER`.
+The default restart policies is `NEVER`.
 
 Rationale:
 In some cases, workloads must remain operational at all times, even if they fail or exit successfully.
@@ -1314,6 +1314,102 @@ Tags:
 Needs:
 - impl
 - utest
+
+#### WorkloadControlLoop receives workload states of its workload
+`swdd~workload-control-loop-receives-workload-states~1`
+
+Status: approved
+
+The WorkloadControlLoop shall receive the workload states of the workload it manages.
+
+Rationale:
+The WorkloadControlLoop requires the workload states to apply the configured restart policy.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
+#### WorkloadControlLoop sends workload states to server
+`swdd~workload-control-loop-sends-workload-states~1`l
+
+Status: approved
+
+When the WorkloadControlLoop receives the workload states, then the WorkloadControlLoop shall send the workload state to the AgentManager.
+
+Rationale:
+The AgentManager requires the knowledge about the workload states of all workloads.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
+#### WorkloadControlLoop compares execution state with restart policy
+`swdd~workload-control-loop-compares-workload-state-with-restart-policy~1`
+
+Status: approved
+
+When the WorkloadControlLoop receives a new workload state, then the WorkloadControlLoop compares the `ExecutionState` of the workload state with the configured restart policy.
+
+Rationale:
+The execution of the restart policy depends on the workload state.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
+#### WorkloadControlLoop restarts workloads
+`swdd~workload-control-loop-restarts-workloads~1`
+
+Status: approved
+
+When:
+the workload's `ExecutionState` is `Succeeded(Ok)` and the workload's `restartPolicy` field contains the value `ALWAYS` or
+the workload's `ExecutionState` is `Failed(ExecFailed)` and the workload's `restartPolicy` field contains the value `ON_FAILURE`,
+then the WorkloadControlLoop shall:
+- store the workload configuration of the existing workload
+- delete the existing workload via the corresponding runtime connector
+- create a new workload with the stored workload configuration via the corresponding runtime connector
+
+Comment:
+The restart is represented within the system by an update operation.
+
+Rationale:
+A runtime may not support directly restarting the exited container.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
+
+<!-- prepared but not needed -->
+<!-- #### WorkloadControlLoop ignores restarts of workloads
+`swdd~workload-control-loop-ignores-restarts~1`
+
+Status: approved
+
+When the `restartPolicy` field of a workload contains the value `NEVER`, then the WorkloadControlLoop shall not update the workload.
+
+Rationale:
+The user has explicitly configured the system to prevent the workload from being restarted or to apply the default value of "NEVER" in the workload configuration.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest -->
 
 ### Retry creation of workloads
 
