@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cli_commands::{ApplyManifestTableDisplay, State};
+use crate::cli_commands::State;
 use crate::{cli::ApplyArgs, output_debug};
 use common::objects::CompleteState;
 use common::state_manipulation::{Object, Path};
@@ -61,7 +61,6 @@ pub fn handle_agent_overwrite(
     filter_masks: &Vec<common::state_manipulation::Path>,
     desired_agent: &Option<String>,
     mut state_obj: Object,
-    table_output: &mut [ApplyManifestTableDisplay],
 ) -> Result<State, String> {
     // No agent name specified through cli!
     if desired_agent.is_none() {
@@ -90,9 +89,6 @@ pub fn handle_agent_overwrite(
                 return Err("Could not find workload to update.".to_owned());
             }
         }
-        table_output.iter_mut().for_each(|row| {
-            row.base_info.agent = desired_agent_name.to_string();
-        })
     }
 
     state_obj
@@ -104,39 +100,12 @@ pub fn update_request_obj(
     req_obj: &mut Object,
     cur_obj: &Object,
     paths: &[Path],
-    manifest_file_name: &str,
-    delete_mode: bool,
-    table_output: &mut Vec<ApplyManifestTableDisplay>,
 ) -> Result<(), String> {
     for workload_path in paths.iter() {
         let workload_name = &workload_path.parts()[1];
         let cur_workload_spec = cur_obj.get(workload_path).unwrap().clone();
         if req_obj.get(workload_path).is_none() {
             let _ = req_obj.set(workload_path, cur_workload_spec.clone());
-            let mapping_default = serde_yaml::Mapping::default();
-            let value_default = serde_yaml::Value::default();
-            let mut agent_name = "";
-
-            if !delete_mode {
-                agent_name = cur_workload_spec
-                    .as_mapping()
-                    .unwrap_or(&mapping_default)
-                    .get("agent")
-                    .unwrap_or(&value_default)
-                    .as_str()
-                    .unwrap_or_default()
-            };
-
-            table_output.push(ApplyManifestTableDisplay::new(
-                workload_name,
-                agent_name,
-                if delete_mode {
-                    super::ApplyManifestOperation::Remove
-                } else {
-                    super::ApplyManifestOperation::AddOrUpdate
-                },
-                manifest_file_name,
-            ));
         } else {
             return Err(format!(
                 "Multiple workloads with the same name '{}' found!",
@@ -165,21 +134,13 @@ pub fn create_filter_masks_from_paths(
 pub fn generate_state_obj_and_filter_masks_from_manifests(
     manifests: &mut [InputSourcePair],
     apply_args: &ApplyArgs,
-    table_output: &mut Vec<ApplyManifestTableDisplay>,
 ) -> Result<(CompleteState, Vec<String>), String> {
     let mut req_obj: Object = State::default().try_into().unwrap();
     let mut req_paths: Vec<common::state_manipulation::Path> = Vec::new();
     for manifest in manifests.iter_mut() {
         let (cur_obj, mut cur_workload_paths) = parse_manifest(manifest)?;
 
-        update_request_obj(
-            &mut req_obj,
-            &cur_obj,
-            &cur_workload_paths,
-            &manifest.0,
-            apply_args.delete_mode,
-            table_output,
-        )?;
+        update_request_obj(&mut req_obj, &cur_obj, &cur_workload_paths)?;
 
         req_paths.append(&mut cur_workload_paths);
     }
@@ -197,7 +158,7 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
         }
     } else {
         let state_from_req_obj =
-            handle_agent_overwrite(&req_paths, &apply_args.agent_name, req_obj, table_output)?;
+            handle_agent_overwrite(&req_paths, &apply_args.agent_name, req_obj)?;
         CompleteState {
             desired_state: state_from_req_obj,
             ..Default::default()

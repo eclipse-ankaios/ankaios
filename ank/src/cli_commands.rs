@@ -347,46 +347,6 @@ impl GetWorkloadTableDisplay {
     }
 }
 
-#[derive(Debug, Clone)]
-enum ApplyManifestOperation {
-    AddOrUpdate,
-    Remove,
-}
-
-impl fmt::Display for ApplyManifestOperation {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ApplyManifestOperation::AddOrUpdate => write!(f, "Add/Update"),
-            ApplyManifestOperation::Remove => write!(f, "Remove"),
-        }
-    }
-}
-
-#[derive(Debug, Tabled, Clone)]
-#[tabled(rename_all = "UPPERCASE")]
-pub struct ApplyManifestTableDisplay {
-    #[tabled(inline)]
-    base_info: WorkloadBaseTableDisplay,
-    operation: ApplyManifestOperation,
-    #[tabled(rename = "FILE")]
-    manifest_file: String,
-}
-
-impl ApplyManifestTableDisplay {
-    fn new(
-        workload_name: &str,
-        agent_name: &str,
-        operation: ApplyManifestOperation,
-        manifest_file: &str,
-    ) -> Self {
-        ApplyManifestTableDisplay {
-            base_info: WorkloadBaseTableDisplay::new(workload_name, agent_name),
-            operation,
-            manifest_file: manifest_file.to_string(),
-        }
-    }
-}
-
 pub struct CliCommands {
     // Left here for the future use.
     _response_timeout_ms: u64,
@@ -866,14 +826,9 @@ impl CliCommands {
         use apply_manifests::*;
         match apply_args.get_input_sources() {
             Ok(mut manifests) => {
-                let mut table_output = Vec::<ApplyManifestTableDisplay>::default();
                 let (complete_state_req_obj, filter_masks) =
-                    generate_state_obj_and_filter_masks_from_manifests(
-                        &mut manifests,
-                        &apply_args,
-                        &mut table_output,
-                    )
-                    .map_err(CliError::ExecutionError)?;
+                    generate_state_obj_and_filter_masks_from_manifests(&mut manifests, &apply_args)
+                        .map_err(CliError::ExecutionError)?;
 
                 // [impl->swdd~cli-apply-send-update-state~1]
                 self.update_state_and_wait_for_complete(complete_state_req_obj, filter_masks)
@@ -915,7 +870,6 @@ mod tests {
         create_filter_masks_from_paths, generate_state_obj_and_filter_masks_from_manifests,
         handle_agent_overwrite, parse_manifest, update_request_obj, InputSourcePair,
     };
-    use super::{ApplyManifestOperation, ApplyManifestTableDisplay};
     use crate::{
         cli::OutputFormat,
         cli_commands::{
@@ -971,39 +925,6 @@ mod tests {
                 agent_tx: FromServerSender,
             ) -> Result<(), String>;
         }
-    }
-
-    fn generate_multiple_test_apply_manifest_table_display() -> String {
-        let operation = ApplyManifestOperation::AddOrUpdate;
-        return tabled::Table::new(vec![
-            ApplyManifestTableDisplay::new(
-                "simple",
-                "agent1",
-                operation.clone(),
-                "manifest_file_name",
-            ),
-            ApplyManifestTableDisplay::new("complex", "agent1", operation, "manifest_file_name"),
-        ])
-        .with(tabled::settings::Style::blank())
-        .to_string();
-    }
-
-    fn generate_multiple_test_apply_manifest_table_display_operation_remove() -> String {
-        let operation = ApplyManifestOperation::Remove;
-        return tabled::Table::new(vec![
-            ApplyManifestTableDisplay::new("simple", "", operation.clone(), "manifest_file_name"),
-            ApplyManifestTableDisplay::new("complex", "", operation, "manifest_file_name"),
-        ])
-        .with(tabled::settings::Style::blank())
-        .to_string();
-    }
-
-    fn generate_apply_manifest_table_output(
-        table_output: &Vec<super::ApplyManifestTableDisplay>,
-    ) -> String {
-        tabled::Table::new(table_output)
-            .with(tabled::settings::Style::blank())
-            .to_string()
     }
 
     pub fn open_manifest_mock(
@@ -2386,7 +2307,6 @@ mod tests {
 
     #[test]
     fn utest_update_request_obj_ok() {
-        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
         let mut req_obj = Object::default();
         let content_value: Value = serde_yaml::from_str(
             r#"
@@ -2404,22 +2324,9 @@ mod tests {
             Path::from("workloads.complex"),
         ];
         let expected_obj = Object::try_from(&content_value).unwrap();
-        let expected_output = generate_multiple_test_apply_manifest_table_display();
 
-        assert!(update_request_obj(
-            &mut req_obj,
-            &cur_obj,
-            &paths,
-            "manifest_file_name",
-            false,
-            &mut table_output,
-        )
-        .is_ok());
+        assert!(update_request_obj(&mut req_obj, &cur_obj, &paths,).is_ok());
         assert_eq!(expected_obj, req_obj);
-        assert_eq!(
-            expected_output,
-            generate_apply_manifest_table_output(&table_output)
-        );
     }
 
     #[test]
@@ -2438,20 +2345,11 @@ mod tests {
 
         let paths = vec![Path::from("workloads.same_workload_name")];
 
-        assert!(update_request_obj(
-            &mut req_obj,
-            &cur_obj,
-            &paths,
-            "manifest_file_name",
-            false,
-            &mut Vec::<super::ApplyManifestTableDisplay>::default(),
-        )
-        .is_err());
+        assert!(update_request_obj(&mut req_obj, &cur_obj, &paths,).is_err());
     }
 
     #[test]
     fn utest_update_request_obj_delete_mode_on_ok() {
-        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
         let mut req_obj = Object::default();
         let content_value: Value = serde_yaml::from_str(
             r#"
@@ -2468,22 +2366,8 @@ mod tests {
             Path::from("workloads.simple"),
             Path::from("workloads.complex"),
         ];
-        let expected_output =
-            generate_multiple_test_apply_manifest_table_display_operation_remove();
 
-        assert!(update_request_obj(
-            &mut req_obj,
-            &cur_obj,
-            &paths,
-            "manifest_file_name",
-            true,
-            &mut table_output,
-        )
-        .is_ok());
-        assert_eq!(
-            expected_output,
-            generate_apply_manifest_table_output(&table_output)
-        );
+        assert!(update_request_obj(&mut req_obj, &cur_obj, &paths).is_ok());
     }
 
     #[test]
@@ -2500,8 +2384,6 @@ mod tests {
 
     #[test]
     fn utest_handle_agent_overwrite_agent_name_provided_through_agent_flag() {
-        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
-
         let state = test_utils::generate_test_state_from_workloads(vec![
             generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
@@ -2523,7 +2405,6 @@ mod tests {
                 &vec!["workloads.wl1".into()],
                 &Some("overwritten_agent_name".to_string()),
                 state.try_into().unwrap(),
-                &mut table_output
             )
             .unwrap(),
             expected_state
@@ -2532,8 +2413,6 @@ mod tests {
 
     #[test]
     fn utest_handle_agent_overwrite_one_agent_name_provided_in_workload_specs() {
-        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
-
         let state = test_utils::generate_test_state_from_workloads(vec![
             generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
@@ -2547,7 +2426,6 @@ mod tests {
                 &vec!["workloads.wl1".into()],
                 &None,
                 state.clone().try_into().unwrap(),
-                &mut table_output
             )
             .unwrap(),
             state
@@ -2556,7 +2434,6 @@ mod tests {
 
     #[test]
     fn utest_handle_agent_overwrite_multiple_agent_names_provided_in_workload_specs() {
-        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
         let state = test_utils::generate_test_state_from_workloads(vec![
             generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
@@ -2575,7 +2452,6 @@ mod tests {
                 &vec!["workloads.wl1".into(), "workloads.wl2".into()],
                 &None,
                 state.clone().try_into().unwrap(),
-                &mut table_output
             )
             .unwrap(),
             state
@@ -2585,7 +2461,6 @@ mod tests {
     // [utest->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
     #[test]
     fn utest_handle_agent_overwrite_no_agent_name_provided_at_all() {
-        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
         let state = test_utils::generate_test_state_from_workloads(vec![
             generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
@@ -2600,15 +2475,12 @@ mod tests {
 
         assert_eq!(
             Err("No agent name specified -> use '--agent' option to specify!".to_string()),
-            handle_agent_overwrite(&vec!["workloads.wl1".into()], &None, obj, &mut table_output)
+            handle_agent_overwrite(&vec!["workloads.wl1".into()], &None, obj)
         );
-        assert!(table_output.is_empty())
     }
 
     #[test]
     fn utest_handle_agent_overwrite_missing_agent_name() {
-        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
-
         let state = test_utils::generate_test_state_from_workloads(vec![
             generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
@@ -2634,7 +2506,6 @@ mod tests {
                 &vec!["workloads.wl1".into()],
                 &Some("overwritten_agent_name".to_string()),
                 obj,
-                &mut table_output
             )
             .unwrap(),
             expected_state
@@ -2685,7 +2556,6 @@ mod tests {
                     manifest_files: vec![manifest_file_name.to_string()],
                     delete_mode: false,
                 },
-                &mut Vec::<super::ApplyManifestTableDisplay>::default(),
             )
         );
     }
@@ -2723,7 +2593,6 @@ mod tests {
                     manifest_files: vec![manifest_file_name.to_string()],
                     delete_mode: true,
                 },
-                &mut Vec::<super::ApplyManifestTableDisplay>::default(),
             )
         );
     }
@@ -2744,7 +2613,6 @@ mod tests {
                     manifest_files: vec![manifest_file_name.to_string()],
                     delete_mode: true,
                 },
-                &mut Vec::<super::ApplyManifestTableDisplay>::default(),
             )
         );
     }
