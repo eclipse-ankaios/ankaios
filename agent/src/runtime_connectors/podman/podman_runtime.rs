@@ -140,7 +140,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
                 match PodmanCli::remove_workloads_by_id(&workload_spec.instance_name.to_string())
                     .await
                 {
-                    Ok(_) => log::debug!("The broken container has been deleted successfully"),
+                    Ok(()) => log::debug!("The broken container has been deleted successfully"),
                     Err(e) => log::info!("Container cleanup failed with error '{}'", e),
                 }
 
@@ -408,13 +408,51 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_create_workload_run_failed() {
+    async fn utest_create_workload_run_failed_cleanup_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let context = PodmanCli::podman_run_context();
-        context
+        let run_context = PodmanCli::podman_run_context();
+        run_context
             .expect()
             .return_const(Err("podman run failed".into()));
+
+        // Workload creation fails, but deleting the broken container succeeded
+        let delete_context = PodmanCli::remove_workloads_by_id_context();
+        delete_context.expect().return_const(Ok(()));
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            PODMAN_RUNTIME_NAME.to_string(),
+        );
+        let (state_change_tx, _state_change_rx) = tokio::sync::mpsc::channel(BUFFER_SIZE);
+
+        let podman_runtime = PodmanRuntime {};
+        let res = podman_runtime
+            .create_workload(
+                workload_spec,
+                Some(PathBuf::from("run_folder")),
+                state_change_tx,
+            )
+            .await;
+
+        assert!(res.is_err_and(|x| { x == RuntimeError::Create("podman run failed".into()) }))
+    }
+
+    #[tokio::test]
+    async fn utest_create_workload_run_failed_cleanup_failed() {
+        let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
+
+        let run_context = PodmanCli::podman_run_context();
+        run_context
+            .expect()
+            .return_const(Err("podman run failed".into()));
+
+        // Workload creation fails, deleting the broken container failed
+        let delete_context = PodmanCli::remove_workloads_by_id_context();
+        delete_context
+            .expect()
+            .return_const(Err("simulated error".into()));
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
