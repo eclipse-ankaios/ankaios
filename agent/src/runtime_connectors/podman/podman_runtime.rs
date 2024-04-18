@@ -136,6 +136,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
                 Ok((podman_workload_id, state_checker))
             }
             Err(err) => {
+                // [impl->swdd~podman-create-workload-deletes-failed-container~1]
                 log::info!("Podman has returned error '{err}', deleting broken container.");
                 match PodmanCli::remove_workloads_by_id(&workload_spec.instance_name.to_string())
                     .await
@@ -407,6 +408,7 @@ mod tests {
         assert_eq!(execution_state, ExecutionState::running());
     }
 
+    // [utest->swdd~podman-create-workload-deletes-failed-container~1]
     #[tokio::test]
     async fn utest_create_workload_run_failed_cleanup_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
