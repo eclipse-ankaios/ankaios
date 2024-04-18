@@ -15,10 +15,10 @@
 use std::{
     collections::{HashMap, HashSet},
     fmt::{self, Display},
-    mem::take,
     time::Duration,
 };
 mod apply_manifests;
+mod server_connection;
 mod wait_list;
 use tokio::time::interval;
 use wait_list::WaitList;
@@ -31,11 +31,10 @@ async fn read_file_to_string(file: String) -> std::io::Result<String> {
 use tests::read_to_string_mock as read_file_to_string;
 
 use common::{
-    commands::{CompleteStateRequest, Response, ResponseContent},
     from_server_interface::{FromServer, FromServerReceiver},
     objects::{CompleteState, State, StoredWorkloadSpec, Tag, WorkloadInstanceName},
     state_manipulation::{Object, Path},
-    to_server_interface::{ToServer, ToServerInterface, ToServerSender},
+    to_server_interface::{ToServer, ToServerSender},
 };
 
 #[cfg(not(test))]
@@ -55,10 +54,9 @@ use crate::{
     output, output_and_error, output_debug,
 };
 
-use self::wait_list::WaitListDisplayTrait;
+use self::{server_connection::ServerConnection, wait_list::WaitListDisplayTrait};
 
 const BUFFER_SIZE: usize = 20;
-const WAIT_TIME_MS: Duration = Duration::from_millis(3000);
 const SPINNER_SYMBOLS: [&str; 4] = ["|", "/", "-", "\\"];
 pub(crate) const COMPLETED_SYMBOL: &str = " ";
 
@@ -94,6 +92,16 @@ impl From<serde_yaml::Error> for CliError {
 impl From<serde_json::Error> for CliError {
     fn from(value: serde_json::Error) -> Self {
         CliError::JsonSerialization(format!("{value}"))
+    }
+}
+
+impl From<server_connection::ServerConnectionError> for CliError {
+    fn from(value: server_connection::ServerConnectionError) -> Self {
+        match value {
+            server_connection::ServerConnectionError::ExecutionError(message) => {
+                CliError::ExecutionError(message)
+            }
+        }
     }
 }
 
@@ -336,12 +344,8 @@ impl GetWorkloadTableDisplay {
 pub struct CliCommands {
     // Left here for the future use.
     _response_timeout_ms: u64,
-    cli_name: String,
-    task: tokio::task::JoinHandle<()>,
-    to_server: ToServerSender,
-    from_server: FromServerReceiver,
     no_wait: bool,
-    missed_from_server_messages: Vec<FromServer>,
+    server_connection: ServerConnection,
 }
 
 impl CliCommands {
@@ -355,64 +359,13 @@ impl CliCommands {
             setup_cli_communication(cli_name.as_str(), server_url.clone());
         Self {
             _response_timeout_ms: response_timeout_ms,
-            cli_name,
-            task,
-            to_server,
-            from_server,
             no_wait,
-            missed_from_server_messages: Vec::new(),
+            server_connection: ServerConnection::new(to_server, from_server, task),
         }
     }
 
     pub async fn shut_down(self) {
-        drop(self.to_server);
-
-        let _ = self.task.await;
-    }
-
-    async fn get_complete_state(
-        &mut self,
-        object_field_mask: &Vec<String>,
-    ) -> Result<Box<CompleteState>, CliError> {
-        output_debug!(
-            "get_complete_state: object_field_mask={:?} ",
-            object_field_mask
-        );
-
-        // send complete state request to server
-        self.to_server
-            .request_complete_state(
-                self.cli_name.to_owned(),
-                CompleteStateRequest {
-                    field_mask: object_field_mask.clone(),
-                },
-            )
-            .await
-            .map_err(|err| CliError::ExecutionError(err.to_string()))?;
-
-        let poll_complete_state_response = async {
-            loop {
-                match self.from_server.recv().await {
-                    Some(FromServer::Response(Response {
-                        request_id: _,
-                        response_content: ResponseContent::CompleteState(res),
-                    })) => return Ok(res),
-                    None => return Err("Channel preliminary closed."),
-                    Some(message) => {
-                        self.missed_from_server_messages.push(message);
-                    }
-                }
-            }
-        };
-        match tokio::time::timeout(WAIT_TIME_MS, poll_complete_state_response).await {
-            Ok(Ok(res)) => Ok(res),
-            Ok(Err(err)) => Err(CliError::ExecutionError(format!(
-                "Failed to get complete state.\nError: {err}"
-            ))),
-            Err(_) => Err(CliError::ExecutionError(format!(
-                "Failed to get complete state in time (timeout={WAIT_TIME_MS:?})."
-            ))),
-        }
+        self.server_connection.shut_down().await
     }
 
     pub async fn get_state(
@@ -426,7 +379,10 @@ impl CliCommands {
             output_format
         );
 
-        let res_complete_state = self.get_complete_state(&object_field_mask).await?;
+        let res_complete_state = self
+            .server_connection
+            .get_complete_state(&object_field_mask)
+            .await?;
         // [impl->swdd~cli-returns-api-version-with-desired-state~1]
         // [impl->swdd~cli-returns-api-version-with-startup-state~1]
         // [impl->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
@@ -567,7 +523,10 @@ impl CliCommands {
     async fn get_workloads(
         &mut self,
     ) -> Result<Vec<(WorkloadInstanceName, GetWorkloadTableDisplay)>, CliError> {
-        let res_complete_state = self.get_complete_state(&Vec::new()).await?;
+        let res_complete_state = self
+            .server_connection
+            .get_complete_state(&Vec::new())
+            .await?;
 
         let mut workload_infos: Vec<(WorkloadInstanceName, GetWorkloadTableDisplay)> =
             res_complete_state
@@ -605,7 +564,10 @@ impl CliCommands {
     // [impl->swdd~cli-provides-delete-workload~1]
     // [impl->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
     pub async fn delete_workloads(&mut self, workload_names: Vec<String>) -> Result<(), CliError> {
-        let complete_state = self.get_complete_state(&Vec::new()).await?;
+        let complete_state = self
+            .server_connection
+            .get_complete_state(&Vec::new())
+            .await?;
 
         output_debug!("Got current state: {:?}", complete_state);
         let mut new_state = complete_state.clone();
@@ -653,7 +615,10 @@ impl CliCommands {
         };
         output_debug!("Request to run new workload: {:?}", new_workload);
 
-        let res_complete_state = self.get_complete_state(&Vec::new()).await?;
+        let res_complete_state = self
+            .server_connection
+            .get_complete_state(&Vec::new())
+            .await?;
         output_debug!("Got current state: {:?}", res_complete_state);
         let mut new_state = *res_complete_state.clone();
         new_state
@@ -673,53 +638,10 @@ impl CliCommands {
         new_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<(), CliError> {
-        let request_id = uuid::Uuid::new_v4().to_string();
-        output_debug!("Sending the new state {:?}", new_state);
-        self.to_server
-            .update_state(request_id.clone(), new_state, update_mask)
-            .await
-            .map_err(|err| CliError::ExecutionError(err.to_string()))?;
-
-        let update_state_success = loop {
-            let Some(server_message) = self.from_server.recv().await else {
-                return Err(CliError::ExecutionError(
-                    "Connection to server interrupted".into(),
-                ));
-            };
-            match server_message {
-                FromServer::Response(response) => {
-                    if response.request_id != request_id {
-                        output_debug!(
-                            "Received unexpected response for request ID: '{}'",
-                            response.request_id
-                        );
-                    } else {
-                        match response.response_content {
-                            ResponseContent::UpdateStateSuccess(update_state_success) => {
-                                break update_state_success
-                            }
-                            // [impl->swdd~cli-requests-update-state-with-watch-error~1]
-                            ResponseContent::Error(error) => {
-                                return Err(CliError::ExecutionError(format!(
-                                    "SetState failed with: '{}'",
-                                    error.message
-                                )));
-                            }
-                            // [impl->swdd~cli-requests-update-state-with-watch-error~1]
-                            response_content => {
-                                return Err(CliError::ExecutionError(format!(
-                                    "Received unexpected response: {:?}",
-                                    response_content
-                                )));
-                            }
-                        }
-                    }
-                }
-                other_message => {
-                    self.missed_from_server_messages.push(other_message);
-                }
-            }
-        };
+        let update_state_success = self
+            .server_connection
+            .update_state(new_state, update_mask)
+            .await?;
 
         output_debug!("Got update success: {:?}", update_state_success);
 
@@ -768,7 +690,9 @@ impl CliCommands {
             },
         );
 
-        let missed_workload_states = take(&mut self.missed_from_server_messages)
+        let missed_workload_states = self
+            .server_connection
+            .take_missed_from_server_messages()
             .into_iter()
             .filter_map(|m| {
                 if let FromServer::UpdateWorkloadState(u) = m {
@@ -784,18 +708,10 @@ impl CliCommands {
 
         while !wait_list.is_empty() {
             tokio::select! {
-                server_message = self.from_server.recv() => {
-                    output_debug!("Got server message: {:?}", server_message);
-                    let Some(server_message) = server_message else {
-                        return Err(CliError::ExecutionError(
-                            "Connection to server interrupted".into(),
-                        ));
-                    };
-                    if let FromServer::UpdateWorkloadState(update_workload_state) = server_message {
-                        wait_list.update(update_workload_state.workload_states);
-                    } else {
-                        output_debug!("Received unexpected message: {:?}", server_message);
-                    }
+                update_workload_state = self.server_connection.read_next_update_workload_state() => {
+                    let update_workload_state = update_workload_state?;
+                    output_debug!("Got update workload state: {:?}", update_workload_state);
+                    wait_list.update(update_workload_state.workload_states);
                 }
                 _ = spinner_interval.tick() => {
                     wait_list.step_spinner();
