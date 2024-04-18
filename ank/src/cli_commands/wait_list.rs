@@ -163,40 +163,178 @@ mod tests {
     const WORKLOAD_NAME_2: &str = "workload_2";
     const WORKLOAD_NAME_3: &str = "workload_3";
 
-    #[test]
-    fn utest_update_wait_list() {
+    fn prepare_test_instance_names() -> (
+        common::objects::WorkloadInstanceName,
+        common::objects::WorkloadInstanceName,
+        common::objects::WorkloadInstanceName,
+    ) {
         let i_name_1 = generate_test_workload_instance_name(WORKLOAD_NAME_1);
         let i_name_2 = generate_test_workload_instance_name(WORKLOAD_NAME_2);
         let i_name_3 = generate_test_workload_instance_name(WORKLOAD_NAME_3);
+        (i_name_1, i_name_2, i_name_3)
+    }
+
+    fn prepare_wait_list_display_mock(
+        update_expectation: &WorkloadState,
+        set_complete_expectation: &common::objects::WorkloadInstanceName,
+    ) -> MockMyWaitListDisplay {
+        let mut my_mock = MockMyWaitListDisplay::new();
+
+        my_mock
+            .expect_update()
+            .once()
+            .with(eq(update_expectation.clone()))
+            .return_const(());
+        my_mock.expect_fmt().once().return_const(Ok(()));
+        my_mock
+            .expect_set_complete()
+            .once()
+            .with(eq(set_complete_expectation.clone()))
+            .return_const(());
+        my_mock
+    }
+
+    #[test]
+    fn utest_update_wait_list_added_running() {
+        let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
 
         let workload_state = WorkloadState {
             instance_name: i_name_1.clone(),
             execution_state: ExecutionState::running(),
         };
 
-        let mut my_mock = MockMyWaitListDisplay::new();
+        let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_1);
 
-        my_mock
-            .expect_update()
-            .once()
-            .with(eq(workload_state.clone()))
-            .return_const(());
-        my_mock.expect_fmt().once().return_const(Ok(()));
-        my_mock
-            .expect_set_complete()
-            .once()
-            .with(eq(i_name_1.clone()))
-            .return_const(());
-
-        let mut wait_list =
-            generate_test_wait_list(my_mock, vec![i_name_1.clone(), i_name_2], vec![i_name_3]);
-
-        assert!(wait_list.added_workloads.contains(&i_name_1));
+        let mut wait_list = generate_test_wait_list(
+            my_mock,
+            vec![i_name_1.clone(), i_name_2.clone()],
+            vec![i_name_3.clone()],
+        );
 
         wait_list.update(vec![workload_state]);
 
         assert!(!wait_list.added_workloads.contains(&i_name_1));
+        assert!(wait_list.added_workloads.contains(&i_name_2));
+        assert!(wait_list.deleted_workloads.contains(&i_name_3));
     }
 
-    // TODO: add tests for other conditions
+    #[test]
+    fn utest_update_wait_list_added_succeeded() {
+        let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
+
+        let workload_state = WorkloadState {
+            instance_name: i_name_1.clone(),
+            execution_state: ExecutionState::succeeded(),
+        };
+
+        let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_1);
+
+        let mut wait_list = generate_test_wait_list(
+            my_mock,
+            vec![i_name_1.clone(), i_name_2.clone()],
+            vec![i_name_3.clone()],
+        );
+
+        wait_list.update(vec![workload_state]);
+
+        assert!(!wait_list.added_workloads.contains(&i_name_1));
+        assert!(wait_list.added_workloads.contains(&i_name_2));
+        assert!(wait_list.deleted_workloads.contains(&i_name_3));
+    }
+
+    #[test]
+    fn utest_update_wait_list_added_not_scheduled() {
+        let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
+
+        let workload_state = WorkloadState {
+            instance_name: i_name_2.clone(),
+            execution_state: ExecutionState::not_scheduled(),
+        };
+
+        let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_2);
+
+        let mut wait_list = generate_test_wait_list(
+            my_mock,
+            vec![i_name_1.clone(), i_name_2.clone()],
+            vec![i_name_3.clone()],
+        );
+
+        wait_list.update(vec![workload_state]);
+
+        assert!(wait_list.added_workloads.contains(&i_name_1));
+        assert!(!wait_list.added_workloads.contains(&i_name_2));
+        assert!(wait_list.deleted_workloads.contains(&i_name_3));
+    }
+
+    #[test]
+    fn utest_update_wait_list_added_failed() {
+        let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
+
+        let workload_state = WorkloadState {
+            instance_name: i_name_2.clone(),
+            execution_state: ExecutionState::failed("some info"),
+        };
+
+        let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_2);
+
+        let mut wait_list = generate_test_wait_list(
+            my_mock,
+            vec![i_name_1.clone(), i_name_2.clone()],
+            vec![i_name_3.clone()],
+        );
+
+        wait_list.update(vec![workload_state]);
+
+        assert!(wait_list.added_workloads.contains(&i_name_1));
+        assert!(!wait_list.added_workloads.contains(&i_name_2));
+        assert!(wait_list.deleted_workloads.contains(&i_name_3));
+    }
+
+    #[test]
+    fn utest_update_wait_list_added_starting_failed_no_more_retries() {
+        let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
+
+        let workload_state = WorkloadState {
+            instance_name: i_name_2.clone(),
+            execution_state: ExecutionState::retry_failed_no_retry(),
+        };
+
+        let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_2);
+
+        let mut wait_list = generate_test_wait_list(
+            my_mock,
+            vec![i_name_1.clone(), i_name_2.clone()],
+            vec![i_name_3.clone()],
+        );
+
+        wait_list.update(vec![workload_state]);
+
+        assert!(wait_list.added_workloads.contains(&i_name_1));
+        assert!(!wait_list.added_workloads.contains(&i_name_2));
+        assert!(wait_list.deleted_workloads.contains(&i_name_3));
+    }
+
+    #[test]
+    fn utest_update_wait_list_deleted_removed() {
+        let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
+
+        let workload_state = WorkloadState {
+            instance_name: i_name_3.clone(),
+            execution_state: ExecutionState::removed(),
+        };
+
+        let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_3);
+
+        let mut wait_list = generate_test_wait_list(
+            my_mock,
+            vec![i_name_1.clone(), i_name_2.clone()],
+            vec![i_name_3.clone()],
+        );
+
+        wait_list.update(vec![workload_state]);
+
+        assert!(wait_list.added_workloads.contains(&i_name_1));
+        assert!(wait_list.added_workloads.contains(&i_name_2));
+        assert!(!wait_list.deleted_workloads.contains(&i_name_3));
+    }
 }
