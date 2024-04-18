@@ -223,44 +223,7 @@ impl WorkloadControlLoop {
                     log::trace!("Received new workload state for workload '{}'",
                         control_loop_state.workload_spec.instance_name.workload_name());
 
-                    if let Some(new_workload_state) = received_workload_state {
-
-                        /* forward immediately the new workload state to the agent manager
-                        to avoid delays through the restart handling */
-                        let workload_state = new_workload_state.clone();
-                        control_loop_state
-                            .workload_state_sender
-                            .report_workload_execution_state(
-                                &workload_state.instance_name,
-                                workload_state.execution_state,
-                            )
-                            .await;
-
-                        let restart_policy = &control_loop_state.workload_spec.restart_policy;
-                        if restart_policy.is_restart_allowed(&new_workload_state.execution_state) {
-                            log::debug!(
-                                "Restart workload '{}' with restart policy '{}' caused by current execution state '{}'.",
-                                control_loop_state.workload_spec.instance_name.workload_name(),
-                                restart_policy,
-                                new_workload_state.execution_state
-                            );
-
-                            let workload_spec = control_loop_state.workload_spec.clone();
-                            let control_interface_path = control_loop_state.control_interface_path.clone();
-                            control_loop_state = Self::update(
-                                control_loop_state,
-                                Some(Box::new(workload_spec)),
-                                control_interface_path
-                            ).await;
-
-                        } else {
-                            log::trace!(
-                                "Restart not allowed for workload '{}'.",
-                                control_loop_state.workload_spec.instance_name.workload_name()
-                            );
-                        }
-                    }
-
+                    control_loop_state = Self::handle_restart_on_received_workload_state(control_loop_state, received_workload_state).await;
                     log::trace!("Restart handling done.");
                 }
                 workload_command = control_loop_state.command_receiver.recv() => {
@@ -320,6 +283,57 @@ impl WorkloadControlLoop {
                 }
             }
         }
+    }
+
+    async fn handle_restart_on_received_workload_state<WorkloadId, StChecker>(
+        mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
+        received_workload_state: Option<WorkloadState>,
+    ) -> ControlLoopState<WorkloadId, StChecker>
+    where
+        WorkloadId: ToString + Send + Sync + 'static,
+        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
+    {
+        if let Some(new_workload_state) = received_workload_state {
+            /* forward immediately the new workload state to the agent manager
+            to avoid delays through the restart handling */
+            let workload_state = new_workload_state.clone();
+            control_loop_state
+                .workload_state_sender
+                .report_workload_execution_state(
+                    &workload_state.instance_name,
+                    workload_state.execution_state,
+                )
+                .await;
+
+            let restart_policy = &control_loop_state.workload_spec.restart_policy;
+            if restart_policy.is_restart_allowed(&new_workload_state.execution_state) {
+                log::debug!(
+                    "Restart workload '{}' with restart policy '{}' caused by current execution state '{}'.",
+                    control_loop_state.workload_spec.instance_name.workload_name(),
+                    restart_policy,
+                    new_workload_state.execution_state
+                );
+
+                let workload_spec = control_loop_state.workload_spec.clone();
+                let control_interface_path = control_loop_state.control_interface_path.clone();
+                control_loop_state = Self::update(
+                    control_loop_state,
+                    Some(Box::new(workload_spec)),
+                    control_interface_path,
+                )
+                .await;
+            } else {
+                log::trace!(
+                    "Restart not allowed for workload '{}'.",
+                    control_loop_state
+                        .workload_spec
+                        .instance_name
+                        .workload_name()
+                );
+            }
+        }
+
+        control_loop_state
     }
 
     async fn send_retry<WorkloadId, StChecker>(
