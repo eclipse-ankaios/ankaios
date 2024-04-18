@@ -48,6 +48,37 @@ impl Display for PipesChannelContextError {
     }
 }
 
+pub struct PipesChannelContextInfo {
+    pub run_folder: PathBuf,
+    pub workload_instance_name: WorkloadInstanceName,
+    pub control_interface_to_server_sender: ToServerSender,
+}
+
+impl PipesChannelContextInfo {
+    pub fn new(
+        run_folder: &Path,
+        control_interface_to_server_sender: ToServerSender,
+        workload_instance_name: &WorkloadInstanceName,
+    ) -> Self {
+        Self {
+            run_folder: run_folder.to_path_buf(),
+            workload_instance_name: workload_instance_name.clone(),
+            control_interface_to_server_sender,
+        }
+    }
+}
+// pub fn make_pipes_channel_context_info(
+//     run_folder: &Path,
+//     control_interface_tx: ToServerSender,
+//     workload_spec: Option<WorkloadSpec>,
+// ) -> PipesChannelContextInfo {
+//     (
+//         run_folder.to_path_buf(),
+//         control_interface_tx,
+//         workload_spec.clone(),
+//     )
+// }
+
 // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
 pub struct PipesChannelContext {
     pipes: InputOutput,
@@ -104,6 +135,24 @@ impl PipesChannelContext {
 impl Drop for PipesChannelContext {
     fn drop(&mut self) {
         self.abort_pipes_channel_task()
+    }
+}
+
+impl TryFrom<&Option<PipesChannelContextInfo>> for PipesChannelContext {
+    type Error = PipesChannelContextError;
+
+    fn try_from(value: &Option<PipesChannelContextInfo>) -> Result<Self, Self::Error> {
+        if let Some(context_info) = value {
+            return PipesChannelContext::new(
+                &context_info.run_folder,
+                &context_info.workload_instance_name,
+                context_info.control_interface_to_server_sender.clone(),
+            );
+        }
+
+        Err(PipesChannelContextError::CouldNotCreateFifo(
+            "Missing pipes channel context info!".to_owned(),
+        ))
     }
 }
 

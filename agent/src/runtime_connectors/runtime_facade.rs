@@ -7,6 +7,7 @@ use mockall::automock;
 use crate::control_interface::PipesChannelContext;
 
 use crate::{
+    control_interface::PipesChannelContextInfo,
     runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker},
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
@@ -28,7 +29,7 @@ pub trait RuntimeFacade: Send + Sync + 'static {
     fn create_workload(
         &self,
         runtime_workload: WorkloadSpec,
-        control_interface: Option<PipesChannelContext>,
+        control_interface_info: Option<PipesChannelContextInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload;
 
@@ -86,14 +87,24 @@ impl<
     fn create_workload(
         &self,
         workload_spec: WorkloadSpec,
-        control_interface: Option<PipesChannelContext>,
+        control_interface_info: Option<PipesChannelContextInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload {
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
-        let control_interface_path = control_interface
-            .as_ref()
-            .map(|control_interface| control_interface.get_api_location());
+
+        // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
+        let (control_interface_path, control_interface) = match control_interface_info.as_ref() {
+            Some(info) => (
+                Some(
+                    workload_spec
+                        .instance_name
+                        .pipes_folder_name(&info.run_folder),
+                ),
+                PipesChannelContext::try_from(&control_interface_info).ok(),
+            ),
+            None => (None, None),
+        };
 
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
         log::info!(

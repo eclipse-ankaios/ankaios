@@ -33,6 +33,7 @@ use crate::workload_scheduler::scheduler::WorkloadScheduler;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_state::workload_state_store::WorkloadStateStore;
 use crate::{
+    control_interface::PipesChannelContextInfo,
     runtime_connectors::RuntimeFacade,
     workload_operation::WorkloadOperation,
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
@@ -225,7 +226,7 @@ impl RuntimeManager {
                                 let control_interface = Self::create_control_interface(
                                     &self.run_folder,
                                     self.control_interface_tx.clone(),
-                                    &new_workload_spec,
+                                    &new_workload_spec.instance_name,
                                 );
 
                                 log::info!(
@@ -354,20 +355,21 @@ impl RuntimeManager {
 
     async fn add_workload(&mut self, workload_spec: WorkloadSpec) {
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
-
-        // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-        let control_interface = Self::create_control_interface(
+        let control_interface_info = PipesChannelContextInfo::new(
             &self.run_folder,
             self.control_interface_tx.clone(),
-            &workload_spec,
+            &workload_spec.instance_name,
         );
 
         // [impl->swdd~agent-uses-specified-runtime~1]
         // [impl->swdd~agent-skips-unknown-runtime~1]
         if let Some(runtime) = self.runtime_map.get(&workload_spec.runtime) {
             // [impl->swdd~agent-executes-create-workload-operation~1]
-            let workload =
-                runtime.create_workload(workload_spec, control_interface, &self.update_state_tx);
+            let workload = runtime.create_workload(
+                workload_spec,
+                Some(control_interface_info),
+                &self.update_state_tx,
+            );
             // [impl->swdd~agent-stores-running-workload~1]
             self.workloads.insert(workload_name, workload);
         } else {
@@ -411,18 +413,19 @@ impl RuntimeManager {
 
     // [impl->swdd~agent-updates-deleted-and-added-workloads~1]
     async fn update_workload(&mut self, workload_spec: WorkloadSpec) {
-        let workload_name = workload_spec.instance_name.workload_name().to_owned();
+        let pipes_channel_context_info = PipesChannelContextInfo::new(
+            &self.run_folder,
+            self.control_interface_tx.clone(),
+            &workload_spec.instance_name,
+        );
+        let workload_name = pipes_channel_context_info
+            .workload_instance_name
+            .workload_name()
+            .to_owned();
         if let Some(workload) = self.workloads.get_mut(&workload_name) {
-            // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-            let control_interface = Self::create_control_interface(
-                &self.run_folder,
-                self.control_interface_tx.clone(),
-                &workload_spec,
-            );
-
             // [impl->swdd~agent-executes-update-workload-operation~1]
             if let Err(err) = workload
-                .update(Some(workload_spec), control_interface)
+                .update(Some(workload_spec), Some(pipes_channel_context_info))
                 .await
             {
                 log::error!("Failed to update workload '{}': '{}'", workload_name, err);
@@ -451,20 +454,19 @@ impl RuntimeManager {
     fn create_control_interface(
         run_folder: &Path,
         control_interface_tx: ToServerSender,
-        workload_spec: &WorkloadSpec,
+        workload_instance_name: &WorkloadInstanceName,
     ) -> Option<PipesChannelContext> {
-        log::debug!("Creating control interface pipes for '{:?}'", workload_spec);
+        log::debug!(
+            "Creating control interface pipes for '{:?}'",
+            workload_instance_name
+        );
 
-        match PipesChannelContext::new(
-            run_folder,
-            &workload_spec.instance_name,
-            control_interface_tx,
-        ) {
+        match PipesChannelContext::new(run_folder, &workload_instance_name, control_interface_tx) {
             Ok(pipes_channel_context) => Some(pipes_channel_context),
             Err(err) => {
                 log::warn!(
                     "Could not create pipes channel context for workload '{}'. Error: '{err}'",
-                    workload_spec.instance_name
+                    workload_instance_name
                 );
                 None
             }

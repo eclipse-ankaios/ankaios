@@ -26,6 +26,7 @@ use std::{fmt::Display, path::PathBuf};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::PipesChannelContext;
+use crate::control_interface::PipesChannelContextInfo;
 use common::{
     commands::{self, ResponseContent},
     from_server_interface::FromServer,
@@ -81,19 +82,53 @@ impl Workload {
             control_interface,
         }
     }
+    // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
+    fn update_control_interface(
+        &mut self,
+        pipes_channel_context_info: &Option<PipesChannelContextInfo>,
+    ) {
+        if let Some(control_interface) = self.control_interface.take() {
+            control_interface.abort_pipes_channel_task()
+        }
+        self.control_interface = PipesChannelContext::try_from(pipes_channel_context_info).ok();
+    }
 
     // [impl->swdd~agent-workload-obj-update-command~1]
     pub async fn update(
         &mut self,
         spec: Option<WorkloadSpec>,
-        control_interface: Option<PipesChannelContext>,
+        pipes_channel_context_info: Option<PipesChannelContextInfo>,
     ) -> Result<(), WorkloadError> {
         log::info!("Updating workload '{}'.", self.name);
 
-        if let Some(control_interface) = self.control_interface.take() {
-            control_interface.abort_pipes_channel_task()
+        match (&mut self.control_interface, spec.as_ref()) {
+            (None, None) => (),
+            (Some(_current), None) => self.update_control_interface(&None),
+            (None, Some(_new)) => self.update_control_interface(&pipes_channel_context_info),
+            (Some(current), Some(new_spec)) => {
+                match (
+                    current.get_api_location().to_str(),
+                    pipes_channel_context_info.as_ref(),
+                ) {
+                    (None, None) => (),
+                    (None, Some(_new)) => {
+                        self.update_control_interface(&pipes_channel_context_info)
+                    }
+                    (Some(_current_api_location), None) => self.update_control_interface(&None),
+                    (Some(current_api_location), Some(new_pipes_channel_context_info)) => {
+                        let new_control_interface_location = new_spec
+                            .instance_name
+                            .pipes_folder_name(&new_pipes_channel_context_info.run_folder);
+
+                        if !current_api_location
+                            .contains(new_control_interface_location.to_str().unwrap())
+                        {
+                            self.update_control_interface(&pipes_channel_context_info);
+                        }
+                    }
+                };
+            }
         }
-        self.control_interface = control_interface;
 
         let control_interface_path = self
             .control_interface
