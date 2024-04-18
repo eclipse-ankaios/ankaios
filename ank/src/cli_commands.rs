@@ -203,25 +203,10 @@ fn setup_cli_communication(
 
 #[derive(Debug, Tabled, Clone)]
 #[tabled(rename_all = "UPPERCASE")]
-struct WorkloadBaseTableDisplay {
+struct GetWorkloadTableDisplay {
     #[tabled(rename = "WORKLOAD NAME")]
     name: String,
     agent: String,
-}
-
-impl WorkloadBaseTableDisplay {
-    fn new(name: &str, agent: &str) -> Self {
-        WorkloadBaseTableDisplay {
-            name: name.to_string(),
-            agent: agent.to_string(),
-        }
-    }
-}
-#[derive(Debug, Tabled, Clone)]
-#[tabled(rename_all = "UPPERCASE")]
-struct GetWorkloadTableDisplay {
-    #[tabled(inline)]
-    base_info: WorkloadBaseTableDisplay,
     runtime: String,
     #[tabled(rename = "EXECUTION STATE")]
     execution_state: String,
@@ -285,7 +270,7 @@ impl Display for WaitListDisplay {
                 }
             })
             .collect();
-        data.sort_by_key(|x| &x.data.base_info.name);
+        data.sort_by_key(|x| &x.data.name);
 
         // [impl->swdd~cli-shall-present-workloads-as-table~1]
         write!(
@@ -339,7 +324,8 @@ impl GetWorkloadTableDisplay {
         additional_info: &str,
     ) -> Self {
         GetWorkloadTableDisplay {
-            base_info: WorkloadBaseTableDisplay::new(name, agent),
+            name: name.to_string(),
+            agent: agent.to_string(),
             runtime: runtime.to_string(),
             execution_state: execution_state.to_string(),
             additional_info: additional_info.to_string(),
@@ -552,7 +538,7 @@ impl CliCommands {
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
         if let Some(agent_name) = agent_name {
-            workload_infos.retain(|wi| wi.1.base_info.agent == agent_name);
+            workload_infos.retain(|wi| wi.1.agent == agent_name);
         }
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
@@ -562,12 +548,12 @@ impl CliCommands {
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
         if !workload_name.is_empty() {
-            workload_infos.retain(|wi| workload_name.iter().any(|wn| wn == &wi.1.base_info.name));
+            workload_infos.retain(|wi| workload_name.iter().any(|wn| wn == &wi.1.name));
         }
 
         // The order of workloads in RequestCompleteState is not sable -> make sure that the user sees always the same order.
         // [impl->swdd~cli-shall-sort-list-of-workloads~1]
-        workload_infos.sort_by_key(|wi| wi.1.base_info.name.clone());
+        workload_infos.sort_by_key(|wi| wi.1.name.clone());
 
         output_debug!("The table after filtering:\n{:?}", workload_infos);
 
@@ -607,9 +593,7 @@ impl CliCommands {
                 .desired_state
                 .workloads
                 .iter()
-                .find(|&(wl_name, wl_spec)| {
-                    *wl_name == wi.1.base_info.name && wl_spec.agent == wi.1.base_info.agent
-                })
+                .find(|&(wl_name, wl_spec)| *wl_name == wi.1.name && wl_spec.agent == wi.1.agent)
             {
                 wi.1.runtime = found_wl_spec.runtime.clone();
             }
