@@ -160,6 +160,30 @@ pub enum RestartPolicy {
     Always,
 }
 
+impl std::fmt::Display for RestartPolicy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RestartPolicy::Never => write!(f, "Never"),
+            RestartPolicy::OnFailure => write!(f, "OnFailure"),
+            RestartPolicy::Always => write!(f, "Always"),
+        }
+    }
+}
+
+pub trait RestartAllowed {
+    fn is_restart_allowed(&self, execution_state: &ExecutionState) -> bool;
+}
+
+impl RestartAllowed for RestartPolicy {
+    fn is_restart_allowed(&self, execution_state: &ExecutionState) -> bool {
+        match self {
+            RestartPolicy::Never => false,
+            RestartPolicy::OnFailure => execution_state.is_failed(),
+            RestartPolicy::Always => execution_state.is_failed() || execution_state.is_succeeded(),
+        }
+    }
+}
+
 impl TryFrom<i32> for RestartPolicy {
     type Error = String;
 
