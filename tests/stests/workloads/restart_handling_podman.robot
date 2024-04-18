@@ -42,7 +42,7 @@ Test Ankaios restarts workloads with restart policy ALWAYS.
     And the workload "default_restarted_never" shall have the execution state "Running(Ok)" on agent "agent_B"
     # Asserts
     Then the workload "restarted_always" shall have the execution state "Pending(Starting)" on agent "agent_A"
-    Then the workload "restarted_always" shall have the execution state "Running(Ok)" on agent "agent_A"
+    And the workload "restarted_always" shall have the execution state "Running(Ok)" on agent "agent_A"
     And the workload "restarted_never" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     And the workload "default_restarted_never" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
     [Teardown]    Clean up Ankaios
@@ -59,7 +59,7 @@ Test Ankaios restarts workloads with restart policy ON_FAILURE.
     And the workload "restarted_on_failure" shall have the execution state "Running(Ok)" on agent "agent_A"
     # Asserts
     Then the workload "restarted_on_failure" shall have the execution state "Pending(Starting)" on agent "agent_A"
-    Then the workload "restarted_on_failure" shall have the execution state "Running(Ok)" on agent "agent_A"
+    And the workload "restarted_on_failure" shall have the execution state "Running(Ok)" on agent "agent_A"
     [Teardown]    Clean up Ankaios
 
 Test Ankaios restarts workloads on device restart with restart policy set to ON_FAILURE.
@@ -79,7 +79,7 @@ Test Ankaios restarts workloads on device restart with restart policy set to ON_
     And Ankaios agent is started with name "agent_A"
     # Asserts
     Then the workload "restarted_on_failure" shall have the execution state "Pending(Starting)" on agent "agent_A"
-    Then the workload "restarted_on_failure" shall have the execution state "Running(Ok)" on agent "agent_A"
+    And the workload "restarted_on_failure" shall have the execution state "Running(Ok)" on agent "agent_A"
     And the workload "restarted_never" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     And the workload "default_restarted_never" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
     [Teardown]    Clean up Ankaios
