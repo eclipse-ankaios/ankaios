@@ -1592,6 +1592,25 @@ Needs:
 - impl
 - utest
 
+##### Podman create workload deletes failed the container
+`swdd~podman-create-workload-deletes-failed-container~1`
+
+Status: approved
+
+When the podman runtime connector is called to create workload and the creation fails,
+the podman runtime connector shall delete failed container.
+
+Rationale:
+If the user tries to update the failed workload and the update is successful (new container is created and started),
+the old container is left on the system and cannot be deleted via Ankaios anymore.
+
+Tags:
+- PodmanRuntimeConnector
+
+Needs:
+- impl
+- utest
+
 ##### Podman create workload creates labels
 `swdd~podman-create-workload-creates-labels~1`
 
