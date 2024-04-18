@@ -18,9 +18,9 @@ pub mod workload_control_loop;
 
 // public api exports
 pub use workload_command_channel::WorkloadCommandSender;
+pub use workload_control_loop::ControlLoopState;
 #[cfg(test)]
 pub use workload_control_loop::WorkloadControlLoop;
-pub use workload_control_loop::{ControlLoopState, RetryCounter};
 
 use std::{fmt::Display, path::PathBuf};
 
@@ -29,7 +29,7 @@ use crate::control_interface::PipesChannelContext;
 use common::{
     commands::{self, ResponseContent},
     from_server_interface::FromServer,
-    objects::WorkloadSpec,
+    objects::{WorkloadInstanceName, WorkloadSpec},
 };
 
 #[cfg(test)]
@@ -58,8 +58,8 @@ impl Display for WorkloadError {
 pub enum WorkloadCommand {
     Delete,
     Update(Option<Box<WorkloadSpec>>, Option<PathBuf>),
-    Retry(Box<WorkloadSpec>, Option<PathBuf>),
-    Create(Box<WorkloadSpec>, Option<PathBuf>),
+    Retry(Box<WorkloadInstanceName>),
+    Create,
 }
 
 pub struct Workload {

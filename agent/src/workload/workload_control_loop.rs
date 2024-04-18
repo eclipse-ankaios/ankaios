@@ -15,8 +15,13 @@ use super::workload_command_channel::WorkloadCommandReceiver;
 use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use crate::workload::WorkloadCommand;
 use crate::workload::WorkloadCommandSender;
-use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
-use common::objects::{ExecutionState, WorkloadInstanceName, WorkloadSpec};
+use crate::workload_state::{
+    WorkloadStateReceiver, WorkloadStateSender, WorkloadStateSenderInterface,
+};
+use crate::BUFFER_SIZE;
+use common::objects::{
+    ExecutionState, RestartAllowed, WorkloadInstanceName, WorkloadSpec, WorkloadState,
+};
 use futures_util::Future;
 use std::path::PathBuf;
 
@@ -69,14 +74,138 @@ where
     WorkloadId: ToString + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
-    pub instance_name: WorkloadInstanceName,
+    pub workload_spec: WorkloadSpec,
+    pub control_interface_path: Option<PathBuf>,
     pub workload_id: Option<WorkloadId>,
     pub state_checker: Option<StChecker>,
-    pub update_state_tx: WorkloadStateSender,
+    pub workload_state_sender: WorkloadStateSender,
+    pub state_checker_workload_state_sender: WorkloadStateSender,
+    pub state_checker_workload_state_receiver: WorkloadStateReceiver,
     pub runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>,
     pub command_receiver: WorkloadCommandReceiver,
-    pub workload_channel: WorkloadCommandSender,
+    pub retry_sender: WorkloadCommandSender,
     pub retry_counter: RetryCounter,
+}
+
+impl<WorkloadId, StChecker> ControlLoopState<WorkloadId, StChecker>
+where
+    WorkloadId: ToString + Send + Sync + 'static,
+    StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
+{
+    pub fn builder() -> ControlLoopStateBuilder<WorkloadId, StChecker> {
+        ControlLoopStateBuilder::new()
+    }
+
+    pub fn instance_name(&self) -> &WorkloadInstanceName {
+        &self.workload_spec.instance_name
+    }
+}
+
+// implement a builder pattern for the ControlLoopState using optional fields
+pub struct ControlLoopStateBuilder<WorkloadId, StChecker>
+where
+    WorkloadId: ToString + Send + Sync + 'static,
+    StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
+{
+    workload_spec: Option<WorkloadSpec>,
+    control_interface_path: Option<PathBuf>,
+    workload_id: Option<WorkloadId>,
+    state_checker: Option<StChecker>,
+    workload_state_sender: Option<WorkloadStateSender>,
+    runtime: Option<Box<dyn RuntimeConnector<WorkloadId, StChecker>>>,
+    workload_command_receiver: Option<WorkloadCommandReceiver>,
+    retry_sender: Option<WorkloadCommandSender>,
+    retry_counter: RetryCounter,
+}
+
+// implement the builder pattern for the ControlLoopState and return an error if a field was not provided
+impl<WorkloadId, StChecker> ControlLoopStateBuilder<WorkloadId, StChecker>
+where
+    WorkloadId: ToString + Send + Sync + 'static,
+    StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
+{
+    pub fn new() -> Self {
+        ControlLoopStateBuilder {
+            workload_spec: None,
+            control_interface_path: None,
+            workload_id: None,
+            state_checker: None,
+            workload_state_sender: None,
+            runtime: None,
+            workload_command_receiver: None,
+            retry_sender: None,
+            retry_counter: RetryCounter::new(),
+        }
+    }
+
+    pub fn workload_spec(mut self, workload_spec: WorkloadSpec) -> Self {
+        self.workload_spec = Some(workload_spec);
+        self
+    }
+
+    pub fn control_interface_path(mut self, control_interface_path: Option<PathBuf>) -> Self {
+        self.control_interface_path = control_interface_path;
+        self
+    }
+
+    pub fn workload_id(mut self, workload_id: Option<WorkloadId>) -> Self {
+        self.workload_id = workload_id;
+        self
+    }
+
+    pub fn state_checker(mut self, state_checker: Option<StChecker>) -> Self {
+        self.state_checker = state_checker;
+        self
+    }
+
+    pub fn workload_state_sender(mut self, update_state_tx: WorkloadStateSender) -> Self {
+        self.workload_state_sender = Some(update_state_tx);
+        self
+    }
+
+    pub fn runtime(mut self, runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>) -> Self {
+        self.runtime = Some(runtime);
+        self
+    }
+
+    pub fn workload_command_receiver(mut self, command_receiver: WorkloadCommandReceiver) -> Self {
+        self.workload_command_receiver = Some(command_receiver);
+        self
+    }
+
+    pub fn retry_sender(mut self, workload_channel: WorkloadCommandSender) -> Self {
+        self.retry_sender = Some(workload_channel);
+        self
+    }
+
+    pub fn build(self) -> Result<ControlLoopState<WorkloadId, StChecker>, String> {
+        let (state_checker_wl_state_sender, state_checker_wl_state_receiver) =
+            tokio::sync::mpsc::channel::<WorkloadState>(BUFFER_SIZE);
+
+        Ok(ControlLoopState {
+            workload_spec: self
+                .workload_spec
+                .ok_or_else(|| "WorkloadSpec is not set".to_string())?,
+            control_interface_path: self.control_interface_path,
+            workload_id: self.workload_id,
+            state_checker: self.state_checker,
+            workload_state_sender: self
+                .workload_state_sender
+                .ok_or_else(|| "WorkloadStateSender is not set".to_string())?,
+            state_checker_workload_state_sender: state_checker_wl_state_sender,
+            state_checker_workload_state_receiver: state_checker_wl_state_receiver,
+            runtime: self
+                .runtime
+                .ok_or_else(|| "RuntimeConnector is not set".to_string())?,
+            command_receiver: self
+                .workload_command_receiver
+                .ok_or_else(|| "WorkloadCommandReceiver is not set".to_string())?,
+            retry_sender: self
+                .retry_sender
+                .ok_or_else(|| "WorkloadCommandSender is not set".to_string())?,
+            retry_counter: self.retry_counter,
+        })
+    }
 }
 
 pub struct WorkloadControlLoop;
@@ -89,60 +218,105 @@ impl WorkloadControlLoop {
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         loop {
-            match control_loop_state.command_receiver.recv().await {
-                // [impl->swdd~agent-workload-control-loop-executes-delete~2]
-                Some(WorkloadCommand::Delete) => {
-                    log::debug!("Received WorkloadCommand::Delete.");
+            tokio::select! {
+                received_workload_state = control_loop_state.state_checker_workload_state_receiver.recv() => {
+                    log::trace!("Received new workload state for workload '{}'",
+                        control_loop_state.workload_spec.instance_name.workload_name());
 
-                    if let Some(new_control_loop_state) = Self::delete(control_loop_state).await {
-                        control_loop_state = new_control_loop_state;
-                    } else {
-                        // [impl->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
-                        return;
+                    if let Some(new_workload_state) = received_workload_state {
+
+                        /* forward immediately the new workload state to the agent manager
+                        to avoid delays through the restart handling */
+                        let workload_state = new_workload_state.clone();
+                        control_loop_state
+                            .workload_state_sender
+                            .report_workload_execution_state(
+                                &workload_state.instance_name,
+                                workload_state.execution_state,
+                            )
+                            .await;
+
+                        let restart_policy = &control_loop_state.workload_spec.restart_policy;
+                        if restart_policy.is_restart_allowed(&new_workload_state.execution_state) {
+                            log::debug!(
+                                "Restart workload '{}' with restart policy '{}' caused by current execution state '{}'.",
+                                control_loop_state.workload_spec.instance_name.workload_name(),
+                                restart_policy,
+                                new_workload_state.execution_state
+                            );
+
+                            let workload_spec = control_loop_state.workload_spec.clone();
+                            let control_interface_path = control_loop_state.control_interface_path.clone();
+                            control_loop_state = Self::update(
+                                control_loop_state,
+                                Some(Box::new(workload_spec)),
+                                control_interface_path
+                            ).await;
+
+                        } else {
+                            log::trace!(
+                                "Restart not allowed for workload '{}'.",
+                                control_loop_state.workload_spec.instance_name.workload_name()
+                            );
+                        }
                     }
-                }
-                // [impl->swdd~agent-workload-control-loop-executes-update~2]
-                Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
-                    log::debug!("Received WorkloadCommand::Update.");
 
-                    control_loop_state = Self::update(
-                        control_loop_state,
-                        runtime_workload_config,
-                        control_interface_path,
-                    )
-                    .await;
-
-                    log::debug!("Update workload complete");
+                    log::trace!("Restart handling done.");
                 }
-                // [impl->swdd~agent-workload-control-loop-executes-retry~1]
-                Some(WorkloadCommand::Retry(runtime_workload_config, control_interface_path)) => {
-                    log::debug!("Received WorkloadCommand::Retry.");
+                workload_command = control_loop_state.command_receiver.recv() => {
+                    match workload_command {
+                        // [impl->swdd~agent-workload-control-loop-executes-delete~2]
+                        Some(WorkloadCommand::Delete) => {
+                            log::debug!("Received WorkloadCommand::Delete.");
 
-                    control_loop_state = Self::retry_create(
-                        control_loop_state,
-                        *runtime_workload_config,
-                        control_interface_path,
-                    )
-                    .await;
-                }
-                // [impl->swdd~agent-workload-control-loop-executes-create~2]
-                Some(WorkloadCommand::Create(runtime_workload_config, control_interface_path)) => {
-                    log::debug!("Received WorkloadCommand::Create.");
+                            if let Some(new_control_loop_state) = Self::delete(control_loop_state).await {
+                                control_loop_state = new_control_loop_state;
+                            } else {
+                                // [impl->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
+                                return;
+                            }
+                        }
+                        // [impl->swdd~agent-workload-control-loop-executes-update~2]
+                        Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
+                            log::debug!("Received WorkloadCommand::Update.");
 
-                    control_loop_state = Self::create(
-                        control_loop_state,
-                        *runtime_workload_config,
-                        control_interface_path,
-                        Self::send_retry,
-                    )
-                    .await;
-                }
-                _ => {
-                    log::warn!(
-                        "Could not wait for internal stop command for workload '{}'.",
-                        control_loop_state.instance_name.workload_name(),
-                    );
-                    return;
+                            control_loop_state = Self::update(
+                                control_loop_state,
+                                runtime_workload_config,
+                                control_interface_path,
+                            )
+                            .await;
+
+                            log::debug!("Update workload complete");
+                        }
+                        // [impl->swdd~agent-workload-control-loop-executes-retry~1]
+                        Some(WorkloadCommand::Retry(instance_name)) => {
+                            log::debug!("Received WorkloadCommand::Retry.");
+
+                            control_loop_state = Self::retry_create(
+                                control_loop_state,
+                                *instance_name,
+                            )
+                            .await;
+                        }
+                        // [impl->swdd~agent-workload-control-loop-executes-create~2]
+                        Some(WorkloadCommand::Create) => {
+                            log::debug!("Received WorkloadCommand::Create.");
+
+                            control_loop_state = Self::create(
+                                control_loop_state,
+                                Self::send_retry,
+                            )
+                            .await;
+                        }
+                        _ => {
+                            log::warn!(
+                                "Could not wait for internal stop command for workload '{}'.",
+                                control_loop_state.instance_name().workload_name(),
+                            );
+                            return;
+                        }
+                    }
                 }
             }
         }
@@ -150,8 +324,7 @@ impl WorkloadControlLoop {
 
     async fn send_retry<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-        runtime_workload_config: WorkloadSpec,
-        control_interface_path: Option<PathBuf>,
+        instance_name: WorkloadInstanceName,
         error_msg: String,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
@@ -160,7 +333,7 @@ impl WorkloadControlLoop {
     {
         log::info!(
             "Failed to create workload: '{}': '{}'",
-            control_loop_state.instance_name.workload_name(),
+            instance_name.workload_name(),
             error_msg
         );
         control_loop_state.workload_id = None;
@@ -168,8 +341,8 @@ impl WorkloadControlLoop {
 
         // [impl->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
         control_loop_state
-            .workload_channel
-            .retry(runtime_workload_config, control_interface_path)
+            .retry_sender
+            .retry(instance_name)
             .await
             .unwrap_or_else(|err| log::info!("Could not send WorkloadCommand::Retry: '{}'", err));
         control_loop_state
@@ -177,8 +350,7 @@ impl WorkloadControlLoop {
 
     async fn send_retry_delayed<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-        runtime_workload_config: WorkloadSpec,
-        control_interface_path: Option<PathBuf>,
+        instance_name: WorkloadInstanceName,
         error_msg: String,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
@@ -187,16 +359,16 @@ impl WorkloadControlLoop {
     {
         control_loop_state.workload_id = None;
         control_loop_state.state_checker = None;
-        let retry_counter: &mut RetryCounter = &mut control_loop_state.retry_counter;
 
         log::info!(
             "Retry '{}' out of '{}': Failed to create workload: '{}': '{}'",
-            retry_counter.current_retry(),
-            retry_counter.limit(),
-            control_loop_state.instance_name.workload_name(),
+            control_loop_state.retry_counter.current_retry(),
+            control_loop_state.retry_counter.limit(),
+            instance_name,
             error_msg
         );
 
+        let retry_counter: &mut RetryCounter = &mut control_loop_state.retry_counter;
         retry_counter.count_retry();
 
         // [impl->swdd~agent-workload-control-loop-limits-retry-attempts~1]
@@ -208,40 +380,35 @@ impl WorkloadControlLoop {
 
             // [impl->swdd~agent-workload-control-loop-retry-limit-set-execution-state~1]
             control_loop_state
-                .update_state_tx
+                .workload_state_sender
                 .report_workload_execution_state(
-                    &control_loop_state.instance_name,
+                    control_loop_state.instance_name(),
                     ExecutionState::retry_failed_no_retry(),
                 )
                 .await;
             return control_loop_state;
         }
 
-        let sender = control_loop_state.workload_channel.clone();
+        let sender = control_loop_state.retry_sender.clone();
         tokio::task::spawn(async move {
             // [impl->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
             tokio::time::sleep(tokio::time::Duration::from_millis(RETRY_WAITING_TIME_MS)).await;
             log::debug!("Send WorkloadCommand::Retry.");
 
-            sender
-                .retry(runtime_workload_config, control_interface_path)
-                .await
-                .unwrap_or_else(|err| {
-                    log::info!("Could not send WorkloadCommand::Retry: '{}'", err)
-                });
+            sender.retry(instance_name).await.unwrap_or_else(|err| {
+                log::info!("Could not send WorkloadCommand::Retry: '{}'", err)
+            });
         });
         control_loop_state
     }
 
-    // [impl->swdd~agent-workload-control-loop-executes-create~2]
-    async fn create<WorkloadId, StChecker, Fut>(
+    async fn update_create<WorkloadId, StChecker, Fut>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         new_workload_spec: WorkloadSpec,
         control_interface_path: Option<PathBuf>,
         func_on_error: impl FnOnce(
             ControlLoopState<WorkloadId, StChecker>,
-            WorkloadSpec,
-            Option<PathBuf>,
+            WorkloadInstanceName,
             String,
         ) -> Fut,
     ) -> ControlLoopState<WorkloadId, StChecker>
@@ -250,29 +417,50 @@ impl WorkloadControlLoop {
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
         Fut: Future<Output = ControlLoopState<WorkloadId, StChecker>>,
     {
-        control_loop_state.instance_name = new_workload_spec.instance_name.clone();
+        control_loop_state.workload_spec = new_workload_spec;
+        control_loop_state.control_interface_path = control_interface_path;
+        Self::create(control_loop_state, func_on_error).await
+    }
 
+    // [impl->swdd~agent-workload-control-loop-executes-create~2]
+    async fn create<WorkloadId, StChecker, Fut>(
+        mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
+        func_on_error: impl FnOnce(
+            ControlLoopState<WorkloadId, StChecker>,
+            WorkloadInstanceName,
+            String,
+        ) -> Fut,
+    ) -> ControlLoopState<WorkloadId, StChecker>
+    where
+        WorkloadId: ToString + Send + Sync + 'static,
+        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
+        Fut: Future<Output = ControlLoopState<WorkloadId, StChecker>>,
+    {
         control_loop_state
-            .update_state_tx
+            .workload_state_sender
             .report_workload_execution_state(
-                &control_loop_state.instance_name,
+                control_loop_state.instance_name(),
                 ExecutionState::starting_triggered(),
             )
             .await;
 
+        let new_instance_name = control_loop_state.workload_spec.instance_name.clone();
+
         match control_loop_state
             .runtime
             .create_workload(
-                new_workload_spec.clone(),
-                control_interface_path.clone(),
-                control_loop_state.update_state_tx.clone(),
+                control_loop_state.workload_spec.clone(),
+                control_loop_state.control_interface_path.clone(),
+                control_loop_state
+                    .state_checker_workload_state_sender
+                    .clone(),
             )
             .await
         {
             Ok((new_workload_id, new_state_checker)) => {
                 log::debug!(
                     "Created workload '{}' successfully.",
-                    control_loop_state.instance_name.workload_name()
+                    new_instance_name.workload_name()
                 );
                 control_loop_state.workload_id = Some(new_workload_id);
                 control_loop_state.state_checker = Some(new_state_checker);
@@ -280,20 +468,14 @@ impl WorkloadControlLoop {
             }
             Err(err) => {
                 control_loop_state
-                    .update_state_tx
+                    .workload_state_sender
                     .report_workload_execution_state(
-                        &control_loop_state.instance_name,
+                        &new_instance_name,
                         ExecutionState::starting_failed(err.to_string()),
                     )
                     .await;
 
-                func_on_error(
-                    control_loop_state,
-                    new_workload_spec,
-                    control_interface_path,
-                    err.to_string(),
-                )
-                .await
+                func_on_error(control_loop_state, new_instance_name, err.to_string()).await
             }
         }
     }
@@ -307,25 +489,28 @@ impl WorkloadControlLoop {
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         control_loop_state
-            .update_state_tx
+            .workload_state_sender
             .report_workload_execution_state(
-                &control_loop_state.instance_name,
+                control_loop_state.instance_name(),
                 ExecutionState::stopping_requested(),
             )
             .await;
 
-        let workload_name = control_loop_state.instance_name.workload_name();
         if let Some(old_id) = control_loop_state.workload_id.take() {
             if let Err(err) = control_loop_state.runtime.delete_workload(&old_id).await {
                 control_loop_state
-                    .update_state_tx
+                    .workload_state_sender
                     .report_workload_execution_state(
-                        &control_loop_state.instance_name,
+                        control_loop_state.instance_name(),
                         ExecutionState::delete_failed(err.to_string()),
                     )
                     .await;
                 // [impl->swdd~agent-workload-control-loop-delete-failed-allows-retry~1]
-                log::warn!("Could not stop workload '{}': '{}'", workload_name, err);
+                log::warn!(
+                    "Could not stop workload '{}': '{}'",
+                    control_loop_state.instance_name().workload_name(),
+                    err
+                );
                 control_loop_state.workload_id = Some(old_id);
 
                 return Some(control_loop_state);
@@ -337,14 +522,17 @@ impl WorkloadControlLoop {
             }
         } else {
             // [impl->swdd~agent-workload-control-loop-delete-broken-allowed~1]
-            log::debug!("Workload '{}' already gone.", workload_name);
+            log::debug!(
+                "Workload '{}' already gone.",
+                control_loop_state.instance_name().workload_name()
+            );
         }
 
         // Successfully stopped the workload. Send a removed on the channel
         control_loop_state
-            .update_state_tx
+            .workload_state_sender
             .report_workload_execution_state(
-                &control_loop_state.instance_name,
+                control_loop_state.instance_name(),
                 ExecutionState::removed(),
             )
             .await;
@@ -363,40 +551,47 @@ impl WorkloadControlLoop {
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         control_loop_state
-            .update_state_tx
+            .workload_state_sender
             .report_workload_execution_state(
-                &control_loop_state.instance_name,
+                control_loop_state.instance_name(),
                 ExecutionState::stopping_requested(),
             )
             .await;
 
-        let workload_name = control_loop_state.instance_name.workload_name();
         if let Some(old_id) = control_loop_state.workload_id.take() {
             if let Err(err) = control_loop_state.runtime.delete_workload(&old_id).await {
                 control_loop_state
-                    .update_state_tx
+                    .workload_state_sender
                     .report_workload_execution_state(
-                        &control_loop_state.instance_name,
+                        control_loop_state.instance_name(),
                         ExecutionState::delete_failed(err.to_string()),
                     )
                     .await;
                 // [impl->swdd~agent-workload-control-loop-update-delete-failed-allows-retry~1]
-                log::warn!("Could not update workload '{}': '{}'", workload_name, err);
+                log::warn!(
+                    "Could not update workload '{}': '{}'",
+                    control_loop_state.instance_name().workload_name(),
+                    err
+                );
                 control_loop_state.workload_id = Some(old_id);
+
                 return control_loop_state;
             } else if let Some(old_checker) = control_loop_state.state_checker.take() {
                 old_checker.stop_checker().await;
             }
         } else {
             // [impl->swdd~agent-workload-control-loop-update-broken-allowed~1]
-            log::debug!("Workload '{}' already gone.", workload_name);
+            log::debug!(
+                "Workload '{}' already gone.",
+                control_loop_state.instance_name().workload_name()
+            );
         }
 
         // workload is deleted or already gone, send the remove state
         control_loop_state
-            .update_state_tx
+            .workload_state_sender
             .report_workload_execution_state(
-                &control_loop_state.instance_name,
+                control_loop_state.instance_name(),
                 ExecutionState::removed(),
             )
             .await;
@@ -407,7 +602,7 @@ impl WorkloadControlLoop {
         // [impl->swdd~agent-workload-control-loop-executes-update-delete-only~1]
         if let Some(spec) = new_workload_spec {
             // [impl->swdd~agent-workload-control-loop-update-create-failed-allows-retry~1]
-            control_loop_state = Self::create(
+            control_loop_state = Self::update_create(
                 control_loop_state,
                 *spec,
                 control_interface_path,
@@ -420,24 +615,17 @@ impl WorkloadControlLoop {
 
     async fn retry_create<WorkloadId, StChecker>(
         control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-        runtime_workload_config: WorkloadSpec,
-        control_interface_path: Option<PathBuf>,
+        instance_name: WorkloadInstanceName,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
         WorkloadId: ToString + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
-        if control_loop_state.instance_name == runtime_workload_config.instance_name
+        if control_loop_state.instance_name() == &instance_name
             && control_loop_state.workload_id.is_none()
         {
             log::debug!("Next retry attempt.");
-            Self::create(
-                control_loop_state,
-                runtime_workload_config,
-                control_interface_path,
-                Self::send_retry_delayed,
-            )
-            .await
+            Self::create(control_loop_state, Self::send_retry_delayed).await
         } else {
             // [impl->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
             log::debug!("Skip retry creation of workload.");

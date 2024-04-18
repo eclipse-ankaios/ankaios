@@ -7,20 +7,22 @@ workloads:
     runtimeConfig: |
       image: alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sh" ]
-      commandArgs: [ "-c", "echo 'Always restarted.'; sleep 1"]
+      commandArgs: [ "-c", "echo 'Always restarted.'; sleep 2"]
   restarted_never:
     runtime: podman
     agent: agent_A
     restartPolicy: NEVER
     runtimeConfig: |
       image: alpine:latest
-      commandArgs: [ "echo", "Explicitly never restarted."]
+      commandOptions: [ "--entrypoint", "/bin/sh" ]
+      commandArgs: [ "-c", "echo 'Explicitly never restarted.'; sleep 2"]
   default_restarted_never: # default restart value = NEVER
     runtime: podman
     agent: agent_A
     runtimeConfig: |
       image: alpine:latest
-      commandArgs: [ "echo", "Implicitly never restarted."]
+      commandOptions: [ "--entrypoint", "/bin/sh" ]
+      commandArgs: [ "-c", "echo 'Implicitly never restarted.'; sleep 2"]
   restarted_on_failure:
     runtime: podman
     agent: agent_A
@@ -28,7 +30,7 @@ workloads:
     runtimeConfig: |
       image: alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sh" ]
-      commandArgs: [ "-c", "echo 'Restarted on failure.'; sleep 1; exit 1"]
+      commandArgs: [ "-c", "echo 'Restarted on failure.'; sleep 2; exit 1"]
   kube_restarted_always:
     runtime: podman-kube
     agent: agent_B
@@ -44,4 +46,4 @@ workloads:
           containers:
           - name: kube-container
             image: docker.io/alpine:latest
-            command: ["/bin/sh", "-c", 'echo "kube container always restarted."; sleep 1; exit 1']
+            command: ["/bin/sh", "-c", 'echo "kube container always restarted."; sleep 2; exit 1']

@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 use crate::workload::WorkloadCommand;
-use common::objects::WorkloadSpec;
+use common::objects::{WorkloadInstanceName, WorkloadSpec};
 use std::path::PathBuf;
 use tokio::sync::mpsc;
 
@@ -36,29 +36,16 @@ impl WorkloadCommandSender {
         )
     }
 
-    pub async fn create(
-        &self,
-        workload_spec: WorkloadSpec,
-        control_interface_path: Option<PathBuf>,
-    ) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
-        self.sender
-            .send(WorkloadCommand::Create(
-                Box::new(workload_spec),
-                control_interface_path,
-            ))
-            .await
+    pub async fn create(&self) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
+        self.sender.send(WorkloadCommand::Create).await
     }
 
     pub async fn retry(
         &self,
-        workload_spec: WorkloadSpec,
-        control_interface_path: Option<PathBuf>,
+        instance_name: WorkloadInstanceName,
     ) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
         self.sender
-            .send(WorkloadCommand::Retry(
-                Box::new(workload_spec),
-                control_interface_path,
-            ))
+            .send(WorkloadCommand::Retry(Box::new(instance_name)))
             .await
     }
 

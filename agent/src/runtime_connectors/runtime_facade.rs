@@ -12,10 +12,10 @@ use crate::{
 };
 
 use crate::workload::workload_control_loop::WorkloadControlLoop;
+use crate::workload::ControlLoopState;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
 use crate::workload::WorkloadCommandSender;
-use crate::workload::{ControlLoopState, RetryCounter};
 
 #[async_trait]
 #[cfg_attr(test, automock)]
@@ -101,32 +101,39 @@ impl<
             runtime.name(),
             workload_name,
         );
-        let (workload_channel_sender, command_receiver) = WorkloadCommandSender::new();
-        let workload_channel = workload_channel_sender.clone();
+        let (workload_command_tx, workload_command_receiver) = WorkloadCommandSender::new();
+        let workload_command_sender = workload_command_tx.clone();
         tokio::spawn(async move {
             let instance_name = workload_spec.instance_name.clone();
-            workload_channel
-                .create(workload_spec, control_interface_path)
+            workload_command_sender
+                .create()
                 .await
                 .unwrap_or_else(|err| {
                     log::warn!("Failed to send workload command retry: '{}'", err);
                 });
 
-            let control_loop_state = ControlLoopState {
-                instance_name,
-                workload_id: None,
-                state_checker: None,
-                update_state_tx,
-                runtime,
-                command_receiver,
-                workload_channel,
-                retry_counter: RetryCounter::new(),
-            };
+            let control_loop_state = ControlLoopState::builder()
+                .workload_spec(workload_spec)
+                .control_interface_path(control_interface_path)
+                .workload_state_sender(update_state_tx)
+                .runtime(runtime)
+                .workload_command_receiver(workload_command_receiver)
+                .retry_sender(workload_command_sender)
+                .build();
 
-            WorkloadControlLoop::run(control_loop_state).await;
+            match control_loop_state {
+                Ok(control_loop_state) => WorkloadControlLoop::run(control_loop_state).await,
+                Err(err) => {
+                    log::error!(
+                        "Failed to create ControlLoopState when creating workload '{}': '{}'",
+                        instance_name.workload_name(),
+                        err
+                    );
+                }
+            }
         });
 
-        Workload::new(workload_name, workload_channel_sender, control_interface)
+        Workload::new(workload_name, workload_command_tx, control_interface)
     }
 
     // [impl->swdd~agent-resume-workload~1]
@@ -146,8 +153,8 @@ impl<
             workload_name,
         );
 
-        let (workload_channel, command_receiver) = WorkloadCommandSender::new();
-        let workload_channel_retry = workload_channel.clone();
+        let (workload_command_tx, workload_command_receiver) = WorkloadCommandSender::new();
+        let workload_command_sender = workload_command_tx.clone();
         tokio::spawn(async move {
             let instance_name = workload_spec.instance_name.clone();
             let workload_name = instance_name.workload_name();
@@ -155,7 +162,7 @@ impl<
 
             let state_checker: Option<StChecker> = match workload_id.as_ref() {
                 Ok(wl_id) => runtime
-                    .start_checker(wl_id, workload_spec, update_state_tx.clone())
+                    .start_checker(wl_id, workload_spec.clone(), update_state_tx.clone())
                     .await
                     .map_err(|err| {
                         log::warn!(
@@ -176,21 +183,29 @@ impl<
                 }
             };
 
-            let control_loop_state = ControlLoopState {
-                instance_name,
-                workload_id: workload_id.ok(),
-                state_checker,
-                update_state_tx,
-                runtime,
-                command_receiver,
-                workload_channel: workload_channel_retry,
-                retry_counter: RetryCounter::new(),
-            };
+            let control_loop_state = ControlLoopState::builder()
+                .workload_spec(workload_spec)
+                .workload_state_sender(update_state_tx)
+                .runtime(runtime)
+                .workload_id(workload_id.ok())
+                .state_checker(state_checker)
+                .workload_command_receiver(workload_command_receiver)
+                .retry_sender(workload_command_sender)
+                .build();
 
-            WorkloadControlLoop::run(control_loop_state).await;
+            match control_loop_state {
+                Ok(control_loop_state) => WorkloadControlLoop::run(control_loop_state).await,
+                Err(err) => {
+                    log::error!(
+                        "Failed to create ControlLoopState when resuming workload '{}': '{}'",
+                        instance_name.workload_name(),
+                        err
+                    );
+                }
+            }
         });
 
-        Workload::new(workload_name, workload_channel, control_interface)
+        Workload::new(workload_name, workload_command_tx, control_interface)
     }
 
     // [impl->swdd~agent-delete-old-workload~2]
