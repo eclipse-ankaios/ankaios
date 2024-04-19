@@ -94,16 +94,11 @@ mod tests {
     async fn utest_send_create() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
-        workload_command_sender
-            .create(WORKLOAD_SPEC.clone(), CONTROL_INTERFACE_PATH.clone())
-            .await
-            .unwrap();
+        workload_command_sender.create().await.unwrap();
 
         let workload_command = workload_command_receiver.recv().await.unwrap();
 
-        assert!(
-            matches!(workload_command, WorkloadCommand::Create(workload_spec, control_interface_path) if workload_spec.instance_name == WORKLOAD_SPEC.instance_name && control_interface_path == *CONTROL_INTERFACE_PATH)
-        );
+        assert_eq!(workload_command, WorkloadCommand::Create);
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~2]
@@ -112,14 +107,14 @@ mod tests {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
         workload_command_sender
-            .retry(WORKLOAD_SPEC.clone(), CONTROL_INTERFACE_PATH.clone())
+            .retry(WORKLOAD_SPEC.instance_name.clone())
             .await
             .unwrap();
 
         let workload_command = workload_command_receiver.recv().await.unwrap();
 
         assert!(
-            matches!(workload_command, WorkloadCommand::Retry(workload_spec, control_interface_path) if workload_spec.instance_name == WORKLOAD_SPEC.instance_name && control_interface_path == *CONTROL_INTERFACE_PATH)
+            matches!(workload_command, WorkloadCommand::Retry(received_instance_name) if *received_instance_name == WORKLOAD_SPEC.instance_name)
         );
     }
 

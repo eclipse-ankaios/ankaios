@@ -551,6 +551,8 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut old_mock_state_checker = StubStateChecker::new();
         old_mock_state_checker.panic_if_not_stopped();
@@ -581,7 +583,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    state_checker_workload_state_sender.clone(),
                     Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -600,16 +602,23 @@ mod tests {
 
         let old_instance_name = old_workload_spec.instance_name.clone();
         let new_instance_name = new_workload_spec.instance_name.clone();
-        let control_loop_state = ControlLoopState {
-            instance_name: old_instance_name.clone(),
-            workload_id: Some(OLD_WORKLOAD_ID.to_string()),
-            state_checker: Some(old_mock_state_checker),
-            update_state_tx: state_change_tx.clone(),
-            runtime: Box::new(runtime_mock.clone()),
-            command_receiver: workload_command_receiver,
-            workload_channel: workload_command_sender,
-            retry_counter: RetryCounter::new(),
-        };
+
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_spec(old_workload_spec)
+            .workload_id(Some(OLD_WORKLOAD_ID.to_string()))
+            .state_checker(Some(old_mock_state_checker))
+            .workload_state_sender(state_change_tx.clone())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
+
+        control_loop_state.state_checker_workload_state_sender =
+            state_checker_workload_state_sender;
+
+        control_loop_state.state_checker_workload_state_receiver =
+            state_checker_workload_state_receiver;
 
         assert!(timeout(
             Duration::from_millis(200),
@@ -670,16 +679,17 @@ mod tests {
         workload_command_sender.clone().delete().await.unwrap();
 
         let old_instance_name = old_workload_spec.instance_name.clone();
-        let control_loop_state = ControlLoopState {
-            instance_name: old_instance_name.clone(),
-            workload_id: Some(OLD_WORKLOAD_ID.to_string()),
-            state_checker: Some(old_mock_state_checker),
-            update_state_tx: state_change_tx.clone(),
-            runtime: Box::new(runtime_mock.clone()),
-            command_receiver: workload_command_receiver,
-            workload_channel: workload_command_sender,
-            retry_counter: RetryCounter::new(),
-        };
+
+        let control_loop_state = ControlLoopState::builder()
+            .workload_spec(old_workload_spec)
+            .workload_id(Some(OLD_WORKLOAD_ID.to_string()))
+            .state_checker(Some(old_mock_state_checker))
+            .workload_state_sender(state_change_tx.clone())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
 
         assert!(timeout(
             Duration::from_millis(200),
@@ -709,6 +719,8 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut old_mock_state_checker = StubStateChecker::new();
         old_mock_state_checker.panic_if_not_stopped();
@@ -739,7 +751,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    state_checker_workload_state_sender.clone(),
                     Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
                 ),
                 // Delete the new updated workload to exit the infinite loop
@@ -763,16 +775,23 @@ mod tests {
         workload_command_sender.clone().delete().await.unwrap();
 
         let old_instance_name = old_workload_spec.instance_name.clone();
-        let control_loop_state = ControlLoopState {
-            instance_name: old_instance_name.clone(),
-            workload_id: Some(OLD_WORKLOAD_ID.to_string()),
-            state_checker: Some(old_mock_state_checker),
-            update_state_tx: state_change_tx.clone(),
-            runtime: Box::new(runtime_mock.clone()),
-            command_receiver: workload_command_receiver,
-            workload_channel: workload_command_sender,
-            retry_counter: RetryCounter::new(),
-        };
+
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_spec(old_workload_spec)
+            .workload_id(Some(OLD_WORKLOAD_ID.to_string()))
+            .state_checker(Some(old_mock_state_checker))
+            .workload_state_sender(state_change_tx.clone())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
+
+        control_loop_state.state_checker_workload_state_sender =
+            state_checker_workload_state_sender;
+
+        control_loop_state.state_checker_workload_state_receiver =
+            state_checker_workload_state_receiver;
 
         assert!(timeout(
             Duration::from_millis(200),
@@ -804,6 +823,8 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         // Since we also send a delete command to exit the control loop properly, the new state
         // checker will also be stopped. This also tests if the new state checker was properly stored.
@@ -829,7 +850,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    state_checker_workload_state_sender.clone(),
                     Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -848,16 +869,23 @@ mod tests {
 
         let old_instance_name = old_workload_spec.instance_name.clone();
         let new_instance_name = new_workload_spec.instance_name.clone();
-        let control_loop_state = ControlLoopState {
-            instance_name: old_instance_name.clone(),
-            workload_id: None,
-            state_checker: None,
-            update_state_tx: state_change_tx.clone(),
-            runtime: Box::new(runtime_mock.clone()),
-            command_receiver: workload_command_receiver,
-            workload_channel: workload_command_sender,
-            retry_counter: RetryCounter::new(),
-        };
+
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_spec(old_workload_spec)
+            .workload_id(None)
+            .state_checker(None)
+            .workload_state_sender(state_change_tx.clone())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
+
+        control_loop_state.state_checker_workload_state_sender =
+            state_checker_workload_state_sender;
+
+        control_loop_state.state_checker_workload_state_receiver =
+            state_checker_workload_state_receiver;
 
         assert!(timeout(
             Duration::from_millis(200),
@@ -932,16 +960,17 @@ mod tests {
         workload_command_sender.clone().delete().await.unwrap();
 
         let old_instance_name = old_workload_spec.instance_name.clone();
-        let control_loop_state = ControlLoopState {
-            instance_name: old_instance_name.clone(),
-            workload_id: Some(OLD_WORKLOAD_ID.to_string()),
-            state_checker: Some(old_mock_state_checker),
-            update_state_tx: state_change_tx.clone(),
-            runtime: Box::new(runtime_mock.clone()),
-            command_receiver: workload_command_receiver,
-            workload_channel: workload_command_sender,
-            retry_counter: RetryCounter::new(),
-        };
+
+        let control_loop_state = ControlLoopState::builder()
+            .workload_spec(old_workload_spec)
+            .workload_id(Some(OLD_WORKLOAD_ID.to_string()))
+            .state_checker(Some(old_mock_state_checker))
+            .workload_state_sender(state_change_tx.clone())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
 
         assert!(timeout(
             Duration::from_millis(200),
@@ -976,6 +1005,8 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut old_mock_state_checker = StubStateChecker::new();
         old_mock_state_checker.panic_if_not_stopped();
@@ -1001,7 +1032,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    state_checker_workload_state_sender.clone(),
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some create error".to_string(),
                     )),
@@ -1021,16 +1052,23 @@ mod tests {
 
         let old_instance_name = old_workload_spec.instance_name.clone();
         let new_instance_name = new_workload_spec.instance_name.clone();
-        let control_loop_state = ControlLoopState {
-            instance_name: old_instance_name.clone(),
-            workload_id: Some(OLD_WORKLOAD_ID.to_string()),
-            state_checker: Some(old_mock_state_checker),
-            update_state_tx: state_change_tx.clone(),
-            runtime: Box::new(runtime_mock.clone()),
-            command_receiver: workload_command_receiver,
-            workload_channel: workload_command_sender,
-            retry_counter: RetryCounter::new(),
-        };
+
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_spec(old_workload_spec)
+            .workload_id(Some(OLD_WORKLOAD_ID.to_string()))
+            .state_checker(Some(old_mock_state_checker))
+            .workload_state_sender(state_change_tx.clone())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
+
+        control_loop_state.state_checker_workload_state_sender =
+            state_checker_workload_state_sender;
+
+        control_loop_state.state_checker_workload_state_receiver =
+            state_checker_workload_state_receiver;
 
         assert!(timeout(
             Duration::from_millis(200),
@@ -1090,16 +1128,16 @@ mod tests {
 
         let instance_name = workload_spec.instance_name.clone();
 
-        let control_loop_state = ControlLoopState {
-            instance_name: instance_name.clone(),
-            workload_id: Some(OLD_WORKLOAD_ID.to_string()),
-            state_checker: Some(mock_state_checker),
-            update_state_tx: state_change_tx.clone(),
-            runtime: Box::new(runtime_mock.clone()),
-            command_receiver: workload_command_receiver,
-            workload_channel: workload_command_sender,
-            retry_counter: RetryCounter::new(),
-        };
+        let control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .workload_id(Some(OLD_WORKLOAD_ID.to_string()))
+            .state_checker(Some(mock_state_checker))
+            .workload_state_sender(state_change_tx.clone())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
 
         assert!(timeout(
             Duration::from_millis(200),
@@ -1158,16 +1196,16 @@ mod tests {
         );
         let instance_name = workload_spec.instance_name.clone();
 
-        let control_loop_state = ControlLoopState {
-            instance_name: instance_name.clone(),
-            workload_id: Some(OLD_WORKLOAD_ID.to_string()),
-            state_checker: Some(mock_state_checker),
-            update_state_tx: state_change_tx.clone(),
-            runtime: Box::new(runtime_mock.clone()),
-            command_receiver: workload_command_receiver,
-            workload_channel: workload_command_sender,
-            retry_counter: RetryCounter::new(),
-        };
+        let control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .workload_id(Some(OLD_WORKLOAD_ID.to_string()))
+            .state_checker(Some(mock_state_checker))
+            .workload_state_sender(state_change_tx.clone())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
 
         assert!(timeout(
             Duration::from_millis(200),
@@ -1214,18 +1252,14 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let instance_name = workload_spec.instance_name.clone();
-
-        let control_loop_state = ControlLoopState {
-            instance_name,
-            workload_id: None,
-            state_checker: None,
-            update_state_tx: state_change_tx.clone(),
-            runtime: Box::new(runtime_mock.clone()),
-            command_receiver: workload_command_receiver,
-            workload_channel: workload_command_sender,
-            retry_counter: RetryCounter::new(),
-        };
+        let control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .workload_state_sender(state_change_tx.clone())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
 
         assert!(timeout(
             Duration::from_millis(200),
@@ -1254,10 +1288,11 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let instance_name = workload_spec.instance_name.clone();
-
         let mut new_mock_state_checker = StubStateChecker::new();
         new_mock_state_checker.panic_if_not_stopped();
+
+        let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
@@ -1265,7 +1300,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    state_checker_workload_state_sender.clone(),
                     Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -1274,10 +1309,7 @@ mod tests {
             ])
             .await;
 
-        workload_command_sender
-            .create(workload_spec, Some(PIPES_LOCATION.into()))
-            .await
-            .unwrap();
+        workload_command_sender.create().await.unwrap();
 
         let workload_command_sender_clone = workload_command_sender.clone();
         tokio::spawn(async move {
@@ -1285,16 +1317,20 @@ mod tests {
             workload_command_sender_clone.delete().await.unwrap();
         });
 
-        let control_loop_state = ControlLoopState {
-            instance_name,
-            workload_id: None,
-            state_checker: None,
-            update_state_tx: state_change_tx.clone(),
-            runtime: Box::new(runtime_mock.clone()),
-            command_receiver: workload_command_receiver,
-            workload_channel: workload_command_sender,
-            retry_counter: RetryCounter::new(),
-        };
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec.clone())
+            .workload_state_sender(state_change_tx.clone())
+            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
+
+        control_loop_state.state_checker_workload_state_sender =
+            state_checker_workload_state_sender;
+        control_loop_state.state_checker_workload_state_receiver =
+            state_checker_workload_state_receiver;
 
         assert!(timeout(
             Duration::from_millis(100),
@@ -1317,14 +1353,14 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
-
-        let instance_name = workload_spec.instance_name.clone();
 
         let mut new_mock_state_checker = StubStateChecker::new();
         new_mock_state_checker.panic_if_not_stopped();
@@ -1335,7 +1371,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    state_checker_workload_state_sender.clone(),
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some create error".to_string(),
                     )),
@@ -1343,7 +1379,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    state_checker_workload_state_sender.clone(),
                     Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -1352,10 +1388,7 @@ mod tests {
             ])
             .await;
 
-        workload_command_sender
-            .create(workload_spec, Some(PIPES_LOCATION.into()))
-            .await
-            .unwrap();
+        workload_command_sender.create().await.unwrap();
 
         let workload_command_sender_clone = workload_command_sender.clone();
         tokio::spawn(async move {
@@ -1363,16 +1396,21 @@ mod tests {
             workload_command_sender_clone.delete().await.unwrap();
         });
 
-        let control_loop_state = ControlLoopState {
-            instance_name,
-            workload_id: None,
-            state_checker: None,
-            update_state_tx: state_change_tx.clone(),
-            runtime: Box::new(runtime_mock.clone()),
-            command_receiver: workload_command_receiver,
-            workload_channel: workload_command_sender,
-            retry_counter: RetryCounter::new(),
-        };
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .workload_state_sender(state_change_tx.clone())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
+
+        control_loop_state.state_checker_workload_state_sender =
+            state_checker_workload_state_sender;
+
+        control_loop_state.state_checker_workload_state_receiver =
+            state_checker_workload_state_receiver;
 
         assert!(timeout(
             Duration::from_millis(200),
@@ -1395,6 +1433,8 @@ mod tests {
 
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1402,12 +1442,10 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let instance_name = workload_spec.instance_name.clone();
-
         let runtime_expectations = vec![RuntimeCall::CreateWorkload(
             workload_spec.clone(),
             Some(PIPES_LOCATION.into()),
-            state_change_tx.clone(),
+            state_checker_workload_state_sender.clone(),
             Err(crate::runtime_connectors::RuntimeError::Create(
                 "some create error".to_string(),
             )),
@@ -1418,33 +1456,28 @@ mod tests {
 
         workload_command_receiver.close();
 
-        let control_loop_state = ControlLoopState {
-            instance_name,
-            workload_id: None,
-            state_checker: None,
-            update_state_tx: state_change_tx.clone(),
-            runtime: Box::new(runtime_mock.clone()),
-            command_receiver: workload_command_receiver,
-            workload_channel: workload_command_sender,
-            retry_counter: RetryCounter::new(),
-        };
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .workload_state_sender(state_change_tx.clone())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
 
-        let new_control_loop_state = WorkloadControlLoop::create(
-            control_loop_state,
-            workload_spec,
-            Some(PIPES_LOCATION.into()),
-            WorkloadControlLoop::send_retry,
-        )
-        .await;
+        control_loop_state.state_checker_workload_state_sender =
+            state_checker_workload_state_sender;
+        control_loop_state.state_checker_workload_state_receiver =
+            state_checker_workload_state_receiver;
+
+        let new_control_loop_state =
+            WorkloadControlLoop::create(control_loop_state, WorkloadControlLoop::send_retry).await;
 
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
         // send some randomly selected command
-        assert!(new_control_loop_state
-            .workload_channel
-            .delete()
-            .await
-            .is_err());
+        assert!(new_control_loop_state.retry_sender.delete().await.is_err());
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-retry~1]
@@ -1458,6 +1491,8 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1476,7 +1511,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    state_checker_workload_state_sender.clone(),
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some create error".to_string(),
                     )),
@@ -1484,7 +1519,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    state_checker_workload_state_sender.clone(),
                     Ok((WORKLOAD_ID.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -1494,7 +1529,7 @@ mod tests {
             .await;
 
         workload_command_sender
-            .retry(workload_spec, Some(PIPES_LOCATION.into()))
+            .retry(instance_name.clone())
             .await
             .unwrap();
 
@@ -1504,16 +1539,21 @@ mod tests {
             workload_command_sender_clone.delete().await.unwrap();
         });
 
-        let control_loop_state = ControlLoopState {
-            instance_name,
-            workload_id: None,
-            state_checker: None,
-            update_state_tx: state_change_tx.clone(),
-            runtime: Box::new(runtime_mock.clone()),
-            command_receiver: workload_command_receiver,
-            workload_channel: workload_command_sender,
-            retry_counter: RetryCounter::new(),
-        };
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .workload_state_sender(state_change_tx.clone())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
+
+        control_loop_state.state_checker_workload_state_sender =
+            state_checker_workload_state_sender;
+
+        control_loop_state.state_checker_workload_state_receiver =
+            state_checker_workload_state_receiver;
 
         assert!(timeout(
             Duration::from_millis(150),
@@ -1538,6 +1578,8 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1554,7 +1596,7 @@ mod tests {
             runtime_expectations.push(RuntimeCall::CreateWorkload(
                 workload_spec.clone(),
                 Some(PIPES_LOCATION.into()),
-                state_change_tx.clone(),
+                state_checker_workload_state_sender.clone(),
                 Err(crate::runtime_connectors::RuntimeError::Create(
                     "some create error".to_string(),
                 )),
@@ -1565,7 +1607,7 @@ mod tests {
         runtime_mock.expect(runtime_expectations).await;
 
         workload_command_sender
-            .retry(workload_spec.clone(), Some(PIPES_LOCATION.into()))
+            .retry(instance_name.clone())
             .await
             .unwrap();
 
@@ -1577,16 +1619,20 @@ mod tests {
             workload_command_sender_clone.delete().await.unwrap();
         });
 
-        let control_loop_state = ControlLoopState {
-            instance_name: instance_name.clone(),
-            workload_id: None,
-            state_checker: None,
-            update_state_tx: state_change_tx.clone(),
-            runtime: Box::new(runtime_mock.clone()),
-            command_receiver: workload_command_receiver,
-            workload_channel: workload_command_sender,
-            retry_counter: RetryCounter::new(),
-        };
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .workload_state_sender(state_change_tx.clone())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
+
+        control_loop_state.state_checker_workload_state_sender =
+            state_checker_workload_state_sender;
+        control_loop_state.state_checker_workload_state_receiver =
+            state_checker_workload_state_receiver;
 
         assert!(timeout(
             Duration::from_millis(150),
@@ -1628,6 +1674,8 @@ mod tests {
 
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1640,7 +1688,7 @@ mod tests {
         let runtime_expectations = vec![RuntimeCall::CreateWorkload(
             workload_spec.clone(),
             Some(PIPES_LOCATION.into()),
-            state_change_tx.clone(),
+            state_checker_workload_state_sender.clone(),
             Err(crate::runtime_connectors::RuntimeError::Create(
                 "some create error".to_string(),
             )),
@@ -1651,32 +1699,29 @@ mod tests {
 
         workload_command_receiver.close();
 
-        let control_loop_state = ControlLoopState {
-            instance_name,
-            workload_id: None,
-            state_checker: None,
-            update_state_tx: state_change_tx.clone(),
-            runtime: Box::new(runtime_mock.clone()),
-            command_receiver: workload_command_receiver,
-            workload_channel: workload_command_sender,
-            retry_counter: RetryCounter::new(),
-        };
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .workload_state_sender(state_change_tx.clone())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
 
-        let new_control_loop_state = WorkloadControlLoop::retry_create(
-            control_loop_state,
-            workload_spec,
-            Some(PIPES_LOCATION.into()),
-        )
-        .await;
+        control_loop_state.state_checker_workload_state_sender =
+            state_checker_workload_state_sender;
+
+        control_loop_state.state_checker_workload_state_receiver =
+            state_checker_workload_state_receiver;
+
+        let new_control_loop_state =
+            WorkloadControlLoop::retry_create(control_loop_state, instance_name).await;
 
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
         // send some randomly selected command
-        assert!(new_control_loop_state
-            .workload_channel
-            .delete()
-            .await
-            .is_err());
+        assert!(new_control_loop_state.retry_sender.delete().await.is_err());
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-retry~1]
@@ -1691,6 +1736,8 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1711,7 +1758,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    state_checker_workload_state_sender.clone(),
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some create error".to_string(),
                     )),
@@ -1719,7 +1766,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    state_checker_workload_state_sender.clone(),
                     Ok((WORKLOAD_ID_2.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -1728,10 +1775,7 @@ mod tests {
             ])
             .await;
 
-        workload_command_sender
-            .retry(workload_spec, Some(PIPES_LOCATION.into()))
-            .await
-            .unwrap();
+        workload_command_sender.retry(instance_name).await.unwrap();
 
         workload_command_sender
             .update(Some(new_workload_spec), Some(PIPES_LOCATION.into()))
@@ -1744,16 +1788,21 @@ mod tests {
             workload_command_sender_clone.delete().await.unwrap();
         });
 
-        let control_loop_state = ControlLoopState {
-            instance_name,
-            workload_id: None,
-            state_checker: None,
-            update_state_tx: state_change_tx.clone(),
-            runtime: Box::new(runtime_mock.clone()),
-            command_receiver: workload_command_receiver,
-            workload_channel: workload_command_sender,
-            retry_counter: RetryCounter::new(),
-        };
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .workload_state_sender(state_change_tx.clone())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
+
+        control_loop_state.state_checker_workload_state_sender =
+            state_checker_workload_state_sender;
+
+        control_loop_state.state_checker_workload_state_receiver =
+            state_checker_workload_state_receiver;
 
         assert!(timeout(
             Duration::from_millis(150),
@@ -1777,13 +1826,14 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
-        let instance_name = workload_spec.instance_name.clone();
 
         let mut new_workload_spec = workload_spec.clone();
         new_workload_spec.runtime_config = "Changed".to_string();
@@ -1803,7 +1853,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    state_checker_workload_state_sender.clone(),
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some create error".to_string(),
                     )),
@@ -1812,7 +1862,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    state_checker_workload_state_sender.clone(),
                     Ok((WORKLOAD_ID_2.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -1832,16 +1882,22 @@ mod tests {
             workload_command_sender_clone.delete().await.unwrap();
         });
 
-        let control_loop_state = ControlLoopState {
-            instance_name,
-            workload_id: Some(WORKLOAD_ID.into()),
-            state_checker: Some(old_state_checker),
-            update_state_tx: state_change_tx.clone(),
-            runtime: Box::new(runtime_mock.clone()),
-            command_receiver: workload_command_receiver,
-            workload_channel: workload_command_sender,
-            retry_counter: RetryCounter::new(),
-        };
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .workload_id(Some(WORKLOAD_ID.into()))
+            .state_checker(Some(old_state_checker))
+            .workload_state_sender(state_change_tx.clone())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
+
+        control_loop_state.state_checker_workload_state_sender =
+            state_checker_workload_state_sender;
+
+        control_loop_state.state_checker_workload_state_receiver =
+            state_checker_workload_state_receiver;
 
         assert!(timeout(
             Duration::from_millis(150),
@@ -1867,13 +1923,14 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
-        let instance_name = workload_spec.instance_name.clone();
 
         let mut new_workload_spec = workload_spec.clone();
         new_workload_spec.runtime_config = "Changed".to_string();
@@ -1893,7 +1950,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    state_checker_workload_state_sender.clone(),
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some create error".to_string(),
                     )),
@@ -1902,7 +1959,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    state_checker_workload_state_sender.clone(),
                     Ok((WORKLOAD_ID_2.to_string(), new_mock_state_checker)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -1922,22 +1979,27 @@ mod tests {
             workload_command_sender_clone.delete().await.unwrap();
         });
 
-        let mut retry_counter = RetryCounter::new();
-        // simulate an already incremented retry counter due to retry attempts on initial workload creation
-        retry_counter.count_retry();
-        retry_counter.count_retry();
-        assert_eq!(retry_counter.current_retry(), 3);
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .workload_id(Some(WORKLOAD_ID.into()))
+            .state_checker(Some(old_state_checker))
+            .workload_state_sender(state_change_tx.clone())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
 
-        let control_loop_state = ControlLoopState {
-            instance_name,
-            workload_id: Some(WORKLOAD_ID.into()),
-            state_checker: Some(old_state_checker),
-            update_state_tx: state_change_tx.clone(),
-            runtime: Box::new(runtime_mock.clone()),
-            command_receiver: workload_command_receiver,
-            workload_channel: workload_command_sender,
-            retry_counter,
-        };
+        control_loop_state.state_checker_workload_state_sender =
+            state_checker_workload_state_sender;
+
+        control_loop_state.state_checker_workload_state_receiver =
+            state_checker_workload_state_receiver;
+
+        // simulate an already incremented retry counter due to retry attempts on initial workload creation
+        control_loop_state.retry_counter.count_retry();
+        control_loop_state.retry_counter.count_retry();
+        assert_eq!(control_loop_state.retry_counter.current_retry(), 3);
 
         assert!(timeout(
             Duration::from_millis(150),
@@ -1961,13 +2023,14 @@ mod tests {
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
-        let instance_name = workload_spec.instance_name.clone();
 
         let mut new_workload_spec_update1 = workload_spec.clone();
         new_workload_spec_update1.runtime_config = "Changed".to_string();
@@ -1990,7 +2053,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec_update1.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    state_checker_workload_state_sender.clone(),
                     Err(crate::runtime_connectors::RuntimeError::Create(
                         "some create error".to_string(),
                     )),
@@ -2000,7 +2063,7 @@ mod tests {
                 RuntimeCall::CreateWorkload(
                     new_workload_spec_update2.clone(),
                     Some(PIPES_LOCATION.into()),
-                    state_change_tx.clone(),
+                    state_checker_workload_state_sender.clone(),
                     Ok((WORKLOAD_ID_3.to_string(), new_mock_state_checker_update2)),
                 ),
                 // Since we also send a delete command to exit the control loop properly, the new workload
@@ -2025,16 +2088,22 @@ mod tests {
             workload_command_sender_clone.delete().await.unwrap();
         });
 
-        let control_loop_state = ControlLoopState {
-            instance_name,
-            workload_id: Some(WORKLOAD_ID.into()),
-            state_checker: Some(old_state_checker),
-            update_state_tx: state_change_tx.clone(),
-            runtime: Box::new(runtime_mock.clone()),
-            command_receiver: workload_command_receiver,
-            workload_channel: workload_command_sender,
-            retry_counter: RetryCounter::new(),
-        };
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .workload_id(Some(WORKLOAD_ID.into()))
+            .state_checker(Some(old_state_checker))
+            .workload_state_sender(state_change_tx.clone())
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
+
+        control_loop_state.state_checker_workload_state_sender =
+            state_checker_workload_state_sender;
+
+        control_loop_state.state_checker_workload_state_receiver =
+            state_checker_workload_state_receiver;
 
         assert!(timeout(
             Duration::from_millis(150),
