@@ -352,7 +352,6 @@ mod tests {
             .expect(vec![RuntimeCall::CreateWorkload(
                 workload_spec.clone(),
                 Some(PIPES_LOCATION.into()),
-                wl_state_sender.clone(),
                 Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
             )])
             .await;
