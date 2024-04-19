@@ -11,14 +11,9 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-use super::workload_command_channel::WorkloadCommandReceiver;
-use crate::runtime_connectors::{RuntimeConnector, StateChecker};
-use crate::workload::WorkloadCommand;
-use crate::workload::WorkloadCommandSender;
-use crate::workload_state::{
-    WorkloadStateReceiver, WorkloadStateSender, WorkloadStateSenderInterface,
-};
-use crate::BUFFER_SIZE;
+use crate::runtime_connectors::StateChecker;
+use crate::workload::{ControlLoopState, WorkloadCommand};
+use crate::workload_state::WorkloadStateSenderInterface;
 use common::objects::{
     ExecutionState, RestartAllowed, WorkloadInstanceName, WorkloadSpec, WorkloadState,
 };
@@ -66,145 +61,6 @@ impl RetryCounter {
 
     pub fn current_retry(&self) -> usize {
         self.retry_counter
-    }
-}
-
-pub struct ControlLoopState<WorkloadId, StChecker>
-where
-    WorkloadId: ToString + Send + Sync + 'static,
-    StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
-{
-    pub workload_spec: WorkloadSpec,
-    pub control_interface_path: Option<PathBuf>,
-    pub workload_id: Option<WorkloadId>,
-    pub state_checker: Option<StChecker>,
-    pub workload_state_sender: WorkloadStateSender,
-    pub state_checker_workload_state_sender: WorkloadStateSender,
-    pub state_checker_workload_state_receiver: WorkloadStateReceiver,
-    pub runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>,
-    pub command_receiver: WorkloadCommandReceiver,
-    pub retry_sender: WorkloadCommandSender,
-    pub retry_counter: RetryCounter,
-}
-
-impl<WorkloadId, StChecker> ControlLoopState<WorkloadId, StChecker>
-where
-    WorkloadId: ToString + Send + Sync + 'static,
-    StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
-{
-    pub fn builder() -> ControlLoopStateBuilder<WorkloadId, StChecker> {
-        ControlLoopStateBuilder::new()
-    }
-
-    pub fn instance_name(&self) -> &WorkloadInstanceName {
-        &self.workload_spec.instance_name
-    }
-}
-
-// implement a builder pattern for the ControlLoopState using optional fields
-pub struct ControlLoopStateBuilder<WorkloadId, StChecker>
-where
-    WorkloadId: ToString + Send + Sync + 'static,
-    StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
-{
-    workload_spec: Option<WorkloadSpec>,
-    control_interface_path: Option<PathBuf>,
-    workload_id: Option<WorkloadId>,
-    state_checker: Option<StChecker>,
-    workload_state_sender: Option<WorkloadStateSender>,
-    runtime: Option<Box<dyn RuntimeConnector<WorkloadId, StChecker>>>,
-    workload_command_receiver: Option<WorkloadCommandReceiver>,
-    retry_sender: Option<WorkloadCommandSender>,
-    retry_counter: RetryCounter,
-}
-
-// implement the builder pattern for the ControlLoopState and return an error if a field was not provided
-impl<WorkloadId, StChecker> ControlLoopStateBuilder<WorkloadId, StChecker>
-where
-    WorkloadId: ToString + Send + Sync + 'static,
-    StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
-{
-    pub fn new() -> Self {
-        ControlLoopStateBuilder {
-            workload_spec: None,
-            control_interface_path: None,
-            workload_id: None,
-            state_checker: None,
-            workload_state_sender: None,
-            runtime: None,
-            workload_command_receiver: None,
-            retry_sender: None,
-            retry_counter: RetryCounter::new(),
-        }
-    }
-
-    pub fn workload_spec(mut self, workload_spec: WorkloadSpec) -> Self {
-        self.workload_spec = Some(workload_spec);
-        self
-    }
-
-    pub fn control_interface_path(mut self, control_interface_path: Option<PathBuf>) -> Self {
-        self.control_interface_path = control_interface_path;
-        self
-    }
-
-    pub fn workload_id(mut self, workload_id: Option<WorkloadId>) -> Self {
-        self.workload_id = workload_id;
-        self
-    }
-
-    pub fn state_checker(mut self, state_checker: Option<StChecker>) -> Self {
-        self.state_checker = state_checker;
-        self
-    }
-
-    pub fn workload_state_sender(mut self, update_state_tx: WorkloadStateSender) -> Self {
-        self.workload_state_sender = Some(update_state_tx);
-        self
-    }
-
-    pub fn runtime(mut self, runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>) -> Self {
-        self.runtime = Some(runtime);
-        self
-    }
-
-    pub fn workload_command_receiver(mut self, command_receiver: WorkloadCommandReceiver) -> Self {
-        self.workload_command_receiver = Some(command_receiver);
-        self
-    }
-
-    pub fn retry_sender(mut self, workload_channel: WorkloadCommandSender) -> Self {
-        self.retry_sender = Some(workload_channel);
-        self
-    }
-
-    pub fn build(self) -> Result<ControlLoopState<WorkloadId, StChecker>, String> {
-        let (state_checker_wl_state_sender, state_checker_wl_state_receiver) =
-            tokio::sync::mpsc::channel::<WorkloadState>(BUFFER_SIZE);
-
-        Ok(ControlLoopState {
-            workload_spec: self
-                .workload_spec
-                .ok_or_else(|| "WorkloadSpec is not set".to_string())?,
-            control_interface_path: self.control_interface_path,
-            workload_id: self.workload_id,
-            state_checker: self.state_checker,
-            workload_state_sender: self
-                .workload_state_sender
-                .ok_or_else(|| "WorkloadStateSender is not set".to_string())?,
-            state_checker_workload_state_sender: state_checker_wl_state_sender,
-            state_checker_workload_state_receiver: state_checker_wl_state_receiver,
-            runtime: self
-                .runtime
-                .ok_or_else(|| "RuntimeConnector is not set".to_string())?,
-            command_receiver: self
-                .workload_command_receiver
-                .ok_or_else(|| "WorkloadCommandReceiver is not set".to_string())?,
-            retry_sender: self
-                .retry_sender
-                .ok_or_else(|| "WorkloadCommandSender is not set".to_string())?,
-            retry_counter: self.retry_counter,
-        })
     }
 }
 
@@ -668,7 +524,7 @@ mod tests {
 
     use crate::{
         runtime_connectors::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
-        workload::{ControlLoopState, RetryCounter, WorkloadCommandSender, WorkloadControlLoop},
+        workload::{ControlLoopState, WorkloadCommandSender, WorkloadControlLoop},
         workload_state::assert_execution_state_sequence,
     };
 
