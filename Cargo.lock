@@ -36,6 +36,7 @@ dependencies = [
  "crossterm",
  "grpc",
  "mockall",
+ "mockall_double",
  "prost",
  "serde",
  "serde_json",

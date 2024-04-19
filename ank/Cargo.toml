@@ -43,3 +43,4 @@ crossterm = "0.27.0"
 [dev-dependencies]
 mockall = "0.11"
 common = { path = "../common", features = ["test_utils"] }
+mockall_double = "0.3"

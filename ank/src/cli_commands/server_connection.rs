@@ -23,6 +23,8 @@ use common::{
     objects::CompleteState,
     to_server_interface::{ToServerInterface, ToServerSender},
 };
+#[cfg(test)]
+use mockall::automock;
 
 const WAIT_TIME_MS: Duration = Duration::from_millis(3000);
 
@@ -37,6 +39,7 @@ pub struct ServerConnection {
     missed_from_server_messages: Vec<FromServer>,
 }
 
+#[cfg_attr(test, automock)]
 impl ServerConnection {
     pub fn new(
         to_server: ToServerSender,
