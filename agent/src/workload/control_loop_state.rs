@@ -29,11 +29,15 @@ where
     pub control_interface_path: Option<PathBuf>,
     pub workload_id: Option<WorkloadId>,
     pub state_checker: Option<StChecker>,
+    // sender to forward workload states to the agent manager
     pub workload_state_sender: WorkloadStateSender,
+    // sender passed to the state checker
     pub state_checker_workload_state_sender: WorkloadStateSender,
+    // sender to listen to the state checker workload states
     pub state_checker_workload_state_receiver: WorkloadStateReceiver,
     pub runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>,
     pub command_receiver: WorkloadCommandReceiver,
+    // sender to forward retry commands to the control loop
     pub retry_sender: WorkloadCommandSender,
     pub retry_counter: RetryCounter,
 }
@@ -68,7 +72,6 @@ where
     pub retry_counter: RetryCounter,
 }
 
-// implement the builder pattern for the ControlLoopState and return an error if a field was not provided
 impl<WorkloadId, StChecker> ControlLoopStateBuilder<WorkloadId, StChecker>
 where
     WorkloadId: ToString + Send + Sync + 'static,
