@@ -2263,7 +2263,7 @@ mod tests {
                         "workload A": "ADD_COND_RUNNING",
                         "workload C": "ADD_COND_SUCCEEDED"
                     },
-                    "restartPolicy": "ALWAYS",
+                    "restartPolicy": "NEVER",
                     "runtime": "podman",
                     "runtimeConfig": "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
                     }
@@ -2318,7 +2318,7 @@ mod tests {
                             "workload A": "ADD_COND_RUNNING",
                             "workload C": "ADD_COND_SUCCEEDED"
                         },
-                        "restartPolicy": "ALWAYS",
+                        "restartPolicy": "NEVER",
                         "runtime": "podman",
                         "runtimeConfig": "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
                     },

@@ -326,7 +326,7 @@ pub fn generate_test_workload_spec_with_runtime_config(
     WorkloadSpec {
         instance_name,
         dependencies: generate_test_dependencies(),
-        restart_policy: RestartPolicy::Always,
+        restart_policy: RestartPolicy::Never,
         runtime: runtime_name,
         tags: vec![Tag {
             key: "key".into(),
