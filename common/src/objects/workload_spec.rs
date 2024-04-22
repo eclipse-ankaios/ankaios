@@ -673,4 +673,41 @@ mod tests {
             )
         );
     }
+
+    #[test]
+    fn utest_is_restart_allowed_never() {
+        let restart_policy = RestartPolicy::Never;
+        assert!(!restart_policy.is_restart_allowed(&ExecutionState::running()));
+        assert!(!restart_policy.is_restart_allowed(&ExecutionState::succeeded()));
+        assert!(
+            !restart_policy.is_restart_allowed(&ExecutionState::failed("some failure".to_string()))
+        );
+    }
+
+    #[test]
+    fn utest_is_restart_allowed_on_failure() {
+        let restart_policy = RestartPolicy::OnFailure;
+        assert!(!restart_policy.is_restart_allowed(&ExecutionState::running()));
+        assert!(
+            restart_policy.is_restart_allowed(&ExecutionState::failed("some failure".to_string()))
+        );
+        assert!(!restart_policy.is_restart_allowed(&ExecutionState::succeeded()));
+    }
+
+    #[test]
+    fn utest_is_restart_allowed_always() {
+        let restart_policy = RestartPolicy::Always;
+        assert!(!restart_policy.is_restart_allowed(&ExecutionState::running()));
+        assert!(
+            restart_policy.is_restart_allowed(&ExecutionState::failed("some failure".to_string()))
+        );
+        assert!(restart_policy.is_restart_allowed(&ExecutionState::succeeded()));
+    }
+
+    #[test]
+    fn utest_restart_display() {
+        assert_eq!(RestartPolicy::Never.to_string(), "Never");
+        assert_eq!(RestartPolicy::OnFailure.to_string(), "OnFailure");
+        assert_eq!(RestartPolicy::Always.to_string(), "Always");
+    }
 }
