@@ -5,9 +5,10 @@ use mockall::automock;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::PipesChannelContext;
+#[cfg_attr(test, mockall_double::double)]
+use crate::control_interface::PipesChannelContextInfo;
 
 use crate::{
-    control_interface::PipesChannelContextInfo,
     runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker},
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
@@ -94,14 +95,14 @@ impl<
         let update_state_tx = update_state_tx.clone();
 
         // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-        let (control_interface_path, control_interface) = match control_interface_info.as_ref() {
+        let (control_interface_path, control_interface) = match control_interface_info {
             Some(info) => (
                 Some(
                     workload_spec
                         .instance_name
-                        .pipes_folder_name(&info.run_folder),
+                        .pipes_folder_name(info.get_run_folder()),
                 ),
-                PipesChannelContext::try_from(&control_interface_info).ok(),
+                info.make_context(),
             ),
             None => (None, None),
         };
@@ -266,6 +267,7 @@ mod tests {
 
     use crate::{
         control_interface::MockPipesChannelContext,
+        control_interface::MockPipesChannelContextInfo,
         runtime_connectors::{
             runtime_connector::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
             GenericRuntimeFacade, OwnableRuntime, RuntimeFacade,
@@ -321,11 +323,16 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let mut control_interface_mock = MockPipesChannelContext::default();
-        control_interface_mock
-            .expect_get_api_location()
+        let control_interface_context = MockPipesChannelContext::default();
+        let mut mock_pipes_channel_context_info = MockPipesChannelContextInfo::default();
+        mock_pipes_channel_context_info
+            .expect_get_run_folder()
             .once()
-            .return_const(PIPES_LOCATION);
+            .return_const(PIPES_LOCATION.into());
+        mock_pipes_channel_context_info
+            .expect_make_context()
+            .once()
+            .return_once(|| Some(control_interface_context));
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -361,7 +368,7 @@ mod tests {
 
         let _workload = test_runtime_facade.create_workload(
             workload_spec.clone(),
-            Some(control_interface_mock),
+            Some(mock_pipes_channel_context_info),
             &wl_state_sender,
         );
 

@@ -28,12 +28,14 @@ use common::{
 use crate::control_interface::PipesChannelContext;
 
 #[cfg_attr(test, mockall_double::double)]
+use crate::control_interface::PipesChannelContextInfo;
+
+#[cfg_attr(test, mockall_double::double)]
 use crate::workload_scheduler::scheduler::WorkloadScheduler;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_state::workload_state_store::WorkloadStateStore;
 use crate::{
-    control_interface::PipesChannelContextInfo,
     runtime_connectors::RuntimeFacade,
     workload_operation::WorkloadOperation,
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
@@ -419,7 +421,7 @@ impl RuntimeManager {
             &workload_spec.instance_name,
         );
         let workload_name = pipes_channel_context_info
-            .workload_instance_name
+            .get_workload_instance_name()
             .workload_name()
             .to_owned();
         if let Some(workload) = self.workloads.get_mut(&workload_name) {
@@ -485,7 +487,7 @@ impl RuntimeManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::control_interface::MockPipesChannelContext;
+    use crate::control_interface::{MockPipesChannelContext, MockPipesChannelContextInfo};
     use crate::runtime_connectors::{MockRuntimeFacade, RuntimeError};
     use crate::workload::{MockWorkload, WorkloadError};
     use crate::workload_scheduler::scheduler::MockWorkloadScheduler;
@@ -552,11 +554,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
             .expect()
             .times(2)
-            .returning(|_, _, _| Ok(MockPipesChannelContext::default()));
+            .returning(|_, _, _| MockPipesChannelContextInfo::default());
 
         let new_workload_1 = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -637,11 +639,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let workload_with_unknown_runtime = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -694,11 +696,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -832,11 +834,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let existing_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1085,17 +1087,23 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
-            .expect()
-            .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
-
         let new_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
+
+        let mut pipes_channel_info_mock = MockPipesChannelContextInfo::default();
+        pipes_channel_info_mock
+            .expect_get_workload_instance_name()
+            .once()
+            .return_const(new_workload.instance_name.clone());
+
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
+            .expect()
+            .once()
+            .return_once(|_, _, _| pipes_channel_info_mock);
 
         let old_workload =
             generate_test_deleted_workload(AGENT_NAME.to_string(), WORKLOAD_1_NAME.to_string());
@@ -1142,7 +1150,7 @@ mod tests {
                             .workload_name()
                             == WORKLOAD_1_NAME
                 }),
-                predicate::function(|control_interface: &Option<PipesChannelContext>| {
+                predicate::function(|control_interface: &Option<PipesChannelContextInfo>| {
                     control_interface.is_some()
                 }),
             )
@@ -1174,11 +1182,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let new_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1263,11 +1271,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let new_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1326,17 +1334,23 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
-            .expect()
-            .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
-
         let new_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
+
+        let mut pipes_channel_info_mock = MockPipesChannelContextInfo::default();
+        pipes_channel_info_mock
+            .expect_get_workload_instance_name()
+            .once()
+            .return_const(new_workload.instance_name.clone());
+
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
+            .expect()
+            .once()
+            .return_once(|_, _, _| pipes_channel_info_mock);
 
         let old_workload = generate_test_deleted_workload_with_dependencies(
             AGENT_NAME.to_owned(),
@@ -1407,11 +1421,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let new_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1557,7 +1571,7 @@ mod tests {
             .once()
             .with(
                 predicate::eq(None), // in case of update delete only there is no new workload spec
-                predicate::function(|control_interface: &Option<PipesChannelContext>| {
+                predicate::function(|control_interface: &Option<PipesChannelContextInfo>| {
                     control_interface.is_none()
                 }),
             )
@@ -1798,11 +1812,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
+        let pipes_channel_mock = MockPipesChannelContextInfo::new_context();
         pipes_channel_mock
             .expect()
             .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let next_workload_operations = vec![WorkloadOperation::Create(
             generate_test_workload_spec_with_dependencies(
@@ -2119,11 +2133,11 @@ mod tests {
             .once()
             .return_once(|_| MockWorkloadScheduler::default());
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
@@ -2235,11 +2249,23 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default().build();
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
+        let new_workload = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_owned(),
+            WORKLOAD_1_NAME.to_owned(),
+            RUNTIME_NAME.to_owned(),
+        );
+
+        let mut pipes_channel_info_mock = MockPipesChannelContextInfo::default();
+        pipes_channel_info_mock
+            .expect_get_workload_instance_name()
+            .once()
+            .return_const(new_workload.instance_name.clone());
+
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+            .return_once(|_, _, _| pipes_channel_info_mock);
 
         let mut workload_mock = MockWorkload::default();
         workload_mock
@@ -2250,12 +2276,6 @@ mod tests {
         runtime_manager
             .workloads
             .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
-
-        let new_workload = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_owned(),
-            WORKLOAD_1_NAME.to_owned(),
-            RUNTIME_NAME.to_owned(),
-        );
 
         let deleted_workload =
             generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());

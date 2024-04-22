@@ -26,7 +26,9 @@ use std::{fmt::Display, path::PathBuf};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::PipesChannelContext;
+#[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::PipesChannelContextInfo;
+
 use common::{
     commands::{self, ResponseContent},
     from_server_interface::FromServer,
@@ -83,14 +85,50 @@ impl Workload {
         }
     }
     // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-    fn update_control_interface(
+    fn set_control_interface(
         &mut self,
-        pipes_channel_context_info: &Option<PipesChannelContextInfo>,
+        pipes_channel_context_info: Option<PipesChannelContextInfo>,
     ) {
         if let Some(control_interface) = self.control_interface.take() {
             control_interface.abort_pipes_channel_task()
         }
-        self.control_interface = PipesChannelContext::try_from(pipes_channel_context_info).ok();
+        self.control_interface = match pipes_channel_context_info {
+            Some(info) => info.make_context(),
+            None => None,
+        };
+    }
+
+    fn update_control_interface(
+        &mut self,
+        spec: &Option<WorkloadSpec>,
+        pipes_channel_context_info: Option<PipesChannelContextInfo>,
+    ) {
+        match (&mut self.control_interface, spec) {
+            (None, None) => (),
+            (Some(_current), None) => self.set_control_interface(None),
+            (None, Some(_new)) => self.set_control_interface(pipes_channel_context_info),
+            (Some(current), Some(new_spec)) => {
+                match (
+                    current.get_api_location().to_str(),
+                    pipes_channel_context_info.as_ref(),
+                ) {
+                    (None, None) => (),
+                    (None, Some(_new)) => self.set_control_interface(pipes_channel_context_info),
+                    (Some(_current_api_location), None) => self.set_control_interface(None),
+                    (Some(current_api_location), Some(new_pipes_channel_context_info)) => {
+                        let new_control_interface_location = new_spec
+                            .instance_name
+                            .pipes_folder_name(new_pipes_channel_context_info.get_run_folder());
+
+                        if !current_api_location
+                            .contains(new_control_interface_location.to_str().unwrap())
+                        {
+                            self.set_control_interface(pipes_channel_context_info);
+                        }
+                    }
+                };
+            }
+        }
     }
 
     // [impl->swdd~agent-workload-obj-update-command~1]
@@ -101,34 +139,7 @@ impl Workload {
     ) -> Result<(), WorkloadError> {
         log::info!("Updating workload '{}'.", self.name);
 
-        match (&mut self.control_interface, spec.as_ref()) {
-            (None, None) => (),
-            (Some(_current), None) => self.update_control_interface(&None),
-            (None, Some(_new)) => self.update_control_interface(&pipes_channel_context_info),
-            (Some(current), Some(new_spec)) => {
-                match (
-                    current.get_api_location().to_str(),
-                    pipes_channel_context_info.as_ref(),
-                ) {
-                    (None, None) => (),
-                    (None, Some(_new)) => {
-                        self.update_control_interface(&pipes_channel_context_info)
-                    }
-                    (Some(_current_api_location), None) => self.update_control_interface(&None),
-                    (Some(current_api_location), Some(new_pipes_channel_context_info)) => {
-                        let new_control_interface_location = new_spec
-                            .instance_name
-                            .pipes_folder_name(&new_pipes_channel_context_info.run_folder);
-
-                        if !current_api_location
-                            .contains(new_control_interface_location.to_str().unwrap())
-                        {
-                            self.update_control_interface(&pipes_channel_context_info);
-                        }
-                    }
-                };
-            }
-        }
+        self.update_control_interface(&spec, pipes_channel_context_info);
 
         let control_interface_path = self
             .control_interface
@@ -202,6 +213,7 @@ mod tests {
 
     use crate::{
         control_interface::MockPipesChannelContext,
+        control_interface::MockPipesChannelContextInfo,
         workload::{Workload, WorkloadCommand, WorkloadCommandSender, WorkloadError},
     };
 
@@ -255,6 +267,10 @@ mod tests {
 
         let mut old_control_interface_mock = MockPipesChannelContext::default();
         old_control_interface_mock
+            .expect_get_api_location()
+            .once()
+            .return_const(PIPES_LOCATION);
+        old_control_interface_mock
             .expect_abort_pipes_channel_task()
             .once()
             .return_const(());
@@ -264,6 +280,16 @@ mod tests {
             .expect_get_api_location()
             .once()
             .return_const(PIPES_LOCATION);
+
+        let mut new_control_interface_info_mock = MockPipesChannelContextInfo::default();
+        new_control_interface_info_mock
+            .expect_get_run_folder()
+            .once()
+            .return_const(PIPES_LOCATION.into());
+        new_control_interface_info_mock
+            .expect_make_context()
+            .once()
+            .return_once(|| Some(new_control_interface_mock));
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -280,7 +306,7 @@ mod tests {
         test_workload
             .update(
                 Some(workload_spec.clone()),
-                Some(new_control_interface_mock),
+                Some(new_control_interface_info_mock),
             )
             .await
             .unwrap();
@@ -311,15 +337,23 @@ mod tests {
 
         let mut old_control_interface_mock = MockPipesChannelContext::default();
         old_control_interface_mock
+            .expect_get_api_location()
+            .once()
+            .return_const(PIPES_LOCATION);
+        old_control_interface_mock
             .expect_abort_pipes_channel_task()
             .once()
             .return_const(());
 
-        let mut new_control_interface_mock = MockPipesChannelContext::default();
+        let mut new_control_interface_mock = MockPipesChannelContextInfo::default();
         new_control_interface_mock
-            .expect_get_api_location()
+            .expect_get_run_folder()
             .once()
-            .return_const(PIPES_LOCATION);
+            .return_const(PIPES_LOCATION.into());
+        new_control_interface_mock
+            .expect_make_context()
+            .once()
+            .return_once(|| None);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
