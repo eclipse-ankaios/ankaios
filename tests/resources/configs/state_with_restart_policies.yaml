@@ -40,10 +40,10 @@ workloads:
         apiVersion: v1
         kind: Pod
         metadata:
-          name: restarted-pod
+          name: kube_restarted_always
         spec:
           restartPolicy: Never
           containers:
-          - name: kube-container
+          - name: kube_restarted_always
             image: docker.io/alpine:latest
             command: ["/bin/sh", "-c", 'echo "kube container always restarted."; sleep 2; exit 1']

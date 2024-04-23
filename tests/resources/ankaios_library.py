@@ -87,6 +87,23 @@ def get_volume_names_from_podman():
     logger.trace(vol_names)
     return vol_names
 
+def get_workload_id_and_ankaios_workload_name_by_name_from_podman(workload_name):
+    res = run_command('podman ps -a --no-trunc --format="{{{{.ID}}}} {{{{.Names}}}}" --filter=name={}.*'.format(workload_name))
+    raw = res.stdout.strip()
+    raw_wln = raw.split('\n')
+    workload_ids_and_names = list(map(lambda x: x.split(' '), raw_wln)) # 2-dim [[name,id],[name,id],...]
+    logger.trace(workload_ids_and_names)
+    amount_of_rows = len(workload_ids_and_names)
+    expected_amount_of_rows = 1
+    assert amount_of_rows == expected_amount_of_rows, \
+        f"Expected {expected_amount_of_rows} row for workload name {workload_name} but found {amount_of_rows} rows"
+    amount_of_columns = len(workload_ids_and_names[0])
+    expected_amount_of_columns = 2
+    if amount_of_columns < expected_amount_of_columns:
+        return "", ""
+    # return name and id
+    return workload_ids_and_names[0][0], workload_ids_and_names[0][1]
+
 def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_in_sec=0.25):
         start_time = get_time_secs()
         logger.trace(run_command("ps aux | grep ank").stdout)

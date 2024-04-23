@@ -329,6 +329,25 @@ list of workloads shall be empty
     @{list_result}=    Create List
     Should Be Empty    item=${list_result}
 
+the workload "${workload_name}" shall have a different id but same configuration on the runtime
+    ${start_time}=    Get Time Secs
+    ${workload_id}    ${ankaios_workload_name}    Get Workload Id And Ankaios Workload Name By Name From Podman    ${workload_name}
+    WHILE    True
+        ${next_workload_id}    ${next_ankaios_workload_name}    Get Workload Id And Ankaios Workload Name By Name From Podman    ${workload_name}
+        IF    '${workload_id}' == '' or '${ankaios_workload_name}' == ''
+            CONTINUE
+        END
+        ${current_secs}=    Get Time Secs
+        ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
+        IF    '${workload_id}' != '${next_workload_id}' and '${ankaios_workload_name}' == '${next_ankaios_workload_name}'
+            ${id_changed}=    Set Variable    ${True}
+            BREAK
+        END
+        IF    ${elapsed_secs} >= 10    BREAK
+    END
+
+    Should Be True    ${id_changed}    msg=Workload '${workload_name}' has the same id '${workload_id}' and the same configuration on podman!
+
 # ALIASES
 
 the command "${cli_command}" finished with exit code "${exit_code}"
