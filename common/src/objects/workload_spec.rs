@@ -175,6 +175,8 @@ pub trait RestartAllowed {
 }
 
 impl RestartAllowed for RestartPolicy {
+    // [impl->swdd~agent-restarts-workload-with-enabled-restart-policy~1]
+    // [impl->swdd~agent-no-restart-with-disabled-restart-policy~1]
     fn is_restart_allowed(&self, execution_state: &ExecutionState) -> bool {
         match self {
             RestartPolicy::Never => false,
@@ -674,6 +676,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~agent-no-restart-with-disabled-restart-policy~1]
     #[test]
     fn utest_is_restart_allowed_never() {
         let restart_policy = RestartPolicy::Never;
@@ -684,6 +687,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~agent-restarts-workload-with-enabled-restart-policy~1]
     #[test]
     fn utest_is_restart_allowed_on_failure() {
         let restart_policy = RestartPolicy::OnFailure;
@@ -694,6 +698,7 @@ mod tests {
         assert!(!restart_policy.is_restart_allowed(&ExecutionState::succeeded()));
     }
 
+    // [utest->swdd~agent-restarts-workload-with-enabled-restart-policy~1]
     #[test]
     fn utest_is_restart_allowed_always() {
         let restart_policy = RestartPolicy::Always;

@@ -76,6 +76,7 @@ impl WorkloadControlLoop {
     {
         loop {
             tokio::select! {
+                // [impl->swdd~workload-control-loop-receives-workload-states~1]
                 received_workload_state = control_loop_state.state_checker_workload_state_receiver.recv() => {
                     log::trace!("Received new workload state for workload '{}'",
                         control_loop_state.workload_spec.instance_name.workload_name());
@@ -84,6 +85,7 @@ impl WorkloadControlLoop {
                         .ok_or("Channel to listen to workload states of state checker closed.")
                         .unwrap_or_exit("Abort");
 
+                    // [impl->swdd~workload-control-loop-handles-workload-restarts~1]
                     control_loop_state = Self::handle_restart_on_received_workload_state(control_loop_state, new_workload_state).await;
                     log::trace!("Restart handling done.");
                 }
@@ -146,6 +148,7 @@ impl WorkloadControlLoop {
         }
     }
 
+    // [impl->swdd~workload-control-loop-handles-workload-restarts~1]
     async fn handle_restart_on_received_workload_state<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         new_workload_state: WorkloadState,
@@ -160,6 +163,7 @@ impl WorkloadControlLoop {
 
         /* forward immediately the new workload state to the agent manager
         to avoid delays through the restart handling */
+        // [impl->swdd~workload-control-loop-sends-workload-states~1]
         control_loop_state
             .workload_state_sender
             .report_workload_execution_state(
@@ -169,6 +173,7 @@ impl WorkloadControlLoop {
             .await;
 
         if is_restart_allowed {
+            // [impl->swdd~agent-restarts-workload-with-enabled-restart-policy~1]
             log::debug!(
                 "Restart workload '{}' with restart policy '{}' caused by current execution state.",
                 control_loop_state
@@ -182,6 +187,7 @@ impl WorkloadControlLoop {
             let control_interface_path = control_loop_state.control_interface_path.clone();
 
             // update the workload with its existing config since a restart is represented by an update operation
+            // [impl->swdd~workload-control-loop-restarts-workloads-using-update~1]
             control_loop_state = Self::update(
                 control_loop_state,
                 Some(Box::new(workload_spec)),
@@ -189,6 +195,7 @@ impl WorkloadControlLoop {
             )
             .await;
         } else {
+            // [impl->swdd~agent-no-restart-with-disabled-restart-policy~1]
             log::trace!(
                 "Restart not allowed for workload '{}'.",
                 control_loop_state
@@ -1996,6 +2003,8 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
+    // [utest->swdd~workload-control-loop-receives-workload-states~1]
+    // [utest->swdd~workload-control-loop-sends-workload-states~1]
     #[tokio::test]
     async fn utest_forward_received_workload_states_of_state_checker() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -2064,6 +2073,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
+    // [utest->swdd~workload-control-loop-receives-workload-states~1]
     #[tokio::test]
     #[should_panic]
     async fn utest_panic_on_closed_workload_state_channel() {
@@ -2113,6 +2123,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
+    // [utest->swdd~workload-control-loop-handles-workload-restarts~1]
     #[tokio::test]
     async fn utest_restart_no_restart_of_workload_with_restart_policy_never() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -2160,6 +2171,8 @@ mod tests {
         assert_eq!(new_control_loop_state.workload_id, Some(WORKLOAD_ID.into()));
     }
 
+    // [utest->swdd~workload-control-loop-handles-workload-restarts~1]
+    // [utest->swdd~workload-control-loop-restarts-workloads-using-update~1]
     #[tokio::test]
     async fn utest_restart_of_exited_workload_when_restart_allowed() {
         let _ = env_logger::builder().is_test(true).try_init();

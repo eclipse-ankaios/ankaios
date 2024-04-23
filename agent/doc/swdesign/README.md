@@ -65,7 +65,7 @@ Thus, the following WorkloadCommands exists:
 
 ### WorkloadControlLoop
 
-The WorkloadControlLoop is started for each workload with the creation of that workload and is running until its deletion. The WorkloadControlLoop receives the WorkloadCommands via the WorkloadCommandSender and triggers the corresponding operation on the runtime connector.
+The WorkloadControlLoop is started for each workload with the creation of that workload and is running until its deletion. The WorkloadControlLoop receives the WorkloadCommands via the WorkloadCommandSender and triggers the corresponding operation on the runtime connector. Furthermore, it receives the workload states of the workload it manages from the state checker and handles workload restarts according to the workload's configured restart policy.
 
 ### WorkloadCommandSender
 
@@ -1102,7 +1102,7 @@ Needs:
 - utest
 - stest
 
-#### The agent enqueues delete with unfulfilled delete conditions
+#### Agent enqueues delete with unfulfilled delete conditions
 `swdd~agent-enqueues-unfulfilled-delete~1`
 
 Status: approved
@@ -1193,7 +1193,7 @@ Needs:
 - impl
 - utest
 
-#### The agent ignores a delete only operation of an update
+#### Agent ignores a delete only operation of an update
 `swdd~agent-shall-not-enqueue-update-delete-only-workload-operation~1`
 
 Status: approved
@@ -1333,11 +1333,11 @@ Needs:
 - utest
 
 #### WorkloadControlLoop sends workload states to server
-`swdd~workload-control-loop-sends-workload-states~1`l
+`swdd~workload-control-loop-sends-workload-states~1`
 
 Status: approved
 
-When the WorkloadControlLoop receives the workload states, then the WorkloadControlLoop shall send the workload state to the AgentManager.
+When the WorkloadControlLoop receives a new workload state, then the WorkloadControlLoop shall send the workload state to the AgentManager.
 
 Rationale:
 The AgentManager requires the knowledge about the workload states of all workloads.
@@ -1349,15 +1349,17 @@ Needs:
 - impl
 - utest
 
-#### WorkloadControlLoop compares execution state with restart policy
-`swdd~workload-control-loop-compares-workload-state-with-restart-policy~1`
+#### WorkloadControlLoop handles restarts of workloads
+`swdd~workload-control-loop-handles-workload-restarts~1`
 
 Status: approved
 
-When the WorkloadControlLoop receives a new workload state, then the WorkloadControlLoop compares the `ExecutionState` of the workload state with the configured restart policy.
+When the WorkloadControlLoop receives a new workload state, then the WorkloadControlLoop shall:
+- triggers the check of the permissibility of the restart
+- execute the restart of the workload it manages based on the result of the comparison
 
 Rationale:
-The execution of the restart policy depends on the workload state.
+The execution of a restart of the workload depends on the workload state and the configured restart policy.
 
 Tags:
 - WorkloadControlLoop
@@ -1366,16 +1368,53 @@ Needs:
 - impl
 - utest
 
-#### WorkloadControlLoop restarts workloads
-`swdd~workload-control-loop-restarts-workloads~1`
+#### Agent restarts workload with enabled restart policy
+`swdd~agent-restarts-workload-with-enabled-restart-policy~1`
 
 Status: approved
 
 When:
-the workload's `ExecutionState` is `Succeeded(Ok)` and the workload's `restartPolicy` field contains the value `ALWAYS` or
-the workload's `ExecutionState` is `Failed(ExecFailed)` and the workload's `restartPolicy` field contains the value `ON_FAILURE`,
-then the WorkloadControlLoop shall:
-- store the workload configuration of the existing workload
+the workload's `ExecutionState` is `Succeeded(Ok)` and the workload's configured `RestartPolicy` contains the value `ALWAYS` or
+the workload's `ExecutionState` is `Failed(ExecFailed)` and the workload's configured `RestartPolicy` contains the value `ON_FAILURE`,
+then the WorkloadControlLoop shall restart the workload.
+
+Rationale:
+The restart depends on the execution state of the workload.
+
+Tags:
+- WorkloadControlLoop
+- RestartPolicy
+
+Needs:
+- impl
+- utest
+- stest
+
+#### Agent does not restart a workload with disabled restart policy
+`swdd~agent-no-restart-with-disabled-restart-policy~1`
+
+Status: approved
+
+When the workload's configured `RestartPolicy` contains the value `NEVER`, then the WorkloadControlLoop shall not restart the workload.
+
+Rationale:
+The user has explicitly configured the workload to prevent its restart or to apply the default value of "NEVER" in the workload configuration.
+
+Tags:
+- WorkloadControlLoop
+- RestartPolicy
+
+Needs:
+- impl
+- utest
+- stest
+
+#### WorkloadControlLoop restarts workloads using the update operation
+`swdd~workload-control-loop-restarts-workloads-using-update~1`
+
+Status: approved
+
+When the WorkloadControlLoop executes restarts of the workload, then the WorkloadControlLoop shall:
 - delete the existing workload via the corresponding runtime connector
 - create a new workload with the stored workload configuration via the corresponding runtime connector
 
@@ -1391,25 +1430,6 @@ Tags:
 Needs:
 - impl
 - utest
-- stest
-
-<!-- prepared but not needed -->
-<!-- #### WorkloadControlLoop ignores restarts of workloads
-`swdd~workload-control-loop-ignores-restarts~1`
-
-Status: approved
-
-When the `restartPolicy` field of a workload contains the value `NEVER`, then the WorkloadControlLoop shall not update the workload.
-
-Rationale:
-The user has explicitly configured the system to prevent the workload from being restarted or to apply the default value of "NEVER" in the workload configuration.
-
-Tags:
-- WorkloadControlLoop
-
-Needs:
-- impl
-- utest -->
 
 ### Retry creation of workloads
 
