@@ -22,6 +22,7 @@ use mockall::automock;
 #[cfg_attr(test, mockall_double::double)]
 use super::PipesChannelContext;
 
+#[derive(Debug)]
 pub struct PipesChannelContextInfo {
     run_folder: PathBuf,
     workload_instance_name: WorkloadInstanceName,
@@ -70,4 +71,69 @@ impl PipesChannelContextInfo {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+    use common::to_server_interface::ToServer;
+    use crate::control_interface::MockPipesChannelContext;
+    use crate::control_interface::PipesChannelContextError;
+
+    const WORKLOAD_1_NAME: &str = "workload1";
+    const PIPES_LOCATION: &str = "/some/path";
+
+    #[test]
+    fn utest_new() {
+        let workload_instance_name = WorkloadInstanceName::builder()
+            .workload_name(WORKLOAD_1_NAME)
+            .build();
+
+        let new_context_info = PipesChannelContextInfo::new(&Path::new(PIPES_LOCATION), tokio::sync::mpsc::channel::<ToServer>(1).0, &workload_instance_name);
+
+        assert_eq!(Path::new(PIPES_LOCATION).to_path_buf(), new_context_info.run_folder);
+        assert_eq!(workload_instance_name, new_context_info.workload_instance_name);
+    }
+
+    #[test]
+    fn utest_get_run_folder() {
+        let path = &Path::new(PIPES_LOCATION);
+        let new_context_info = PipesChannelContextInfo::new(path, tokio::sync::mpsc::channel::<ToServer>(1).0, &WorkloadInstanceName::builder()
+        .workload_name(WORKLOAD_1_NAME)
+        .build());
+
+        assert_eq!(&path.to_path_buf(), new_context_info.get_run_folder());
+    }
+
+    #[test]
+    fn utest_get_workload_instance_name() {
+        let workload_instance_name = WorkloadInstanceName::builder()
+            .workload_name(WORKLOAD_1_NAME)
+            .build();
+
+        let new_context_info = PipesChannelContextInfo::new(&Path::new(PIPES_LOCATION), tokio::sync::mpsc::channel::<ToServer>(1).0, &workload_instance_name);
+
+        assert_eq!(&workload_instance_name, new_context_info.get_workload_instance_name());
+    }
+
+    #[test]
+    fn utest_make_context_ok() {
+        let new_context_info = PipesChannelContextInfo::new(&Path::new(PIPES_LOCATION), tokio::sync::mpsc::channel::<ToServer>(1).0, &WorkloadInstanceName::builder()
+        .workload_name(WORKLOAD_1_NAME)
+        .build());
+
+        let pipes_channel_context_mock = MockPipesChannelContext::new_context();
+        pipes_channel_context_mock.expect().once().return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+
+        assert!(matches!(new_context_info.make_context(), Some(_)));
+    }
+
+    #[test]
+    fn utest_make_context_failed() {
+        let new_context_info = PipesChannelContextInfo::new(&Path::new(PIPES_LOCATION), tokio::sync::mpsc::channel::<ToServer>(1).0, &WorkloadInstanceName::builder()
+        .workload_name(WORKLOAD_1_NAME)
+        .build());
+
+        let pipes_channel_context_mock = MockPipesChannelContext::new_context();
+        pipes_channel_context_mock.expect().once().return_once(|_, _, _| Err(PipesChannelContextError::CouldNotCreateFifo(String::from("error"))));
+
+        assert!(matches!(new_context_info.make_context(), None));
+    }
+}
