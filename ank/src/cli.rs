@@ -89,7 +89,8 @@ pub enum GetCommands {
         object_field_mask: Vec<String>,
     },
     /// Information about workloads of the Ankaios system
-    #[clap(visible_alias("workloads"))]
+    /// For automation use "ank get state -o json" and process the workloadStates
+    #[clap(visible_alias("workloads"), verbatim_doc_comment)]
     Workload {
         /// Only workloads of the given agent shall be output
         #[arg(short = 'a', long = "agent", required = false)]
