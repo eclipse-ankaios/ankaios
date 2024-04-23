@@ -264,6 +264,7 @@ mod tests {
     use common::objects::{
         generate_test_workload_spec_with_param, ExecutionState, WorkloadInstanceName,
     };
+    use std::path::{Path, PathBuf};
 
     use crate::{
         control_interface::MockPipesChannelContext,
@@ -282,6 +283,10 @@ mod tests {
     const WORKLOAD_ID: &str = "workload_id_1";
     const PIPES_LOCATION: &str = "/some/path";
     const TEST_CHANNEL_BUFFER_SIZE: usize = 20;
+    fn pipes_folder_name(workload_instance_name: &WorkloadInstanceName) -> PathBuf {
+        workload_instance_name
+            .pipes_folder_name(&Path::new(PIPES_LOCATION))
+    }
 
     // [utest->swdd~agent-facade-forwards-list-reusable-workloads-call~1]
     #[tokio::test]
@@ -324,21 +329,22 @@ mod tests {
             .await;
 
         let control_interface_context = MockPipesChannelContext::default();
-        let mut mock_pipes_channel_context_info = MockPipesChannelContextInfo::default();
-        mock_pipes_channel_context_info
-            .expect_get_run_folder()
-            .once()
-            .return_const(PIPES_LOCATION.into());
-        mock_pipes_channel_context_info
-            .expect_make_context()
-            .once()
-            .return_once(|| Some(control_interface_context));
-
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
+
+        let mut pipes_channel_info_mock = MockPipesChannelContextInfo::default();
+
+        pipes_channel_info_mock
+            .expect_get_run_folder()
+            .once()
+            .return_const(PIPES_LOCATION.into());
+        pipes_channel_info_mock
+            .expect_make_context()
+            .once()
+            .return_once(|| Some(control_interface_context));
 
         let (wl_state_sender, _wl_state_receiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
@@ -354,7 +360,7 @@ mod tests {
         runtime_mock
             .expect(vec![RuntimeCall::CreateWorkload(
                 workload_spec.clone(),
-                Some(PIPES_LOCATION.into()),
+                Some(pipes_folder_name(&workload_spec.instance_name)),
                 wl_state_sender.clone(),
                 Ok((WORKLOAD_ID.to_string(), StubStateChecker::new())),
             )])
@@ -368,7 +374,7 @@ mod tests {
 
         let _workload = test_runtime_facade.create_workload(
             workload_spec.clone(),
-            Some(mock_pipes_channel_context_info),
+            Some(pipes_channel_info_mock),
             &wl_state_sender,
         );
 

@@ -287,7 +287,7 @@ pub mod test {
                 }
                 expected_call => {
                     self.unexpected_call().await;
-                    panic!("Unexpected get_reusable_running_workloads call. Expected: '{expected_call:?}'");
+                    panic!("Unexpected get_reusable_running_workloads call. Expected: '{expected_call:?}'\n\nGot: {agent_name:?}");
                 }
             }
         }
@@ -312,7 +312,7 @@ pub mod test {
                 }
                 expected_call => {
                     self.unexpected_call().await;
-                    panic!("Unexpected create_workload call. Expected: '{expected_call:?}'");
+                    panic!("Unexpected create_workload call. Expected: '{expected_call:?}'\n\nGot: {runtime_workload_config:?}, {control_interface_path:?}, {update_state_tx:?}");
                 }
             }
         }
@@ -329,7 +329,7 @@ pub mod test {
                 }
                 expected_call => {
                     self.unexpected_call().await;
-                    panic!("Unexpected get_workload_id call. Expected: '{expected_call:?}'");
+                    panic!("Unexpected get_workload_id call. Expected: '{expected_call:?}' \n\nGot: {instance_name:?}");
                 }
             }
         }
@@ -354,7 +354,7 @@ pub mod test {
                 }
                 expected_call => {
                     self.unexpected_call().await;
-                    panic!("Unexpected start_checker call. Expected: '{expected_call:?}'");
+                    panic!("Unexpected start_checker call. Expected: '{expected_call:?}' \n\nGot: {workload_id:?}, {runtime_workload_config:?}, {update_state_tx:?}");
                 }
             }
         }
@@ -368,7 +368,7 @@ pub mod test {
                 }
                 expected_call => {
                     self.unexpected_call().await;
-                    panic!("Unexpected delete_workload call. Expected: '{expected_call:?}'");
+                    panic!("Unexpected delete_workload call. Expected: '{expected_call:?}'\n\nGot: {workload_id:?}");
                 }
             }
         }

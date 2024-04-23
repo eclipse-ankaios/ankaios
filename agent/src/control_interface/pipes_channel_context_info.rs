@@ -61,17 +61,6 @@ impl PipesChannelContextInfo {
     }
 }
 
-// impl From<PipesChannelContextInfo> for Option<PipesChannelContext> {
-//     fn from(val: PipesChannelContextInfo) -> Self {
-//         PipesChannelContext::new(
-//             &val.run_folder,
-//             &val.workload_instance_name,
-//             val.control_interface_to_server_sender.clone(),
-//         )
-//         .ok()
-//     }
-// }
-
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
