@@ -174,7 +174,7 @@ impl AgentManager {
             .update_workloads_on_fulfilled_dependencies(&self.workload_state_store)
             .await;
 
-        // [impl->swdd~agent-sends-workload-states-of-its-workloads-to-server~1]
+        // [impl->swdd~agent-sends-workload-states-of-its-workloads-to-server~2]
         self.to_server
             .update_workload_state(vec![new_workload_state])
             .await
@@ -409,7 +409,7 @@ mod tests {
 
     // [utest->swdd~agent-manager-receives-workload-states-of-its-workloads~1]
     // [utest->swdd~agent-stores-workload-states-of-its-workloads~1]
-    // [utest->swdd~agent-sends-workload-states-of-its-workloads-to-server~1]
+    // [utest->swdd~agent-sends-workload-states-of-its-workloads-to-server~2]
     // [utest->swdd~agent-handles-update-workload-state-requests~1]
     // [utest->swdd~agent-manager-hysteresis_on-workload-states-of-its-workloads~1]
     #[tokio::test]

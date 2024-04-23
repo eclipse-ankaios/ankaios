@@ -46,7 +46,7 @@ where
                     );
                     last_state = current_state.clone();
 
-                    // [impl->swdd~generic-state-checker-sends-workload-state~1]
+                    // [impl->swdd~generic-state-checker-sends-workload-state~2]
                     workload_state_sender
                         .report_workload_execution_state(
                             &workload_spec.instance_name,
@@ -144,7 +144,7 @@ mod tests {
             ExecutionState::running(),
         );
 
-        // [utest->swdd~generic-state-checker-sends-workload-state~1]
+        // [utest->swdd~generic-state-checker-sends-workload-state~2]
         let state_update_1 = state_receiver.recv().await.unwrap();
         assert_eq!(state_update_1, expected_state);
     }

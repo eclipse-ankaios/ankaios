@@ -1315,40 +1315,6 @@ Needs:
 - impl
 - utest
 
-#### WorkloadControlLoop receives workload states of its workload
-`swdd~workload-control-loop-receives-workload-states~1`
-
-Status: approved
-
-The WorkloadControlLoop shall receive the workload states of the workload it manages.
-
-Rationale:
-The WorkloadControlLoop requires the workload states to apply the configured restart policy.
-
-Tags:
-- WorkloadControlLoop
-
-Needs:
-- impl
-- utest
-
-#### WorkloadControlLoop sends workload states to server
-`swdd~workload-control-loop-sends-workload-states~1`
-
-Status: approved
-
-When the WorkloadControlLoop receives a new workload state, then the WorkloadControlLoop shall send the workload state to the AgentManager.
-
-Rationale:
-The AgentManager requires the knowledge about the workload states of all workloads.
-
-Tags:
-- WorkloadControlLoop
-
-Needs:
-- impl
-- utest
-
 #### WorkloadControlLoop handles restarts of workloads
 `swdd~workload-control-loop-handles-workload-restarts~1`
 
@@ -2133,11 +2099,11 @@ Needs:
 - utest
 
 ##### GenericPollingStateChecker sends workload state
-`swdd~generic-state-checker-sends-workload-state~1`
+`swdd~generic-state-checker-sends-workload-state~2`
 
 Status: approved
 
-When the Workload State of a Workload changes on a workload, the `GenericPollingStateChecker` shall send an UpdateWorkloadState message to the Ankaios Server, containing the new Workload State.
+When the Workload State of a Workload changes on a workload, the `GenericPollingStateChecker` shall send the workload state to the WorkloadControlLoop.
 
 Tags:
 - GenericPollingStateChecker
@@ -2490,6 +2456,23 @@ Needs:
 - impl
 - utest
 
+#### WorkloadControlLoop receives workload states of its workload
+`swdd~workload-control-loop-receives-workload-states~1`
+
+Status: approved
+
+The WorkloadControlLoop shall receive the workload states of the workload it manages.
+
+Rationale:
+The WorkloadControlLoop requires the workload states to apply the configured restart policy.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
 #### AgentManager receives workload states of the workloads it manages
 `swdd~agent-manager-receives-workload-states-of-its-workloads~1`
 
@@ -2511,7 +2494,7 @@ Needs:
 
 Status: approved
 
-The AgentManager shall store the workload states of the workloads it manages into the ParameterStorage.
+The AgentManager shall store the workload states of the workloads it manages into the WorkloadStateStore.
 
 Comment: Empty workload states are not stored and skipped.
 
@@ -2525,12 +2508,29 @@ Needs:
 - impl
 - utest
 
-#### AgentManager sends the workload states of the workload it manages to the server
-`swdd~agent-sends-workload-states-of-its-workloads-to-server~1`
+#### WorkloadControlLoop sends workload states to server
+`swdd~workload-control-loop-sends-workload-states~1`
 
 Status: approved
 
-When the AgentManager receives the workload states of the workload it manages, then the AgentManager shall send the workload states to the Ankaios server.
+When the WorkloadControlLoop receives a new workload state, then the WorkloadControlLoop shall send the workload state to the AgentManager.
+
+Rationale:
+The AgentManager requires the knowledge about the workload states of all workloads.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
+#### AgentManager sends the workload states of the workload it manages to the server
+`swdd~agent-sends-workload-states-of-its-workloads-to-server~2`
+
+Status: approved
+
+When the AgentManager receives the workload states of the workload it manages, then the AgentManager shall send an `UpdateWorkloadState` message to the Ankaios server, containing the received workload state.
 
 Comment: Empty workload states are omitted.
 
