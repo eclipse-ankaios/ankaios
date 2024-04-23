@@ -14,7 +14,9 @@
 
 use std::{mem::take, time::Duration};
 
-use crate::output_debug;
+use crate::{output_and_error, output_debug};
+use common::communications_client::CommunicationsClient;
+use common::to_server_interface::ToServer;
 use common::{
     commands::{
         CompleteStateRequest, Response, ResponseContent, UpdateStateSuccess, UpdateWorkloadState,
@@ -23,14 +25,13 @@ use common::{
     objects::CompleteState,
     to_server_interface::{ToServerInterface, ToServerSender},
 };
+use grpc::client::GRPCCommunicationsClient;
 #[cfg(test)]
 use mockall::automock;
+use url::Url;
 
+const BUFFER_SIZE: usize = 20;
 const WAIT_TIME_MS: Duration = Duration::from_millis(3000);
-
-pub enum ServerConnectionError {
-    ExecutionError(String),
-}
 
 pub struct ServerConnection {
     to_server: ToServerSender,
@@ -41,14 +42,27 @@ pub struct ServerConnection {
 
 #[cfg_attr(test, automock)]
 impl ServerConnection {
-    pub fn new(
-        to_server: ToServerSender,
-        from_server: FromServerReceiver,
-        task: tokio::task::JoinHandle<()>,
-    ) -> Self {
+    // [impl->swdd~server-handle-cli-communication~1]
+    // [impl->swdd~cli-communication-over-middleware~1]
+    pub fn new(cli_name: &str, server_url: Url) -> Self {
+        let mut grpc_communications_client =
+            GRPCCommunicationsClient::new_cli_communication(cli_name.to_owned(), server_url);
+
+        let (to_cli, cli_receiver) = tokio::sync::mpsc::channel::<FromServer>(BUFFER_SIZE);
+        let (to_server, server_receiver) = tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
+
+        let task = tokio::spawn(async move {
+            if let Err(err) = grpc_communications_client
+                .run(server_receiver, to_cli.clone())
+                .await
+            {
+                output_and_error!("{err}");
+            }
+        });
+
         Self {
             to_server,
-            from_server,
+            from_server: cli_receiver,
             task,
             missed_from_server_messages: Vec::new(),
         }
@@ -185,5 +199,357 @@ impl ServerConnection {
 
     pub fn take_missed_from_server_messages(&mut self) -> Vec<FromServer> {
         take(&mut self.missed_from_server_messages)
+    }
+}
+
+#[derive(Debug)]
+pub enum ServerConnectionError {
+    ExecutionError(String),
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use common::{
+        commands::{
+            CompleteStateRequest, RequestContent, Response, ResponseContent, UpdateStateRequest,
+            UpdateStateSuccess, UpdateWorkloadState,
+        },
+        from_server_interface::FromServer,
+        objects::{CompleteState, State, StoredWorkloadSpec},
+        to_server_interface::ToServer,
+    };
+    use tokio::sync::mpsc::{Receiver, Sender};
+
+    use crate::cli;
+
+    use super::ServerConnection;
+
+    const WORKLOAD_NAME_1: &str = "workload_1";
+    const WORKLOAD_NAME_2: &str = "workload_2";
+    const AGENT_A: &str = "agent_A";
+    const RUNTIME: &str = "runtime";
+    const REQUEST: &str = "complete_state_request";
+    const FIELD_MASK: &str = "field_mask";
+
+    fn complete_state_1() -> CompleteState {
+        CompleteState {
+            desired_state: State {
+                workloads: [workload(WORKLOAD_NAME_1)].into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    }
+
+    fn complete_state_2() -> CompleteState {
+        CompleteState {
+            desired_state: State {
+                workloads: [workload(WORKLOAD_NAME_2)].into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+    }
+
+    fn workload(workload_name: &str) -> (String, StoredWorkloadSpec) {
+        (
+            workload_name.into(),
+            StoredWorkloadSpec {
+                agent: AGENT_A.into(),
+                runtime: RUNTIME.into(),
+                ..Default::default()
+            },
+        )
+    }
+
+    #[tokio::test]
+    async fn utest_get_complete_state() {
+        let mut sim = CommunicationSimulator::default();
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::CompleteStateRequest(CompleteStateRequest {
+                field_mask: vec![FIELD_MASK.into()],
+            }),
+        );
+        sim.will_send_response(
+            REQUEST,
+            ResponseContent::CompleteState(Box::new(complete_state_1())),
+        );
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .get_complete_state(&vec![FIELD_MASK.into()])
+            .await;
+        assert!(result.is_ok());
+        assert_eq!(*result.unwrap(), complete_state_1());
+        checker.check_communication();
+    }
+
+    #[tokio::test]
+    async fn utest_get_complete_state_fails_at_request() {
+        let sim = CommunicationSimulator::default();
+        let (_, mut server_connection) = sim.create_server_connection();
+        // sending the GetCompleteState request to the server, shall already fail
+        let (to_server, _) = tokio::sync::mpsc::channel(1);
+        server_connection.to_server = to_server;
+
+        let result = server_connection
+            .get_complete_state(&vec![FIELD_MASK.into()])
+            .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_get_complete_state_fails_no_response() {
+        let mut sim = CommunicationSimulator::default();
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::CompleteStateRequest(CompleteStateRequest {
+                field_mask: vec![FIELD_MASK.into()],
+            }),
+        );
+        let (_checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .get_complete_state(&vec![FIELD_MASK.into()])
+            .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_get_complete_state_fails_response_timeout() {
+        let mut sim = CommunicationSimulator::default();
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::CompleteStateRequest(CompleteStateRequest {
+                field_mask: vec![FIELD_MASK.into()],
+            }),
+        );
+        let (_checker, mut server_connection) = sim.create_server_connection();
+        // sending the GetCompleteState request to the server, shall already fail
+        let (_to_client, from_server) = tokio::sync::mpsc::channel(1);
+        server_connection.from_server = from_server;
+
+        let result = server_connection
+            .get_complete_state(&vec![FIELD_MASK.into()])
+            .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_get_complete_state_other_response_in_between() {
+        let other_request = FromServer::Response(Response {
+            request_id: "other_request".into(),
+            response_content: ResponseContent::CompleteState(Box::new(complete_state_2())),
+        });
+
+        let mut sim = CommunicationSimulator::default();
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::CompleteStateRequest(CompleteStateRequest {
+                field_mask: vec![FIELD_MASK.into()],
+            }),
+        );
+        sim.will_send_message(other_request.clone());
+        sim.will_send_response(
+            REQUEST,
+            ResponseContent::CompleteState(Box::new(complete_state_1())),
+        );
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .get_complete_state(&vec![FIELD_MASK.into()])
+            .await;
+        assert!(result.is_ok());
+        assert_eq!(*result.unwrap(), complete_state_1());
+        assert_eq!(
+            server_connection.take_missed_from_server_messages(),
+            vec![other_request]
+        );
+        checker.check_communication();
+    }
+
+    #[tokio::test]
+    async fn utest_get_complete_state_other_message_in_between() {
+        let other_request = FromServer::UpdateWorkloadState(UpdateWorkloadState {
+            workload_states: vec![],
+        });
+
+        let mut sim = CommunicationSimulator::default();
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::CompleteStateRequest(CompleteStateRequest {
+                field_mask: vec![FIELD_MASK.into()],
+            }),
+        );
+        sim.will_send_message(other_request.clone());
+        sim.will_send_response(
+            REQUEST,
+            ResponseContent::CompleteState(Box::new(complete_state_1())),
+        );
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .get_complete_state(&vec![FIELD_MASK.into()])
+            .await;
+        assert!(result.is_ok());
+        assert_eq!(*result.unwrap(), complete_state_1());
+        assert_eq!(
+            server_connection.take_missed_from_server_messages(),
+            vec![other_request]
+        );
+        checker.check_communication();
+    }
+
+    #[tokio::test]
+    async fn utest_update_state() {
+        let update_state_success = UpdateStateSuccess {
+            added_workloads: vec![WORKLOAD_NAME_1.into()],
+            deleted_workloads: vec![],
+        };
+
+        let mut sim = CommunicationSimulator::default();
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
+                state: complete_state_1(),
+                update_mask: vec![FIELD_MASK.into()],
+            })),
+        );
+        sim.will_send_response(
+            REQUEST,
+            ResponseContent::UpdateStateSuccess(update_state_success.clone()),
+        );
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .update_state(complete_state_1(), vec![FIELD_MASK.into()])
+            .await;
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), update_state_success);
+        checker.check_communication();
+    }
+
+    #[derive(Default)]
+    struct CommunicationSimulator {
+        actions: Vec<CommunicationSimulatorAction>,
+    }
+
+    struct CorrectCommuncationChecker {
+        join_handle: tokio::task::JoinHandle<()>,
+        is_ready: tokio::sync::oneshot::Receiver<Receiver<ToServer>>,
+    }
+
+    #[derive(Clone)]
+    enum CommunicationSimulatorAction {
+        WillSendMessage(FromServer),
+        WillSendResponse(String, ResponseContent),
+        ExpectReceiveRequest(String, RequestContent),
+    }
+
+    impl CommunicationSimulator {
+        fn create_server_connection(self) -> (CorrectCommuncationChecker, ServerConnection) {
+            let (from_server, cli_receiver) = tokio::sync::mpsc::channel::<FromServer>(1);
+            let (to_server, mut server_receiver) = tokio::sync::mpsc::channel::<ToServer>(1);
+
+            let (is_ready_sender, is_ready) = tokio::sync::oneshot::channel();
+
+            let join_handle = tokio::spawn(async move {
+                let mut request_ids = HashMap::<String, String>::new();
+                for a in self.actions {
+                    match a {
+                        CommunicationSimulatorAction::WillSendMessage(message) => {
+                            from_server.send(message).await.unwrap()
+                        }
+                        CommunicationSimulatorAction::WillSendResponse(request_name, response) => {
+                            let request_id = request_ids.get(&request_name).unwrap();
+                            from_server
+                                .send(FromServer::Response(Response {
+                                    request_id: request_id.to_owned(),
+                                    response_content: response,
+                                }))
+                                .await
+                                .unwrap();
+                        }
+                        CommunicationSimulatorAction::ExpectReceiveRequest(
+                            request_name,
+                            expected_request,
+                        ) => {
+                            let actual_message = server_receiver.recv().await.unwrap();
+                            let common::to_server_interface::ToServer::Request(actual_request) =
+                                actual_message
+                            else {
+                                panic!("Expected a request")
+                            };
+                            request_ids.insert(request_name, actual_request.request_id);
+                            assert_eq!(actual_request.request_content, expected_request);
+                        }
+                    }
+                }
+                is_ready_sender.send(server_receiver).unwrap();
+            });
+
+            (
+                CorrectCommuncationChecker {
+                    join_handle,
+                    is_ready,
+                },
+                ServerConnection {
+                    to_server,
+                    from_server: cli_receiver,
+                    task: tokio::spawn(async {}),
+                    missed_from_server_messages: Vec::new(),
+                },
+            )
+        }
+
+        pub fn will_send_message(&mut self, message: FromServer) {
+            self.actions
+                .push(CommunicationSimulatorAction::WillSendMessage(message));
+        }
+
+        pub fn will_send_response(&mut self, request_name: &str, response: ResponseContent) {
+            self.actions
+                .push(CommunicationSimulatorAction::WillSendResponse(
+                    request_name.to_string(),
+                    response,
+                ));
+        }
+
+        pub fn expect_receive_request(&mut self, request_name: &str, request: RequestContent) {
+            self.actions
+                .push(CommunicationSimulatorAction::ExpectReceiveRequest(
+                    request_name.to_string(),
+                    request,
+                ));
+        }
+    }
+
+    impl CorrectCommuncationChecker {
+        fn check_communication(mut self) {
+            let Ok(mut to_server) = self.is_ready.try_recv() else {
+                panic!("Not all messages have been sent or received");
+            };
+            self.join_handle.abort();
+            if let Ok(message) = to_server.try_recv() {
+                panic!("Received unexpected message: {:#?}", message);
+            }
+        }
+    }
+
+    impl Drop for CorrectCommuncationChecker {
+        fn drop(&mut self) {
+            self.join_handle.abort();
+        }
     }
 }

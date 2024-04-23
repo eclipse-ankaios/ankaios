@@ -182,34 +182,6 @@ fn update_compact_state(
     Some(())
 }
 
-// [impl->swdd~server-handle-cli-communication~1]
-// [impl->swdd~cli-communication-over-middleware~1]
-fn setup_cli_communication(
-    cli_name: &str,
-    server_url: Url,
-) -> (
-    tokio::task::JoinHandle<()>,
-    ToServerSender,
-    FromServerReceiver,
-) // (task,sender,receiver)
-{
-    let mut grpc_communications_client =
-        GRPCCommunicationsClient::new_cli_communication(cli_name.to_owned(), server_url);
-
-    let (to_cli, cli_receiver) = tokio::sync::mpsc::channel::<FromServer>(BUFFER_SIZE);
-    let (to_server, server_receiver) = tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
-
-    let communications_task = tokio::spawn(async move {
-        if let Err(err) = grpc_communications_client
-            .run(server_receiver, to_cli.clone())
-            .await
-        {
-            output_and_error!("{err}");
-        }
-    });
-    (communications_task, to_server, cli_receiver)
-}
-
 #[derive(Debug, Tabled, Clone)]
 #[tabled(rename_all = "UPPERCASE")]
 struct GetWorkloadTableDisplay {
@@ -356,12 +328,10 @@ impl CliCommands {
         server_url: Url,
         no_wait: bool,
     ) -> Self {
-        let (task, to_server, from_server) =
-            setup_cli_communication(cli_name.as_str(), server_url.clone());
         Self {
             _response_timeout_ms: response_timeout_ms,
             no_wait,
-            server_connection: ServerConnection::new(to_server, from_server, task),
+            server_connection: ServerConnection::new(cli_name.as_str(), server_url.clone()),
         }
     }
 
