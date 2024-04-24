@@ -50,9 +50,6 @@ The [control interface](./control-interface.md) relies on [FIFO](https://en.wiki
 ## Communication between Ankaios and workloads
 
 ```mermaid
----
-title: Communication between Ankaios and a workload
----
 flowchart TD
     proto("ankaios.proto")
     gen_code("Generated Client Code")
