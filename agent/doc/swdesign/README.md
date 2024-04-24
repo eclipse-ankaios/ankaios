@@ -1395,6 +1395,21 @@ Needs:
 - impl
 - utest
 
+#### WorkloadControlLoop skips restarts
+`swdd~workload-control-loop-skips-restarts~1`
+
+When the WorkloadControlLoop handles a restart of a workload and the workload's current `WorkloadInstanceName` inside the WorkloadControlLoop differs from the `WorkloadInstanceName` inside the received workload state, then the WorkloadControlLoop shall skip the restart.
+
+Rationale:
+This prevents wrong restarts of workloads when a new workload state of the old workload is received during an update operation runs.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
 ### Retry creation of workloads
 
 The following diagram describes the retry behavior when a workload is created and the create fails:
