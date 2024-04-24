@@ -6,7 +6,7 @@ In this tutorial, we will show you how to use Ankaios to set up workloads that p
 The central workload will be a databroker from the [Kuksa.val project](https://github.com/eclipse/kuksa.val). It will receive vehicle speed signals published from a speed provider workload. Finally a speed consumer workload will consume those speed limits.
 
 <figure markdown>
-  <img src="../../assets/tutorial_vehicle_signals_overview.svg" alt="Overview of workloads" />
+  ![Overview of workloads](../assets/tutorial_vehicle_signals_overview.png)
   <figcaption>Overview of workloads</figcaption>
 </figure>
 
