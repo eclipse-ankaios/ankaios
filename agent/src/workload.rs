@@ -85,7 +85,7 @@ impl Workload {
         }
     }
     // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-    fn set_control_interface(
+    fn exchange_control_interface(
         &mut self,
         pipes_channel_context_info: Option<PipesChannelContextInfo>,
     ) {
@@ -98,36 +98,38 @@ impl Workload {
         };
     }
 
+    fn is_control_interface_changed(
+        &self,
+        pipes_channel_context_info: &Option<PipesChannelContextInfo>,
+    ) -> bool {
+        match (&self.control_interface, pipes_channel_context_info) {
+            (None, None) => false,
+            (Some(_current), None) => true,
+            (None, Some(_new)) => true,
+            (Some(current), Some(new_context)) => {
+                let new_location = new_context.get_workload_instance_name().pipes_folder_name(
+                    pipes_channel_context_info
+                        .as_ref()
+                        .unwrap()
+                        .get_run_folder(),
+                );
+
+                return !current
+                    .get_api_location()
+                    .to_str()
+                    .unwrap()
+                    .contains(new_location.to_str().unwrap());
+            }
+        }
+    }
+
     fn update_control_interface(
         &mut self,
-        spec: &Option<WorkloadSpec>,
+        // spec: &Option<WorkloadSpec>,
         pipes_channel_context_info: Option<PipesChannelContextInfo>,
     ) {
-        match (&mut self.control_interface, spec) {
-            (None, None) => (),
-            (Some(_current), None) => self.set_control_interface(None),
-            (None, Some(_new)) => self.set_control_interface(pipes_channel_context_info),
-            (Some(current), Some(new_spec)) => {
-                match (
-                    current.get_api_location().to_str(),
-                    pipes_channel_context_info.as_ref(),
-                ) {
-                    (None, None) => (),
-                    (None, Some(_new)) => self.set_control_interface(pipes_channel_context_info),
-                    (Some(_current_api_location), None) => self.set_control_interface(None),
-                    (Some(current_api_location), Some(new_pipes_channel_context_info)) => {
-                        let new_control_interface_location = new_spec
-                            .instance_name
-                            .pipes_folder_name(new_pipes_channel_context_info.get_run_folder());
-
-                        if !current_api_location
-                            .contains(new_control_interface_location.to_str().unwrap())
-                        {
-                            self.set_control_interface(pipes_channel_context_info);
-                        }
-                    }
-                };
-            }
+        if self.is_control_interface_changed(&pipes_channel_context_info) {
+            self.exchange_control_interface(pipes_channel_context_info);
         }
     }
 
@@ -139,7 +141,7 @@ impl Workload {
     ) -> Result<(), WorkloadError> {
         log::info!("Updating workload '{}'.", self.name);
 
-        self.update_control_interface(&spec, pipes_channel_context_info);
+        self.update_control_interface(pipes_channel_context_info);
 
         let control_interface_path = self
             .control_interface
@@ -206,7 +208,7 @@ mod tests {
     use common::{
         commands::{Response, ResponseContent},
         from_server_interface::FromServer,
-        objects::{generate_test_workload_spec_with_param, CompleteState},
+        objects::{generate_test_workload_spec_with_param, CompleteState, WorkloadInstanceName},
         test_utils::generate_test_complete_state,
     };
     use tokio::{sync::mpsc, time::timeout};
@@ -256,6 +258,58 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn utest_is_control_interface_changed_set_fresh_control_interface_returns_true() {
+        let (workload_command_sender, _) = WorkloadCommandSender::new();
+        let test_workload_with_control_interface = Workload::new(
+            WORKLOAD_1_NAME.to_string(),
+            workload_command_sender.clone(),
+            None,
+        );
+        assert!(test_workload_with_control_interface
+            .is_control_interface_changed(&Some(MockPipesChannelContextInfo::default())));
+    }
+
+    #[test]
+    fn utest_is_control_interface_changed_on_different_location_returns_true() {
+        let (workload_command_sender, _) = WorkloadCommandSender::new();
+
+        let inner_workload_instance_name =
+            WorkloadInstanceName::new(&format!("agent.{}.hash", WORKLOAD_1_NAME));
+        let new_workload_instance_name = WorkloadInstanceName::default();
+
+        let mut pipes_channel_context_info_mock = MockPipesChannelContextInfo::default();
+        pipes_channel_context_info_mock
+            .expect_get_workload_instance_name()
+            .once()
+            .return_const(new_workload_instance_name.clone());
+        pipes_channel_context_info_mock
+            .expect_get_run_folder()
+            .once()
+            .return_const(PIPES_LOCATION.into());
+
+        let mut test_workload_with_control_interface = Workload::new(
+            WORKLOAD_1_NAME.to_string(),
+            workload_command_sender.clone(),
+            None,
+        );
+
+        let mut inner_control_interface_mock = MockPipesChannelContext::default();
+        inner_control_interface_mock
+            .expect_get_api_location()
+            .once()
+            .return_const(
+                inner_workload_instance_name
+                    .unwrap()
+                    .pipes_folder_name(PIPES_LOCATION.as_ref()),
+            );
+
+        test_workload_with_control_interface.control_interface = Some(inner_control_interface_mock);
+
+        assert!(test_workload_with_control_interface
+            .is_control_interface_changed(&Some(pipes_channel_context_info_mock)));
+    }
+
     // [utest->swdd~agent-workload-obj-update-command~1]
     #[tokio::test]
     async fn utest_workload_obj_update_success() {
@@ -275,6 +329,12 @@ mod tests {
             .once()
             .return_const(());
 
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
         let mut new_control_interface_mock = MockPipesChannelContext::default();
         new_control_interface_mock
             .expect_get_api_location()
@@ -283,6 +343,10 @@ mod tests {
 
         let mut new_control_interface_info_mock = MockPipesChannelContextInfo::default();
         new_control_interface_info_mock
+            .expect_get_workload_instance_name()
+            .once()
+            .return_const(workload_spec.instance_name.clone());
+        new_control_interface_info_mock
             .expect_get_run_folder()
             .once()
             .return_const(PIPES_LOCATION.into());
@@ -290,12 +354,6 @@ mod tests {
             .expect_make_context()
             .once()
             .return_once(|| Some(new_control_interface_mock));
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
 
         let mut test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
@@ -345,7 +403,17 @@ mod tests {
             .once()
             .return_const(());
 
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
         let mut new_control_interface_mock = MockPipesChannelContextInfo::default();
+        new_control_interface_mock
+            .expect_get_workload_instance_name()
+            .once()
+            .return_const(workload_spec.instance_name.clone());
         new_control_interface_mock
             .expect_get_run_folder()
             .once()
@@ -354,12 +422,6 @@ mod tests {
             .expect_make_context()
             .once()
             .return_once(|| None);
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
 
         let mut test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
