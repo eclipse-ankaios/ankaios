@@ -34,7 +34,7 @@ the build works locally within the dev container.
 
    ```yaml
     ...
-     - uses: actions/upload-artifact@v4
+     - uses: actions/upload-artifact@v4.3.3
        with:
          name: ankaios-<os>-<platform>-bin
          path: dist/
