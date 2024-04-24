@@ -170,16 +170,7 @@ impl WorkloadControlLoop {
     {
         let restart_policy = &control_loop_state.workload_spec.restart_policy;
 
-        // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
-        let is_restart_allowed =
-            Self::is_restart_allowed(restart_policy, &new_workload_state.execution_state);
-
-        // [impl->swdd~workload-control-loop-skips-restarts~1]
-        let equal_instance_names = new_workload_state
-            .instance_name
-            .eq(control_loop_state.instance_name());
-
-        if is_restart_allowed && equal_instance_names {
+        if Self::is_restart_allowed(&control_loop_state.workload_spec, &new_workload_state) {
             log::debug!(
                 "Restart workload '{}' with restart policy '{}' caused by current execution state.",
                 control_loop_state
@@ -201,7 +192,6 @@ impl WorkloadControlLoop {
             )
             .await;
         } else {
-            // [impl->swdd~workload-control-loop-no-restart-with-disabled-restart-policy~1]
             log::trace!(
                 "Restart not allowed for workload '{}' with restart policy '{}' and received workload state '{:?}'",
                 control_loop_state
@@ -215,16 +205,24 @@ impl WorkloadControlLoop {
         control_loop_state
     }
 
-    // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
-    fn is_restart_allowed(
-        restart_policy: &RestartPolicy,
-        execution_state: &ExecutionState,
-    ) -> bool {
-        match restart_policy {
+    fn is_restart_allowed(workload_spec: &WorkloadSpec, workload_state: &WorkloadState) -> bool {
+        // [impl->swdd~workload-control-loop-skips-restarts~1]
+        if !workload_spec
+            .instance_name
+            .eq(&workload_state.instance_name)
+        {
+            return false;
+        }
+
+        // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
+        match workload_spec.restart_policy {
             // [impl->swdd~workload-control-loop-no-restart-with-disabled-restart-policy~1]
             RestartPolicy::Never => false,
-            RestartPolicy::OnFailure => execution_state.is_failed(),
-            RestartPolicy::Always => execution_state.is_failed() || execution_state.is_succeeded(),
+            RestartPolicy::OnFailure => workload_state.execution_state.is_failed(),
+            RestartPolicy::Always => {
+                workload_state.execution_state.is_failed()
+                    || workload_state.execution_state.is_succeeded()
+            }
         }
     }
 
@@ -553,7 +551,8 @@ mod tests {
     use std::time::Duration;
 
     use common::objects::{
-        generate_test_workload_spec_with_param, ExecutionState, WorkloadInstanceName,
+        generate_test_workload_spec, generate_test_workload_spec_with_param, ExecutionState,
+        WorkloadInstanceName,
     };
     use common::objects::{generate_test_workload_state_with_workload_spec, RestartPolicy};
 
@@ -2259,60 +2258,6 @@ mod tests {
         );
     }
 
-    // [utest->swdd~workload-control-loop-no-restart-with-disabled-restart-policy~1]
-    #[test]
-    fn utest_is_restart_allowed_never() {
-        let restart_policy = RestartPolicy::Never;
-        assert!(!WorkloadControlLoop::is_restart_allowed(
-            &restart_policy,
-            &ExecutionState::running()
-        ));
-        assert!(!WorkloadControlLoop::is_restart_allowed(
-            &restart_policy,
-            &ExecutionState::succeeded()
-        ));
-        assert!(!WorkloadControlLoop::is_restart_allowed(
-            &restart_policy,
-            &ExecutionState::failed("some failure".to_string())
-        ));
-    }
-
-    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
-    #[test]
-    fn utest_is_restart_allowed_on_failure() {
-        let restart_policy = RestartPolicy::OnFailure;
-        assert!(!WorkloadControlLoop::is_restart_allowed(
-            &restart_policy,
-            &ExecutionState::running()
-        ));
-        assert!(WorkloadControlLoop::is_restart_allowed(
-            &restart_policy,
-            &ExecutionState::failed("some failure".to_string())
-        ));
-        assert!(!WorkloadControlLoop::is_restart_allowed(
-            &restart_policy,
-            &ExecutionState::succeeded()
-        ));
-    }
-
-    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
-    #[test]
-    fn utest_is_restart_allowed_always() {
-        let restart_policy = RestartPolicy::Always;
-        assert!(!WorkloadControlLoop::is_restart_allowed(
-            &restart_policy,
-            &ExecutionState::running()
-        ));
-        assert!(WorkloadControlLoop::is_restart_allowed(
-            &restart_policy,
-            &ExecutionState::failed("some failure".to_string())
-        ));
-        assert!(WorkloadControlLoop::is_restart_allowed(
-            &restart_policy,
-            &ExecutionState::succeeded()
-        ));
-    }
-
     // [utest->swdd~workload-control-loop-skips-restarts~1]
     #[tokio::test]
     async fn utest_skip_restart_on_old_workload_state_during_update() {
@@ -2383,5 +2328,92 @@ mod tests {
                 .workload_spec
                 .instance_name
         );
+    }
+
+    // [utest->swdd~workload-control-loop-no-restart-with-disabled-restart-policy~1]
+    #[test]
+    fn utest_is_restart_allowed_never() {
+        let mut workload_spec = generate_test_workload_spec();
+        workload_spec.restart_policy = RestartPolicy::Never;
+
+        assert!(!WorkloadControlLoop::is_restart_allowed(
+            &workload_spec,
+            &generate_test_workload_state_with_workload_spec(
+                &workload_spec,
+                ExecutionState::running()
+            )
+        ));
+        assert!(!WorkloadControlLoop::is_restart_allowed(
+            &workload_spec,
+            &generate_test_workload_state_with_workload_spec(
+                &workload_spec,
+                ExecutionState::succeeded()
+            )
+        ));
+        assert!(!WorkloadControlLoop::is_restart_allowed(
+            &workload_spec,
+            &generate_test_workload_state_with_workload_spec(
+                &workload_spec,
+                ExecutionState::failed("some error".to_owned())
+            )
+        ));
+    }
+
+    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
+    #[test]
+    fn utest_is_restart_allowed_on_failure() {
+        let mut workload_spec = generate_test_workload_spec();
+        workload_spec.restart_policy = RestartPolicy::OnFailure;
+
+        assert!(!WorkloadControlLoop::is_restart_allowed(
+            &workload_spec,
+            &generate_test_workload_state_with_workload_spec(
+                &workload_spec,
+                ExecutionState::running()
+            )
+        ));
+        assert!(WorkloadControlLoop::is_restart_allowed(
+            &workload_spec,
+            &generate_test_workload_state_with_workload_spec(
+                &workload_spec,
+                ExecutionState::failed("some error".to_owned())
+            )
+        ));
+        assert!(!WorkloadControlLoop::is_restart_allowed(
+            &workload_spec,
+            &generate_test_workload_state_with_workload_spec(
+                &workload_spec,
+                ExecutionState::succeeded()
+            )
+        ));
+    }
+
+    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
+    #[test]
+    fn utest_is_restart_allowed_always() {
+        let mut workload_spec = generate_test_workload_spec();
+        workload_spec.restart_policy = RestartPolicy::Always;
+
+        assert!(!WorkloadControlLoop::is_restart_allowed(
+            &workload_spec,
+            &generate_test_workload_state_with_workload_spec(
+                &workload_spec,
+                ExecutionState::running()
+            )
+        ));
+        assert!(WorkloadControlLoop::is_restart_allowed(
+            &workload_spec,
+            &generate_test_workload_state_with_workload_spec(
+                &workload_spec,
+                ExecutionState::failed("some error".to_owned())
+            )
+        ));
+        assert!(WorkloadControlLoop::is_restart_allowed(
+            &workload_spec,
+            &generate_test_workload_state_with_workload_spec(
+                &workload_spec,
+                ExecutionState::succeeded()
+            )
+        ));
     }
 }
