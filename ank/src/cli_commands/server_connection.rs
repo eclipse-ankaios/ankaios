@@ -133,49 +133,47 @@ impl ServerConnection {
             .await
             .map_err(|err| ServerConnectionError::ExecutionError(err.to_string()))?;
 
-        let update_state_success = loop {
-            let Some(server_message) = self.from_server.recv().await else {
-                return Err(ServerConnectionError::ExecutionError(
-                    "Connection to server interrupted".into(),
-                ));
-            };
-            match server_message {
-                FromServer::Response(response) => {
-                    if response.request_id != request_id {
-                        output_debug!(
-                            "Received unexpected response for request ID: '{}'",
-                            response.request_id
-                        );
-                    } else {
-                        match response.response_content {
-                            ResponseContent::UpdateStateSuccess(update_state_success) => {
-                                break update_state_success
-                            }
-                            // [impl->swdd~cli-requests-update-state-with-watch-error~1]
-                            ResponseContent::Error(error) => {
-                                return Err(ServerConnectionError::ExecutionError(format!(
-                                    "SetState failed with: '{}'",
-                                    error.message
-                                )));
-                            }
-                            // [impl->swdd~cli-requests-update-state-with-watch-error~1]
-                            response_content => {
-                                return Err(ServerConnectionError::ExecutionError(format!(
-                                    "Received unexpected response: {:?}",
-                                    response_content
-                                )));
-                            }
-                        }
+        let poll_update_state_success = async {
+            loop {
+                let Some(server_message) = self.from_server.recv().await else {
+                    return Err(ServerConnectionError::ExecutionError(
+                        "Connection to server interrupted".into(),
+                    ));
+                };
+                match server_message {
+                    FromServer::Response(Response {
+                        request_id: received_request_id,
+                        response_content: ResponseContent::UpdateStateSuccess(update_state_success),
+                    }) if received_request_id == request_id => return Ok(update_state_success),
+                    // [impl->swdd~cli-requests-update-state-with-watch-error~1]
+                    FromServer::Response(Response {
+                        request_id: received_request_id,
+                        response_content: ResponseContent::Error(error),
+                    }) if received_request_id == request_id => {
+                        return Err(ServerConnectionError::ExecutionError(format!(
+                            "SetState failed with: '{}'",
+                            error.message
+                        )));
                     }
-                }
-                other_message => {
-                    self.missed_from_server_messages.push(other_message);
+                    message => {
+                        self.missed_from_server_messages.push(message);
+                    }
                 }
             }
         };
-
-        output_debug!("Got update success: {:?}", update_state_success);
-        Ok(update_state_success)
+        match tokio::time::timeout(WAIT_TIME_MS, poll_update_state_success).await {
+            Ok(Ok(res)) => {
+                output_debug!("Got update success: {:?}", res);
+                Ok(res)
+            }
+            Ok(Err(err)) => {
+                output_debug!("Update failed: {:?}", err);
+                Err(err)
+            }
+            Err(_) => Err(ServerConnectionError::ExecutionError(format!(
+                "Failed to get complete state in time (timeout={WAIT_TIME_MS:?})."
+            ))),
+        }
     }
 
     pub async fn read_next_update_workload_state(
@@ -220,16 +218,14 @@ mod tests {
 
     use common::{
         commands::{
-            CompleteStateRequest, RequestContent, Response, ResponseContent, UpdateStateRequest,
-            UpdateStateSuccess, UpdateWorkloadState,
+            CompleteStateRequest, Error, RequestContent, Response, ResponseContent,
+            UpdateStateRequest, UpdateStateSuccess, UpdateWorkloadState,
         },
         from_server_interface::FromServer,
         objects::{CompleteState, State, StoredWorkloadSpec},
         to_server_interface::ToServer,
     };
-    use tokio::sync::mpsc::{Receiver, Sender};
-
-    use crate::cli;
+    use tokio::sync::mpsc::Receiver;
 
     use super::ServerConnection;
 
@@ -334,8 +330,7 @@ mod tests {
                 field_mask: vec![FIELD_MASK.into()],
             }),
         );
-        let (_checker, mut server_connection) = sim.create_server_connection();
-        // sending the GetCompleteState request to the server, shall already fail
+        let (checker, mut server_connection) = sim.create_server_connection();
         let (_to_client, from_server) = tokio::sync::mpsc::channel(1);
         server_connection.from_server = from_server;
 
@@ -343,11 +338,12 @@ mod tests {
             .get_complete_state(&vec![FIELD_MASK.into()])
             .await;
         assert!(result.is_err());
+        checker.check_communication();
     }
 
     #[tokio::test]
     async fn utest_get_complete_state_other_response_in_between() {
-        let other_request = FromServer::Response(Response {
+        let other_response = FromServer::Response(Response {
             request_id: "other_request".into(),
             response_content: ResponseContent::CompleteState(Box::new(complete_state_2())),
         });
@@ -359,7 +355,7 @@ mod tests {
                 field_mask: vec![FIELD_MASK.into()],
             }),
         );
-        sim.will_send_message(other_request.clone());
+        sim.will_send_message(other_response.clone());
         sim.will_send_response(
             REQUEST,
             ResponseContent::CompleteState(Box::new(complete_state_1())),
@@ -373,14 +369,14 @@ mod tests {
         assert_eq!(*result.unwrap(), complete_state_1());
         assert_eq!(
             server_connection.take_missed_from_server_messages(),
-            vec![other_request]
+            vec![other_response]
         );
         checker.check_communication();
     }
 
     #[tokio::test]
     async fn utest_get_complete_state_other_message_in_between() {
-        let other_request = FromServer::UpdateWorkloadState(UpdateWorkloadState {
+        let other_message = FromServer::UpdateWorkloadState(UpdateWorkloadState {
             workload_states: vec![],
         });
 
@@ -391,7 +387,7 @@ mod tests {
                 field_mask: vec![FIELD_MASK.into()],
             }),
         );
-        sim.will_send_message(other_request.clone());
+        sim.will_send_message(other_message.clone());
         sim.will_send_response(
             REQUEST,
             ResponseContent::CompleteState(Box::new(complete_state_1())),
@@ -405,7 +401,7 @@ mod tests {
         assert_eq!(*result.unwrap(), complete_state_1());
         assert_eq!(
             server_connection.take_missed_from_server_messages(),
-            vec![other_request]
+            vec![other_message]
         );
         checker.check_communication();
     }
@@ -437,6 +433,166 @@ mod tests {
 
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), update_state_success);
+        checker.check_communication();
+    }
+
+    #[tokio::test]
+    async fn utest_update_state_fails_at_request() {
+        let sim = CommunicationSimulator::default();
+        let (_, mut server_connection) = sim.create_server_connection();
+        // sending the GetCompleteState request to the server, shall already fail
+        let (to_server, _) = tokio::sync::mpsc::channel(1);
+        server_connection.to_server = to_server;
+
+        let result = server_connection
+            .update_state(complete_state_1(), vec![FIELD_MASK.into()])
+            .await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_update_state_fails_no_response() {
+        let mut sim = CommunicationSimulator::default();
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
+                state: complete_state_1(),
+                update_mask: vec![FIELD_MASK.into()],
+            })),
+        );
+
+        let (_, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .update_state(complete_state_1(), vec![FIELD_MASK.into()])
+            .await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn utest_update_state_fails_error_response() {
+        let mut sim = CommunicationSimulator::default();
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
+                state: complete_state_1(),
+                update_mask: vec![FIELD_MASK.into()],
+            })),
+        );
+        sim.will_send_response(
+            REQUEST,
+            ResponseContent::Error(Error { message: "".into() }),
+        );
+
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .update_state(complete_state_1(), vec![FIELD_MASK.into()])
+            .await;
+
+        assert!(result.is_err());
+        checker.check_communication();
+    }
+
+    #[tokio::test]
+    async fn utest_update_state_fails_response_timeout() {
+        let mut sim = CommunicationSimulator::default();
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
+                state: complete_state_1(),
+                update_mask: vec![FIELD_MASK.into()],
+            })),
+        );
+
+        let (checker, mut server_connection) = sim.create_server_connection();
+        let (_to_client, from_server) = tokio::sync::mpsc::channel(1);
+        server_connection.from_server = from_server;
+
+        let result = server_connection
+            .update_state(complete_state_1(), vec![FIELD_MASK.into()])
+            .await;
+
+        assert!(result.is_err());
+        checker.check_communication();
+    }
+
+    #[tokio::test]
+    async fn utest_update_state_other_response_in_between() {
+        let update_state_success = UpdateStateSuccess {
+            added_workloads: vec![WORKLOAD_NAME_1.into()],
+            deleted_workloads: vec![],
+        };
+        let other_response = FromServer::Response(Response {
+            request_id: "other_request".into(),
+            response_content: ResponseContent::CompleteState(Box::new(complete_state_2())),
+        });
+
+        let mut sim = CommunicationSimulator::default();
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
+                state: complete_state_1(),
+                update_mask: vec![FIELD_MASK.into()],
+            })),
+        );
+        sim.will_send_message(other_response.clone());
+        sim.will_send_response(
+            REQUEST,
+            ResponseContent::UpdateStateSuccess(update_state_success.clone()),
+        );
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .update_state(complete_state_1(), vec![FIELD_MASK.into()])
+            .await;
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), update_state_success);
+        assert_eq!(
+            server_connection.take_missed_from_server_messages(),
+            vec![other_response]
+        );
+        checker.check_communication();
+    }
+
+    #[tokio::test]
+    async fn utest_update_state_other_message_in_between() {
+        let update_state_success = UpdateStateSuccess {
+            added_workloads: vec![WORKLOAD_NAME_1.into()],
+            deleted_workloads: vec![],
+        };
+        let other_message = FromServer::UpdateWorkloadState(UpdateWorkloadState {
+            workload_states: vec![],
+        });
+
+        let mut sim = CommunicationSimulator::default();
+        sim.expect_receive_request(
+            REQUEST,
+            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
+                state: complete_state_1(),
+                update_mask: vec![FIELD_MASK.into()],
+            })),
+        );
+        sim.will_send_message(other_message.clone());
+        sim.will_send_response(
+            REQUEST,
+            ResponseContent::UpdateStateSuccess(update_state_success.clone()),
+        );
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection
+            .update_state(complete_state_1(), vec![FIELD_MASK.into()])
+            .await;
+
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), update_state_success);
+        assert_eq!(
+            server_connection.take_missed_from_server_messages(),
+            vec![other_message]
+        );
         checker.check_communication();
     }
 

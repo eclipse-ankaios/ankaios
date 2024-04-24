@@ -31,19 +31,10 @@ async fn read_file_to_string(file: String) -> std::io::Result<String> {
 use tests::read_to_string_mock as read_file_to_string;
 
 use common::{
-    from_server_interface::{FromServer, FromServerReceiver},
+    from_server_interface::FromServer,
     objects::{CompleteState, State, StoredWorkloadSpec, Tag, WorkloadInstanceName},
     state_manipulation::{Object, Path},
-    to_server_interface::{ToServer, ToServerSender},
 };
-
-#[cfg(not(test))]
-use common::communications_client::CommunicationsClient;
-#[cfg(not(test))]
-use grpc::client::GRPCCommunicationsClient;
-
-#[cfg(test)]
-use tests::MockGRPCCommunicationsClient as GRPCCommunicationsClient;
 
 use tabled::{settings::Style, Table, Tabled};
 use url::Url;
@@ -57,7 +48,6 @@ use crate::{
     output, output_and_error, output_debug,
 };
 
-const BUFFER_SIZE: usize = 20;
 const SPINNER_SYMBOLS: [&str; 4] = ["|", "/", "-", "\\"];
 pub(crate) const COMPLETED_SYMBOL: &str = " ";
 
@@ -720,22 +710,19 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use common::{
-        commands::{
-            RequestContent, Response, ResponseContent, UpdateStateSuccess, UpdateWorkloadState,
-        },
-        from_server_interface::{FromServer, FromServerSender},
+        commands::{UpdateStateSuccess, UpdateWorkloadState},
+        from_server_interface::FromServerSender,
         objects::{
             self, generate_test_workload_spec_with_param, CompleteState, ExecutionState,
             RunningSubstate, State, StoredWorkloadSpec, Tag, WorkloadState,
         },
         state_manipulation::{Object, Path},
         test_utils::{self, generate_test_complete_state},
-        to_server_interface::{ToServer, ToServerReceiver},
+        to_server_interface::ToServerReceiver,
     };
     use mockall::predicate::eq;
-    use std::{collections::HashMap, io};
+    use std::io;
     use tabled::{settings::Style, Table};
-    use tokio::sync::mpsc::{Receiver, Sender};
 
     use super::apply_manifests::{
         create_filter_masks_from_paths, generate_state_obj_and_filter_masks_from_manifests,
@@ -2414,122 +2401,5 @@ mod tests {
             })
             .await;
         assert!(apply_result.is_ok());
-    }
-
-    #[derive(Default)]
-    struct MockGRPCCommunicationClientBuilder {
-        join_handle: Option<tokio::sync::oneshot::Receiver<tokio::task::JoinHandle<()>>>,
-        is_ready: Option<tokio::sync::oneshot::Receiver<Receiver<ToServer>>>,
-        actions: Vec<MockGRPCCommunicationClientAction>,
-    }
-
-    #[derive(Clone)]
-    enum MockGRPCCommunicationClientAction {
-        WillSendMessage(FromServer),
-        WillSendResponse(String, ResponseContent),
-        ExpectReceiveRequest(String, RequestContent),
-    }
-
-    impl MockGRPCCommunicationClientBuilder {
-        pub fn build(&mut self) -> MockGRPCCommunicationsClient {
-            let mut mock_client = MockGRPCCommunicationsClient::default();
-            mock_client.expect_run().return_once(self.create());
-            mock_client
-        }
-
-        fn create(
-            &mut self,
-        ) -> impl FnOnce(Receiver<ToServer>, Sender<FromServer>) -> Result<(), String> {
-            let (join_handler_sender, join_handler) = tokio::sync::oneshot::channel();
-            let (is_ready_sender, is_ready) = tokio::sync::oneshot::channel();
-            let actions = self.actions.clone();
-            self.join_handle = Some(join_handler);
-            self.is_ready = Some(is_ready);
-            |mut to_server: Receiver<ToServer>, from_server: Sender<FromServer>| {
-                let _ = join_handler_sender.send(tokio::spawn(async move {
-                    let mut request_ids = HashMap::<String, String>::new();
-                    for a in actions {
-                        match a {
-                            MockGRPCCommunicationClientAction::WillSendMessage(message) => {
-                                from_server.send(message).await.unwrap()
-                            }
-                            MockGRPCCommunicationClientAction::WillSendResponse(
-                                request_name,
-                                response,
-                            ) => {
-                                let request_id = request_ids.get(&request_name).unwrap();
-                                from_server
-                                    .send(FromServer::Response(Response {
-                                        request_id: request_id.to_owned(),
-                                        response_content: response,
-                                    }))
-                                    .await
-                                    .unwrap();
-                            }
-                            MockGRPCCommunicationClientAction::ExpectReceiveRequest(
-                                request_name,
-                                expected_request,
-                            ) => {
-                                let actual_message = to_server.recv().await.unwrap();
-                                let common::to_server_interface::ToServer::Request(actual_request) =
-                                    actual_message
-                                else {
-                                    panic!("Expected a request")
-                                };
-                                request_ids.insert(request_name, actual_request.request_id);
-                                assert_eq!(actual_request.request_content, expected_request);
-                            }
-                        }
-                    }
-                    is_ready_sender.send(to_server).unwrap();
-                }));
-                Ok(())
-            }
-        }
-
-        pub fn will_send_message(&mut self, message: FromServer) {
-            self.actions
-                .push(MockGRPCCommunicationClientAction::WillSendMessage(message));
-        }
-
-        pub fn will_send_response(&mut self, request_name: &str, response: ResponseContent) {
-            self.actions
-                .push(MockGRPCCommunicationClientAction::WillSendResponse(
-                    request_name.to_string(),
-                    response,
-                ));
-        }
-
-        pub fn expect_receive_request(&mut self, request_name: &str, request: RequestContent) {
-            self.actions
-                .push(MockGRPCCommunicationClientAction::ExpectReceiveRequest(
-                    request_name.to_string(),
-                    request,
-                ));
-        }
-    }
-
-    impl Drop for MockGRPCCommunicationClientBuilder {
-        fn drop(&mut self) {
-            let Some(join_handle) = &mut self.join_handle else {
-                return;
-            };
-
-            let Ok(join_handle) = join_handle.try_recv() else {
-                return;
-            };
-
-            let Some(is_ready) = &mut self.is_ready else {
-                return;
-            };
-
-            let Ok(mut to_server) = is_ready.try_recv() else {
-                panic!("Not all messages have been sent or received");
-            };
-            join_handle.abort();
-            if let Ok(message) = to_server.try_recv() {
-                panic!("Received unexpected message: {:#?}", message);
-            }
-        }
     }
 }
