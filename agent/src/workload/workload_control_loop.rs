@@ -216,12 +216,12 @@ impl WorkloadControlLoop {
     }
 
     // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
-    // [impl->swdd~workload-control-loop-no-restart-with-disabled-restart-policy~1]
     fn is_restart_allowed(
         restart_policy: &RestartPolicy,
         execution_state: &ExecutionState,
     ) -> bool {
         match restart_policy {
+            // [impl->swdd~workload-control-loop-no-restart-with-disabled-restart-policy~1]
             RestartPolicy::Never => false,
             RestartPolicy::OnFailure => execution_state.is_failed(),
             RestartPolicy::Always => execution_state.is_failed() || execution_state.is_succeeded(),
