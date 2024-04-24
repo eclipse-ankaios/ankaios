@@ -1334,13 +1334,13 @@ Needs:
 - impl
 - utest
 
-#### Agent restarts workload with enabled restart policy
-`swdd~agent-restarts-workload-with-enabled-restart-policy~1`
+#### WorkloadControlLoop restarts workload with enabled restart policy
+`swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1`
 
 Status: approved
 
 When:
-the workload's `ExecutionState` is `Succeeded(Ok)` and the workload's configured `RestartPolicy` contains the value `ALWAYS` or
+the workload's `ExecutionState` is `Succeeded(Ok)` or `ExecutionState` is `Failed(ExecFailed)` and the workload's configured `RestartPolicy` contains the value `ALWAYS` or
 the workload's `ExecutionState` is `Failed(ExecFailed)` and the workload's configured `RestartPolicy` contains the value `ON_FAILURE`,
 then the WorkloadControlLoop shall restart the workload.
 
@@ -1349,15 +1349,14 @@ The restart depends on the execution state of the workload.
 
 Tags:
 - WorkloadControlLoop
-- RestartPolicy
 
 Needs:
 - impl
 - utest
 - stest
 
-#### Agent does not restart a workload with disabled restart policy
-`swdd~agent-no-restart-with-disabled-restart-policy~1`
+#### WorkloadControlLoop does not restart a workload with disabled restart policy
+`swdd~workload-control-loop-no-restart-with-disabled-restart-policy~1`
 
 Status: approved
 
@@ -1368,7 +1367,6 @@ The user has explicitly configured the workload to prevent its restart or to app
 
 Tags:
 - WorkloadControlLoop
-- RestartPolicy
 
 Needs:
 - impl

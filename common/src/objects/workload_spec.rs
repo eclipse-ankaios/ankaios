@@ -170,22 +170,6 @@ impl std::fmt::Display for RestartPolicy {
     }
 }
 
-pub trait RestartAllowed {
-    fn is_restart_allowed(&self, execution_state: &ExecutionState) -> bool;
-}
-
-impl RestartAllowed for RestartPolicy {
-    // [impl->swdd~agent-restarts-workload-with-enabled-restart-policy~1]
-    // [impl->swdd~agent-no-restart-with-disabled-restart-policy~1]
-    fn is_restart_allowed(&self, execution_state: &ExecutionState) -> bool {
-        match self {
-            RestartPolicy::Never => false,
-            RestartPolicy::OnFailure => execution_state.is_failed(),
-            RestartPolicy::Always => execution_state.is_failed() || execution_state.is_succeeded(),
-        }
-    }
-}
-
 impl TryFrom<i32> for RestartPolicy {
     type Error = String;
 
@@ -674,39 +658,6 @@ mod tests {
                 "Received an unknown value '100' as restart policy.".to_string()
             )
         );
-    }
-
-    // [utest->swdd~agent-no-restart-with-disabled-restart-policy~1]
-    #[test]
-    fn utest_is_restart_allowed_never() {
-        let restart_policy = RestartPolicy::Never;
-        assert!(!restart_policy.is_restart_allowed(&ExecutionState::running()));
-        assert!(!restart_policy.is_restart_allowed(&ExecutionState::succeeded()));
-        assert!(
-            !restart_policy.is_restart_allowed(&ExecutionState::failed("some failure".to_string()))
-        );
-    }
-
-    // [utest->swdd~agent-restarts-workload-with-enabled-restart-policy~1]
-    #[test]
-    fn utest_is_restart_allowed_on_failure() {
-        let restart_policy = RestartPolicy::OnFailure;
-        assert!(!restart_policy.is_restart_allowed(&ExecutionState::running()));
-        assert!(
-            restart_policy.is_restart_allowed(&ExecutionState::failed("some failure".to_string()))
-        );
-        assert!(!restart_policy.is_restart_allowed(&ExecutionState::succeeded()));
-    }
-
-    // [utest->swdd~agent-restarts-workload-with-enabled-restart-policy~1]
-    #[test]
-    fn utest_is_restart_allowed_always() {
-        let restart_policy = RestartPolicy::Always;
-        assert!(!restart_policy.is_restart_allowed(&ExecutionState::running()));
-        assert!(
-            restart_policy.is_restart_allowed(&ExecutionState::failed("some failure".to_string()))
-        );
-        assert!(restart_policy.is_restart_allowed(&ExecutionState::succeeded()));
     }
 
     #[test]

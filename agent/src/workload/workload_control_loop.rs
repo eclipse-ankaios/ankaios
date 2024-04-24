@@ -15,7 +15,7 @@ use crate::runtime_connectors::StateChecker;
 use crate::workload::{ControlLoopState, WorkloadCommand};
 use crate::workload_state::WorkloadStateSenderInterface;
 use common::objects::{
-    ExecutionState, RestartAllowed, WorkloadInstanceName, WorkloadSpec, WorkloadState,
+    ExecutionState, RestartPolicy, WorkloadInstanceName, WorkloadSpec, WorkloadState,
 };
 use common::std_extensions::GracefulExitResult;
 use futures_util::Future;
@@ -84,6 +84,17 @@ impl WorkloadControlLoop {
                     let new_workload_state = received_workload_state
                         .ok_or("Channel to listen to workload states of state checker closed.")
                         .unwrap_or_exit("Abort");
+
+                    /* forward immediately the new workload state to the agent manager
+                    to avoid delays through the restart handling */
+                    // [impl->swdd~workload-control-loop-sends-workload-states~1]
+                    control_loop_state
+                        .workload_state_sender
+                        .report_workload_execution_state(
+                            &new_workload_state.instance_name,
+                            new_workload_state.execution_state.clone(),
+                        )
+                        .await;
 
                     // [impl->swdd~workload-control-loop-handles-workload-restarts~1]
                     control_loop_state = Self::handle_restart_on_received_workload_state(control_loop_state, new_workload_state).await;
@@ -159,21 +170,21 @@ impl WorkloadControlLoop {
     {
         let restart_policy = &control_loop_state.workload_spec.restart_policy;
         let is_restart_allowed =
-            restart_policy.is_restart_allowed(&new_workload_state.execution_state);
+            Self::is_restart_allowed(restart_policy, &new_workload_state.execution_state);
 
-        /* forward immediately the new workload state to the agent manager
-        to avoid delays through the restart handling */
-        // [impl->swdd~workload-control-loop-sends-workload-states~1]
-        control_loop_state
-            .workload_state_sender
-            .report_workload_execution_state(
-                &new_workload_state.instance_name,
-                new_workload_state.execution_state,
-            )
-            .await;
+        let equal_instance_names = new_workload_state
+            .instance_name
+            .eq(control_loop_state.instance_name());
 
-        if is_restart_allowed {
-            // [impl->swdd~agent-restarts-workload-with-enabled-restart-policy~1]
+        log::debug!("Restart policy: '{}', is restart allowed: '{}', equal instance names: '{}', control_loop_instance_name: '{}', wl_state_instance_name: '{}'",
+            restart_policy,
+            is_restart_allowed,
+            equal_instance_names,
+            control_loop_state.instance_name(),
+            new_workload_state.instance_name);
+
+        if is_restart_allowed && equal_instance_names {
+            // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
             log::debug!(
                 "Restart workload '{}' with restart policy '{}' caused by current execution state.",
                 control_loop_state
@@ -195,7 +206,7 @@ impl WorkloadControlLoop {
             )
             .await;
         } else {
-            // [impl->swdd~agent-no-restart-with-disabled-restart-policy~1]
+            // [impl->swdd~workload-control-loop-no-restart-with-disabled-restart-policy~1]
             log::trace!(
                 "Restart not allowed for workload '{}'.",
                 control_loop_state
@@ -206,6 +217,19 @@ impl WorkloadControlLoop {
         }
 
         control_loop_state
+    }
+
+    // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
+    // [impl->swdd~workload-control-loop-no-restart-with-disabled-restart-policy~1]
+    fn is_restart_allowed(
+        restart_policy: &RestartPolicy,
+        execution_state: &ExecutionState,
+    ) -> bool {
+        match restart_policy {
+            RestartPolicy::Never => false,
+            RestartPolicy::OnFailure => execution_state.is_failed(),
+            RestartPolicy::Always => execution_state.is_failed() || execution_state.is_succeeded(),
+        }
     }
 
     async fn send_retry<WorkloadId, StChecker>(
@@ -2237,5 +2261,59 @@ mod tests {
             new_control_loop_state.workload_id,
             Some(WORKLOAD_ID_2.into())
         );
+    }
+
+    // [utest->swdd~workload-control-loop-no-restart-with-disabled-restart-policy~1]
+    #[test]
+    fn utest_is_restart_allowed_never() {
+        let restart_policy = RestartPolicy::Never;
+        assert!(!WorkloadControlLoop::is_restart_allowed(
+            &restart_policy,
+            &ExecutionState::running()
+        ));
+        assert!(!WorkloadControlLoop::is_restart_allowed(
+            &restart_policy,
+            &ExecutionState::succeeded()
+        ));
+        assert!(!WorkloadControlLoop::is_restart_allowed(
+            &restart_policy,
+            &ExecutionState::failed("some failure".to_string())
+        ));
+    }
+
+    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
+    #[test]
+    fn utest_is_restart_allowed_on_failure() {
+        let restart_policy = RestartPolicy::OnFailure;
+        assert!(!WorkloadControlLoop::is_restart_allowed(
+            &restart_policy,
+            &ExecutionState::running()
+        ));
+        assert!(WorkloadControlLoop::is_restart_allowed(
+            &restart_policy,
+            &ExecutionState::failed("some failure".to_string())
+        ));
+        assert!(!WorkloadControlLoop::is_restart_allowed(
+            &restart_policy,
+            &ExecutionState::succeeded()
+        ));
+    }
+
+    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
+    #[test]
+    fn utest_is_restart_allowed_always() {
+        let restart_policy = RestartPolicy::Always;
+        assert!(!WorkloadControlLoop::is_restart_allowed(
+            &restart_policy,
+            &ExecutionState::running()
+        ));
+        assert!(WorkloadControlLoop::is_restart_allowed(
+            &restart_policy,
+            &ExecutionState::failed("some failure".to_string())
+        ));
+        assert!(WorkloadControlLoop::is_restart_allowed(
+            &restart_policy,
+            &ExecutionState::succeeded()
+        ));
     }
 }
