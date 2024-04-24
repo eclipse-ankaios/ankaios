@@ -415,16 +415,14 @@ impl RuntimeManager {
 
     // [impl->swdd~agent-updates-deleted-and-added-workloads~1]
     async fn update_workload(&mut self, workload_spec: WorkloadSpec) {
-        let pipes_channel_context_info = PipesChannelContextInfo::new(
-            &self.run_folder,
-            self.control_interface_tx.clone(),
-            &workload_spec.instance_name,
-        );
-        let workload_name = pipes_channel_context_info
-            .get_workload_instance_name()
-            .workload_name()
-            .to_owned();
+        let workload_name = workload_spec.instance_name.workload_name().to_owned();
+
         if let Some(workload) = self.workloads.get_mut(&workload_name) {
+            let pipes_channel_context_info = PipesChannelContextInfo::new(
+                &self.run_folder,
+                self.control_interface_tx.clone(),
+                &workload_spec.instance_name,
+            );
             // [impl->swdd~agent-executes-update-workload-operation~1]
             if let Err(err) = workload
                 .update(Some(workload_spec), Some(pipes_channel_context_info))

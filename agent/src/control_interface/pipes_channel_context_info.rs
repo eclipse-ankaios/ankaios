@@ -46,11 +46,12 @@ impl PipesChannelContextInfo {
     pub fn get_run_folder(&self) -> &PathBuf {
         &self.run_folder
     }
+
     pub fn get_workload_instance_name(&self) -> &WorkloadInstanceName {
         &self.workload_instance_name
     }
 
-    pub fn make_context(self) -> Option<PipesChannelContext> {
+    pub fn create_control_interface(self) -> Option<PipesChannelContext> {
         match PipesChannelContext::new(
             &self.run_folder,
             &self.workload_instance_name,

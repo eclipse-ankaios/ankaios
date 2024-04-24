@@ -283,6 +283,7 @@ mod tests {
     const WORKLOAD_ID: &str = "workload_id_1";
     const PIPES_LOCATION: &str = "/some/path";
     const TEST_CHANNEL_BUFFER_SIZE: usize = 20;
+
     fn pipes_folder_name(workload_instance_name: &WorkloadInstanceName) -> PathBuf {
         workload_instance_name
             .pipes_folder_name(&Path::new(PIPES_LOCATION))
