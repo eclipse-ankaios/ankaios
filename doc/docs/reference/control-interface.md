@@ -10,9 +10,6 @@ The [control interface](./control-interface.md) allows the [workload](glossary.m
 ## Overview
 
 ```mermaid
----
-title: Overview
----
 flowchart TD
     a1(Ankaios Agent 1)
     w1(Workload 1)
@@ -32,9 +29,6 @@ The [control interface](./control-interface.md) enables a [workload](glossary.md
 ## FIFO mount point
 
 ```mermaid
----
-title: FIFO Mount Point
----
 flowchart TD
     a1(Ankaios Agent 1)
     w1(Workload 1)
@@ -81,9 +75,6 @@ The following sections showcase in Rust some important parts of the communicatio
 To send out a request message from the workload to the Ankaios Server the request message needs to be serialized using the generated serializing function, then encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) and then written directly into the `output` FIFO file. The type of request message is [ToServer](_ankaios.proto.md#toserver).
 
 ```mermaid
----
-title: Send request message via control interface
----
 flowchart TD
     begin([Start])
     req_msg(Fill ToServer message)
@@ -98,6 +89,7 @@ flowchart TD
     enc_bytes --> output
     output --> fin
 ```
+<figcaption>Send request message via control interface</figcaption>
 
 Code snippet in [Rust](https://www.rust-lang.org/) for sending request message via control interface:
 
@@ -169,9 +161,6 @@ fn main() {
 To process a response message from the Ankaios Server the workload needs to read out the bytes from the `input` FIFO file. As the bytes are encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) with a variable length, the length needs to be decoded and extracted first. Then the length can be used to decode and deserialize the read bytes to a response message object for further processing. The type of the response message is [FromServer](_ankaios.proto.md#fromserver).
 
 ```mermaid
----
-title: Read response message via control interface
----
 flowchart TD
     begin([Start])
     input("Read bytes from /run/ankaios/control_interface/input")
@@ -186,6 +175,8 @@ flowchart TD
     deser_msg --> further_processing
     further_processing --> fin
 ```
+<figcaption>Read response message via control interface</figcaption>
+
 
 Code Snippet in [Rust](https://www.rust-lang.org/) for reading response message via control interface:
 
