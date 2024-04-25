@@ -3,6 +3,7 @@ build
 temp
 req_in
 dist
+logs
 
 #ignore plantuml out folder
 /out

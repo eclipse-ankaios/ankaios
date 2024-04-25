@@ -18,6 +18,7 @@ mod filesystem;
 mod from_server_channels;
 mod input_output;
 mod pipes_channel_context;
+mod pipes_channel_context_info;
 mod pipes_channel_task;
 mod reopen_file;
 
@@ -28,6 +29,7 @@ pub use from_server_channels::*;
 #[cfg(test)]
 pub use input_output::*;
 pub use pipes_channel_context::*;
+pub use pipes_channel_context_info::*;
 #[cfg(test)]
 pub use pipes_channel_task::*;
 pub use reopen_file::*;

@@ -1041,6 +1041,8 @@ impl CliCommands {
         if changed_workloads.is_empty() {
             output!("No workloads to update");
             return Ok(());
+        } else {
+            output!("Applied successfully the manifest(s). Waiting for target workload states (press Ctrl+C to interrupt waiting).\n");
         }
 
         let states_of_all_workloads = self.get_workloads().await.unwrap();

@@ -1,0 +1,13 @@
+#!/bin/bash
+set -e
+
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+LOG_DIR="$(readlink -f "$SCRIPT_DIR/../../logs")"
+
+mkdir -p "$LOG_DIR"
+
+echo "Staring up Ankaios server"
+RUST_LOG=debug /workspaces/ankaios/target/x86_64-unknown-linux-musl/debug/ank-server 2> "$LOG_DIR/ank-server" &
+
+echo "Staring up Ankaios agent"
+RUST_LOG=debug /workspaces/ankaios/target/x86_64-unknown-linux-musl/debug/ank-agent --name agent_A 2> "$LOG_DIR/ank-agent" &
