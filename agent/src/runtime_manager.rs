@@ -2241,17 +2241,11 @@ mod tests {
             RUNTIME_NAME.to_owned(),
         );
 
-        let pipes_channel_info_mock = MockPipesChannelContextInfo::default();
-        // pipes_channel_info_mock
-        //     .expect_get_workload_instance_name()
-        //     .once()
-        //     .return_const(new_workload.instance_name.clone());
-
         let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
         pipes_channel_info_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _| pipes_channel_info_mock);
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let mut workload_mock = MockWorkload::default();
         workload_mock
