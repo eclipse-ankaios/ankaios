@@ -118,7 +118,7 @@ impl Workload {
                     .get_api_location()
                     .to_str()
                     .unwrap()
-                    .contains(new_location.to_str().unwrap());
+                    .eq(new_location.to_str().unwrap());
             }
         }
     }
