@@ -222,7 +222,10 @@ mod tests {
             UpdateStateRequest, UpdateStateSuccess, UpdateWorkloadState,
         },
         from_server_interface::FromServer,
-        objects::{CompleteState, State, StoredWorkloadSpec},
+        objects::{
+            CompleteState, ExecutionState, ExecutionStateEnum, RunningSubstate, State,
+            StoredWorkloadSpec, WorkloadInstanceName, WorkloadState,
+        },
         to_server_interface::ToServer,
     };
     use tokio::sync::mpsc::Receiver;
@@ -235,6 +238,7 @@ mod tests {
     const RUNTIME: &str = "runtime";
     const REQUEST: &str = "complete_state_request";
     const FIELD_MASK: &str = "field_mask";
+    const ID: &str = "id";
 
     fn complete_state_1() -> CompleteState {
         CompleteState {
@@ -265,6 +269,19 @@ mod tests {
                 ..Default::default()
             },
         )
+    }
+
+    fn instance_name(workload_name: &str) -> WorkloadInstanceName {
+        format!("{workload_name}.{ID}.{AGENT_A}")
+            .try_into()
+            .unwrap()
+    }
+
+    fn running() -> ExecutionState {
+        ExecutionState {
+            state: ExecutionStateEnum::Running(RunningSubstate::Ok),
+            additional_info: "".into(),
+        }
     }
 
     #[tokio::test]
@@ -593,6 +610,70 @@ mod tests {
             server_connection.take_missed_from_server_messages(),
             vec![other_message]
         );
+        checker.check_communication();
+    }
+
+    #[tokio::test]
+    async fn utest_read_next_update_workload_state() {
+        let update_workload_state = UpdateWorkloadState {
+            workload_states: vec![WorkloadState {
+                instance_name: instance_name(WORKLOAD_NAME_1),
+                execution_state: running(),
+            }],
+        };
+
+        let mut sim = CommunicationSimulator::default();
+        sim.will_send_message(FromServer::UpdateWorkloadState(
+            update_workload_state.clone(),
+        ));
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection.read_next_update_workload_state().await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), update_workload_state);
+
+        checker.check_communication();
+    }
+
+    #[tokio::test]
+    async fn utest_read_next_update_workload_state_other_message_in_between() {
+        let other_message = FromServer::Response(Response {
+            request_id: REQUEST.into(),
+            response_content: ResponseContent::Error(Error { message: "".into() }),
+        });
+        let update_workload_state = UpdateWorkloadState {
+            workload_states: vec![WorkloadState {
+                instance_name: instance_name(WORKLOAD_NAME_1),
+                execution_state: running(),
+            }],
+        };
+
+        let mut sim = CommunicationSimulator::default();
+        sim.will_send_message(other_message.clone());
+        sim.will_send_message(FromServer::UpdateWorkloadState(
+            update_workload_state.clone(),
+        ));
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection.read_next_update_workload_state().await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), update_workload_state);
+        assert_eq!(
+            server_connection.take_missed_from_server_messages(),
+            vec![other_message]
+        );
+        checker.check_communication();
+    }
+
+    #[tokio::test]
+    async fn utest_read_next_update_workload_state_fails_no_response() {
+        let sim = CommunicationSimulator::default();
+
+        let (checker, mut server_connection) = sim.create_server_connection();
+
+        let result = server_connection.read_next_update_workload_state().await;
+        assert!(result.is_err());
+
         checker.check_communication();
     }
 
