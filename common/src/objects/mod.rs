@@ -57,6 +57,8 @@ mod tag;
 pub use tag::Tag;
 
 mod workload_instance_name;
+#[cfg(any(feature = "test_utils", test))]
+pub use workload_instance_name::generate_test_workload_instance_name;
 pub use workload_instance_name::{ConfigHash, WorkloadInstanceName, WorkloadInstanceNameBuilder};
 
 mod agent_name;
