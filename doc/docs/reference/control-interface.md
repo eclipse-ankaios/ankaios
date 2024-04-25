@@ -89,6 +89,7 @@ flowchart TD
     enc_bytes --> output
     output --> fin
 ```
+
 <figcaption>Send request message via control interface</figcaption>
 
 Code snippet in [Rust](https://www.rust-lang.org/) for sending request message via control interface:
@@ -175,8 +176,8 @@ flowchart TD
     deser_msg --> further_processing
     further_processing --> fin
 ```
-<figcaption>Read response message via control interface</figcaption>
 
+<figcaption>Read response message via control interface</figcaption>
 
 Code Snippet in [Rust](https://www.rust-lang.org/) for reading response message via control interface:
 
