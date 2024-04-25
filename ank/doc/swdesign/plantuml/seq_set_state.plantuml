@@ -13,7 +13,7 @@ box "Ankaios Server"
     participant "Ankaios Server" as server
 end box
 
--> main ++ : set state
+user -> main ++ : set state
 
 == startup ==
 
@@ -27,10 +27,37 @@ listen_to_manager ->> server --++ : request update state
 
 cli_commands -> cli_commands ++: wait for the response
 
-listen_to_server <<- server --++: response
-listen_to_server ->> cli_commands --: response
-main <<-- cli_commands --
+listen_to_server <<- server --++: changed workloads
+listen_to_server ->> cli_commands --: changed workloads
 deactivate cli_commands
+
+alt no workloads changed
+    cli_commands -> cli_commands: output "No workloads to update"
+else workloads changed
+
+    cli_commands ->> listen_to_manager ++: request complete state
+    listen_to_manager ->> server --++ : request complete state
+
+    cli_commands -> cli_commands ++: wait for the response
+    listen_to_server <<- server --++: complete state
+    listen_to_server ->> cli_commands --: complete state
+    deactivate cli_commands
+    cli_commands -> cli_commands: filter for changed workloads
+    cli_commands -> cli_commands: print workload table
+
+    loop until all changed workloads have been marked
+        listen_to_server <<- server ++: update workload state
+        cli_commands <<- listen_to_server --: update workload state
+        alt updated workload in changed workloads
+            alt updated workload reached desired state
+                cli_commands -> cli_commands: mark workload as updated
+            end
+            cli_commands -> cli_commands: print updated workload table
+        end
+    end
+end
+
+main <<-- cli_commands --
 
 destroy cli_commands
 destroy listen_to_manager
