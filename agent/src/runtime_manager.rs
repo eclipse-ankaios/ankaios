@@ -1092,10 +1092,10 @@ mod tests {
         );
 
         let mut pipes_channel_info_mock = MockPipesChannelContextInfo::default();
-        pipes_channel_info_mock
-            .expect_get_workload_instance_name()
-            .once()
-            .return_const(new_workload.instance_name.clone());
+        // pipes_channel_info_mock
+        //     .expect_get_workload_instance_name()
+        //     .once()
+        //     .return_const(new_workload.instance_name.clone());
 
         let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
         pipes_channel_info_context_mock
@@ -1339,10 +1339,10 @@ mod tests {
         );
 
         let mut pipes_channel_info_mock = MockPipesChannelContextInfo::default();
-        pipes_channel_info_mock
-            .expect_get_workload_instance_name()
-            .once()
-            .return_const(new_workload.instance_name.clone());
+        // pipes_channel_info_mock
+        //     .expect_get_workload_instance_name()
+        //     .once()
+        //     .return_const(new_workload.instance_name.clone());
 
         let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
         pipes_channel_info_context_mock
@@ -2253,11 +2253,11 @@ mod tests {
             RUNTIME_NAME.to_owned(),
         );
 
-        let mut pipes_channel_info_mock = MockPipesChannelContextInfo::default();
-        pipes_channel_info_mock
-            .expect_get_workload_instance_name()
-            .once()
-            .return_const(new_workload.instance_name.clone());
+        let pipes_channel_info_mock = MockPipesChannelContextInfo::default();
+        // pipes_channel_info_mock
+        //     .expect_get_workload_instance_name()
+        //     .once()
+        //     .return_const(new_workload.instance_name.clone());
 
         let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
         pipes_channel_info_context_mock
