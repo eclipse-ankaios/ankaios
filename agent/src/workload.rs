@@ -259,7 +259,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_is_control_interface_changed_set_fresh_control_interface_returns_true() {
+    fn utest_is_control_interface_changed_set_from_none_to_new_returns_true() {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
         let test_workload_with_control_interface = Workload::new(
             WORKLOAD_1_NAME.to_string(),
@@ -268,6 +268,32 @@ mod tests {
         );
         assert!(test_workload_with_control_interface
             .is_control_interface_changed(&Some(MockPipesChannelContextInfo::default())));
+    }
+
+    #[test]
+    fn utest_is_control_interface_changed_set_from_existing_to_none_returns_true() {
+        let (workload_command_sender, _) = WorkloadCommandSender::new();
+
+        let test_workload_with_control_interface = Workload::new(
+            WORKLOAD_1_NAME.to_string(),
+            workload_command_sender.clone(),
+            Some(MockPipesChannelContext::default()),
+        );
+
+        assert!(test_workload_with_control_interface.is_control_interface_changed(&None));
+    }
+
+    #[test]
+    fn utest_is_control_interface_changed_set_from_none_to_none_returns_false() {
+        let (workload_command_sender, _) = WorkloadCommandSender::new();
+
+        let test_workload_with_control_interface = Workload::new(
+            WORKLOAD_1_NAME.to_string(),
+            workload_command_sender.clone(),
+            None,
+        );
+
+        assert!(!test_workload_with_control_interface.is_control_interface_changed(&None));
     }
 
     #[test]
@@ -307,6 +333,46 @@ mod tests {
         test_workload_with_control_interface.control_interface = Some(inner_control_interface_mock);
 
         assert!(test_workload_with_control_interface
+            .is_control_interface_changed(&Some(pipes_channel_context_info_mock)));
+    }
+
+    #[test]
+    fn utest_is_control_interface_changed_on_equal_location_returns_false() {
+        let (workload_command_sender, _) = WorkloadCommandSender::new();
+
+        let inner_workload_instance_name =
+            WorkloadInstanceName::new(&format!("agent.{}.hash", WORKLOAD_1_NAME));
+        let new_workload_instance_name = inner_workload_instance_name.clone().unwrap(); // simulates equal location
+
+        let mut pipes_channel_context_info_mock = MockPipesChannelContextInfo::default();
+        pipes_channel_context_info_mock
+            .expect_get_workload_instance_name()
+            .once()
+            .return_const(new_workload_instance_name.clone());
+        pipes_channel_context_info_mock
+            .expect_get_run_folder()
+            .once()
+            .return_const(PIPES_LOCATION.into());
+
+        let mut test_workload_with_control_interface = Workload::new(
+            WORKLOAD_1_NAME.to_string(),
+            workload_command_sender.clone(),
+            None,
+        );
+
+        let mut inner_control_interface_mock = MockPipesChannelContext::default();
+        inner_control_interface_mock
+            .expect_get_api_location()
+            .once()
+            .return_const(
+                inner_workload_instance_name
+                    .unwrap()
+                    .pipes_folder_name(PIPES_LOCATION.as_ref()),
+            );
+
+        test_workload_with_control_interface.control_interface = Some(inner_control_interface_mock);
+
+        assert!(!test_workload_with_control_interface
             .is_control_interface_changed(&Some(pipes_channel_context_info_mock)));
     }
 

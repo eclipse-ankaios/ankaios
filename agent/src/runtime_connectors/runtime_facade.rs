@@ -285,8 +285,7 @@ mod tests {
     const TEST_CHANNEL_BUFFER_SIZE: usize = 20;
 
     fn pipes_folder_name(workload_instance_name: &WorkloadInstanceName) -> PathBuf {
-        workload_instance_name
-            .pipes_folder_name(&Path::new(PIPES_LOCATION))
+        workload_instance_name.pipes_folder_name(Path::new(PIPES_LOCATION))
     }
 
     // [utest->swdd~agent-facade-forwards-list-reusable-workloads-call~1]

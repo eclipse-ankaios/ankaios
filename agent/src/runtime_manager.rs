@@ -461,7 +461,7 @@ impl RuntimeManager {
             workload_instance_name
         );
 
-        match PipesChannelContext::new(run_folder, &workload_instance_name, control_interface_tx) {
+        match PipesChannelContext::new(run_folder, workload_instance_name, control_interface_tx) {
             Ok(pipes_channel_context) => Some(pipes_channel_context),
             Err(err) => {
                 log::warn!(
