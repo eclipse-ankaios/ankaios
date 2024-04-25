@@ -136,7 +136,7 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 
-#[cfg(any(feature = "test_utils", test))]
+#[cfg(test)]
 fn generate_test_wait_list(
     my_mock: MockMyWaitListDisplay,
     added_workloads: Vec<WorkloadInstanceName>,
