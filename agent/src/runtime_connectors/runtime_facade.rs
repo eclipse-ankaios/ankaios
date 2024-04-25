@@ -102,7 +102,7 @@ impl<
                         .instance_name
                         .pipes_folder_name(info.get_run_folder()),
                 ),
-                info.make_context(),
+                info.create_control_interface(),
             ),
             None => (None, None),
         };
@@ -342,7 +342,7 @@ mod tests {
             .once()
             .return_const(PIPES_LOCATION.into());
         pipes_channel_info_mock
-            .expect_make_context()
+            .expect_create_control_interface()
             .once()
             .return_once(|| Some(control_interface_context));
 

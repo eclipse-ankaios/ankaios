@@ -93,7 +93,7 @@ impl Workload {
             control_interface.abort_pipes_channel_task()
         }
         self.control_interface = match pipes_channel_context_info {
-            Some(info) => info.make_context(),
+            Some(info) => info.create_control_interface(),
             None => None,
         };
     }
@@ -417,7 +417,7 @@ mod tests {
             .once()
             .return_const(PIPES_LOCATION.into());
         new_control_interface_info_mock
-            .expect_make_context()
+            .expect_create_control_interface()
             .once()
             .return_once(|| Some(new_control_interface_mock));
 
@@ -485,7 +485,7 @@ mod tests {
             .once()
             .return_const(PIPES_LOCATION.into());
         new_control_interface_mock
-            .expect_make_context()
+            .expect_create_control_interface()
             .once()
             .return_once(|| None);
 

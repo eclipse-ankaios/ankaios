@@ -1091,17 +1091,11 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let mut pipes_channel_info_mock = MockPipesChannelContextInfo::default();
-        // pipes_channel_info_mock
-        //     .expect_get_workload_instance_name()
-        //     .once()
-        //     .return_const(new_workload.instance_name.clone());
-
         let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
         pipes_channel_info_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _| pipes_channel_info_mock);
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let old_workload =
             generate_test_deleted_workload(AGENT_NAME.to_string(), WORKLOAD_1_NAME.to_string());
@@ -1338,17 +1332,11 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let mut pipes_channel_info_mock = MockPipesChannelContextInfo::default();
-        // pipes_channel_info_mock
-        //     .expect_get_workload_instance_name()
-        //     .once()
-        //     .return_const(new_workload.instance_name.clone());
-
         let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
         pipes_channel_info_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _| pipes_channel_info_mock);
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let old_workload = generate_test_deleted_workload_with_dependencies(
             AGENT_NAME.to_owned(),

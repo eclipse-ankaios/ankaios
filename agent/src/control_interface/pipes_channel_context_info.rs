@@ -151,7 +151,7 @@ mod tests {
             .once()
             .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
 
-        assert!(new_context_info.make_context().is_some());
+        assert!(new_context_info.create_control_interface().is_some());
     }
 
     #[test]
@@ -174,6 +174,6 @@ mod tests {
                 )))
             });
 
-        assert!(new_context_info.make_context().is_none());
+        assert!(new_context_info.create_control_interface().is_none());
     }
 }
