@@ -135,8 +135,12 @@ mod tests {
         );
     }
 
-    #[test]
-    fn utest_make_context_ok() {
+    #[tokio::test]
+    async fn utest_create_control_interface_ok() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
         let new_context_info = PipesChannelContextInfo::new(
             Path::new(PIPES_LOCATION),
             tokio::sync::mpsc::channel::<ToServer>(1).0,
@@ -154,8 +158,12 @@ mod tests {
         assert!(new_context_info.create_control_interface().is_some());
     }
 
-    #[test]
-    fn utest_make_context_failed() {
+    #[tokio::test]
+    async fn utest_create_control_interface_failed() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
         let new_context_info = PipesChannelContextInfo::new(
             Path::new(PIPES_LOCATION),
             tokio::sync::mpsc::channel::<ToServer>(1).0,
