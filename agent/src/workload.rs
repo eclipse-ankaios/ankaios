@@ -125,7 +125,6 @@ impl Workload {
 
     fn update_control_interface(
         &mut self,
-        // spec: &Option<WorkloadSpec>,
         pipes_channel_context_info: Option<PipesChannelContextInfo>,
     ) {
         if self.is_control_interface_changed(&pipes_channel_context_info) {
