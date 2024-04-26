@@ -45,7 +45,6 @@ where
     pub retry_counter: RetryCounter,
 }
 
-#[cfg_attr(test, automock)]
 impl<WorkloadId, StChecker> ControlLoopState<WorkloadId, StChecker>
 where
     WorkloadId: ToString + Send + Sync + 'static,
