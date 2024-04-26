@@ -540,7 +540,7 @@ Needs:
 
 ### `ank delete workload`
 
-![Delete workload](plantuml/seq_delete_workload.svg)
+The sequence is the same as for `ank set state`.
 
 #### CLI provides a function to delete workloads
 `swdd~cli-provides-delete-workload~1`
@@ -587,7 +587,7 @@ Needs:
 
 ### `ank run workload`
 
-![Run workload](plantuml/seq_run_workload.svg)
+The sequence is the same as for `ank set state`.
 
 #### CLI provides a function to run a workload
 `swdd~cli-provides-run-workload~1`
@@ -618,6 +618,8 @@ Needs:
 - utest
 
 ### `ank apply [-d] [--agent agent_name] <manifest.yaml> ...`
+
+The sequence is the same as for `ank set state`.
 
 #### Ankaios manifest
 
