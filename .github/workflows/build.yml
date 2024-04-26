@@ -36,7 +36,7 @@ jobs:
         run: |
           mkdir -p build
           cargo about generate about.hbs > build/licenses.html
-      - uses: actions/upload-artifact@v3.1.2
+      - uses: actions/upload-artifact@v4.3.3
         with:
           name: licenses
           path: build/licenses.html
@@ -50,7 +50,7 @@ jobs:
           mkdir -p target/robot_tests_result
           chown vscode target/robot_tests_result
           su vscode -c "tools/run_robot_tests.sh tests"
-      - uses: actions/upload-artifact@v3.1.2
+      - uses: actions/upload-artifact@v4.3.3
         if: success() || failure()
         with:
           name: robot-tests-result
@@ -60,7 +60,7 @@ jobs:
         run: |
           rustup component add llvm-tools-preview
           tools/generate_test_coverage_report.sh test --html
-      - uses: actions/upload-artifact@v3.1.2
+      - uses: actions/upload-artifact@v4.3.3
         with:
           name: code-coverage
           path: target/llvm-cov/html
@@ -70,7 +70,7 @@ jobs:
           cargo build --release
           mkdir -p dist/
           cp target/x86_64-unknown-linux-musl/release/ank target/x86_64-unknown-linux-musl/release/ank-server target/x86_64-unknown-linux-musl/release/ank-agent dist/
-      - uses: actions/upload-artifact@v3.1.2
+      - uses: actions/upload-artifact@v4.3.3
         with:
           name: ankaios-linux-amd64-bin
           path: dist/
@@ -78,7 +78,7 @@ jobs:
       - name: Build linux-amd64 debian package
         run: |
           cargo deb -p ank --target x86_64-unknown-linux-musl
-      - uses: actions/upload-artifact@v3.1.2
+      - uses: actions/upload-artifact@v4.3.3
         with:
           name: ankaios-linux-amd64-deb
           path: target/x86_64-unknown-linux-musl/debian/ankaios*.deb
@@ -102,7 +102,7 @@ jobs:
           cargo build --target aarch64-unknown-linux-musl --release
           mkdir -p dist/
           cp target/aarch64-unknown-linux-musl/release/ank target/aarch64-unknown-linux-musl/release/ank-server target/aarch64-unknown-linux-musl/release/ank-agent dist/
-      - uses: actions/upload-artifact@v3.1.2
+      - uses: actions/upload-artifact@v4.3.3
         with:
           name: ankaios-linux-arm64-bin
           path: dist/
@@ -110,7 +110,7 @@ jobs:
       - name: Build linux-arm64 debian package
         run: |
           cargo deb -p ank --target aarch64-unknown-linux-musl
-      - uses: actions/upload-artifact@v3.1.2
+      - uses: actions/upload-artifact@v4.3.3
         with:
           name: ankaios-linux-arm64-deb
           path: target/aarch64-unknown-linux-musl/debian/ankaios*.deb
@@ -126,7 +126,7 @@ jobs:
       - run: |
           mkdir -p dist
           oft trace $(find . -type d -name "src" -o -name "doc") -a swdd,utest,itest,stest,impl -o html -f dist/req_tracing_report.html || true
-      - uses: actions/upload-artifact@v3.1.2
+      - uses: actions/upload-artifact@v4.3.3
         with:
           name: requirement-tracing-report
           path: dist/
