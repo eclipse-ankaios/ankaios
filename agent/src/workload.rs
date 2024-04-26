@@ -21,7 +21,7 @@ pub mod workload_control_loop;
 pub use control_loop_state::ControlLoopState;
 pub use workload_command_channel::WorkloadCommandSender;
 #[cfg(test)]
-pub use workload_control_loop::WorkloadControlLoop;
+pub use workload_control_loop::MockWorkloadControlLoop;
 
 use std::{fmt::Display, path::PathBuf};
 

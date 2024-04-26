@@ -22,9 +22,6 @@ use common::std_extensions::GracefulExitResult;
 use futures_util::Future;
 use std::path::PathBuf;
 
-#[cfg(test)]
-use mockall::automock;
-
 #[cfg(not(test))]
 const MAX_RETRIES: usize = 20;
 
@@ -71,7 +68,6 @@ impl RetryCounter {
 
 pub struct WorkloadControlLoop;
 
-#[cfg_attr(test, automock)]
 impl WorkloadControlLoop {
     pub async fn run<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
@@ -602,8 +598,21 @@ impl WorkloadControlLoop {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
+mockall::mock! {
+    pub WorkloadControlLoop {
+        pub async fn run<WorkloadId, StChecker>(
+            control_loop_state: ControlLoopState<WorkloadId, StChecker>,
+        )
+        where
+            WorkloadId: ToString + Send + Sync + 'static,
+            StChecker: StateChecker<WorkloadId> + Send + Sync + 'static;
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use std::time::Duration;
+    use super::WorkloadControlLoop;
 
     use common::objects::{
         generate_test_workload_spec, generate_test_workload_spec_with_param, ExecutionState,
@@ -616,7 +625,7 @@ mod tests {
     use crate::workload_state::WorkloadStateSenderInterface;
     use crate::{
         runtime_connectors::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
-        workload::{ControlLoopState, WorkloadCommandSender, WorkloadControlLoop},
+        workload::{ControlLoopState, WorkloadCommandSender},
         workload_state::assert_execution_state_sequence,
     };
 
