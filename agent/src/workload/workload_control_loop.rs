@@ -12,9 +12,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(test)]
-use mockall::automock;
-
 use crate::runtime_connectors::StateChecker;
 use crate::workload::{ControlLoopState, WorkloadCommand};
 use crate::workload_state::WorkloadStateSenderInterface;
@@ -24,6 +21,9 @@ use common::objects::{
 use common::std_extensions::GracefulExitResult;
 use futures_util::Future;
 use std::path::PathBuf;
+
+#[cfg(test)]
+use mockall::automock;
 
 #[cfg(not(test))]
 const MAX_RETRIES: usize = 20;
@@ -316,20 +316,18 @@ impl WorkloadControlLoop {
         control_loop_state
     }
 
-    async fn update_create<WorkloadId, StChecker, Fut>(
+    async fn update_create<WorkloadId, StChecker, ErrorFunc, Fut>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         new_workload_spec: WorkloadSpec,
         control_interface_path: Option<PathBuf>,
-        func_on_error: impl FnOnce(
-            ControlLoopState<WorkloadId, StChecker>,
-            WorkloadInstanceName,
-            String,
-        ) -> Fut,
+        func_on_error: ErrorFunc,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
         WorkloadId: ToString + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
-        Fut: Future<Output = ControlLoopState<WorkloadId, StChecker>>,
+        Fut: Future<Output = ControlLoopState<WorkloadId, StChecker>> + 'static,
+        ErrorFunc: FnOnce(ControlLoopState<WorkloadId, StChecker>, WorkloadInstanceName, String) -> Fut
+            + 'static,
     {
         control_loop_state.workload_spec = new_workload_spec;
         control_loop_state.control_interface_path = control_interface_path;
@@ -337,18 +335,16 @@ impl WorkloadControlLoop {
     }
 
     // [impl->swdd~agent-workload-control-loop-executes-create~2]
-    async fn create<WorkloadId, StChecker, Fut>(
+    async fn create<WorkloadId, StChecker, ErrorFunc, Fut>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-        func_on_error: impl FnOnce(
-            ControlLoopState<WorkloadId, StChecker>,
-            WorkloadInstanceName,
-            String,
-        ) -> Fut,
+        func_on_error: ErrorFunc,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
         WorkloadId: ToString + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
-        Fut: Future<Output = ControlLoopState<WorkloadId, StChecker>>,
+        Fut: Future<Output = ControlLoopState<WorkloadId, StChecker>> + 'static,
+        ErrorFunc: FnOnce(ControlLoopState<WorkloadId, StChecker>, WorkloadInstanceName, String) -> Fut
+            + 'static,
     {
         control_loop_state
             .workload_state_sender

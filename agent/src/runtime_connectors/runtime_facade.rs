@@ -13,10 +13,9 @@ use crate::{
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
 
+use crate::workload::control_loop_state::ControlLoopState;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::workload_control_loop::WorkloadControlLoop;
-#[cfg_attr(test, mockall_double::double)]
-use crate::workload::ControlLoopState;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
 use crate::workload::WorkloadCommandSender;
