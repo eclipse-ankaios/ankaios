@@ -118,7 +118,7 @@ fn create_update_workload_request() -> ToAnkaios {
         Workload {
             runtime: "podman".to_string(),
             agent: "agent_A".to_string(),
-            restart_policy: RestartPolicy::Never,
+            restart_policy: RestartPolicy::Never.into(),
             tags: vec![Tag {
                 key: "owner".to_string(),
                 value: "Ankaios team".to_string(),
