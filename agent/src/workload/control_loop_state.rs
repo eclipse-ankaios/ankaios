@@ -12,6 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(test)]
+use mockall::automock;
+
 use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use crate::workload::workload_command_channel::{WorkloadCommandReceiver, WorkloadCommandSender};
 use crate::workload::workload_control_loop::RetryCounter;
@@ -42,6 +45,7 @@ where
     pub retry_counter: RetryCounter,
 }
 
+#[cfg_attr(test, automock)]
 impl<WorkloadId, StChecker> ControlLoopState<WorkloadId, StChecker>
 where
     WorkloadId: ToString + Send + Sync + 'static,
@@ -72,6 +76,7 @@ where
     pub retry_counter: RetryCounter,
 }
 
+#[cfg_attr(test, automock)]
 impl<WorkloadId, StChecker> ControlLoopStateBuilder<WorkloadId, StChecker>
 where
     WorkloadId: ToString + Send + Sync + 'static,

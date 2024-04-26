@@ -9,11 +9,13 @@ use crate::control_interface::PipesChannelContext;
 use crate::control_interface::PipesChannelContextInfo;
 
 use crate::{
-    runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker},
+    runtime_connectors::{OwnableRuntime, RuntimeConnector, RuntimeError, StateChecker},
     workload_state::{WorkloadStateSender, WorkloadStateSenderInterface},
 };
 
+#[cfg_attr(test, mockall_double::double)]
 use crate::workload::workload_control_loop::WorkloadControlLoop;
+#[cfg_attr(test, mockall_double::double)]
 use crate::workload::ControlLoopState;
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload::Workload;
@@ -116,7 +118,19 @@ impl<
         instance_name: WorkloadInstanceName,
         update_state_tx: &WorkloadStateSender,
     ) {
-        let _ = Self::_delete_workload(self, instance_name, update_state_tx);
+        let runtime = self.runtime.to_owned();
+        let update_state_tx = update_state_tx.clone();
+
+        log::info!(
+            "Deleting '{}' workload '{}' on agent '{}'",
+            runtime.name(),
+            instance_name.workload_name(),
+            instance_name.agent_name(),
+        );
+
+        tokio::spawn(async move {
+            Self::_delete_workload(runtime, instance_name, &update_state_tx).await
+        });
     }
 }
 
@@ -249,48 +263,33 @@ impl<
     }
 
     // [impl->swdd~agent-delete-old-workload~2]
-    fn _delete_workload(
-        &self,
+    async fn _delete_workload(
+        runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>,
         instance_name: WorkloadInstanceName,
         update_state_tx: &WorkloadStateSender,
-    ) -> JoinHandle<()> {
-        let runtime = self.runtime.to_owned();
-        let update_state_tx = update_state_tx.clone();
+    ) {
+        update_state_tx
+            .report_workload_execution_state(&instance_name, ExecutionState::stopping_requested())
+            .await;
 
-        log::info!(
-            "Deleting '{}' workload '{}' on agent '{}'",
-            runtime.name(),
-            instance_name.workload_name(),
-            instance_name.agent_name(),
-        );
+        if let Ok(id) = runtime.get_workload_id(&instance_name).await {
+            if let Err(err) = runtime.delete_workload(&id).await {
+                update_state_tx
+                    .report_workload_execution_state(
+                        &instance_name,
+                        ExecutionState::delete_failed(err),
+                    )
+                    .await;
 
-        tokio::spawn(async move {
-            update_state_tx
-                .report_workload_execution_state(
-                    &instance_name,
-                    ExecutionState::stopping_requested(),
-                )
-                .await;
-
-            if let Ok(id) = runtime.get_workload_id(&instance_name).await {
-                if let Err(err) = runtime.delete_workload(&id).await {
-                    update_state_tx
-                        .report_workload_execution_state(
-                            &instance_name,
-                            ExecutionState::delete_failed(err),
-                        )
-                        .await;
-
-                    return; // The early exit is needed to skip sending the removed message.
-                }
-            } else {
-                log::debug!("Workload '{}' already gone.", instance_name);
+                return; // The early exit is needed to skip sending the removed message.
             }
+        } else {
+            log::debug!("Workload '{}' already gone.", instance_name);
+        }
 
-            update_state_tx
-                .report_workload_execution_state(&instance_name, ExecutionState::removed())
-                .await;
-        })
+        update_state_tx
+            .report_workload_execution_state(&instance_name, ExecutionState::removed())
+            .await;
     }
 
     async fn start_control_loop(

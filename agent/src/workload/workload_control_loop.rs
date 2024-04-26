@@ -11,6 +11,10 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+
+#[cfg(test)]
+use mockall::automock;
+
 use crate::runtime_connectors::StateChecker;
 use crate::workload::{ControlLoopState, WorkloadCommand};
 use crate::workload_state::WorkloadStateSenderInterface;
@@ -67,6 +71,7 @@ impl RetryCounter {
 
 pub struct WorkloadControlLoop;
 
+#[cfg_attr(test, automock)]
 impl WorkloadControlLoop {
     pub async fn run<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
@@ -2541,14 +2546,12 @@ mod tests {
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
-            .expect(vec![
-                RuntimeCall::GetWorkloadId(
-                    workload_spec.instance_name.clone(),
-                    Err(crate::runtime_connectors::RuntimeError::List(
-                        "some list workload error".to_string(),
-                    )),
-                ),
-            ])
+            .expect(vec![RuntimeCall::GetWorkloadId(
+                workload_spec.instance_name.clone(),
+                Err(crate::runtime_connectors::RuntimeError::List(
+                    "some list workload error".to_string(),
+                )),
+            )])
             .await;
 
         let control_loop_state = ControlLoopState::builder()
@@ -2580,7 +2583,7 @@ mod tests {
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
-        mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
