@@ -9,7 +9,7 @@ RUN apk update && apk add --update-cache \
     cmake \
     && rm -rf /var/cache/apk/*
 
-COPY api/proto/ank_proto.proto api/proto/control_interface_api.proto /usr/local/lib/ankaios/
+COPY api/proto/ank_base.proto api/proto/control_api.proto /usr/local/lib/ankaios/
 COPY examples/cpp_control_interface /workspaces/app
 RUN cd /workspaces/app && mkdir build && cd build && cmake .. && make
 

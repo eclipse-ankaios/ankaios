@@ -12,12 +12,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::ank_proto::{
+use api::ank_base::{
     request::RequestContent, CompleteState, CompleteStateRequest, Request, RestartPolicy, State,
     Tag, UpdateStateRequest, Workload,
 };
 
-use api::control_interface_api::{from_ankaios::FromAnkaiosEnum, to_ankaios::ToAnkaiosEnum, FromAnkaios, ToAnkaios};
+use api::control_api::{
+    from_ankaios::FromAnkaiosEnum, to_ankaios::ToAnkaiosEnum, FromAnkaios, ToAnkaios,
+};
 
 use prost::Message;
 use std::{

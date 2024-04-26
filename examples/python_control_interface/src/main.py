@@ -1,5 +1,5 @@
-import ank_proto_pb2 as ank_proto
-import control_interface_api_pb2 as control_interface_api
+import ank_base_pb2 as ank_base
+import control_api_pb2 as control_api
 from google.protobuf.internal.encoder import _VarintBytes
 from google.protobuf.internal.decoder import _DecodeVarint
 import threading
@@ -28,18 +28,18 @@ def create_request_to_add_new_workload():
     the update mask to add only the new workload.
     """
 
-    return control_interface_api.ToAnkaios(
-        request=ank_proto.Request(
+    return control_api.ToAnkaios(
+        request=ank_base.Request(
             requestId=REQUEST_ID,
-            updateStateRequest=ank_proto.UpdateStateRequest(
-                newState=ank_proto.CompleteState(
-                    desiredState=ank_proto.State(
+            updateStateRequest=ank_base.UpdateStateRequest(
+                newState=ank_base.CompleteState(
+                    desiredState=ank_base.State(
                         apiVersion="v0.1",
                         workloads={
-                            "dynamic_nginx": ank_proto.Workload(
+                            "dynamic_nginx": ank_base.Workload(
                                 agent="agent_A",
                                 runtime="podman",
-                                restartPolicy=ank_proto.NEVER,
+                                restartPolicy=ank_base.NEVER,
                                 runtimeConfig="image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]")
                         }
                     )
@@ -54,9 +54,9 @@ def create_request_for_complete_state():
     for querying the workload states.
     """
 
-    return control_interface_api.ToAnkaios(
-        request=ank_proto.Request(
-            completeStateRequest=ank_proto.CompleteStateRequest(
+    return control_api.ToAnkaios(
+        request=ank_base.Request(
+            completeStateRequest=ank_base.CompleteStateRequest(
                 fieldMask=["workloadStates"]
             ),
             requestId=REQUEST_ID,
@@ -86,7 +86,7 @@ def read_from_control_interface():
                     break
                 msg_buf += next_byte
 
-            from_ankaios = control_interface_api.FromAnkaios()
+            from_ankaios = control_api.FromAnkaios()
             try:
                 from_ankaios.ParseFromString(msg_buf) # Deserialize the received proto msg
             except Exception as e:

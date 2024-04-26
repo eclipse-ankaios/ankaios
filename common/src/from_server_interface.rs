@@ -14,7 +14,7 @@
 
 use crate::commands;
 use crate::objects::{CompleteState, DeletedWorkload, WorkloadSpec, WorkloadState};
-use api::ank_proto;
+use api::ank_base;
 use api::grpc_api;
 use async_trait::async_trait;
 use std::fmt;
@@ -77,7 +77,7 @@ impl TryFrom<FromServer> for grpc_api::FromServer {
             }),
             FromServer::Response(ankaios) => Ok(grpc_api::FromServer {
                 from_server_enum: Some(grpc_api::from_server::FromServerEnum::Response(
-                    ank_proto::Response {
+                    ank_base::Response {
                         request_id: ankaios.request_id,
                         response_content: Some(ankaios.response_content.into()),
                     },
@@ -221,7 +221,7 @@ mod tests {
         test_utils::{generate_test_deleted_workload, generate_test_proto_deleted_workload},
     };
 
-    use api::ank_proto;
+    use api::ank_base;
     use api::grpc_api::{self, from_server::FromServerEnum, AddedWorkload};
 
     #[test]
@@ -243,7 +243,7 @@ mod tests {
         let expected_ex_com = Ok(grpc_api::FromServer {
             from_server_enum: Some(FromServerEnum::UpdateWorkload(grpc_api::UpdateWorkload {
                 added_workloads: vec![AddedWorkload {
-                    instance_name: Some(ank_proto::WorkloadInstanceName {
+                    instance_name: Some(ank_base::WorkloadInstanceName {
                         workload_name: "test_workload".to_owned(),
                         ..Default::default()
                     }),
@@ -288,15 +288,15 @@ mod tests {
 
         let expected_ex_com = Ok(grpc_api::FromServer {
             from_server_enum: Some(grpc_api::from_server::FromServerEnum::Response(
-                ank_proto::Response {
+                ank_base::Response {
                     request_id: "req_id".to_owned(),
-                    response_content: Some(ank_proto::response::ResponseContent::CompleteState(
-                        ank_proto::CompleteState {
-                            desired_state: Some(api::ank_proto::State {
+                    response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                        ank_base::CompleteState {
+                            desired_state: Some(api::ank_base::State {
                                 api_version: "v0.1".into(),
                                 ..Default::default()
                             }),
-                            startup_state: Some(api::ank_proto::State {
+                            startup_state: Some(api::ank_base::State {
                                 api_version: "v0.1".into(),
                                 ..Default::default()
                             }),

@@ -14,7 +14,7 @@
 
 use std::collections::HashMap;
 
-use api::ank_proto;
+use api::ank_base;
 use serde::{Deserialize, Serialize};
 
 use crate::helpers::serialize_to_ordered_map;
@@ -35,10 +35,10 @@ pub struct StoredWorkloadSpec {
     pub runtime_config: String,
 }
 
-impl TryFrom<ank_proto::Workload> for StoredWorkloadSpec {
+impl TryFrom<ank_base::Workload> for StoredWorkloadSpec {
     type Error = String;
 
-    fn try_from(value: ank_proto::Workload) -> Result<Self, String> {
+    fn try_from(value: ank_base::Workload) -> Result<Self, String> {
         Ok(StoredWorkloadSpec {
             agent: value.agent,
             tags: value.tags.into_iter().map(|x| x.into()).collect(),
@@ -54,9 +54,9 @@ impl TryFrom<ank_proto::Workload> for StoredWorkloadSpec {
     }
 }
 
-impl From<StoredWorkloadSpec> for ank_proto::Workload {
+impl From<StoredWorkloadSpec> for ank_base::Workload {
     fn from(workload: StoredWorkloadSpec) -> Self {
-        ank_proto::Workload {
+        ank_base::Workload {
             agent: workload.agent,
             dependencies: workload
                 .dependencies

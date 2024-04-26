@@ -14,7 +14,7 @@
 
 use std::collections::HashMap;
 
-use api::{ank_proto, grpc_api};
+use api::{ank_base, grpc_api};
 use serde::{Serialize, Serializer};
 
 use crate::objects::{
@@ -87,7 +87,7 @@ pub fn generate_test_state() -> State {
     }
 }
 
-pub fn generate_test_proto_state() -> ank_proto::State {
+pub fn generate_test_proto_state() -> ank_base::State {
     let workload_name_1 = "workload_name_1".to_string();
     let workload_name_2 = "workload_name_2".to_string();
 
@@ -95,7 +95,7 @@ pub fn generate_test_proto_state() -> ank_proto::State {
     proto_workloads.insert(workload_name_1, generate_test_proto_workload());
     proto_workloads.insert(workload_name_2, generate_test_proto_workload());
 
-    ank_proto::State {
+    ank_base::State {
         api_version: "v0.1".into(),
         workloads: proto_workloads,
     }
@@ -105,11 +105,11 @@ fn generate_test_proto_dependencies() -> HashMap<String, i32> {
     HashMap::from([
         (
             String::from("workload A"),
-            ank_proto::AddCondition::AddCondRunning.into(),
+            ank_base::AddCondition::AddCondRunning.into(),
         ),
         (
             String::from("workload C"),
-            ank_proto::AddCondition::AddCondSucceeded.into(),
+            ank_base::AddCondition::AddCondSucceeded.into(),
         ),
     ])
 }
@@ -128,15 +128,15 @@ fn generate_test_proto_delete_dependencies() -> HashMap<String, i32> {
     )])
 }
 
-pub fn generate_test_proto_workload() -> ank_proto::Workload {
-    ank_proto::Workload {
+pub fn generate_test_proto_workload() -> ank_base::Workload {
+    ank_base::Workload {
         agent: String::from("agent"),
         dependencies: generate_test_proto_dependencies(),
-        restart_policy: ank_proto::RestartPolicy::Always.into(),
+        restart_policy: ank_base::RestartPolicy::Always.into(),
         runtime: String::from("runtime"),
         runtime_config: "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
             .to_string(),
-        tags: vec![ank_proto::Tag {
+        tags: vec![ank_base::Tag {
             key: "key".into(),
             value: "value".into(),
         }],

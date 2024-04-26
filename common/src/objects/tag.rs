@@ -14,7 +14,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use api::ank_proto;
+use api::ank_base;
 
 #[derive(Debug, Clone, Serialize, Default, Deserialize, PartialEq, Eq)]
 #[serde(default, rename_all = "camelCase")]
@@ -23,8 +23,8 @@ pub struct Tag {
     pub value: String,
 }
 
-impl From<ank_proto::Tag> for Tag {
-    fn from(item: ank_proto::Tag) -> Self {
+impl From<ank_base::Tag> for Tag {
+    fn from(item: ank_base::Tag) -> Self {
         Tag {
             key: item.key,
             value: item.value,
@@ -32,9 +32,9 @@ impl From<ank_proto::Tag> for Tag {
     }
 }
 
-impl From<Tag> for ank_proto::Tag {
+impl From<Tag> for ank_base::Tag {
     fn from(item: Tag) -> Self {
-        ank_proto::Tag {
+        ank_base::Tag {
             key: item.key,
             value: item.value,
         }
@@ -54,11 +54,11 @@ impl From<Tag> for ank_proto::Tag {
 #[cfg(test)]
 mod tests {
     use crate::objects::*;
-    use api::ank_proto;
+    use api::ank_base;
 
     #[test]
     fn utest_converts_to_ankaios_tag() {
-        let proto_tag = ank_proto::Tag {
+        let proto_tag = ank_base::Tag {
             key: String::from("key1"),
             value: String::from("value1"),
         };
@@ -75,11 +75,11 @@ mod tests {
     #[test]
     fn utest_converts_to_proto_tag() {
         assert_eq!(
-            ank_proto::Tag::from(Tag {
+            ank_base::Tag::from(Tag {
                 key: String::from("key"),
                 value: String::from("value"),
             }),
-            ank_proto::Tag {
+            ank_base::Tag {
                 key: String::from("key"),
                 value: String::from("value"),
             }

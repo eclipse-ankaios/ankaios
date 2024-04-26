@@ -12,21 +12,21 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::control_interface_api;
+use api::control_api;
 use common::commands;
 
-// [impl->swdd~to-server-channel~1]
+// TODO: tracing
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ToAnkaios {
     Request(commands::Request),
 }
 
-impl TryFrom<control_interface_api::ToAnkaios> for ToAnkaios {
+impl TryFrom<control_api::ToAnkaios> for ToAnkaios {
     type Error = String;
 
-    fn try_from(item: control_interface_api::ToAnkaios) -> Result<Self, Self::Error> {
-        use control_interface_api::to_ankaios::ToAnkaiosEnum;
+    fn try_from(item: control_api::ToAnkaios) -> Result<Self, Self::Error> {
+        use control_api::to_ankaios::ToAnkaiosEnum;
         let to_ankaios = item
             .to_ankaios_enum
             .ok_or("ToAnkaios is None.".to_string())?;

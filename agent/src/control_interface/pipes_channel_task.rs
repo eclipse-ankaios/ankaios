@@ -16,7 +16,7 @@ use crate::control_interface::ToAnkaios;
 
 #[cfg_attr(test, mockall_double::double)]
 use super::ReopenFile;
-use api::control_interface_api;
+use api::control_api;
 use common::{
     commands::Response,
     from_server_interface::{FromServer, FromServerReceiver},
@@ -26,10 +26,8 @@ use common::{
 use prost::Message;
 use tokio::{io, select, task::JoinHandle};
 
-fn decode_to_server(
-    protobuf_data: io::Result<Box<[u8]>>,
-) -> io::Result<control_interface_api::ToAnkaios> {
-    Ok(control_interface_api::ToAnkaios::decode(&mut Box::new(
+fn decode_to_server(protobuf_data: io::Result<Box<[u8]>>) -> io::Result<control_api::ToAnkaios> {
+    Ok(control_api::ToAnkaios::decode(&mut Box::new(
         protobuf_data?.as_ref(),
     ))?)
 }
@@ -93,8 +91,8 @@ impl PipesChannelTask {
     }
 
     async fn forward_from_server(&mut self, response: Response) -> io::Result<()> {
-        use control_interface_api::from_ankaios::FromAnkaiosEnum;
-        let message = control_interface_api::FromAnkaios {
+        use control_api::from_ankaios::FromAnkaiosEnum;
+        let message = control_api::FromAnkaios {
             from_ankaios_enum: Some(FromAnkaiosEnum::Response(response.into())),
         };
 
@@ -136,7 +134,7 @@ mod tests {
     use tokio::sync::mpsc;
 
     use super::*;
-    use api::{ank_proto, control_interface_api};
+    use api::{ank_base, control_api};
 
     use crate::control_interface::MockReopenFile;
 
@@ -151,12 +149,10 @@ mod tests {
             response_content: commands::ResponseContent::CompleteState(Default::default()),
         };
 
-        let test_command_binary = control_interface_api::FromAnkaios {
-            from_ankaios_enum: Some(
-                control_interface_api::from_ankaios::FromAnkaiosEnum::Response(
-                    response.clone().into(),
-                ),
-            ),
+        let test_command_binary = control_api::FromAnkaios {
+            from_ankaios_enum: Some(control_api::from_ankaios::FromAnkaiosEnum::Response(
+                response.clone().into(),
+            )),
         }
         .encode_length_delimited_to_vec();
 
@@ -195,15 +191,13 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let test_output_request = control_interface_api::ToAnkaios {
-            to_ankaios_enum: Some(control_interface_api::to_ankaios::ToAnkaiosEnum::Request(
-                ank_proto::Request {
+        let test_output_request = control_api::ToAnkaios {
+            to_ankaios_enum: Some(control_api::to_ankaios::ToAnkaiosEnum::Request(
+                ank_base::Request {
                     request_id: "req_id".to_owned(),
-                    request_content: Some(
-                        ank_proto::request::RequestContent::CompleteStateRequest(
-                            ank_proto::CompleteStateRequest { field_mask: vec![] },
-                        ),
-                    ),
+                    request_content: Some(ank_base::request::RequestContent::CompleteStateRequest(
+                        ank_base::CompleteStateRequest { field_mask: vec![] },
+                    )),
                 },
             )),
         };
@@ -222,12 +216,10 @@ mod tests {
             response_content: commands::ResponseContent::CompleteState(Default::default()),
         };
 
-        let test_input_command_binary = control_interface_api::FromAnkaios {
-            from_ankaios_enum: Some(
-                control_interface_api::from_ankaios::FromAnkaiosEnum::Response(
-                    response.clone().into(),
-                ),
-            ),
+        let test_input_command_binary = control_api::FromAnkaios {
+            from_ankaios_enum: Some(control_api::from_ankaios::FromAnkaiosEnum::Response(
+                response.clone().into(),
+            )),
         }
         .encode_length_delimited_to_vec();
 

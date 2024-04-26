@@ -29,7 +29,7 @@
 syntax = "proto3";
 package grpc_api;
 
-import "ank_proto.proto";
+import "ank_base.proto";
 
 service AgentConnection {
     rpc ConnectAgent (stream ToServer) returns (stream FromServer);
@@ -46,7 +46,7 @@ message ToServer {
     oneof ToServerEnum {
         AgentHello agentHello = 1; /// This message is for internal usage only!
         UpdateWorkloadState updateWorkloadState = 2; /// A message to Ankaios server to update the execution state of a workload.
-        ank_proto.Request request = 3;
+        ank_base.Request request = 3;
         Goodbye goodbye = 4;
     }
 }
@@ -58,7 +58,7 @@ message FromServer {
     oneof FromServerEnum {
         UpdateWorkload updateWorkload = 1; /// A message containing lists of workloads to be added or deleted.
         UpdateWorkloadState updateWorkloadState = 2; /// A message containing list of workload execution states.
-        ank_proto.Response response = 3; /// A message containing a response to a previous request.
+        ank_base.Response response = 3; /// A message containing a response to a previous request.
     }
 }
 
@@ -89,11 +89,11 @@ message UpdateWorkload {
 * A message containing information about a workload to be added to the Ankaios cluster.
 */
 message AddedWorkload {
-    ank_proto.WorkloadInstanceName instanceName = 1; /// The instance name of the workload.
+    ank_base.WorkloadInstanceName instanceName = 1; /// The instance name of the workload.
     string runtime = 2; /// The name of the runtime, e.g., podman.
-    map<string, ank_proto.AddCondition> dependencies = 3; /// A list of dependencies to other workloads with their corresponding, expected states. Can be used to enable a synchronized start of a workload.
-    ank_proto.RestartPolicy restartPolicy = 4; /// An enum value that defines the condition under which a workload is restarted.
-    repeated ank_proto.Tag tags = 5; /// A list of tags.
+    map<string, ank_base.AddCondition> dependencies = 3; /// A list of dependencies to other workloads with their corresponding, expected states. Can be used to enable a synchronized start of a workload.
+    ank_base.RestartPolicy restartPolicy = 4; /// An enum value that defines the condition under which a workload is restarted.
+    repeated ank_base.Tag tags = 5; /// A list of tags.
     string runtimeConfig = 6; /// The configuration information specific to the runtime.
 }
 
@@ -101,7 +101,7 @@ message AddedWorkload {
 * A message containing information about a workload to be deleted from the Anakaios system.
 */
 message DeletedWorkload {
-    ank_proto.WorkloadInstanceName instanceName = 1; /// The instance name of the workload.
+    ank_base.WorkloadInstanceName instanceName = 1; /// The instance name of the workload.
     map<string, DeleteCondition> dependencies = 2; /// A list of dependencies to other workloads with their corresponding, expected states. Can be used to enable a synchronized stop of a workload.
 }
 
@@ -117,7 +117,7 @@ enum DeleteCondition {
 * A message containing the list the workload states.
 */
 message UpdateWorkloadState {
-    repeated ank_proto.WorkloadState workloadStates = 1; /// A list of workload states.
+    repeated ank_base.WorkloadState workloadStates = 1; /// A list of workload states.
 }
 
 

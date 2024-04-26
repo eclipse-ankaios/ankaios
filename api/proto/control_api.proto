@@ -23,16 +23,16 @@
 *
 */
 syntax = "proto3";
-package control_interface_api;
+package control_api;
 
-import "ank_proto.proto";
+import "ank_base.proto";
 
 /**
 * Messages to the Ankaios server.
 */
 message ToAnkaios {
   oneof ToAnkaiosEnum {
-    ank_proto.Request request = 3;
+    ank_base.Request request = 3;
   }
 }
 
@@ -41,6 +41,6 @@ message ToAnkaios {
 */
 message FromAnkaios {
   oneof FromAnkaiosEnum {
-    ank_proto.Response response = 3; /// A message containing a response to a previous request.
+    ank_base.Response response = 3; /// A message containing a response to a previous request.
   }
 }

@@ -12,15 +12,15 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub mod ank_proto {
+pub mod ank_base {
 
     // [impl->swdd~grpc-delegate-workflow-to-external-library~1]
-    tonic::include_proto!("ank_proto"); // The string specified here must match the proto package name
+    tonic::include_proto!("ank_base"); // The string specified here must match the proto package name
 }
 
-pub mod control_interface_api {
+pub mod control_api {
     // TODO: trace reqs for the control interface
-    tonic::include_proto!("control_interface_api"); // The string specified here must match the proto package name
+    tonic::include_proto!("control_api"); // The string specified here must match the proto package name
 }
 
 pub mod grpc_api {

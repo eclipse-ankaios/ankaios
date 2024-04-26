@@ -15,7 +15,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use api::ank_proto;
+use api::ank_base;
 use api::grpc_api;
 
 use crate::helpers::serialize_to_ordered_map;
@@ -55,7 +55,7 @@ impl TryFrom<grpc_api::DeletedWorkload> for DeletedWorkload {
 impl From<DeletedWorkload> for grpc_api::DeletedWorkload {
     fn from(value: DeletedWorkload) -> Self {
         grpc_api::DeletedWorkload {
-            instance_name: ank_proto::WorkloadInstanceName::from(value.instance_name).into(),
+            instance_name: ank_base::WorkloadInstanceName::from(value.instance_name).into(),
             dependencies: value
                 .dependencies
                 .into_iter()
@@ -100,7 +100,7 @@ impl TryFrom<grpc_api::AddedWorkload> for WorkloadSpec {
 impl From<WorkloadSpec> for grpc_api::AddedWorkload {
     fn from(workload: WorkloadSpec) -> Self {
         grpc_api::AddedWorkload {
-            instance_name: ank_proto::WorkloadInstanceName::from(workload.instance_name).into(),
+            instance_name: ank_base::WorkloadInstanceName::from(workload.instance_name).into(),
             dependencies: workload
                 .dependencies
                 .into_iter()
@@ -343,7 +343,7 @@ pub fn generate_test_workload_spec_with_dependencies(
 // [utest->swdd~common-object-serialization~1]
 #[cfg(test)]
 mod tests {
-    use api::ank_proto;
+    use api::ank_base;
     use api::grpc_api;
 
     use std::collections::HashMap;
@@ -382,7 +382,7 @@ mod tests {
         let workload_spec = generate_test_workload_spec();
 
         let proto_workload = grpc_api::AddedWorkload {
-            instance_name: Some(ank_proto::WorkloadInstanceName {
+            instance_name: Some(ank_base::WorkloadInstanceName {
                 workload_name: "name".to_string(),
                 agent_name: "agent".to_string(),
                 id: workload_spec.runtime_config.hash_config(),
@@ -390,17 +390,17 @@ mod tests {
             dependencies: HashMap::from([
                 (
                     String::from("workload A"),
-                    ank_proto::AddCondition::AddCondRunning.into(),
+                    ank_base::AddCondition::AddCondRunning.into(),
                 ),
                 (
                     String::from("workload C"),
-                    ank_proto::AddCondition::AddCondSucceeded.into(),
+                    ank_base::AddCondition::AddCondSucceeded.into(),
                 ),
             ]),
-            restart_policy: ank_proto::RestartPolicy::Always.into(),
+            restart_policy: ank_base::RestartPolicy::Always.into(),
             runtime: String::from("runtime"),
             runtime_config: workload_spec.runtime_config.clone(),
-            tags: vec![ank_proto::Tag {
+            tags: vec![ank_base::Tag {
                 key: "key".into(),
                 value: "value".into(),
             }],
@@ -427,7 +427,7 @@ mod tests {
         };
 
         let proto_workload = grpc_api::AddedWorkload {
-            instance_name: Some(ank_proto::WorkloadInstanceName {
+            instance_name: Some(ank_base::WorkloadInstanceName {
                 workload_name: "name".to_string(),
                 agent_name: "agent".to_string(),
                 ..Default::default()
@@ -435,14 +435,14 @@ mod tests {
             dependencies: HashMap::from([
                 (
                     String::from("workload A"),
-                    ank_proto::AddCondition::AddCondRunning.into(),
+                    ank_base::AddCondition::AddCondRunning.into(),
                 ),
                 (
                     String::from("workload C"),
-                    ank_proto::AddCondition::AddCondSucceeded.into(),
+                    ank_base::AddCondition::AddCondSucceeded.into(),
                 ),
             ]),
-            restart_policy: ank_proto::RestartPolicy::Always.into(),
+            restart_policy: ank_base::RestartPolicy::Always.into(),
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
             tags: vec![],
@@ -454,22 +454,22 @@ mod tests {
     #[test]
     fn utest_converts_to_ankaios_added_workload_fails() {
         let proto_workload = grpc_api::AddedWorkload {
-            instance_name: Some(ank_proto::WorkloadInstanceName {
+            instance_name: Some(ank_base::WorkloadInstanceName {
                 workload_name: "name".to_string(),
                 ..Default::default()
             }),
             dependencies: HashMap::from([
                 (
                     String::from("workload A"),
-                    ank_proto::AddCondition::AddCondRunning.into(),
+                    ank_base::AddCondition::AddCondRunning.into(),
                 ),
                 (String::from("workload B"), -1),
                 (
                     String::from("workload C"),
-                    ank_proto::AddCondition::AddCondSucceeded.into(),
+                    ank_base::AddCondition::AddCondSucceeded.into(),
                 ),
             ]),
-            restart_policy: ank_proto::RestartPolicy::Always.into(),
+            restart_policy: ank_base::RestartPolicy::Always.into(),
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
             tags: vec![],

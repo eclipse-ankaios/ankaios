@@ -183,7 +183,7 @@ pub fn generate_test_failed_update_workload_state(
 mod tests {
     use std::collections::HashMap;
 
-    use api::ank_proto;
+    use api::ank_base;
     use api::grpc_api::{self, to_server::ToServerEnum};
 
     use crate::{
@@ -226,21 +226,21 @@ mod tests {
     #[test]
     fn utest_convert_proto_to_server_update_state() {
         let proto_request = grpc_api::ToServer {
-            to_server_enum: Some(ToServerEnum::Request(ank_proto::Request {
+            to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
                 request_id: "request_id".to_owned(),
-                request_content: Some(ank_proto::request::RequestContent::UpdateStateRequest(
-                    ank_proto::UpdateStateRequest {
+                request_content: Some(ank_base::request::RequestContent::UpdateStateRequest(
+                    ank_base::UpdateStateRequest {
                         update_mask: vec!["test_update_mask_field".to_owned()],
-                        new_state: Some(ank_proto::CompleteState {
-                            startup_state: Some(ank_proto::State {
+                        new_state: Some(ank_base::CompleteState {
+                            startup_state: Some(ank_base::State {
                                 api_version: "v0.1".into(),
                                 ..Default::default()
                             }),
-                            desired_state: Some(ank_proto::State {
+                            desired_state: Some(ank_base::State {
                                 api_version: "v0.1".into(),
                                 workloads: HashMap::from([(
                                     "test_workload".to_owned(),
-                                    ank_proto::Workload {
+                                    ank_base::Workload {
                                         agent: "test_agent".to_owned(),
                                         ..Default::default()
                                     },
@@ -280,17 +280,17 @@ mod tests {
     fn utest_convert_proto_to_server_update_state_fails() {
         let proto_request = grpc_api::ToServer {
             to_server_enum: Some(grpc_api::to_server::ToServerEnum::Request(
-                ank_proto::Request {
+                ank_base::Request {
                     request_id: "requeset_id".to_owned(),
-                    request_content: Some(ank_proto::request::RequestContent::UpdateStateRequest(
-                        ank_proto::UpdateStateRequest {
+                    request_content: Some(ank_base::request::RequestContent::UpdateStateRequest(
+                        ank_base::UpdateStateRequest {
                             update_mask: vec!["test_update_mask_field".to_owned()],
-                            new_state: Some(ank_proto::CompleteState {
-                                desired_state: Some(ank_proto::State {
+                            new_state: Some(ank_base::CompleteState {
+                                desired_state: Some(ank_base::State {
                                     api_version: "v0.1".into(),
                                     workloads: HashMap::from([(
                                         "test_workload".to_owned(),
-                                        ank_proto::Workload {
+                                        ank_base::Workload {
                                             agent: "test_agent".to_owned(),
                                             dependencies: vec![("other_workload".into(), -1)]
                                                 .into_iter()
@@ -317,15 +317,13 @@ mod tests {
 
         let proto_request = grpc_api::ToServer {
             to_server_enum: Some(grpc_api::to_server::ToServerEnum::Request(
-                ank_proto::Request {
+                ank_base::Request {
                     request_id: request_id.clone(),
-                    request_content: Some(
-                        ank_proto::request::RequestContent::CompleteStateRequest(
-                            ank_proto::CompleteStateRequest {
-                                field_mask: field_mask.clone(),
-                            },
-                        ),
-                    ),
+                    request_content: Some(ank_base::request::RequestContent::CompleteStateRequest(
+                        ank_base::CompleteStateRequest {
+                            field_mask: field_mask.clone(),
+                        },
+                    )),
                 },
             )),
         };

@@ -13,8 +13,8 @@ function create_request_to_add_new_workload(root) {
     that contains the details for adding the new workload and
     the update mask to add only the new workload. */
 
-    ToAnkaios = root.lookupType("control_interface_api.ToAnkaios");
-    RestartEnum = root.lookupEnum("ank_proto.RestartPolicy")
+    ToAnkaios = root.lookupType("control_api.ToAnkaios");
+    RestartEnum = root.lookupEnum("ank_base.RestartPolicy")
     let payload = {
         request: {
             requestId: REQUEST_ID,
@@ -50,7 +50,7 @@ function create_request_for_complete_state(root) {
     /* Create a Request to request the CompleteState
     for querying the workload states. */
 
-    ToAnkaios = root.lookupType("control_interface_api.ToAnkaios");
+    ToAnkaios = root.lookupType("control_api.ToAnkaios");
     let payload = {
         request: {
             requestId: REQUEST_ID,
@@ -67,7 +67,7 @@ function create_request_for_complete_state(root) {
 }
 
 function decode_from_server_response_message(root, data) {
-    FromAnkaios = root.lookupType("control_interface_api.FromAnkaios");
+    FromAnkaios = root.lookupType("control_api.FromAnkaios");
     const decoded_message = FromAnkaios.decodeDelimited(data);
     let requestId = decoded_message.response.requestId;
     if (requestId === REQUEST_ID) {
@@ -95,7 +95,7 @@ function write_to_control_interface(root, message) {
     to add the new workload dynamically and every x sec according to WAITING_TIME_IN_SEC
     another Request to request the workload states. */
 
-    ToAnkaios = root.lookupType("control_interface_api.ToAnkaios");
+    ToAnkaios = root.lookupType("control_api.ToAnkaios");
     let buffer = ToAnkaios.encodeDelimited(message).finish(); // use length-delimited encoding!!!
 
     const ci_output_path = '/run/ankaios/control_interface/output';
@@ -107,7 +107,7 @@ function write_to_control_interface(root, message) {
 }
 
 async function main() {
-    protobuf.load("/usr/local/lib/ankaios/control_interface_api.proto", async function (err, root) {
+    protobuf.load("/usr/local/lib/ankaios/control_api.proto", async function (err, root) {
         if (err) throw err;
 
         read_from_control_interface(root, decode_from_server_response_message);

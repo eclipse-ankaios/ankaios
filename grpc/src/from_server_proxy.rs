@@ -15,8 +15,8 @@
 use crate::agent_senders_map::AgentSendersMap;
 use crate::ankaios_streaming::GRPCStreaming;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
-use api::ank_proto;
-use api::ank_proto::response::ResponseContent;
+use api::ank_base;
+use api::ank_base::response::ResponseContent;
 use api::grpc_api::{self, from_server::FromServerEnum};
 
 use async_trait::async_trait;
@@ -144,7 +144,7 @@ pub async fn forward_from_ankaios_to_proto(
                         .send(Ok(grpc_api::FromServer {
                             from_server_enum: Some(
                                 grpc_api::from_server::FromServerEnum::Response(
-                                    ank_proto::Response {
+                                    ank_base::Response {
                                         request_id,
                                         response_content: Some(response_content),
                                     },
@@ -177,7 +177,7 @@ async fn distribute_workload_states_to_agents(
 
     for agent_name in agent_senders.get_all_agent_names() {
         // Filter the workload states as we don't want to send an agent its own updates
-        let filtered_workload_states: Vec<ank_proto::WorkloadState> = workload_state_collection
+        let filtered_workload_states: Vec<ank_base::WorkloadState> = workload_state_collection
             .clone()
             .into_iter()
             .filter(|workload_state| workload_state.instance_name.agent_name() != agent_name)
@@ -275,7 +275,7 @@ mod tests {
 
     use super::{forward_from_ankaios_to_proto, forward_from_proto_to_ankaios};
     use crate::{agent_senders_map::AgentSendersMap, from_server_proxy::GRPCStreaming};
-    use api::ank_proto::{self, response};
+    use api::ank_base::{self, response};
     use api::grpc_api::{self, from_server::FromServerEnum, FromServer, UpdateWorkload};
     use async_trait::async_trait;
     use common::from_server_interface::FromServerInterface;
@@ -491,7 +491,7 @@ mod tests {
             mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
         let workload: grpc_api::DeletedWorkload = grpc_api::DeletedWorkload {
-            instance_name: Some(ank_proto::WorkloadInstanceName {
+            instance_name: Some(ank_base::WorkloadInstanceName {
                 workload_name: "name".to_string(),
                 ..Default::default()
             }),
@@ -705,9 +705,9 @@ mod tests {
 
         assert!(matches!(
             result.from_server_enum,
-            Some(FromServerEnum::Response(ank_proto::Response {
+            Some(FromServerEnum::Response(ank_base::Response {
                 request_id,
-                response_content: Some(ank_proto::response::ResponseContent::CompleteState(ank_proto::CompleteState{
+                response_content: Some(ank_base::response::ResponseContent::CompleteState(ank_base::CompleteState{
                     desired_state: Some(desired_state),
                     startup_state: Some(startup_state),
                     workload_states}))
@@ -728,12 +728,12 @@ mod tests {
         let my_request_id = "my_request_id".to_owned();
 
         let proto_complete_state =
-            ank_proto::response::ResponseContent::CompleteState(ank_proto::CompleteState {
+            ank_base::response::ResponseContent::CompleteState(ank_base::CompleteState {
                 desired_state: Some(State::default().into()),
-                startup_state: Some(ank_proto::State {
+                startup_state: Some(ank_base::State {
                     workloads: [(
                         "workload".into(),
-                        ank_proto::Workload {
+                        ank_base::Workload {
                             dependencies: [("workload 2".into(), -1)].into(),
                             ..Default::default()
                         },
@@ -748,7 +748,7 @@ mod tests {
         let mut mock_grpc_ex_request_streaming =
             MockGRPCFromServerStreaming::new(LinkedList::from([
                 Some(FromServer {
-                    from_server_enum: Some(FromServerEnum::Response(ank_proto::Response {
+                    from_server_enum: Some(FromServerEnum::Response(ank_base::Response {
                         request_id: my_request_id,
                         response_content: Some(proto_complete_state),
                     })),
@@ -793,13 +793,13 @@ mod tests {
             workload_states: vec![],
         };
 
-        let proto_complete_state = ank_proto::CompleteState {
+        let proto_complete_state = ank_base::CompleteState {
             desired_state: Some(test_complete_state.desired_state.clone().into()),
             startup_state: Some(test_complete_state.startup_state.clone().into()),
             workload_states: vec![],
         };
 
-        let proto_response = ank_proto::Response {
+        let proto_response = ank_base::Response {
             request_id: my_request_id.clone(),
             response_content: Some(response::ResponseContent::CompleteState(
                 proto_complete_state,

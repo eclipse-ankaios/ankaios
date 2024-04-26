@@ -15,7 +15,7 @@
 use crate::ankaios_streaming::GRPCStreaming;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 
-use api::ank_proto::{
+use api::ank_base::{
     self, request::RequestContent, CompleteStateRequest, Request, UpdateStateRequest,
 };
 use api::grpc_api::{self, to_server::ToServerEnum};
@@ -93,7 +93,7 @@ pub async fn forward_from_proto_to_ankaios(
                         log::trace!("Received RequestCompleteState from '{}'", agent_name);
                         sink.request_complete_state(
                             request_id,
-                            ank_proto::CompleteStateRequest { field_mask }.into(),
+                            ank_base::CompleteStateRequest { field_mask }.into(),
                         )
                         .await?;
                     }
@@ -210,7 +210,7 @@ mod tests {
     };
     use tokio::sync::mpsc;
 
-    use api::ank_proto::{self, UpdateStateRequest};
+    use api::ank_base::{self, UpdateStateRequest};
     use api::grpc_api::{self, to_server::ToServerEnum};
 
     #[derive(Default, Clone)]
@@ -270,7 +270,7 @@ mod tests {
 
         assert!(matches!(
             result.to_server_enum,
-            Some(ToServerEnum::Request(ank_proto::Request{request_id, request_content: Some(ank_proto::request::RequestContent::UpdateStateRequest(UpdateStateRequest{new_state, update_mask}))}))
+            Some(ToServerEnum::Request(ank_base::Request{request_id, request_content: Some(ank_base::request::RequestContent::UpdateStateRequest(UpdateStateRequest{new_state, update_mask}))}))
             if request_id == "request_id" && new_state == Some(proto_state) && update_mask == update_mask));
     }
 
@@ -374,7 +374,7 @@ mod tests {
         let agent_name = "fake_agent";
         let (server_tx, mut _server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
-        let mut ankaios_state: ank_proto::CompleteState =
+        let mut ankaios_state: ank_base::CompleteState =
             generate_test_complete_state(vec![generate_test_workload_spec_with_param(
                 agent_name.into(),
                 "name".to_string(),
@@ -398,14 +398,16 @@ mod tests {
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(grpc_api::ToServer {
-                    to_server_enum: Some(ToServerEnum::Request(ank_proto::Request {
+                    to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
                         request_id: "request_id".to_owned(),
-                        request_content: Some(ank_proto::request::RequestContent::UpdateStateRequest(
-                            ank_proto::UpdateStateRequest {
-                                new_state: Some(ankaios_state),
-                                update_mask: ankaios_update_mask.clone(),
-                            },
-                        )),
+                        request_content: Some(
+                            ank_base::request::RequestContent::UpdateStateRequest(
+                                ank_base::UpdateStateRequest {
+                                    new_state: Some(ankaios_state),
+                                    update_mask: ankaios_update_mask.clone(),
+                                },
+                            ),
+                        ),
                     })),
                 }),
                 None,
@@ -440,14 +442,16 @@ mod tests {
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(grpc_api::ToServer {
-                    to_server_enum: Some(ToServerEnum::Request(ank_proto::Request {
+                    to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
                         request_id: "my_request_id".to_owned(),
-                        request_content: Some(ank_proto::request::RequestContent::UpdateStateRequest(
-                            ank_proto::UpdateStateRequest {
-                                new_state: Some(ankaios_state.clone().into()),
-                                update_mask: ankaios_update_mask.clone(),
-                            },
-                        )),
+                        request_content: Some(
+                            ank_base::request::RequestContent::UpdateStateRequest(
+                                ank_base::UpdateStateRequest {
+                                    new_state: Some(ankaios_state.clone().into()),
+                                    update_mask: ankaios_update_mask.clone(),
+                                },
+                            ),
+                        ),
                     })),
                 }),
                 None,
@@ -482,7 +486,7 @@ mod tests {
         let agent_name = "fake_agent";
         let (server_tx, mut server_rx) = mpsc::channel::<ToServer>(common::CHANNEL_CAPACITY);
 
-        let proto_wl_state: ank_proto::WorkloadState =
+        let proto_wl_state: ank_base::WorkloadState =
             common::objects::generate_test_workload_state_with_agent(
                 "fake_workload",
                 agent_name,
@@ -533,11 +537,11 @@ mod tests {
         let mut mock_grpc_ex_request_streaming =
             MockGRPCToServerStreaming::new(LinkedList::from([
                 Some(grpc_api::ToServer {
-                    to_server_enum: Some(ToServerEnum::Request(ank_proto::Request {
+                    to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
                         request_id: "my_request_id".to_owned(),
                         request_content: Some(
-                            ank_proto::request::RequestContent::CompleteStateRequest(
-                                ank_proto::CompleteStateRequest { field_mask: vec![] },
+                            ank_base::request::RequestContent::CompleteStateRequest(
+                                ank_base::CompleteStateRequest { field_mask: vec![] },
                             ),
                         ),
                     })),
@@ -593,11 +597,11 @@ mod tests {
 
         assert!(matches!(
         result.to_server_enum,
-        Some(ToServerEnum::Request(ank_proto::Request {
+        Some(ToServerEnum::Request(ank_base::Request {
             request_id,
             request_content:
-                Some(ank_proto::request::RequestContent::CompleteStateRequest(
-                    ank_proto::CompleteStateRequest { field_mask },
+                Some(ank_base::request::RequestContent::CompleteStateRequest(
+                    ank_base::CompleteStateRequest { field_mask },
                 )),
         }))
         if request_id == "my_request_id" && field_mask == vec![] as Vec<String>));
