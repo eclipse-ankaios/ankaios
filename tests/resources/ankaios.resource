@@ -330,6 +330,7 @@ list of workloads shall be empty
     Should Be Empty    item=${list_result}
 
 the workload "${workload_name}" shall have a different id but same configuration on the runtime
+    ${id_changed}=    Set Variable    ${False}
     ${start_time}=    Get Time Secs
     ${workload_id}    ${ankaios_workload_name}    Get Workload Id And Ankaios Workload Name By Name From Podman    ${workload_name}
     WHILE    True

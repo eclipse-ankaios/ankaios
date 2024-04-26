@@ -101,16 +101,6 @@ where
         self
     }
 
-    pub fn workload_id(mut self, workload_id: Option<WorkloadId>) -> Self {
-        self.workload_id = workload_id;
-        self
-    }
-
-    pub fn state_checker(mut self, state_checker: Option<StChecker>) -> Self {
-        self.state_checker = state_checker;
-        self
-    }
-
     pub fn workload_state_sender(mut self, update_state_tx: WorkloadStateSender) -> Self {
         self.workload_state_sender = Some(update_state_tx);
         self

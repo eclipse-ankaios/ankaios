@@ -64,6 +64,7 @@ pub enum WorkloadCommand {
     Update(Option<Box<WorkloadSpec>>, Option<PathBuf>),
     Retry(Box<WorkloadInstanceName>),
     Create,
+    Resume,
 }
 
 pub struct Workload {

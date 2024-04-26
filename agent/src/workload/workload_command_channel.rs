@@ -62,6 +62,10 @@ impl WorkloadCommandSender {
             .await
     }
 
+    pub async fn resume(&self) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
+        self.sender.send(WorkloadCommand::Resume).await
+    }
+
     pub async fn delete(self) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
         self.sender.send(WorkloadCommand::Delete).await
     }
@@ -149,5 +153,26 @@ mod tests {
         let workload_command = workload_command_receiver.recv().await.unwrap();
 
         assert!(matches!(workload_command, WorkloadCommand::Delete));
+    }
+
+    #[tokio::test]
+    async fn utest_send_resume() {
+        let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
+
+        workload_command_sender.resume().await.unwrap();
+
+        let workload_command = workload_command_receiver.recv().await;
+
+        assert_eq!(Some(WorkloadCommand::Resume), workload_command);
+    }
+
+    #[tokio::test]
+    async fn utest_send_resume_error() {
+        let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
+
+        // close the channel to simulate an error
+        workload_command_receiver.close();
+
+        assert!(workload_command_sender.resume().await.is_err());
     }
 }
