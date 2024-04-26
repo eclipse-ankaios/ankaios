@@ -5,8 +5,8 @@ box "Ankaios Ank"
     actor "user" as user
     participant Main as main
     participant "CliCommands" as cli_commands
-    participant "<<task>>\nListen to Ankaios\nServer" as listen_to_server
-    participant "<<task>>\nListen to Agent \nManager" as listen_to_manager
+    participant "ServerConnection" as server_connection
+    participant "<<task>>\nCommunicationsClient" as communications_client
 end box
 
 box "Ankaios Server"
@@ -22,32 +22,44 @@ user -> main ++ : set state
 == command ==
 
 main -> cli_commands ++ : set state
-cli_commands ->> listen_to_manager ++: request update state
-listen_to_manager ->> server --++ : request update state
+cli_commands -> server_connection ++: request update state
+server_connection ->> communications_client++: request update state
+communications_client ->> server --++ : request update state
 
-cli_commands -> cli_commands ++: wait for the response
+server_connection -> server_connection ++: wait for the response
 
-listen_to_server <<- server --++: changed workloads
-listen_to_server ->> cli_commands --: changed workloads
-deactivate cli_commands
+communications_client <<- server --++: changed workloads
+server_connection <<- communications_client --: changed workloads
+deactivate server_connection
+cli_commands <<- server_connection--: changed workloads
+
+== wait for workloads and print state ==
 
 alt no workloads changed
     cli_commands -> cli_commands: output "No workloads to update"
 else workloads changed
 
-    cli_commands ->> listen_to_manager ++: request complete state
-    listen_to_manager ->> server --++ : request complete state
+    cli_commands -> server_connection ++: request complete state
+    server_connection ->> communications_client++: request complete state
+    communications_client ->> server --++ : request complete state
 
-    cli_commands -> cli_commands ++: wait for the response
-    listen_to_server <<- server --++: complete state
-    listen_to_server ->> cli_commands --: complete state
-    deactivate cli_commands
+    server_connection -> server_connection ++: wait for the response
+    communications_client <<- server --++: complete state
+    server_connection <<- communications_client --: complete state
+    deactivate server_connection
+    cli_commands <<- server_connection --: complete state
     cli_commands -> cli_commands: filter for changed workloads
     cli_commands -> cli_commands: print workload table
 
     loop until all changed workloads have been marked
-        listen_to_server <<- server ++: update workload state
-        cli_commands <<- listen_to_server --: update workload state
+        cli_commands -> server_connection ++: read next update workload state
+        server_connection -> server_connection ++: wait for update workload state
+
+        communications_client <<- server ++: update workload state
+        server_connection <<- communications_client --: update workload state
+        deactivate server_connection
+        cli_commands <<- server_connection --: update workload state
+
         alt updated workload in changed workloads
             alt updated workload reached desired state
                 cli_commands -> cli_commands: mark workload as updated
@@ -59,11 +71,8 @@ end
 
 main <<-- cli_commands --
 
-destroy cli_commands
-destroy listen_to_manager
-destroy listen_to_server
+
 
 user <- main -- : exit
-destroy main
 
 @enduml
