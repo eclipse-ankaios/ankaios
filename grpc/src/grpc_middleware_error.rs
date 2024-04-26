@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use std::fmt;
 
-use api::proto::{FromServer, ToServer};
+use api::grpc_api::{FromServer, ToServer};
 use common::{
     communications_error::CommunicationMiddlewareError,
     from_server_interface::FromServerInterfaceError, to_server_interface::ToServerError,

@@ -13,6 +13,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tonic_build::compile_protos("proto/ankaios.proto")?;
+    // tonic_build::compile_protos("proto/ankaios.proto")?;
+    tonic_build::configure()
+        .build_server(true)
+        .compile(
+            &["proto/control_interface_api.proto", "proto/grpc_api.proto"],
+            &["proto"],
+        )
+        .unwrap();
     Ok(())
 }

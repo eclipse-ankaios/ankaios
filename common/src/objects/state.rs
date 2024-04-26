@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use crate::helpers::serialize_to_ordered_map;
 use crate::objects::StoredWorkloadSpec;
 
-use api::proto;
+use api::ank_proto;
 
 const CURRENT_API_VERSION: &str = "v0.1";
 
@@ -42,9 +42,9 @@ impl Default for State {
     }
 }
 
-impl From<State> for proto::State {
+impl From<State> for ank_proto::State {
     fn from(item: State) -> Self {
-        proto::State {
+        ank_proto::State {
             api_version: item.api_version,
             workloads: item
                 .workloads
@@ -55,10 +55,10 @@ impl From<State> for proto::State {
     }
 }
 
-impl TryFrom<proto::State> for State {
+impl TryFrom<ank_proto::State> for State {
     type Error = String;
 
-    fn try_from(item: proto::State) -> Result<Self, Self::Error> {
+    fn try_from(item: ank_proto::State) -> Result<Self, Self::Error> {
         Ok(State {
             api_version: item.api_version,
             workloads: item
@@ -90,7 +90,7 @@ impl State {
 #[cfg(test)]
 mod tests {
 
-    use api::proto;
+    use api::ank_proto;
 
     use crate::{
         objects::State,
@@ -102,7 +102,7 @@ mod tests {
         let ankaios_state = generate_test_state();
         let proto_state = generate_test_proto_state();
 
-        assert_eq!(proto::State::from(ankaios_state), proto_state);
+        assert_eq!(ank_proto::State::from(ankaios_state), proto_state);
     }
 
     #[test]
@@ -152,7 +152,7 @@ mod tests {
 
     #[test]
     fn utest_state_rejects_state_without_api_version() {
-        let state_proto_no_version = proto::State {
+        let state_proto_no_version = ank_proto::State {
             ..Default::default()
         };
         let state_ankaios_no_version = State::try_from(state_proto_no_version).unwrap();

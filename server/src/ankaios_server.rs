@@ -387,7 +387,6 @@ impl AnkaiosServer {
 
 #[cfg(test)]
 mod tests {
-    use api::proto;
     use std::collections::HashMap;
 
     use super::AnkaiosServer;
@@ -1464,7 +1463,7 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let update_state_proto_no_version = proto::CompleteState {
+        let update_state_proto_no_version = api::ank_proto::CompleteState {
             ..Default::default()
         };
         let update_state_ankaios_no_version: CompleteState =

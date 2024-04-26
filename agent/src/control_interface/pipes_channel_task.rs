@@ -12,10 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::control_interface::ToAnkaios;
+
 #[cfg_attr(test, mockall_double::double)]
 use super::ReopenFile;
-use api::proto;
+use api::control_interface_api;
 use common::{
+    commands::Response,
     from_server_interface::{FromServer, FromServerReceiver},
     to_server_interface::{ToServer, ToServerSender},
 };
@@ -23,8 +26,10 @@ use common::{
 use prost::Message;
 use tokio::{io, select, task::JoinHandle};
 
-fn decode_to_server(protobuf_data: io::Result<Box<[u8]>>) -> io::Result<proto::ToServer> {
-    Ok(proto::ToServer::decode(&mut Box::new(
+fn decode_to_server(
+    protobuf_data: io::Result<Box<[u8]>>,
+) -> io::Result<control_interface_api::ToAnkaios> {
+    Ok(control_interface_api::ToAnkaios::decode(&mut Box::new(
         protobuf_data?.as_ref(),
     ))?)
 }
@@ -59,21 +64,20 @@ impl PipesChannelTask {
             select! {
                 // [impl->swdd~agent-ensures-control-interface-output-pipe-read~1]
                 from_server = self.input_pipe_receiver.recv() => {
-                    if let Some(from_server) = from_server {
-                        let _ = self.forward_from_server(from_server).await;
+                    if let Some(FromServer::Response(response)) = from_server {
+                        let _ = self.forward_from_server(response).await;
+                    } else {
+                        // TODO log something
                     }
                 }
                 // [impl->swdd~agent-listens-for-requests-from-pipe~1]
                 // [impl->swdd~agent-forward-request-from-control-interface-pipe-to-server~1]
-                to_server_binary = self.input_stream.read_protobuf_data() => {
-                    if let Ok(to_server) = decode_to_server(to_server_binary) {
-                        match to_server.try_into() {
-                            Ok(ToServer::Request(mut request)) => {
+                to_ankaios_binary = self.input_stream.read_protobuf_data() => {
+                    if let Ok(to_ankaios) = decode_to_server(to_ankaios_binary) {
+                        match to_ankaios.try_into() {
+                            Ok(ToAnkaios::Request(mut request)) => {
                                 request.prefix_request_id(&self.request_id_prefix);
                                 let _ = self.output_pipe_channel.send(ToServer::Request(request)).await;
-                            }
-                            Ok(to_server_message) => {
-                                let _ = self.output_pipe_channel.send(to_server_message).await;
                             }
                             Err(error) => {
                                 log::warn!("Could not convert protobuf in internal data structure: {}", error)
@@ -88,12 +92,16 @@ impl PipesChannelTask {
         tokio::spawn(self.run())
     }
 
-    async fn forward_from_server(&mut self, command: FromServer) -> io::Result<()> {
-        if let Ok(proto) = proto::FromServer::try_from(command) {
-            // [impl->swdd~agent-uses-length-delimited-protobuf-for-pipes~1]
-            let binary = proto.encode_length_delimited_to_vec();
-            self.output_stream.write_all(&binary).await?;
-        }
+    async fn forward_from_server(&mut self, response: Response) -> io::Result<()> {
+        use control_interface_api::from_ankaios::FromAnkaiosEnum;
+        let message = control_interface_api::FromAnkaios {
+            from_ankaios_enum: Some(FromAnkaiosEnum::Response(response.into())),
+        };
+
+        // [impl->swdd~agent-uses-length-delimited-protobuf-for-pipes~1]
+        let binary = message.encode_length_delimited_to_vec();
+        self.output_stream.write_all(&binary).await?;
+
         Ok(())
     }
 }
@@ -128,6 +136,7 @@ mod tests {
     use tokio::sync::mpsc;
 
     use super::*;
+    use api::{ank_proto, control_interface_api};
 
     use crate::control_interface::MockReopenFile;
 
@@ -137,14 +146,19 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let test_command = FromServer::Response(commands::Response {
+        let response = commands::Response {
             request_id: "req_id".to_owned(),
             response_content: commands::ResponseContent::CompleteState(Default::default()),
-        });
+        };
 
-        let test_command_binary = proto::FromServer::try_from(test_command.clone())
-            .unwrap()
-            .encode_length_delimited_to_vec();
+        let test_command_binary = control_interface_api::FromAnkaios {
+            from_ankaios_enum: Some(
+                control_interface_api::from_ankaios::FromAnkaiosEnum::Response(
+                    response.clone().into(),
+                ),
+            ),
+        }
+        .encode_length_delimited_to_vec();
 
         // [utest->swdd~agent-uses-length-delimited-protobuf-for-pipes~1]
         let mut output_stream_mock = MockReopenFile::default();
@@ -167,7 +181,7 @@ mod tests {
         );
 
         assert!(pipes_channel_task
-            .forward_from_server(test_command)
+            .forward_from_server(response)
             .await
             .is_ok());
     }
@@ -181,13 +195,17 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let test_output_request = proto::ToServer {
-            to_server_enum: Some(proto::to_server::ToServerEnum::Request(proto::Request {
-                request_id: "req_id".to_owned(),
-                request_content: Some(proto::request::RequestContent::CompleteStateRequest(
-                    proto::CompleteStateRequest { field_mask: vec![] },
-                )),
-            })),
+        let test_output_request = control_interface_api::ToAnkaios {
+            to_ankaios_enum: Some(control_interface_api::to_ankaios::ToAnkaiosEnum::Request(
+                ank_proto::Request {
+                    request_id: "req_id".to_owned(),
+                    request_content: Some(
+                        ank_proto::request::RequestContent::CompleteStateRequest(
+                            ank_proto::CompleteStateRequest { field_mask: vec![] },
+                        ),
+                    ),
+                },
+            )),
         };
 
         let test_output_request_binary = test_output_request.encode_to_vec();
@@ -199,14 +217,21 @@ mod tests {
             .expect_read_protobuf_data()
             .returning(move || Ok(Box::new(x)));
 
-        let test_input_command = FromServer::Response(commands::Response {
+        let response = commands::Response {
             request_id: "req_id".to_owned(),
             response_content: commands::ResponseContent::CompleteState(Default::default()),
-        });
+        };
 
-        let test_input_command_binary = proto::FromServer::try_from(test_input_command.clone())
-            .unwrap()
-            .encode_length_delimited_to_vec();
+        let test_input_command_binary = control_interface_api::FromAnkaios {
+            from_ankaios_enum: Some(
+                control_interface_api::from_ankaios::FromAnkaiosEnum::Response(
+                    response.clone().into(),
+                ),
+            ),
+        }
+        .encode_length_delimited_to_vec();
+
+        let test_input_command = FromServer::Response(response);
 
         let mut output_stream_mock = MockReopenFile::default();
         output_stream_mock

@@ -14,7 +14,8 @@
 
 use crate::commands;
 use crate::objects::{CompleteState, DeletedWorkload, WorkloadSpec, WorkloadState};
-use api::proto;
+use api::ank_proto;
+use api::grpc_api;
 use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
@@ -42,14 +43,14 @@ pub enum FromServer {
     Stop(commands::Stop),
 }
 
-impl TryFrom<FromServer> for proto::FromServer {
+impl TryFrom<FromServer> for grpc_api::FromServer {
     type Error = &'static str;
 
     fn try_from(item: FromServer) -> Result<Self, Self::Error> {
         match item {
-            FromServer::UpdateWorkload(ankaios) => Ok(proto::FromServer {
-                from_server_enum: Some(proto::from_server::FromServerEnum::UpdateWorkload(
-                    proto::UpdateWorkload {
+            FromServer::UpdateWorkload(ankaios) => Ok(grpc_api::FromServer {
+                from_server_enum: Some(grpc_api::from_server::FromServerEnum::UpdateWorkload(
+                    grpc_api::UpdateWorkload {
                         added_workloads: ankaios
                             .added_workloads
                             .into_iter()
@@ -63,9 +64,9 @@ impl TryFrom<FromServer> for proto::FromServer {
                     },
                 )),
             }),
-            FromServer::UpdateWorkloadState(ankaios) => Ok(proto::FromServer {
-                from_server_enum: Some(proto::from_server::FromServerEnum::UpdateWorkloadState(
-                    proto::UpdateWorkloadState {
+            FromServer::UpdateWorkloadState(ankaios) => Ok(grpc_api::FromServer {
+                from_server_enum: Some(grpc_api::from_server::FromServerEnum::UpdateWorkloadState(
+                    grpc_api::UpdateWorkloadState {
                         workload_states: ankaios
                             .workload_states
                             .iter()
@@ -74,9 +75,9 @@ impl TryFrom<FromServer> for proto::FromServer {
                     },
                 )),
             }),
-            FromServer::Response(ankaios) => Ok(proto::FromServer {
-                from_server_enum: Some(proto::from_server::FromServerEnum::Response(
-                    proto::Response {
+            FromServer::Response(ankaios) => Ok(grpc_api::FromServer {
+                from_server_enum: Some(grpc_api::from_server::FromServerEnum::Response(
+                    ank_proto::Response {
                         request_id: ankaios.request_id,
                         response_content: Some(ankaios.response_content.into()),
                     },
@@ -220,7 +221,8 @@ mod tests {
         test_utils::{generate_test_deleted_workload, generate_test_proto_deleted_workload},
     };
 
-    use api::proto::{self, from_server::FromServerEnum, AddedWorkload};
+    use api::ank_proto;
+    use api::grpc_api::{self, from_server::FromServerEnum, AddedWorkload};
 
     #[test]
     fn utest_convert_from_server_to_proto_update_workload() {
@@ -238,10 +240,10 @@ mod tests {
                 "workload X".to_string(),
             )],
         });
-        let expected_ex_com = Ok(proto::FromServer {
-            from_server_enum: Some(FromServerEnum::UpdateWorkload(proto::UpdateWorkload {
+        let expected_ex_com = Ok(grpc_api::FromServer {
+            from_server_enum: Some(FromServerEnum::UpdateWorkload(grpc_api::UpdateWorkload {
                 added_workloads: vec![AddedWorkload {
-                    instance_name: Some(proto::WorkloadInstanceName {
+                    instance_name: Some(ank_proto::WorkloadInstanceName {
                         workload_name: "test_workload".to_owned(),
                         ..Default::default()
                     }),
@@ -252,7 +254,7 @@ mod tests {
             })),
         });
 
-        assert_eq!(proto::FromServer::try_from(test_ex_com), expected_ex_com);
+        assert_eq!(grpc_api::FromServer::try_from(test_ex_com), expected_ex_com);
     }
 
     #[test]
@@ -266,15 +268,15 @@ mod tests {
         let test_ex_com = FromServer::UpdateWorkloadState(commands::UpdateWorkloadState {
             workload_states: vec![workload_state.clone()],
         });
-        let expected_ex_com = Ok(proto::FromServer {
+        let expected_ex_com = Ok(grpc_api::FromServer {
             from_server_enum: Some(FromServerEnum::UpdateWorkloadState(
-                proto::UpdateWorkloadState {
+                grpc_api::UpdateWorkloadState {
                     workload_states: vec![workload_state.into()],
                 },
             )),
         });
 
-        assert_eq!(proto::FromServer::try_from(test_ex_com), expected_ex_com);
+        assert_eq!(grpc_api::FromServer::try_from(test_ex_com), expected_ex_com);
     }
 
     #[test]
@@ -284,17 +286,17 @@ mod tests {
             response_content: commands::ResponseContent::CompleteState(Box::default()),
         });
 
-        let expected_ex_com = Ok(proto::FromServer {
-            from_server_enum: Some(proto::from_server::FromServerEnum::Response(
-                proto::Response {
+        let expected_ex_com = Ok(grpc_api::FromServer {
+            from_server_enum: Some(grpc_api::from_server::FromServerEnum::Response(
+                ank_proto::Response {
                     request_id: "req_id".to_owned(),
-                    response_content: Some(proto::response::ResponseContent::CompleteState(
-                        proto::CompleteState {
-                            desired_state: Some(api::proto::State {
+                    response_content: Some(ank_proto::response::ResponseContent::CompleteState(
+                        ank_proto::CompleteState {
+                            desired_state: Some(api::ank_proto::State {
                                 api_version: "v0.1".into(),
                                 ..Default::default()
                             }),
-                            startup_state: Some(api::proto::State {
+                            startup_state: Some(api::ank_proto::State {
                                 api_version: "v0.1".into(),
                                 ..Default::default()
                             }),
@@ -305,6 +307,6 @@ mod tests {
             )),
         });
 
-        assert_eq!(proto::FromServer::try_from(test_ex_com), expected_ex_com);
+        assert_eq!(grpc_api::FromServer::try_from(test_ex_com), expected_ex_com);
     }
 }

@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::proto;
+use api::ank_proto;
 use serde::{Deserialize, Serialize};
 
 use super::{State, WorkloadState};
@@ -28,20 +28,20 @@ pub struct CompleteState {
     pub workload_states: Vec<WorkloadState>,
 }
 
-impl From<CompleteState> for proto::CompleteState {
-    fn from(item: CompleteState) -> proto::CompleteState {
-        proto::CompleteState {
-            startup_state: Some(proto::State::from(item.startup_state)),
-            desired_state: Some(proto::State::from(item.desired_state)),
+impl From<CompleteState> for ank_proto::CompleteState {
+    fn from(item: CompleteState) -> ank_proto::CompleteState {
+        ank_proto::CompleteState {
+            startup_state: Some(ank_proto::State::from(item.startup_state)),
+            desired_state: Some(ank_proto::State::from(item.desired_state)),
             workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
         }
     }
 }
 
-impl TryFrom<proto::CompleteState> for CompleteState {
+impl TryFrom<ank_proto::CompleteState> for CompleteState {
     type Error = String;
 
-    fn try_from(item: proto::CompleteState) -> Result<Self, Self::Error> {
+    fn try_from(item: ank_proto::CompleteState) -> Result<Self, Self::Error> {
         Ok(CompleteState {
             startup_state: item.startup_state.unwrap_or_default().try_into()?,
             desired_state: item.desired_state.unwrap_or_default().try_into()?,

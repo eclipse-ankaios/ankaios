@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Elektrobit Automotive GmbH
+// Copyright (c) 2023 Elektrobit Automotive GmbHc
 //
 // This program and the accompanying materials are made available under the
 // terms of the Apache License, Version 2.0 which is available at
@@ -16,7 +16,7 @@ use crate::{
     commands::{self, RequestContent},
     objects::CompleteState,
 };
-use api::proto;
+use api::grpc_api;
 use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
@@ -33,11 +33,11 @@ pub enum ToServer {
     Goodbye(commands::Goodbye),
 }
 
-impl TryFrom<proto::ToServer> for ToServer {
+impl TryFrom<grpc_api::ToServer> for ToServer {
     type Error = String;
 
-    fn try_from(item: proto::ToServer) -> Result<Self, Self::Error> {
-        use proto::to_server::ToServerEnum;
+    fn try_from(item: grpc_api::ToServer) -> Result<Self, Self::Error> {
+        use grpc_api::to_server::ToServerEnum;
         let to_server = item.to_server_enum.ok_or("ToServer is None.".to_string())?;
 
         Ok(match to_server {
@@ -183,7 +183,8 @@ pub fn generate_test_failed_update_workload_state(
 mod tests {
     use std::collections::HashMap;
 
-    use api::proto::{self, to_server::ToServerEnum};
+    use api::ank_proto;
+    use api::grpc_api::{self, to_server::ToServerEnum};
 
     use crate::{
         commands::{AgentHello, CompleteStateRequest, Request, RequestContent, UpdateStateRequest},
@@ -194,8 +195,8 @@ mod tests {
     fn utest_convert_proto_to_server_agent_hello() {
         let agent_name = "agent_A".to_string();
 
-        let proto_request = proto::ToServer {
-            to_server_enum: Some(ToServerEnum::AgentHello(proto::AgentHello {
+        let proto_request = grpc_api::ToServer {
+            to_server_enum: Some(ToServerEnum::AgentHello(grpc_api::AgentHello {
                 agent_name: agent_name.clone(),
             })),
         };
@@ -207,9 +208,9 @@ mod tests {
 
     #[test]
     fn utest_convert_proto_to_server_update_workload_state() {
-        let proto_request = proto::ToServer {
+        let proto_request = grpc_api::ToServer {
             to_server_enum: Some(ToServerEnum::UpdateWorkloadState(
-                proto::UpdateWorkloadState {
+                grpc_api::UpdateWorkloadState {
                     workload_states: vec![],
                 },
             )),
@@ -224,22 +225,22 @@ mod tests {
 
     #[test]
     fn utest_convert_proto_to_server_update_state() {
-        let proto_request = proto::ToServer {
-            to_server_enum: Some(ToServerEnum::Request(proto::Request {
+        let proto_request = grpc_api::ToServer {
+            to_server_enum: Some(ToServerEnum::Request(ank_proto::Request {
                 request_id: "request_id".to_owned(),
-                request_content: Some(proto::request::RequestContent::UpdateStateRequest(
-                    proto::UpdateStateRequest {
+                request_content: Some(ank_proto::request::RequestContent::UpdateStateRequest(
+                    ank_proto::UpdateStateRequest {
                         update_mask: vec!["test_update_mask_field".to_owned()],
-                        new_state: Some(proto::CompleteState {
-                            startup_state: Some(proto::State {
+                        new_state: Some(ank_proto::CompleteState {
+                            startup_state: Some(ank_proto::State {
                                 api_version: "v0.1".into(),
                                 ..Default::default()
                             }),
-                            desired_state: Some(proto::State {
+                            desired_state: Some(ank_proto::State {
                                 api_version: "v0.1".into(),
                                 workloads: HashMap::from([(
                                     "test_workload".to_owned(),
-                                    proto::Workload {
+                                    ank_proto::Workload {
                                         agent: "test_agent".to_owned(),
                                         ..Default::default()
                                     },
@@ -277,31 +278,33 @@ mod tests {
 
     #[test]
     fn utest_convert_proto_to_server_update_state_fails() {
-        let proto_request = proto::ToServer {
-            to_server_enum: Some(proto::to_server::ToServerEnum::Request(proto::Request {
-                request_id: "requeset_id".to_owned(),
-                request_content: Some(proto::request::RequestContent::UpdateStateRequest(
-                    proto::UpdateStateRequest {
-                        update_mask: vec!["test_update_mask_field".to_owned()],
-                        new_state: Some(proto::CompleteState {
-                            desired_state: Some(proto::State {
-                                api_version: "v0.1".into(),
-                                workloads: HashMap::from([(
-                                    "test_workload".to_owned(),
-                                    proto::Workload {
-                                        agent: "test_agent".to_owned(),
-                                        dependencies: vec![("other_workload".into(), -1)]
-                                            .into_iter()
-                                            .collect(),
-                                        ..Default::default()
-                                    },
-                                )]),
+        let proto_request = grpc_api::ToServer {
+            to_server_enum: Some(grpc_api::to_server::ToServerEnum::Request(
+                ank_proto::Request {
+                    request_id: "requeset_id".to_owned(),
+                    request_content: Some(ank_proto::request::RequestContent::UpdateStateRequest(
+                        ank_proto::UpdateStateRequest {
+                            update_mask: vec!["test_update_mask_field".to_owned()],
+                            new_state: Some(ank_proto::CompleteState {
+                                desired_state: Some(ank_proto::State {
+                                    api_version: "v0.1".into(),
+                                    workloads: HashMap::from([(
+                                        "test_workload".to_owned(),
+                                        ank_proto::Workload {
+                                            agent: "test_agent".to_owned(),
+                                            dependencies: vec![("other_workload".into(), -1)]
+                                                .into_iter()
+                                                .collect(),
+                                            ..Default::default()
+                                        },
+                                    )]),
+                                }),
+                                ..Default::default()
                             }),
-                            ..Default::default()
-                        }),
-                    },
-                )),
-            })),
+                        },
+                    )),
+                },
+            )),
         };
 
         assert!(ToServer::try_from(proto_request).is_err(),);
@@ -312,15 +315,19 @@ mod tests {
         let request_id = "42".to_string();
         let field_mask = vec!["1".to_string()];
 
-        let proto_request = proto::ToServer {
-            to_server_enum: Some(proto::to_server::ToServerEnum::Request(proto::Request {
-                request_id: request_id.clone(),
-                request_content: Some(proto::request::RequestContent::CompleteStateRequest(
-                    proto::CompleteStateRequest {
-                        field_mask: field_mask.clone(),
-                    },
-                )),
-            })),
+        let proto_request = grpc_api::ToServer {
+            to_server_enum: Some(grpc_api::to_server::ToServerEnum::Request(
+                ank_proto::Request {
+                    request_id: request_id.clone(),
+                    request_content: Some(
+                        ank_proto::request::RequestContent::CompleteStateRequest(
+                            ank_proto::CompleteStateRequest {
+                                field_mask: field_mask.clone(),
+                            },
+                        ),
+                    ),
+                },
+            )),
         };
 
         let ankaios_command = ToServer::Request(Request {
