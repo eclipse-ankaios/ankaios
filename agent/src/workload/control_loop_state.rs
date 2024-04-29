@@ -175,7 +175,7 @@ where
 mod tests {
     use super::ControlLoopState;
     use crate::{
-        runtime_connectors::test::MockRuntimeConnector,
+        runtime_connectors::test::{MockRuntimeConnector, StubStateChecker},
         workload::{
             workload_command_channel::WorkloadCommandSender, workload_control_loop::RetryCounter,
         },
@@ -186,6 +186,7 @@ mod tests {
 
     #[test]
     fn utest_control_loop_state_builder_build_success() {
+        let control_interface_path = Some("/some/path".into());
         let workload_spec = generate_test_workload_spec();
 
         let (workload_state_sender, _workload_state_receiver) =
@@ -194,7 +195,8 @@ mod tests {
         let (retry_sender, workload_command_receiver) = WorkloadCommandSender::new();
 
         let control_loop_state = ControlLoopState::builder()
-            .workload_spec(workload_spec.clone()) // workload spec is moved here!
+            .workload_spec(workload_spec.clone())
+            .control_interface_path(control_interface_path.clone()) // workload spec is moved here!
             .workload_state_sender(workload_state_sender)
             .runtime(runtime)
             .workload_command_receiver(workload_command_receiver)
@@ -207,24 +209,15 @@ mod tests {
             control_loop_state.workload_spec.instance_name,
             workload_spec.instance_name
         );
+        assert_eq!(
+            control_loop_state.control_interface_path,
+            control_interface_path
+        );
     }
 
     #[test]
     fn utest_contol_loop_state_builder_build_failed() {
-        let workload_spec = generate_test_workload_spec();
-
-        let (workload_state_sender, _workload_state_receiver) =
-            tokio::sync::mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-        let runtime = Box::new(MockRuntimeConnector::new());
-        let (_retry_sender, workload_command_receiver) = WorkloadCommandSender::new();
-
-        let control_loop_state = ControlLoopState::builder()
-            .workload_spec(workload_spec)
-            .workload_state_sender(workload_state_sender)
-            .runtime(runtime)
-            .workload_command_receiver(workload_command_receiver)
-            .build();
-
+        let control_loop_state = ControlLoopState::<String, StubStateChecker>::builder().build();
         assert!(control_loop_state.is_err());
     }
 
