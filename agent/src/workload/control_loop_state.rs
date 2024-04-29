@@ -95,36 +95,43 @@ where
         }
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub fn workload_spec(mut self, workload_spec: WorkloadSpec) -> Self {
         self.workload_spec = Some(workload_spec);
         self
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub fn control_interface_path(mut self, control_interface_path: Option<PathBuf>) -> Self {
         self.control_interface_path = control_interface_path;
         self
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub fn workload_state_sender(mut self, update_state_tx: WorkloadStateSender) -> Self {
         self.workload_state_sender = Some(update_state_tx);
         self
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub fn runtime(mut self, runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>) -> Self {
         self.runtime = Some(runtime);
         self
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub fn workload_command_receiver(mut self, command_receiver: WorkloadCommandReceiver) -> Self {
         self.workload_command_receiver = Some(command_receiver);
         self
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub fn retry_sender(mut self, workload_channel: WorkloadCommandSender) -> Self {
         self.retry_sender = Some(workload_channel);
         self
     }
 
+    #[cfg_attr(test, allow(dead_code))]
     pub fn build(self) -> Result<ControlLoopState<WorkloadId, StChecker>, String> {
         // new channel for receiving the workload states from the state checker
         let (state_checker_wl_state_sender, state_checker_wl_state_receiver) =
@@ -165,4 +172,89 @@ where
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::ControlLoopState;
+    use crate::{
+        runtime_connectors::test::MockRuntimeConnector,
+        workload::{
+            workload_command_channel::WorkloadCommandSender, workload_control_loop::RetryCounter,
+        },
+    };
+    use common::objects::generate_test_workload_spec;
+
+    const TEST_EXEC_COMMAND_BUFFER_SIZE: usize = 20;
+
+    #[test]
+    fn utest_control_loop_state_builder_build_success() {
+        let workload_spec = generate_test_workload_spec();
+
+        let (workload_state_sender, _workload_state_receiver) =
+            tokio::sync::mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let runtime = Box::new(MockRuntimeConnector::new());
+        let (retry_sender, workload_command_receiver) = WorkloadCommandSender::new();
+
+        let control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec.clone()) // workload spec is moved here!
+            .workload_state_sender(workload_state_sender)
+            .runtime(runtime)
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(retry_sender)
+            .build();
+
+        assert!(control_loop_state.is_ok());
+        let control_loop_state = control_loop_state.unwrap();
+        assert_eq!(
+            control_loop_state.workload_spec.instance_name,
+            workload_spec.instance_name
+        );
+    }
+
+    #[test]
+    fn utest_contol_loop_state_builder_build_failed() {
+        let workload_spec = generate_test_workload_spec();
+
+        let (workload_state_sender, _workload_state_receiver) =
+            tokio::sync::mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let runtime = Box::new(MockRuntimeConnector::new());
+        let (_retry_sender, workload_command_receiver) = WorkloadCommandSender::new();
+
+        let control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec)
+            .workload_state_sender(workload_state_sender)
+            .runtime(runtime)
+            .workload_command_receiver(workload_command_receiver)
+            .build();
+
+        assert!(control_loop_state.is_err());
+    }
+
+    #[test]
+    fn utest_control_loop_state_instance_name() {
+        let workload_spec = generate_test_workload_spec();
+        let (workload_state_sender, _workload_state_receiver) =
+            tokio::sync::mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
+            tokio::sync::mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+        let runtime = Box::new(MockRuntimeConnector::new());
+        let (retry_sender, workload_command_receiver) = WorkloadCommandSender::new();
+
+        let control_loop_state = ControlLoopState {
+            workload_spec: workload_spec.clone(),
+            control_interface_path: None,
+            workload_id: None,
+            state_checker: None,
+            workload_state_sender,
+            state_checker_workload_state_sender,
+            state_checker_workload_state_receiver,
+            runtime,
+            command_receiver: workload_command_receiver,
+            retry_sender,
+            retry_counter: RetryCounter::new(),
+        };
+
+        assert_eq!(
+            control_loop_state.instance_name().workload_name(),
+            workload_spec.instance_name.workload_name()
+        );
+    }
+}
