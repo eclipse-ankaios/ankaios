@@ -61,6 +61,7 @@ Thus, the following WorkloadCommands exists:
 * `Create` for creating a workload
 * `Update` for updating a workload
 * `Retry` for retrying the create of an workload
+* `Resume` for resuming an existing workload
 * `Delete` for deleting a workload
 
 ### WorkloadControlLoop
@@ -596,8 +597,8 @@ Needs:
 Status: approved
 
 When requested, the RuntimeFacade resumes a workload by:
-* request the wrapped runtime to start the state checker for that workload
 * start the WorkloadControlLoop waiting for WorkloadCommands
+* request the resume of the workload by sending a resume command to the WorkloadControlLoop
 * return a new workload object containing a WorkloadCommandSender to communicate with the WorkloadControlLoop
 
 Comment:
@@ -665,6 +666,26 @@ This delete is done by the specific runtime for a workload Id. No internal workl
 
 Tags:
 - RuntimeFacade
+
+Needs:
+- impl
+- utest
+
+##### WorkloadControlLoop executes resume command
+`swdd~agent-workload-control-loop-executes-resume~1`
+
+Status: approved
+
+When the WorkloadControlLoop receives a resume command, then the WorkloadControlLoop shall:
+* request the workload Id from the corresponding runtime connector
+* start the state checker for that workload if an Id is found
+* store the Id and reference to the state checker inside the WorkloadControlLoop
+
+Rationale:
+The WorkloadControlLoop allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
+
+Tags:
+- WorkloadControlLoop
 
 Needs:
 - impl
@@ -1497,7 +1518,7 @@ Needs:
 - utest
 - stest
 
-##### WorkloadControlLoop sets execution state of workload to failed after reaching the retry limit
+#### WorkloadControlLoop sets execution state of workload to failed after reaching the retry limit
 `swdd~agent-workload-control-loop-retry-limit-set-execution-state~1`
 
 Status: approved
@@ -2057,7 +2078,7 @@ Needs:
 
 This section describes how workload states are sampled inside the Ankaios agent and how they get forwarded to the Ankaios server.
 
-It is required that each runtime connector delivers a state checker when a workload is created. Additionally, the runtime connector provides an extra method for starting a checker for workloads that are resumed by the WorkloadFacade.
+It is required that each runtime connector delivers a state checker when a workload is created. Additionally, the runtime connector provides an extra method for starting a checker for workloads that are resumed by the RuntimeFacade.
 
 How the state checker is implemented is up to the specific runtime connector, given that the state checker trait is implemented. The state checker trait requires a state getter object to be provided. The object must implement the runtime state getter trait and is specific to the runtime connector. The provided state getter object is called inside the state checker.
 The extra complexity introduced by having two traits is needed in order to provide common state checker implementations that can be reused among runtime connectors. One of these checkers is the `GenericPollingStateChecker`.

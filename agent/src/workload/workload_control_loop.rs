@@ -147,6 +147,7 @@ impl WorkloadControlLoop {
                             )
                             .await;
                         }
+                        // [impl->swdd~agent-workload-control-loop-executes-resume~1]
                         Some(WorkloadCommand::Resume) => {
                             log::debug!("Received WorkloadCommand::Resume.");
                             control_loop_state = Self::resume(control_loop_state).await;
@@ -539,6 +540,7 @@ impl WorkloadControlLoop {
         }
     }
 
+    // [impl->swdd~agent-workload-control-loop-executes-resume~1]
     async fn resume<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
     ) -> ControlLoopState<WorkloadId, StChecker>
@@ -611,8 +613,8 @@ mockall::mock! {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
     use super::WorkloadControlLoop;
+    use std::time::Duration;
 
     use common::objects::{
         generate_test_workload_spec, generate_test_workload_spec_with_param, ExecutionState,
@@ -2405,6 +2407,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~agent-workload-control-loop-executes-resume~1]
     #[tokio::test]
     async fn utest_resume_workload() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -2471,6 +2474,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
+    // [utest->swdd~agent-workload-control-loop-executes-resume~1]
     #[tokio::test]
     async fn utest_resume_workload_workload_id_and_state_checker_updated() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -2532,6 +2536,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
+    // [utest->swdd~agent-workload-control-loop-executes-resume~1]
     #[tokio::test]
     async fn utest_resume_workload_get_workload_id_fails() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -2577,6 +2582,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
+    // [utest->swdd~agent-workload-control-loop-executes-resume~1]
     #[tokio::test]
     async fn utest_resume_workload_start_state_checker_fails() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
