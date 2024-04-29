@@ -105,6 +105,7 @@ impl ServerConnection {
                     })) if received_request_id == request_id => return Ok(res),
                     None => return Err("Channel preliminary closed."),
                     Some(message) => {
+                        // [impl->swdd~cli-stores-unexpected-message~1]
                         self.missed_from_server_messages.push(message);
                     }
                 }
@@ -156,6 +157,7 @@ impl ServerConnection {
                         )));
                     }
                     message => {
+                        // [impl->swdd~cli-stores-unexpected-message~1]
                         self.missed_from_server_messages.push(message);
                     }
                 }
@@ -190,6 +192,7 @@ impl ServerConnection {
             if let FromServer::UpdateWorkloadState(update_workload_state) = server_message {
                 break Ok(update_workload_state);
             } else {
+                // [impl->swdd~cli-stores-unexpected-message~1]
                 self.missed_from_server_messages.push(server_message);
             };
         }
@@ -358,6 +361,7 @@ mod tests {
         checker.check_communication();
     }
 
+    // [utest->swdd~cli-stores-unexpected-message~1]
     #[tokio::test]
     async fn utest_get_complete_state_other_response_in_between() {
         let other_response = FromServer::Response(Response {
@@ -391,6 +395,7 @@ mod tests {
         checker.check_communication();
     }
 
+    // [utest->swdd~cli-stores-unexpected-message~1]
     #[tokio::test]
     async fn utest_get_complete_state_other_message_in_between() {
         let other_message = FromServer::UpdateWorkloadState(UpdateWorkloadState {
@@ -536,6 +541,7 @@ mod tests {
         checker.check_communication();
     }
 
+    // [utest->swdd~cli-stores-unexpected-message~1]
     #[tokio::test]
     async fn utest_update_state_other_response_in_between() {
         let update_state_success = UpdateStateSuccess {
@@ -575,6 +581,7 @@ mod tests {
         checker.check_communication();
     }
 
+    // [utest->swdd~cli-stores-unexpected-message~1]
     #[tokio::test]
     async fn utest_update_state_other_message_in_between() {
         let update_state_success = UpdateStateSuccess {
@@ -635,6 +642,7 @@ mod tests {
         checker.check_communication();
     }
 
+    // [utest->swdd~cli-stores-unexpected-message~1]
     #[tokio::test]
     async fn utest_read_next_update_workload_state_other_message_in_between() {
         let other_message = FromServer::Response(Response {

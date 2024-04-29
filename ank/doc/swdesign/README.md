@@ -758,6 +758,26 @@ Needs:
 - utest
 - stest
 
+### Handling other message while waiting for response
+
+|[Store unexpected messages](plantuml/seq_store_missed_messages.svg)
+
+#### CLI stores unexpected messages
+`swdd~cli-stores-unexpected-message~1`
+
+Status: approved
+
+While the Ankaios CLI waits for a response from the Ankaios Server,
+the Ankaios CLI should store all other received messages.
+
+Rationale:
+The Ank CLI needs these message to watch changed workloads,
+as the first `UpdateWorkloadState` message can already be received while waiting for the response the `UpdateStateRequest` and the `CompleteStateRequest`.
+
+Needs:
+- impl
+- utest
+
 ## Data view
 
 ![Data view](plantuml/class_data-structures.svg)

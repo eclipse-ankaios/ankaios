@@ -49,6 +49,12 @@ else workloads changed
     deactivate server_connection
     cli_commands <<- server_connection --: complete state
     cli_commands -> cli_commands: filter for changed workloads
+
+    cli_commands -> server_connection ++: take missed messages
+    return missed messages
+    cli_commands -> cli_commands: filter for update workload\nstate messages
+    cli_commands -> cli_commands: mark all worloads which\nreached desired state
+
     cli_commands -> cli_commands: print workload table
 
     loop until all changed workloads have been marked
