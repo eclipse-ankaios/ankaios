@@ -307,9 +307,9 @@ mod tests {
             runtime_connector::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
             GenericRuntimeFacade, OwnableRuntime, RuntimeFacade,
         },
+        workload::ControlLoopState,
         workload::MockWorkload,
         workload::MockWorkloadControlLoop,
-        workload::ControlLoopState,
         workload_state::assert_execution_state_sequence,
     };
 
@@ -319,7 +319,6 @@ mod tests {
     const WORKLOAD_ID: &str = "workload_id_1";
     const PIPES_LOCATION: &str = "/some/path";
     const TEST_CHANNEL_BUFFER_SIZE: usize = 20;
-
 
     // [utest->swdd~agent-facade-forwards-list-reusable-workloads-call~1]
     #[tokio::test]
@@ -401,7 +400,10 @@ mod tests {
         ));
 
         let mock_control_loop = MockWorkloadControlLoop::run_context();
-        mock_control_loop.expect().once().return_once(|_: ControlLoopState<String, StubStateChecker>| ());
+        mock_control_loop
+            .expect()
+            .once()
+            .return_once(|_: ControlLoopState<String, StubStateChecker>| ());
 
         let (task_handle, _workload) = test_runtime_facade._create_workload(
             workload_spec.clone(),
@@ -434,7 +436,10 @@ mod tests {
             tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
 
         let mock_control_loop = MockWorkloadControlLoop::run_context();
-        mock_control_loop.expect().once().return_once(|_: ControlLoopState<String, StubStateChecker>| ());
+        mock_control_loop
+            .expect()
+            .once()
+            .return_once(|_: ControlLoopState<String, StubStateChecker>| ());
 
         let mock_workload = MockWorkload::default();
         let new_workload_context = MockWorkload::new_context();
@@ -509,6 +514,61 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
+    // [utest->swdd~agent-delete-old-workload~2]
+    #[tokio::test]
+    async fn utest_runtime_facade_delete_workload_failed() {
+        let mut runtime_mock = MockRuntimeConnector::new();
+
+        let (wl_state_sender, wl_state_receiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
+
+        let workload_instance_name = WorkloadInstanceName::builder()
+            .workload_name(WORKLOAD_1_NAME)
+            .build();
+
+        runtime_mock
+            .expect(vec![
+                RuntimeCall::GetWorkloadId(
+                    workload_instance_name.clone(),
+                    Ok(WORKLOAD_ID.to_string()),
+                ),
+                RuntimeCall::DeleteWorkload(
+                    WORKLOAD_ID.to_string(),
+                    Err(crate::runtime_connectors::RuntimeError::Delete(
+                        "delete failed".to_owned(),
+                    )),
+                ),
+            ])
+            .await;
+
+        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
+            Box::new(runtime_mock.clone());
+        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
+            ownable_runtime_mock,
+        ));
+
+        test_runtime_facade.delete_workload(workload_instance_name.clone(), &wl_state_sender);
+
+        tokio::task::yield_now().await;
+
+        assert_execution_state_sequence(
+            wl_state_receiver,
+            vec![
+                (
+                    &workload_instance_name,
+                    ExecutionState::stopping_requested(),
+                ),
+                (
+                    &workload_instance_name,
+                    ExecutionState::delete_failed("delete failed".to_owned()),
+                ),
+            ],
+        )
+        .await;
+
+        runtime_mock.assert_all_expectations().await;
+    }
+
     #[tokio::test]
     async fn utest_start_control_loop_error() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -518,8 +578,11 @@ mod tests {
         let control_loop_state = Err("some error".to_string());
 
         let mock_control_loop = MockWorkloadControlLoop::run_context();
-        mock_control_loop.expect::<String, StubStateChecker>().never();
+        mock_control_loop
+            .expect::<String, StubStateChecker>()
+            .never();
 
-        GenericRuntimeFacade::<String, StubStateChecker>::start_control_loop(control_loop_state).await;
+        GenericRuntimeFacade::<String, StubStateChecker>::start_control_loop(control_loop_state)
+            .await;
     }
 }
