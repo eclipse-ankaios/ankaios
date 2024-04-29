@@ -710,8 +710,8 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use common::{
-        commands::{UpdateStateSuccess, UpdateWorkloadState},
-        from_server_interface::FromServerSender,
+        commands::{Response, UpdateStateSuccess, UpdateWorkloadState},
+        from_server_interface::{FromServer, FromServerSender},
         objects::{
             self, generate_test_workload_spec_with_param, CompleteState, ExecutionState,
             RunningSubstate, State, StoredWorkloadSpec, Tag, WorkloadState,
@@ -758,6 +758,7 @@ mod tests {
             }
         }
     }"#;
+    const OTHER_REQUEST_ID: &str = "other_request_id";
 
     mockall::lazy_static! {
         pub static ref FAKE_READ_TO_STRING_MOCK_RESULT_LIST: tokio::sync::Mutex<std::collections::VecDeque<io::Result<String>>>  =
@@ -2372,7 +2373,25 @@ mod tests {
             });
         mock_server_connection
             .expect_take_missed_from_server_messages()
-            .return_once(Vec::new);
+            .return_once(|| {
+                vec![
+                    FromServer::Response(Response {
+                        request_id: OTHER_REQUEST_ID.into(),
+                        response_content: common::commands::ResponseContent::Error(
+                            Default::default(),
+                        ),
+                    }),
+                    FromServer::UpdateWorkloadState(UpdateWorkloadState {
+                        workload_states: vec![WorkloadState {
+                            instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
+                            execution_state: ExecutionState {
+                                state: objects::ExecutionStateEnum::Running(RunningSubstate::Ok),
+                                ..Default::default()
+                            },
+                        }],
+                    }),
+                ]
+            });
         mock_server_connection
             .expect_read_next_update_workload_state()
             .return_once(|| {
