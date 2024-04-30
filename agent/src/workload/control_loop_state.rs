@@ -11,10 +11,6 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-
-#[cfg(test)]
-use mockall::automock;
-
 use crate::runtime_connectors::{RuntimeConnector, StateChecker};
 use crate::workload::workload_command_channel::{WorkloadCommandReceiver, WorkloadCommandSender};
 use crate::workload::workload_control_loop::RetryCounter;
@@ -75,7 +71,6 @@ where
     pub retry_counter: RetryCounter,
 }
 
-#[cfg_attr(test, automock)]
 impl<WorkloadId, StChecker> ControlLoopStateBuilder<WorkloadId, StChecker>
 where
     WorkloadId: ToString + Send + Sync + 'static,
@@ -95,43 +90,36 @@ where
         }
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub fn workload_spec(mut self, workload_spec: WorkloadSpec) -> Self {
         self.workload_spec = Some(workload_spec);
         self
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub fn control_interface_path(mut self, control_interface_path: Option<PathBuf>) -> Self {
         self.control_interface_path = control_interface_path;
         self
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub fn workload_state_sender(mut self, update_state_tx: WorkloadStateSender) -> Self {
         self.workload_state_sender = Some(update_state_tx);
         self
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub fn runtime(mut self, runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>) -> Self {
         self.runtime = Some(runtime);
         self
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub fn workload_command_receiver(mut self, command_receiver: WorkloadCommandReceiver) -> Self {
         self.workload_command_receiver = Some(command_receiver);
         self
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub fn retry_sender(mut self, workload_channel: WorkloadCommandSender) -> Self {
         self.retry_sender = Some(workload_channel);
         self
     }
 
-    #[cfg_attr(test, allow(dead_code))]
     pub fn build(self) -> Result<ControlLoopState<WorkloadId, StChecker>, String> {
         // new channel for receiving the workload states from the state checker
         let (state_checker_wl_state_sender, state_checker_wl_state_receiver) =
@@ -179,24 +167,29 @@ mod tests {
         workload::{
             workload_command_channel::WorkloadCommandSender, workload_control_loop::RetryCounter,
         },
+        workload_state::WorkloadStateSenderInterface,
     };
-    use common::objects::generate_test_workload_spec;
+    use common::objects::{
+        generate_test_workload_spec, generate_test_workload_state_with_workload_spec,
+        ExecutionState,
+    };
+    use tokio::time;
 
     const TEST_EXEC_COMMAND_BUFFER_SIZE: usize = 20;
 
-    #[test]
-    fn utest_control_loop_state_builder_build_success() {
+    #[tokio::test]
+    async fn utest_control_loop_state_builder_build_success() {
         let control_interface_path = Some("/some/path".into());
         let workload_spec = generate_test_workload_spec();
 
-        let (workload_state_sender, _workload_state_receiver) =
+        let (workload_state_sender, mut workload_state_receiver) =
             tokio::sync::mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
         let runtime = Box::new(MockRuntimeConnector::new());
         let (retry_sender, workload_command_receiver) = WorkloadCommandSender::new();
 
         let control_loop_state = ControlLoopState::builder()
             .workload_spec(workload_spec.clone())
-            .control_interface_path(control_interface_path.clone()) // workload spec is moved here!
+            .control_interface_path(control_interface_path.clone())
             .workload_state_sender(workload_state_sender)
             .runtime(runtime)
             .workload_command_receiver(workload_command_receiver)
@@ -204,7 +197,7 @@ mod tests {
             .build();
 
         assert!(control_loop_state.is_ok());
-        let control_loop_state = control_loop_state.unwrap();
+        let mut control_loop_state = control_loop_state.unwrap();
         assert_eq!(
             control_loop_state.workload_spec.instance_name,
             workload_spec.instance_name
@@ -213,6 +206,59 @@ mod tests {
             control_loop_state.control_interface_path,
             control_interface_path
         );
+
+        assert!(control_loop_state.workload_id.is_none());
+        assert!(control_loop_state.state_checker.is_none());
+
+        // workload state for testing the channel between state checker and workload control loop
+        let state_checker_wl_state = generate_test_workload_state_with_workload_spec(
+            &workload_spec,
+            ExecutionState::running(),
+        );
+
+        control_loop_state
+            .state_checker_workload_state_sender
+            .report_workload_execution_state(
+                &state_checker_wl_state.instance_name,
+                state_checker_wl_state.execution_state.clone(),
+            )
+            .await;
+
+        assert_eq!(
+            time::timeout(
+                time::Duration::from_millis(100),
+                control_loop_state
+                    .state_checker_workload_state_receiver
+                    .recv()
+            )
+            .await,
+            Ok(Some(state_checker_wl_state))
+        );
+
+        // workload state for testing the channel between workload control loop and agent manager
+        let forwarded_wl_state_to_agent = generate_test_workload_state_with_workload_spec(
+            &workload_spec,
+            ExecutionState::succeeded(),
+        );
+
+        control_loop_state
+            .workload_state_sender
+            .report_workload_execution_state(
+                &forwarded_wl_state_to_agent.instance_name,
+                forwarded_wl_state_to_agent.execution_state.clone(),
+            )
+            .await;
+
+        assert_eq!(
+            time::timeout(
+                time::Duration::from_millis(100),
+                workload_state_receiver.recv()
+            )
+            .await,
+            Ok(Some(forwarded_wl_state_to_agent))
+        );
+
+        assert_eq!(control_loop_state.retry_counter.current_retry(), 1);
     }
 
     #[test]
