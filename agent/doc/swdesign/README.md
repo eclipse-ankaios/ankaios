@@ -592,7 +592,7 @@ Needs:
 - utest
 
 ##### RuntimeFacade resumes workload
-`swdd~agent-resume-workload~1`
+`swdd~agent-resume-workload~2`
 
 Status: approved
 
