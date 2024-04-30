@@ -99,7 +99,7 @@ impl<
         workload
     }
 
-    // [impl->swdd~agent-resume-workload~1]
+    // [impl->swdd~agent-resume-workload~2]
     fn resume_workload(
         &self,
         workload_spec: WorkloadSpec,
@@ -184,7 +184,7 @@ impl<
         )
     }
 
-    // [impl->swdd~agent-resume-workload~1]
+    // [impl->swdd~agent-resume-workload~2]
     fn _resume_workload(
         &self,
         workload_spec: WorkloadSpec,
@@ -417,7 +417,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-resume-workload~1]
+    // [utest->swdd~agent-resume-workload~2]
     #[tokio::test]
     async fn utest_runtime_facade_resume_workload() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

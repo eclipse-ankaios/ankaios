@@ -1314,7 +1314,7 @@ Needs:
 ### Restart policies of workloads
 
 #### Agent supports restart policies
-`swdd~agent-supports-restart-policies~1`
+`swdd~agent-supports-restart-policies~2`
 
 Status: approved
 
@@ -1325,7 +1325,7 @@ The Ankaios agent shall support the following restart policies for a workload:
 * `ALWAYS`: The workload is restarted upon termination, regardless of the exit code.
 
 Comment:
-The default restart policies is `NEVER`.
+The default restart policy is `NEVER`.
 
 Rationale:
 In some cases, workloads must remain operational at all times, even if they fail or exit successfully.
