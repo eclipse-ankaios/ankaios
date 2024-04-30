@@ -18,7 +18,7 @@ use crate::grpc_middleware_error::GrpcMiddlewareError;
 use api::ank_base::{
     self, request::RequestContent, CompleteStateRequest, Request, UpdateStateRequest,
 };
-use api::grpc_api::{self, to_server::ToServerEnum};
+use crate::grpc_api::{self, to_server::ToServerEnum};
 
 use common::request_id_prepending::prepend_request_id;
 use common::to_server_interface::{ToServer, ToServerInterface, ToServerReceiver, ToServerSender};
@@ -179,7 +179,7 @@ pub async fn forward_from_ankaios_to_proto(
     grpc_tx
         .send(grpc_api::ToServer {
             to_server_enum: Some(grpc_api::to_server::ToServerEnum::Goodbye(
-                api::grpc_api::Goodbye {},
+                crate::grpc_api::Goodbye {},
             )),
         })
         .await?;
@@ -211,7 +211,7 @@ mod tests {
     use tokio::sync::mpsc;
 
     use api::ank_base::{self, UpdateStateRequest};
-    use api::grpc_api::{self, to_server::ToServerEnum};
+    use crate::grpc_api::{self, to_server::ToServerEnum};
 
     #[derive(Default, Clone)]
     struct MockGRPCToServerStreaming {

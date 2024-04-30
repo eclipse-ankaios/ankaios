@@ -23,9 +23,9 @@ use tonic::{Request, Response, Status};
 
 use crate::agent_senders_map::AgentSendersMap;
 use crate::to_server_proxy::{forward_from_proto_to_ankaios, GRPCToServerStreaming};
-use api::grpc_api::cli_connection_server::CliConnection;
+use grpc_api::cli_connection_server::CliConnection;
 
-use api::grpc_api;
+use crate::grpc_api;
 
 #[derive(Debug)]
 pub struct GRPCCliConnection {

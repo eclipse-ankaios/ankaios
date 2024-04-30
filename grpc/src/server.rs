@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::grpc_api::cli_connection_server::CliConnectionServer;
+use crate::grpc_api::cli_connection_server::CliConnectionServer;
 use common::communications_error::CommunicationMiddlewareError;
 use common::communications_server::CommunicationsServer;
 
@@ -21,9 +21,9 @@ use tonic::transport::Server;
 use std::net::SocketAddr;
 
 use crate::agent_senders_map::AgentSendersMap;
+use crate::grpc_api::agent_connection_server::AgentConnectionServer;
 use crate::grpc_cli_connection::GRPCCliConnection;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
-use api::grpc_api::agent_connection_server::AgentConnectionServer;
 
 use crate::from_server_proxy;
 use crate::grpc_agent_connection::GRPCAgentConnection;

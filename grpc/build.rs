@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Elektrobit Automotive GmbH
+// Copyright (c) 2024 Elektrobit Automotive GmbH
 //
 // This program and the accompanying materials are made available under the
 // terms of the Apache License, Version 2.0 which is available at
@@ -12,24 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub mod ankaios_streaming {
-    use tonic::async_trait;
-
-    #[async_trait]
-    pub trait GRPCStreaming<T> {
-        async fn message(&mut self) -> Result<Option<T>, tonic::Status>;
-    }
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tonic_build::configure()
+        .build_server(true)
+        .compile(
+            &["proto/grpc_api.proto"],
+            &["proto", "../api/proto"],
+        )
+        .unwrap();
+    Ok(())
 }
-
-mod agent_senders_map;
-pub mod client;
-mod from_server_proxy;
-mod grpc_agent_connection;
-mod grpc_cli_connection;
-pub mod grpc_middleware_error;
-pub mod server;
-mod to_server_proxy;
-
-use api::ank_base;
-pub mod grpc_api;
-pub use crate::grpc_api::*;

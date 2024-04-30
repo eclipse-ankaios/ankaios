@@ -16,7 +16,6 @@ use crate::{
     commands::{self, RequestContent},
     objects::CompleteState,
 };
-use api::grpc_api;
 use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
@@ -31,24 +30,6 @@ pub enum ToServer {
     UpdateWorkloadState(commands::UpdateWorkloadState),
     Stop(commands::Stop),
     Goodbye(commands::Goodbye),
-}
-
-impl TryFrom<grpc_api::ToServer> for ToServer {
-    type Error = String;
-
-    fn try_from(item: grpc_api::ToServer) -> Result<Self, Self::Error> {
-        use grpc_api::to_server::ToServerEnum;
-        let to_server = item.to_server_enum.ok_or("ToServer is None.".to_string())?;
-
-        Ok(match to_server {
-            ToServerEnum::AgentHello(protobuf) => ToServer::AgentHello(protobuf.into()),
-            ToServerEnum::UpdateWorkloadState(protobuf) => {
-                ToServer::UpdateWorkloadState(protobuf.into())
-            }
-            ToServerEnum::Request(protobuf) => ToServer::Request(protobuf.try_into()?),
-            ToServerEnum::Goodbye(_) => ToServer::Goodbye(commands::Goodbye {}),
-        })
-    }
 }
 
 pub struct ToServerError(String);
@@ -164,177 +145,121 @@ impl ToServerInterface for ToServerSender {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
-pub fn generate_test_failed_update_workload_state(
-    agent_name: &str,
-    workload_name: &str,
-) -> ToServer {
-    use crate::objects::ExecutionState;
-
-    ToServer::UpdateWorkloadState(commands::UpdateWorkloadState {
-        workload_states: vec![crate::objects::generate_test_workload_state_with_agent(
-            workload_name,
-            agent_name,
-            ExecutionState::failed("additional_info"),
-        )],
-    })
-}
-
-#[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
-
-    use api::ank_base;
-    use api::grpc_api::{self, to_server::ToServerEnum};
-
     use crate::{
-        commands::{AgentHello, CompleteStateRequest, Request, RequestContent, UpdateStateRequest},
-        to_server_interface::ToServer,
+        commands::{self, RequestContent},
+        objects::{generate_test_workload_spec, generate_test_workload_state, ExecutionState},
+        test_utils::generate_test_complete_state,
+        to_server_interface::{ToServer, ToServerInterface},
     };
 
-    #[test]
-    fn utest_convert_proto_to_server_agent_hello() {
-        let agent_name = "agent_A".to_string();
+    use super::{ToServerReceiver, ToServerSender};
 
-        let proto_request = grpc_api::ToServer {
-            to_server_enum: Some(ToServerEnum::AgentHello(grpc_api::AgentHello {
-                agent_name: agent_name.clone(),
-            })),
-        };
+    const TEST_CHANNEL_CAPA: usize = 5;
+    const WORKLOAD_NAME: &str = "X";
+    const AGENT_NAME: &str = "agent_A";
+    const REQUEST_ID: &str = "emkw489ejf89ml";
+    const FIELD_MASK: &str = "desiredState.bla_bla";
 
-        let ankaios_command = ToServer::AgentHello(AgentHello { agent_name });
+    #[tokio::test]
+    async fn utest_to_server_send_agent_hello() {
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
-        assert_eq!(ToServer::try_from(proto_request), Ok(ankaios_command));
+        assert!(tx.agent_hello(AGENT_NAME.to_string()).await.is_ok());
+
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            ToServer::AgentHello(commands::AgentHello {
+                agent_name: AGENT_NAME.to_string()
+            })
+        )
     }
 
-    #[test]
-    fn utest_convert_proto_to_server_update_workload_state() {
-        let proto_request = grpc_api::ToServer {
-            to_server_enum: Some(ToServerEnum::UpdateWorkloadState(
-                grpc_api::UpdateWorkloadState {
-                    workload_states: vec![],
-                },
-            )),
-        };
+    #[tokio::test]
+    async fn utest_to_server_send_agent_gone() {
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
-        let ankaios_command = ToServer::UpdateWorkloadState(crate::commands::UpdateWorkloadState {
-            workload_states: vec![],
-        });
+        assert!(tx.agent_gone(AGENT_NAME.to_string()).await.is_ok());
 
-        assert_eq!(ToServer::try_from(proto_request), Ok(ankaios_command));
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            ToServer::AgentGone(commands::AgentGone {
+                agent_name: AGENT_NAME.to_string()
+            })
+        )
     }
 
-    #[test]
-    fn utest_convert_proto_to_server_update_state() {
-        let proto_request = grpc_api::ToServer {
-            to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
-                request_id: "request_id".to_owned(),
-                request_content: Some(ank_base::request::RequestContent::UpdateStateRequest(
-                    ank_base::UpdateStateRequest {
-                        update_mask: vec!["test_update_mask_field".to_owned()],
-                        new_state: Some(ank_base::CompleteState {
-                            startup_state: Some(ank_base::State {
-                                api_version: "v0.1".into(),
-                                ..Default::default()
-                            }),
-                            desired_state: Some(ank_base::State {
-                                api_version: "v0.1".into(),
-                                workloads: HashMap::from([(
-                                    "test_workload".to_owned(),
-                                    ank_base::Workload {
-                                        agent: "test_agent".to_owned(),
-                                        ..Default::default()
-                                    },
-                                )]),
-                            }),
-                            ..Default::default()
-                        }),
+    #[tokio::test]
+    async fn utest_to_server_send_update_state() {
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        let workload1 = generate_test_workload_spec();
+        let complete_state = generate_test_complete_state(vec![workload1]);
+        assert!(tx
+            .update_state(
+                REQUEST_ID.to_string(),
+                complete_state.clone(),
+                vec![FIELD_MASK.to_string()]
+            )
+            .await
+            .is_ok());
+
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            ToServer::Request(commands::Request {
+                request_id: REQUEST_ID.to_string(),
+                request_content: commands::RequestContent::UpdateStateRequest(Box::new(
+                    commands::UpdateStateRequest {
+                        state: complete_state,
+                        update_mask: vec![FIELD_MASK.to_string()]
                     },
                 )),
-            })),
-        };
-
-        let ankaios_command = ToServer::Request(Request {
-            request_id: "request_id".to_owned(),
-            request_content: RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                update_mask: vec!["test_update_mask_field".to_owned()],
-                state: crate::objects::CompleteState {
-                    desired_state: crate::objects::State {
-                        workloads: HashMap::from([(
-                            "test_workload".to_owned(),
-                            crate::objects::StoredWorkloadSpec {
-                                agent: "test_agent".to_string(),
-                                ..Default::default()
-                            },
-                        )]),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                },
-            })),
-        });
-
-        assert_eq!(ToServer::try_from(proto_request), Ok(ankaios_command));
+            })
+        )
     }
 
-    #[test]
-    fn utest_convert_proto_to_server_update_state_fails() {
-        let proto_request = grpc_api::ToServer {
-            to_server_enum: Some(grpc_api::to_server::ToServerEnum::Request(
-                ank_base::Request {
-                    request_id: "requeset_id".to_owned(),
-                    request_content: Some(ank_base::request::RequestContent::UpdateStateRequest(
-                        ank_base::UpdateStateRequest {
-                            update_mask: vec!["test_update_mask_field".to_owned()],
-                            new_state: Some(ank_base::CompleteState {
-                                desired_state: Some(ank_base::State {
-                                    api_version: "v0.1".into(),
-                                    workloads: HashMap::from([(
-                                        "test_workload".to_owned(),
-                                        ank_base::Workload {
-                                            agent: "test_agent".to_owned(),
-                                            dependencies: vec![("other_workload".into(), -1)]
-                                                .into_iter()
-                                                .collect(),
-                                            ..Default::default()
-                                        },
-                                    )]),
-                                }),
-                                ..Default::default()
-                            }),
-                        },
-                    )),
-                },
-            )),
-        };
+    #[tokio::test]
+    async fn utest_to_server_send_update_workload_state() {
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
-        assert!(ToServer::try_from(proto_request).is_err(),);
+        let workload_state = generate_test_workload_state(WORKLOAD_NAME, ExecutionState::running());
+        assert!(tx
+            .update_workload_state(vec![workload_state.clone()])
+            .await
+            .is_ok());
+
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            ToServer::UpdateWorkloadState(commands::UpdateWorkloadState {
+                workload_states: vec![workload_state],
+            })
+        )
     }
 
-    #[test]
-    fn utest_convert_proto_to_server_request_complete_state() {
-        let request_id = "42".to_string();
-        let field_mask = vec!["1".to_string()];
+    #[tokio::test]
+    async fn utest_to_server_send_request_complete_state() {
+        let (tx, mut rx): (ToServerSender, ToServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
-        let proto_request = grpc_api::ToServer {
-            to_server_enum: Some(grpc_api::to_server::ToServerEnum::Request(
-                ank_base::Request {
-                    request_id: request_id.clone(),
-                    request_content: Some(ank_base::request::RequestContent::CompleteStateRequest(
-                        ank_base::CompleteStateRequest {
-                            field_mask: field_mask.clone(),
-                        },
-                    )),
-                },
-            )),
+        let complete_state_request = commands::CompleteStateRequest {
+            field_mask: vec![FIELD_MASK.to_string()],
         };
+        let request_content = RequestContent::CompleteStateRequest(complete_state_request.clone());
+        assert!(tx
+            .request_complete_state(REQUEST_ID.to_string(), complete_state_request)
+            .await
+            .is_ok());
 
-        let ankaios_command = ToServer::Request(Request {
-            request_id,
-            request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
-                field_mask,
-            }),
-        });
-
-        assert_eq!(ToServer::try_from(proto_request), Ok(ankaios_command));
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            ToServer::Request(commands::Request {
+                request_id: REQUEST_ID.to_string(),
+                request_content
+            })
+        )
     }
 }

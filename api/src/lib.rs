@@ -22,9 +22,3 @@ pub mod control_api {
     // TODO: trace reqs for the control interface
     tonic::include_proto!("control_api"); // The string specified here must match the proto package name
 }
-
-pub mod grpc_api {
-
-    // [impl->swdd~grpc-delegate-workflow-to-external-library~1]
-    tonic::include_proto!("grpc_api"); // The string specified here must match the proto package name
-}

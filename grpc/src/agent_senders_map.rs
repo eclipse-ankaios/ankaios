@@ -19,7 +19,7 @@ use common::std_extensions::IllegalStateResult;
 use tokio::sync::mpsc::Sender;
 use tonic::Status;
 
-use api::grpc_api::FromServer;
+use crate::grpc_api::FromServer;
 
 type ShareableHashMap<K, V> = Arc<Mutex<HashMap<K, V>>>;
 

@@ -16,7 +16,7 @@ use crate::from_server_proxy;
 use crate::from_server_proxy::GRPCFromServerStreaming;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 use crate::to_server_proxy;
-use api::grpc_api::{
+use crate::grpc_api::{
     self, agent_connection_client::AgentConnectionClient,
     cli_connection_client::CliConnectionClient, to_server::ToServerEnum, AgentHello,
 };

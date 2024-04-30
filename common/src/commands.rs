@@ -14,20 +14,11 @@
 
 use crate::objects::{CompleteState, DeletedWorkload, WorkloadSpec};
 use api::ank_base;
-use api::grpc_api;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AgentHello {
     pub agent_name: String,
-}
-
-impl From<grpc_api::AgentHello> for AgentHello {
-    fn from(item: grpc_api::AgentHello) -> Self {
-        AgentHello {
-            agent_name: item.agent_name,
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -40,21 +31,7 @@ pub struct UpdateWorkloadState {
     pub workload_states: Vec<crate::objects::WorkloadState>,
 }
 
-impl From<UpdateWorkloadState> for grpc_api::UpdateWorkloadState {
-    fn from(item: UpdateWorkloadState) -> Self {
-        grpc_api::UpdateWorkloadState {
-            workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
-        }
-    }
-}
 
-impl From<grpc_api::UpdateWorkloadState> for UpdateWorkloadState {
-    fn from(item: grpc_api::UpdateWorkloadState) -> Self {
-        UpdateWorkloadState {
-            workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
-        }
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Request {
@@ -322,15 +299,11 @@ mod tests {
         };
     }
 
-    mod grpc_api {
-        pub use api::grpc_api::UpdateWorkloadState;
-    }
-
     mod ankaios {
         pub use crate::{
             commands::{
                 CompleteStateRequest, Error, Request, RequestContent, Response, ResponseContent,
-                UpdateStateRequest, UpdateStateSuccess, UpdateWorkloadState,
+                UpdateStateRequest, UpdateStateSuccess,
             },
             objects::{
                 CompleteState, ExecutionState, State, StoredWorkloadSpec, WorkloadInstanceName,
@@ -348,19 +321,6 @@ mod tests {
     const WORKLOAD_NAME_3: &str = "workload_name_3";
     const HASH: &str = "hash_1";
     const ERROR_MESSAGE: &str = "error_message";
-
-    macro_rules! update_workload_state {
-        (ankaios) => {
-            ankaios::UpdateWorkloadState {
-                workload_states: vec![workload_state!(ankaios)],
-            }
-        };
-        (grpc_api) => {
-            grpc_api::UpdateWorkloadState {
-                workload_states: vec![workload_state!(ank_base)],
-            }
-        };
-    }
 
     macro_rules! complete_state_request {
         ($expression:ident) => {{
@@ -510,28 +470,6 @@ mod tests {
                 .into(),
             }
         }};
-    }
-
-    #[test]
-    fn utest_converts_to_proto_update_workload_state() {
-        let ankaios_update_wl_state = update_workload_state!(ankaios);
-        let proto_update_wl_state = update_workload_state!(grpc_api);
-
-        assert_eq!(
-            grpc_api::UpdateWorkloadState::from(ankaios_update_wl_state),
-            proto_update_wl_state
-        );
-    }
-
-    #[test]
-    fn utest_converts_from_proto_update_workload_state() {
-        let proto_update_wl_state = update_workload_state!(grpc_api);
-        let ankaios_update_wl_state = update_workload_state!(ankaios);
-
-        assert_eq!(
-            ankaios::UpdateWorkloadState::from(proto_update_wl_state),
-            ankaios_update_wl_state,
-        );
     }
 
     #[test]

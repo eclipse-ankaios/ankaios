@@ -14,7 +14,7 @@
 
 use std::collections::HashMap;
 
-use api::{ank_base, grpc_api};
+use api::ank_base;
 use serde::{Serialize, Serializer};
 
 use crate::objects::{
@@ -121,12 +121,7 @@ fn generate_test_delete_dependencies() -> HashMap<String, DeleteCondition> {
     )])
 }
 
-fn generate_test_proto_delete_dependencies() -> HashMap<String, i32> {
-    HashMap::from([(
-        String::from("workload A"),
-        grpc_api::DeleteCondition::DelCondNotPendingNorRunning.into(),
-    )])
-}
+
 
 pub fn generate_test_proto_workload() -> ank_base::Workload {
     ank_base::Workload {
@@ -166,19 +161,6 @@ pub fn generate_test_deleted_workload_with_dependencies(
     let mut deleted_workload = generate_test_deleted_workload(agent, name);
     deleted_workload.dependencies = dependencies;
     deleted_workload
-}
-
-pub fn generate_test_proto_deleted_workload() -> grpc_api::DeletedWorkload {
-    let instance_name = WorkloadInstanceName::builder()
-        .agent_name("agent")
-        .workload_name("workload X")
-        .config(&String::from("config"))
-        .build();
-
-    grpc_api::DeletedWorkload {
-        instance_name: Some(instance_name.into()),
-        dependencies: generate_test_proto_delete_dependencies(),
-    }
 }
 
 pub struct MockAllContextSync {

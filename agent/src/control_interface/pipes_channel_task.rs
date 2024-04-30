@@ -65,7 +65,7 @@ impl PipesChannelTask {
                     if let Some(FromServer::Response(response)) = from_server {
                         let _ = self.forward_from_server(response).await;
                     } else {
-                        // TODO log something
+                        log::warn!("The server is sending unrequested messages to a workload: '{:?}'", from_server);
                     }
                 }
                 // [impl->swdd~agent-listens-for-requests-from-pipe~1]
