@@ -146,7 +146,7 @@ Podman has deleted all existing pods
 Podman has deleted all existing volumes
     Run Process    podman    volume    rm    --all    --force    timeout=20    shell=True
 
-all containers of podman are stopped
+all containers of podman are terminated
     Log    Stop Podman containers
     Run Process    podman    stop    --all    timeout=0    shell=True
 
