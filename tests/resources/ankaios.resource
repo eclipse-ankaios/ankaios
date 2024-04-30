@@ -146,6 +146,10 @@ Podman has deleted all existing pods
 Podman has deleted all existing volumes
     Run Process    podman    volume    rm    --all    --force    timeout=20    shell=True
 
+all containers of podman are stopped
+    Log    Stop Podman containers
+    Run Process    podman    stop    --all    timeout=0    shell=True
+
 all workloads of agent "${agent_name}" have an initial execution state
     ${list_result}=    Wait For Initial Execution State
     ...    %{ANK_BIN_DIR}${/}ank get workloads
