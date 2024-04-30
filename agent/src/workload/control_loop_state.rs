@@ -60,15 +60,13 @@ where
     WorkloadId: ToString + Send + Sync + 'static,
     StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
 {
-    pub workload_spec: Option<WorkloadSpec>,
-    pub control_interface_path: Option<PathBuf>,
-    pub workload_id: Option<WorkloadId>,
-    pub state_checker: Option<StChecker>,
-    pub workload_state_sender: Option<WorkloadStateSender>,
-    pub runtime: Option<Box<dyn RuntimeConnector<WorkloadId, StChecker>>>,
-    pub workload_command_receiver: Option<WorkloadCommandReceiver>,
-    pub retry_sender: Option<WorkloadCommandSender>,
-    pub retry_counter: RetryCounter,
+    workload_spec: Option<WorkloadSpec>,
+    control_interface_path: Option<PathBuf>,
+    workload_state_sender: Option<WorkloadStateSender>,
+    runtime: Option<Box<dyn RuntimeConnector<WorkloadId, StChecker>>>,
+    workload_command_receiver: Option<WorkloadCommandReceiver>,
+    retry_sender: Option<WorkloadCommandSender>,
+    retry_counter: RetryCounter,
 }
 
 impl<WorkloadId, StChecker> ControlLoopStateBuilder<WorkloadId, StChecker>
@@ -80,8 +78,6 @@ where
         ControlLoopStateBuilder {
             workload_spec: None,
             control_interface_path: None,
-            workload_id: None,
-            state_checker: None,
             workload_state_sender: None,
             runtime: None,
             workload_command_receiver: None,
@@ -130,8 +126,8 @@ where
                 .workload_spec
                 .ok_or_else(|| "WorkloadSpec is not set".to_string())?,
             control_interface_path: self.control_interface_path,
-            workload_id: self.workload_id,
-            state_checker: self.state_checker,
+            workload_id: None,
+            state_checker: None,
             workload_state_sender: self
                 .workload_state_sender
                 .ok_or_else(|| "WorkloadStateSender is not set".to_string())?,
