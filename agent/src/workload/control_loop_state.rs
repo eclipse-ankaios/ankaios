@@ -258,7 +258,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_contol_loop_state_builder_build_failed() {
+    fn utest_control_loop_state_builder_build_failed() {
         let control_loop_state = ControlLoopState::<String, StubStateChecker>::builder().build();
         assert!(control_loop_state.is_err());
     }
@@ -288,8 +288,8 @@ mod tests {
         };
 
         assert_eq!(
-            control_loop_state.instance_name().workload_name(),
-            workload_spec.instance_name.workload_name()
+            *control_loop_state.instance_name(),
+            workload_spec.instance_name
         );
     }
 }
