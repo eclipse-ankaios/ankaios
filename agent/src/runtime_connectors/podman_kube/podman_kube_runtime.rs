@@ -1,6 +1,8 @@
 use std::{cmp::min, path::PathBuf};
 
-use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
+use common::objects::{
+    AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState,
+};
 
 use async_trait::async_trait;
 use futures_util::TryFutureExt;
@@ -68,34 +70,54 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
     async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadInstanceName>, RuntimeError> {
+    ) -> Result<Vec<WorkloadState>, RuntimeError> {
         let name_filter = format!(
             "{}{}$",
             agent_name.get_filter_suffix(),
             CONFIG_VOLUME_SUFFIX
         );
-        Ok(PodmanCli::list_volumes_by_name(&name_filter)
-            .await
-            .map_err(|err| {
-                RuntimeError::Create(format!(
-                    "Could not list volume containing config: '{}'",
-                    err
-                ))
-            })?
-            .into_iter()
-            .map(|volume_name| {
-                volume_name[..volume_name.len().saturating_sub(CONFIG_VOLUME_SUFFIX.len())]
-                    .to_string()
-                    .try_into() as Result<WorkloadInstanceName, String>
-            })
-            .filter_map(|x| match x {
-                Ok(value) => Some(value),
-                Err(err) => {
-                    log::warn!("Could not recreate workload from volume: '{}'", err);
-                    None
+        let workload_instance_names: Vec<WorkloadInstanceName> =
+            PodmanCli::list_volumes_by_name(&name_filter)
+                .await
+                .map_err(|err| {
+                    RuntimeError::Create(format!(
+                        "Could not list volume containing config: '{}'",
+                        err
+                    ))
+                })?
+                .into_iter()
+                .map(|volume_name| {
+                    volume_name[..volume_name.len().saturating_sub(CONFIG_VOLUME_SUFFIX.len())]
+                        .to_string()
+                        .try_into() as Result<WorkloadInstanceName, String>
+                })
+                .filter_map(|x| match x {
+                    Ok(value) => Some(value),
+                    Err(err) => {
+                        log::warn!("Could not recreate workload from volume: '{}'", err);
+                        None
+                    }
+                })
+                .collect();
+        let mut workload_states = Vec::<WorkloadState>::default();
+
+        for instance_name in workload_instance_names {
+            match PodmanCli::list_states_by_id(instance_name.id()).await {
+                Ok(Some(execution_state)) => workload_states.push(WorkloadState {
+                    instance_name,
+                    execution_state,
+                }),
+                Ok(None) => {
+                    return Err(RuntimeError::List(format!(
+                        "Could not get execution state for workload '{}'",
+                        instance_name
+                    )))
                 }
-            })
-            .collect())
+                Err(err) => return Err(RuntimeError::List(err)),
+            }
+        }
+
+        Ok(workload_states)
     }
 
     async fn create_workload(
@@ -408,7 +430,7 @@ mod tests {
 
     // [utest->swdd~podman-kube-list-existing-workloads-using-config-volumes~1]
     #[tokio::test]
-    async fn utest_get_reusable_running_workloads_success() {
+    async fn utest_get_reusable_workloads_success() {
         let workload_instance_1 = "workload_1.hash_1.agent_A";
         let workload_instance_2 = "workload_2.hash_2.agent_A";
 
@@ -418,12 +440,17 @@ mod tests {
             workload_instance_2.as_config_volume(),
         ]));
 
+        let context = PodmanCli::list_states_by_id_context();
+        context
+            .expect()
+            .return_const(Ok(Some(ExecutionState::initial())));
+
         let runtime = PodmanKubeRuntime {};
 
         let workloads = runtime.get_reusable_workloads(&SAMPLE_AGENT.into()).await;
 
         assert!(
-            matches!(workloads, Ok(res) if res == [workload_instance_1.try_into().unwrap(), workload_instance_2.try_into().unwrap()])
+            matches!(workloads, Ok(res) if res.iter().map(|x| x.instance_name.clone()).collect::<Vec<WorkloadInstanceName>>() == [workload_instance_1.try_into().unwrap(), workload_instance_2.try_into().unwrap()])
         );
     }
 
@@ -440,7 +467,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_get_reusable_running_workloads_one_volume_cant_be_parsed() {
+    async fn utest_get_reusable_workloads_one_volume_cant_be_parsed() {
         let invalid_workload_instance = "hash_1.agent_A";
         let workload_instance = "workload_2.hash_2.agent_A";
 
@@ -450,15 +477,22 @@ mod tests {
             workload_instance.as_config_volume(),
         ]));
 
+        let context = PodmanCli::list_states_by_id_context();
+        context
+            .expect()
+            .return_const(Ok(Some(ExecutionState::initial())));
+
         let runtime = PodmanKubeRuntime {};
 
         let workloads = runtime.get_reusable_workloads(&SAMPLE_AGENT.into()).await;
 
-        assert!(matches!(workloads, Ok(res) if res == [workload_instance.try_into().unwrap()]));
+        assert!(
+            matches!(workloads, Ok(res) if res.iter().map(|x| x.instance_name.clone()).collect::<Vec<WorkloadInstanceName>>() == [workload_instance.try_into().unwrap()])
+        );
     }
 
     #[tokio::test]
-    async fn utest_get_reusable_running_workloads_handles_to_short_volume_name() {
+    async fn utest_get_reusable_workloads_handles_to_short_volume_name() {
         let workload_instance = "workload_2.hash_2.agent_A";
 
         let mock_context = MockContext::new().await;
@@ -467,11 +501,18 @@ mod tests {
             workload_instance.as_config_volume(),
         ]));
 
+        let context = PodmanCli::list_states_by_id_context();
+        context
+            .expect()
+            .return_const(Ok(Some(ExecutionState::initial())));
+
         let runtime = PodmanKubeRuntime {};
 
         let workloads = runtime.get_reusable_workloads(&SAMPLE_AGENT.into()).await;
 
-        assert!(matches!(workloads, Ok(res) if res == [workload_instance.try_into().unwrap()]));
+        assert!(
+            matches!(workloads, Ok(res) if res.iter().map(|x| x.instance_name.clone()).collect::<Vec<WorkloadInstanceName>>() == [workload_instance.try_into().unwrap()])
+        );
     }
 
     #[tokio::test]

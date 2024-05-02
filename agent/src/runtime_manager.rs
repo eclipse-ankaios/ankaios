@@ -202,10 +202,7 @@ impl RuntimeManager {
         // Go through each runtime and find the still running workloads
         // [impl->swdd~agent-existing-workloads-finds-list~1]
         for (runtime_name, runtime) in &self.runtime_map {
-            match runtime
-                .get_reusable_running_workloads(&self.agent_name)
-                .await
-            {
+            match runtime.get_reusable_workloads(&self.agent_name).await {
                 Ok(running_instance_names) => {
                     log::info!(
                         "Found '{}' reusable '{}' workload(s).",
@@ -590,7 +587,7 @@ mod tests {
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
-            .expect_get_reusable_running_workloads()
+            .expect_get_reusable_workloads()
             .once()
             .return_once(|_| Box::pin(async { Ok(vec![]) }));
 
@@ -601,7 +598,7 @@ mod tests {
 
         let mut runtime_facade_mock_2 = MockRuntimeFacade::new();
         runtime_facade_mock_2
-            .expect_get_reusable_running_workloads()
+            .expect_get_reusable_workloads()
             .once()
             .return_once(|_| Box::pin(async { Ok(vec![]) }));
 
@@ -666,7 +663,7 @@ mod tests {
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
-            .expect_get_reusable_running_workloads()
+            .expect_get_reusable_workloads()
             .once()
             .return_once(|_| Box::pin(async { Ok(vec![]) }));
 
@@ -722,7 +719,7 @@ mod tests {
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
-            .expect_get_reusable_running_workloads()
+            .expect_get_reusable_workloads()
             .once()
             .returning(|_| {
                 Box::pin(async {
@@ -797,7 +794,7 @@ mod tests {
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
-            .expect_get_reusable_running_workloads()
+            .expect_get_reusable_workloads()
             .once()
             .return_once(|_| Box::pin(async { Ok(vec![existing_workload_instance_name]) }));
 
@@ -869,7 +866,7 @@ mod tests {
         let mut sequence = mockall::Sequence::new();
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
-            .expect_get_reusable_running_workloads()
+            .expect_get_reusable_workloads()
             .once()
             .in_sequence(&mut sequence)
             .return_once(|_| Box::pin(async { Ok(vec![existing_workload_with_other_config]) }));
@@ -934,7 +931,7 @@ mod tests {
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
-            .expect_get_reusable_running_workloads()
+            .expect_get_reusable_workloads()
             .once()
             .return_once(|_| {
                 Box::pin(async move { Ok(vec![existing_workload_with_other_config]) })
@@ -989,7 +986,7 @@ mod tests {
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
-            .expect_get_reusable_running_workloads()
+            .expect_get_reusable_workloads()
             .once()
             .return_once(|_| Box::pin(async { Ok(vec![]) }));
         runtime_facade_mock.expect_create_workload().never();
@@ -1049,7 +1046,7 @@ mod tests {
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
-            .expect_get_reusable_running_workloads()
+            .expect_get_reusable_workloads()
             .once()
             .return_once(|_| Box::pin(async { Ok(vec![existing_workload_with_other_config]) }));
 

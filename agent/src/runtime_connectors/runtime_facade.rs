@@ -22,7 +22,7 @@ use crate::workload::{ControlLoopState, RetryCounter};
 #[async_trait]
 #[cfg_attr(test, automock)]
 pub trait RuntimeFacade: Send + Sync + 'static {
-    async fn get_reusable_running_workloads(
+    async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
     ) -> Result<Vec<WorkloadInstanceName>, RuntimeError>;
@@ -72,7 +72,7 @@ impl<
     > RuntimeFacade for GenericRuntimeFacade<WorkloadId, StChecker>
 {
     // [impl->swdd~agent-facade-forwards-list-reusable-workloads-call~1]
-    async fn get_reusable_running_workloads(
+    async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
     ) -> Result<Vec<WorkloadInstanceName>, RuntimeError> {
@@ -81,7 +81,10 @@ impl<
             self.runtime.name(),
             agent_name
         );
-        self.runtime.get_reusable_workloads(agent_name).await
+        match self.runtime.get_reusable_workloads(agent_name).await {
+            Ok(res) => Ok(res.iter().map(|x| x.instance_name.clone()).collect()),
+            Err(err) => Err(err),
+        }
     }
 
     // [impl->swdd~agent-create-workload~1]
@@ -262,7 +265,7 @@ impl<
 #[cfg(test)]
 mod tests {
     use common::objects::{
-        generate_test_workload_spec_with_param, ExecutionState, WorkloadInstanceName,
+        generate_test_workload_spec_with_param, ExecutionState, WorkloadInstanceName, WorkloadState,
     };
     use std::path::{Path, PathBuf};
 
@@ -297,10 +300,15 @@ mod tests {
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
+        let workload_state = WorkloadState {
+            instance_name: workload_instance_name.clone(),
+            execution_state: ExecutionState::initial(),
+        };
+
         runtime_mock
             .expect(vec![RuntimeCall::GetReusableWorkloads(
                 AGENT_NAME.into(),
-                Ok(vec![workload_instance_name.clone()]),
+                Ok(vec![workload_state]),
             )])
             .await;
 
@@ -312,7 +320,7 @@ mod tests {
 
         assert_eq!(
             test_runtime_facade
-                .get_reusable_running_workloads(&AGENT_NAME.into())
+                .get_reusable_workloads(&AGENT_NAME.into())
                 .await
                 .unwrap(),
             vec![workload_instance_name]

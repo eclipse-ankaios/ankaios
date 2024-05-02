@@ -86,6 +86,10 @@ impl WorkloadInstanceName {
         &self.agent_name
     }
 
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
     pub fn pipes_folder_name(&self, base_path: &Path) -> PathBuf {
         base_path.join(format!(
             "{}{}{}",
