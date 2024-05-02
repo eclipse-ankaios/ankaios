@@ -177,7 +177,7 @@ impl WorkloadControlLoop {
         let restart_policy = &control_loop_state.workload_spec.restart_policy;
 
         if Self::is_restart_required(&control_loop_state.workload_spec, &new_workload_state) {
-            log::info!(
+            log::debug!(
                 "Restart workload '{}' with restart policy '{}' caused by current execution state '{}'.",
                 control_loop_state
                     .workload_spec
@@ -198,15 +198,6 @@ impl WorkloadControlLoop {
                 control_interface_path,
             )
             .await;
-        } else {
-            log::trace!(
-                "Restart not allowed for workload '{}' with restart policy '{}' and received workload state '{:?}'",
-                control_loop_state
-                    .workload_spec
-                    .instance_name,
-                restart_policy,
-                new_workload_state
-            );
         }
 
         control_loop_state
