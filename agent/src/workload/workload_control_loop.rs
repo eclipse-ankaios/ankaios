@@ -18,7 +18,7 @@ use crate::workload_state::WorkloadStateSenderInterface;
 use common::objects::{
     ExecutionState, RestartPolicy, WorkloadInstanceName, WorkloadSpec, WorkloadState,
 };
-use common::std_extensions::GracefulExitResult;
+use common::std_extensions::IllegalStateResult;
 use futures_util::Future;
 use std::path::PathBuf;
 
@@ -84,7 +84,7 @@ impl WorkloadControlLoop {
 
                     let new_workload_state = received_workload_state
                         .ok_or("Channel to listen to workload states of state checker closed.")
-                        .unwrap_or_exit("Abort");
+                        .unwrap_or_illegal_state();
 
                     /* forward immediately the new workload state to the agent manager
                     to avoid delays through the restart handling */
