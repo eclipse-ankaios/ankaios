@@ -1399,7 +1399,7 @@ Needs:
 
 Status: approved
 
-When the WorkloadControlLoop executes restarts of the workload, then the WorkloadControlLoop shall:
+When the WorkloadControlLoop executes a workload restart, then the WorkloadControlLoop shall:
 - delete the existing workload via the corresponding runtime connector
 - create a new workload with the stored workload configuration via the corresponding runtime connector
 
