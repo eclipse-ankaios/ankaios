@@ -191,6 +191,7 @@ the workload "${workload_name}" shall have the execution state "${expected_execu
         @{list_result}=    Wait For Execution State
         ...    %{ANK_BIN_DIR}${/}ank get workloads
         ...    ${workload_name}
+        ...    ${expected_agent_name}
         ...    ${expected_execution_state}
         ...    ${timeout}
     END

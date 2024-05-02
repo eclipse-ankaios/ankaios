@@ -79,7 +79,7 @@ Test Ankaios restarts workloads on device restart with restart policy set to ON_
     When Ankaios server is started with config "${CONFIGS_DIR}/state_with_restart_policies.yaml"
     And Ankaios agent is started with name "agent_A"
     And the workload "restarted_on_failure" shall have the execution state "Running(Ok)" on agent "agent_A"
-    And the workload "default_restarted_never" shall have the execution state "Running(Ok)" on agent "agent_B"
+    And the workload "default_restarted_never" shall have the execution state "Running(Ok)" on agent "agent_A"
     And Ankaios server is terminated
     And Ankaios agent with name "agent_A" is terminated
     And all containers of podman are terminated
@@ -89,5 +89,5 @@ Test Ankaios restarts workloads on device restart with restart policy set to ON_
     Then the workload "restarted_on_failure" shall have a different id but same configuration on the runtime
     And the workload "restarted_on_failure" shall have the execution state "Running(Ok)" on agent "agent_A"
     And the workload "restarted_never" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
-    And the workload "default_restarted_never" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
+    And the workload "default_restarted_never" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     [Teardown]    Clean up Ankaios

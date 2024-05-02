@@ -134,13 +134,13 @@ def workload_with_execution_state(table, workload_name, expected_state):
         return table
     return list()
 
-def wait_for_execution_state(command, workload_name, expected_state, timeout=10, next_try_in_sec=0.25):
+def wait_for_execution_state(command, workload_name, agent_name, expected_state, timeout=10, next_try_in_sec=0.25):
         start_time = get_time_secs()
         res = run_command(command)
         table = table_to_list(res.stdout if res else "")
         logger.trace(table)
         while (get_time_secs() - start_time) < timeout:
-            if table and any([row["EXECUTION STATE"].strip() == expected_state for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name, table)]):
+            if table and any([row["EXECUTION STATE"].strip() == expected_state for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name and r["AGENT"] == agent_name, table)]):
                 return table
 
             time.sleep(next_try_in_sec)
