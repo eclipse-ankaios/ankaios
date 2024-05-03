@@ -127,16 +127,6 @@ Ankaios agent is started with name "${name}"
     ...    env:RUST_LOG=debug
     ...    alias=${name}
 
-Ankaios server is terminated
-    Terminate Process    ank-server    kill=True
-    ${server_running}=    Is Process Running    ank-server
-    Should Not Be True    ${server_running}
-
-Ankaios agent with name "${name}" is terminated
-    Terminate Process    ${name}    kill=True
-    ${agent_running}=    Is Process Running    ${name}
-    Should Not Be True    ${agent_running}
-
 Podman has deleted all existing containers
     Run Process    podman    rm    --all    --force    --time    2    timeout=20    shell=True
 
@@ -145,10 +135,6 @@ Podman has deleted all existing pods
 
 Podman has deleted all existing volumes
     Run Process    podman    volume    rm    --all    --force    timeout=20    shell=True
-
-all containers of podman are terminated
-    Log    Stop Podman containers
-    Run Process    podman    stop    --all    timeout=0    shell=True
 
 all workloads of agent "${agent_name}" have an initial execution state
     ${list_result}=    Wait For Initial Execution State
