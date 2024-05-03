@@ -28,7 +28,6 @@ ${new_state_yaml_file}          ${EMPTY}
 
 *** Test Cases ***
 # [stest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
-# [stest->swdd~workload-control-loop-no-restart-with-disabled-restart-policy~1]
 Test Ankaios restarts workloads with restart policy ALWAYS.
     [Documentation]    Restart workloads with restart policy set to ALWAYS and
     ...                ignores workloads with restart policy set to NEVER.

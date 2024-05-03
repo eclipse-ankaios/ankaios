@@ -214,7 +214,6 @@ impl WorkloadControlLoop {
 
         // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
         match workload_spec.restart_policy {
-            // [impl->swdd~workload-control-loop-no-restart-with-disabled-restart-policy~1]
             RestartPolicy::Never => false,
             RestartPolicy::OnFailure => workload_state.execution_state.is_failed(),
             RestartPolicy::Always => {
@@ -2634,7 +2633,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~workload-control-loop-no-restart-with-disabled-restart-policy~1]
+    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
     #[test]
     fn utest_is_restart_allowed_never() {
         let mut workload_spec = generate_test_workload_spec();

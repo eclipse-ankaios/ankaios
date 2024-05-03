@@ -1341,12 +1341,27 @@ Needs:
 
 Status: approved
 
-When the WorkloadControlLoop receives a new workload state, then the WorkloadControlLoop shall:
-- triggers the check of the permissibility of the restart
-- execute the restart of the workload it manages based on the result of the comparison
+When the WorkloadControlLoop receives a new workload state and the WorkloadControlLoop checks if the restart of the workload it manages is required, then the WorkloadControlLoop shall execute the restart of the workload it manages based on the result of the comparison
 
 Rationale:
 The execution of a restart of the workload depends on the workload state and the configured restart policy.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
+#### WorkloadControlLoop skips restarts
+`swdd~workload-control-loop-skips-restarts~1`
+
+When the WorkloadControlLoop handles a restart of a workload and the workload's current `WorkloadInstanceName` inside the WorkloadControlLoop differs from the `WorkloadInstanceName` inside the received workload state, then the WorkloadControlLoop shall skip the restart.
+
+If the workload changed in the meantime, there is no need to restart it.
+
+Rationale:
+This prevents wrong restarts of workloads when a new workload state of the old workload is received during an update operation runs.
 
 Tags:
 - WorkloadControlLoop
@@ -1360,10 +1375,13 @@ Needs:
 
 Status: approved
 
-When:
-the workload's `ExecutionState` is `Succeeded(Ok)` or `ExecutionState` is `Failed(ExecFailed)` and the workload's configured `RestartPolicy` contains the value `ALWAYS` or
-the workload's `ExecutionState` is `Failed(ExecFailed)` and the workload's configured `RestartPolicy` contains the value `ON_FAILURE`,
+When the workload has not changed and:
+* either the workload's `ExecutionState` is `Succeeded(Ok)` or `ExecutionState` is `Failed(ExecFailed)` and the workload's configured `RestartPolicy` contains the value `ALWAYS`
+* or the workload's `ExecutionState` is `Failed(ExecFailed)` and the workload's configured `RestartPolicy` contains the value `ON_FAILURE`,
 then the WorkloadControlLoop shall restart the workload.
+
+Comment:
+If the workload changed in the meantime, there is no need to restart it. In case of the restart policy is `NEVER` the workload is not restarted.
 
 Rationale:
 The restart depends on the execution state of the workload.
@@ -1376,23 +1394,7 @@ Needs:
 - utest
 - stest
 
-#### WorkloadControlLoop does not restart a workload with disabled restart policy
-`swdd~workload-control-loop-no-restart-with-disabled-restart-policy~1`
 
-Status: approved
-
-When the workload's configured `RestartPolicy` contains the value `NEVER`, then the WorkloadControlLoop shall not restart the workload.
-
-Rationale:
-The user has explicitly configured the workload to prevent its restart or to apply the default value of "NEVER" in the workload configuration.
-
-Tags:
-- WorkloadControlLoop
-
-Needs:
-- impl
-- utest
-- stest
 
 #### WorkloadControlLoop restarts workloads using the update operation
 `swdd~workload-control-loop-restarts-workloads-using-update~1`
@@ -1408,21 +1410,6 @@ The restart is represented within the system by an update operation.
 
 Rationale:
 A runtime may not support directly restarting the exited container.
-
-Tags:
-- WorkloadControlLoop
-
-Needs:
-- impl
-- utest
-
-#### WorkloadControlLoop skips restarts
-`swdd~workload-control-loop-skips-restarts~1`
-
-When the WorkloadControlLoop handles a restart of a workload and the workload's current `WorkloadInstanceName` inside the WorkloadControlLoop differs from the `WorkloadInstanceName` inside the received workload state, then the WorkloadControlLoop shall skip the restart.
-
-Rationale:
-This prevents wrong restarts of workloads when a new workload state of the old workload is received during an update operation runs.
 
 Tags:
 - WorkloadControlLoop
