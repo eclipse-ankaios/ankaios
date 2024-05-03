@@ -2082,210 +2082,6 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~workload-control-loop-receives-workload-states~1]
-    // [utest->swdd~workload-control-loop-sends-workload-states~1]
-    #[tokio::test]
-    async fn utest_forward_received_workload_states_of_state_checker() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (workload_state_forward_tx, mut workload_state_forward_rx) =
-            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(vec![]).await;
-
-        let workload_command_sender_clone = workload_command_sender.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_millis(70)).await;
-            workload_command_sender_clone.delete().await.unwrap();
-        });
-
-        let control_loop_state = ControlLoopState::builder()
-            .workload_spec(workload_spec.clone())
-            .workload_state_sender(workload_state_forward_tx.clone())
-            .control_interface_path(Some(PIPES_LOCATION.into()))
-            .runtime(Box::new(runtime_mock.clone()))
-            .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
-            .build()
-            .unwrap();
-
-        // clone the control loop state's internally created workload state sender used by the state checker
-        let state_checker_wl_state_sender = control_loop_state
-            .state_checker_workload_state_sender
-            .clone();
-
-        let workload_state = generate_test_workload_state_with_workload_spec(
-            &workload_spec,
-            ExecutionState::running(),
-        );
-
-        state_checker_wl_state_sender
-            .report_workload_execution_state(
-                &workload_state.instance_name,
-                workload_state.execution_state.clone(),
-            )
-            .await;
-
-        assert!(timeout(
-            Duration::from_millis(100),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
-
-        assert_eq!(
-            Ok(Some(workload_state)),
-            timeout(Duration::from_millis(100), workload_state_forward_rx.recv()).await
-        );
-
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~workload-control-loop-receives-workload-states~1]
-    #[tokio::test]
-    #[should_panic]
-    async fn utest_panic_on_closed_workload_state_channel() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (workload_state_forward_tx, mut workload_state_forward_rx) =
-            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(vec![]).await;
-
-        let workload_command_sender_clone = workload_command_sender.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_millis(70)).await;
-            workload_command_sender_clone.delete().await.unwrap();
-        });
-
-        let control_loop_state = ControlLoopState::builder()
-            .workload_spec(workload_spec.clone())
-            .workload_state_sender(workload_state_forward_tx.clone())
-            .control_interface_path(Some(PIPES_LOCATION.into()))
-            .runtime(Box::new(runtime_mock.clone()))
-            .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
-            .build()
-            .unwrap();
-
-        // close the channel to panic within the workload control loop
-        workload_state_forward_rx.close();
-
-        assert!(timeout(
-            Duration::from_millis(100),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
-
-        runtime_mock.assert_all_expectations().await;
-    }
-
-    // [utest->swdd~workload-control-loop-handles-workload-restarts~1]
-    // [utest->swdd~workload-control-loop-restarts-workloads-using-update~1]
-    #[tokio::test]
-    async fn utest_restart_workload() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (workload_state_forward_tx, _workload_state_forward_rx) =
-            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        let mut old_mock_state_checker = StubStateChecker::new();
-        old_mock_state_checker.panic_if_not_stopped();
-
-        let mut new_mock_state_checker = StubStateChecker::new();
-        new_mock_state_checker.panic_if_not_stopped();
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock
-            .expect(vec![
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())), // delete operation of the restarted workload
-                RuntimeCall::CreateWorkload(
-                    workload_spec.clone(),
-                    Some(PIPES_LOCATION.into()),
-                    Ok((WORKLOAD_ID_2.to_string(), new_mock_state_checker)),
-                ),
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID_2.to_string(), Ok(())),
-            ])
-            .await;
-
-        let workload_command_sender_clone = workload_command_sender.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_millis(70)).await;
-            workload_command_sender_clone.delete().await.unwrap();
-        });
-
-        let mut control_loop_state = ControlLoopState::builder()
-            .workload_spec(workload_spec.clone())
-            .workload_state_sender(workload_state_forward_tx.clone())
-            .control_interface_path(Some(PIPES_LOCATION.into()))
-            .runtime(Box::new(runtime_mock.clone()))
-            .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
-            .build()
-            .unwrap();
-
-        control_loop_state.workload_id = Some(WORKLOAD_ID.into());
-        control_loop_state.state_checker = Some(old_mock_state_checker);
-
-        // clone the control loop state's internally created workload state sender used by the state checker
-        let state_checker_wl_state_sender = control_loop_state
-            .state_checker_workload_state_sender
-            .clone();
-
-        let workload_state = generate_test_workload_state_with_workload_spec(
-            &workload_spec,
-            ExecutionState::succeeded(),
-        );
-
-        state_checker_wl_state_sender
-            .report_workload_execution_state(
-                &workload_state.instance_name,
-                workload_state.execution_state.clone(),
-            )
-            .await;
-
-        assert!(timeout(
-            Duration::from_millis(100),
-            WorkloadControlLoop::run(control_loop_state)
-        )
-        .await
-        .is_ok());
-
-        runtime_mock.assert_all_expectations().await;
-    }
-
     // [utest->swdd~agent-workload-control-loop-executes-resume~1]
     #[tokio::test]
     async fn utest_resume_workload() {
@@ -2518,6 +2314,210 @@ mod tests {
 
         assert_eq!(new_control_loop_state.workload_id, Some(WORKLOAD_ID.into()));
         assert!(new_control_loop_state.state_checker.is_none());
+
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    // [utest->swdd~workload-control-loop-receives-workload-states~1]
+    // [utest->swdd~workload-control-loop-sends-workload-states~1]
+    #[tokio::test]
+    async fn utest_forward_received_workload_states_of_state_checker() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_state_forward_tx, mut workload_state_forward_rx) =
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock.expect(vec![]).await;
+
+        let workload_command_sender_clone = workload_command_sender.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(tokio::time::Duration::from_millis(70)).await;
+            workload_command_sender_clone.delete().await.unwrap();
+        });
+
+        let control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec.clone())
+            .workload_state_sender(workload_state_forward_tx.clone())
+            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
+
+        // clone the control loop state's internally created workload state sender used by the state checker
+        let state_checker_wl_state_sender = control_loop_state
+            .state_checker_workload_state_sender
+            .clone();
+
+        let workload_state = generate_test_workload_state_with_workload_spec(
+            &workload_spec,
+            ExecutionState::running(),
+        );
+
+        state_checker_wl_state_sender
+            .report_workload_execution_state(
+                &workload_state.instance_name,
+                workload_state.execution_state.clone(),
+            )
+            .await;
+
+        assert!(timeout(
+            Duration::from_millis(100),
+            WorkloadControlLoop::run(control_loop_state)
+        )
+        .await
+        .is_ok());
+
+        assert_eq!(
+            Ok(Some(workload_state)),
+            timeout(Duration::from_millis(100), workload_state_forward_rx.recv()).await
+        );
+
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    // [utest->swdd~workload-control-loop-receives-workload-states~1]
+    #[tokio::test]
+    #[should_panic]
+    async fn utest_panic_on_closed_workload_state_channel() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_state_forward_tx, mut workload_state_forward_rx) =
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock.expect(vec![]).await;
+
+        let workload_command_sender_clone = workload_command_sender.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(tokio::time::Duration::from_millis(70)).await;
+            workload_command_sender_clone.delete().await.unwrap();
+        });
+
+        let control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec.clone())
+            .workload_state_sender(workload_state_forward_tx.clone())
+            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
+
+        // close the channel to panic within the workload control loop
+        workload_state_forward_rx.close();
+
+        assert!(timeout(
+            Duration::from_millis(100),
+            WorkloadControlLoop::run(control_loop_state)
+        )
+        .await
+        .is_ok());
+
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    // [utest->swdd~workload-control-loop-handles-workload-restarts~1]
+    // [utest->swdd~workload-control-loop-restarts-workloads-using-update~1]
+    #[tokio::test]
+    async fn utest_restart_workload() {
+        let _ = env_logger::builder().is_test(true).try_init();
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
+        let (workload_state_forward_tx, _workload_state_forward_rx) =
+            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let mut old_mock_state_checker = StubStateChecker::new();
+        old_mock_state_checker.panic_if_not_stopped();
+
+        let mut new_mock_state_checker = StubStateChecker::new();
+        new_mock_state_checker.panic_if_not_stopped();
+
+        let mut runtime_mock = MockRuntimeConnector::new();
+        runtime_mock
+            .expect(vec![
+                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())), // delete operation of the restarted workload
+                RuntimeCall::CreateWorkload(
+                    workload_spec.clone(),
+                    Some(PIPES_LOCATION.into()),
+                    Ok((WORKLOAD_ID_2.to_string(), new_mock_state_checker)),
+                ),
+                RuntimeCall::DeleteWorkload(WORKLOAD_ID_2.to_string(), Ok(())),
+            ])
+            .await;
+
+        let workload_command_sender_clone = workload_command_sender.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(tokio::time::Duration::from_millis(70)).await;
+            workload_command_sender_clone.delete().await.unwrap();
+        });
+
+        let mut control_loop_state = ControlLoopState::builder()
+            .workload_spec(workload_spec.clone())
+            .workload_state_sender(workload_state_forward_tx.clone())
+            .control_interface_path(Some(PIPES_LOCATION.into()))
+            .runtime(Box::new(runtime_mock.clone()))
+            .workload_command_receiver(workload_command_receiver)
+            .retry_sender(workload_command_sender)
+            .build()
+            .unwrap();
+
+        control_loop_state.workload_id = Some(WORKLOAD_ID.into());
+        control_loop_state.state_checker = Some(old_mock_state_checker);
+
+        // clone the control loop state's internally created workload state sender used by the state checker
+        let state_checker_wl_state_sender = control_loop_state
+            .state_checker_workload_state_sender
+            .clone();
+
+        let workload_state = generate_test_workload_state_with_workload_spec(
+            &workload_spec,
+            ExecutionState::succeeded(),
+        );
+
+        state_checker_wl_state_sender
+            .report_workload_execution_state(
+                &workload_state.instance_name,
+                workload_state.execution_state.clone(),
+            )
+            .await;
+
+        assert!(timeout(
+            Duration::from_millis(100),
+            WorkloadControlLoop::run(control_loop_state)
+        )
+        .await
+        .is_ok());
 
         runtime_mock.assert_all_expectations().await;
     }
