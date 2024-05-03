@@ -97,8 +97,22 @@ impl WorkloadControlLoop {
                         )
                         .await;
 
+                        let restart_policy = &control_loop_state.workload_spec.restart_policy;
+
                     // [impl->swdd~workload-control-loop-handles-workload-restarts~1]
-                    control_loop_state = Self::handle_restart_on_received_workload_state(control_loop_state, new_workload_state).await;
+                    if Self::is_restart_required(&control_loop_state.workload_spec, &new_workload_state) {
+                        log::debug!(
+                            "Restart workload '{}' with restart policy '{}' caused by current execution state '{}'.",
+                            control_loop_state
+                                .workload_spec
+                                .instance_name
+                                .workload_name(),
+                            restart_policy,
+                            new_workload_state.execution_state
+                        );
+
+                        control_loop_state = Self::restart_workload(control_loop_state).await;
+                    }
                     log::trace!("Restart handling done.");
                 }
                 workload_command = control_loop_state.command_receiver.recv() => {
@@ -165,42 +179,24 @@ impl WorkloadControlLoop {
         }
     }
 
-    // [impl->swdd~workload-control-loop-handles-workload-restarts~1]
-    async fn handle_restart_on_received_workload_state<WorkloadId, StChecker>(
-        mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-        new_workload_state: WorkloadState,
+    async fn restart_workload<WorkloadId, StChecker>(
+        control_loop_state: ControlLoopState<WorkloadId, StChecker>,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
         WorkloadId: ToString + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
-        let restart_policy = &control_loop_state.workload_spec.restart_policy;
+        let workload_spec = control_loop_state.workload_spec.clone();
+        let control_interface_path = control_loop_state.control_interface_path.clone();
 
-        if Self::is_restart_required(&control_loop_state.workload_spec, &new_workload_state) {
-            log::debug!(
-                "Restart workload '{}' with restart policy '{}' caused by current execution state '{}'.",
-                control_loop_state
-                    .workload_spec
-                    .instance_name
-                    .workload_name(),
-                restart_policy,
-                new_workload_state.execution_state
-            );
-
-            let workload_spec = control_loop_state.workload_spec.clone();
-            let control_interface_path = control_loop_state.control_interface_path.clone();
-
-            // update the workload with its existing config since a restart is represented by an update operation
-            // [impl->swdd~workload-control-loop-restarts-workloads-using-update~1]
-            control_loop_state = Self::update(
-                control_loop_state,
-                Some(Box::new(workload_spec)),
-                control_interface_path,
-            )
-            .await;
-        }
-
-        control_loop_state
+        // update the workload with its existing config since a restart is represented by an update operation
+        // [impl->swdd~workload-control-loop-restarts-workloads-using-update~1]
+        Self::update(
+            control_loop_state,
+            Some(Box::new(workload_spec)),
+            control_interface_path,
+        )
+        .await
     }
 
     fn is_restart_required(workload_spec: &WorkloadSpec, workload_state: &WorkloadState) -> bool {
@@ -2207,58 +2203,9 @@ mod tests {
     }
 
     // [utest->swdd~workload-control-loop-handles-workload-restarts~1]
-    #[tokio::test]
-    async fn utest_restart_no_restart_of_workload_with_restart_policy_never() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (workload_state_forward_tx, _workload_state_forward_rx) =
-            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let mut workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-        workload_spec.restart_policy = RestartPolicy::Never;
-
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(vec![]).await;
-
-        let received_workload_state = generate_test_workload_state_with_workload_spec(
-            &workload_spec,
-            ExecutionState::succeeded(),
-        );
-
-        let mut control_loop_state = ControlLoopState::builder()
-            .workload_spec(workload_spec)
-            .workload_state_sender(workload_state_forward_tx.clone())
-            .control_interface_path(Some(PIPES_LOCATION.into()))
-            .runtime(Box::new(runtime_mock.clone()))
-            .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
-            .build()
-            .unwrap();
-
-        control_loop_state.workload_id = Some(WORKLOAD_ID.into());
-
-        let new_control_loop_state =
-            WorkloadControlLoop::handle_restart_on_received_workload_state(
-                control_loop_state,
-                received_workload_state,
-            )
-            .await;
-
-        assert_eq!(new_control_loop_state.workload_id, Some(WORKLOAD_ID.into()));
-    }
-
-    // [utest->swdd~workload-control-loop-handles-workload-restarts~1]
     // [utest->swdd~workload-control-loop-restarts-workloads-using-update~1]
     #[tokio::test]
-    async fn utest_restart_of_exited_workload_when_restart_allowed() {
+    async fn utest_restart_workload() {
         let _ = env_logger::builder().is_test(true).try_init();
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
@@ -2268,38 +2215,39 @@ mod tests {
         let (workload_state_forward_tx, _workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let mut workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
-
-        workload_spec.restart_policy = RestartPolicy::Always;
 
         let mut old_mock_state_checker = StubStateChecker::new();
         old_mock_state_checker.panic_if_not_stopped();
 
-        let new_mock_state_checker = StubStateChecker::new();
+        let mut new_mock_state_checker = StubStateChecker::new();
+        new_mock_state_checker.panic_if_not_stopped();
 
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
             .expect(vec![
-                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
+                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())), // delete operation of the restarted workload
                 RuntimeCall::CreateWorkload(
                     workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
                     Ok((WORKLOAD_ID_2.to_string(), new_mock_state_checker)),
                 ),
+                RuntimeCall::DeleteWorkload(WORKLOAD_ID_2.to_string(), Ok(())),
             ])
             .await;
 
-        let received_workload_state = generate_test_workload_state_with_workload_spec(
-            &workload_spec,
-            ExecutionState::succeeded(),
-        );
+        let workload_command_sender_clone = workload_command_sender.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(tokio::time::Duration::from_millis(70)).await;
+            workload_command_sender_clone.delete().await.unwrap();
+        });
 
         let mut control_loop_state = ControlLoopState::builder()
-            .workload_spec(workload_spec)
+            .workload_spec(workload_spec.clone())
             .workload_state_sender(workload_state_forward_tx.clone())
             .control_interface_path(Some(PIPES_LOCATION.into()))
             .runtime(Box::new(runtime_mock.clone()))
@@ -2311,90 +2259,31 @@ mod tests {
         control_loop_state.workload_id = Some(WORKLOAD_ID.into());
         control_loop_state.state_checker = Some(old_mock_state_checker);
 
-        let new_control_loop_state =
-            WorkloadControlLoop::handle_restart_on_received_workload_state(
-                control_loop_state,
-                received_workload_state,
-            )
-            .await;
+        // clone the control loop state's internally created workload state sender used by the state checker
+        let state_checker_wl_state_sender = control_loop_state
+            .state_checker_workload_state_sender
+            .clone();
 
-        assert_eq!(
-            new_control_loop_state.workload_id,
-            Some(WORKLOAD_ID_2.into())
-        );
-    }
-
-    // [utest->swdd~workload-control-loop-skips-restarts~1]
-    #[tokio::test]
-    async fn utest_skip_restart_on_old_workload_state_during_update() {
-        let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
-        let (workload_state_forward_tx, _workload_state_forward_rx) =
-            mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
-
-        let mut workload_spec = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            RUNTIME_NAME.to_string(),
-        );
-
-        workload_spec.restart_policy = RestartPolicy::OnFailure;
-
-        let mut updated_workload_spec = workload_spec.clone();
-        // the udpated workload has a different instance name
-        updated_workload_spec.instance_name = WorkloadInstanceName::builder()
-            .agent_name(updated_workload_spec.instance_name.agent_name())
-            .workload_name(updated_workload_spec.instance_name.workload_name())
-            .config(&String::from("changed config"))
-            .build();
-
-        // the new state checker that is created during the update
-        let new_mock_state_checker = StubStateChecker::new();
-
-        /* no runtime calls expected because the instance names in the workload state differs from
-        the current one inside the control loop (no restart shall be done!) */
-        let mut runtime_mock = MockRuntimeConnector::new();
-        runtime_mock.expect(vec![]).await;
-
-        // workload state of the old workload
-        let received_workload_state = generate_test_workload_state_with_workload_spec(
+        let workload_state = generate_test_workload_state_with_workload_spec(
             &workload_spec,
-            ExecutionState::failed("some error".to_owned()),
+            ExecutionState::succeeded(),
         );
 
-        // the control loop state parameters to the time point after the update
-        let mut control_loop_state = ControlLoopState::builder()
-            .workload_spec(updated_workload_spec.clone())
-            .workload_state_sender(workload_state_forward_tx.clone())
-            .control_interface_path(Some(PIPES_LOCATION.into()))
-            .runtime(Box::new(runtime_mock.clone()))
-            .workload_command_receiver(workload_command_receiver)
-            .retry_sender(workload_command_sender)
-            .build()
-            .unwrap();
-
-        control_loop_state.workload_id = Some(WORKLOAD_ID.into());
-        control_loop_state.state_checker = Some(new_mock_state_checker);
-
-        let control_loop_state_after_restart_handling =
-            WorkloadControlLoop::handle_restart_on_received_workload_state(
-                control_loop_state,
-                received_workload_state,
+        state_checker_wl_state_sender
+            .report_workload_execution_state(
+                &workload_state.instance_name,
+                workload_state.execution_state.clone(),
             )
             .await;
 
-        let expected_instance_name = updated_workload_spec.instance_name;
+        assert!(timeout(
+            Duration::from_millis(100),
+            WorkloadControlLoop::run(control_loop_state)
+        )
+        .await
+        .is_ok());
 
-        assert_eq!(
-            expected_instance_name,
-            control_loop_state_after_restart_handling
-                .workload_spec
-                .instance_name
-        );
+        runtime_mock.assert_all_expectations().await;
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-resume~1]
@@ -2717,6 +2606,35 @@ mod tests {
                 &workload_spec,
                 ExecutionState::succeeded()
             )
+        ));
+    }
+
+    // [utest->swdd~workload-control-loop-skips-restarts~1]
+    #[test]
+    fn utest_is_restart_allowed_different_instance_names() {
+        let mut workload_spec = generate_test_workload_spec();
+        workload_spec.restart_policy = RestartPolicy::Never;
+
+        let mut workload_state = generate_test_workload_state_with_workload_spec(
+            &workload_spec,
+            ExecutionState::succeeded(),
+        );
+        workload_state.instance_name = WorkloadInstanceName::builder()
+            .workload_name(workload_spec.instance_name.workload_name())
+            .agent_name(workload_spec.instance_name.agent_name())
+            .config(&String::from("different config"))
+            .build();
+
+        assert!(!WorkloadControlLoop::is_restart_required(
+            &workload_spec,
+            &workload_state
+        ));
+
+        workload_state.execution_state = ExecutionState::failed("some error".to_owned());
+
+        assert!(!WorkloadControlLoop::is_restart_required(
+            &workload_spec,
+            &workload_state
         ));
     }
 }
