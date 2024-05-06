@@ -220,24 +220,20 @@ impl WorkloadControlLoop {
 
     fn is_restart_required(workload_spec: &WorkloadSpec, workload_state: &WorkloadState) -> bool {
         // [impl->swdd~workload-control-loop-skips-restarts~1]
-        if Self::is_different_workload(&workload_spec.instance_name, &workload_state.instance_name)
-        {
-            return false;
-        }
-
-        // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
-        Self::compare_execution_state_with_restart_policy(
-            &workload_state.execution_state,
-            &workload_spec.restart_policy,
-        )
+        Self::is_same_workload(&workload_spec.instance_name, &workload_state.instance_name)
+            // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
+            && Self::compare_execution_state_with_restart_policy(
+                &workload_state.execution_state,
+                &workload_spec.restart_policy,
+            )
     }
 
     // [impl->swdd~workload-control-loop-skips-restarts~1]
-    fn is_different_workload(
+    fn is_same_workload(
         current_instance_name: &WorkloadInstanceName,
         instance_name_of_workload_state: &WorkloadInstanceName,
     ) -> bool {
-        !current_instance_name.eq(instance_name_of_workload_state)
+        current_instance_name.eq(instance_name_of_workload_state)
     }
 
     // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
@@ -520,7 +516,7 @@ impl WorkloadControlLoop {
         WorkloadId: ToString + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
-        if control_loop_state.instance_name() == &instance_name
+        if Self::is_same_workload(control_loop_state.instance_name(), &instance_name)
             && control_loop_state.workload_id.is_none()
         {
             log::debug!("Next retry attempt.");
