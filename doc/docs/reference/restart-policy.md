@@ -1,7 +1,7 @@
 
 # Restart Policy
 
-The restart policy of a workload allows the user to control whether a workload is restarted automatically when it exits or when Ankaios itself restarts.
+The restart policy of a workload enables the user to determine whether a workload is automatically restarted when it terminates.
 By default, workloads are not restarted. However, the restart policy can be configured to always restart the workload, or to restart the workload under certain conditions.
 
 ## Supported Restart Policies
