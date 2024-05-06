@@ -1316,7 +1316,7 @@
 <h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <p>Two executables are used for each Ankaios deployment: the Ankaios server and the Ankaios agent:</p>
-<p><img alt="Architecture Overview" src="../assets/architecture_overview.svg" /></p>
+<p><img alt="Architecture Overview" src="../assets/architecture_overview.png" /></p>
 <p>When started, the Ankaios server loads the configured startup state of the cluster and stores it as a desired state. To reach this desired state, the server instructs the Ankaios agents to start and stop workloads.
 Each Ankaios cluster runs exactly one instance of the Ankaios server making the server the single source of truth.</p>
 <p>A running instance of the Ankaios agent is present on every node where Ankaios needs to execute workloads.
@@ -1332,7 +1332,7 @@ This interface can be used to, e.g.:</p>
 <p>In the diagram above one of the workloads on <nobr>node 1</nobr> acts as fleet connector.
 It accesses a backend and forwards commands to the Ankaios server.
 In the example below the fleet connector gets an update from the backend, which adds a workload to <nobr>node 2</nobr>.</p>
-<p><img alt="Example sequence with cluster configuration manager" src="../assets/architecture_sequence.svg" /></p>
+<p><img alt="Example sequence with cluster configuration manager" src="../assets/architecture_sequence.png" /></p>
 <h3 id="notes">Notes<a class="headerlink" href="#notes" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Ankaios uses gRPC for communication between the Ankaios server and the Ankaios agents,
