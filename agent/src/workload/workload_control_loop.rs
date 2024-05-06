@@ -14,7 +14,7 @@
 
 use crate::runtime_connectors::StateChecker;
 use crate::workload::{ControlLoopState, WorkloadCommand};
-use crate::workload_state::WorkloadStateSenderInterface;
+use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
 use common::objects::{
     ExecutionState, RestartPolicy, WorkloadInstanceName, WorkloadSpec, WorkloadState,
 };
@@ -89,15 +89,13 @@ impl WorkloadControlLoop {
                     /* forward immediately the new workload state to the agent manager
                     to avoid delays through the restart handling */
                     // [impl->swdd~workload-control-loop-sends-workload-states~1]
-                    control_loop_state
-                        .workload_state_sender
-                        .report_workload_execution_state(
-                            &new_workload_state.instance_name,
-                            new_workload_state.execution_state.clone(),
-                        )
-                        .await;
+                    Self::forward_workload_state_to_agent(
+                        &control_loop_state.workload_state_sender,
+                        &new_workload_state.instance_name,
+                        new_workload_state.execution_state.clone(),
+                    ).await;
 
-                        let restart_policy = &control_loop_state.workload_spec.restart_policy;
+                    let restart_policy = &control_loop_state.workload_spec.restart_policy;
 
                     // [impl->swdd~workload-control-loop-handles-workload-restarts~1]
                     if Self::is_restart_required(&control_loop_state.workload_spec, &new_workload_state) {
@@ -177,6 +175,16 @@ impl WorkloadControlLoop {
                 }
             }
         }
+    }
+
+    async fn forward_workload_state_to_agent(
+        workload_state_sender: &WorkloadStateSender,
+        instance_name: &WorkloadInstanceName,
+        execution_state: ExecutionState,
+    ) {
+        workload_state_sender
+            .report_workload_execution_state(instance_name, execution_state)
+            .await;
     }
 
     async fn restart_workload<WorkloadId, StChecker>(
@@ -276,13 +284,13 @@ impl WorkloadControlLoop {
             );
 
             // [impl->swdd~agent-workload-control-loop-retry-limit-set-execution-state~1]
-            control_loop_state
-                .workload_state_sender
-                .report_workload_execution_state(
-                    control_loop_state.instance_name(),
-                    ExecutionState::retry_failed_no_retry(),
-                )
-                .await;
+            Self::forward_workload_state_to_agent(
+                &control_loop_state.workload_state_sender,
+                control_loop_state.instance_name(),
+                ExecutionState::retry_failed_no_retry(),
+            )
+            .await;
+
             return control_loop_state;
         }
 
@@ -329,13 +337,12 @@ impl WorkloadControlLoop {
         ErrorFunc: FnOnce(ControlLoopState<WorkloadId, StChecker>, WorkloadInstanceName, String) -> Fut
             + 'static,
     {
-        control_loop_state
-            .workload_state_sender
-            .report_workload_execution_state(
-                control_loop_state.instance_name(),
-                ExecutionState::starting_triggered(),
-            )
-            .await;
+        Self::forward_workload_state_to_agent(
+            &control_loop_state.workload_state_sender,
+            control_loop_state.instance_name(),
+            ExecutionState::starting_triggered(),
+        )
+        .await;
 
         let new_instance_name = control_loop_state.workload_spec.instance_name.clone();
 
@@ -360,13 +367,12 @@ impl WorkloadControlLoop {
                 control_loop_state
             }
             Err(err) => {
-                control_loop_state
-                    .workload_state_sender
-                    .report_workload_execution_state(
-                        &new_instance_name,
-                        ExecutionState::starting_failed(err.to_string()),
-                    )
-                    .await;
+                Self::forward_workload_state_to_agent(
+                    &control_loop_state.workload_state_sender,
+                    &new_instance_name,
+                    ExecutionState::starting_failed(err.to_string()),
+                )
+                .await;
 
                 func_on_error(control_loop_state, new_instance_name, err.to_string()).await
             }
@@ -381,23 +387,21 @@ impl WorkloadControlLoop {
         WorkloadId: ToString + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
-        control_loop_state
-            .workload_state_sender
-            .report_workload_execution_state(
-                control_loop_state.instance_name(),
-                ExecutionState::stopping_requested(),
-            )
-            .await;
+        Self::forward_workload_state_to_agent(
+            &control_loop_state.workload_state_sender,
+            control_loop_state.instance_name(),
+            ExecutionState::stopping_requested(),
+        )
+        .await;
 
         if let Some(old_id) = control_loop_state.workload_id.take() {
             if let Err(err) = control_loop_state.runtime.delete_workload(&old_id).await {
-                control_loop_state
-                    .workload_state_sender
-                    .report_workload_execution_state(
-                        control_loop_state.instance_name(),
-                        ExecutionState::delete_failed(err.to_string()),
-                    )
-                    .await;
+                Self::forward_workload_state_to_agent(
+                    &control_loop_state.workload_state_sender,
+                    control_loop_state.instance_name(),
+                    ExecutionState::delete_failed(err.to_string()),
+                )
+                .await;
                 // [impl->swdd~agent-workload-control-loop-delete-failed-allows-retry~1]
                 log::warn!(
                     "Could not stop workload '{}': '{}'",
@@ -422,13 +426,12 @@ impl WorkloadControlLoop {
         }
 
         // Successfully stopped the workload. Send a removed on the channel
-        control_loop_state
-            .workload_state_sender
-            .report_workload_execution_state(
-                control_loop_state.instance_name(),
-                ExecutionState::removed(),
-            )
-            .await;
+        Self::forward_workload_state_to_agent(
+            &control_loop_state.workload_state_sender,
+            control_loop_state.instance_name(),
+            ExecutionState::removed(),
+        )
+        .await;
 
         None
     }
@@ -443,23 +446,22 @@ impl WorkloadControlLoop {
         WorkloadId: ToString + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
-        control_loop_state
-            .workload_state_sender
-            .report_workload_execution_state(
-                control_loop_state.instance_name(),
-                ExecutionState::stopping_requested(),
-            )
-            .await;
+        Self::forward_workload_state_to_agent(
+            &control_loop_state.workload_state_sender,
+            control_loop_state.instance_name(),
+            ExecutionState::stopping_requested(),
+        )
+        .await;
 
         if let Some(old_id) = control_loop_state.workload_id.take() {
             if let Err(err) = control_loop_state.runtime.delete_workload(&old_id).await {
-                control_loop_state
-                    .workload_state_sender
-                    .report_workload_execution_state(
-                        control_loop_state.instance_name(),
-                        ExecutionState::delete_failed(err.to_string()),
-                    )
-                    .await;
+                Self::forward_workload_state_to_agent(
+                    &control_loop_state.workload_state_sender,
+                    control_loop_state.instance_name(),
+                    ExecutionState::delete_failed(err.to_string()),
+                )
+                .await;
+
                 // [impl->swdd~agent-workload-control-loop-update-delete-failed-allows-retry~1]
                 log::warn!(
                     "Could not update workload '{}': '{}'",
@@ -481,13 +483,12 @@ impl WorkloadControlLoop {
         }
 
         // workload is deleted or already gone, send the remove state
-        control_loop_state
-            .workload_state_sender
-            .report_workload_execution_state(
-                control_loop_state.instance_name(),
-                ExecutionState::removed(),
-            )
-            .await;
+        Self::forward_workload_state_to_agent(
+            &control_loop_state.workload_state_sender,
+            control_loop_state.instance_name(),
+            ExecutionState::removed(),
+        )
+        .await;
 
         // [impl->swdd~agent-workload-control-loop-reset-retry-attempts-on-update~1]
         control_loop_state.retry_counter.reset();
