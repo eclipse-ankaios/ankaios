@@ -158,7 +158,6 @@ impl<
         let (workload_command_tx, workload_command_receiver) = WorkloadCommandSender::new();
         let workload_command_sender = workload_command_tx.clone();
         let task_handle = tokio::spawn(async move {
-            // let instance_name = workload_spec.instance_name.clone();
             workload_command_sender
                 .create()
                 .await
