@@ -106,7 +106,7 @@ impl WorkloadControlLoop {
                         Some(WorkloadCommand::Delete) => {
                             log::debug!("Received WorkloadCommand::Delete.");
 
-                            if let Some(new_control_loop_state) = Self::delete(control_loop_state).await {
+                            if let Some(new_control_loop_state) = Self::delete_workload_on_runtime(control_loop_state).await {
                                 control_loop_state = new_control_loop_state;
                             } else {
                                 // [impl->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
@@ -117,7 +117,7 @@ impl WorkloadControlLoop {
                         Some(WorkloadCommand::Update(runtime_workload_config, control_interface_path)) => {
                             log::debug!("Received WorkloadCommand::Update.");
 
-                            control_loop_state = Self::update(
+                            control_loop_state = Self::update_workload_on_runtime(
                                 control_loop_state,
                                 runtime_workload_config,
                                 control_interface_path,
@@ -130,7 +130,7 @@ impl WorkloadControlLoop {
                         Some(WorkloadCommand::Retry(instance_name)) => {
                             log::debug!("Received WorkloadCommand::Retry.");
 
-                            control_loop_state = Self::retry_create(
+                            control_loop_state = Self::retry_create_workload_on_runtime(
                                 control_loop_state,
                                 *instance_name,
                             )
@@ -140,16 +140,16 @@ impl WorkloadControlLoop {
                         Some(WorkloadCommand::Create) => {
                             log::debug!("Received WorkloadCommand::Create.");
 
-                            control_loop_state = Self::create(
+                            control_loop_state = Self::create_workload_on_runtime(
                                 control_loop_state,
-                                Self::send_retry,
+                                Self::send_retry_for_workload,
                             )
                             .await;
                         }
                         // [impl->swdd~agent-workload-control-loop-executes-resume~1]
                         Some(WorkloadCommand::Resume) => {
                             log::debug!("Received WorkloadCommand::Resume.");
-                            control_loop_state = Self::resume(control_loop_state).await;
+                            control_loop_state = Self::resume_workload_on_runtime(control_loop_state).await;
                         }
                         _ => {
                             log::warn!(
@@ -183,37 +183,34 @@ impl WorkloadControlLoop {
         WorkloadId: ToString + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
-        let restart_policy = &control_loop_state.workload_spec.restart_policy;
-
         if Self::is_restart_required(&control_loop_state.workload_spec, &new_workload_state) {
-            log::debug!(
-                "Restart workload '{}' with restart policy '{}' caused by current execution state '{}'.",
-                control_loop_state
-                    .workload_spec
-                    .instance_name
-                    .workload_name(),
-                restart_policy,
-                new_workload_state.execution_state
-            );
-
-            control_loop_state = Self::restart_workload(control_loop_state).await;
+            control_loop_state = Self::restart_workload_on_runtime(control_loop_state).await;
         }
         control_loop_state
     }
 
-    async fn restart_workload<WorkloadId, StChecker>(
+    async fn restart_workload_on_runtime<WorkloadId, StChecker>(
         control_loop_state: ControlLoopState<WorkloadId, StChecker>,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
         WorkloadId: ToString + Send + Sync + 'static,
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
+        log::debug!(
+            "Restart workload '{}' with restart policy '{}'",
+            control_loop_state
+                .workload_spec
+                .instance_name
+                .workload_name(),
+            control_loop_state.workload_spec.restart_policy,
+        );
+
         let workload_spec = control_loop_state.workload_spec.clone();
         let control_interface_path = control_loop_state.control_interface_path.clone();
 
         // update the workload with its existing config since a restart is represented by an update operation
         // [impl->swdd~workload-control-loop-restarts-workloads-using-update~1]
-        Self::update(
+        Self::update_workload_on_runtime(
             control_loop_state,
             Some(Box::new(workload_spec)),
             control_interface_path,
@@ -229,7 +226,7 @@ impl WorkloadControlLoop {
         }
 
         // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
-        Self::match_execution_state_with_restart_policy(
+        Self::compare_execution_state_with_restart_policy(
             &workload_state.execution_state,
             &workload_spec.restart_policy,
         )
@@ -244,7 +241,7 @@ impl WorkloadControlLoop {
     }
 
     // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
-    fn match_execution_state_with_restart_policy(
+    fn compare_execution_state_with_restart_policy(
         execution_state: &ExecutionState,
         restart_policy: &RestartPolicy,
     ) -> bool {
@@ -255,7 +252,7 @@ impl WorkloadControlLoop {
         }
     }
 
-    async fn send_retry<WorkloadId, StChecker>(
+    async fn send_retry_for_workload<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         instance_name: WorkloadInstanceName,
         error_msg: String,
@@ -281,7 +278,7 @@ impl WorkloadControlLoop {
         control_loop_state
     }
 
-    async fn send_retry_delayed<WorkloadId, StChecker>(
+    async fn send_retry_when_limit_not_exceeded<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         instance_name: WorkloadInstanceName,
         error_msg: String,
@@ -335,26 +332,8 @@ impl WorkloadControlLoop {
         control_loop_state
     }
 
-    async fn update_create<WorkloadId, StChecker, ErrorFunc, Fut>(
-        mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-        new_workload_spec: WorkloadSpec,
-        control_interface_path: Option<PathBuf>,
-        func_on_error: ErrorFunc,
-    ) -> ControlLoopState<WorkloadId, StChecker>
-    where
-        WorkloadId: ToString + Send + Sync + 'static,
-        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
-        Fut: Future<Output = ControlLoopState<WorkloadId, StChecker>> + 'static,
-        ErrorFunc: FnOnce(ControlLoopState<WorkloadId, StChecker>, WorkloadInstanceName, String) -> Fut
-            + 'static,
-    {
-        control_loop_state.workload_spec = new_workload_spec;
-        control_loop_state.control_interface_path = control_interface_path;
-        Self::create(control_loop_state, func_on_error).await
-    }
-
     // [impl->swdd~agent-workload-control-loop-executes-create~2]
-    async fn create<WorkloadId, StChecker, ErrorFunc, Fut>(
+    async fn create_workload_on_runtime<WorkloadId, StChecker, ErrorFunc, Fut>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         func_on_error: ErrorFunc,
     ) -> ControlLoopState<WorkloadId, StChecker>
@@ -408,7 +387,7 @@ impl WorkloadControlLoop {
     }
 
     // [impl->swdd~agent-workload-control-loop-executes-delete~2]
-    async fn delete<WorkloadId, StChecker>(
+    async fn delete_workload_on_runtime<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
     ) -> Option<ControlLoopState<WorkloadId, StChecker>>
     where
@@ -465,7 +444,7 @@ impl WorkloadControlLoop {
     }
 
     // [impl->swdd~agent-workload-control-loop-executes-update~2]
-    async fn update<WorkloadId, StChecker>(
+    async fn update_workload_on_runtime<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         new_workload_spec: Option<Box<WorkloadSpec>>,
         control_interface_path: Option<PathBuf>,
@@ -524,18 +503,16 @@ impl WorkloadControlLoop {
         // [impl->swdd~agent-workload-control-loop-executes-update-delete-only~1]
         if let Some(spec) = new_workload_spec {
             // [impl->swdd~agent-workload-control-loop-update-create-failed-allows-retry~1]
-            control_loop_state = Self::update_create(
-                control_loop_state,
-                *spec,
-                control_interface_path,
-                Self::send_retry,
-            )
-            .await;
+            control_loop_state.workload_spec = *spec;
+            control_loop_state.control_interface_path = control_interface_path;
+            control_loop_state =
+                Self::create_workload_on_runtime(control_loop_state, Self::send_retry_for_workload)
+                    .await;
         }
         control_loop_state
     }
 
-    async fn retry_create<WorkloadId, StChecker>(
+    async fn retry_create_workload_on_runtime<WorkloadId, StChecker>(
         control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         instance_name: WorkloadInstanceName,
     ) -> ControlLoopState<WorkloadId, StChecker>
@@ -547,7 +524,11 @@ impl WorkloadControlLoop {
             && control_loop_state.workload_id.is_none()
         {
             log::debug!("Next retry attempt.");
-            Self::create(control_loop_state, Self::send_retry_delayed).await
+            Self::create_workload_on_runtime(
+                control_loop_state,
+                Self::send_retry_when_limit_not_exceeded,
+            )
+            .await
         } else {
             // [impl->swdd~agent-workload-control-loop-prevents-retries-on-other-workload-commands~1]
             log::debug!("Skip retry creation of workload.");
@@ -556,7 +537,7 @@ impl WorkloadControlLoop {
     }
 
     // [impl->swdd~agent-workload-control-loop-executes-resume~1]
-    async fn resume<WorkloadId, StChecker>(
+    async fn resume_workload_on_runtime<WorkloadId, StChecker>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
     ) -> ControlLoopState<WorkloadId, StChecker>
     where
@@ -1531,8 +1512,11 @@ mod tests {
             .build()
             .unwrap();
 
-        let new_control_loop_state =
-            WorkloadControlLoop::create(control_loop_state, WorkloadControlLoop::send_retry).await;
+        let new_control_loop_state = WorkloadControlLoop::create_workload_on_runtime(
+            control_loop_state,
+            WorkloadControlLoop::send_retry_for_workload,
+        )
+        .await;
 
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
@@ -1748,8 +1732,11 @@ mod tests {
             .build()
             .unwrap();
 
-        let new_control_loop_state =
-            WorkloadControlLoop::retry_create(control_loop_state, instance_name).await;
+        let new_control_loop_state = WorkloadControlLoop::retry_create_workload_on_runtime(
+            control_loop_state,
+            instance_name,
+        )
+        .await;
 
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
@@ -2232,7 +2219,8 @@ mod tests {
         assert!(control_loop_state.workload_id.is_none());
         assert!(control_loop_state.state_checker.is_none());
 
-        let new_control_loop_state = WorkloadControlLoop::resume(control_loop_state).await;
+        let new_control_loop_state =
+            WorkloadControlLoop::resume_workload_on_runtime(control_loop_state).await;
 
         assert_eq!(new_control_loop_state.workload_id, Some(WORKLOAD_ID.into()));
         assert!(new_control_loop_state.state_checker.is_some());
@@ -2278,7 +2266,8 @@ mod tests {
             .build()
             .unwrap();
 
-        let new_control_loop_state = WorkloadControlLoop::resume(control_loop_state).await;
+        let new_control_loop_state =
+            WorkloadControlLoop::resume_workload_on_runtime(control_loop_state).await;
 
         assert!(new_control_loop_state.workload_id.is_none());
         assert!(new_control_loop_state.state_checker.is_none());
@@ -2339,7 +2328,8 @@ mod tests {
         control_loop_state.state_checker_workload_state_receiver =
             state_checker_workload_state_receiver;
 
-        let new_control_loop_state = WorkloadControlLoop::resume(control_loop_state).await;
+        let new_control_loop_state =
+            WorkloadControlLoop::resume_workload_on_runtime(control_loop_state).await;
 
         assert_eq!(new_control_loop_state.workload_id, Some(WORKLOAD_ID.into()));
         assert!(new_control_loop_state.state_checker.is_none());
