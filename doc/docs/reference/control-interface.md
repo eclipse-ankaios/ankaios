@@ -90,6 +90,8 @@ flowchart TD
     output --> fin
 ```
 
+<!-- Replace the figcaption and the mermaid picture. See: -->
+<!-- https://github.com/eclipse-ankaios/ankaios/pull/253#discussion_r1587603078 -->
 <figcaption>Send request message via control interface</figcaption>
 
 Code snippet in [Rust](https://www.rust-lang.org/) for sending request message via control interface:
@@ -177,6 +179,8 @@ flowchart TD
     further_processing --> fin
 ```
 
+<!-- Replace the figcaption and the mermaid picture. See: -->
+<!-- https://github.com/eclipse-ankaios/ankaios/pull/253#discussion_r1587603078 -->
 <figcaption>Read response message via control interface</figcaption>
 
 Code Snippet in [Rust](https://www.rust-lang.org/) for reading response message via control interface:
