@@ -95,22 +95,9 @@ impl WorkloadControlLoop {
                         new_workload_state.execution_state.clone(),
                     ).await;
 
-                    let restart_policy = &control_loop_state.workload_spec.restart_policy;
-
                     // [impl->swdd~workload-control-loop-handles-workload-restarts~1]
-                    if Self::is_restart_required(&control_loop_state.workload_spec, &new_workload_state) {
-                        log::debug!(
-                            "Restart workload '{}' with restart policy '{}' caused by current execution state '{}'.",
-                            control_loop_state
-                                .workload_spec
-                                .instance_name
-                                .workload_name(),
-                            restart_policy,
-                            new_workload_state.execution_state
-                        );
+                    control_loop_state = Self::restart_if_workload_state_matches_restart_policy(control_loop_state, new_workload_state).await;
 
-                        control_loop_state = Self::restart_workload(control_loop_state).await;
-                    }
                     log::trace!("Restart handling done.");
                 }
                 workload_command = control_loop_state.command_receiver.recv() => {
@@ -185,6 +172,33 @@ impl WorkloadControlLoop {
         workload_state_sender
             .report_workload_execution_state(instance_name, execution_state)
             .await;
+    }
+
+    // [impl->swdd~workload-control-loop-handles-workload-restarts~1]
+    async fn restart_if_workload_state_matches_restart_policy<WorkloadId, StChecker>(
+        mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
+        new_workload_state: WorkloadState,
+    ) -> ControlLoopState<WorkloadId, StChecker>
+    where
+        WorkloadId: ToString + Send + Sync + 'static,
+        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
+    {
+        let restart_policy = &control_loop_state.workload_spec.restart_policy;
+
+        if Self::is_restart_required(&control_loop_state.workload_spec, &new_workload_state) {
+            log::debug!(
+                "Restart workload '{}' with restart policy '{}' caused by current execution state '{}'.",
+                control_loop_state
+                    .workload_spec
+                    .instance_name
+                    .workload_name(),
+                restart_policy,
+                new_workload_state.execution_state
+            );
+
+            control_loop_state = Self::restart_workload(control_loop_state).await;
+        }
+        control_loop_state
     }
 
     async fn restart_workload<WorkloadId, StChecker>(
