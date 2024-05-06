@@ -95,7 +95,7 @@ impl WorkloadControlLoop {
                         new_workload_state.execution_state.clone(),
                     ).await;
 
-                    // [impl->swdd~workload-control-loop-handles-workload-restarts~1]-
+                    // [impl->swdd~workload-control-loop-handles-workload-restarts~1]
                     control_loop_state = Self::restart_if_workload_state_matches_restart_policy(control_loop_state, new_workload_state).await;
 
                     log::trace!("Restart handling done.");
