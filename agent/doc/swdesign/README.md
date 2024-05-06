@@ -1314,7 +1314,7 @@ Needs:
 ### Restart policies of workloads
 
 #### Agent supports restart policies
-`swdd~agent-supports-restart-policies~2`
+`swdd~agent-supports-restart-policies~1`
 
 Status: approved
 

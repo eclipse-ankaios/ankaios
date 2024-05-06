@@ -152,7 +152,7 @@ pub fn get_workloads_per_agent(
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-// [impl->swdd~agent-supports-restart-policies~2]
+// [impl->swdd~agent-supports-restart-policies~1]
 pub enum RestartPolicy {
     #[default]
     Never,
@@ -642,7 +642,7 @@ mod tests {
         assert!(delete_condition.fulfilled_by(&ExecutionState::waiting_to_start()));
     }
 
-    // [utest->swdd~agent-supports-restart-policies~2]
+    // [utest->swdd~agent-supports-restart-policies~1]
     #[test]
     fn utest_restart_to_int() {
         assert_eq!(RestartPolicy::try_from(0).unwrap(), RestartPolicy::Never);
