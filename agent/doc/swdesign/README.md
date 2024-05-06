@@ -1394,8 +1394,6 @@ Needs:
 - utest
 - stest
 
-
-
 #### WorkloadControlLoop restarts workloads using the update operation
 `swdd~workload-control-loop-restarts-workloads-using-update~1`
 
