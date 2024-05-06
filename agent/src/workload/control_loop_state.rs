@@ -28,15 +28,11 @@ where
     pub control_interface_path: Option<PathBuf>,
     pub workload_id: Option<WorkloadId>,
     pub state_checker: Option<StChecker>,
-    // sender to forward workload states to the agent manager
-    pub workload_state_sender: WorkloadStateSender,
-    // sender passed to the state checker
+    pub to_agent_workload_state_sender: WorkloadStateSender,
     pub state_checker_workload_state_sender: WorkloadStateSender,
-    // sender to listen to the state checker workload states
     pub state_checker_workload_state_receiver: WorkloadStateReceiver,
     pub runtime: Box<dyn RuntimeConnector<WorkloadId, StChecker>>,
     pub command_receiver: WorkloadCommandReceiver,
-    // sender to forward retry commands to the control loop
     pub retry_sender: WorkloadCommandSender,
     pub retry_counter: RetryCounter,
 }
@@ -128,7 +124,7 @@ where
             control_interface_path: self.control_interface_path,
             workload_id: None,
             state_checker: None,
-            workload_state_sender: self
+            to_agent_workload_state_sender: self
                 .workload_state_sender
                 .ok_or_else(|| "WorkloadStateSender is not set".to_string())?,
             state_checker_workload_state_sender: state_checker_wl_state_sender,
@@ -238,7 +234,7 @@ mod tests {
         );
 
         control_loop_state
-            .workload_state_sender
+            .to_agent_workload_state_sender
             .report_workload_execution_state(
                 &forwarded_wl_state_to_agent.instance_name,
                 forwarded_wl_state_to_agent.execution_state.clone(),
@@ -278,7 +274,7 @@ mod tests {
             control_interface_path: None,
             workload_id: None,
             state_checker: None,
-            workload_state_sender,
+            to_agent_workload_state_sender: workload_state_sender,
             state_checker_workload_state_sender,
             state_checker_workload_state_receiver,
             runtime,
