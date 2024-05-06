@@ -4,7 +4,7 @@
 
 Two executables are used for each Ankaios deployment: the Ankaios server and the Ankaios agent:
 
-![Architecture Overview](assets/architecture_overview.svg)
+![Architecture Overview](assets/architecture_overview.png)
 
 When started, the Ankaios server loads the configured startup state of the cluster and stores it as a desired state. To reach this desired state, the server instructs the Ankaios agents to start and stop workloads.
 Each Ankaios cluster runs exactly one instance of the Ankaios server making the server the single source of truth.
@@ -25,7 +25,7 @@ In the diagram above one of the workloads on <nobr>node 1</nobr> acts as fleet c
 It accesses a backend and forwards commands to the Ankaios server.
 In the example below the fleet connector gets an update from the backend, which adds a workload to <nobr>node 2</nobr>.
 
-![Example sequence with cluster configuration manager](assets/architecture_sequence.svg)
+![Example sequence with cluster configuration manager](assets/architecture_sequence.png)
 
 ### Notes
 
