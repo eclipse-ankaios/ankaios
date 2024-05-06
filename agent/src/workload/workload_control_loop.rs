@@ -639,10 +639,6 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-executes-update~2]
     #[tokio::test]
     async fn utest_workload_obj_run_update_success() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -731,10 +727,6 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-executes-update-delete-only~1]
     #[tokio::test]
     async fn utest_workload_obj_run_update_delete_only() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -800,10 +792,6 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-executes-update-delete-only~1]
     #[tokio::test]
     async fn utest_workload_obj_run_update_after_update_delete_only() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -896,10 +884,6 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-update-broken-allowed~1]
     #[tokio::test]
     async fn utest_workload_obj_run_update_broken_allowed() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -980,10 +964,6 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-update-delete-failed-allows-retry~1]
     #[tokio::test]
     async fn utest_workload_obj_run_update_delete_failed_allows_retry() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -1068,10 +1048,6 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-update-create-failed-allows-retry~1]
     #[tokio::test]
     async fn utest_workload_obj_run_update_create_failed_allows_retry() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -1160,10 +1136,6 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-executes-delete~2]
     #[tokio::test]
     async fn utest_workload_obj_run_delete_success() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -1223,10 +1195,6 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-delete-failed-allows-retry~1]
     #[tokio::test]
     async fn utest_workload_obj_run_delete_failed_allows_retry() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -1297,10 +1265,6 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-delete-broken-allowed~1]
     #[tokio::test]
     async fn utest_workload_obj_run_delete_already_gone() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -1338,10 +1302,6 @@ mod tests {
     #[tokio::test]
     async fn utest_workload_obj_run_create_successful() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -1401,10 +1361,6 @@ mod tests {
     #[tokio::test]
     async fn utest_workload_obj_run_retry_creation_successful_after_create_command_fails() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -1471,10 +1427,6 @@ mod tests {
     #[tokio::test]
     async fn utest_workload_obj_run_create_with_retry_workload_command_channel_closed() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -1524,10 +1476,6 @@ mod tests {
     #[tokio::test]
     async fn utest_workload_obj_run_retry_creation_successful_after_create_fails() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -1601,10 +1549,6 @@ mod tests {
     #[tokio::test]
     async fn utest_workload_obj_run_retry_attempts_exceeded_workload_creation() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -1689,10 +1633,6 @@ mod tests {
     #[tokio::test]
     async fn utest_workload_obj_run_retry_creation_workload_command_channel_closed() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -1745,10 +1685,6 @@ mod tests {
     #[tokio::test]
     async fn utest_workload_obj_run_retry_stop_retry_commands_on_update_command() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -1825,10 +1761,6 @@ mod tests {
     #[tokio::test]
     async fn utest_workload_obj_run_retry_on_update_with_create_failure() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -1911,10 +1843,6 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-reset-retry-attempts-on-update~1]
     #[tokio::test]
     async fn utest_workload_obj_run_retry_reset_retry_counter_on_update() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let _ = env_logger::builder().is_test(true).try_init();
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
@@ -2004,10 +1932,6 @@ mod tests {
     #[tokio::test]
     async fn utest_workload_obj_run_retry_create_correct_workload_on_two_updates() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
@@ -2097,10 +2021,6 @@ mod tests {
     #[tokio::test]
     async fn utest_resume_workload() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (state_change_tx, _state_change_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
         let (state_checker_workload_state_sender, state_checker_workload_state_receiver) =
@@ -2163,10 +2083,6 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-executes-resume~1]
     #[tokio::test]
     async fn utest_resume_workload_workload_id_and_state_checker_updated() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let _ = env_logger::builder().is_test(true).try_init();
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
@@ -2226,10 +2142,6 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-executes-resume~1]
     #[tokio::test]
     async fn utest_resume_workload_get_workload_id_fails() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let _ = env_logger::builder().is_test(true).try_init();
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
@@ -2273,10 +2185,6 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-executes-resume~1]
     #[tokio::test]
     async fn utest_resume_workload_start_state_checker_fails() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let _ = env_logger::builder().is_test(true).try_init();
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
@@ -2337,9 +2245,6 @@ mod tests {
     #[tokio::test]
     async fn utest_forward_received_workload_states_of_state_checker() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
@@ -2406,10 +2311,6 @@ mod tests {
     #[tokio::test]
     #[should_panic]
     async fn utest_panic_on_closed_workload_state_channel() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_state_forward_tx, mut workload_state_forward_rx) =
             mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
@@ -2457,9 +2358,6 @@ mod tests {
     #[tokio::test]
     async fn utest_restart_workload() {
         let _ = env_logger::builder().is_test(true).try_init();
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
 
         let (workload_command_sender, workload_command_receiver) = WorkloadCommandSender::new();
         let (workload_state_forward_tx, _workload_state_forward_rx) =
