@@ -209,21 +209,35 @@ impl WorkloadControlLoop {
 
     fn is_restart_required(workload_spec: &WorkloadSpec, workload_state: &WorkloadState) -> bool {
         // [impl->swdd~workload-control-loop-skips-restarts~1]
-        if !workload_spec
-            .instance_name
-            .eq(&workload_state.instance_name)
+        if Self::is_different_workload(&workload_spec.instance_name, &workload_state.instance_name)
         {
             return false;
         }
 
         // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
-        match workload_spec.restart_policy {
+        Self::match_execution_state_with_restart_policy(
+            &workload_state.execution_state,
+            &workload_spec.restart_policy,
+        )
+    }
+
+    // [impl->swdd~workload-control-loop-skips-restarts~1]
+    fn is_different_workload(
+        current_instance_name: &WorkloadInstanceName,
+        instance_name_of_workload_state: &WorkloadInstanceName,
+    ) -> bool {
+        !current_instance_name.eq(instance_name_of_workload_state)
+    }
+
+    // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
+    fn match_execution_state_with_restart_policy(
+        execution_state: &ExecutionState,
+        restart_policy: &RestartPolicy,
+    ) -> bool {
+        match restart_policy {
             RestartPolicy::Never => false,
-            RestartPolicy::OnFailure => workload_state.execution_state.is_failed(),
-            RestartPolicy::Always => {
-                workload_state.execution_state.is_failed()
-                    || workload_state.execution_state.is_succeeded()
-            }
+            RestartPolicy::OnFailure => execution_state.is_failed(),
+            RestartPolicy::Always => execution_state.is_failed() || execution_state.is_succeeded(),
         }
     }
 
