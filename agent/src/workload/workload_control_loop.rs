@@ -230,10 +230,10 @@ impl WorkloadControlLoop {
 
     // [impl->swdd~workload-control-loop-skips-restarts~1]
     fn is_same_workload(
-        current_instance_name: &WorkloadInstanceName,
-        instance_name_of_workload_state: &WorkloadInstanceName,
+        lhs_instance_name: &WorkloadInstanceName,
+        rhs_instance_name: &WorkloadInstanceName,
     ) -> bool {
-        current_instance_name.eq(instance_name_of_workload_state)
+        lhs_instance_name.eq(rhs_instance_name)
     }
 
     // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
