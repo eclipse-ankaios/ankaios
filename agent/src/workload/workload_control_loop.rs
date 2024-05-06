@@ -228,7 +228,6 @@ impl WorkloadControlLoop {
             )
     }
 
-    // [impl->swdd~workload-control-loop-skips-restarts~1]
     fn is_same_workload(
         lhs_instance_name: &WorkloadInstanceName,
         rhs_instance_name: &WorkloadInstanceName,
