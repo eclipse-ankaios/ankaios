@@ -2043,25 +2043,6 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let startup_state = test_utils::generate_test_complete_state(vec![
-            generate_test_workload_spec_with_param(
-                "agent_A".to_string(),
-                "name1".to_string(),
-                "runtime".to_string(),
-            ),
-            generate_test_workload_spec_with_param(
-                "agent_B".to_string(),
-                "name2".to_string(),
-                "runtime".to_string(),
-            ),
-            generate_test_workload_spec_with_param(
-                "agent_B".to_string(),
-                "name3".to_string(),
-                "runtime".to_string(),
-            ),
-        ]);
-
-        // The "run workload" command shall add one new workload to the startup state.
         let new_workload = StoredWorkloadSpec {
             agent: test_workload_agent.to_owned(),
             runtime: test_workload_runtime_name.clone(),
@@ -2072,26 +2053,18 @@ mod tests {
             runtime_config: test_workload_runtime_cfg.clone(),
             ..Default::default()
         };
-        let mut updated_state = startup_state.clone();
-        updated_state
+        let mut complete_state_update = CompleteState::default();
+        complete_state_update
             .desired_state
             .workloads
             .insert(test_workload_name.clone(), new_workload);
 
         let mut mock_client_builder = MockGRPCCommunicationClientBuilder::default();
         mock_client_builder.expect_receive_request(
-            "first_complete_state_request",
-            RequestContent::CompleteStateRequest(CompleteStateRequest { field_mask: vec![] }),
-        );
-        mock_client_builder.will_send_response(
-            "first_complete_state_request",
-            ResponseContent::CompleteState(Box::new(startup_state.clone())),
-        );
-        mock_client_builder.expect_receive_request(
             "update_state_request",
             RequestContent::UpdateStateRequest(Box::new(commands::UpdateStateRequest {
-                state: updated_state.clone(),
-                update_mask: vec!["desiredState".to_string()],
+                state: complete_state_update.clone(),
+                update_mask: vec!["desiredState.workloads.".to_string() + &test_workload_name],
             })),
         );
         mock_client_builder.will_send_response(
@@ -2102,12 +2075,12 @@ mod tests {
             }),
         );
         mock_client_builder.expect_receive_request(
-            "second_complete_state_request",
+            "wait_for_complete_complete_state_request",
             RequestContent::CompleteStateRequest(CompleteStateRequest { field_mask: vec![] }),
         );
         mock_client_builder.will_send_response(
-            "second_complete_state_request",
-            ResponseContent::CompleteState(Box::new(updated_state)),
+            "wait_for_complete_complete_state_request",
+            ResponseContent::CompleteState(Box::new(complete_state_update)),
         );
         mock_client_builder.will_send_message(FromServer::UpdateWorkloadState(
             UpdateWorkloadState {
