@@ -37,8 +37,8 @@ Test Ankaios restarts podman kube workloads with restart policy ALWAYS.
     # Actions
     When Ankaios server is started with config "${CONFIGS_DIR}/state_with_restart_policies.yaml"
     And Ankaios agent is started with name "agent_B"
-    And the workload "kube_restarted_always" shall have the execution state "Running(Ok)" on agent "agent_B"
+    And the workload "kube_restarted_always" shall have the execution state "Running(Ok)" on agent "agent_B" within "10" seconds
     # Asserts
     Then the workload "kube_restarted_always" shall have a different id but same configuration on the runtime
-    And the workload "kube_restarted_always" shall have the execution state "Running(Ok)" on agent "agent_B"
+    And the workload "kube_restarted_always" shall have the execution state "Running(Ok)" on agent "agent_B" within "10" seconds
     [Teardown]    Clean up Ankaios
