@@ -928,17 +928,20 @@ impl CliCommands {
         };
         output_debug!("Request to run new workload: {:?}", new_workload);
 
-        let res_complete_state = self.get_complete_state(&Vec::new()).await?;
-        output_debug!("Got current state: {:?}", res_complete_state);
-        let mut new_state = *res_complete_state.clone();
-        new_state
+        let mut complete_state_update = CompleteState::default();
+        complete_state_update
             .desired_state
             .workloads
-            .insert(workload_name, new_workload);
+            .insert(workload_name.clone(), new_workload);
 
-        let update_mask = vec!["desiredState".to_string()];
+        let update_mask = vec!["desiredState.workloads.".to_string() + &workload_name];
 
-        self.update_state_and_wait_for_complete(new_state, update_mask)
+        output_debug!(
+            "The complete state update: {:?}, update mask {:?}",
+            complete_state_update,
+            update_mask
+        );
+        self.update_state_and_wait_for_complete(complete_state_update, update_mask)
             .await
     }
 
