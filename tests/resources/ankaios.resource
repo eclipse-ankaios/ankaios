@@ -100,6 +100,7 @@ Ankaios server is started with config "${config_path}"
     ...    ${config_path}
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
     ...    env:RUST_LOG=debug
+    ...    alias=ank-server
     RETURN    ${server_process}
 
 Ankaios server is started with an invalid config "${config_path}"
@@ -124,6 +125,7 @@ Ankaios agent is started with name "${name}"
     ...    ${name}
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
     ...    env:RUST_LOG=debug
+    ...    alias=${name}
 
 Podman has deleted all existing containers
     Run Process    podman    rm    --all    --force    --time    2    timeout=20    shell=True
@@ -175,6 +177,7 @@ the workload "${workload_name}" shall have the execution state "${expected_execu
         @{list_result}=    Wait For Execution State
         ...    %{ANK_BIN_DIR}${/}ank get workloads
         ...    ${workload_name}
+        ...    ${expected_agent_name}
         ...    ${expected_execution_state}
         ...    ${timeout}
     END
@@ -316,6 +319,26 @@ podman shall not have a container for workload "${workload_name}" on agent "${ag
 list of workloads shall be empty
     @{list_result}=    Create List
     Should Be Empty    item=${list_result}
+
+the workload "${workload_name}" shall have a different id but same configuration on the runtime
+    ${id_changed}=    Set Variable    ${False}
+    ${start_time}=    Get Time Secs
+    ${workload_id}    ${ankaios_workload_name}    Get Workload Id And Ankaios Workload Name By Name From Podman    ${workload_name}
+    WHILE    True
+        ${next_workload_id}    ${next_ankaios_workload_name}    Get Workload Id And Ankaios Workload Name By Name From Podman    ${workload_name}
+        IF    '${workload_id}' == '' or '${ankaios_workload_name}' == ''
+            CONTINUE
+        END
+        ${current_secs}=    Get Time Secs
+        ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
+        IF    '${workload_id}' != '${next_workload_id}' and '${ankaios_workload_name}' == '${next_ankaios_workload_name}'
+            ${id_changed}=    Set Variable    ${True}
+            BREAK
+        END
+        IF    ${elapsed_secs} >= 10    BREAK
+    END
+
+    Should Be True    ${id_changed}    msg=Workload '${workload_name}' has the same id '${workload_id}' and the same configuration on podman!
 
 # ALIASES
 

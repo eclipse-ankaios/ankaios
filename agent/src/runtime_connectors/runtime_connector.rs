@@ -165,7 +165,6 @@ pub mod test {
         CreateWorkload(
             WorkloadSpec,
             Option<PathBuf>,
-            WorkloadStateSender,
             Result<(String, StubStateChecker), RuntimeError>,
         ),
         GetWorkloadId(WorkloadInstanceName, Result<String, RuntimeError>),
@@ -298,23 +297,21 @@ pub mod test {
             &self,
             runtime_workload_config: WorkloadSpec,
             control_interface_path: Option<PathBuf>,
-            update_state_tx: WorkloadStateSender,
+            _update_state_tx: WorkloadStateSender,
         ) -> Result<(String, StubStateChecker), RuntimeError> {
             match self.get_expected_call().await {
                 RuntimeCall::CreateWorkload(
                     expected_runtime_workload_config,
                     expected_control_interface_path,
-                    expected_update_state_tx,
                     result,
                 ) if expected_runtime_workload_config == runtime_workload_config
-                    && expected_control_interface_path == control_interface_path
-                    && expected_update_state_tx.same_channel(&update_state_tx) =>
+                    && expected_control_interface_path == control_interface_path =>
                 {
                     return result;
                 }
                 expected_call => {
                     self.unexpected_call().await;
-                    panic!("Unexpected create_workload call. Expected: '{expected_call:?}'\n\nGot: {runtime_workload_config:?}, {control_interface_path:?}, {update_state_tx:?}");
+                    panic!("Unexpected create_workload call. Expected: '{expected_call:?}'\n\nGot: {runtime_workload_config:?}, {control_interface_path:?}");
                 }
             }
         }

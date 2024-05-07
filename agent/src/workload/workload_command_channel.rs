@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 use crate::workload::WorkloadCommand;
-use common::objects::WorkloadSpec;
+use common::objects::{WorkloadInstanceName, WorkloadSpec};
 use std::path::PathBuf;
 use tokio::sync::mpsc;
 
@@ -36,29 +36,16 @@ impl WorkloadCommandSender {
         )
     }
 
-    pub async fn create(
-        &self,
-        workload_spec: WorkloadSpec,
-        control_interface_path: Option<PathBuf>,
-    ) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
-        self.sender
-            .send(WorkloadCommand::Create(
-                Box::new(workload_spec),
-                control_interface_path,
-            ))
-            .await
+    pub async fn create(&self) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
+        self.sender.send(WorkloadCommand::Create).await
     }
 
     pub async fn retry(
         &self,
-        workload_spec: WorkloadSpec,
-        control_interface_path: Option<PathBuf>,
+        instance_name: WorkloadInstanceName,
     ) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
         self.sender
-            .send(WorkloadCommand::Retry(
-                Box::new(workload_spec),
-                control_interface_path,
-            ))
+            .send(WorkloadCommand::Retry(Box::new(instance_name)))
             .await
     }
 
@@ -73,6 +60,10 @@ impl WorkloadCommandSender {
                 control_interface_path,
             ))
             .await
+    }
+
+    pub async fn resume(&self) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
+        self.sender.send(WorkloadCommand::Resume).await
     }
 
     pub async fn delete(self) -> Result<(), mpsc::error::SendError<WorkloadCommand>> {
@@ -107,16 +98,11 @@ mod tests {
     async fn utest_send_create() {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
-        workload_command_sender
-            .create(WORKLOAD_SPEC.clone(), CONTROL_INTERFACE_PATH.clone())
-            .await
-            .unwrap();
+        workload_command_sender.create().await.unwrap();
 
         let workload_command = workload_command_receiver.recv().await.unwrap();
 
-        assert!(
-            matches!(workload_command, WorkloadCommand::Create(workload_spec, control_interface_path) if workload_spec.instance_name == WORKLOAD_SPEC.instance_name && control_interface_path == *CONTROL_INTERFACE_PATH)
-        );
+        assert_eq!(workload_command, WorkloadCommand::Create);
     }
 
     // [utest->swdd~agent-workload-control-loop-executes-create~2]
@@ -125,14 +111,14 @@ mod tests {
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
         workload_command_sender
-            .retry(WORKLOAD_SPEC.clone(), CONTROL_INTERFACE_PATH.clone())
+            .retry(WORKLOAD_SPEC.instance_name.clone())
             .await
             .unwrap();
 
         let workload_command = workload_command_receiver.recv().await.unwrap();
 
         assert!(
-            matches!(workload_command, WorkloadCommand::Retry(workload_spec, control_interface_path) if workload_spec.instance_name == WORKLOAD_SPEC.instance_name && control_interface_path == *CONTROL_INTERFACE_PATH)
+            matches!(workload_command, WorkloadCommand::Retry(received_instance_name) if *received_instance_name == WORKLOAD_SPEC.instance_name)
         );
     }
 
@@ -167,5 +153,26 @@ mod tests {
         let workload_command = workload_command_receiver.recv().await.unwrap();
 
         assert!(matches!(workload_command, WorkloadCommand::Delete));
+    }
+
+    #[tokio::test]
+    async fn utest_send_resume() {
+        let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
+
+        workload_command_sender.resume().await.unwrap();
+
+        let workload_command = workload_command_receiver.recv().await;
+
+        assert_eq!(Some(WorkloadCommand::Resume), workload_command);
+    }
+
+    #[tokio::test]
+    async fn utest_send_resume_error() {
+        let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
+
+        // close the channel to simulate an error
+        workload_command_receiver.close();
+
+        assert!(workload_command_sender.resume().await.is_err());
     }
 }

@@ -46,7 +46,7 @@ Test Ankaios observes the inter-workload dependencies when creating workloads
     And the workload "storage_provider" shall have the execution state "Pending(WaitingToStart)" on agent "agent_B"
     And the workload "filesystem_init" shall have the execution state "Succeeded(Ok)" on agent "agent_B" within "20" seconds
     And the workload "storage_provider" shall have the execution state "Running(Ok)" on agent "agent_B"
-    And the workload "logger" shall have the execution state "Running(Ok)" on agent "agent_B"
+    And the workload "logger" shall have the execution state "Running(Ok)" on agent "agent_A"
     And the workload "storage_provider" shall have the execution state "Failed(ExecFailed)" on agent "agent_B"
     And the workload "error_notifier" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     [Teardown]    Clean up Ankaios
