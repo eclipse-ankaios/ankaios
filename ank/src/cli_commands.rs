@@ -888,27 +888,19 @@ impl CliCommands {
     // [impl->swdd~cli-provides-delete-workload~1]
     // [impl->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
     pub async fn delete_workloads(&mut self, workload_names: Vec<String>) -> Result<(), CliError> {
-        let complete_state = self.get_complete_state(&Vec::new()).await?;
+        let complete_state_update = CompleteState::default();
 
-        output_debug!("Got current state: {:?}", complete_state);
-        let mut new_state = complete_state.clone();
-        // Filter out workloads to be deleted.
-        new_state
-            .desired_state
-            .workloads
-            .retain(|k, _v| !workload_names.clone().into_iter().any(|wn| &wn == k));
+        let update_mask = workload_names
+            .into_iter()
+            .map(|x| String::from("desiredState.workloads.") + &x)
+            .collect();
 
-        // Filter out workload statuses of the workloads to be deleted.
-        // Only a nice-to-have, but it could be better to avoid sending misleading information
-        new_state.workload_states.retain(|ws| {
-            !workload_names
-                .clone()
-                .into_iter()
-                .any(|wn| wn == ws.instance_name.workload_name())
-        });
-
-        let update_mask = vec!["desiredState".to_string()];
-        self.update_state_and_wait_for_complete(*new_state, update_mask)
+        output_debug!(
+            "The complete state update {:?}, update mask {:?}",
+            complete_state_update,
+            update_mask
+        );
+        self.update_state_and_wait_for_complete(complete_state_update, update_mask)
             .await
     }
 
