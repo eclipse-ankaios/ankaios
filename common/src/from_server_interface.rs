@@ -32,7 +32,6 @@ impl From<SendError<FromServer>> for FromServerInterfaceError {
     }
 }
 
-// [impl->swdd~from-server-channel~1]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FromServer {
     UpdateWorkload(commands::UpdateWorkload),
@@ -41,6 +40,7 @@ pub enum FromServer {
     Stop(commands::Stop),
 }
 
+// [impl->swdd~from-server-channel~1]
 #[async_trait]
 pub trait FromServerInterface {
     async fn update_workload(
@@ -182,6 +182,7 @@ mod tests {
     const AGENT_NAME: &str = "agent_A";
     const REQUEST_ID: &str = "emkw489ejf89ml";
 
+    // [utest->swdd~from-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_update_workload() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
@@ -206,6 +207,7 @@ mod tests {
         )
     }
 
+    // [utest->swdd~from-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_update_workload_state() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
@@ -225,6 +227,7 @@ mod tests {
         )
     }
 
+    // [utest->swdd~from-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_complete_state() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
@@ -247,6 +250,7 @@ mod tests {
         )
     }
 
+    // [utest->swdd~from-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_update_state_success() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
@@ -277,6 +281,7 @@ mod tests {
         )
     }
 
+    // [utest->swdd~from-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_error() {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =

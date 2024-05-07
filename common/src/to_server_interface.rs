@@ -20,7 +20,6 @@ use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
 
-// [impl->swdd~to-server-channel~1]
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ToServer {
@@ -46,6 +45,7 @@ impl fmt::Display for ToServerError {
     }
 }
 
+// [impl->swdd~to-server-channel~1]
 #[async_trait]
 pub trait ToServerInterface {
     async fn agent_hello(&self, agent_name: String) -> Result<(), ToServerError>;
@@ -176,6 +176,7 @@ mod tests {
         )
     }
 
+    // [utest->swdd~to-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_agent_gone() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
@@ -191,6 +192,7 @@ mod tests {
         )
     }
 
+    // [utest->swdd~to-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_update_state() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
@@ -221,6 +223,7 @@ mod tests {
         )
     }
 
+    // [utest->swdd~to-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_update_workload_state() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
@@ -240,6 +243,7 @@ mod tests {
         )
     }
 
+    // [utest->swdd~to-server-channel~1]
     #[tokio::test]
     async fn utest_to_server_send_request_complete_state() {
         let (tx, mut rx): (ToServerSender, ToServerReceiver) =
