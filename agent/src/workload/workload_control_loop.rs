@@ -96,7 +96,9 @@ impl WorkloadControlLoop {
                     ).await;
 
                     // [impl->swdd~workload-control-loop-handles-workload-restarts~1]
-                    control_loop_state = Self::restart_if_workload_state_matches_restart_policy(control_loop_state, new_workload_state).await;
+                    if Self::is_restart_required(&control_loop_state.workload_spec, &new_workload_state) {
+                        control_loop_state = Self::restart_workload_on_runtime(control_loop_state).await;
+                    }
 
                     log::trace!("Restart handling done.");
                 }
@@ -172,21 +174,6 @@ impl WorkloadControlLoop {
         workload_state_sender
             .report_workload_execution_state(instance_name, execution_state)
             .await;
-    }
-
-    // [impl->swdd~workload-control-loop-handles-workload-restarts~1]
-    async fn restart_if_workload_state_matches_restart_policy<WorkloadId, StChecker>(
-        mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
-        new_workload_state: WorkloadState,
-    ) -> ControlLoopState<WorkloadId, StChecker>
-    where
-        WorkloadId: ToString + Send + Sync + 'static,
-        StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
-    {
-        if Self::is_restart_required(&control_loop_state.workload_spec, &new_workload_state) {
-            control_loop_state = Self::restart_workload_on_runtime(control_loop_state).await;
-        }
-        control_loop_state
     }
 
     async fn restart_workload_on_runtime<WorkloadId, StChecker>(
