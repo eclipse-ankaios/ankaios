@@ -58,6 +58,25 @@ pub struct PlayKubeOutput {}
 #[derive(Debug)]
 pub struct PlayKubeError {}
 
+impl PodmanKubeRuntime {
+    async fn workload_instance_names_to_workload_states(
+        &self,
+        workload_instance_names: &Vec<WorkloadInstanceName>,
+    ) -> Result<Vec<WorkloadState>, RuntimeError> {
+        let mut workload_states = Vec::<WorkloadState>::default();
+        for instance_name in workload_instance_names {
+            let execution_state = self
+                .get_state(&self.get_workload_id(instance_name).await?)
+                .await;
+            workload_states.push(WorkloadState {
+                instance_name: instance_name.clone(),
+                execution_state,
+            });
+        }
+        Ok(workload_states)
+    }
+}
+
 #[async_trait]
 // [impl->swdd~podman-kube-implements-runtime-connector~1]
 impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for PodmanKubeRuntime {
@@ -99,25 +118,27 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
                     }
                 })
                 .collect();
-        let mut workload_states = Vec::<WorkloadState>::default();
+        // let mut workload_states = Vec::<WorkloadState>::default();
 
-        for instance_name in workload_instance_names {
-            match PodmanCli::list_states_by_id(instance_name.id()).await {
-                Ok(Some(execution_state)) => workload_states.push(WorkloadState {
-                    instance_name,
-                    execution_state,
-                }),
-                Ok(None) => {
-                    return Err(RuntimeError::List(format!(
-                        "Could not get execution state for workload '{}'",
-                        instance_name
-                    )))
-                }
-                Err(err) => return Err(RuntimeError::List(err)),
-            }
-        }
+        // for instance_name in workload_instance_names {
+        //     match PodmanCli::list_states_by_id(instance_name.id()).await {
+        //         Ok(Some(execution_state)) => workload_states.push(WorkloadState {
+        //             instance_name,
+        //             execution_state,
+        //         }),
+        //         Ok(None) => {
+        //             return Err(RuntimeError::List(format!(
+        //                 "Could not get execution state for workload '{}'",
+        //                 instance_name
+        //             )))
+        //         }
+        //         Err(err) => return Err(RuntimeError::List(err)),
+        //     }
+        // }
 
-        Ok(workload_states)
+        // Ok(workload_states)
+        self.workload_instance_names_to_workload_states(&workload_instance_names)
+            .await
     }
 
     async fn create_workload(
@@ -501,14 +522,22 @@ mod tests {
             workload_instance.as_config_volume(),
         ]));
 
-        let context = PodmanCli::list_states_by_id_context();
-        context
+        mock_context
+            .read_data
             .expect()
-            .return_const(Ok(Some(ExecutionState::initial())));
+            .return_const(Ok(workload_instance.to_string()));
+
+        // let list_states_by_id_context = PodmanCli::list_states_by_id_context();
+        // list_states_by_id_context
+        mock_context
+            .list_states_from_pods
+            .expect()
+            .return_const(Ok(vec![ContainerState::Unknown]));
 
         let runtime = PodmanKubeRuntime {};
 
         let workloads = runtime.get_reusable_workloads(&SAMPLE_AGENT.into()).await;
+        println!("{:?}", workloads);
 
         assert!(
             matches!(workloads, Ok(res) if res.iter().map(|x| x.instance_name.clone()).collect::<Vec<WorkloadInstanceName>>() == [workload_instance.try_into().unwrap()])

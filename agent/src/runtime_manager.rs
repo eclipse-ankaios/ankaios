@@ -203,24 +203,26 @@ impl RuntimeManager {
         // [impl->swdd~agent-existing-workloads-finds-list~1]
         for (runtime_name, runtime) in &self.runtime_map {
             match runtime.get_reusable_workloads(&self.agent_name).await {
-                Ok(running_instance_names) => {
+                Ok(workload_states) => {
                     log::info!(
                         "Found '{}' reusable '{}' workload(s).",
-                        running_instance_names.len(),
+                        workload_states.len(),
                         runtime_name,
                     );
 
-                    for instance_name in running_instance_names {
+                    for workload_state in workload_states {
                         if let Some(new_workload_spec) = added_workloads_per_runtime
                             .get_mut(runtime_name)
-                            .and_then(|map| map.remove(instance_name.workload_name()))
+                            .and_then(|map| {
+                                map.remove(workload_state.instance_name.workload_name())
+                            })
                         {
                             let new_instance_name: WorkloadInstanceName =
                                 new_workload_spec.instance_name.clone();
 
                             // We have a running workload that matches a new added workload; check if the config is updated
                             // [impl->swdd~agent-stores-running-workload~1]
-                            if new_instance_name == instance_name {
+                            if new_instance_name == workload_state.instance_name {
                                 // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
                                 let control_interface = Self::create_control_interface(
                                     &self.run_folder,
@@ -245,16 +247,22 @@ impl RuntimeManager {
                                 // [impl->swdd~agent-existing-workloads-replace-updated~1]
 
                                 log::info!("Deleting existing workload '{}'. It is created when its dependencies are fulfilled.",
-                                    instance_name.workload_name()
+                                workload_state.instance_name.workload_name()
                                 );
 
-                                runtime.delete_workload(instance_name, &self.update_state_tx);
+                                runtime.delete_workload(
+                                    workload_state.instance_name,
+                                    &self.update_state_tx,
+                                );
                                 new_added_workloads.push(new_workload_spec);
                             }
                         } else {
                             // No added workload matches the found running one => delete it
                             // [impl->swdd~agent-existing-workloads-delete-unneeded~1]
-                            runtime.delete_workload(instance_name, &self.update_state_tx);
+                            runtime.delete_workload(
+                                workload_state.instance_name,
+                                &self.update_state_tx,
+                            );
                         }
                     }
                 }
@@ -796,7 +804,14 @@ mod tests {
         runtime_facade_mock
             .expect_get_reusable_workloads()
             .once()
-            .return_once(|_| Box::pin(async { Ok(vec![existing_workload_instance_name]) }));
+            .return_once(|_| {
+                Box::pin(async {
+                    Ok(vec![WorkloadState {
+                        instance_name: existing_workload_instance_name,
+                        ..Default::default()
+                    }])
+                })
+            });
 
         runtime_facade_mock
             .expect_resume_workload()
@@ -869,7 +884,14 @@ mod tests {
             .expect_get_reusable_workloads()
             .once()
             .in_sequence(&mut sequence)
-            .return_once(|_| Box::pin(async { Ok(vec![existing_workload_with_other_config]) }));
+            .return_once(|_| {
+                Box::pin(async {
+                    Ok(vec![WorkloadState {
+                        instance_name: existing_workload_with_other_config,
+                        ..Default::default()
+                    }])
+                })
+            });
 
         runtime_facade_mock
             .expect_delete_workload()
@@ -934,7 +956,12 @@ mod tests {
             .expect_get_reusable_workloads()
             .once()
             .return_once(|_| {
-                Box::pin(async move { Ok(vec![existing_workload_with_other_config]) })
+                Box::pin(async move {
+                    Ok(vec![WorkloadState {
+                        instance_name: existing_workload_with_other_config,
+                        ..Default::default()
+                    }])
+                })
             });
 
         runtime_facade_mock
@@ -1048,7 +1075,14 @@ mod tests {
         runtime_facade_mock
             .expect_get_reusable_workloads()
             .once()
-            .return_once(|_| Box::pin(async { Ok(vec![existing_workload_with_other_config]) }));
+            .return_once(|_| {
+                Box::pin(async {
+                    Ok(vec![WorkloadState {
+                        instance_name: existing_workload_with_other_config,
+                        ..Default::default()
+                    }])
+                })
+            });
 
         runtime_facade_mock
             .expect_delete_workload()

@@ -1,5 +1,7 @@
 use async_trait::async_trait;
-use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
+use common::objects::{
+    AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState,
+};
 #[cfg(test)]
 use mockall::automock;
 
@@ -25,7 +27,7 @@ pub trait RuntimeFacade: Send + Sync + 'static {
     async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadInstanceName>, RuntimeError>;
+    ) -> Result<Vec<WorkloadState>, RuntimeError>;
 
     fn create_workload(
         &self,
@@ -75,16 +77,17 @@ impl<
     async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadInstanceName>, RuntimeError> {
+    ) -> Result<Vec<WorkloadState>, RuntimeError> {
         log::debug!(
             "Searching for reusable '{}' workloads on agent '{}'.",
             self.runtime.name(),
             agent_name
         );
-        match self.runtime.get_reusable_workloads(agent_name).await {
-            Ok(res) => Ok(res.iter().map(|x| x.instance_name.clone()).collect()),
-            Err(err) => Err(err),
-        }
+        // match self.runtime.get_reusable_workloads(agent_name).await {
+        //     Ok(res) => Ok(res.iter().map(|x| x.instance_name.clone()).collect()),
+        //     Err(err) => Err(err),
+        // }
+        self.runtime.get_reusable_workloads(agent_name).await
     }
 
     // [impl->swdd~agent-create-workload~1]
@@ -322,7 +325,10 @@ mod tests {
             test_runtime_facade
                 .get_reusable_workloads(&AGENT_NAME.into())
                 .await
-                .unwrap(),
+                .unwrap()
+                .iter()
+                .map(|x| x.instance_name.clone())
+                .collect::<Vec<WorkloadInstanceName>>(),
             vec![workload_instance_name]
         );
 
