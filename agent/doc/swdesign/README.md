@@ -1362,7 +1362,7 @@ Comment:
 If the workload changed in the meantime, there is no need to restart it.
 
 Rationale:
-This prevents wrong restarts of workloads when a new workload state of the old workload is received during an update operation runs.
+This prevents unneeded restarts of workloads when a new workload state of the old workload is received after an update operation was performed.
 
 Tags:
 - WorkloadControlLoop
