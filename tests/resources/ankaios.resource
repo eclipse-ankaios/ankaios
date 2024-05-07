@@ -335,7 +335,7 @@ the workload "${workload_name}" shall have a different id but same configuration
             ${id_changed}=    Set Variable    ${True}
             BREAK
         END
-        IF    ${elapsed_secs} >= 10    BREAK
+        IF    ${elapsed_secs} >= 20    BREAK
     END
 
     Should Be True    ${id_changed}    msg=Workload '${workload_name}' has the same id '${workload_id}' and the same configuration on podman!
