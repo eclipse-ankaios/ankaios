@@ -395,7 +395,9 @@ impl From<OrderedExecutionState> for ExecutionState {
 // [utest->swdd~functions-required-by-runtime-connector~1]
 #[cfg(test)]
 mod tests {
-    use common::objects::generate_test_workload_spec_with_runtime_config;
+    use common::objects::{
+        generate_test_workload_spec_with_param, generate_test_workload_spec_with_runtime_config,
+    };
     use mockall::Sequence;
 
     use std::fmt::Display;
@@ -461,10 +463,18 @@ mod tests {
             workload_instance_2.as_config_volume(),
         ]));
 
-        let context = PodmanCli::list_states_by_id_context();
-        context
+        let mut workload_spec = generate_test_workload_spec_with_param(
+            "agent_A".to_string(),
+            "workload_2".to_string(),
+            PODMAN_KUBE_RUNTIME_NAME.to_string(),
+        );
+
+        workload_spec.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
+
+        mock_context
+            .read_data
             .expect()
-            .return_const(Ok(Some(ExecutionState::initial())));
+            .return_const(Ok(workload_spec.runtime_config));
 
         let runtime = PodmanKubeRuntime {};
 
@@ -492,16 +502,24 @@ mod tests {
         let invalid_workload_instance = "hash_1.agent_A";
         let workload_instance = "workload_2.hash_2.agent_A";
 
+        let mut workload_spec = generate_test_workload_spec_with_param(
+            "agent_A".to_string(),
+            "workload_2".to_string(),
+            PODMAN_KUBE_RUNTIME_NAME.to_string(),
+        );
+
+        workload_spec.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
+
         let mock_context = MockContext::new().await;
         mock_context.list_agent_config_volumes_returns(Ok(vec![
             invalid_workload_instance.as_config_volume(),
             workload_instance.as_config_volume(),
         ]));
 
-        let context = PodmanCli::list_states_by_id_context();
-        context
+        mock_context
+            .read_data
             .expect()
-            .return_const(Ok(Some(ExecutionState::initial())));
+            .return_const(Ok(workload_spec.runtime_config));
 
         let runtime = PodmanKubeRuntime {};
 
@@ -516,6 +534,14 @@ mod tests {
     async fn utest_get_reusable_workloads_handles_to_short_volume_name() {
         let workload_instance = "workload_2.hash_2.agent_A";
 
+        let mut workload_spec = generate_test_workload_spec_with_param(
+            "agent_A".to_string(),
+            "workload_2".to_string(),
+            PODMAN_KUBE_RUNTIME_NAME.to_string(),
+        );
+
+        workload_spec.runtime_config = SAMPLE_RUNTIME_CONFIG.to_string();
+
         let mock_context = MockContext::new().await;
         mock_context.list_agent_config_volumes_returns(Ok(vec![
             "config".into(),
@@ -525,7 +551,7 @@ mod tests {
         mock_context
             .read_data
             .expect()
-            .return_const(Ok(workload_instance.to_string()));
+            .return_const(Ok(workload_spec.runtime_config));
 
         // let list_states_by_id_context = PodmanCli::list_states_by_id_context();
         // list_states_by_id_context
