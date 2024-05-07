@@ -1341,7 +1341,7 @@ Needs:
 
 Status: approved
 
-When the WorkloadControlLoop receives a new workload state and the WorkloadControlLoop checks if the restart of the workload it manages is required, then the WorkloadControlLoop shall execute the restart of the workload it manages based on the result of the comparison
+When the WorkloadControlLoop receives a new workload state for a workload it manages and the WorkloadControlLoop detects that a restart of the workload is required according to its restart policy, then the WorkloadControlLoop shall execute the restart of the workload.
 
 Rationale:
 The execution of a restart of the workload depends on the workload state and the configured restart policy.
