@@ -91,6 +91,16 @@ pub enum RestartPolicy {
     Always,
 }
 
+impl std::fmt::Display for RestartPolicy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RestartPolicy::Never => write!(f, "Never"),
+            RestartPolicy::OnFailure => write!(f, "OnFailure"),
+            RestartPolicy::Always => write!(f, "Always"),
+        }
+    }
+}
+
 impl TryFrom<i32> for RestartPolicy {
     type Error = String;
 
@@ -449,5 +459,12 @@ mod tests {
                 "Received an unknown value '100' as restart policy.".to_string()
             )
         );
+    }
+
+    #[test]
+    fn utest_restart_display() {
+        assert_eq!(RestartPolicy::Never.to_string(), "Never");
+        assert_eq!(RestartPolicy::OnFailure.to_string(), "OnFailure");
+        assert_eq!(RestartPolicy::Always.to_string(), "Always");
     }
 }
