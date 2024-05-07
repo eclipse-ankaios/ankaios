@@ -1358,6 +1358,7 @@ Needs:
 
 When the WorkloadControlLoop handles a restart of a workload and the workload's current `WorkloadInstanceName` inside the WorkloadControlLoop differs from the `WorkloadInstanceName` inside the received workload state, then the WorkloadControlLoop shall skip the restart.
 
+Comment:
 If the workload changed in the meantime, there is no need to restart it.
 
 Rationale:
