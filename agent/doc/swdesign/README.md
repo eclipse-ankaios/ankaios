@@ -1382,7 +1382,7 @@ When the workload has not changed and:
 then the WorkloadControlLoop shall restart the workload.
 
 Comment:
-If the workload changed in the meantime, there is no need to restart it. In case of the restart policy is `NEVER` the workload is not restarted.
+In all other execution states and in case of the restart policy is `NEVER` the workload is not restarted.
 
 Rationale:
 The restart depends on the execution state of the workload.
