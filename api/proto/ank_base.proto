@@ -12,6 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+// [impl->swdd~ank-base-provides-object-definitions~1]
+
 syntax = "proto3";
 package ank_base;
 

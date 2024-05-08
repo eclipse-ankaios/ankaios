@@ -12,6 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+// [impl->swdd~control-api-provides-control-interface-definitions~1]
+
 /**
 * The Ankaios Control Interface is used in the communcation between a workload and Ankaios
 *

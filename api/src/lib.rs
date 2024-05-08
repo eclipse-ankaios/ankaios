@@ -14,11 +14,11 @@
 
 pub mod ank_base {
 
-    // [impl->swdd~grpc-delegate-workflow-to-external-library~1]
+    // [impl->swdd~ank-base-provides-object-definitions~1]
     tonic::include_proto!("ank_base"); // The string specified here must match the proto package name
 }
 
 pub mod control_api {
-    // TODO: trace reqs for the control interface
+    // [impl->swdd~control-api-provides-control-interface-definitions~1]
     tonic::include_proto!("control_api"); // The string specified here must match the proto package name
 }
