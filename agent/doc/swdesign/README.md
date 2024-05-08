@@ -582,7 +582,7 @@ Needs:
 
 Status: approved
 
-When handling existing workloads, for each found existing workload which is requested to be started and has unchanged configuration and the workload is operational, the RuntimeManager shall request the corresponding RuntimeFacade to resume the workload using a new control interface instance.
+When handling existing workloads, for each found existing workload which is requested to be started and has unchanged configuration and the workload is running, the RuntimeManager shall request the corresponding RuntimeFacade to resume the workload using a new control interface instance.
 
 Tags:
 - RuntimeManager
@@ -619,7 +619,7 @@ Needs:
 
 Status: approved
 
-When the agent handles existing workloads, for each found existing workload which is requested to be started and either the workload's configuration has changed or the workload is not operational, the RuntimeManager shall do the following:
+When the agent handles existing workloads, for each found existing workload which is requested to be started and either the workload's configuration has changed or the workload is not running, the RuntimeManager shall do the following:
 
 - request the RuntimeFacade to delete the existing workload
 - request the RuntimeFacade to create the workload
