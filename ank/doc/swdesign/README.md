@@ -553,7 +553,6 @@ Tags:
 - DeleteWorkload
 
 Needs:
-- swdd
 - impl
 - utest
 
