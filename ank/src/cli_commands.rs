@@ -1696,7 +1696,8 @@ mod tests {
         assert!(delete_result.is_ok());
     }
 
-    // [utest->swdd~no-delete-workloads-when-not-found~1]
+    // [utest->swdd~cli-provides-delete-workload~1]
+    // [utest->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
     #[tokio::test]
     async fn delete_workloads_unknown_workload() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
