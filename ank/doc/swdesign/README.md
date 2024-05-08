@@ -571,20 +571,6 @@ Needs:
 - impl
 - utest
 
-#### Do not send the request to delete workloads when they are not found
-`swdd~no-delete-workloads-when-not-found~1`
-
-Status: approved
-
-When the user invokes the CLI with a request to delete workloads and the CLI does not find the workloads in the current state, the CLI shall not send the request to delete workloads to the server.
-
-Tags:
-- DeleteWorkload
-
-Needs:
-- impl
-- utest
-
 ### `ank run workload`
 
 ![Run workload](plantuml/seq_run_workload.svg)
