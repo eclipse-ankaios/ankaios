@@ -29,7 +29,7 @@ Library             ankaios_library.py
 ${CURRENT_RESULT}       ${EMPTY}
 ${SERVER_PROCESS_HANDLE}       ${EMPTY}
 ${TEST_FOLDER_NAME}    ${EMPTY}
-
+&{PODMAN_RUNTIME_ANKAIOS_WORKLOAD_NAME_ID_MAPPING}
 
 *** Keywords ***
 Setup Ankaios
@@ -43,6 +43,7 @@ Clean up Ankaios
     Terminate All Processes    kill=True
     Clean up Podman
     Run Command    rm -rf %{ANKAIOS_TEMP}    timeout=20
+    Set Variable    ${PODMAN_RUNTIME_ANKAIOS_WORKLOAD_NAME_ID_MAPPING}    {}
 
 Clean up Podman
     Log    Clean up Podman
@@ -126,6 +127,16 @@ Ankaios agent is started with name "${name}"
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
     ...    env:RUST_LOG=debug
     ...    alias=${name}
+
+Ankaios server is terminated
+    Terminate Process    ank-server    kill=True
+    ${server_running}=    Is Process Running    ank-server
+    Should Not Be True    ${server_running}
+
+Ankaios agent with name "${name}" is terminated
+    Terminate Process    ${name}    kill=True
+    ${agent_running}=    Is Process Running    ${name}
+    Should Not Be True    ${agent_running}
 
 Podman has deleted all existing containers
     Run Process    podman    rm    --all    --force    --time    2    timeout=20    shell=True
@@ -276,6 +287,14 @@ volumes for "${workload_name}" shall not exist on "${agent_name}" within "${time
     ...    0
     ...    msg=Unexpected Volume '${workload_name}.{hash}.${agent_name}.{config|pods}' found in podman!
 
+podman shall have assigned an id for the workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
+    podman shall have a container for workload "${workload_name}" with custom name "" on agent "${agent_name}" within "${timeout}" seconds
+    ${workload_id}    ${ankaios_workload_name}    Get Workload Id And Ankaios Workload Name By Name From Podman    ${workload_name}
+    Should Not Be Empty    ${workload_id}    msg=Workload '${workload_name}' has no id assigned in podman!
+    Set To Dictionary    ${PODMAN_RUNTIME_ANKAIOS_WORKLOAD_NAME_ID_MAPPING}    ${ankaios_workload_name}=${workload_id}
+    Set Global Variable    ${PODMAN_RUNTIME_ANKAIOS_WORKLOAD_NAME_ID_MAPPING}
+    Log   PODMAN_RUNTIME_ANKAIOS_WORKLOAD_NAME_ID_MAPPING = '${PODMAN_RUNTIME_ANKAIOS_WORKLOAD_NAME_ID_MAPPING}'
+
 podman shall have a container for workload "${workload_name}" with custom name "${name}" on agent "${agent_name}" within "${timeout}" seconds
     ${start_time}=    Get Time Secs
     ${workload_names}=    Create List
@@ -298,6 +317,7 @@ podman shall have a container for workload "${workload_name}" with custom name "
     ...    ${workload_name_angent_name}
     ...    1
     ...    msg=Workload '${used_name}' on agent '${agent_name}' not found in podman!
+    Log    Workload '${used_name}' on agent '${agent_name}' found in podman, found workloads: '${workload_names}'!
 
 podman shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
     ${start_time}=    Get Time Secs
@@ -323,19 +343,21 @@ list of workloads shall be empty
 the workload "${workload_name}" shall have a different id but same configuration on the runtime
     ${id_changed}=    Set Variable    ${False}
     ${start_time}=    Get Time Secs
-    ${workload_id}    ${ankaios_workload_name}    Get Workload Id And Ankaios Workload Name By Name From Podman    ${workload_name}
     WHILE    True
-        ${next_workload_id}    ${next_ankaios_workload_name}    Get Workload Id And Ankaios Workload Name By Name From Podman    ${workload_name}
-        IF    '${workload_id}' == '' or '${ankaios_workload_name}' == ''
-            CONTINUE
-        END
         ${current_secs}=    Get Time Secs
         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
-        IF    '${workload_id}' != '${next_workload_id}' and '${ankaios_workload_name}' == '${next_ankaios_workload_name}'
+        IF    ${elapsed_secs} >= 20    BREAK
+        ${current_workload_id}    ${ankaios_workload_name}    Get Workload Id And Ankaios Workload Name By Name From Podman    ${workload_name}
+        IF    '${current_workload_id}' == '' or '${ankaios_workload_name}' == ''
+            CONTINUE
+        END
+
+        ${workload_id}=    Get From Dictionary    ${PODMAN_RUNTIME_ANKAIOS_WORKLOAD_NAME_ID_MAPPING}    ${ankaios_workload_name}
+
+        IF    '${current_workload_id}' != '${workload_id}'
             ${id_changed}=    Set Variable    ${True}
             BREAK
         END
-        IF    ${elapsed_secs} >= 20    BREAK
     END
 
     Should Be True    ${id_changed}    msg=Workload '${workload_name}' has the same id '${workload_id}' and the same configuration on podman!
@@ -371,6 +393,9 @@ podman shall have a container for workload "${workload_name}" with custom name "
 
 podman shall not have a container for workload "${workload_name}" on agent "${agent_name}"
     podman shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "1" seconds
+
+podman has assigned an id for the workload "${workload_name}" on agent "${agent_name}"
+    podman shall have assigned an id for the workload "${workload_name}" on agent "${agent_name}" within "10" seconds
 
 the last command shall finish with an error
     the last command finished with an error

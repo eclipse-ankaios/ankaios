@@ -93,10 +93,12 @@ def get_volume_names_from_podman():
     return vol_names
 
 def get_workload_id_and_ankaios_workload_name_by_name_from_podman(workload_name):
-    res = run_command('podman ps -a --no-trunc --format="{{{{.ID}}}} {{{{.Names}}}}" --filter=name={}.*'.format(workload_name))
+    CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START = "^"
+    EXPLICIT_DOT_IN_REGEX = "\\\\."
+    res = run_command('podman ps -a --no-trunc --format="{{{{.ID}}}} {{{{.Names}}}}" --filter=name={}{}{}.*'.format(CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, workload_name, EXPLICIT_DOT_IN_REGEX))
     raw = res.stdout.strip()
     raw_wln = raw.split('\n')
-    workload_ids_and_names = list(map(lambda x: x.split(' '), raw_wln)) # 2-dim [[name,id],[name,id],...]
+    workload_ids_and_names = list(map(lambda x: x.split(' '), raw_wln)) # 2-dim [[id,name],[id,name],...]
     logger.trace(workload_ids_and_names)
     amount_of_rows = len(workload_ids_and_names)
     expected_amount_of_rows = 1
@@ -106,7 +108,7 @@ def get_workload_id_and_ankaios_workload_name_by_name_from_podman(workload_name)
     expected_amount_of_columns = 2
     if amount_of_columns < expected_amount_of_columns:
         return "", ""
-    # return name and id
+    # return id and name
     return workload_ids_and_names[0][0], workload_ids_and_names[0][1]
 
 def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_in_sec=0.25):
