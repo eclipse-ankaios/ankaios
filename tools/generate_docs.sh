@@ -23,7 +23,7 @@ mkdir -p "$base_dir/build/"
 rm -rf "$target_dir"
 echo "Generate Markdown from ./api/proto/* ..."
 cp "$base_dir/doc/" "$target_dir" -rul
-protoc --plugin=protoc-gen-doc="/usr/local/bin/protoc-gen-doc" --doc_out="$target_dir/docs/reference" --doc_opt=markdown,_ankaios.proto.md --proto_path="$base_dir/api/proto" ank_base.proto control_api.proto
+protoc --plugin=protoc-gen-doc="/usr/local/bin/protoc-gen-doc" --doc_out="$target_dir/docs/reference" --doc_opt=markdown,_ankaios.proto.md --proto_path="$base_dir/api/proto" control_api.proto ank_base.proto
 echo "Generate Markdown from ./api/proto/ankaios.proto done."
 
 if [[ "$1" = serve ]]; then
