@@ -1629,7 +1629,7 @@ mod tests {
         mock_client_builder.expect_receive_request(
             "update_state_request",
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state_update,
+                state: complete_state_update.clone(),
                 update_mask: vec![
                     "desiredState.workloads.name1".to_string(),
                     "desiredState.workloads.name2".to_string(),
@@ -1640,9 +1640,41 @@ mod tests {
             "update_state_request",
             ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
                 added_workloads: vec![],
-                deleted_workloads: vec![],
+                deleted_workloads: vec![
+                    "name1.abc.agent_B".to_string(),
+                    "name2.abc.agent_B".to_string(),
+                ],
             }),
         );
+        // mock wait_for_complete
+        mock_client_builder.expect_receive_request(
+            "wait_for_complete_complete_state_request",
+            RequestContent::CompleteStateRequest(CompleteStateRequest { field_mask: vec![] }),
+        );
+        mock_client_builder.will_send_response(
+            "wait_for_complete_complete_state_request",
+            ResponseContent::CompleteState(Box::new(complete_state_update)),
+        );
+        mock_client_builder.will_send_message(FromServer::UpdateWorkloadState(
+            UpdateWorkloadState {
+                workload_states: vec![
+                    WorkloadState {
+                        instance_name: "name1.abc.agent_B".try_into().unwrap(),
+                        execution_state: ExecutionState {
+                            state: objects::ExecutionStateEnum::Removed,
+                            additional_info: "".to_string(),
+                        },
+                    },
+                    WorkloadState {
+                        instance_name: "name2.abc.agent_B".try_into().unwrap(),
+                        execution_state: ExecutionState {
+                            state: objects::ExecutionStateEnum::Removed,
+                            additional_info: "".to_string(),
+                        },
+                    },
+                ],
+            },
+        ));
 
         let mock_client = mock_client_builder.build();
 
