@@ -7,7 +7,7 @@ If there is a need to include additional items in the dev container, please note
 
 * A docker container which derives from the base image mentioned above is specified in `.devcontainer/Dockerfile` (so don't forget to reference your new version there once you build one).
 
-If you want to add some additional tools, you can initially do it in `.devcontainer/Dockerfile`, but later on they need to be pulled in the base image at some point in order to speed up the initial dev container build.
+If you want to add some additional tools, you can initially do it in `.devcontainer/Dockerfile`, but later on they need to be pulled in the base image in order to speed up the initial dev container build.
 
 ## Build the base container
 
@@ -27,11 +27,11 @@ Build the base container by running the following commands outside of the dev co
 # the following steps might be necessary:
 docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
 
-# Create and use a new builder. This needs top be called only once:
+# Create and use a new builder. This needs to be called only once:
 docker buildx create --name mybuilder --driver docker-container --bootstrap
 docker buildx use mybuilder
 
-# Now build new base image for the dev container
+# Now build the new base image for the dev container
 cd .devcontainer
 docker buildx build -t ghcr.io/eclipse-ankaios/devcontainer-base:<version> --platform linux/amd64,linux/arm64 -f Dockerfile.base .
 ```
@@ -51,7 +51,7 @@ Due to the emulation for the non-host architecture, the previous multiplatform b
 An alternative is to build the two images separately on different hosts matching the target architecture.
 For arm64 for example cloud instances with ARM architecture (like AWS Graviton) can be used.
 
-To build the base image like that perform the following steps:
+To build the base image this way, perform the following steps:
 
 ```shell
 # On arm64 host: Build arm64 image
