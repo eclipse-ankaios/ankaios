@@ -253,11 +253,9 @@ impl RuntimeManager {
                                 workload_state.instance_name.workload_name()
                                 );
 
-                                const NOTIFY_WORKLOAD_STATES: bool = false;
                                 runtime.delete_workload(
                                     workload_state.instance_name,
                                     &self.update_state_tx,
-                                    NOTIFY_WORKLOAD_STATES,
                                 );
                                 new_added_workloads.push(new_workload_spec);
                             }
