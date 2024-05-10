@@ -87,10 +87,6 @@ impl<
             self.runtime.name(),
             agent_name
         );
-        // match self.runtime.get_reusable_workloads(agent_name).await {
-        //     Ok(res) => Ok(res.iter().map(|x| x.instance_name.clone()).collect()),
-        //     Err(err) => Err(err),
-        // }
         self.runtime.get_reusable_workloads(agent_name).await
     }
 

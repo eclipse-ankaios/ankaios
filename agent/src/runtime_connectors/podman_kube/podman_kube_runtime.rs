@@ -118,25 +118,7 @@ impl RuntimeConnector<PodmanKubeWorkloadId, GenericPollingStateChecker> for Podm
                     }
                 })
                 .collect();
-        // let mut workload_states = Vec::<WorkloadState>::default();
 
-        // for instance_name in workload_instance_names {
-        //     match PodmanCli::list_states_by_id(instance_name.id()).await {
-        //         Ok(Some(execution_state)) => workload_states.push(WorkloadState {
-        //             instance_name,
-        //             execution_state,
-        //         }),
-        //         Ok(None) => {
-        //             return Err(RuntimeError::List(format!(
-        //                 "Could not get execution state for workload '{}'",
-        //                 instance_name
-        //             )))
-        //         }
-        //         Err(err) => return Err(RuntimeError::List(err)),
-        //     }
-        // }
-
-        // Ok(workload_states)
         self.workload_instance_names_to_workload_states(&workload_instance_names)
             .await
     }
