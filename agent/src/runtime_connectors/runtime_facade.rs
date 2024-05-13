@@ -543,6 +543,48 @@ mod tests {
 
     // [utest->swdd~agent-delete-old-workload~2]
     #[tokio::test]
+    async fn utest_runtime_facade_delete_workload_without_sending_workload_states() {
+        let mut runtime_mock = MockRuntimeConnector::new();
+
+        let (wl_state_sender, mut wl_state_receiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
+
+        let workload_instance_name = WorkloadInstanceName::builder()
+            .workload_name(WORKLOAD_1_NAME)
+            .build();
+
+        runtime_mock
+            .expect(vec![
+                RuntimeCall::GetWorkloadId(
+                    workload_instance_name.clone(),
+                    Ok(WORKLOAD_ID.to_string()),
+                ),
+                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
+            ])
+            .await;
+
+        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
+            Box::new(runtime_mock.clone());
+        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
+            ownable_runtime_mock,
+        ));
+
+        let send_workload_states = false;
+        test_runtime_facade.delete_workload(
+            workload_instance_name.clone(),
+            &wl_state_sender,
+            send_workload_states,
+        );
+
+        tokio::task::yield_now().await;
+
+        assert!(wl_state_receiver.try_recv().is_err());
+
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    // [utest->swdd~agent-delete-old-workload~2]
+    #[tokio::test]
     async fn utest_runtime_facade_delete_workload_failed() {
         let mut runtime_mock = MockRuntimeConnector::new();
 
