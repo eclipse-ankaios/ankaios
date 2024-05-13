@@ -21,6 +21,8 @@ from robot.api import logger
 
 import re
 list_pattern = re.compile("^[\"|\']*\[.*\][\"|\']*$")
+CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START = "^"
+EXPLICIT_DOT_IN_REGEX = "\\\\."
 
 def run_command(command, timeout=3):
     try:
@@ -92,24 +94,44 @@ def get_volume_names_from_podman():
     logger.trace(vol_names)
     return vol_names
 
-def get_workload_id_and_ankaios_workload_name_by_name_from_podman(workload_name):
-    CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START = "^"
-    EXPLICIT_DOT_IN_REGEX = "\\\\."
+def get_volume_name_by_workload_name_from_podman(workload_name):
+    res = run_command('podman volume ls --format "{{{{.Name}}}}" --filter name={}{}{}.*{}pods'.format(CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, workload_name, EXPLICIT_DOT_IN_REGEX, EXPLICIT_DOT_IN_REGEX))
+    volume_name = res.stdout.strip()
+    logger.trace(volume_name)
+    return volume_name
+
+def get_container_id_and_name_by_workload_name_from_podman(workload_name):
     res = run_command('podman ps -a --no-trunc --format="{{{{.ID}}}} {{{{.Names}}}}" --filter=name={}{}{}.*'.format(CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, workload_name, EXPLICIT_DOT_IN_REGEX))
     raw = res.stdout.strip()
     raw_wln = raw.split('\n')
-    workload_ids_and_names = list(map(lambda x: x.split(' '), raw_wln)) # 2-dim [[id,name],[id,name],...]
-    logger.trace(workload_ids_and_names)
-    amount_of_rows = len(workload_ids_and_names)
+    container_ids_and_names = list(map(lambda x: x.split(' '), raw_wln)) # 2-dim [[id,name],[id,name],...]
+    logger.trace(container_ids_and_names)
+    amount_of_rows = len(container_ids_and_names)
     expected_amount_of_rows = 1
     assert amount_of_rows == expected_amount_of_rows, \
         f"Expected {expected_amount_of_rows} row for workload name {workload_name} but found {amount_of_rows} rows"
-    amount_of_columns = len(workload_ids_and_names[0])
+    amount_of_columns = len(container_ids_and_names[0])
     expected_amount_of_columns = 2
     if amount_of_columns < expected_amount_of_columns:
         return "", ""
-    # return id and name
-    return workload_ids_and_names[0][0], workload_ids_and_names[0][1]
+
+    container_id = container_ids_and_names[0][0]
+    container_name = container_ids_and_names[0][1]
+
+    return container_id, container_name
+
+def get_pod_id_by_workload_name_from_podman(workload_name):
+    res = run_command('podman pod ls --no-trunc --format="{{{{.ID}}}}" --filter=name={}{}'.format(CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, workload_name))
+    raw = res.stdout.strip()
+    pod_ids = raw.split('\n')
+    logger.trace(pod_ids)
+    amount_of_rows = len(pod_ids)
+    expected_amount_of_rows = 1
+    assert amount_of_rows == expected_amount_of_rows, \
+        f"Expected {expected_amount_of_rows} row for pod name {workload_name} but found {amount_of_rows} rows"
+
+    pod_id = pod_ids[0]
+    return pod_id
 
 def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_in_sec=0.25):
         start_time = get_time_secs()

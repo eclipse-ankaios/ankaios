@@ -29,7 +29,7 @@ Library             ankaios_library.py
 ${CURRENT_RESULT}       ${EMPTY}
 ${SERVER_PROCESS_HANDLE}       ${EMPTY}
 ${TEST_FOLDER_NAME}    ${EMPTY}
-&{PODMAN_RUNTIME_ANKAIOS_WORKLOAD_NAME_ID_MAPPING}
+&{PODMAN_CONTAINER_NAME_ID_MAPPING}
 
 *** Keywords ***
 Setup Ankaios
@@ -43,7 +43,7 @@ Clean up Ankaios
     Terminate All Processes    kill=True
     Clean up Podman
     Run Command    rm -rf %{ANKAIOS_TEMP}    timeout=20
-    Set Variable    ${PODMAN_RUNTIME_ANKAIOS_WORKLOAD_NAME_ID_MAPPING}    {}
+    Set Variable    ${PODMAN_CONTAINER_NAME_ID_MAPPING}    {}
 
 Clean up Podman
     Log    Clean up Podman
@@ -287,13 +287,23 @@ volumes for "${workload_name}" shall not exist on "${agent_name}" within "${time
     ...    0
     ...    msg=Unexpected Volume '${workload_name}.{hash}.${agent_name}.{config|pods}' found in podman!
 
-podman shall have assigned an id for the workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
+podman shall have assigned a container id for workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
     podman shall have a container for workload "${workload_name}" with custom name "" on agent "${agent_name}" within "${timeout}" seconds
-    ${workload_id}    ${ankaios_workload_name}    Get Workload Id And Ankaios Workload Name By Name From Podman    ${workload_name}
-    Should Not Be Empty    ${workload_id}    msg=Workload '${workload_name}' has no id assigned in podman!
-    Set To Dictionary    ${PODMAN_RUNTIME_ANKAIOS_WORKLOAD_NAME_ID_MAPPING}    ${ankaios_workload_name}=${workload_id}
-    Set Global Variable    ${PODMAN_RUNTIME_ANKAIOS_WORKLOAD_NAME_ID_MAPPING}
-    Log   PODMAN_RUNTIME_ANKAIOS_WORKLOAD_NAME_ID_MAPPING = '${PODMAN_RUNTIME_ANKAIOS_WORKLOAD_NAME_ID_MAPPING}'
+    ${container_id}    ${container_name}    Get Container Id And Name By Workload Name From Podman    ${workload_name}
+    Should Not Be Empty    ${container_id}    msg=Workload '${workload_name}' has no id assigned in podman!
+    Set To Dictionary    ${PODMAN_CONTAINER_NAME_ID_MAPPING}    ${container_name}=${container_id}
+    Set Global Variable    ${PODMAN_CONTAINER_NAME_ID_MAPPING}
+    Log   PODMAN_CONTAINER_NAME_ID_MAPPING = '${PODMAN_CONTAINER_NAME_ID_MAPPING}'
+
+podman kube shall have assigned a pod id for workload "${workload_name}" on agent "${agent_name}" within "${timeout}" seconds
+    volumes for "${workload_name}" shall exist on "${agent_name}" within "${timeout}" seconds
+    ${pod_id}=    Get Pod Id By Workload Name From Podman    ${workload_name}
+    Should Not Be Empty    ${pod_id}    msg=Received no pod id for workload '${workload_name}'!
+    ${volume_name}=    Get Volume Name By Workload Name From Podman   ${workload_name}
+    Should Not Be Empty    ${volume_name}    msg=Received no volume name for workload '${workload_name}'!
+    Set To Dictionary    ${PODMAN_CONTAINER_NAME_ID_MAPPING}    ${volume_name}=${pod_id}
+    Set Global Variable    ${PODMAN_CONTAINER_NAME_ID_MAPPING}
+    Log   PODMAN_CONTAINER_NAME_ID_MAPPING = '${PODMAN_CONTAINER_NAME_ID_MAPPING}'
 
 podman shall have a container for workload "${workload_name}" with custom name "${name}" on agent "${agent_name}" within "${timeout}" seconds
     ${start_time}=    Get Time Secs
@@ -340,19 +350,19 @@ list of workloads shall be empty
     @{list_result}=    Create List
     Should Be Empty    item=${list_result}
 
-the workload "${workload_name}" shall have a different id but same configuration on the runtime
+the container of workload "${workload_name}" shall have a different id but same configuration on the podman runtime
     ${id_changed}=    Set Variable    ${False}
     ${start_time}=    Get Time Secs
     WHILE    True
         ${current_secs}=    Get Time Secs
         ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
         IF    ${elapsed_secs} >= 20    BREAK
-        ${current_workload_id}    ${ankaios_workload_name}    Get Workload Id And Ankaios Workload Name By Name From Podman    ${workload_name}
-        IF    '${current_workload_id}' == '' or '${ankaios_workload_name}' == ''
+        ${current_workload_id}    ${current_container_name}    Get Container Id And Name By Workload Name From Podman    ${workload_name}
+        IF    '${current_workload_id}' == '' or '${current_container_name}' == ''
             CONTINUE
         END
 
-        ${workload_id}=    Get From Dictionary    ${PODMAN_RUNTIME_ANKAIOS_WORKLOAD_NAME_ID_MAPPING}    ${ankaios_workload_name}
+        ${workload_id}=    Get From Dictionary    ${PODMAN_CONTAINER_NAME_ID_MAPPING}    ${current_container_name}
 
         IF    '${current_workload_id}' != '${workload_id}'
             ${id_changed}=    Set Variable    ${True}
@@ -361,6 +371,29 @@ the workload "${workload_name}" shall have a different id but same configuration
     END
 
     Should Be True    ${id_changed}    msg=Workload '${workload_name}' has the same id '${workload_id}' and the same configuration on podman!
+
+the pod of workload "${workload_name}" shall have a different id but same configuration on the podman kube runtime
+    ${id_changed}=    Set Variable    ${False}
+    ${start_time}=    Get Time Secs
+    WHILE    True
+        ${current_secs}=    Get Time Secs
+        ${elapsed_secs}=    Evaluate    ${current_secs} - ${start_time}
+        IF    ${elapsed_secs} >= 20    BREAK
+        ${current_pod_id}=    Get Pod Id By Workload Name From Podman    ${workload_name}
+        ${current_volume_name}=    Get Volume Name By Workload Name From Podman    ${workload_name}
+        IF    '${current_pod_id}' == '' or '${current_volume_name}' == ''
+            CONTINUE
+        END
+
+        ${pod_id}=    Get From Dictionary    ${PODMAN_CONTAINER_NAME_ID_MAPPING}    ${current_volume_name}
+
+        IF    '${current_pod_id}' != '${pod_id}'
+            ${id_changed}=    Set Variable    ${True}
+            BREAK
+        END
+    END
+
+    Should Be True    ${id_changed}    msg=Pod 'Workload ${workload_name}' has the same pod id '${pod_id}' and the same configuration on podman kube runtime!
 
 # ALIASES
 
@@ -394,8 +427,11 @@ podman shall have a container for workload "${workload_name}" with custom name "
 podman shall not have a container for workload "${workload_name}" on agent "${agent_name}"
     podman shall not have a container for workload "${workload_name}" on agent "${agent_name}" within "1" seconds
 
-podman has assigned an id for the workload "${workload_name}" on agent "${agent_name}"
-    podman shall have assigned an id for the workload "${workload_name}" on agent "${agent_name}" within "10" seconds
+podman has assigned a container id for workload "${workload_name}" on agent "${agent_name}"
+    podman shall have assigned a container id for workload "${workload_name}" on agent "${agent_name}" within "10" seconds
+
+podman kube has assigned a pod id for workload "${workload_name}" on agent "${agent_name}"
+    podman kube shall have assigned a pod id for workload "${workload_name}" on agent "${agent_name}" within "10" seconds
 
 the last command shall finish with an error
     the last command finished with an error

@@ -28,17 +28,17 @@ ${new_state_yaml_file}          ${EMPTY}
 
 *** Test Cases ***
 # [stest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
-# Test Ankaios restarts podman kube workloads with restart policy ALWAYS.
-#     [Documentation]    Restart workloads with restart policy set to ALWAYS on runtime podman-kube
-#     [Setup]    Run Keywords    Setup Ankaios
-#     # Preconditions
-#     # This test assumes that all containers in the podman have been created with this test -> clean it up first
-#     Given Podman has deleted all existing containers
-#     # Actions
-#     When Ankaios server is started with config "${CONFIGS_DIR}/state_with_restart_policies.yaml"
-#     And Ankaios agent is started with name "agent_B"
-#     And podman has assigned an id for the workload "kube_restarted_always" on agent "agent_B"
-#     # Asserts
-#     Then the workload "kube_restarted_always" shall have a different id but same configuration on the runtime
-#     And the workload "kube_restarted_always" shall have the execution state "Running(Ok)" on agent "agent_B" within "10" seconds
-#     [Teardown]    Clean up Ankaios
+Test Ankaios restarts podman kube workloads with restart policy ALWAYS.
+    [Documentation]    Restart workloads with restart policy set to ALWAYS on runtime podman-kube
+    [Setup]    Run Keywords    Setup Ankaios
+    # Preconditions
+    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    # Actions
+    When Ankaios server is started with config "${CONFIGS_DIR}/state_with_restart_policies.yaml"
+    And Ankaios agent is started with name "agent_B"
+    And podman kube has assigned a pod id for workload "kube_restarted_always" on agent "agent_B"
+    # Asserts
+    Then the pod of workload "kube_restarted_always" shall have a different id but same configuration on the podman kube runtime
+    And the workload "kube_restarted_always" shall have the execution state "Running(Ok)" on agent "agent_B" within "10" seconds
+    [Teardown]    Clean up Ankaios
