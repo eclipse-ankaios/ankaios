@@ -253,18 +253,22 @@ impl RuntimeManager {
                                 workload_state.instance_name.workload_name()
                                 );
 
+                                const SEND_WORKLOAD_STATES: bool = false;
                                 runtime.delete_workload(
                                     workload_state.instance_name,
                                     &self.update_state_tx,
+                                    SEND_WORKLOAD_STATES,
                                 );
                                 new_added_workloads.push(new_workload_spec);
                             }
                         } else {
                             // No added workload matches the found running one => delete it
                             // [impl->swdd~agent-existing-workloads-delete-unneeded~1]
+                            const SEND_WORKLOAD_STATES: bool = true;
                             runtime.delete_workload(
                                 workload_state.instance_name,
                                 &self.update_state_tx,
+                                SEND_WORKLOAD_STATES,
                             );
                         }
                     }

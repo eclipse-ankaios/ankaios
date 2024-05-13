@@ -51,6 +51,7 @@ pub trait RuntimeFacade: Send + Sync + 'static {
         &self,
         instance_name: WorkloadInstanceName,
         update_state_tx: &WorkloadStateSender,
+        send_workload_states: bool,
     );
 }
 
@@ -127,8 +128,14 @@ impl<
         &self,
         instance_name: WorkloadInstanceName,
         update_state_tx: &WorkloadStateSender,
+        send_workload_states: bool,
     ) {
-        let _task_handle = Self::delete_workload_non_blocking(self, instance_name, update_state_tx);
+        let _task_handle = Self::delete_workload_non_blocking(
+            self,
+            instance_name,
+            update_state_tx,
+            send_workload_states,
+        );
     }
 }
 
@@ -246,6 +253,7 @@ impl<
         &self,
         instance_name: WorkloadInstanceName,
         update_state_tx: &WorkloadStateSender,
+        send_workload_states: bool,
     ) -> JoinHandle<()> {
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
@@ -258,31 +266,36 @@ impl<
         );
 
         tokio::spawn(async move {
-            update_state_tx
-                .report_workload_execution_state(
-                    &instance_name,
-                    ExecutionState::stopping_requested(),
-                )
-                .await;
+            if send_workload_states {
+                update_state_tx
+                    .report_workload_execution_state(
+                        &instance_name,
+                        ExecutionState::stopping_requested(),
+                    )
+                    .await;
+            }
 
             if let Ok(id) = runtime.get_workload_id(&instance_name).await {
                 if let Err(err) = runtime.delete_workload(&id).await {
-                    update_state_tx
-                        .report_workload_execution_state(
-                            &instance_name,
-                            ExecutionState::delete_failed(err),
-                        )
-                        .await;
-
+                    if send_workload_states {
+                        update_state_tx
+                            .report_workload_execution_state(
+                                &instance_name,
+                                ExecutionState::delete_failed(err),
+                            )
+                            .await;
+                    }
                     return; // The early exit is needed to skip sending the removed message.
                 }
             } else {
                 log::debug!("Workload '{}' already gone.", instance_name);
             }
 
-            update_state_tx
-                .report_workload_execution_state(&instance_name, ExecutionState::removed())
-                .await;
+            if send_workload_states {
+                update_state_tx
+                    .report_workload_execution_state(&instance_name, ExecutionState::removed())
+                    .await;
+            }
         })
     }
 }
@@ -504,7 +517,12 @@ mod tests {
             ownable_runtime_mock,
         ));
 
-        test_runtime_facade.delete_workload(workload_instance_name.clone(), &wl_state_sender);
+        let send_workload_states = true;
+        test_runtime_facade.delete_workload(
+            workload_instance_name.clone(),
+            &wl_state_sender,
+            send_workload_states,
+        );
 
         tokio::task::yield_now().await;
 
@@ -556,7 +574,12 @@ mod tests {
             ownable_runtime_mock,
         ));
 
-        test_runtime_facade.delete_workload(workload_instance_name.clone(), &wl_state_sender);
+        let send_workload_states = true;
+        test_runtime_facade.delete_workload(
+            workload_instance_name.clone(),
+            &wl_state_sender,
+            send_workload_states,
+        );
 
         tokio::task::yield_now().await;
 
