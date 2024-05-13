@@ -634,6 +634,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 ##### RuntimeManager handles existing workloads deletes unneeded workloads
 `swdd~agent-existing-workloads-delete-unneeded~1`
