@@ -26,7 +26,6 @@ Resource            ../../resources/variables.resource
 # [stest->swdd~agent-enqueues-unfulfilled-create~1]
 Test Ankaios restarts exited workloads on device restart with considering inter-workload dependencies
     [Documentation]    Restart not running workloads after a device restart with considering inter-workload dependencies
-    ...    and resume running workloads
     [Setup]    Run Keywords    Setup Ankaios
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
