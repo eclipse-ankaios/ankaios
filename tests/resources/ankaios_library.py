@@ -120,15 +120,15 @@ def get_container_id_and_name_by_workload_name_from_podman(workload_name):
 
     return container_id, container_name
 
-def get_pod_id_by_workload_name_from_podman(workload_name):
-    res = run_command('podman pod ls --no-trunc --format="{{{{.ID}}}}" --filter=name={}{}'.format(CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, workload_name))
+def get_pod_id_by_pod_name_from_podman(pod_name):
+    res = run_command('podman pod ls --no-trunc --format="{{{{.ID}}}}" --filter=name={}{}'.format(CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, pod_name))
     raw = res.stdout.strip()
     pod_ids = raw.split('\n')
     logger.trace(pod_ids)
     amount_of_rows = len(pod_ids)
     expected_amount_of_rows = 1
     assert amount_of_rows == expected_amount_of_rows, \
-        f"Expected {expected_amount_of_rows} row for pod name {workload_name} but found {amount_of_rows} rows"
+        f"Expected {expected_amount_of_rows} row for pod name {pod_name} but found {amount_of_rows} rows"
 
     pod_id = pod_ids[0]
     return pod_id
