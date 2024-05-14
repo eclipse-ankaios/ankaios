@@ -653,11 +653,11 @@ Needs:
 - utest
 
 ##### RuntimeFacade delete old workload
-`swdd~agent-delete-old-workload~3`
+`swdd~agent-delete-old-workload~2`
 
 Status: approved
 
-When requested and the flag `report_workload_states_for_workload` is true, the RuntimeFacade shall delete a workload by:
+When requested, the RuntimeFacade shall delete a workload by:
 * sending a `Stopping(RequestedAtRuntime)` workload state for that workload
 * deleting the workload via the runtime connector
 * sending a `Removed` workload state for that workload after the deletion was successful or `Stopping(DeleteFailed)` upon failure
