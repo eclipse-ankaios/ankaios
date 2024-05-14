@@ -123,7 +123,8 @@ impl<
         workload
     }
 
-    // [impl->swdd~agent-delete-old-workload~2]
+    // [impl->swdd~agent-delete-old-workload~3]
+    // [impl->swdd~agent-delete-old-workload-without-sending-workload-states~1]
     fn delete_workload(
         &self,
         instance_name: WorkloadInstanceName,
@@ -248,7 +249,8 @@ impl<
         )
     }
 
-    // [impl->swdd~agent-delete-old-workload~2]
+    // [impl->swdd~agent-delete-old-workload~3]
+    // [impl->swdd~agent-delete-old-workload-without-sending-workload-states~1]
     fn delete_workload_non_blocking(
         &self,
         instance_name: WorkloadInstanceName,
@@ -492,7 +494,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-delete-old-workload~2]
+    // [utest->swdd~agent-delete-old-workload~3]
     #[tokio::test]
     async fn utest_runtime_facade_delete_workload() {
         let mut runtime_mock = MockRuntimeConnector::new();
@@ -544,7 +546,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-delete-old-workload~2]
+    // [utest->swdd~agent-delete-old-workload-without-sending-workload-states~1]
     #[tokio::test]
     async fn utest_runtime_facade_delete_workload_without_reporting_workload_states() {
         let mut runtime_mock = MockRuntimeConnector::new();
@@ -586,7 +588,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-delete-old-workload~2]
+    // [utest->swdd~agent-delete-old-workload~3]
     #[tokio::test]
     async fn utest_runtime_facade_delete_workload_failed() {
         let mut runtime_mock = MockRuntimeConnector::new();
