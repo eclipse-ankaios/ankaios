@@ -51,7 +51,7 @@ pub trait RuntimeFacade: Send + Sync + 'static {
         &self,
         instance_name: WorkloadInstanceName,
         update_state_tx: &WorkloadStateSender,
-        send_workload_states: bool,
+        report_workload_states_for_workload: bool,
     );
 }
 
@@ -128,13 +128,13 @@ impl<
         &self,
         instance_name: WorkloadInstanceName,
         update_state_tx: &WorkloadStateSender,
-        send_workload_states: bool,
+        report_workload_states_for_workload: bool,
     ) {
         let _task_handle = Self::delete_workload_non_blocking(
             self,
             instance_name,
             update_state_tx,
-            send_workload_states,
+            report_workload_states_for_workload,
         );
     }
 }
@@ -253,7 +253,10 @@ impl<
         &self,
         instance_name: WorkloadInstanceName,
         update_state_tx: &WorkloadStateSender,
-        send_workload_states: bool,
+        /* The boolean flag to disable sending of workload states is a temporary workaround
+        until direct start of bundles is implemented to prevent workload states
+        from being overwritten by the delete. */
+        report_workload_states_for_workload: bool,
     ) -> JoinHandle<()> {
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
@@ -266,7 +269,7 @@ impl<
         );
 
         tokio::spawn(async move {
-            if send_workload_states {
+            if report_workload_states_for_workload {
                 update_state_tx
                     .report_workload_execution_state(
                         &instance_name,
@@ -277,7 +280,7 @@ impl<
 
             if let Ok(id) = runtime.get_workload_id(&instance_name).await {
                 if let Err(err) = runtime.delete_workload(&id).await {
-                    if send_workload_states {
+                    if report_workload_states_for_workload {
                         update_state_tx
                             .report_workload_execution_state(
                                 &instance_name,
@@ -291,7 +294,7 @@ impl<
                 log::debug!("Workload '{}' already gone.", instance_name);
             }
 
-            if send_workload_states {
+            if report_workload_states_for_workload {
                 update_state_tx
                     .report_workload_execution_state(&instance_name, ExecutionState::removed())
                     .await;
@@ -517,11 +520,11 @@ mod tests {
             ownable_runtime_mock,
         ));
 
-        let send_workload_states = true;
+        let report_workload_states_for_workload = true;
         test_runtime_facade.delete_workload(
             workload_instance_name.clone(),
             &wl_state_sender,
-            send_workload_states,
+            report_workload_states_for_workload,
         );
 
         tokio::task::yield_now().await;
@@ -543,7 +546,7 @@ mod tests {
 
     // [utest->swdd~agent-delete-old-workload~2]
     #[tokio::test]
-    async fn utest_runtime_facade_delete_workload_without_sending_workload_states() {
+    async fn utest_runtime_facade_delete_workload_without_reporting_workload_states() {
         let mut runtime_mock = MockRuntimeConnector::new();
 
         let (wl_state_sender, mut wl_state_receiver) =
@@ -569,11 +572,11 @@ mod tests {
             ownable_runtime_mock,
         ));
 
-        let send_workload_states = false;
+        let report_workload_states_for_workload = false;
         test_runtime_facade.delete_workload(
             workload_instance_name.clone(),
             &wl_state_sender,
-            send_workload_states,
+            report_workload_states_for_workload,
         );
 
         tokio::task::yield_now().await;
@@ -616,11 +619,11 @@ mod tests {
             ownable_runtime_mock,
         ));
 
-        let send_workload_states = true;
+        let report_workload_states_for_workload = true;
         test_runtime_facade.delete_workload(
             workload_instance_name.clone(),
             &wl_state_sender,
-            send_workload_states,
+            report_workload_states_for_workload,
         );
 
         tokio::task::yield_now().await;

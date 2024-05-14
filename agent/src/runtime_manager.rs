@@ -253,22 +253,28 @@ impl RuntimeManager {
                                 workload_state.instance_name.workload_name()
                                 );
 
-                                const SEND_WORKLOAD_STATES: bool = false;
+                                /* Temporary workaround until direct start of bundles is implemented to prevent
+                                workload states from being overwritten by the delete. The decoupled create and a potential enqueue
+                                on unmet inter-workload dependencies might run earlier than the delete and the delete overwrites the
+                                pending workload states.*/
+                                const REPORT_WORKLOAD_STATES_FOR_WORKLOAD: bool = false;
                                 runtime.delete_workload(
                                     workload_state.instance_name,
                                     &self.update_state_tx,
-                                    SEND_WORKLOAD_STATES,
+                                    REPORT_WORKLOAD_STATES_FOR_WORKLOAD,
                                 );
                                 new_added_workloads.push(new_workload_spec);
                             }
                         } else {
                             // No added workload matches the found running one => delete it
                             // [impl->swdd~agent-existing-workloads-delete-unneeded~1]
-                            const SEND_WORKLOAD_STATES: bool = true;
+
+                            // workload states are allowed to send because the workload is not created anymore afterwards
+                            const REPORT_WORKLOAD_STATES_FOR_WORKLOAD: bool = true;
                             runtime.delete_workload(
                                 workload_state.instance_name,
                                 &self.update_state_tx,
-                                SEND_WORKLOAD_STATES,
+                                REPORT_WORKLOAD_STATES_FOR_WORKLOAD,
                             );
                         }
                     }
