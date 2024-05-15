@@ -682,6 +682,9 @@ When the RuntimeFacade is requested to delete the workload and the flag `report_
 Comment:
 This delete is done by the specific runtime for a workload Id. No internal workload object is involved in this action.
 
+Rationale:
+The workaround of enabling and disabling the sending of workload states is required until a dedicated workload restart is implemented.
+
 Tags:
 - RuntimeFacade
 
