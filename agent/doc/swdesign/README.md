@@ -657,7 +657,7 @@ Needs:
 
 Status: approved
 
-When requested, the RuntimeFacade shall delete a workload by:
+When the RuntimeFacade is requested to delete the workload, then the RuntimeFacade shall delete a workload by:
 * sending a `Stopping(RequestedAtRuntime)` workload state for that workload
 * deleting the workload via the runtime connector
 * sending a `Removed` workload state for that workload after the deletion was successful or `Stopping(DeleteFailed)` upon failure
