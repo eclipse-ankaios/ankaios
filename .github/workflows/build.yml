@@ -30,7 +30,7 @@ jobs:
       - name: Print github context for debugging
         run: |
           echo "env.RUN_ON_MERGE_TO_MAIN=$RUN_ON_MERGE_TO_MAIN"
-          echo "env.RUN_ON_MERGE_TO_MAIN=$RUN_WHEN_REUSED_IN_OTHER_WORKFLOW"
+          echo "env.RUN_WHEN_REUSED_IN_OTHER_WORKFLOW=$RUN_WHEN_REUSED_IN_OTHER_WORKFLOW"
 
         # If the next step fails, then a license used by a new dependency is currently
         # not part of the whitelist in deny.toml. If the new license fits to the project
@@ -64,28 +64,30 @@ jobs:
           path: target/robot_tests_result
 
       - name: Create code coverage report
-        if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }} || ${{ env.RUN_WHEN_REUSED_IN_OTHER_WORKFLOW == true }}
         run: |
           rustup component add llvm-tools-preview
           tools/generate_test_coverage_report.sh test --html
+        if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }}
       - uses: actions/upload-artifact@v4.3.3
         with:
           name: code-coverage
           path: target/llvm-cov/html
+        if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }}
 
       - name: Build linux-amd64 release-mode
-        if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }} || ${{ env.RUN_WHEN_REUSED_IN_OTHER_WORKFLOW == true }}
         run: |
           cargo build --release
           mkdir -p dist/
           cp target/x86_64-unknown-linux-musl/release/ank target/x86_64-unknown-linux-musl/release/ank-server target/x86_64-unknown-linux-musl/release/ank-agent dist/
+        if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }}
       - uses: actions/upload-artifact@v4.3.3
         with:
           name: ankaios-linux-amd64-bin
           path: dist/
+        if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }}
 
       - name: Build linux-amd64 debian package
-        if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }} || ${{ env.RUN_WHEN_REUSED_IN_OTHER_WORKFLOW == true }}
+        if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }}
         run: |
           cargo deb -p ank --target x86_64-unknown-linux-musl
       - uses: actions/upload-artifact@v4.3.3
@@ -101,7 +103,6 @@ jobs:
     # and in addition, tests for arm64 can be enabled in this job, too
     name: Build Linux arm64
     runs-on: ubuntu-latest
-    if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }} || ${{ env.RUN_WHEN_REUSED_IN_OTHER_WORKFLOW == true }}
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
       options: --user root
@@ -129,7 +130,6 @@ jobs:
   requirements:
     name: Build requirements tracing
     runs-on: ubuntu-latest
-    if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }} || ${{ env.RUN_WHEN_REUSED_IN_OTHER_WORKFLOW == true }}
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
       options: --user root
