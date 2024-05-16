@@ -23,7 +23,6 @@ jobs:
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
-      - uses: Swatinem/rust-cache@v2.6.2
 
         # If the next step fails, then a license used by a new dependency is currently
         # not part of the whitelist in deny.toml. If the new license fits to the project
