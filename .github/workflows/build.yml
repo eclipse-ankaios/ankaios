@@ -28,7 +28,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2.6.2
 
       - name: Print github context for debugging
-        run: echo "${{ github }}"
+        run: |
+          echo "${{ github.ref }}"
+          echo "${{ github.ref_name }}"
+          echo "${{ github.event_name }}"
 
         # If the next step fails, then a license used by a new dependency is currently
         # not part of the whitelist in deny.toml. If the new license fits to the project
