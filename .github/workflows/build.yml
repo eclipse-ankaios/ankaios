@@ -130,7 +130,7 @@ jobs:
   requirements:
     name: Build requirements tracing
     runs-on: ubuntu-latest
-    if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }}
+    if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
       options: --user root
