@@ -9,6 +9,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  RUN_ON_MERGE_TO_MAIN: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+  RUN_WHEN_REUSED_IN_OTHER_WORKFLOW: ${{ github.event_name == 'workflow_dispatch' && github.ref_name == 'main' }}
 
 concurrency:
   group: "build-${{ github.head_ref || github.ref }}"
@@ -24,6 +26,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4.1.1
       - uses: Swatinem/rust-cache@v2.6.2
+
+      - name: Print github context for debugging
+        run: echo "$GITHUB_CONTEXT"
 
         # If the next step fails, then a license used by a new dependency is currently
         # not part of the whitelist in deny.toml. If the new license fits to the project
@@ -41,10 +46,10 @@ jobs:
           name: licenses
           path: build/licenses.html
 
-      - name: Run tests
+      - name: Run unit tests
         run: RUST_LOG=debug cargo nextest run
 
-      - name: Run robot tests
+      - name: Run system tests
         run: |
           cargo build
           mkdir -p target/robot_tests_result
@@ -57,6 +62,7 @@ jobs:
           path: target/robot_tests_result
 
       - name: Create code coverage report
+        if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }} || ${{ env.RUN_WHEN_REUSED_IN_OTHER_WORKFLOW == true }}
         run: |
           rustup component add llvm-tools-preview
           tools/generate_test_coverage_report.sh test --html
@@ -66,6 +72,7 @@ jobs:
           path: target/llvm-cov/html
 
       - name: Build linux-amd64 release-mode
+        if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }} || ${{ env.RUN_WHEN_REUSED_IN_OTHER_WORKFLOW == true }}
         run: |
           cargo build --release
           mkdir -p dist/
@@ -76,6 +83,7 @@ jobs:
           path: dist/
 
       - name: Build linux-amd64 debian package
+        if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }} || ${{ env.RUN_WHEN_REUSED_IN_OTHER_WORKFLOW == true }}
         run: |
           cargo deb -p ank --target x86_64-unknown-linux-musl
       - uses: actions/upload-artifact@v4.3.3
@@ -91,6 +99,7 @@ jobs:
     # and in addition, tests for arm64 can be enabled in this job, too
     name: Build Linux arm64
     runs-on: ubuntu-latest
+    if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }} || ${{ env.RUN_WHEN_REUSED_IN_OTHER_WORKFLOW == true }}
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
       options: --user root
