@@ -130,10 +130,10 @@ jobs:
   requirements:
     name: Build requirements tracing
     runs-on: ubuntu-latest
-    if: ${{ env.RUN_ON_MERGE_TO_MAIN }}
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
       options: --user root
+    if: env.RUN_ON_MERGE_TO_MAIN
     steps:
       - uses: actions/checkout@v4.1.1
       - run: |
