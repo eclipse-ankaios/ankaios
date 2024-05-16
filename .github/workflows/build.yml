@@ -9,7 +9,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  # RUN_ON_MERGE_TO_MAIN: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+  RUN_ON_MERGE_TO_MAIN: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
   # RUN_WHEN_REUSED_IN_OTHER_WORKFLOW: ${{ github.event_name == 'workflow_dispatch' && github.ref_name == 'main' }}
 
 concurrency:
@@ -66,6 +66,7 @@ jobs:
 
       - name: Create code coverage report
         # if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }} || ${{ env.RUN_WHEN_REUSED_IN_OTHER_WORKFLOW == true }}
+        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
         run: |
           rustup component add llvm-tools-preview
           tools/generate_test_coverage_report.sh test --html
@@ -75,7 +76,7 @@ jobs:
           path: target/llvm-cov/html
 
       - name: Build linux-amd64 release-mode
-        # if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }} || ${{ env.RUN_WHEN_REUSED_IN_OTHER_WORKFLOW == true }}
+        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
         run: |
           cargo build --release
           mkdir -p dist/
@@ -86,7 +87,7 @@ jobs:
           path: dist/
 
       - name: Build linux-amd64 debian package
-        if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }} || ${{ env.RUN_WHEN_REUSED_IN_OTHER_WORKFLOW == true }}
+        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
         run: |
           cargo deb -p ank --target x86_64-unknown-linux-musl
       - uses: actions/upload-artifact@v4.3.3
@@ -102,7 +103,7 @@ jobs:
     # and in addition, tests for arm64 can be enabled in this job, too
     name: Build Linux arm64
     runs-on: ubuntu-latest
-    # if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }} || ${{ env.RUN_WHEN_REUSED_IN_OTHER_WORKFLOW == true }}
+    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
       options: --user root
@@ -130,6 +131,7 @@ jobs:
   requirements:
     name: Build requirements tracing
     runs-on: ubuntu-latest
+    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
       options: --user root
