@@ -187,7 +187,7 @@ flowchart TD
 Code Snippet in [Rust](https://www.rust-lang.org/) for reading response message via control interface:
 
 ```rust
-use api::proto;
+use api::control_api::FromAnkaios;
 use prost::Message;
 use std::{fs::File, io, io::Read, path::Path};
 
@@ -228,7 +228,7 @@ fn read_from_control_interface() {
 
     loop {
         if let Ok(binary) = read_protobuf_data(&mut ex_req) {
-            let proto = proto::FromServer::decode(&mut Box::new(binary.as_ref()));
+            let proto = FromAnkaios::decode(&mut Box::new(binary.as_ref()));
 
             println!("{}", &format!("Receiving FromServer containing the workload states of the current state: {:#?}", proto));
         }
