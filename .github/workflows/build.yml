@@ -9,8 +9,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  RUN_ON_MERGE_TO_MAIN: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
-  RUN_WHEN_REUSED_IN_OTHER_WORKFLOW: ${{ github.event_name == 'workflow_dispatch' && github.ref_name == 'main' }}
+  # RUN_ON_MERGE_TO_MAIN: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
+  # RUN_WHEN_REUSED_IN_OTHER_WORKFLOW: ${{ github.event_name == 'workflow_dispatch' && github.ref_name == 'main' }}
 
 concurrency:
   group: "build-${{ github.head_ref || github.ref }}"
@@ -62,7 +62,7 @@ jobs:
           path: target/robot_tests_result
 
       - name: Create code coverage report
-        if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }} || ${{ env.RUN_WHEN_REUSED_IN_OTHER_WORKFLOW == true }}
+        # if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }} || ${{ env.RUN_WHEN_REUSED_IN_OTHER_WORKFLOW == true }}
         run: |
           rustup component add llvm-tools-preview
           tools/generate_test_coverage_report.sh test --html
@@ -72,7 +72,7 @@ jobs:
           path: target/llvm-cov/html
 
       - name: Build linux-amd64 release-mode
-        if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }} || ${{ env.RUN_WHEN_REUSED_IN_OTHER_WORKFLOW == true }}
+        # if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }} || ${{ env.RUN_WHEN_REUSED_IN_OTHER_WORKFLOW == true }}
         run: |
           cargo build --release
           mkdir -p dist/
@@ -99,7 +99,7 @@ jobs:
     # and in addition, tests for arm64 can be enabled in this job, too
     name: Build Linux arm64
     runs-on: ubuntu-latest
-    if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }} || ${{ env.RUN_WHEN_REUSED_IN_OTHER_WORKFLOW == true }}
+    # if: ${{ env.RUN_ON_MERGE_TO_MAIN == true }} || ${{ env.RUN_WHEN_REUSED_IN_OTHER_WORKFLOW == true }}
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
       options: --user root
