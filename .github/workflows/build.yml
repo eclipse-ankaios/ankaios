@@ -60,6 +60,7 @@ jobs:
         run: |
           rustup component add llvm-tools-preview
           tools/generate_test_coverage_report.sh test --html
+        # execute only on push to main branch or when called by another workflow
         if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
       - uses: actions/upload-artifact@v4.3.3
         with:
