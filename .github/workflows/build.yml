@@ -40,9 +40,6 @@ jobs:
           name: licenses
           path: build/licenses.html
 
-      - name: Run clippy code smell check
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
       - name: Run unit tests
         run: RUST_LOG=debug cargo nextest run
 
@@ -57,6 +54,9 @@ jobs:
         with:
           name: robot-tests-result
           path: target/robot_tests_result
+
+      - name: Run clippy code smell check
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Create code coverage report
         run: |
