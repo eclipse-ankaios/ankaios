@@ -578,11 +578,11 @@ Needs:
 - utest
 
 ##### RuntimeManager handles existing workloads resumes existing workloads
-`swdd~agent-existing-workloads-resume-existing~1`
+`swdd~agent-existing-workloads-resume-existing~2`
 
 Status: approved
 
-When handling existing workloads, for each found existing workload which is requested to be started and has unchanged configuration, the RuntimeManager shall request the corresponding RuntimeFacade to resume the workload using a new control interface instance.
+When handling existing workloads, for each found existing workload which is requested to be started and has unchanged configuration and the workload is running, the RuntimeManager shall request the corresponding RuntimeFacade to resume the workload using a new control interface instance.
 
 Tags:
 - RuntimeManager
@@ -615,11 +615,11 @@ Needs:
 - utest
 
 ##### RuntimeManager handles existing workloads replace updated Workloads
-`swdd~agent-existing-workloads-replace-updated~1`
+`swdd~agent-existing-workloads-replace-updated~2`
 
 Status: approved
 
-When the agent handles existing workloads, for each found existing workload which is requested to be started and for which a change in the configuration was detected, the RuntimeManager shall do the following:
+When the agent handles existing workloads, for each found existing workload which is requested to be started and either the workload's configuration has changed or the workload is not running, the RuntimeManager shall do the following:
 
 - request the RuntimeFacade to delete the existing workload
 - request the RuntimeFacade to create the workload
@@ -634,6 +634,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 ##### RuntimeManager handles existing workloads deletes unneeded workloads
 `swdd~agent-existing-workloads-delete-unneeded~1`
@@ -656,13 +657,33 @@ Needs:
 
 Status: approved
 
-When requested, the RuntimeFacade shall delete a workload by:
+When the RuntimeFacade is requested to delete the workload, then the RuntimeFacade shall delete a workload by:
 * sending a `Stopping(RequestedAtRuntime)` workload state for that workload
-* deleting the workload via the runtime
+* deleting the workload via the runtime connector
 * sending a `Removed` workload state for that workload after the deletion was successful or `Stopping(DeleteFailed)` upon failure
 
 Comment:
 This delete is done by the specific runtime for a workload Id. No internal workload object is involved in this action.
+
+Tags:
+- RuntimeFacade
+
+Needs:
+- impl
+- utest
+
+##### RuntimeFacade deletes old workload without sending workload states
+`swdd~agent-delete-old-workload-without-sending-workload-states~1`
+
+Status: approved
+
+When the RuntimeFacade is requested to delete the workload and the flag `report_workload_states_for_workload` is false, then the RuntimeFacade shall delete the workload via the runtime connector without sending workload states.
+
+Comment:
+This delete is done by the specific runtime for a workload Id. No internal workload object is involved in this action.
+
+Rationale:
+The workaround of enabling and disabling the sending of workload states is required until a dedicated workload restart is implemented.
 
 Tags:
 - RuntimeFacade

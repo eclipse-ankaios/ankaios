@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use common::{
-    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec},
+    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState},
     std_extensions::IllegalStateResult,
 };
 #[cfg(test)]
@@ -28,10 +28,10 @@ use tokio::task::JoinHandle;
 #[async_trait]
 #[cfg_attr(test, automock)]
 pub trait RuntimeFacade: Send + Sync + 'static {
-    async fn get_reusable_running_workloads(
+    async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadInstanceName>, RuntimeError>;
+    ) -> Result<Vec<WorkloadState>, RuntimeError>;
 
     fn create_workload(
         &self,
@@ -51,6 +51,7 @@ pub trait RuntimeFacade: Send + Sync + 'static {
         &self,
         instance_name: WorkloadInstanceName,
         update_state_tx: &WorkloadStateSender,
+        report_workload_states_for_workload: bool,
     );
 }
 
@@ -78,10 +79,10 @@ impl<
     > RuntimeFacade for GenericRuntimeFacade<WorkloadId, StChecker>
 {
     // [impl->swdd~agent-facade-forwards-list-reusable-workloads-call~1]
-    async fn get_reusable_running_workloads(
+    async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadInstanceName>, RuntimeError> {
+    ) -> Result<Vec<WorkloadState>, RuntimeError> {
         log::debug!(
             "Searching for reusable '{}' workloads on agent '{}'.",
             self.runtime.name(),
@@ -123,12 +124,19 @@ impl<
     }
 
     // [impl->swdd~agent-delete-old-workload~2]
+    // [impl->swdd~agent-delete-old-workload-without-sending-workload-states~1]
     fn delete_workload(
         &self,
         instance_name: WorkloadInstanceName,
         update_state_tx: &WorkloadStateSender,
+        report_workload_states_for_workload: bool,
     ) {
-        let _task_handle = Self::delete_workload_non_blocking(self, instance_name, update_state_tx);
+        let _task_handle = Self::delete_workload_non_blocking(
+            self,
+            instance_name,
+            update_state_tx,
+            report_workload_states_for_workload,
+        );
     }
 }
 
@@ -242,10 +250,15 @@ impl<
     }
 
     // [impl->swdd~agent-delete-old-workload~2]
+    // [impl->swdd~agent-delete-old-workload-without-sending-workload-states~1]
     fn delete_workload_non_blocking(
         &self,
         instance_name: WorkloadInstanceName,
         update_state_tx: &WorkloadStateSender,
+        /* The boolean flag to disable sending of workload states is a temporary workaround
+        until direct start of bundles is implemented to prevent workload states
+        from being overwritten by the delete. */
+        report_workload_states_for_workload: bool,
     ) -> JoinHandle<()> {
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
@@ -258,31 +271,36 @@ impl<
         );
 
         tokio::spawn(async move {
-            update_state_tx
-                .report_workload_execution_state(
-                    &instance_name,
-                    ExecutionState::stopping_requested(),
-                )
-                .await;
+            if report_workload_states_for_workload {
+                update_state_tx
+                    .report_workload_execution_state(
+                        &instance_name,
+                        ExecutionState::stopping_requested(),
+                    )
+                    .await;
+            }
 
             if let Ok(id) = runtime.get_workload_id(&instance_name).await {
                 if let Err(err) = runtime.delete_workload(&id).await {
-                    update_state_tx
-                        .report_workload_execution_state(
-                            &instance_name,
-                            ExecutionState::delete_failed(err),
-                        )
-                        .await;
-
+                    if report_workload_states_for_workload {
+                        update_state_tx
+                            .report_workload_execution_state(
+                                &instance_name,
+                                ExecutionState::delete_failed(err),
+                            )
+                            .await;
+                    }
                     return; // The early exit is needed to skip sending the removed message.
                 }
             } else {
                 log::debug!("Workload '{}' already gone.", instance_name);
             }
 
-            update_state_tx
-                .report_workload_execution_state(&instance_name, ExecutionState::removed())
-                .await;
+            if report_workload_states_for_workload {
+                update_state_tx
+                    .report_workload_execution_state(&instance_name, ExecutionState::removed())
+                    .await;
+            }
         })
     }
 }
@@ -298,7 +316,7 @@ impl<
 #[cfg(test)]
 mod tests {
     use common::objects::{
-        generate_test_workload_spec_with_param, ExecutionState, WorkloadInstanceName,
+        generate_test_workload_spec_with_param, ExecutionState, WorkloadInstanceName, WorkloadState,
     };
 
     use crate::{
@@ -330,10 +348,15 @@ mod tests {
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
+        let workload_state = WorkloadState {
+            instance_name: workload_instance_name.clone(),
+            execution_state: ExecutionState::initial(),
+        };
+
         runtime_mock
             .expect(vec![RuntimeCall::GetReusableWorkloads(
                 AGENT_NAME.into(),
-                Ok(vec![workload_instance_name.clone()]),
+                Ok(vec![workload_state]),
             )])
             .await;
 
@@ -345,9 +368,12 @@ mod tests {
 
         assert_eq!(
             test_runtime_facade
-                .get_reusable_running_workloads(&AGENT_NAME.into())
+                .get_reusable_workloads(&AGENT_NAME.into())
                 .await
-                .unwrap(),
+                .unwrap()
+                .iter()
+                .map(|x| x.instance_name.clone())
+                .collect::<Vec<WorkloadInstanceName>>(),
             vec![workload_instance_name]
         );
 
@@ -496,7 +522,12 @@ mod tests {
             ownable_runtime_mock,
         ));
 
-        test_runtime_facade.delete_workload(workload_instance_name.clone(), &wl_state_sender);
+        let report_workload_states_for_workload = true;
+        test_runtime_facade.delete_workload(
+            workload_instance_name.clone(),
+            &wl_state_sender,
+            report_workload_states_for_workload,
+        );
 
         tokio::task::yield_now().await;
 
@@ -511,6 +542,48 @@ mod tests {
             ],
         )
         .await;
+
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    // [utest->swdd~agent-delete-old-workload-without-sending-workload-states~1]
+    #[tokio::test]
+    async fn utest_runtime_facade_delete_workload_without_reporting_workload_states() {
+        let mut runtime_mock = MockRuntimeConnector::new();
+
+        let (wl_state_sender, mut wl_state_receiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
+
+        let workload_instance_name = WorkloadInstanceName::builder()
+            .workload_name(WORKLOAD_1_NAME)
+            .build();
+
+        runtime_mock
+            .expect(vec![
+                RuntimeCall::GetWorkloadId(
+                    workload_instance_name.clone(),
+                    Ok(WORKLOAD_ID.to_string()),
+                ),
+                RuntimeCall::DeleteWorkload(WORKLOAD_ID.to_string(), Ok(())),
+            ])
+            .await;
+
+        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
+            Box::new(runtime_mock.clone());
+        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
+            ownable_runtime_mock,
+        ));
+
+        let report_workload_states_for_workload = false;
+        test_runtime_facade.delete_workload(
+            workload_instance_name.clone(),
+            &wl_state_sender,
+            report_workload_states_for_workload,
+        );
+
+        tokio::task::yield_now().await;
+
+        assert!(wl_state_receiver.try_recv().is_err());
 
         runtime_mock.assert_all_expectations().await;
     }
@@ -548,7 +621,12 @@ mod tests {
             ownable_runtime_mock,
         ));
 
-        test_runtime_facade.delete_workload(workload_instance_name.clone(), &wl_state_sender);
+        let report_workload_states_for_workload = true;
+        test_runtime_facade.delete_workload(
+            workload_instance_name.clone(),
+            &wl_state_sender,
+            report_workload_states_for_workload,
+        );
 
         tokio::task::yield_now().await;
 
