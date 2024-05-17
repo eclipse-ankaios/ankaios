@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use async_trait::async_trait;
 
 use common::{
-    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec},
+    objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState},
     std_extensions::UnreachableOption,
 };
 
@@ -77,6 +77,32 @@ impl RuntimeStateGetter<PodmanWorkloadId> for PodmanStateGetter {
     }
 }
 
+impl PodmanRuntime {
+    async fn workload_instance_names_to_workload_states(
+        &self,
+        workload_instance_names: &Vec<WorkloadInstanceName>,
+    ) -> Result<Vec<WorkloadState>, RuntimeError> {
+        let mut workload_states = Vec::<WorkloadState>::default();
+        for instance_name in workload_instance_names {
+            match PodmanCli::list_states_by_id(&self.get_workload_id(instance_name).await?.id).await
+            {
+                Ok(Some(execution_state)) => workload_states.push(WorkloadState {
+                    instance_name: instance_name.clone(),
+                    execution_state,
+                }),
+                Ok(None) => {
+                    return Err(RuntimeError::List(format!(
+                        "Could not get execution state for workload '{}'",
+                        instance_name
+                    )))
+                }
+                Err(err) => return Err(RuntimeError::List(err)),
+            }
+        }
+        Ok(workload_states)
+    }
+}
+
 #[async_trait]
 // [impl->swdd~podman-implements-runtime-connector~1]
 impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRuntime {
@@ -88,7 +114,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
     async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadInstanceName>, RuntimeError> {
+    ) -> Result<Vec<WorkloadState>, RuntimeError> {
         // [impl->swdd~podman-list-of-existing-workloads-uses-labels~1]
         let res = PodmanCli::list_workload_names_by_label("agent", agent_name.get())
             .await
@@ -96,10 +122,13 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
 
         log::debug!("Found {} reusable workload(s): '{:?}'", res.len(), &res);
 
-        Ok(res
+        let workload_instance_names: Vec<WorkloadInstanceName> = res
             .iter()
             .filter_map(|x| WorkloadInstanceName::new(x))
-            .collect())
+            .collect();
+
+        self.workload_instance_names_to_workload_states(&workload_instance_names)
+            .await
     }
 
     // [impl->swdd~podman-create-workload-runs-workload~1]
@@ -246,15 +275,33 @@ mod tests {
 
     // [utest->swdd~podman-list-of-existing-workloads-uses-labels~1]
     #[tokio::test]
-    async fn utest_get_reusable_running_workloads_success() {
+    async fn utest_get_reusable_workloads_success() {
         let _guard = MOCKALL_CONTEXT_SYNC.get_lock_async().await;
 
-        let context = PodmanCli::list_workload_names_by_label_context();
-        context.expect().return_const(Ok(vec![
-            "container1.hash.dummy_agent".to_string(),
-            "wrongcontainername".to_string(),
-            "container2.hash.dummy_agent".to_string(),
-        ]));
+        let list_workload_names_by_label_context =
+            PodmanCli::list_workload_names_by_label_context();
+        list_workload_names_by_label_context
+            .expect()
+            .return_const(Ok(vec![
+                "container1.hash.dummy_agent".to_string(),
+                "wrongcontainername".to_string(),
+                "container2.hash.dummy_agent".to_string(),
+            ]));
+
+        let list_workload_ids_by_label_context = PodmanCli::list_workload_ids_by_label_context();
+        list_workload_ids_by_label_context
+            .expect()
+            .return_const(Ok(vec!["container1.hash.dummy_agent".to_string()]));
+
+        let list_states_by_id_context = PodmanCli::list_states_by_id_context();
+        list_states_by_id_context
+            .expect()
+            .return_const(Ok(Some(ExecutionState::initial())));
+
+        let list_states_by_id_context = PodmanCli::list_states_by_id_context();
+        list_states_by_id_context
+            .expect()
+            .return_const(Ok(Some(ExecutionState::initial())));
 
         let podman_runtime = PodmanRuntime {};
         let agent_name = AgentName::from("dummy_agent");
@@ -265,7 +312,9 @@ mod tests {
 
         assert_eq!(res.len(), 2);
         assert_eq!(
-            res,
+            res.iter()
+                .map(|x| x.instance_name.clone())
+                .collect::<Vec<WorkloadInstanceName>>(),
             vec![
                 WorkloadInstanceName::new("container1.hash.dummy_agent").unwrap(),
                 WorkloadInstanceName::new("container2.hash.dummy_agent").unwrap()

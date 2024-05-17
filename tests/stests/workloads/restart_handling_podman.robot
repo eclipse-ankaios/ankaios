@@ -38,12 +38,12 @@ Test Ankaios restarts workloads with restart policy ALWAYS.
     # Actions
     When Ankaios server is started with config "${CONFIGS_DIR}/state_with_restart_policies.yaml"
     And Ankaios agent is started with name "agent_A"
-    And the workload "restarted_always" shall have the execution state "Running(Ok)" on agent "agent_A"
-    And the workload "restarted_never" shall have the execution state "Running(Ok)" on agent "agent_A"
-    And the workload "default_restarted_never" shall have the execution state "Running(Ok)" on agent "agent_A"
+    And podman has assigned a container id for workload "restarted_always" on agent "agent_A"
+    And podman has assigned a container id for workload "restarted_never" on agent "agent_A"
+    And podman has assigned a container id for workload "default_restarted_never" on agent "agent_A"
     # Asserts
     # Due to polling, the use of execution states to detect a restart results in unstable tests because it is very fast switching.
-    Then the workload "restarted_always" shall have a different id but same configuration on the runtime
+    Then the container of workload "restarted_always" shall have a different id but same configuration on the podman runtime
     And the workload "restarted_always" shall have the execution state "Running(Ok)" on agent "agent_A"
     And the workload "restarted_never" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
     And the workload "default_restarted_never" shall have the execution state "Succeeded(Ok)" on agent "agent_A"
@@ -59,9 +59,9 @@ Test Ankaios restarts workloads with restart policy ON_FAILURE.
     # Actions
     When Ankaios server is started with config "${CONFIGS_DIR}/state_with_restart_policies.yaml"
     And Ankaios agent is started with name "agent_A"
-    And the workload "restarted_on_failure" shall have the execution state "Running(Ok)" on agent "agent_A"
+    And podman has assigned a container id for workload "restarted_on_failure" on agent "agent_A"
     # Asserts
     # Due to polling, the use of execution states to detect a restart results in unstable tests because it is very fast switching.
-    Then the workload "restarted_on_failure" shall have a different id but same configuration on the runtime
+    Then the container of workload "restarted_on_failure" shall have a different id but same configuration on the podman runtime
     And the workload "restarted_on_failure" shall have the execution state "Running(Ok)" on agent "agent_A"
     [Teardown]    Clean up Ankaios
