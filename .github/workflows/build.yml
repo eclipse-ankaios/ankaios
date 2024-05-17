@@ -40,12 +40,17 @@ jobs:
           name: licenses
           path: build/licenses.html
 
+      - name: Build
+        run: cargo build
+
+      - name: Run clippy code smell check
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
       - name: Run unit tests
         run: RUST_LOG=debug cargo nextest run
 
       - name: Run system tests
         run: |
-          cargo build
           mkdir -p target/robot_tests_result
           chown vscode target/robot_tests_result
           su vscode -c "tools/run_robot_tests.sh tests"
@@ -54,9 +59,6 @@ jobs:
         with:
           name: robot-tests-result
           path: target/robot_tests_result
-
-      - name: Run clippy code smell check
-        run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Create code coverage report
         run: |
