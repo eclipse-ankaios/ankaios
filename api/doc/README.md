@@ -21,7 +21,7 @@ The following diagram shows a high level overview of the API library and its con
 
 ## Structural view
 
-The API library is a provides two Protobuf files : one containing the base definition of the data structures used by Ankaios for the Control Interface and the one that defines the Control Interface itself:
+The API library provides two Protobuf files : one containing the base definition of the data structures used by Ankaios for the Control Interface and the one that defines the Control Interface itself:
 
 ![Context View](drawio/unit_overview.drawio.svg)
 
