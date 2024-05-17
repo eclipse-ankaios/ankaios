@@ -1086,6 +1086,17 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Extending the dev container
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -1095,6 +1106,58 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#build-the-base-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      Build the base container
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Build the base container">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#multiplatform-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      Multiplatform build
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#separate-builds-for-different-architectures" class="md-nav__link">
+    <span class="md-ellipsis">
+      Separate builds for different architectures
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1232,6 +1295,47 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#build-the-base-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      Build the base container
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Build the base container">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#multiplatform-build" class="md-nav__link">
+    <span class="md-ellipsis">
+      Multiplatform build
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#separate-builds-for-different-architectures" class="md-nav__link">
+    <span class="md-ellipsis">
+      Separate builds for different architectures
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1254,33 +1358,62 @@
 
 
 <h1 id="extending-the-dev-container">Extending the dev container<a class="headerlink" href="#extending-the-dev-container" title="Permanent link">&para;</a></h1>
-<p>The dev container is relatively large. Thus, we have split a base container which is available from <code>ghcr.io/eclipse-ankaios/devcontainer</code>.</p>
-<p>If there is a need to include additional items in the dev container, please note that it is split into two parts due to its size:</p>
+<p>The dev container is relatively large.
+If there is a need to include additional items in the dev container, please note that it is split into two parts due to its size:</p>
 <ul>
 <li>
-<p>a base container which, in case of a change, needs to be build manually from .devcontainer/Dockerfile.base by running the following outside of the dev container:</p>
+<p>A base container available from <code>ghcr.io/eclipse-ankaios/devcontainer</code> which, in case of a change, needs to be build manually from <code>.devcontainer/Dockerfile.base</code> (see below for instructions).</p>
+</li>
+<li>
+<p>A docker container which derives from the base image mentioned above is specified in <code>.devcontainer/Dockerfile</code> (so don't forget to reference your new version there once you build one).</p>
+</li>
+</ul>
+<p>If you want to add some additional tools, you can initially do it in <code>.devcontainer/Dockerfile</code>, but later on they need to be pulled in the base image in order to speed up the initial dev container build.</p>
+<h2 id="build-the-base-container">Build the base container<a class="headerlink" href="#build-the-base-container" title="Permanent link">&para;</a></h2>
+<p>The base container is available for amd64 and arm64/v8 architectures. There are two options to build the base container:</p>
+<ol>
+<li>Multiplatform build for amd64 and arm64</li>
+<li>Separately building images for amd64 and arm64 and joining them afterwards</li>
+</ol>
+<h3 id="multiplatform-build">Multiplatform build<a class="headerlink" href="#multiplatform-build" title="Permanent link">&para;</a></h3>
+<p>In case the multiplatform build is used, one image can be build natively on the host platform (usually amd64) while the other needs to be emulated.</p>
+<p>Build the base container by running the following commands outside of the dev container:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Prepare the build with buildx. Depending on you environment</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="c1"># the following steps might be necessary:</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>--privileged<span class="w"> </span>multiarch/qemu-user-static<span class="w"> </span>--reset<span class="w"> </span>-p<span class="w"> </span>yes
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Create and use a new builder. This needs top be called only once:</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>docker<span class="w"> </span>buildx<span class="w"> </span>create<span class="w"> </span>--name<span class="w"> </span>mybuilder<span class="w"> </span>--driver<span class="w"> </span>docker-container<span class="w"> </span>--bootstrap
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>docker<span class="w"> </span>buildx<span class="w"> </span>use<span class="w"> </span>mybuilder
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="c1"># Now build new base image for the dev container</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="nb">cd</span><span class="w"> </span>.devcontainer
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>docker<span class="w"> </span>buildx<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>ghcr.io/eclipse-ankaios/devcontainer-base:&lt;version&gt;<span class="w"> </span>--platform<span class="w"> </span>linux/amd64,linux/arm64<span class="w"> </span>-f<span class="w"> </span>Dockerfile.base<span class="w"> </span>.
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># Create and use a new builder. This needs to be called only once:</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>docker<span class="w"> </span>buildx<span class="w"> </span>create<span class="w"> </span>--name<span class="w"> </span>mybuilder<span class="w"> </span>--driver<span class="w"> </span>docker-container<span class="w"> </span>--bootstrap
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>docker<span class="w"> </span>buildx<span class="w"> </span>use<span class="w"> </span>mybuilder
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="c1"># Now build the new base image for the dev container</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="nb">cd</span><span class="w"> </span>.devcontainer
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>docker<span class="w"> </span>buildx<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>ghcr.io/eclipse-ankaios/devcontainer-base:&lt;version&gt;<span class="w"> </span>--platform<span class="w"> </span>linux/amd64,linux/arm64<span class="w"> </span>-f<span class="w"> </span>Dockerfile.base<span class="w"> </span>.
 </code></pre></div>
 <p>In order to push the base image append <code>--push</code> to the previous command.</p>
 <p>Note: If you wish to locally test the base image in VSCode before proceeding, utilize the default builder and exclusively build for the default platform like</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>docker<span class="w"> </span>buildx<span class="w"> </span>use<span class="w"> </span>default
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>docker<span class="w"> </span>buildx<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>ghcr.io/eclipse-ankaios/devcontainer-base:&lt;version&gt;<span class="w"> </span>-f<span class="w"> </span>Dockerfile.base<span class="w"> </span>--load<span class="w"> </span>.
 </code></pre></div>
-</li>
-<li>
-<p>a docker container which derives from the base image mentioned above is specified in <code>.devcontainer/Dockerfile</code> (so don't forget to reference your new version there once you build one).</p>
-</li>
-</ul>
-<p>If you want to add some additional tools, you can initially do it in <code>.devcontainer/Dockerfile</code>, but later on they need to be pulled in the base image at some point in order to speed up the initial dev container build.</p>
+<h3 id="separate-builds-for-different-architectures">Separate builds for different architectures<a class="headerlink" href="#separate-builds-for-different-architectures" title="Permanent link">&para;</a></h3>
+<p>Due to the emulation for the non-host architecture, the previous multiplatform build might take some time.
+An alternative is to build the two images separately on different hosts matching the target architecture.
+For arm64 for example cloud instances with ARM architecture (like AWS Graviton) can be used.</p>
+<p>To build the base image this way, perform the following steps:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># On arm64 host: Build arm64 image</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">cd</span><span class="w"> </span>.devcontainer
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>docker<span class="w"> </span>buildx<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>ghcr.io/eclipse-ankaios/devcontainer-base:&lt;version&gt;-arm64<span class="w"> </span>-f<span class="w"> </span>Dockerfile.base<span class="w"> </span>--push<span class="w"> </span>.
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="c1">#  On amd64 host: Build amd64 image</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="nb">cd</span><span class="w"> </span>.devcontainer
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>docker<span class="w"> </span>buildx<span class="w"> </span>build<span class="w"> </span>-t<span class="w"> </span>ghcr.io/eclipse-ankaios/devcontainer-base:&lt;version&gt;-amd64<span class="w"> </span>-f<span class="w"> </span>Dockerfile.base<span class="w"> </span>--push<span class="w"> </span>.
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="c1"># On any host: Create manifest list referencing both images</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>docker<span class="w"> </span>buildx<span class="w"> </span>imagetools<span class="w"> </span>create<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">  </span>-t<span class="w"> </span>ghcr.io/eclipse-ankaios/devcontainer-base:&lt;version&gt;<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">  </span>ghcr.io/eclipse-ankaios/devcontainer-base:&lt;version&gt;-amd64<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">  </span>ghcr.io/eclipse-ankaios/devcontainer-base:&lt;version&gt;-arm64
+</code></pre></div>
 
 
 
