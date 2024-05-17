@@ -540,7 +540,7 @@ Needs:
 
 ### `ank delete workload`
 
-The sequence is the same as for `ank set state`.
+The sequence is the same as for [`ank set state`](#ank-set-state).
 
 #### CLI provides a function to delete workloads
 `swdd~cli-provides-delete-workload~1`
@@ -587,7 +587,7 @@ Needs:
 
 ### `ank run workload`
 
-The sequence is the same as for `ank set state`.
+The sequence is the same as for [`ank set state`](#ank-set-state).
 
 #### CLI provides a function to run a workload
 `swdd~cli-provides-run-workload~1`
@@ -619,7 +619,7 @@ Needs:
 
 ### `ank apply [-d] [--agent agent_name] <manifest.yaml> ...`
 
-The sequence is the same as for `ank set state`.
+The sequence is the same as for [`ank set state`](#ank-set-state).
 
 #### Ankaios manifest
 
@@ -760,7 +760,7 @@ Needs:
 
 ### Handling other message while waiting for response
 
-|[Store unexpected messages](plantuml/seq_store_missed_messages.svg)
+![Store unexpected messages](plantuml/seq_store_missed_messages.svg)
 
 #### CLI stores unexpected messages
 `swdd~cli-stores-unexpected-message~1`
@@ -768,11 +768,10 @@ Needs:
 Status: approved
 
 While the Ankaios CLI waits for a response from the Ankaios Server,
-the Ankaios CLI should store all other received messages.
+the Ankaios CLI shall store all unrelated received messages for later processing.
 
 Rationale:
-The Ank CLI needs these message to watch changed workloads,
-as the first `UpdateWorkloadState` message can already be received while waiting for the response the `UpdateStateRequest` and the `CompleteStateRequest`.
+While communicating with the Ankaios server the ank CLI could already receive unsolicited `UpdateWorkloadState` messages that are needed later during command execution. Storing the messages ensure that they are not missed and the CLI does not block endlessly waiting for them, e.g., while waiting for the end state for an apply command.
 
 Needs:
 - impl
