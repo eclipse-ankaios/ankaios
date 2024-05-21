@@ -47,6 +47,9 @@ jobs:
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
+      - uses: Swatinem/rust-cache@v2.7.3
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Run clippy code smell checks
         run: cargo clippy --all-targets --no-deps --all-features -- -D warnings
 
@@ -58,6 +61,9 @@ jobs:
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
+      - uses: Swatinem/rust-cache@v2.7.3
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Build debug
         run: cargo build
       - name: Run system tests
@@ -79,6 +85,9 @@ jobs:
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
+      - uses: Swatinem/rust-cache@v2.7.3
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Run unit tests
         run: RUST_LOG=debug cargo nextest run
 
@@ -92,6 +101,9 @@ jobs:
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
+      - uses: Swatinem/rust-cache@v2.7.3
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Create code coverage report
         run: |
           rustup component add llvm-tools-preview
@@ -111,6 +123,9 @@ jobs:
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
+      - uses: Swatinem/rust-cache@v2.7.3
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Build linux-amd64 release-mode
         run: |
           cargo build --release
@@ -142,6 +157,9 @@ jobs:
       options: --user root
     steps:
       - uses: actions/checkout@v4.1.1
+      - uses: Swatinem/rust-cache@v2.7.3
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Build linux-arm64 release-mode
         run: |
