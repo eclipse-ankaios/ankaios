@@ -15,15 +15,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test_and_build_linux_amd64:
-    name: Test and build Linux amd64
+  build_and_license_check_linux_amd64:
+    name: Build Linux amd64
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
-
         # If the next step fails, then a license used by a new dependency is currently
         # not part of the whitelist in deny.toml. If the new license fits to the project
         # then it should be added to the whitelist otherwise the dependency needs to be
@@ -39,16 +38,21 @@ jobs:
         with:
           name: licenses
           path: build/licenses.html
-
-      - name: Build
+      - name: Build debug
         run: cargo build
-
-      - name: Run clippy code smell check
+      - name: Run clippy code smell checks
         run: cargo clippy --all-targets --all-features -- -D warnings
 
+  test_linux_amd64:
+    name: Run unit tests
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4.1.1
       - name: Run unit tests
         run: RUST_LOG=debug cargo nextest run
-
       - name: Run system tests
         run: |
           mkdir -p target/robot_tests_result
@@ -60,32 +64,46 @@ jobs:
           name: robot-tests-result
           path: target/robot_tests_result
 
+  code_coverage_linux_amd64:
+    name: Create code coverage report
+    runs-on: ubuntu-latest
+    # execute only on push to main branch or when called by another workflow
+    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
+    container:
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4.1.1
       - name: Create code coverage report
         run: |
           rustup component add llvm-tools-preview
           tools/generate_test_coverage_report.sh test --html
-        # execute only on push to main branch or when called by another workflow
-        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
       - uses: actions/upload-artifact@v4.3.3
         with:
           name: code-coverage
           path: target/llvm-cov/html
-        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
 
+
+  build_linux_amd64_debian_package:
+    name: Build Linux amd64 debian package
+    runs-on: ubuntu-latest
+    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
+    container:
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4.1.1
       - name: Build linux-amd64 release-mode
         run: |
           cargo build --release
           mkdir -p dist/
           cp target/x86_64-unknown-linux-musl/release/ank target/x86_64-unknown-linux-musl/release/ank-server target/x86_64-unknown-linux-musl/release/ank-agent dist/
-        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
       - uses: actions/upload-artifact@v4.3.3
         with:
           name: ankaios-linux-amd64-bin
           path: dist/
-        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
 
       - name: Build linux-amd64 debian package
-        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
         run: |
           cargo deb -p ank --target x86_64-unknown-linux-musl
       - uses: actions/upload-artifact@v4.3.3
