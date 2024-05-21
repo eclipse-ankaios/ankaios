@@ -15,8 +15,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build_and_license_check_linux_amd64:
-    name: Build Linux amd64
+  license_check_and_report:
+    name: License check and create report
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
@@ -37,11 +37,30 @@ jobs:
       - uses: actions/upload-artifact@v4.3.3
         with:
           name: licenses
-          path: build/licenses.html
+          path: build/licenses.html 
+
+  build_and_test_linux_amd64:
+    name: Build and test Linux amd64
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4.1.1
       - name: Build debug
         run: cargo build
       - name: Run clippy code smell checks
         run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Run system tests
+        run: |
+          mkdir -p target/robot_tests_result
+          chown vscode target/robot_tests_result
+          su vscode -c "tools/run_robot_tests.sh tests"
+      - uses: actions/upload-artifact@v4.3.3
+        if: success() || failure()
+        with:
+          name: robot-tests-result
+          path: target/robot_tests_result
 
   test_linux_amd64:
     name: Run unit tests
@@ -53,16 +72,6 @@ jobs:
       - uses: actions/checkout@v4.1.1
       - name: Run unit tests
         run: RUST_LOG=debug cargo nextest run
-      - name: Run system tests
-        run: |
-          mkdir -p target/robot_tests_result
-          chown vscode target/robot_tests_result
-          su vscode -c "tools/run_robot_tests.sh tests"
-      - uses: actions/upload-artifact@v4.3.3
-        if: success() || failure()
-        with:
-          name: robot-tests-result
-          path: target/robot_tests_result
 
   code_coverage_linux_amd64:
     name: Create code coverage report
