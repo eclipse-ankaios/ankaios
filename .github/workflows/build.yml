@@ -48,7 +48,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4.1.1
       - name: Run clippy code smell checks
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --all-targets --no-deps --all-features -- -D warnings
 
   build_and_system_tests_linux_amd64:
     name: Build and test Linux amd64
