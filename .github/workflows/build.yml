@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   license_check_and_report:
-    name: License check and create report
+    name: Check licenses and create report
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
@@ -39,7 +39,7 @@ jobs:
           name: licenses
           path: build/licenses.html
 
-  clippy_code_smell_check:
+  clippy_code_check:
     name: Run clippy code smell checks
     runs-on: ubuntu-latest
     container:
@@ -47,23 +47,17 @@ jobs:
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
-      - uses: Swatinem/rust-cache@v2.7.3
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-      - name: Run clippy code smell checks
+      - name: Run clippy
         run: cargo clippy --all-targets --no-deps --all-features -- -D warnings
 
-  test_and_build_linux_amd64:
-    name: Build and test Linux amd64
+  build_and_system_tests_linux_amd64:
+    name: Build and run system tests Linux amd64
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
-      - uses: Swatinem/rust-cache@v2.7.3
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Build debug
         run: cargo build
       - name: Run system tests
@@ -78,16 +72,13 @@ jobs:
           path: target/robot_tests_result
 
   unit_tests_linux_amd64:
-    name: Run unit tests
+    name: Run unit tests Linux amd64
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
-      - uses: Swatinem/rust-cache@v2.7.3
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Run unit tests
         run: RUST_LOG=debug cargo nextest run
 
@@ -101,10 +92,7 @@ jobs:
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
-      - uses: Swatinem/rust-cache@v2.7.3
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-      - name: Create code coverage report
+      - name: Create code coverage html report
         run: |
           rustup component add llvm-tools-preview
           tools/generate_test_coverage_report.sh test --html
@@ -123,9 +111,6 @@ jobs:
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
-      - uses: Swatinem/rust-cache@v2.7.3
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' }}
       - name: Build linux-amd64 release-mode
         run: |
           cargo build --release
@@ -144,22 +129,19 @@ jobs:
           name: ankaios-linux-amd64-deb
           path: target/x86_64-unknown-linux-musl/debian/ankaios*.deb
 
-  build_linux_arm64:
+  build_linux_arm64_debian_package:
     # currently there is no arm64 github built-in runner available
     # however, there is an issue in progress on the github runner repo
     # requesting the support for arm64: https://github.com/actions/runner-images/issues/5631
     # if arm64 variants will be released we can switch to an arm64 image and save the longer built time for cross platform build
     # and in addition, tests for arm64 can be enabled in this job, too
-    name: Build Linux arm64
+    name: Build Linux arm64 debian package
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
       options: --user root
     steps:
       - uses: actions/checkout@v4.1.1
-      - uses: Swatinem/rust-cache@v2.7.3
-        with:
-          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Build linux-arm64 release-mode
         run: |
