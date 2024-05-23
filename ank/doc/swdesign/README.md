@@ -553,7 +553,6 @@ Tags:
 - DeleteWorkload
 
 Needs:
-- swdd
 - impl
 - utest
 
@@ -563,20 +562,6 @@ Needs:
 Status: approved
 
 When the user invokes the CLI with a request to delete workloads, the CLI shall request an update of the state including a watch on the updated workloads.
-
-Tags:
-- DeleteWorkload
-
-Needs:
-- impl
-- utest
-
-#### Do not send the request to delete workloads when they are not found
-`swdd~no-delete-workloads-when-not-found~1`
-
-Status: approved
-
-When the user invokes the CLI with a request to delete workloads and the CLI does not find the workloads in the current state, the CLI shall not send the request to delete workloads to the server.
 
 Tags:
 - DeleteWorkload
