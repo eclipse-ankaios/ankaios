@@ -892,14 +892,16 @@ impl CliCommands {
 
         let update_mask = workload_names
             .into_iter()
-            .map(|x| String::from("desiredState.workloads.") + &x)
+            .map(|name_of_workload_to_delete| {
+                format!("desiredState.workloads.{}", name_of_workload_to_delete)
+            })
             .collect();
 
         output_debug!(
-            "The complete state update {:?}, update mask {:?}",
-            complete_state_update,
+            "Updating with empty complete state and update mask {:?}",
             update_mask
         );
+
         self.update_state_and_wait_for_complete(complete_state_update, update_mask)
             .await
     }
@@ -928,13 +930,13 @@ impl CliCommands {
         };
         output_debug!("Request to run new workload: {:?}", new_workload);
 
+        let update_mask = vec![format!("desiredState.workloads.{}", workload_name)];
+
         let mut complete_state_update = CompleteState::default();
         complete_state_update
             .desired_state
             .workloads
-            .insert(workload_name.clone(), new_workload);
-
-        let update_mask = vec!["desiredState.workloads.".to_string() + &workload_name];
+            .insert(workload_name, new_workload);
 
         output_debug!(
             "The complete state update: {:?}, update mask {:?}",
@@ -2097,13 +2099,13 @@ mod tests {
             "update_state_request",
             RequestContent::UpdateStateRequest(Box::new(commands::UpdateStateRequest {
                 state: complete_state_update.clone(),
-                update_mask: vec!["desiredState.workloads.".to_string() + &test_workload_name],
+                update_mask: vec![format!("desiredState.workloads.{}", test_workload_name)],
             })),
         );
         mock_client_builder.will_send_response(
             "update_state_request",
             ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
-                added_workloads: vec![format!("name4.abc.agent_B")],
+                added_workloads: vec![format!("{}.abc.agent_B", test_workload_name)],
                 deleted_workloads: vec![],
             }),
         );
@@ -2964,7 +2966,7 @@ mod tests {
             "update_state_request",
             ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
                 added_workloads: vec![],
-                deleted_workloads: vec![format!("name4.abc.agent_B")],
+                deleted_workloads: vec!["name4.abc.agent_B".to_string()],
             }),
         );
 
