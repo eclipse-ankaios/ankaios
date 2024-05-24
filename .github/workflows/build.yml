@@ -27,8 +27,8 @@ jobs:
         run: cargo build
       - name: Exclude system tests that shall not run during PR verification
         run: |
-          IS_PR_OR_TRIGGERED_BY_ANOTHER_WORKFLOW=${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
-          EXCLUDE_TESTS_STRING=${{ $IS_PR_OR_TRIGGERED_BY_ANOTHER_WORKFLOW && echo '--exclude non_execution_during_pull_request_verification' || echo '' }}
+          IS_PR_MERGE_VERIFICATION=${{ github.event_name == 'pull_request' }}
+          EXCLUDE_TESTS_STRING=${{ $IS_PR_MERGE_VERIFICATION && echo '--exclude non_execution_during_pull_request_verification' || echo '' }}
       - name: Run system tests
         run: |
           echo 'Exclusion of system tests: $EXCLUDE_TESTS_STRING'
