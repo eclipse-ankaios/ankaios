@@ -25,11 +25,16 @@ jobs:
       - uses: actions/checkout@v4.1.1
       - name: Build debug
         run: cargo build
+      - name: Exclude system tests that shall not run during PR verification
+        run: |
+          IS_PR_OR_TRIGGERED_BY_ANOTHER_WORKFLOW=${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
+          EXCLUDE_TESTS_STRING=${{ $IS_PR_OR_TRIGGERED_BY_ANOTHER_WORKFLOW && echo '--exclude non_execution_during_pull_request_verification' || echo '' }}
       - name: Run system tests
         run: |
+          echo 'Exclusion of system tests: $EXCLUDE_TESTS_STRING'
           mkdir -p target/robot_tests_result
           chown vscode target/robot_tests_result
-          su vscode -c "tools/run_robot_tests.sh tests"
+          su vscode -c "tools/run_robot_tests.sh $EXCLUDE_TESTS_STRING tests"
       - uses: actions/upload-artifact@v4.3.3
         if: success() || failure()
         with:
