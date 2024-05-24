@@ -34,6 +34,7 @@ jobs:
             echo "Run is a PR verification, system tests tagged with '$SYSTEM_TEST_EXCLUDE_TAG' are executed."
             su vscode -c "tools/run_robot_tests.sh --exclude $SYSTEM_TEST_EXCLUDE_TAG tests"
           else
+            echo "Run is not a PR verification, all system tests are executed."
             su vscode -c "tools/run_robot_tests.sh tests"
           fi
       - uses: actions/upload-artifact@v4.3.3
