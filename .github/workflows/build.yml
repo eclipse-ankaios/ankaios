@@ -28,8 +28,8 @@ jobs:
       - name: Setup cli argument to exclude tagged system tests from running in PR verifications
         id: exclude_tagged_stests
         run: |
-          if [ ${{ github.event_name == 'push' }} ]; then
-            echo 'CLI_ARG_TO_EXCLUDE_TESTS="--exclude non_execution_during_pull_request_verification"' >> $GITHUB_OUTPUT
+          if [ ${{ github.event_name == 'pull_request' }} ]; then
+            echo 'CLI_ARG_TO_EXCLUDE_TESTS=--exclude non_execution_during_pull_request_verification' >> $GITHUB_OUTPUT
           else
             echo 'CLI_ARG_TO_EXCLUDE_TESTS=""' >> $GITHUB_OUTPUT
           fi
