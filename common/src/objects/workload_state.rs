@@ -23,7 +23,7 @@ use crate::std_extensions::UnreachableOption;
 use super::WorkloadInstanceName;
 
 const TRIGGERED_MSG: &str = "Triggered at runtime.";
-pub const NO_MORE_RETRIES_MSG: &str = "No more retries.";
+pub const NO_MORE_RETRIES_MSG: &str = "No more retries";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PendingSubstate {
@@ -31,6 +31,7 @@ pub enum PendingSubstate {
     WaitingToStart = 1,
     Starting = 2,
     StartingFailed = 8,
+    RetryStarting = 9,
 }
 
 impl From<i32> for PendingSubstate {
@@ -39,6 +40,7 @@ impl From<i32> for PendingSubstate {
             x if x == PendingSubstate::Initial as i32 => PendingSubstate::Initial,
             x if x == PendingSubstate::WaitingToStart as i32 => PendingSubstate::WaitingToStart,
             x if x == PendingSubstate::Starting as i32 => PendingSubstate::Starting,
+            x if x == PendingSubstate::RetryStarting as i32 => PendingSubstate::RetryStarting,
             _ => PendingSubstate::StartingFailed,
         }
     }
@@ -51,6 +53,7 @@ impl Display for PendingSubstate {
             PendingSubstate::WaitingToStart => write!(f, "WaitingToStart"),
             PendingSubstate::Starting => write!(f, "Starting"),
             PendingSubstate::StartingFailed => write!(f, "StartingFailed"),
+            PendingSubstate::RetryStarting => write!(f, "RetryStarting"),
         }
     }
 }
@@ -313,10 +316,26 @@ impl ExecutionState {
         }
     }
 
-    pub fn retry_failed_no_retry() -> Self {
+    pub fn retry_starting(
+        current_retry: usize,
+        max_retries: usize,
+        additional_info: impl ToString,
+    ) -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Pending(PendingSubstate::RetryStarting),
+            additional_info: format!(
+                "Retry {} of {}: {}",
+                current_retry,
+                max_retries,
+                additional_info.to_string()
+            ),
+        }
+    }
+
+    pub fn retry_failed_no_retry(additional_info: impl ToString) -> Self {
         ExecutionState {
             state: ExecutionStateEnum::Pending(PendingSubstate::StartingFailed),
-            additional_info: NO_MORE_RETRIES_MSG.to_string(),
+            additional_info: format!("{}: {}", NO_MORE_RETRIES_MSG, additional_info.to_string()),
         }
     }
 

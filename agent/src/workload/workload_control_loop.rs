@@ -142,6 +142,13 @@ impl WorkloadControlLoop {
                         Some(WorkloadCommand::Create) => {
                             log::debug!("Received WorkloadCommand::Create.");
 
+                            Self::send_workload_state_to_agent(
+                                &control_loop_state.to_agent_workload_state_sender,
+                                control_loop_state.instance_name(),
+                                ExecutionState::starting_triggered(),
+                            )
+                            .await;
+
                             control_loop_state = Self::create_workload_on_runtime(
                                 control_loop_state,
                                 Self::send_retry_for_workload,
@@ -294,7 +301,7 @@ impl WorkloadControlLoop {
             Self::send_workload_state_to_agent(
                 &control_loop_state.to_agent_workload_state_sender,
                 control_loop_state.instance_name(),
-                ExecutionState::retry_failed_no_retry(),
+                ExecutionState::retry_failed_no_retry(error_msg),
             )
             .await;
 
@@ -326,13 +333,6 @@ impl WorkloadControlLoop {
         ErrorFunc: FnOnce(ControlLoopState<WorkloadId, StChecker>, WorkloadInstanceName, String) -> Fut
             + 'static,
     {
-        Self::send_workload_state_to_agent(
-            &control_loop_state.to_agent_workload_state_sender,
-            control_loop_state.instance_name(),
-            ExecutionState::starting_triggered(),
-        )
-        .await;
-
         let new_instance_name = control_loop_state.workload_spec.instance_name.clone();
 
         match control_loop_state
@@ -356,10 +356,17 @@ impl WorkloadControlLoop {
                 control_loop_state
             }
             Err(err) => {
+                let current_retry_counter = control_loop_state.retry_counter.current_retry();
+
+                // Set workload state to signal retrying of the workload creation
                 Self::send_workload_state_to_agent(
                     &control_loop_state.to_agent_workload_state_sender,
                     &new_instance_name,
-                    ExecutionState::starting_failed(err.to_string()),
+                    ExecutionState::retry_starting(
+                        current_retry_counter,
+                        MAX_RETRIES,
+                        err.to_string(),
+                    ),
                 )
                 .await;
 
@@ -487,6 +494,14 @@ impl WorkloadControlLoop {
             // [impl->swdd~agent-workload-control-loop-update-create-failed-allows-retry~1]
             control_loop_state.workload_spec = *spec;
             control_loop_state.control_interface_path = control_interface_path;
+
+            Self::send_workload_state_to_agent(
+                &control_loop_state.to_agent_workload_state_sender,
+                control_loop_state.instance_name(),
+                ExecutionState::starting_triggered(),
+            )
+            .await;
+
             control_loop_state =
                 Self::create_workload_on_runtime(control_loop_state, Self::send_retry_for_workload)
                     .await;

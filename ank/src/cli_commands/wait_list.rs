@@ -100,7 +100,10 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
                     }
                 }
                 common::objects::ExecutionStateEnum::Pending(PendingSubstate::StartingFailed)
-                    if workload_state.execution_state.additional_info == NO_MORE_RETRIES_MSG =>
+                    if workload_state
+                        .execution_state
+                        .additional_info
+                        .starts_with(NO_MORE_RETRIES_MSG) =>
                 {
                     if self.added_workloads.remove(&workload_state.instance_name) {
                         self.display.set_complete(&workload_state.instance_name)
