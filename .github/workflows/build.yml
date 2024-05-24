@@ -28,7 +28,7 @@ jobs:
       - name: Exclude system tests that shall not run during PR verification
         run: |
           IS_PR_MERGE_VERIFICATION=${{ github.event_name == 'pull_request' }}
-          EXCLUDE_TESTS_STRING=${{ $IS_PR_MERGE_VERIFICATION && echo '--exclude non_execution_during_pull_request_verification' || echo '' }}
+          EXCLUDE_TESTS_STRING=$IS_PR_MERGE_VERIFICATION && echo '--exclude non_execution_during_pull_request_verification' || echo ''
       - name: Run system tests
         run: |
           echo 'Exclusion of system tests: $EXCLUDE_TESTS_STRING'
