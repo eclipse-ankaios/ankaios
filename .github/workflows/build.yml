@@ -25,20 +25,17 @@ jobs:
       - uses: actions/checkout@v4.1.1
       - name: Build debug
         run: cargo build
-      - name: Setup cli argument to exclude tagged system tests from running in PR verifications
-        id: exclude_tagged_stests
-        run: |
-          if [ ${{ github.event_name == 'pull_request' }} ]; then
-            echo 'CLI_ARG_TO_EXCLUDE_TESTS=--exclude non_execution_during_pull_request_verification' >> $GITHUB_OUTPUT
-          else
-            echo 'CLI_ARG_TO_EXCLUDE_TESTS=""' >> $GITHUB_OUTPUT
-          fi
       - name: Run system tests
         run: |
-          echo 'Exclusion of system tests: ${{ steps.exclude_tagged_stests.outputs.CLI_ARG_TO_EXCLUDE_TESTS }}'
           mkdir -p target/robot_tests_result
           chown vscode target/robot_tests_result
-          su vscode -c "tools/run_robot_tests.sh ${{ steps.exclude_tagged_stests.outputs.CLI_ARG_TO_EXCLUDE_TESTS }} tests"
+          if [ ${{ github.event_name == 'pull_request' }} ]; then
+            SYSTEM_TEST_EXCLUDE_TAG="non_execution_during_pull_request_verification"
+            echo "Run is a PR verification, system tests tagged with '$SYSTEM_TEST_EXCLUDE_TAG' are executed."
+            su vscode -c "tools/run_robot_tests.sh --exclude $SYSTEM_TEST_EXCLUDE_TAG tests"
+          else
+            su vscode -c "tools/run_robot_tests.sh tests"
+          fi
       - uses: actions/upload-artifact@v4.3.3
         if: success() || failure()
         with:
