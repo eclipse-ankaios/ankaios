@@ -31,7 +31,7 @@ jobs:
           chown vscode target/robot_tests_result
           if [ ${{ github.event_name == 'pull_request' }} ]; then
             SYSTEM_TEST_EXCLUDE_TAG="non_execution_during_pull_request_verification"
-            echo "Run is a PR verification, system tests tagged with '$SYSTEM_TEST_EXCLUDE_TAG' are executed."
+            echo "Run is a PR verification, system tests tagged with '$SYSTEM_TEST_EXCLUDE_TAG' are NOT executed and skipped."
             su vscode -c "tools/run_robot_tests.sh --exclude $SYSTEM_TEST_EXCLUDE_TAG tests"
           else
             echo "Run is not a PR verification, all system tests are executed."
@@ -74,8 +74,6 @@ jobs:
   code_coverage_linux_amd64:
     name: Create code coverage report
     runs-on: ubuntu-latest
-    # execute only on push to main branch or when called by another workflow
-    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
       options: --privileged
@@ -94,7 +92,6 @@ jobs:
   build_linux_amd64_debian_package:
     name: Build Linux amd64 debian package
     runs-on: ubuntu-latest
-    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
       options: --privileged
@@ -145,17 +142,14 @@ jobs:
       - name: Build linux-arm64 debian package
         run: |
           cargo deb -p ank --target aarch64-unknown-linux-musl
-        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
       - uses: actions/upload-artifact@v4.3.3
         with:
           name: ankaios-linux-arm64-deb
           path: target/aarch64-unknown-linux-musl/debian/ankaios*.deb
-        if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
 
   requirements:
     name: Build requirements tracing
     runs-on: ubuntu-latest
-    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
       options: --user root
