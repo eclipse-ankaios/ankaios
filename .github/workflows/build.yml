@@ -29,12 +29,10 @@ jobs:
         id: exclude_tagged_stests
         run: |
           if [ ${{ github.event_name == 'push' }} ]; then
-            CLI_ARG_TO_EXCLUDE_TESTS="--exclude-tagged system"
+            echo 'CLI_ARG_TO_EXCLUDE_TESTS="--exclude non_execution_during_pull_request_verification"' >> $GITHUB_OUTPUT
           else
-            CLI_ARG_TO_EXCLUDE_TESTS=""
+            echo 'CLI_ARG_TO_EXCLUDE_TESTS=""' >> $GITHUB_OUTPUT
           fi
-
-          echo "::set-output name=CLI_ARG_TO_EXCLUDE_TESTS::$CLI_ARG_TO_EXCLUDE_TESTS"
       - name: Run system tests
         run: |
           echo 'Exclusion of system tests: ${{ steps.exclude_tagged_stests.outputs.CLI_ARG_TO_EXCLUDE_TESTS }}'
