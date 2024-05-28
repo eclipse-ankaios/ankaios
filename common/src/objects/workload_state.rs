@@ -703,12 +703,12 @@ mod tests {
         );
         assert_eq!(
             proto::ExecutionState {
-                additional_info: NO_MORE_RETRIES_MSG.to_string(),
+                additional_info: format!("{}: {}", NO_MORE_RETRIES_MSG, additional_info),
                 execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
                     proto::Pending::StartingFailed.into(),
                 )),
             },
-            ExecutionState::retry_failed_no_retry().into(),
+            ExecutionState::retry_failed_no_retry(additional_info).into(),
         );
         assert_eq!(
             proto::ExecutionState {
@@ -804,9 +804,9 @@ mod tests {
             .into(),
         );
         assert_eq!(
-            ExecutionState::retry_failed_no_retry(),
+            ExecutionState::retry_failed_no_retry(additional_info),
             proto::ExecutionState {
-                additional_info: NO_MORE_RETRIES_MSG.to_string(),
+                additional_info: format!("{}: {}", NO_MORE_RETRIES_MSG, additional_info),
                 execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
                     proto::Pending::StartingFailed.into(),
                 )),
@@ -907,8 +907,11 @@ mod tests {
             String::from("AgentDisconnected")
         );
         assert_eq!(
-            ExecutionState::retry_failed_no_retry().to_string(),
-            format!("Pending(StartingFailed): '{}'", NO_MORE_RETRIES_MSG)
+            ExecutionState::retry_failed_no_retry(additional_info).to_string(),
+            format!(
+                "Pending(StartingFailed): '{}: {}'",
+                NO_MORE_RETRIES_MSG, additional_info
+            )
         );
         assert_eq!(
             ExecutionState::removed().to_string(),

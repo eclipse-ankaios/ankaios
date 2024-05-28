@@ -299,7 +299,7 @@ mod tests {
 
         let workload_state = WorkloadState {
             instance_name: i_name_2.clone(),
-            execution_state: ExecutionState::retry_failed_no_retry(),
+            execution_state: ExecutionState::retry_failed_no_retry("some error"),
         };
 
         let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_2);

@@ -1070,6 +1070,7 @@ mod tests {
             .config(&new_workload_spec.runtime_config)
             .build();
 
+        let create_runtime_error_msg = "some create error";
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
             .expect(vec![
@@ -1078,7 +1079,7 @@ mod tests {
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
                     Err(crate::runtime_connectors::RuntimeError::Create(
-                        "some create error".to_string(),
+                        create_runtime_error_msg.to_owned(),
                     )),
                 ),
                 // We also send a delete command, but as no new workload was generated, there is also no
@@ -1124,7 +1125,7 @@ mod tests {
                 (&new_instance_name, ExecutionState::starting_triggered()),
                 (
                     &new_instance_name,
-                    ExecutionState::starting_failed("some create error"),
+                    ExecutionState::retry_starting(1, super::MAX_RETRIES, create_runtime_error_msg),
                 ),
                 (&new_instance_name, ExecutionState::stopping_requested()),
                 (&new_instance_name, ExecutionState::removed()),
@@ -1562,6 +1563,7 @@ mod tests {
 
         let instance_name = workload_spec.instance_name.clone();
 
+        let create_runtime_error_msg = "some create error";
         let mut runtime_expectations = vec![];
 
         // instead of short vector initialization a for loop is used because RuntimeCall with its submembers shall not be clone-able.
@@ -1570,7 +1572,7 @@ mod tests {
                 workload_spec.clone(),
                 Some(PIPES_LOCATION.into()),
                 Err(crate::runtime_connectors::RuntimeError::Create(
-                    "some create error".to_string(),
+                    create_runtime_error_msg.to_owned(),
                 )),
             ));
         }
@@ -1611,17 +1613,18 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&instance_name, ExecutionState::starting_triggered()),
                 (
                     &instance_name,
-                    ExecutionState::starting_failed("some create error"),
+                    ExecutionState::retry_starting(1, super::MAX_RETRIES, create_runtime_error_msg),
                 ),
-                (&instance_name, ExecutionState::starting_triggered()),
                 (
                     &instance_name,
-                    ExecutionState::starting_failed("some create error"),
+                    ExecutionState::retry_starting(2, super::MAX_RETRIES, create_runtime_error_msg),
                 ),
-                (&instance_name, ExecutionState::retry_failed_no_retry()),
+                (
+                    &instance_name,
+                    ExecutionState::retry_failed_no_retry(create_runtime_error_msg),
+                ),
                 (&instance_name, ExecutionState::stopping_requested()),
                 (&instance_name, ExecutionState::removed()),
             ],
