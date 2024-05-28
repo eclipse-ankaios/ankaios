@@ -172,6 +172,7 @@ enum Pending {
   PENDING_WAITING_TO_START = 1; /// The start of the workload will be triggered once all its dependencies are met.
   PENDING_STARTING = 2; /// Starting the workload was scheduled at the corresponding runtime.
   PENDING_STARTING_FAILED = 8; /// The starting of the workload by the runtime failed.
+  PENDING_RETRY_STARTING = 9; /// Retry the start of the workload after the start failed.
 }
 
 /**

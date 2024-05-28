@@ -1623,6 +1623,31 @@ mod tests {
         assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
 
+    #[test]
+    fn utest_additional_info_msg_without_new_lines() {
+        let additional_info_msg = "some error with\nsome\nnewlines";
+        let mut get_workloads_table_display = GetWorkloadTableDisplay::new(
+            "workload1",
+            "agent1",
+            "runtime_x",
+            "running",
+            additional_info_msg,
+        );
+
+        assert_eq!(
+            get_workloads_table_display.additional_info,
+            "some error with, some, newlines"
+        );
+
+        let updated_additional_info_msg = "different error with\na new line";
+        get_workloads_table_display.set_additional_info(updated_additional_info_msg);
+
+        assert_eq!(
+            get_workloads_table_display.additional_info,
+            "different error with, a new line"
+        );
+    }
+
     // [utest->swdd~cli-provides-delete-workload~1]
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
     #[tokio::test]
