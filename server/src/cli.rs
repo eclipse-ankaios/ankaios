@@ -31,6 +31,15 @@ pub struct Arguments {
     #[clap(short = 'a', long = "address", default_value_t = DEFAULT_SOCKET_ADDRESS.parse().unwrap())]
     /// The address, including the port, the server shall listen at.
     pub addr: SocketAddr,
+    #[clap(long = "insecure", default_value_t = false)]
+    /// Flag to disable TLS communication between Ankaios server, agent and ank CLI.
+    pub insecure: bool,
+    #[clap(long = "ankaios_server_crt_pem", env)]
+    /// Path to server certificate pem file.
+    pub ankaios_server_crt_pem: Option<String>,
+    #[clap(long = "ankaios_server_key_pem", env)]
+    /// Path to server key pem file.
+    pub ankaios_server_key_pem: Option<String>,
 }
 // Note: this code is intentionally without unit tests.
 // There is no business logic which can be tested, here we have only a config and a call of "clap" crate.

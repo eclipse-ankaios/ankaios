@@ -25,7 +25,7 @@ use common::std_extensions::GracefulExitResult;
 
 use ankaios_server::{create_from_server_channel, create_to_server_channel, AnkaiosServer};
 
-use grpc::server::GRPCCommunicationsServer;
+use grpc::{security::TLSConfig, server::GRPCCommunicationsServer};
 
 #[tokio::main]
 async fn main() {
@@ -65,7 +65,27 @@ async fn main() {
     let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
     let (to_agents, agents_receiver) = create_from_server_channel(common::CHANNEL_CAPACITY);
 
-    let mut communications_server = GRPCCommunicationsServer::new(to_server.clone());
+    let tls_config: Result<Option<TLSConfig>, String> = match (
+        args.insecure,
+        args.ankaios_server_crt_pem,
+        args.ankaios_server_key_pem,
+    ) {
+        (true, _, _) => Ok(None),
+        (false, Some(path_to_crt_pem), Some(path_to_key_pem)) => Ok(Some(TLSConfig {
+            path_to_crt_pem,
+            path_to_key_pem,
+        })),
+        (_, crt_pem, key_pem) => Err(format!(
+            "ANKAIOS_SERVER_CRT_PEM={}, ANKAIOS_SERVER_KEY_PEM={}",
+            crt_pem.unwrap_or(String::from("\"\"")),
+            key_pem.unwrap_or(String::from("\"\""))
+        )),
+    };
+
+    let mut communications_server = GRPCCommunicationsServer::new(
+        to_server.clone(),
+        tls_config.unwrap_or_exit("Missing certificates files"),
+    );
     let mut server = AnkaiosServer::new(server_receiver, to_agents.clone());
 
     tokio::select! {

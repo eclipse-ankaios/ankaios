@@ -21,6 +21,14 @@ pub mod ankaios_streaming {
     }
 }
 
+pub mod security {
+    #[derive(Debug, Default)]
+    pub struct TLSConfig {
+        pub path_to_crt_pem: String,
+        pub path_to_key_pem: String,
+    }
+}
+
 mod agent_senders_map;
 pub mod client;
 mod from_server_proxy;
