@@ -465,7 +465,6 @@ struct GetWorkloadTableDisplayWithSpinner<'a> {
 
 impl GetWorkloadTableDisplay {
     const EXECUTION_STATE_POS: usize = 3;
-    const ADDITIONAL_INFO_POS: usize = 4;
 }
 
 impl<'a> Tabled for GetWorkloadTableDisplayWithSpinner<'a> {
@@ -476,9 +475,6 @@ impl<'a> Tabled for GetWorkloadTableDisplayWithSpinner<'a> {
         let execution_state = &mut fields[GetWorkloadTableDisplay::EXECUTION_STATE_POS];
         *(execution_state.to_mut()) = format!("{} {}", self.spinner, execution_state);
 
-        // prevent additional info msgs containing multiple newlines from messing up the table layout
-        let additional_info_msg = &mut fields[GetWorkloadTableDisplay::ADDITIONAL_INFO_POS];
-        *(additional_info_msg.to_mut()) = trim_and_replace_newlines(additional_info_msg);
         fields
     }
 
@@ -532,6 +528,7 @@ impl WaitListDisplayTrait for WaitListDisplay {
         if let Some(entry) = self.data.get_mut(&workload_state.instance_name) {
             entry.execution_state = workload_state.execution_state.state.to_string();
             entry.additional_info = workload_state.execution_state.additional_info.clone();
+            entry.trim_and_replace_newlines_in_additional_info();
         }
     }
 
@@ -576,10 +573,10 @@ impl GetWorkloadTableDisplay {
             additional_info: additional_info.to_string(),
         }
     }
-}
 
-fn trim_and_replace_newlines(text: &str) -> String {
-    text.trim().replace('\n', ", ")
+    fn trim_and_replace_newlines_in_additional_info(&mut self) {
+        self.additional_info = self.additional_info.trim().replace('\n', ", ");
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -861,16 +858,17 @@ impl CliCommands {
                 .workload_states
                 .into_iter()
                 .map(|wl_state| {
-                    (
-                        wl_state.instance_name.clone(),
-                        GetWorkloadTableDisplay::new(
-                            wl_state.instance_name.workload_name(),
-                            wl_state.instance_name.agent_name(),
-                            Default::default(),
-                            &wl_state.execution_state.state.to_string(),
-                            &wl_state.execution_state.additional_info.to_string(),
-                        ),
-                    )
+                    let mut get_workload_display = GetWorkloadTableDisplay::new(
+                        wl_state.instance_name.workload_name(),
+                        wl_state.instance_name.agent_name(),
+                        Default::default(),
+                        &wl_state.execution_state.state.to_string(),
+                        &wl_state.execution_state.additional_info.to_string(),
+                    );
+
+                    get_workload_display.trim_and_replace_newlines_in_additional_info();
+
+                    (wl_state.instance_name.clone(), get_workload_display)
                 })
                 .collect();
 
