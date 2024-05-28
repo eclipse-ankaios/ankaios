@@ -527,8 +527,7 @@ impl WaitListDisplayTrait for WaitListDisplay {
     fn update(&mut self, workload_state: &common::objects::WorkloadState) {
         if let Some(entry) = self.data.get_mut(&workload_state.instance_name) {
             entry.execution_state = workload_state.execution_state.state.to_string();
-            entry.additional_info = workload_state.execution_state.additional_info.clone();
-            entry.trim_and_replace_newlines_in_additional_info();
+            entry.set_additional_info(&workload_state.execution_state.additional_info);
         }
     }
 
@@ -570,13 +569,17 @@ impl GetWorkloadTableDisplay {
             base_info: WorkloadBaseTableDisplay::new(name, agent),
             runtime: runtime.to_string(),
             execution_state: execution_state.to_string(),
-            additional_info: additional_info.to_string(),
+            additional_info: trim_and_replace_newlines(additional_info),
         }
     }
 
-    fn trim_and_replace_newlines_in_additional_info(&mut self) {
-        self.additional_info = self.additional_info.trim().replace('\n', ", ");
+    fn set_additional_info(&mut self, new_additional_info: &str) {
+        self.additional_info = trim_and_replace_newlines(new_additional_info);
     }
+}
+
+fn trim_and_replace_newlines(text: &str) -> String {
+    text.trim().replace('\n', ", ")
 }
 
 #[derive(Debug, Clone)]
@@ -858,17 +861,16 @@ impl CliCommands {
                 .workload_states
                 .into_iter()
                 .map(|wl_state| {
-                    let mut get_workload_display = GetWorkloadTableDisplay::new(
-                        wl_state.instance_name.workload_name(),
-                        wl_state.instance_name.agent_name(),
-                        Default::default(),
-                        &wl_state.execution_state.state.to_string(),
-                        &wl_state.execution_state.additional_info.to_string(),
-                    );
-
-                    get_workload_display.trim_and_replace_newlines_in_additional_info();
-
-                    (wl_state.instance_name.clone(), get_workload_display)
+                    (
+                        wl_state.instance_name.clone(),
+                        GetWorkloadTableDisplay::new(
+                            wl_state.instance_name.workload_name(),
+                            wl_state.instance_name.agent_name(),
+                            Default::default(),
+                            &wl_state.execution_state.state.to_string(),
+                            &wl_state.execution_state.additional_info.to_string(),
+                        ),
+                    )
                 })
                 .collect();
 
