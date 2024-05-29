@@ -239,7 +239,7 @@ mod tests {
     const WORKLOAD_NAME_2: &str = "workload_2";
     const AGENT_A: &str = "agent_A";
     const RUNTIME: &str = "runtime";
-    const REQUEST: &str = "complete_state_request";
+    const REQUEST: &str = "request";
     const FIELD_MASK: &str = "field_mask";
     const ID: &str = "id";
 
