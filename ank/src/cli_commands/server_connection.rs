@@ -280,13 +280,6 @@ mod tests {
             .unwrap()
     }
 
-    fn running() -> ExecutionState {
-        ExecutionState {
-            state: ExecutionStateEnum::Running(RunningSubstate::Ok),
-            additional_info: "".into(),
-        }
-    }
-
     #[tokio::test]
     async fn utest_get_complete_state() {
         let mut sim = CommunicationSimulator::default();
@@ -625,7 +618,7 @@ mod tests {
         let update_workload_state = UpdateWorkloadState {
             workload_states: vec![WorkloadState {
                 instance_name: instance_name(WORKLOAD_NAME_1),
-                execution_state: running(),
+                execution_state: ExecutionState::running(),
             }],
         };
 
@@ -652,7 +645,7 @@ mod tests {
         let update_workload_state = UpdateWorkloadState {
             workload_states: vec![WorkloadState {
                 instance_name: instance_name(WORKLOAD_NAME_1),
-                execution_state: running(),
+                execution_state: ExecutionState::running(),
             }],
         };
 
