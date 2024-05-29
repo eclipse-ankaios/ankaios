@@ -2261,6 +2261,27 @@ mod tests {
                     deleted_workloads: vec!["name4.abc.agent_B".to_string()],
                 })
             });
+        let updated_state_clone = updated_state.clone();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| Ok(Box::new(updated_state_clone)));
+        mock_server_connection
+            .expect_take_missed_from_server_messages()
+            .return_once(std::vec::Vec::new);
+        mock_server_connection
+            .expect_read_next_update_workload_state()
+            .return_once(|| {
+                Ok(UpdateWorkloadState {
+                    workload_states: vec![WorkloadState {
+                        instance_name: "name4.abc.agent_B".try_into().unwrap(),
+                        execution_state: ExecutionState {
+                            state: objects::ExecutionStateEnum::Removed,
+                            ..Default::default()
+                        },
+                    }],
+                })
+            });
 
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
