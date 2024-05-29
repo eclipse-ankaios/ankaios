@@ -15,7 +15,9 @@ running --> failed
 running --> stopping
 stopping --> removed
 failed --> removed
+failed -left-> pending
 succeeded --> removed
+succeeded --> pending
 running --> waiting_to_stop
 waiting_to_stop -right-> stopping
 unknown --> removed

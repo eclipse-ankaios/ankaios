@@ -14,3 +14,7 @@ the [discussion forum](https://github.com/eclipse-ankaios/ankaios/discussions) m
 For reporting bugs or suggesting enhancements a new
 [issue](https://github.com/eclipse-ankaios/ankaios/issues) should be created
 using one of the templates if possible.
+
+## Slack
+
+Join the conversion with the community in the [Ankaios Slack workspace](https://github.com/eclipse-ankaios/ankaios/wiki#slack).

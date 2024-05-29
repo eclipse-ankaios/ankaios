@@ -21,6 +21,8 @@ from robot.api import logger
 
 import re
 list_pattern = re.compile("^[\"|\']*\[.*\][\"|\']*$")
+CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START = "^"
+EXPLICIT_DOT_IN_REGEX = "\\\\."
 
 def run_command(command, timeout=3):
     try:
@@ -32,7 +34,12 @@ def run_command(command, timeout=3):
 def table_to_list(raw):
     raw = raw.strip()
     splitted = raw.split('\n')
-    header = splitted.pop(0)
+
+    # Skip all lines before the table
+    header = ""
+    while splitted and "WORKLOAD NAME" not in header:
+        header = splitted.pop(0)
+
     columns = [(x.group(0).strip(), x.start(), x.end()) for x in re.finditer(r'(([^\s]+\s?)+\s*)', header.replace('\x1b[1G\x1b[1G ', ''))]
     logger.trace("columns: {}".format(columns))
     table = []
@@ -87,6 +94,45 @@ def get_volume_names_from_podman():
     logger.trace(vol_names)
     return vol_names
 
+def get_volume_name_by_workload_name_from_podman(workload_name):
+    res = run_command('podman volume ls --format "{{{{.Name}}}}" --filter name={}{}{}.*{}pods'.format(CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, workload_name, EXPLICIT_DOT_IN_REGEX, EXPLICIT_DOT_IN_REGEX))
+    volume_name = res.stdout.strip()
+    logger.trace(volume_name)
+    return volume_name
+
+def get_container_id_and_name_by_workload_name_from_podman(workload_name):
+    res = run_command('podman ps -a --no-trunc --format="{{{{.ID}}}} {{{{.Names}}}}" --filter=name={}{}{}.*'.format(CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, workload_name, EXPLICIT_DOT_IN_REGEX))
+    raw = res.stdout.strip()
+    raw_wln = raw.split('\n')
+    container_ids_and_names = list(map(lambda x: x.split(' '), raw_wln)) # 2-dim [[id,name],[id,name],...]
+    logger.trace(container_ids_and_names)
+    amount_of_rows = len(container_ids_and_names)
+    expected_amount_of_rows = 1
+    assert amount_of_rows == expected_amount_of_rows, \
+        f"Expected {expected_amount_of_rows} row for workload name {workload_name} but found {amount_of_rows} rows"
+    amount_of_columns = len(container_ids_and_names[0])
+    expected_amount_of_columns = 2
+    if amount_of_columns < expected_amount_of_columns:
+        return "", ""
+
+    container_id = container_ids_and_names[0][0]
+    container_name = container_ids_and_names[0][1]
+
+    return container_id, container_name
+
+def get_pod_id_by_pod_name_from_podman(pod_name):
+    res = run_command('podman pod ls --no-trunc --format="{{{{.ID}}}}" --filter=name={}{}'.format(CHAR_TO_ANCHOR_REGEX_PATTERN_TO_START, pod_name))
+    raw = res.stdout.strip()
+    pod_ids = raw.split('\n')
+    logger.trace(pod_ids)
+    amount_of_rows = len(pod_ids)
+    expected_amount_of_rows = 1
+    assert amount_of_rows == expected_amount_of_rows, \
+        f"Expected {expected_amount_of_rows} row for pod name {pod_name} but found {amount_of_rows} rows"
+
+    pod_id = pod_ids[0]
+    return pod_id
+
 def wait_for_initial_execution_state(command, agent_name, timeout=10, next_try_in_sec=0.25):
         start_time = get_time_secs()
         logger.trace(run_command("ps aux | grep ank").stdout)
@@ -112,13 +158,13 @@ def workload_with_execution_state(table, workload_name, expected_state):
         return table
     return list()
 
-def wait_for_execution_state(command, workload_name, expected_state, timeout=10, next_try_in_sec=0.25):
+def wait_for_execution_state(command, workload_name, agent_name, expected_state, timeout=10, next_try_in_sec=0.25):
         start_time = get_time_secs()
         res = run_command(command)
         table = table_to_list(res.stdout if res else "")
         logger.trace(table)
         while (get_time_secs() - start_time) < timeout:
-            if table and any([row["EXECUTION STATE"].strip() == expected_state for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name, table)]):
+            if table and any([row["EXECUTION STATE"].strip() == expected_state for row in filter(lambda r: r["WORKLOAD NAME"] == workload_name and r["AGENT"] == agent_name, table)]):
                 return table
 
             time.sleep(next_try_in_sec)

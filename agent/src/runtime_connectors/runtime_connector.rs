@@ -2,7 +2,7 @@ use std::{fmt::Display, path::PathBuf};
 
 use async_trait::async_trait;
 
-use common::objects::{AgentName, WorkloadInstanceName, WorkloadSpec};
+use common::objects::{AgentName, WorkloadInstanceName, WorkloadSpec, WorkloadState};
 
 use crate::{runtime_connectors::StateChecker, workload_state::WorkloadStateSender};
 
@@ -41,7 +41,7 @@ where
     async fn get_reusable_workloads(
         &self,
         agent_name: &AgentName,
-    ) -> Result<Vec<WorkloadInstanceName>, RuntimeError>;
+    ) -> Result<Vec<WorkloadState>, RuntimeError>;
 
     async fn create_workload(
         &self,
@@ -97,7 +97,9 @@ pub mod test {
     use std::{collections::VecDeque, path::PathBuf, sync::Arc};
 
     use async_trait::async_trait;
-    use common::objects::{AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec};
+    use common::objects::{
+        AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState,
+    };
     use tokio::sync::Mutex;
 
     use crate::{
@@ -159,11 +161,10 @@ pub mod test {
 
     #[derive(Debug)]
     pub enum RuntimeCall {
-        GetReusableWorkloads(AgentName, Result<Vec<WorkloadInstanceName>, RuntimeError>),
+        GetReusableWorkloads(AgentName, Result<Vec<WorkloadState>, RuntimeError>),
         CreateWorkload(
             WorkloadSpec,
             Option<PathBuf>,
-            WorkloadStateSender,
             Result<(String, StubStateChecker), RuntimeError>,
         ),
         GetWorkloadId(WorkloadInstanceName, Result<String, RuntimeError>),
@@ -278,7 +279,7 @@ pub mod test {
         async fn get_reusable_workloads(
             &self,
             agent_name: &AgentName,
-        ) -> Result<Vec<WorkloadInstanceName>, RuntimeError> {
+        ) -> Result<Vec<WorkloadState>, RuntimeError> {
             match self.get_expected_call().await {
                 RuntimeCall::GetReusableWorkloads(expected_agent_name, result)
                     if expected_agent_name == *agent_name =>
@@ -287,7 +288,7 @@ pub mod test {
                 }
                 expected_call => {
                     self.unexpected_call().await;
-                    panic!("Unexpected get_reusable_running_workloads call. Expected: '{expected_call:?}'");
+                    panic!("Unexpected get_reusable_running_workloads call. Expected: '{expected_call:?}'\n\nGot: {agent_name:?}");
                 }
             }
         }
@@ -296,23 +297,21 @@ pub mod test {
             &self,
             runtime_workload_config: WorkloadSpec,
             control_interface_path: Option<PathBuf>,
-            update_state_tx: WorkloadStateSender,
+            _update_state_tx: WorkloadStateSender,
         ) -> Result<(String, StubStateChecker), RuntimeError> {
             match self.get_expected_call().await {
                 RuntimeCall::CreateWorkload(
                     expected_runtime_workload_config,
                     expected_control_interface_path,
-                    expected_update_state_tx,
                     result,
                 ) if expected_runtime_workload_config == runtime_workload_config
-                    && expected_control_interface_path == control_interface_path
-                    && expected_update_state_tx.same_channel(&update_state_tx) =>
+                    && expected_control_interface_path == control_interface_path =>
                 {
                     return result;
                 }
                 expected_call => {
                     self.unexpected_call().await;
-                    panic!("Unexpected create_workload call. Expected: '{expected_call:?}'");
+                    panic!("Unexpected create_workload call. Expected: '{expected_call:?}'\n\nGot: {runtime_workload_config:?}, {control_interface_path:?}");
                 }
             }
         }
@@ -329,7 +328,7 @@ pub mod test {
                 }
                 expected_call => {
                     self.unexpected_call().await;
-                    panic!("Unexpected get_workload_id call. Expected: '{expected_call:?}'");
+                    panic!("Unexpected get_workload_id call. Expected: '{expected_call:?}' \n\nGot: {instance_name:?}");
                 }
             }
         }
@@ -354,7 +353,7 @@ pub mod test {
                 }
                 expected_call => {
                     self.unexpected_call().await;
-                    panic!("Unexpected start_checker call. Expected: '{expected_call:?}'");
+                    panic!("Unexpected start_checker call. Expected: '{expected_call:?}' \n\nGot: {workload_id:?}, {runtime_workload_config:?}, {update_state_tx:?}");
                 }
             }
         }
@@ -368,7 +367,7 @@ pub mod test {
                 }
                 expected_call => {
                     self.unexpected_call().await;
-                    panic!("Unexpected delete_workload call. Expected: '{expected_call:?}'");
+                    panic!("Unexpected delete_workload call. Expected: '{expected_call:?}'\n\nGot: {workload_id:?}");
                 }
             }
         }

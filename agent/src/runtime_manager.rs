@@ -19,13 +19,19 @@ use std::{
 
 use common::{
     commands::Response,
-    objects::{AgentName, DeletedWorkload, ExecutionState, WorkloadInstanceName, WorkloadSpec},
+    objects::{
+        AgentName, DeletedWorkload, ExecutionState, WorkloadInstanceName, WorkloadSpec,
+        WorkloadState,
+    },
     request_id_prepending::detach_prefix_from_request_id,
     to_server_interface::ToServerSender,
 };
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::PipesChannelContext;
+
+#[cfg_attr(test, mockall_double::double)]
+use crate::control_interface::PipesChannelContextInfo;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_scheduler::scheduler::WorkloadScheduler;
@@ -196,43 +202,42 @@ impl RuntimeManager {
         }
 
         let mut new_added_workloads = Vec::new();
-        // Go through each runtime and find the still running workloads
+        // Go through each runtime and find existing workloads
         // [impl->swdd~agent-existing-workloads-finds-list~1]
         for (runtime_name, runtime) in &self.runtime_map {
-            match runtime
-                .get_reusable_running_workloads(&self.agent_name)
-                .await
-            {
-                Ok(running_instance_names) => {
+            match runtime.get_reusable_workloads(&self.agent_name).await {
+                Ok(workload_states) => {
                     log::info!(
-                        "Found '{}' reusable '{}' workload(s).",
-                        running_instance_names.len(),
+                        "Found '{}' existing '{}' workload(s).",
+                        workload_states.len(),
                         runtime_name,
                     );
 
-                    for instance_name in running_instance_names {
+                    for workload_state in workload_states {
                         if let Some(new_workload_spec) = added_workloads_per_runtime
                             .get_mut(runtime_name)
-                            .and_then(|map| map.remove(instance_name.workload_name()))
+                            .and_then(|map| {
+                                map.remove(workload_state.instance_name.workload_name())
+                            })
                         {
                             let new_instance_name: WorkloadInstanceName =
                                 new_workload_spec.instance_name.clone();
 
-                            // We have a running workload that matches a new added workload; check if the config is updated
-                            // [impl->swdd~agent-stores-running-workload~1]
-                            if new_instance_name == instance_name {
+                            // [impl->swdd~agent-existing-workloads-resume-existing~2]
+                            if Self::is_resumable_workload(&workload_state, &new_instance_name) {
                                 // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
                                 let control_interface = Self::create_control_interface(
                                     &self.run_folder,
                                     self.control_interface_tx.clone(),
-                                    &new_workload_spec,
+                                    &new_workload_spec.instance_name,
                                 );
 
                                 log::info!(
                                     "Resuming workload '{}'",
                                     new_instance_name.workload_name()
                                 );
-                                // [impl->swdd~agent-existing-workloads-resume-existing~1]
+
+                                // [impl->swdd~agent-stores-running-workload~1]
                                 self.workloads.insert(
                                     new_instance_name.workload_name().to_owned(),
                                     runtime.resume_workload(
@@ -242,19 +247,35 @@ impl RuntimeManager {
                                     ),
                                 );
                             } else {
-                                // [impl->swdd~agent-existing-workloads-replace-updated~1]
+                                // [impl->swdd~agent-existing-workloads-replace-updated~2]
 
                                 log::info!("Deleting existing workload '{}'. It is created when its dependencies are fulfilled.",
-                                    instance_name.workload_name()
+                                workload_state.instance_name.workload_name()
                                 );
 
-                                runtime.delete_workload(instance_name, &self.update_state_tx);
+                                /* Temporary workaround until direct start of bundles is implemented to prevent
+                                workload states from being overwritten by the delete. The decoupled create and a potential enqueue
+                                on unmet inter-workload dependencies might run earlier than the delete and the delete overwrites the
+                                pending workload states.*/
+                                const REPORT_WORKLOAD_STATES_FOR_WORKLOAD: bool = false;
+                                runtime.delete_workload(
+                                    workload_state.instance_name,
+                                    &self.update_state_tx,
+                                    REPORT_WORKLOAD_STATES_FOR_WORKLOAD,
+                                );
                                 new_added_workloads.push(new_workload_spec);
                             }
                         } else {
                             // No added workload matches the found running one => delete it
                             // [impl->swdd~agent-existing-workloads-delete-unneeded~1]
-                            runtime.delete_workload(instance_name, &self.update_state_tx);
+
+                            // workload states are allowed to send because the workload is not created anymore afterwards
+                            const REPORT_WORKLOAD_STATES_FOR_WORKLOAD: bool = true;
+                            runtime.delete_workload(
+                                workload_state.instance_name,
+                                &self.update_state_tx,
+                                REPORT_WORKLOAD_STATES_FOR_WORKLOAD,
+                            );
                         }
                     }
                 }
@@ -266,6 +287,18 @@ impl RuntimeManager {
         new_added_workloads.extend(flatten(added_workloads_per_runtime));
 
         new_added_workloads
+    }
+
+    fn is_resumable_workload(
+        workload_state_existing_workload: &WorkloadState,
+        new_instance_name: &WorkloadInstanceName,
+    ) -> bool {
+        workload_state_existing_workload
+            .execution_state
+            .is_running()
+            && workload_state_existing_workload
+                .instance_name
+                .eq(new_instance_name)
     }
 
     // [impl->swdd~agent-transforms-update-workload-message-to-workload-operations~1]
@@ -354,20 +387,21 @@ impl RuntimeManager {
 
     async fn add_workload(&mut self, workload_spec: WorkloadSpec) {
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
-
-        // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-        let control_interface = Self::create_control_interface(
+        let control_interface_info = PipesChannelContextInfo::new(
             &self.run_folder,
             self.control_interface_tx.clone(),
-            &workload_spec,
+            &workload_spec.instance_name,
         );
 
         // [impl->swdd~agent-uses-specified-runtime~1]
         // [impl->swdd~agent-skips-unknown-runtime~1]
         if let Some(runtime) = self.runtime_map.get(&workload_spec.runtime) {
             // [impl->swdd~agent-executes-create-workload-operation~1]
-            let workload =
-                runtime.create_workload(workload_spec, control_interface, &self.update_state_tx);
+            let workload = runtime.create_workload(
+                workload_spec,
+                Some(control_interface_info),
+                &self.update_state_tx,
+            );
             // [impl->swdd~agent-stores-running-workload~1]
             self.workloads.insert(workload_name, workload);
         } else {
@@ -412,17 +446,16 @@ impl RuntimeManager {
     // [impl->swdd~agent-updates-deleted-and-added-workloads~1]
     async fn update_workload(&mut self, workload_spec: WorkloadSpec) {
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
+
         if let Some(workload) = self.workloads.get_mut(&workload_name) {
-            // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-            let control_interface = Self::create_control_interface(
+            let pipes_channel_context_info = PipesChannelContextInfo::new(
                 &self.run_folder,
                 self.control_interface_tx.clone(),
-                &workload_spec,
+                &workload_spec.instance_name,
             );
-
             // [impl->swdd~agent-executes-update-workload-operation~1]
             if let Err(err) = workload
-                .update(Some(workload_spec), control_interface)
+                .update(Some(workload_spec), Some(pipes_channel_context_info))
                 .await
             {
                 log::error!("Failed to update workload '{}': '{}'", workload_name, err);
@@ -451,20 +484,19 @@ impl RuntimeManager {
     fn create_control_interface(
         run_folder: &Path,
         control_interface_tx: ToServerSender,
-        workload_spec: &WorkloadSpec,
+        workload_instance_name: &WorkloadInstanceName,
     ) -> Option<PipesChannelContext> {
-        log::debug!("Creating control interface pipes for '{:?}'", workload_spec);
+        log::debug!(
+            "Creating control interface pipes for '{:?}'",
+            workload_instance_name
+        );
 
-        match PipesChannelContext::new(
-            run_folder,
-            &workload_spec.instance_name,
-            control_interface_tx,
-        ) {
+        match PipesChannelContext::new(run_folder, workload_instance_name, control_interface_tx) {
             Ok(pipes_channel_context) => Some(pipes_channel_context),
             Err(err) => {
                 log::warn!(
                     "Could not create pipes channel context for workload '{}'. Error: '{err}'",
-                    workload_spec.instance_name
+                    workload_instance_name
                 );
                 None
             }
@@ -483,7 +515,7 @@ impl RuntimeManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::control_interface::MockPipesChannelContext;
+    use crate::control_interface::{MockPipesChannelContext, MockPipesChannelContextInfo};
     use crate::runtime_connectors::{MockRuntimeFacade, RuntimeError};
     use crate::workload::{MockWorkload, WorkloadError};
     use crate::workload_scheduler::scheduler::MockWorkloadScheduler;
@@ -550,11 +582,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
             .expect()
             .times(2)
-            .returning(|_, _, _| Ok(MockPipesChannelContext::default()));
+            .returning(|_, _, _| MockPipesChannelContextInfo::default());
 
         let new_workload_1 = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -588,7 +620,7 @@ mod tests {
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
-            .expect_get_reusable_running_workloads()
+            .expect_get_reusable_workloads()
             .once()
             .return_once(|_| Box::pin(async { Ok(vec![]) }));
 
@@ -599,7 +631,7 @@ mod tests {
 
         let mut runtime_facade_mock_2 = MockRuntimeFacade::new();
         runtime_facade_mock_2
-            .expect_get_reusable_running_workloads()
+            .expect_get_reusable_workloads()
             .once()
             .return_once(|_| Box::pin(async { Ok(vec![]) }));
 
@@ -635,11 +667,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let workload_with_unknown_runtime = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -664,7 +696,7 @@ mod tests {
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
-            .expect_get_reusable_running_workloads()
+            .expect_get_reusable_workloads()
             .once()
             .return_once(|_| Box::pin(async { Ok(vec![]) }));
 
@@ -692,11 +724,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -720,7 +752,7 @@ mod tests {
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
-            .expect_get_reusable_running_workloads()
+            .expect_get_reusable_workloads()
             .once()
             .returning(|_| {
                 Box::pin(async {
@@ -757,11 +789,11 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
-    // [utest->swdd~agent-existing-workloads-resume-existing~1]
+    // [utest->swdd~agent-existing-workloads-resume-existing~2]
     // [utest->swdd~agent-existing-workloads-starts-new-if-not-found~1]
     // [utest->swdd~agent-stores-running-workload~1]
     #[tokio::test]
-    async fn utest_handle_update_workload_initial_call_resume_workload() {
+    async fn utest_resume_existing_running_workload_with_equal_config() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -785,19 +817,23 @@ mod tests {
             .once()
             .return_once(|_| mock_workload_scheduler);
 
-        let existing_workload1 = generate_test_workload_spec_with_param(
+        let existing_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
 
-        let existing_workload_instance_name = existing_workload1.instance_name.clone();
+        let existing_workload_instance_name = existing_workload.instance_name.clone();
+        let workload_state_running = WorkloadState {
+            instance_name: existing_workload_instance_name,
+            execution_state: ExecutionState::running(),
+        };
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
-            .expect_get_reusable_running_workloads()
+            .expect_get_reusable_workloads()
             .once()
-            .return_once(|_| Box::pin(async { Ok(vec![existing_workload_instance_name]) }));
+            .return_once(|_| Box::pin(async { Ok(vec![workload_state_running]) }));
 
         runtime_facade_mock
             .expect_resume_workload()
@@ -813,7 +849,7 @@ mod tests {
             )
             .build();
 
-        let added_workloads = vec![existing_workload1];
+        let added_workloads = vec![existing_workload];
         runtime_manager
             .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
             .await;
@@ -822,19 +858,12 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
-    // [utest->swdd~agent-existing-workloads-replace-updated~1]
-    // [utest->swdd~agent-stores-running-workload~1]
+    // [utest->swdd~agent-existing-workloads-replace-updated~2]
     #[tokio::test]
-    async fn utest_handle_update_workload_initial_call_replace_workload() {
+    async fn utest_replace_existing_workload_with_different_config() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
-
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
-            .expect()
-            .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
 
         let existing_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -844,18 +873,11 @@ mod tests {
 
         let added_workloads = vec![existing_workload.clone()];
 
-        let workload_operations = vec![WorkloadOperation::Create(existing_workload)];
-        let mut mock_workload_scheduler = MockWorkloadScheduler::default();
-        mock_workload_scheduler
-            .expect_enqueue_filtered_workload_operations()
-            .once()
-            .return_const(workload_operations);
-
         let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
         mock_workload_scheduler_context
             .expect()
             .once()
-            .return_once(|_| mock_workload_scheduler);
+            .return_once(|_| MockWorkloadScheduler::default());
 
         // create workload with different config string to simulate a replace of a existing workload
         let existing_workload_with_other_config = WorkloadInstanceNameBuilder::default()
@@ -864,25 +886,21 @@ mod tests {
             .agent_name(AGENT_NAME)
             .build();
 
-        let mut sequence = mockall::Sequence::new();
+        let workload_state_running = WorkloadState {
+            instance_name: existing_workload_with_other_config,
+            execution_state: ExecutionState::running(),
+        };
+
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
-            .expect_get_reusable_running_workloads()
+            .expect_get_reusable_workloads()
             .once()
-            .in_sequence(&mut sequence)
-            .return_once(|_| Box::pin(async { Ok(vec![existing_workload_with_other_config]) }));
+            .return_once(|_| Box::pin(async { Ok(vec![workload_state_running]) }));
 
         runtime_facade_mock
             .expect_delete_workload()
             .once()
-            .in_sequence(&mut sequence)
             .return_const(());
-
-        runtime_facade_mock
-            .expect_create_workload()
-            .once()
-            .in_sequence(&mut sequence)
-            .return_once(|_, _, _| MockWorkload::default());
 
         let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
             .with_runtime(
@@ -891,12 +909,64 @@ mod tests {
             )
             .build();
 
-        runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
+        let expected_new_added_workloads = added_workloads.clone();
+        let new_added_workloads = runtime_manager
+            .resume_and_remove_from_added_workloads(added_workloads)
             .await;
 
-        assert!(runtime_manager.initial_workload_list_received);
-        assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+        assert_eq!(expected_new_added_workloads, new_added_workloads);
+        assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
+    }
+
+    // [utest->swdd~agent-existing-workloads-replace-updated~2]
+    #[tokio::test]
+    async fn utest_replace_existing_not_running_workload() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let existing_workload = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+        let added_workloads = vec![existing_workload.clone()];
+
+        let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
+        mock_workload_scheduler_context
+            .expect()
+            .once()
+            .return_once(|_| MockWorkloadScheduler::default());
+
+        let workload_state_succeeded = WorkloadState {
+            instance_name: existing_workload.instance_name,
+            execution_state: ExecutionState::succeeded(),
+        };
+
+        let mut runtime_facade_mock = MockRuntimeFacade::new();
+        runtime_facade_mock
+            .expect_get_reusable_workloads()
+            .once()
+            .return_once(|_| Box::pin(async { Ok(vec![workload_state_succeeded]) }));
+        runtime_facade_mock
+            .expect_delete_workload()
+            .once()
+            .return_const(());
+
+        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default()
+            .with_runtime(
+                RUNTIME_NAME,
+                Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
+            )
+            .build();
+
+        let expected_added_workloads = added_workloads.clone();
+        let new_added_workloads = runtime_manager
+            .resume_and_remove_from_added_workloads(added_workloads)
+            .await;
+
+        assert_eq!(expected_added_workloads, new_added_workloads);
+        assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
     // [utest->swdd~agent-existing-workloads-delete-unneeded~1]
@@ -932,10 +1002,15 @@ mod tests {
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
-            .expect_get_reusable_running_workloads()
+            .expect_get_reusable_workloads()
             .once()
             .return_once(|_| {
-                Box::pin(async move { Ok(vec![existing_workload_with_other_config]) })
+                Box::pin(async move {
+                    Ok(vec![WorkloadState {
+                        instance_name: existing_workload_with_other_config,
+                        ..Default::default()
+                    }])
+                })
             });
 
         runtime_facade_mock
@@ -987,7 +1062,7 @@ mod tests {
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
-            .expect_get_reusable_running_workloads()
+            .expect_get_reusable_workloads()
             .once()
             .return_once(|_| Box::pin(async { Ok(vec![]) }));
         runtime_facade_mock.expect_create_workload().never();
@@ -1008,7 +1083,7 @@ mod tests {
         assert!(runtime_manager.workloads.is_empty());
     }
 
-    // [utest->swdd~agent-existing-workloads-replace-updated~1]
+    // [utest->swdd~agent-existing-workloads-replace-updated~2]
     #[tokio::test]
     async fn utest_handle_update_workload_initial_call_replace_workload_with_unfulfilled_dependencies(
     ) {
@@ -1047,9 +1122,16 @@ mod tests {
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
-            .expect_get_reusable_running_workloads()
+            .expect_get_reusable_workloads()
             .once()
-            .return_once(|_| Box::pin(async { Ok(vec![existing_workload_with_other_config]) }));
+            .return_once(|_| {
+                Box::pin(async {
+                    Ok(vec![WorkloadState {
+                        instance_name: existing_workload_with_other_config,
+                        ..Default::default()
+                    }])
+                })
+            });
 
         runtime_facade_mock
             .expect_delete_workload()
@@ -1083,17 +1165,17 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
-            .expect()
-            .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
-
         let new_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
+
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
+            .expect()
+            .once()
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let old_workload =
             generate_test_deleted_workload(AGENT_NAME.to_string(), WORKLOAD_1_NAME.to_string());
@@ -1140,7 +1222,7 @@ mod tests {
                             .workload_name()
                             == WORKLOAD_1_NAME
                 }),
-                predicate::function(|control_interface: &Option<PipesChannelContext>| {
+                predicate::function(|control_interface: &Option<PipesChannelContextInfo>| {
                     control_interface.is_some()
                 }),
             )
@@ -1172,11 +1254,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let new_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1261,11 +1343,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let new_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1324,17 +1406,17 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
-            .expect()
-            .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
-
         let new_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
+
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
+            .expect()
+            .once()
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let old_workload = generate_test_deleted_workload_with_dependencies(
             AGENT_NAME.to_owned(),
@@ -1405,11 +1487,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let new_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1555,7 +1637,7 @@ mod tests {
             .once()
             .with(
                 predicate::eq(None), // in case of update delete only there is no new workload spec
-                predicate::function(|control_interface: &Option<PipesChannelContext>| {
+                predicate::function(|control_interface: &Option<PipesChannelContextInfo>| {
                     control_interface.is_none()
                 }),
             )
@@ -1796,11 +1878,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
+        let pipes_channel_mock = MockPipesChannelContextInfo::new_context();
         pipes_channel_mock
             .expect()
             .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let next_workload_operations = vec![WorkloadOperation::Create(
             generate_test_workload_spec_with_dependencies(
@@ -2117,11 +2199,11 @@ mod tests {
             .once()
             .return_once(|_| MockWorkloadScheduler::default());
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
@@ -2233,11 +2315,17 @@ mod tests {
         let (_server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default().build();
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
+        let new_workload = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_owned(),
+            WORKLOAD_1_NAME.to_owned(),
+            RUNTIME_NAME.to_owned(),
+        );
+
+        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
+        pipes_channel_info_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+            .return_once(|_, _, _| MockPipesChannelContextInfo::default());
 
         let mut workload_mock = MockWorkload::default();
         workload_mock
@@ -2248,12 +2336,6 @@ mod tests {
         runtime_manager
             .workloads
             .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
-
-        let new_workload = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_owned(),
-            WORKLOAD_1_NAME.to_owned(),
-            RUNTIME_NAME.to_owned(),
-        );
 
         let deleted_workload =
             generate_test_deleted_workload(AGENT_NAME.to_owned(), WORKLOAD_1_NAME.to_owned());

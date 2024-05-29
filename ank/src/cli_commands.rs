@@ -525,30 +525,21 @@ impl CliCommands {
     // [impl->swdd~cli-provides-delete-workload~1]
     // [impl->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
     pub async fn delete_workloads(&mut self, workload_names: Vec<String>) -> Result<(), CliError> {
-        let complete_state = self
-            .server_connection
-            .get_complete_state(&Vec::new())
-            .await?;
+        let complete_state_update = CompleteState::default();
 
-        output_debug!("Got current state: {:?}", complete_state);
-        let mut new_state = complete_state.clone();
-        // Filter out workloads to be deleted.
-        new_state
-            .desired_state
-            .workloads
-            .retain(|k, _v| !workload_names.clone().into_iter().any(|wn| &wn == k));
+        let update_mask = workload_names
+            .into_iter()
+            .map(|name_of_workload_to_delete| {
+                format!("desiredState.workloads.{}", name_of_workload_to_delete)
+            })
+            .collect();
 
-        // Filter out workload statuses of the workloads to be deleted.
-        // Only a nice-to-have, but it could be better to avoid sending misleading information
-        new_state.workload_states.retain(|ws| {
-            !workload_names
-                .clone()
-                .into_iter()
-                .any(|wn| wn == ws.instance_name.workload_name())
-        });
+        output_debug!(
+            "Updating with empty complete state and update mask {:?}",
+            update_mask
+        );
 
-        let update_mask = vec!["desiredState".to_string()];
-        self.update_state_and_wait_for_complete(*new_state, update_mask)
+        self.update_state_and_wait_for_complete(complete_state_update, update_mask)
             .await
     }
 
@@ -576,20 +567,20 @@ impl CliCommands {
         };
         output_debug!("Request to run new workload: {:?}", new_workload);
 
-        let res_complete_state = self
-            .server_connection
-            .get_complete_state(&Vec::new())
-            .await?;
-        output_debug!("Got current state: {:?}", res_complete_state);
-        let mut new_state = *res_complete_state.clone();
-        new_state
+        let update_mask = vec![format!("desiredState.workloads.{}", workload_name)];
+
+        let mut complete_state_update = CompleteState::default();
+        complete_state_update
             .desired_state
             .workloads
             .insert(workload_name, new_workload);
 
-        let update_mask = vec!["desiredState".to_string()];
-
-        self.update_state_and_wait_for_complete(new_state, update_mask)
+        output_debug!(
+            "The complete state update: {:?}, update mask {:?}",
+            complete_state_update,
+            update_mask
+        );
+        self.update_state_and_wait_for_complete(complete_state_update, update_mask)
             .await
     }
 
@@ -634,6 +625,8 @@ impl CliCommands {
         if changed_workloads.is_empty() {
             output!("No workloads to update");
             return Ok(());
+        } else {
+            output!("Applied successfully the manifest(s). Waiting for target workload states (press Ctrl+C to interrupt waiting).\n");
         }
 
         let states_of_all_workloads = self.get_workloads().await.unwrap();
@@ -1077,45 +1070,60 @@ mod tests {
     // [utest->swdd~cli-provides-delete-workload~1]
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
     #[tokio::test]
-    async fn utest_delete_workloads_two_workloads() {
-        let startup_state = test_utils::generate_test_complete_state(vec![
-            generate_test_workload_spec_with_param(
-                "agent_A".to_string(),
-                "name1".to_string(),
-                "runtime".to_string(),
-            ),
-            generate_test_workload_spec_with_param(
-                "agent_B".to_string(),
-                "name2".to_string(),
-                "runtime".to_string(),
-            ),
-            generate_test_workload_spec_with_param(
-                "agent_B".to_string(),
-                "name3".to_string(),
-                "runtime".to_string(),
-            ),
-        ]);
-        let updated_state =
-            test_utils::generate_test_complete_state(vec![generate_test_workload_spec_with_param(
-                "agent_B".to_string(),
-                "name3".to_string(),
-                "runtime".to_string(),
-            )]);
+    async fn delete_workloads_two_workloads() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let complete_state_update = CompleteState::default();
 
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
-            .expect_get_complete_state()
-            .with(eq(vec![]))
-            .return_once(|_| Ok(Box::new(startup_state)));
-        mock_server_connection
             .expect_update_state()
-            .with(eq(updated_state), eq(vec!["desiredState".to_string()]))
+            .with(
+                eq(complete_state_update.clone()),
+                eq(vec![
+                    "desiredState.workloads.name1".to_string(),
+                    "desiredState.workloads.name2".to_string(),
+                ]),
+            )
             .return_once(|_, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![],
-                    deleted_workloads: vec![],
+                    deleted_workloads: vec![
+                        "name1.abc.agent_B".to_string(),
+                        "name2.abc.agent_B".to_string(),
+                    ],
                 })
             });
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| Ok(Box::new(complete_state_update)));
+
+        mock_server_connection
+            .expect_take_missed_from_server_messages()
+            .return_once(|| {
+                vec![FromServer::UpdateWorkloadState(UpdateWorkloadState {
+                    workload_states: vec![
+                        WorkloadState {
+                            instance_name: "name1.abc.agent_B".try_into().unwrap(),
+                            execution_state: ExecutionState {
+                                state: objects::ExecutionStateEnum::Removed,
+                                additional_info: "".to_string(),
+                            },
+                        },
+                        WorkloadState {
+                            instance_name: "name2.abc.agent_B".try_into().unwrap(),
+                            execution_state: ExecutionState {
+                                state: objects::ExecutionStateEnum::Removed,
+                                additional_info: "".to_string(),
+                            },
+                        },
+                    ],
+                })]
+            });
+
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
             no_wait: false,
@@ -1128,36 +1136,23 @@ mod tests {
         assert!(delete_result.is_ok());
     }
 
-    // [utest->swdd~no-delete-workloads-when-not-found~1]
+    // [utest->swdd~cli-provides-delete-workload~1]
+    // [utest->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
     #[tokio::test]
-    async fn utest_delete_workloads_unknown_workload() {
-        let startup_state = test_utils::generate_test_complete_state(vec![
-            generate_test_workload_spec_with_param(
-                "agent_A".to_string(),
-                "name1".to_string(),
-                "runtime".to_string(),
-            ),
-            generate_test_workload_spec_with_param(
-                "agent_B".to_string(),
-                "name2".to_string(),
-                "runtime".to_string(),
-            ),
-            generate_test_workload_spec_with_param(
-                "agent_B".to_string(),
-                "name3".to_string(),
-                "runtime".to_string(),
-            ),
-        ]);
-        let updated_state = startup_state.clone();
+    async fn delete_workloads_unknown_workload() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let complete_state_update = CompleteState::default();
 
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
-            .expect_get_complete_state()
-            .with(eq(vec![]))
-            .return_once(|_| Ok(Box::new(startup_state)));
-        mock_server_connection
             .expect_update_state()
-            .with(eq(updated_state), eq(vec!["desiredState".to_string()]))
+            .with(
+                eq(complete_state_update),
+                eq(vec!["desiredState.workloads.unknown_workload".to_string()]),
+            )
             .return_once(|_, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![],
@@ -1424,30 +1419,15 @@ mod tests {
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-run-workload~2]
     #[tokio::test]
     async fn utest_run_workload_one_new_workload() {
-        let test_workload_name = "name4".to_string();
+        const TEST_WORKLOAD_NAME: &str = "name4";
         let test_workload_agent = "agent_B".to_string();
         let test_workload_runtime_name = "runtime2".to_string();
         let test_workload_runtime_cfg = "some config".to_string();
 
-        let startup_state = test_utils::generate_test_complete_state(vec![
-            generate_test_workload_spec_with_param(
-                "agent_A".to_string(),
-                "name1".to_string(),
-                "runtime".to_string(),
-            ),
-            generate_test_workload_spec_with_param(
-                "agent_B".to_string(),
-                "name2".to_string(),
-                "runtime".to_string(),
-            ),
-            generate_test_workload_spec_with_param(
-                "agent_B".to_string(),
-                "name3".to_string(),
-                "runtime".to_string(),
-            ),
-        ]);
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
 
-        // The "run workload" command shall add one new workload to the startup state.
         let new_workload = StoredWorkloadSpec {
             agent: test_workload_agent.to_owned(),
             runtime: test_workload_runtime_name.clone(),
@@ -1458,42 +1438,39 @@ mod tests {
             runtime_config: test_workload_runtime_cfg.clone(),
             ..Default::default()
         };
-        let mut updated_state = startup_state.clone();
-        updated_state
+        let mut complete_state_update = CompleteState::default();
+        complete_state_update
             .desired_state
             .workloads
-            .insert(test_workload_name.clone(), new_workload);
+            .insert(TEST_WORKLOAD_NAME.into(), new_workload);
 
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
-            .expect_get_complete_state()
-            .with(eq(vec![]))
-            .once()
-            .return_once(|_| Ok(Box::new(startup_state)));
-        mock_server_connection
             .expect_update_state()
             .with(
-                eq(updated_state.clone()),
-                eq(vec!["desiredState".to_string()]),
+                eq(complete_state_update.clone()),
+                eq(vec![format!(
+                    "desiredState.workloads.{}",
+                    TEST_WORKLOAD_NAME
+                )]),
             )
             .return_once(|_, _| {
                 Ok(UpdateStateSuccess {
-                    added_workloads: vec![format!("name4.abc.agent_B")],
+                    added_workloads: vec![format!(
+                        "{}.abc.agent_B",
+                        TEST_WORKLOAD_NAME.to_string()
+                    )],
                     deleted_workloads: vec![],
                 })
             });
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .once()
-            .return_once(|_| Ok(Box::new(updated_state)));
+            .return_once(|_| Ok(Box::new(complete_state_update)));
         mock_server_connection
             .expect_take_missed_from_server_messages()
-            .return_once(Vec::new);
-        mock_server_connection
-            .expect_read_next_update_workload_state()
             .return_once(|| {
-                Ok(UpdateWorkloadState {
+                vec![FromServer::UpdateWorkloadState(UpdateWorkloadState {
                     workload_states: vec![WorkloadState {
                         instance_name: "name4.abc.agent_B".try_into().unwrap(),
                         execution_state: ExecutionState {
@@ -1503,17 +1480,18 @@ mod tests {
                             additional_info: "".to_string(),
                         },
                     }],
-                })
+                })]
             });
+
         let mut cmd = CliCommands {
-            _response_timeout_ms: 0,
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
             no_wait: false,
             server_connection: mock_server_connection,
         };
 
         let run_workload_result = cmd
             .run_workload(
-                test_workload_name,
+                TEST_WORKLOAD_NAME.into(),
                 test_workload_runtime_name,
                 test_workload_runtime_cfg,
                 test_workload_agent,
@@ -2280,27 +2258,7 @@ mod tests {
             .return_once(|_, _| {
                 Ok(UpdateStateSuccess {
                     added_workloads: vec![],
-                    deleted_workloads: vec![format!("name4.abc.agent_B")],
-                })
-            });
-        mock_server_connection
-            .expect_get_complete_state()
-            .with(eq(vec![]))
-            .return_once(|_| Ok(Box::new(updated_state)));
-        mock_server_connection
-            .expect_take_missed_from_server_messages()
-            .return_once(Vec::new);
-        mock_server_connection
-            .expect_read_next_update_workload_state()
-            .return_once(|| {
-                Ok(UpdateWorkloadState {
-                    workload_states: vec![WorkloadState {
-                        instance_name: "name4.abc.agent_B".try_into().unwrap(),
-                        execution_state: ExecutionState {
-                            state: objects::ExecutionStateEnum::Removed,
-                            ..Default::default()
-                        },
-                    }],
+                    deleted_workloads: vec!["name4.abc.agent_B".to_string()],
                 })
             });
 

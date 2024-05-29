@@ -179,6 +179,16 @@ impl WorkloadInstanceNameBuilder {
 //                    ##     ##                ##     ##                    //
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
+
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_workload_instance_name(name: impl Into<String>) -> WorkloadInstanceName {
+    WorkloadInstanceName::builder()
+        .agent_name("agent_name")
+        .workload_name(name)
+        .config(&String::from("my cool config"))
+        .build()
+}
+
 #[cfg(test)]
 mod tests {
     use super::WorkloadInstanceName;

@@ -61,11 +61,12 @@ Thus, the following WorkloadCommands exists:
 * `Create` for creating a workload
 * `Update` for updating a workload
 * `Retry` for retrying the create of an workload
+* `Resume` for resuming an existing workload
 * `Delete` for deleting a workload
 
 ### WorkloadControlLoop
 
-The WorkloadControlLoop is started for each workload with the creation of that workload and is running until its deletion. The WorkloadControlLoop receives the WorkloadCommands via the WorkloadCommandSender and triggers the corresponding operation on the runtime connector.
+The WorkloadControlLoop is started for each workload with the creation of that workload and is running until its deletion. The WorkloadControlLoop receives the WorkloadCommands via the WorkloadCommandSender and triggers the corresponding operation on the runtime connector. Furthermore, it receives the workload states of the workload it manages from the state checker and handles workload restarts according to the workload's configured restart policy.
 
 ### WorkloadCommandSender
 
@@ -577,11 +578,11 @@ Needs:
 - utest
 
 ##### RuntimeManager handles existing workloads resumes existing workloads
-`swdd~agent-existing-workloads-resume-existing~1`
+`swdd~agent-existing-workloads-resume-existing~2`
 
 Status: approved
 
-When handling existing workloads, for each found existing workload which is requested to be started and has unchanged configuration, the RuntimeManager shall request the corresponding RuntimeFacade to resume the workload using a new control interface instance.
+When handling existing workloads, for each found existing workload which is requested to be started and has unchanged configuration and the workload is running, the RuntimeManager shall request the corresponding RuntimeFacade to resume the workload using a new control interface instance.
 
 Tags:
 - RuntimeManager
@@ -591,13 +592,13 @@ Needs:
 - utest
 
 ##### RuntimeFacade resumes workload
-`swdd~agent-resume-workload~1`
+`swdd~agent-resume-workload~2`
 
 Status: approved
 
 When requested, the RuntimeFacade resumes a workload by:
-* request the wrapped runtime to start the state checker for that workload
 * start the WorkloadControlLoop waiting for WorkloadCommands
+* request the resume of the workload by sending a resume command to the WorkloadControlLoop
 * return a new workload object containing a WorkloadCommandSender to communicate with the WorkloadControlLoop
 
 Comment:
@@ -614,11 +615,11 @@ Needs:
 - utest
 
 ##### RuntimeManager handles existing workloads replace updated Workloads
-`swdd~agent-existing-workloads-replace-updated~1`
+`swdd~agent-existing-workloads-replace-updated~2`
 
 Status: approved
 
-When the agent handles existing workloads, for each found existing workload which is requested to be started and for which a change in the configuration was detected, the RuntimeManager shall do the following:
+When the agent handles existing workloads, for each found existing workload which is requested to be started and either the workload's configuration has changed or the workload is not running, the RuntimeManager shall do the following:
 
 - request the RuntimeFacade to delete the existing workload
 - request the RuntimeFacade to create the workload
@@ -633,6 +634,7 @@ Tags:
 Needs:
 - impl
 - utest
+- stest
 
 ##### RuntimeManager handles existing workloads deletes unneeded workloads
 `swdd~agent-existing-workloads-delete-unneeded~1`
@@ -655,9 +657,9 @@ Needs:
 
 Status: approved
 
-When requested, the RuntimeFacade shall delete a workload by:
+When the RuntimeFacade is requested to delete the workload, then the RuntimeFacade shall delete a workload by:
 * sending a `Stopping(RequestedAtRuntime)` workload state for that workload
-* deleting the workload via the runtime
+* deleting the workload via the runtime connector
 * sending a `Removed` workload state for that workload after the deletion was successful or `Stopping(DeleteFailed)` upon failure
 
 Comment:
@@ -665,6 +667,46 @@ This delete is done by the specific runtime for a workload Id. No internal workl
 
 Tags:
 - RuntimeFacade
+
+Needs:
+- impl
+- utest
+
+##### RuntimeFacade deletes old workload without sending workload states
+`swdd~agent-delete-old-workload-without-sending-workload-states~1`
+
+Status: approved
+
+When the RuntimeFacade is requested to delete the workload and the flag `report_workload_states_for_workload` is false, then the RuntimeFacade shall delete the workload via the runtime connector without sending workload states.
+
+Comment:
+This delete is done by the specific runtime for a workload Id. No internal workload object is involved in this action.
+
+Rationale:
+The workaround of enabling and disabling the sending of workload states is required until a dedicated workload restart is implemented.
+
+Tags:
+- RuntimeFacade
+
+Needs:
+- impl
+- utest
+
+##### WorkloadControlLoop executes resume command
+`swdd~agent-workload-control-loop-executes-resume~1`
+
+Status: approved
+
+When the WorkloadControlLoop receives a resume command, then the WorkloadControlLoop shall:
+* request the workload Id from the corresponding runtime connector
+* start the state checker for that workload if an Id is found
+* store the Id and reference to the state checker inside the WorkloadControlLoop
+
+Rationale:
+The WorkloadControlLoop allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
+
+Tags:
+- WorkloadControlLoop
 
 Needs:
 - impl
@@ -1102,7 +1144,7 @@ Needs:
 - utest
 - stest
 
-#### The agent enqueues delete with unfulfilled delete conditions
+#### Agent enqueues delete with unfulfilled delete conditions
 `swdd~agent-enqueues-unfulfilled-delete~1`
 
 Status: approved
@@ -1193,7 +1235,7 @@ Needs:
 - impl
 - utest
 
-#### The agent ignores a delete only operation of an update
+#### Agent ignores a delete only operation of an update
 `swdd~agent-shall-not-enqueue-update-delete-only-workload-operation~1`
 
 Status: approved
@@ -1297,19 +1339,100 @@ Needs:
 
 Status: approved
 
-The Ankaios agent shall support the following restart conditions for a workload:
+The Ankaios agent shall support the following restart policies for a workload:
 
 * `NEVER`: The workload is never restarted. Once the container exits, it remains in the exited state.
 * `ON_FAILURE`: If the workload exits with a non-zero exit code, it will be restarted.
 * `ALWAYS`: The workload is restarted upon termination, regardless of the exit code.
 
 Comment:
-The default condition is `NEVER`.
+The default restart policy is `NEVER`.
 
 Rationale:
 In some cases, workloads must remain operational at all times, even if they fail or exit successfully.
 
 Tags:
+
+Needs:
+- impl
+- utest
+
+#### WorkloadControlLoop handles restarts of workloads
+`swdd~workload-control-loop-handles-workload-restarts~1`
+
+Status: approved
+
+When the WorkloadControlLoop receives a new workload state for a workload it manages and the WorkloadControlLoop detects that a restart of the workload is required according to its restart policy, then the WorkloadControlLoop shall execute the restart of the workload.
+
+Rationale:
+The execution of a restart of the workload depends on the workload state and the configured restart policy.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
+#### WorkloadControlLoop skips restarts
+`swdd~workload-control-loop-skips-restarts~1`
+
+When the WorkloadControlLoop handles a restart of a workload and the workload's current `WorkloadInstanceName` inside the WorkloadControlLoop differs from the `WorkloadInstanceName` inside the received workload state, then the WorkloadControlLoop shall skip the restart.
+
+Comment:
+If the workload changed in the meantime, there is no need to restart it.
+
+Rationale:
+This prevents unneeded restarts of workloads when a new workload state of the old workload is received after an update operation was performed.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
+#### WorkloadControlLoop restarts workload with enabled restart policy
+`swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1`
+
+Status: approved
+
+When the workload has not changed and:
+* either the workload's `ExecutionState` is `Succeeded(Ok)` or `ExecutionState` is `Failed(ExecFailed)` and the workload's configured `RestartPolicy` contains the value `ALWAYS`
+* or the workload's `ExecutionState` is `Failed(ExecFailed)` and the workload's configured `RestartPolicy` contains the value `ON_FAILURE`,
+then the WorkloadControlLoop shall restart the workload.
+
+Comment:
+In all other execution states and in case of the restart policy is `NEVER` the workload is not restarted.
+
+Rationale:
+The restart depends on the execution state of the workload.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+- stest
+
+#### WorkloadControlLoop restarts workloads using the update operation
+`swdd~workload-control-loop-restarts-workloads-using-update~1`
+
+Status: approved
+
+When the WorkloadControlLoop executes a workload restart, then the WorkloadControlLoop shall:
+- delete the existing workload via the corresponding runtime connector
+- create a new workload with the stored workload configuration via the corresponding runtime connector
+
+Comment:
+The restart is represented within the system by an update operation.
+
+Rationale:
+A runtime may not support directly restarting the exited container.
+
+Tags:
+- WorkloadControlLoop
 
 Needs:
 - impl
@@ -1402,7 +1525,7 @@ Needs:
 - utest
 - stest
 
-##### WorkloadControlLoop sets execution state of workload to failed after reaching the retry limit
+#### WorkloadControlLoop sets execution state of workload to failed after reaching the retry limit
 `swdd~agent-workload-control-loop-retry-limit-set-execution-state~1`
 
 Status: approved
@@ -1584,6 +1707,25 @@ Status: approved
 
 When the podman runtime connector is called to create workload and the action is successfully processed by the Podman runtime connector,
 the podman runtime connector shall return workload id.
+
+Tags:
+- PodmanRuntimeConnector
+
+Needs:
+- impl
+- utest
+
+##### Podman create workload deletes failed the container
+`swdd~podman-create-workload-deletes-failed-container~1`
+
+Status: approved
+
+When the podman runtime connector is called to create workload and the creation fails,
+the podman runtime connector shall delete failed container.
+
+Rationale:
+If the user tries to update the failed workload and the update is successful (new container is created and started),
+the old container is left on the system and cannot be deleted via Ankaios anymore.
 
 Tags:
 - PodmanRuntimeConnector
@@ -1943,7 +2085,7 @@ Needs:
 
 This section describes how workload states are sampled inside the Ankaios agent and how they get forwarded to the Ankaios server.
 
-It is required that each runtime connector delivers a state checker when a workload is created. Additionally, the runtime connector provides an extra method for starting a checker for workloads that are resumed by the WorkloadFacade.
+It is required that each runtime connector delivers a state checker when a workload is created. Additionally, the runtime connector provides an extra method for starting a checker for workloads that are resumed by the RuntimeFacade.
 
 How the state checker is implemented is up to the specific runtime connector, given that the state checker trait is implemented. The state checker trait requires a state getter object to be provided. The object must implement the runtime state getter trait and is specific to the runtime connector. The provided state getter object is called inside the state checker.
 The extra complexity introduced by having two traits is needed in order to provide common state checker implementations that can be reused among runtime connectors. One of these checkers is the `GenericPollingStateChecker`.
@@ -2017,11 +2159,11 @@ Needs:
 - utest
 
 ##### GenericPollingStateChecker sends workload state
-`swdd~generic-state-checker-sends-workload-state~1`
+`swdd~generic-state-checker-sends-workload-state~2`
 
 Status: approved
 
-When the Workload State of a Workload changes on a workload, the `GenericPollingStateChecker` shall send an UpdateWorkloadState message to the Ankaios Server, containing the new Workload State.
+When the Workload State of a Workload changes on a workload, the `GenericPollingStateChecker` shall send the workload state to the WorkloadControlLoop.
 
 Tags:
 - GenericPollingStateChecker
@@ -2374,6 +2516,23 @@ Needs:
 - impl
 - utest
 
+#### WorkloadControlLoop receives workload states of its workload
+`swdd~workload-control-loop-receives-workload-states~1`
+
+Status: approved
+
+The WorkloadControlLoop shall receive the workload states of the workload it manages.
+
+Rationale:
+The WorkloadControlLoop requires the workload states to apply the configured restart policy.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
 #### AgentManager receives workload states of the workloads it manages
 `swdd~agent-manager-receives-workload-states-of-its-workloads~1`
 
@@ -2395,7 +2554,7 @@ Needs:
 
 Status: approved
 
-The AgentManager shall store the workload states of the workloads it manages into the ParameterStorage.
+The AgentManager shall store the workload states of the workloads it manages into the WorkloadStateStore.
 
 Comment: Empty workload states are not stored and skipped.
 
@@ -2409,12 +2568,29 @@ Needs:
 - impl
 - utest
 
-#### AgentManager sends the workload states of the workload it manages to the server
-`swdd~agent-sends-workload-states-of-its-workloads-to-server~1`
+#### WorkloadControlLoop sends workload states to server
+`swdd~workload-control-loop-sends-workload-states~1`
 
 Status: approved
 
-When the AgentManager receives the workload states of the workload it manages, then the AgentManager shall send the workload states to the Ankaios server.
+When the WorkloadControlLoop receives a new workload state, then the WorkloadControlLoop shall send the workload state to the AgentManager.
+
+Rationale:
+The AgentManager requires the knowledge about the workload states of all workloads.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
+#### AgentManager sends the workload states of the workload it manages to the server
+`swdd~agent-sends-workload-states-of-its-workloads-to-server~2`
+
+Status: approved
+
+When the AgentManager receives the workload states of the workload it manages, then the AgentManager shall send an `UpdateWorkloadState` message to the Ankaios server, containing the received workload state.
 
 Comment: Empty workload states are omitted.
 

@@ -26,27 +26,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4.1.1
       - name: Download artifacts for ankaios-linux-amd64-bin
-        uses: actions/download-artifact@v3.0.2
+        uses: actions/download-artifact@v4.1.7
         with:
           name: ankaios-linux-amd64-bin
           path: dist/linux-amd64/bin
       - name: Download artifacts for ankaios-linux-arm64-bin
-        uses: actions/download-artifact@v3.0.2
+        uses: actions/download-artifact@v4.1.7
         with:
           name: ankaios-linux-arm64-bin
           path: dist/linux-arm64/bin
       - name: Download artifacts for requirement-tracing-report
-        uses: actions/download-artifact@v3.0.2
+        uses: actions/download-artifact@v4.1.7
         with:
           name: requirement-tracing-report
           path: dist/
       - name: Download artifacts for code-coverage
-        uses: actions/download-artifact@v3.0.2
+        uses: actions/download-artifact@v4.1.7
         with:
           name: code-coverage
           path: dist/coverage
       - name: Download license report
-        uses: actions/download-artifact@v3.0.2
+        uses: actions/download-artifact@v4.1.7
         with:
           name: licenses
           path: dist/
