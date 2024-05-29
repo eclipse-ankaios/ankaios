@@ -56,6 +56,7 @@ pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Pat
         }
     }
 }
+
 // [impl->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
 pub fn handle_agent_overwrite(
     filter_masks: &Vec<common::state_manipulation::Path>,
