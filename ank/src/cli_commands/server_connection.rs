@@ -85,7 +85,6 @@ impl ServerConnection {
 
         let request_id = uuid::Uuid::new_v4().to_string();
 
-        // send complete state request to server
         self.to_server
             .request_complete_state(
                 request_id.to_owned(),
