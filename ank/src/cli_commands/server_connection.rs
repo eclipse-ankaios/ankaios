@@ -239,6 +239,7 @@ mod tests {
     const AGENT_A: &str = "agent_A";
     const RUNTIME: &str = "runtime";
     const REQUEST: &str = "request";
+    const OTHER_REQUEST: &str = "other_request";
     const FIELD_MASK: &str = "field_mask";
     const ID: &str = "id";
 
@@ -470,7 +471,7 @@ mod tests {
     #[tokio::test]
     async fn utest_get_complete_state_other_response_in_between() {
         let other_response = FromServer::Response(Response {
-            request_id: "other_request".into(),
+            request_id: OTHER_REQUEST.into(),
             response_content: ResponseContent::CompleteState(Box::new(complete_state_2())),
         });
 
@@ -654,7 +655,7 @@ mod tests {
             deleted_workloads: vec![],
         };
         let other_response = FromServer::Response(Response {
-            request_id: "other_request".into(),
+            request_id: OTHER_REQUEST.into(),
             response_content: ResponseContent::CompleteState(Box::new(complete_state_2())),
         });
 
