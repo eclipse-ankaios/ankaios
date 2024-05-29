@@ -269,8 +269,8 @@ mod tests {
 
             let join_handle = tokio::spawn(async move {
                 let mut request_ids = HashMap::<String, String>::new();
-                for a in self.actions {
-                    match a {
+                for action in self.actions {
+                    match action {
                         CommunicationSimulatorAction::WillSendMessage(message) => {
                             from_server.send(message).await.unwrap()
                         }
