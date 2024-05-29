@@ -130,6 +130,7 @@ pub fn create_filter_masks_from_paths(
     filter_masks.dedup();
     filter_masks
 }
+
 // [impl->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
 // [impl->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
 pub fn generate_state_obj_and_filter_masks_from_manifests(
