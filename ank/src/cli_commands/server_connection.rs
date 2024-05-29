@@ -243,6 +243,119 @@ mod tests {
     const FIELD_MASK: &str = "field_mask";
     const ID: &str = "id";
 
+    #[derive(Default)]
+    struct CommunicationSimulator {
+        actions: Vec<CommunicationSimulatorAction>,
+    }
+
+    struct CorrectCommuncationChecker {
+        join_handle: tokio::task::JoinHandle<()>,
+        is_ready: tokio::sync::oneshot::Receiver<Receiver<ToServer>>,
+    }
+
+    #[derive(Clone)]
+    enum CommunicationSimulatorAction {
+        WillSendMessage(FromServer),
+        WillSendResponse(String, ResponseContent),
+        ExpectReceiveRequest(String, RequestContent),
+    }
+
+    impl CommunicationSimulator {
+        fn create_server_connection(self) -> (CorrectCommuncationChecker, ServerConnection) {
+            let (from_server, cli_receiver) = tokio::sync::mpsc::channel::<FromServer>(1);
+            let (to_server, mut server_receiver) = tokio::sync::mpsc::channel::<ToServer>(1);
+
+            let (is_ready_sender, is_ready) = tokio::sync::oneshot::channel();
+
+            let join_handle = tokio::spawn(async move {
+                let mut request_ids = HashMap::<String, String>::new();
+                for a in self.actions {
+                    match a {
+                        CommunicationSimulatorAction::WillSendMessage(message) => {
+                            from_server.send(message).await.unwrap()
+                        }
+                        CommunicationSimulatorAction::WillSendResponse(request_name, response) => {
+                            let request_id = request_ids.get(&request_name).unwrap();
+                            from_server
+                                .send(FromServer::Response(Response {
+                                    request_id: request_id.to_owned(),
+                                    response_content: response,
+                                }))
+                                .await
+                                .unwrap();
+                        }
+                        CommunicationSimulatorAction::ExpectReceiveRequest(
+                            request_name,
+                            expected_request,
+                        ) => {
+                            let actual_message = server_receiver.recv().await.unwrap();
+                            let common::to_server_interface::ToServer::Request(actual_request) =
+                                actual_message
+                            else {
+                                panic!("Expected a request")
+                            };
+                            request_ids.insert(request_name, actual_request.request_id);
+                            assert_eq!(actual_request.request_content, expected_request);
+                        }
+                    }
+                }
+                is_ready_sender.send(server_receiver).unwrap();
+            });
+
+            (
+                CorrectCommuncationChecker {
+                    join_handle,
+                    is_ready,
+                },
+                ServerConnection {
+                    to_server,
+                    from_server: cli_receiver,
+                    task: tokio::spawn(async {}),
+                    missed_from_server_messages: Vec::new(),
+                },
+            )
+        }
+
+        pub fn will_send_message(&mut self, message: FromServer) {
+            self.actions
+                .push(CommunicationSimulatorAction::WillSendMessage(message));
+        }
+
+        pub fn will_send_response(&mut self, request_name: &str, response: ResponseContent) {
+            self.actions
+                .push(CommunicationSimulatorAction::WillSendResponse(
+                    request_name.to_string(),
+                    response,
+                ));
+        }
+
+        pub fn expect_receive_request(&mut self, request_name: &str, request: RequestContent) {
+            self.actions
+                .push(CommunicationSimulatorAction::ExpectReceiveRequest(
+                    request_name.to_string(),
+                    request,
+                ));
+        }
+    }
+
+    impl CorrectCommuncationChecker {
+        fn check_communication(mut self) {
+            let Ok(mut to_server) = self.is_ready.try_recv() else {
+                panic!("Not all messages have been sent or received");
+            };
+            self.join_handle.abort();
+            if let Ok(message) = to_server.try_recv() {
+                panic!("Received unexpected message: {:#?}", message);
+            }
+        }
+    }
+
+    impl Drop for CorrectCommuncationChecker {
+        fn drop(&mut self) {
+            self.join_handle.abort();
+        }
+    }
+
     fn complete_state_1() -> CompleteState {
         CompleteState {
             desired_state: State {
@@ -676,118 +789,5 @@ mod tests {
         assert!(result.is_err());
 
         checker.check_communication();
-    }
-
-    #[derive(Default)]
-    struct CommunicationSimulator {
-        actions: Vec<CommunicationSimulatorAction>,
-    }
-
-    struct CorrectCommuncationChecker {
-        join_handle: tokio::task::JoinHandle<()>,
-        is_ready: tokio::sync::oneshot::Receiver<Receiver<ToServer>>,
-    }
-
-    #[derive(Clone)]
-    enum CommunicationSimulatorAction {
-        WillSendMessage(FromServer),
-        WillSendResponse(String, ResponseContent),
-        ExpectReceiveRequest(String, RequestContent),
-    }
-
-    impl CommunicationSimulator {
-        fn create_server_connection(self) -> (CorrectCommuncationChecker, ServerConnection) {
-            let (from_server, cli_receiver) = tokio::sync::mpsc::channel::<FromServer>(1);
-            let (to_server, mut server_receiver) = tokio::sync::mpsc::channel::<ToServer>(1);
-
-            let (is_ready_sender, is_ready) = tokio::sync::oneshot::channel();
-
-            let join_handle = tokio::spawn(async move {
-                let mut request_ids = HashMap::<String, String>::new();
-                for a in self.actions {
-                    match a {
-                        CommunicationSimulatorAction::WillSendMessage(message) => {
-                            from_server.send(message).await.unwrap()
-                        }
-                        CommunicationSimulatorAction::WillSendResponse(request_name, response) => {
-                            let request_id = request_ids.get(&request_name).unwrap();
-                            from_server
-                                .send(FromServer::Response(Response {
-                                    request_id: request_id.to_owned(),
-                                    response_content: response,
-                                }))
-                                .await
-                                .unwrap();
-                        }
-                        CommunicationSimulatorAction::ExpectReceiveRequest(
-                            request_name,
-                            expected_request,
-                        ) => {
-                            let actual_message = server_receiver.recv().await.unwrap();
-                            let common::to_server_interface::ToServer::Request(actual_request) =
-                                actual_message
-                            else {
-                                panic!("Expected a request")
-                            };
-                            request_ids.insert(request_name, actual_request.request_id);
-                            assert_eq!(actual_request.request_content, expected_request);
-                        }
-                    }
-                }
-                is_ready_sender.send(server_receiver).unwrap();
-            });
-
-            (
-                CorrectCommuncationChecker {
-                    join_handle,
-                    is_ready,
-                },
-                ServerConnection {
-                    to_server,
-                    from_server: cli_receiver,
-                    task: tokio::spawn(async {}),
-                    missed_from_server_messages: Vec::new(),
-                },
-            )
-        }
-
-        pub fn will_send_message(&mut self, message: FromServer) {
-            self.actions
-                .push(CommunicationSimulatorAction::WillSendMessage(message));
-        }
-
-        pub fn will_send_response(&mut self, request_name: &str, response: ResponseContent) {
-            self.actions
-                .push(CommunicationSimulatorAction::WillSendResponse(
-                    request_name.to_string(),
-                    response,
-                ));
-        }
-
-        pub fn expect_receive_request(&mut self, request_name: &str, request: RequestContent) {
-            self.actions
-                .push(CommunicationSimulatorAction::ExpectReceiveRequest(
-                    request_name.to_string(),
-                    request,
-                ));
-        }
-    }
-
-    impl CorrectCommuncationChecker {
-        fn check_communication(mut self) {
-            let Ok(mut to_server) = self.is_ready.try_recv() else {
-                panic!("Not all messages have been sent or received");
-            };
-            self.join_handle.abort();
-            if let Ok(message) = to_server.try_recv() {
-                panic!("Received unexpected message: {:#?}", message);
-            }
-        }
-    }
-
-    impl Drop for CorrectCommuncationChecker {
-        fn drop(&mut self) {
-            self.join_handle.abort();
-        }
     }
 }
