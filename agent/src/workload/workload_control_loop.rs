@@ -138,7 +138,7 @@ impl WorkloadControlLoop {
                             )
                             .await;
                         }
-                        // [impl->swdd~agent-workload-control-loop-executes-create~2]
+                        // [impl->swdd~agent-workload-control-loop-executes-create~3]
                         Some(WorkloadCommand::Create) => {
                             log::debug!("Received WorkloadCommand::Create.");
 
@@ -321,7 +321,7 @@ impl WorkloadControlLoop {
         control_loop_state
     }
 
-    // [impl->swdd~agent-workload-control-loop-executes-create~2]
+    // [impl->swdd~agent-workload-control-loop-executes-create~3]
     async fn create_workload_on_runtime<WorkloadId, StChecker, ErrorFunc, Fut>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         func_on_error: ErrorFunc,
@@ -1301,7 +1301,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~2]
+    // [utest->swdd~agent-workload-control-loop-executes-create~3]
     #[tokio::test]
     async fn utest_workload_obj_run_create_successful() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1359,7 +1359,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~2]
+    // [utest->swdd~agent-workload-control-loop-executes-create~3]
     // [utest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
     #[tokio::test]
     async fn utest_workload_obj_run_retry_creation_successful_after_create_command_fails() {
@@ -1425,7 +1425,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~2]
+    // [utest->swdd~agent-workload-control-loop-executes-create~3]
     // [utest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
     #[tokio::test]
     async fn utest_workload_obj_run_create_with_retry_workload_command_channel_closed() {
