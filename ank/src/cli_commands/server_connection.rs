@@ -356,35 +356,22 @@ mod tests {
         }
     }
 
-    fn complete_state_1() -> CompleteState {
+    fn complete_state(workload_name: &str) -> CompleteState {
         CompleteState {
             desired_state: State {
-                workloads: [workload(WORKLOAD_NAME_1)].into(),
+                workloads: [(
+                    workload_name.into(),
+                    StoredWorkloadSpec {
+                        agent: AGENT_A.into(),
+                        runtime: RUNTIME.into(),
+                        ..Default::default()
+                    },
+                )]
+                .into(),
                 ..Default::default()
             },
             ..Default::default()
         }
-    }
-
-    fn complete_state_2() -> CompleteState {
-        CompleteState {
-            desired_state: State {
-                workloads: [workload(WORKLOAD_NAME_2)].into(),
-                ..Default::default()
-            },
-            ..Default::default()
-        }
-    }
-
-    fn workload(workload_name: &str) -> (String, StoredWorkloadSpec) {
-        (
-            workload_name.into(),
-            StoredWorkloadSpec {
-                agent: AGENT_A.into(),
-                runtime: RUNTIME.into(),
-                ..Default::default()
-            },
-        )
     }
 
     fn instance_name(workload_name: &str) -> WorkloadInstanceName {
@@ -404,7 +391,7 @@ mod tests {
         );
         sim.will_send_response(
             REQUEST,
-            ResponseContent::CompleteState(Box::new(complete_state_1())),
+            ResponseContent::CompleteState(Box::new(complete_state(WORKLOAD_NAME_1))),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -412,7 +399,7 @@ mod tests {
             .get_complete_state(&vec![FIELD_MASK.into()])
             .await;
         assert!(result.is_ok());
-        assert_eq!(*result.unwrap(), complete_state_1());
+        assert_eq!(*result.unwrap(), complete_state(WORKLOAD_NAME_1));
         checker.check_communication();
     }
 
@@ -472,7 +459,9 @@ mod tests {
     async fn utest_get_complete_state_other_response_in_between() {
         let other_response = FromServer::Response(Response {
             request_id: OTHER_REQUEST.into(),
-            response_content: ResponseContent::CompleteState(Box::new(complete_state_2())),
+            response_content: ResponseContent::CompleteState(Box::new(complete_state(
+                WORKLOAD_NAME_2,
+            ))),
         });
 
         let mut sim = CommunicationSimulator::default();
@@ -485,7 +474,7 @@ mod tests {
         sim.will_send_message(other_response.clone());
         sim.will_send_response(
             REQUEST,
-            ResponseContent::CompleteState(Box::new(complete_state_1())),
+            ResponseContent::CompleteState(Box::new(complete_state(WORKLOAD_NAME_1))),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -493,7 +482,7 @@ mod tests {
             .get_complete_state(&vec![FIELD_MASK.into()])
             .await;
         assert!(result.is_ok());
-        assert_eq!(*result.unwrap(), complete_state_1());
+        assert_eq!(*result.unwrap(), complete_state(WORKLOAD_NAME_1));
         assert_eq!(
             server_connection.take_missed_from_server_messages(),
             vec![other_response]
@@ -518,7 +507,7 @@ mod tests {
         sim.will_send_message(other_message.clone());
         sim.will_send_response(
             REQUEST,
-            ResponseContent::CompleteState(Box::new(complete_state_1())),
+            ResponseContent::CompleteState(Box::new(complete_state(WORKLOAD_NAME_1))),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -526,7 +515,7 @@ mod tests {
             .get_complete_state(&vec![FIELD_MASK.into()])
             .await;
         assert!(result.is_ok());
-        assert_eq!(*result.unwrap(), complete_state_1());
+        assert_eq!(*result.unwrap(), complete_state(WORKLOAD_NAME_1));
         assert_eq!(
             server_connection.take_missed_from_server_messages(),
             vec![other_message]
@@ -545,7 +534,7 @@ mod tests {
         sim.expect_receive_request(
             REQUEST,
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state_1(),
+                state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
@@ -556,7 +545,7 @@ mod tests {
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .update_state(complete_state_1(), vec![FIELD_MASK.into()])
+            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
             .await;
 
         assert!(result.is_ok());
@@ -573,7 +562,7 @@ mod tests {
         server_connection.to_server = to_server;
 
         let result = server_connection
-            .update_state(complete_state_1(), vec![FIELD_MASK.into()])
+            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
             .await;
 
         assert!(result.is_err());
@@ -585,7 +574,7 @@ mod tests {
         sim.expect_receive_request(
             REQUEST,
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state_1(),
+                state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
@@ -593,7 +582,7 @@ mod tests {
         let (_, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .update_state(complete_state_1(), vec![FIELD_MASK.into()])
+            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
             .await;
 
         assert!(result.is_err());
@@ -605,7 +594,7 @@ mod tests {
         sim.expect_receive_request(
             REQUEST,
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state_1(),
+                state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
@@ -617,7 +606,7 @@ mod tests {
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .update_state(complete_state_1(), vec![FIELD_MASK.into()])
+            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
             .await;
 
         assert!(result.is_err());
@@ -630,7 +619,7 @@ mod tests {
         sim.expect_receive_request(
             REQUEST,
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state_1(),
+                state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
@@ -640,7 +629,7 @@ mod tests {
         server_connection.from_server = from_server;
 
         let result = server_connection
-            .update_state(complete_state_1(), vec![FIELD_MASK.into()])
+            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
             .await;
 
         assert!(result.is_err());
@@ -656,14 +645,16 @@ mod tests {
         };
         let other_response = FromServer::Response(Response {
             request_id: OTHER_REQUEST.into(),
-            response_content: ResponseContent::CompleteState(Box::new(complete_state_2())),
+            response_content: ResponseContent::CompleteState(Box::new(complete_state(
+                WORKLOAD_NAME_2,
+            ))),
         });
 
         let mut sim = CommunicationSimulator::default();
         sim.expect_receive_request(
             REQUEST,
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state_1(),
+                state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
@@ -675,7 +666,7 @@ mod tests {
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .update_state(complete_state_1(), vec![FIELD_MASK.into()])
+            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
             .await;
 
         assert!(result.is_ok());
@@ -702,7 +693,7 @@ mod tests {
         sim.expect_receive_request(
             REQUEST,
             RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state_1(),
+                state: complete_state(WORKLOAD_NAME_1),
                 update_mask: vec![FIELD_MASK.into()],
             })),
         );
@@ -714,7 +705,7 @@ mod tests {
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .update_state(complete_state_1(), vec![FIELD_MASK.into()])
+            .update_state(complete_state(WORKLOAD_NAME_1), vec![FIELD_MASK.into()])
             .await;
 
         assert!(result.is_ok());
