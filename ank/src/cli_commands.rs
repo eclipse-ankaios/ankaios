@@ -1070,7 +1070,7 @@ mod tests {
     // [utest->swdd~cli-provides-delete-workload~1]
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
     #[tokio::test]
-    async fn delete_workloads_two_workloads() {
+    async fn utest_delete_workloads_two_workloads() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -1139,7 +1139,7 @@ mod tests {
     // [utest->swdd~cli-provides-delete-workload~1]
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
     #[tokio::test]
-    async fn delete_workloads_unknown_workload() {
+    async fn utest_delete_workloads_unknown_workload() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
