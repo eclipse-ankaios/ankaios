@@ -225,8 +225,8 @@ mod tests {
         },
         from_server_interface::FromServer,
         objects::{
-            CompleteState, ExecutionState, ExecutionStateEnum, RunningSubstate, State,
-            StoredWorkloadSpec, WorkloadInstanceName, WorkloadState,
+            CompleteState, ExecutionState, State, StoredWorkloadSpec, WorkloadInstanceName,
+            WorkloadState,
         },
         to_server_interface::ToServer,
     };
