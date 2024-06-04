@@ -44,6 +44,8 @@ pub struct ServerConnection {
 impl ServerConnection {
     // [impl->swdd~server-handle-cli-communication~1]
     // [impl->swdd~cli-communication-over-middleware~1]
+    // testing the function does not bring any benefit so disable the dead code warning when building for test
+    #[cfg_attr(test, allow(dead_code))]
     pub fn new(cli_name: &str, server_url: Url) -> Self {
         let mut grpc_communications_client =
             GRPCCommunicationsClient::new_cli_communication(cli_name.to_owned(), server_url);
@@ -68,6 +70,8 @@ impl ServerConnection {
         }
     }
 
+    // testing the function does not bring any benefit so disable the dead code warning when building for test
+    #[cfg_attr(test, allow(dead_code))]
     pub async fn shut_down(self) {
         drop(self.to_server);
 
