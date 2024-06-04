@@ -31,7 +31,6 @@ pub enum PendingSubstate {
     WaitingToStart = 1,
     Starting = 2,
     StartingFailed = 8,
-    RetryStarting = 9,
 }
 
 impl From<i32> for PendingSubstate {
@@ -40,7 +39,6 @@ impl From<i32> for PendingSubstate {
             x if x == PendingSubstate::Initial as i32 => PendingSubstate::Initial,
             x if x == PendingSubstate::WaitingToStart as i32 => PendingSubstate::WaitingToStart,
             x if x == PendingSubstate::Starting as i32 => PendingSubstate::Starting,
-            x if x == PendingSubstate::RetryStarting as i32 => PendingSubstate::RetryStarting,
             _ => PendingSubstate::StartingFailed,
         }
     }
@@ -53,7 +51,6 @@ impl Display for PendingSubstate {
             PendingSubstate::WaitingToStart => write!(f, "WaitingToStart"),
             PendingSubstate::Starting => write!(f, "Starting"),
             PendingSubstate::StartingFailed => write!(f, "StartingFailed"),
-            PendingSubstate::RetryStarting => write!(f, "RetryStarting"),
         }
     }
 }
@@ -322,7 +319,7 @@ impl ExecutionState {
         additional_info: impl ToString,
     ) -> Self {
         ExecutionState {
-            state: ExecutionStateEnum::Pending(PendingSubstate::RetryStarting),
+            state: ExecutionStateEnum::Pending(PendingSubstate::Starting),
             additional_info: format!(
                 "Retry {} of {}: {}",
                 current_retry,
@@ -705,7 +702,7 @@ mod tests {
             proto::ExecutionState {
                 additional_info: format!("Retry 1 of 2: {}", additional_info),
                 execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
-                    proto::Pending::RetryStarting.into(),
+                    proto::Pending::Starting.into(),
                 )),
             },
             ExecutionState::retry_starting(1, 2, additional_info).into()
@@ -817,7 +814,7 @@ mod tests {
             proto::ExecutionState {
                 additional_info: format!("Retry 1 of 2: {}", additional_info),
                 execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
-                    proto::Pending::RetryStarting.into(),
+                    proto::Pending::Starting.into(),
                 )),
             }
             .into()
@@ -927,7 +924,7 @@ mod tests {
         );
         assert_eq!(
             ExecutionState::retry_starting(1, 2, additional_info).to_string(),
-            format!("Pending(RetryStarting): 'Retry 1 of 2: {additional_info}'")
+            format!("Pending(Starting): 'Retry 1 of 2: {additional_info}'")
         );
         assert_eq!(
             ExecutionState::retry_failed_no_retry(additional_info).to_string(),
