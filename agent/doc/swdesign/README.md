@@ -789,10 +789,10 @@ When the WorkloadControlLoop receives an create command, the WorkloadControlLoop
 * upon successful creation of the workload:
     * store the Id and reference to the state checker for the created workload inside the WorkloadControlLoop
 * upon failed creation of the workload:
-    * send a `Pending(RetryStarting)` workload state for that workload
+    * send a `Pending(Starting)` workload state with additional information about the failure cause for that workload
 
 Comment:
-For details on the runtime connector specific actions, e.g. create, see the specific runtime connector workflows. The execution state `Pending(RetryStarting)` signals that the system will repeat the creation of the workload.
+For details on the runtime connector specific actions, e.g. create, see the specific runtime connector workflows. Upon failed creation the execution state `Pending(Starting)` with the additional information signals that the system will retry the creation of the workload.
 
 Rationale:
 The WorkloadControlLoop allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
@@ -1500,7 +1500,7 @@ When the WorkloadControlLoop receives a retry command, the WorkloadControlLoop s
 * store the new Id and reference to the state checker inside the WorkloadControlLoop
 
 Comment:
-Unlike the initial creation of the workload, the execution state of the workload is not set to `Pending(Starting)` on a retry to avoid very fast execution state changes on the user side.
+The `Pending(Starting)` execution state of the workload is kept on a failed retry until the retry limit is exceeded to avoid fast execution state changes on the user side.
 
 Tags:
 - WorkloadControlLoop
