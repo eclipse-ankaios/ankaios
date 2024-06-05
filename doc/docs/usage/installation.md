@@ -3,7 +3,7 @@
 Ankaios has been tested with the following Linux distributions. Others might
 work as well but have not been tested.
 
-* Ubuntu 23.04
+* Ubuntu 24.04 LTS
 * Ubuntu 22.04 LTS
 * Ubuntu 20.04 LTS
 
