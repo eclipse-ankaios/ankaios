@@ -12,9 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::path::PathBuf;
+
 use crate::from_server_proxy;
 use crate::from_server_proxy::GRPCFromServerStreaming;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
+use crate::security::TLSConfig;
 use crate::to_server_proxy;
 use api::proto;
 use api::proto::agent_connection_client::AgentConnectionClient;
@@ -34,6 +37,7 @@ use tokio_stream::wrappers::ReceiverStream;
 
 use async_trait::async_trait;
 
+use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
 use url::Url;
 
 const RECONNECT_TIMEOUT_SECONDS: u64 = 1;
@@ -47,21 +51,32 @@ pub struct GRPCCommunicationsClient {
     name: String,
     server_address: Url,
     connection_type: ConnectionType,
+    tls_config: Option<TLSConfig>,
 }
 
 impl GRPCCommunicationsClient {
-    pub fn new_agent_communication(name: String, server_address: Url) -> Self {
+    pub fn new_agent_communication(
+        name: String,
+        server_address: Url,
+        tls_config: Option<TLSConfig>,
+    ) -> Self {
         Self {
             name,
             server_address,
             connection_type: ConnectionType::Agent,
+            tls_config,
         }
     }
-    pub fn new_cli_communication(name: String, server_address: Url) -> Self {
+    pub fn new_cli_communication(
+        name: String,
+        server_address: Url,
+        tls_config: Option<TLSConfig>,
+    ) -> Self {
         Self {
             name,
             server_address,
             connection_type: ConnectionType::Cli,
+            tls_config,
         }
     }
 }
@@ -170,8 +185,30 @@ impl GRPCCommunicationsClient {
     ) -> Result<tonic::Streaming<proto::FromServer>, GrpcMiddlewareError> {
         match self.connection_type {
             ConnectionType::Agent => {
-                let mut client =
-                    AgentConnectionClient::connect(self.server_address.to_string()).await?;
+                let tls_config = self.tls_config.clone().unwrap();
+                // let pem =
+                //     std::fs::read_to_string(PathBuf::from(tls_config.path_to_crt_pem)).unwrap();
+                // println!("{:?}", pem);
+                // let ca = Certificate::from_pem(pem);
+                let server_root_ca_cert =
+                    std::fs::read_to_string("/workspaces/ankaios/.certs/ca.pem").unwrap();
+                let server_root_ca_cert = Certificate::from_pem(server_root_ca_cert);
+                let client_cert =
+                    std::fs::read_to_string("/workspaces/ankaios/.certs/agent.pem").unwrap();
+                let client_key =
+                    std::fs::read_to_string("/workspaces/ankaios/.certs/agent-key.pem").unwrap();
+                let client_identity = Identity::from_pem(client_cert, client_key);
+
+                let tls = ClientTlsConfig::new()
+                    .domain_name("agent_A")
+                    .ca_certificate(server_root_ca_cert)
+                    .identity(client_identity);
+                let channel = Channel::from_static("https://127.0.0.1:25551")
+                    .tls_config(tls)?
+                    .connect()
+                    .await?;
+                let mut client = AgentConnectionClient::new(channel);
+                // AgentConnectionClient::connect(self.server_address.to_string()).await?;
 
                 let res = client
                     .connect_agent(ReceiverStream::new(grpc_rx))

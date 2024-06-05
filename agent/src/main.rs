@@ -16,6 +16,7 @@ use common::communications_client::CommunicationsClient;
 use common::objects::{AgentName, WorkloadState};
 use common::to_server_interface::ToServer;
 use generic_polling_state_checker::GenericPollingStateChecker;
+use grpc::security::TLSConfig;
 use std::collections::HashMap;
 use tokio::try_join;
 
@@ -102,8 +103,21 @@ async fn main() {
         workload_state_sender,
     );
 
-    let mut grpc_communications_client =
-        GRPCCommunicationsClient::new_agent_communication(args.agent_name.clone(), args.server_url);
+    let tls_config: Result<Option<TLSConfig>, String> =
+        match (args.insecure, args.ankaios_agent_crt_pem) {
+            (true, _) => Ok(None),
+            (false, Some(path_to_crt_pem)) => Ok(Some(TLSConfig {
+                path_to_crt_pem,
+                ..Default::default()
+            })),
+            (false, None) => Err("ANKAIOS_AGENT_CRT_PEM=\"\"".to_string()),
+        };
+
+    let mut grpc_communications_client = GRPCCommunicationsClient::new_agent_communication(
+        args.agent_name.clone(),
+        args.server_url,
+        tls_config.unwrap_or_exit("Missing certificate file"),
+    );
 
     let mut agent_manager = AgentManager::new(
         args.agent_name,

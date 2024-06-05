@@ -17,6 +17,7 @@ use std::env;
 mod cli;
 mod cli_commands;
 use cli_commands::CliCommands;
+use common::std_extensions::GracefulExitResult;
 mod log;
 
 #[cfg(test)]
@@ -42,7 +43,10 @@ async fn main() {
         cli_name.to_string(),
         args.server_url,
         args.no_wait,
-    );
+        args.insecure,
+        args.ankaios_cli_crt_pem,
+    )
+    .unwrap_or_exit("Missing certificates");
 
     match args.command {
         cli::Commands::Get(get_args) => match get_args.command {

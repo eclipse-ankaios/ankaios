@@ -22,7 +22,7 @@ pub mod ankaios_streaming {
 }
 
 pub mod security {
-    #[derive(Debug, Default)]
+    #[derive(Debug, Default, Clone)]
     pub struct TLSConfig {
         pub path_to_crt_pem: String,
         pub path_to_key_pem: String,

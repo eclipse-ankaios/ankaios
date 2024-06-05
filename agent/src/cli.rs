@@ -36,10 +36,15 @@ pub struct Arguments {
     #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.parse().unwrap())]
     /// The server url.
     pub server_url: Url,
-
     /// An existing path where to manage the fifo files.
     #[clap(short = 'r', long = "run-folder", default_value_t = DEFAULT_RUN_FOLDER.into())]
     pub run_folder: String,
+    #[clap(long = "insecure", default_value_t = false)]
+    /// Flag to disable TLS communication between Ankaios server, agent and ank CLI.
+    pub insecure: bool,
+    #[clap(long = "ankaios_agent_crt_pem", env)]
+    /// Path to server certificate pem file.
+    pub ankaios_agent_crt_pem: Option<String>,
 }
 
 impl Arguments {

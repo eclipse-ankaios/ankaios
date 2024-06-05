@@ -18,6 +18,7 @@ use std::{
     time::Duration,
 };
 mod wait_list;
+use grpc::security::TLSConfig;
 use tokio::time::interval;
 use wait_list::WaitList;
 
@@ -176,14 +177,18 @@ fn update_compact_state(
 fn setup_cli_communication(
     cli_name: &str,
     server_url: Url,
+    tls_config: Option<TLSConfig>,
 ) -> (
     tokio::task::JoinHandle<()>,
     ToServerSender,
     FromServerReceiver,
 ) // (task,sender,receiver)
 {
-    let mut grpc_communications_client =
-        GRPCCommunicationsClient::new_cli_communication(cli_name.to_owned(), server_url);
+    let mut grpc_communications_client = GRPCCommunicationsClient::new_cli_communication(
+        cli_name.to_owned(),
+        server_url,
+        tls_config,
+    );
 
     let (to_cli, cli_receiver) = tokio::sync::mpsc::channel::<FromServer>(BUFFER_SIZE);
     let (to_server, server_receiver) = tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
@@ -632,17 +637,27 @@ impl CliCommands {
         cli_name: String,
         server_url: Url,
         no_wait: bool,
-    ) -> Self {
+        insecure: bool,
+        path_to_crt_pem: Option<String>,
+    ) -> Result<Self, String> {
+        let tls_config: Result<Option<TLSConfig>, String> = match (insecure, path_to_crt_pem) {
+            (true, _) => Ok(None),
+            (false, Some(path_to_crt_pem)) => Ok(Some(TLSConfig {
+                path_to_crt_pem,
+                ..Default::default()
+            })),
+            (false, None) => Err("ANKAIOS_CLI_CRT_PEM=\"\"".to_string()),
+        };
         let (task, to_server, from_server) =
-            setup_cli_communication(cli_name.as_str(), server_url.clone());
-        Self {
+            setup_cli_communication(cli_name.as_str(), server_url.clone(), tls_config.unwrap());
+        Ok(Self {
             _response_timeout_ms: response_timeout_ms,
             cli_name,
             task,
             to_server,
             from_server,
             no_wait,
-        }
+        })
     }
 
     pub async fn shut_down(self) {
@@ -1129,6 +1144,7 @@ mod tests {
         test_utils::{self, generate_test_complete_state},
         to_server_interface::{ToServer, ToServerReceiver},
     };
+    use grpc::security::TLSConfig;
     use std::{collections::HashMap, io, thread};
     use tabled::{settings::Style, Table};
     use tokio::sync::mpsc::{Receiver, Sender};
@@ -1186,7 +1202,7 @@ mod tests {
 
     mockall::mock! {
         pub GRPCCommunicationsClient {
-            pub fn new_cli_communication(name: String, server_address: Url) -> Self;
+            pub fn new_cli_communication(name: String, server_address: Url, tls_config: Option<TLSConfig>) -> Self;
             pub async fn run(
                 &mut self,
                 mut server_rx: ToServerReceiver,

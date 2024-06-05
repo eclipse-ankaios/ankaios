@@ -16,7 +16,7 @@ use api::proto::cli_connection_server::CliConnectionServer;
 use common::communications_error::CommunicationMiddlewareError;
 use common::communications_server::CommunicationsServer;
 
-use tonic::transport::{Identity, Server};
+use tonic::transport::{Certificate, Identity, Server};
 
 use std::net::SocketAddr;
 
@@ -60,14 +60,18 @@ impl CommunicationsServer for GRPCCommunicationsServer {
 
         match &self.tls_config {
             Some(tls_config) => {
+                let client_ca_cert = std::fs::read_to_string(".certs/ca.pem").unwrap();
+                let client_ca_cert = Certificate::from_pem(client_ca_cert);
                 let crt_pem = &tls_config.path_to_crt_pem; // ".certs/server-crt.pem"
-                let key_pem = &tls_config.path_to_key_pem; // ".certs/keys/server-key.pem"
+                let key_pem = &tls_config.path_to_key_pem; // ".certs/server-key.pem"
                 let cert = std::fs::read_to_string(crt_pem)
                     .map_err(|err| CommunicationMiddlewareError(err.to_string()))?;
                 let key = std::fs::read_to_string(key_pem)
                     .map_err(|err| CommunicationMiddlewareError(err.to_string()))?;
                 let server_identity = Identity::from_pem(cert, key);
-                let tls = tonic::transport::ServerTlsConfig::new().identity(server_identity);
+                let tls = tonic::transport::ServerTlsConfig::new()
+                    .client_ca_root(client_ca_cert)
+                    .identity(server_identity);
                 tokio::select! {
                     // [impl->swdd~grpc-server-spawns-tonic-service~1]
                     // [impl->swdd~grpc-delegate-workflow-to-external-library~1]
