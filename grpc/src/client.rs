@@ -184,38 +184,49 @@ impl GRPCCommunicationsClient {
         grpc_rx: Receiver<proto::ToServer>,
     ) -> Result<tonic::Streaming<proto::FromServer>, GrpcMiddlewareError> {
         match self.connection_type {
-            ConnectionType::Agent => {
-                let tls_config = self.tls_config.clone().unwrap();
-                // let pem =
-                //     std::fs::read_to_string(PathBuf::from(tls_config.path_to_crt_pem)).unwrap();
-                // println!("{:?}", pem);
-                // let ca = Certificate::from_pem(pem);
-                let server_root_ca_cert =
-                    std::fs::read_to_string("/workspaces/ankaios/.certs/ca.pem").unwrap();
-                let server_root_ca_cert = Certificate::from_pem(server_root_ca_cert);
-                let client_cert =
-                    std::fs::read_to_string("/workspaces/ankaios/.certs/agent.pem").unwrap();
-                let client_key =
-                    std::fs::read_to_string("/workspaces/ankaios/.certs/agent-key.pem").unwrap();
-                let client_identity = Identity::from_pem(client_cert, client_key);
+            ConnectionType::Agent => match &self.tls_config {
+                Some(tls_config) => {
+                    let ca_pem =
+                        std::fs::read_to_string(PathBuf::from(&tls_config.path_to_ca_pem)).unwrap();
+                    let ca = Certificate::from_pem(ca_pem);
+                    let client_cert_pem =
+                        std::fs::read_to_string(PathBuf::from(&tls_config.path_to_crt_pem))
+                            .unwrap();
+                    let client_cert = Certificate::from_pem(client_cert_pem);
 
-                let tls = ClientTlsConfig::new()
-                    .domain_name("agent_A")
-                    .ca_certificate(server_root_ca_cert)
-                    .identity(client_identity);
-                let channel = Channel::from_static("https://127.0.0.1:25551")
-                    .tls_config(tls)?
-                    .connect()
-                    .await?;
-                let mut client = AgentConnectionClient::new(channel);
-                // AgentConnectionClient::connect(self.server_address.to_string()).await?;
+                    let client_key_pem =
+                        std::fs::read_to_string(PathBuf::from(&tls_config.path_to_key_pem))
+                            .unwrap();
+                    let client_key = Certificate::from_pem(client_key_pem);
+                    let client_identity = Identity::from_pem(client_cert, client_key);
 
-                let res = client
-                    .connect_agent(ReceiverStream::new(grpc_rx))
-                    .await?
-                    .into_inner();
-                Ok(res)
-            }
+                    let tls = ClientTlsConfig::new()
+                        .domain_name("ank-server")
+                        .ca_certificate(ca)
+                        .identity(client_identity);
+                    let channel = Channel::from_static("https://127.0.0.1:25551")
+                        .tls_config(tls)?
+                        .connect()
+                        .await?;
+                    let mut client = AgentConnectionClient::new(channel);
+
+                    let res = client
+                        .connect_agent(ReceiverStream::new(grpc_rx))
+                        .await?
+                        .into_inner();
+                    Ok(res)
+                }
+                None => {
+                    let mut client =
+                        AgentConnectionClient::connect(self.server_address.to_string()).await?;
+
+                    let res = client
+                        .connect_agent(ReceiverStream::new(grpc_rx))
+                        .await?
+                        .into_inner();
+                    Ok(res)
+                }
+            },
             ConnectionType::Cli => {
                 let mut client =
                     CliConnectionClient::connect(self.server_address.to_string()).await?;

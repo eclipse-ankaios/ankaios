@@ -60,17 +60,20 @@ impl CommunicationsServer for GRPCCommunicationsServer {
 
         match &self.tls_config {
             Some(tls_config) => {
-                let client_ca_cert = std::fs::read_to_string(".certs/ca.pem").unwrap();
-                let client_ca_cert = Certificate::from_pem(client_ca_cert);
-                let crt_pem = &tls_config.path_to_crt_pem; // ".certs/server-crt.pem"
-                let key_pem = &tls_config.path_to_key_pem; // ".certs/server-key.pem"
+                let ca_pem = &tls_config.path_to_ca_pem;
+                let crt_pem = &tls_config.path_to_crt_pem;
+                let key_pem = &tls_config.path_to_key_pem;
+
+                let ca = std::fs::read_to_string(ca_pem)
+                    .map_err(|err| CommunicationMiddlewareError(err.to_string()))?;
                 let cert = std::fs::read_to_string(crt_pem)
                     .map_err(|err| CommunicationMiddlewareError(err.to_string()))?;
                 let key = std::fs::read_to_string(key_pem)
                     .map_err(|err| CommunicationMiddlewareError(err.to_string()))?;
+
                 let server_identity = Identity::from_pem(cert, key);
                 let tls = tonic::transport::ServerTlsConfig::new()
-                    .client_ca_root(client_ca_cert)
+                    .client_ca_root(Certificate::from_pem(ca))
                     .identity(server_identity);
                 tokio::select! {
                     // [impl->swdd~grpc-server-spawns-tonic-service~1]

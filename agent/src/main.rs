@@ -103,15 +103,27 @@ async fn main() {
         workload_state_sender,
     );
 
-    let tls_config: Result<Option<TLSConfig>, String> =
-        match (args.insecure, args.ankaios_agent_crt_pem) {
-            (true, _) => Ok(None),
-            (false, Some(path_to_crt_pem)) => Ok(Some(TLSConfig {
+    let tls_config: Result<Option<TLSConfig>, String> = match (
+        args.insecure,
+        args.ankaios_agent_ca_pem,
+        args.ankaios_agent_crt_pem,
+        args.ankaios_agent_key_pem,
+    ) {
+        (true, _, _, _) => Ok(None),
+        (false, Some(path_to_ca_pem), Some(path_to_crt_pem), Some(path_to_key_pem)) => {
+            Ok(Some(TLSConfig {
+                path_to_ca_pem,
                 path_to_crt_pem,
-                ..Default::default()
-            })),
-            (false, None) => Err("ANKAIOS_AGENT_CRT_PEM=\"\"".to_string()),
-        };
+                path_to_key_pem,
+            }))
+        }
+        (false, ca_pem, crt_pem, key_pem) => Err(format!(
+            "ANKAIOS_AGENT_CA_PEM={} ANKAIOS_AGENT_CRT_PEM={} ANKAIOS_AGENT_KEY_PEM={}",
+            ca_pem.unwrap_or(String::from("\"\"")),
+            crt_pem.unwrap_or(String::from("\"\"")),
+            key_pem.unwrap_or(String::from("\"\""))
+        )),
+    };
 
     let mut grpc_communications_client = GRPCCommunicationsClient::new_agent_communication(
         args.agent_name.clone(),
