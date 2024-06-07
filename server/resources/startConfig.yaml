@@ -23,14 +23,14 @@ workloads:
   hello2:
     runtime: podman
     agent: agent_B
-    restartPolicy: ALWAYS
+    restartPolicy: ON_FAILURE
     tags:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
       image: alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sh" ]
-      commandArgs: [ "-c", "echo 'Always restarted.'; sleep 2"]
+      commandArgs: [ "-c", "echo 'Restarted on failure.'; sleep 2"]
   hello-pod:
     runtime: podman-kube
     agent: agent_B
