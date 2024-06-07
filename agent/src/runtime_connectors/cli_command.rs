@@ -56,7 +56,7 @@ impl<'a> CliCommand<'a> {
             let stderr = String::from_utf8(result.stderr).unwrap_or_else(|err| {
                 format!("Could not decode command's stderr as UTF8: {}", err)
             });
-            Err(format!("Execution of command failed: {}", stderr))
+            Err(format!("Execution of command failed: {}", stderr.trim()))
         }
     }
 }
