@@ -129,7 +129,7 @@ mod tests {
             .exec()
             .await;
 
-        assert!(matches!(result, Err(x) if x== "Execution of command failed: error\n"));
+        assert!(matches!(result, Err(x) if x== "Execution of command failed: error"));
     }
 
     #[tokio::test]
