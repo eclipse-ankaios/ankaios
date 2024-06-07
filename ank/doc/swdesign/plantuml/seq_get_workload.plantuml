@@ -5,8 +5,8 @@ box "Ankaios Ank"
     actor "user" as user
     participant Main as main
     participant "CliCommands" as cli_commands
-    participant "<<task>>\nListen to Ankaios\nServer" as listen_to_server
-    participant "<<task>>\nListen to Agent \nManager" as listen_to_manager
+    participant "ServerConnection" as server_connection
+    participant "<<task>>\nCommunicationsClient" as communications_client
 end box
 
 box "Ankaios Server"
@@ -22,13 +22,17 @@ end box
 == command ==
 
 main -> cli_commands ++ : get workloads
-cli_commands ->> listen_to_manager ++: request complete state
-listen_to_manager ->> server --++ : request complete state
 
-cli_commands -> cli_commands ++: wait for the response
+cli_commands -> server_connection ++: request complete state
+server_connection ->> communications_client++: request complete state
+communications_client ->> server --++ : request complete state
 
-listen_to_server <<- server --++: complete state
-listen_to_server ->> cli_commands --: complete state
+server_connection -> server_connection ++: wait for the response
+communications_client <<- server --++: complete state
+server_connection <<- communications_client --: complete state
+deactivate server_connection
+cli_commands <<- server_connection --: complete state
+
 cli_commands -> cli_commands ++: filter workloads
 cli_commands -> cli_commands ++: format output text
 main <<-- cli_commands -- : output text
@@ -36,12 +40,7 @@ deactivate cli_commands
 deactivate cli_commands
 deactivate cli_commands
 
-destroy cli_commands
-destroy listen_to_manager
-destroy listen_to_server
-
-main -> main ++: print text
+main -> main: print text
 user <- main -- : exit
-destroy main
 
 @enduml

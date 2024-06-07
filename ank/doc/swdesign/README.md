@@ -53,6 +53,42 @@ Considered alternatives:
 * keep on using the environment logger
 * use another crate which provides tracing functions
 
+#### The CLI does not limit the size of the missed message buffer
+`swdd~cli-does-not-limit-missed-message-buffer-size~1`
+
+Status: approved
+
+While the CLI waits for a response from the Ankaios server,
+it stores all other messages received from the Ankaios server in a buffer,
+as some messages might be needed after the response is received.
+If the Ankaios server takes time to response to the request and many other messages are send,
+the buffer can grow without limit.
+
+Rationale:
+
+The buffer is left to grow without limit for the following reasons:
+
+* This problem is unlikely to occur as:
+  (1) the server must take a long time to respond or does not respond at all.
+  (2) the server must send many messages to the CLI
+* The CLI is intended for interactive usage.
+  If the response takes to long, the user can terminate the CLI.
+* The CLI is intended for use during development and not for use in production.
+  Crashes are more acceptable here.
+* The CLI will be used on a developer PC and not on embedded devices.
+  Memory constraints are not of the biggest concern.
+* All alternatives need an additional parameter (size of buffer or timeout)
+
+Considered alternatives:
+
+* Introducing a ring buffer.
+  If the buffer grows to large, the oldest messages would be dropped.
+  This could lead to important messages being missed.
+* The size of the buffer could be limited.
+  If the buffer would exceed the limit, the CLI would exit with a failure.
+* The CLI could timeout, if the Ankaios server takes to long to respond.
+  This would not solve the problem directly, but it would reduce the probability of the problem occurring.
+
 ## Structural view
 
 Following diagram shows the structural view of the Ankaios Ank.
@@ -540,7 +576,7 @@ Needs:
 
 ### `ank delete workload`
 
-![Delete workload](plantuml/seq_delete_workload.svg)
+The sequence is the same as for [`ank set state`](#ank-set-state).
 
 #### CLI provides a function to delete workloads
 `swdd~cli-provides-delete-workload~1`
@@ -572,7 +608,7 @@ Needs:
 
 ### `ank run workload`
 
-![Run workload](plantuml/seq_run_workload.svg)
+The sequence is the same as for [`ank set state`](#ank-set-state).
 
 #### CLI provides a function to run a workload
 `swdd~cli-provides-run-workload~1`
@@ -603,6 +639,8 @@ Needs:
 - utest
 
 ### `ank apply [-d] [--agent agent_name] <manifest.yaml> ...`
+
+The sequence is the same as for [`ank set state`](#ank-set-state).
 
 #### Ankaios manifest
 
@@ -740,6 +778,25 @@ Needs:
 - impl
 - utest
 - stest
+
+### Handling other message while waiting for response
+
+![Store unexpected messages](plantuml/seq_store_missed_messages.svg)
+
+#### CLI stores unexpected messages
+`swdd~cli-stores-unexpected-message~1`
+
+Status: approved
+
+While the Ankaios CLI waits for a response from the Ankaios Server,
+the Ankaios CLI shall store all unrelated received messages for later processing.
+
+Rationale:
+While communicating with the Ankaios server the ank CLI could already receive unsolicited `UpdateWorkloadState` messages that are needed later during command execution. Storing the messages ensure that they are not missed and the CLI does not block endlessly waiting for them, e.g., while waiting for the end state for an apply command.
+
+Needs:
+- impl
+- utest
 
 ## Data view
 
