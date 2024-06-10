@@ -1467,12 +1467,20 @@ container runtime
 (see <a href="https://podman.io/docs/installation">Podman installation instructions</a>).
 For using the <code>podman</code> runtime, Podman version 3.4.2 is sufficient but the
 <code>podman-kube</code> runtime requires at least Podman version 4.3.1.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>On Ubuntu 24.04 there is a <a href="https://bugs.launchpad.net/ubuntu/+source/libpod/+bug/2040483">known problem with Podman stopping containers</a>.
+The following workaround disables AppArmor for Podman. Run the following steps as root after installation of Podman:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mkdir<span class="w"> </span>-p<span class="w"> </span>/etc/containers/containers.conf.d
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;[CONTAINERS]\napparmor_profile=&quot;&quot;\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>/etc/containers/containers.conf.d/disable-apparmor.conf
+</code></pre></div>
+</div>
 <h2 id="installation-methods">Installation methods<a class="headerlink" href="#installation-methods" title="Permanent link">&para;</a></h2>
 <p>There a different ways to install Ankaios.</p>
 <h3 id="setup-with-script">Setup with script<a class="headerlink" href="#setup-with-script" title="Permanent link">&para;</a></h3>
 <p>The recommended way to install Ankaios is using the installation script.
 To install the latest release version of Ankaios, please run the following command:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>curl<span class="w"> </span>-sfL<span class="w"> </span>https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash<span class="w"> </span>-
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>curl<span class="w"> </span>-sfL<span class="w"> </span>https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash<span class="w"> </span>-
 </code></pre></div>
 <p>The installation process automatically detects the platform and downloads the appropriate binaries.
 The default installation path for the binaries is <code>/usr/local/bin</code> but can be changed.
@@ -1517,7 +1525,7 @@ file generation if only non-root privileges are available.</p>
 </tbody>
 </table>
 <p>To install a specific version run the following command and substitute <code>&lt;version&gt;</code> with a specific version tag e.g. <code>v0.1.0</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>curl<span class="w"> </span>-sfL<span class="w"> </span>https://github.com/eclipse-ankaios/ankaios/releases/download/&lt;version&gt;/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash<span class="w"> </span>-s<span class="w"> </span>--<span class="w"> </span>-v<span class="w"> </span>&lt;version&gt;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>curl<span class="w"> </span>-sfL<span class="w"> </span>https://github.com/eclipse-ankaios/ankaios/releases/download/&lt;version&gt;/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash<span class="w"> </span>-s<span class="w"> </span>--<span class="w"> </span>-v<span class="w"> </span>&lt;version&gt;
 </code></pre></div>
 <p>For available versions see the <a href="https://github.com/eclipse-ankaios/ankaios/tags">list of releases</a>.</p>
 <h3 id="set-the-log-level-for-ank-server-and-ank-agent-services">Set the log level for <code>ank-server</code> and <code>ank-agent</code> services<a class="headerlink" href="#set-the-log-level-for-ank-server-and-ank-agent-services" title="Permanent link">&para;</a></h3>
@@ -1529,17 +1537,17 @@ file generation if only non-root privileges are available.</p>
 <li>
 <p>Run the installation script, making sure to pass these environment variables as arguments if needed:</p>
 <p>For a specific version:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>curl<span class="w"> </span>-sfL<span class="w"> </span>https://github.com/eclipse-ankaios/ankaios/releases/download/&lt;version&gt;/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="nv">INSTALL_ANK_SERVER_RUST_LOG</span><span class="o">=</span>debug<span class="w"> </span><span class="nv">INSTALL_ANK_AGENT_RUST_LOG</span><span class="o">=</span>info<span class="w"> </span>bash<span class="w"> </span>-s<span class="w"> </span>--<span class="w"> </span>-i<span class="w"> </span>/usr/local/bin<span class="w"> </span>-t<span class="w"> </span>both<span class="w"> </span>-v<span class="w"> </span>&lt;version&gt;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>curl<span class="w"> </span>-sfL<span class="w"> </span>https://github.com/eclipse-ankaios/ankaios/releases/download/&lt;version&gt;/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="nv">INSTALL_ANK_SERVER_RUST_LOG</span><span class="o">=</span>debug<span class="w"> </span><span class="nv">INSTALL_ANK_AGENT_RUST_LOG</span><span class="o">=</span>info<span class="w"> </span>bash<span class="w"> </span>-s<span class="w"> </span>--<span class="w"> </span>-i<span class="w"> </span>/usr/local/bin<span class="w"> </span>-t<span class="w"> </span>both<span class="w"> </span>-v<span class="w"> </span>&lt;version&gt;
 </code></pre></div>
 <p>For the latest version:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>curl<span class="w"> </span>-sfL<span class="w"> </span>https://github.com/eclipse-ankaios/ankaios/releases/download/latest/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="nv">INSTALL_ANK_SERVER_RUST_LOG</span><span class="o">=</span>debug<span class="w"> </span><span class="nv">INSTALL_ANK_AGENT_RUST_LOG</span><span class="o">=</span>info<span class="w"> </span>bash<span class="w"> </span>-s<span class="w"> </span>--<span class="w"> </span>-i<span class="w"> </span>/usr/local/bin<span class="w"> </span>-t<span class="w"> </span>both
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>curl<span class="w"> </span>-sfL<span class="w"> </span>https://github.com/eclipse-ankaios/ankaios/releases/download/latest/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="nv">INSTALL_ANK_SERVER_RUST_LOG</span><span class="o">=</span>debug<span class="w"> </span><span class="nv">INSTALL_ANK_AGENT_RUST_LOG</span><span class="o">=</span>info<span class="w"> </span>bash<span class="w"> </span>-s<span class="w"> </span>--<span class="w"> </span>-i<span class="w"> </span>/usr/local/bin<span class="w"> </span>-t<span class="w"> </span>both
 </code></pre></div>
 </li>
 </ol>
 <p>Now, both services will output logs according to the specified log levels. If no explicit value was provided during installation, both services will default to <code>info</code> log level. You can always change the log level by updating the environment variables and reinstalling the services.</p>
 <h3 id="uninstall-ankaios">Uninstall Ankaios<a class="headerlink" href="#uninstall-ankaios" title="Permanent link">&para;</a></h3>
 <p>If Ankaios has been installed with the installation script, it can be uninstalled with:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>ank-uninstall.sh
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>ank-uninstall.sh
 </code></pre></div>
 <p>The folder <code>/etc/ankaios</code> will remain.</p>
 <h3 id="manual-download-of-binaries">Manual download of binaries<a class="headerlink" href="#manual-download-of-binaries" title="Permanent link">&para;</a></h3>
