@@ -887,6 +887,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../restart-policy/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Restart Policy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../resource-usage/" class="md-nav__link">
         
   
@@ -1416,10 +1437,7 @@
 <code>podman</code> runtime and not for the <code>podman-kube</code> runtime.</p>
 </div>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<pre class="mermaid"><code>---
-title: Overview
----
-flowchart TD
+<pre class="mermaid"><code>flowchart TD
     a1(Ankaios Agent 1)
     w1(Workload 1)
     w2(Workload 2)
@@ -1433,10 +1451,7 @@ flowchart TD
     s &lt;--&gt; a2 &lt;--&gt;|Control Interface| w3 &amp; w4</code></pre>
 <p>The <a href="./">control interface</a> enables a <a href="../glossary/#workload">workload</a> to communicate with the Ankaios system by interacting with the Ankaios server through writing/reading communication data to/from the provided FIFO files in the <a href="#fifo-mount-point">FIFO mount point</a>.</p>
 <h2 id="fifo-mount-point">FIFO mount point<a class="headerlink" href="#fifo-mount-point" title="Permanent link">&para;</a></h2>
-<pre class="mermaid"><code>---
-title: FIFO Mount Point
----
-flowchart TD
+<pre class="mermaid"><code>flowchart TD
     a1(Ankaios Agent 1)
     w1(Workload 1)
     w2(Workload 2)
@@ -1446,10 +1461,7 @@ flowchart TD
     s &lt;--&gt; a1 &lt;--&gt;|"/run/ankaios/control_interface/{input,output}"| w1 &amp; w2</code></pre>
 <p>The <a href="./">control interface</a> relies on <a href="https://en.wikipedia.org/wiki/Named_pipe">FIFO</a> (also known as <a href="https://en.wikipedia.org/wiki/Named_pipe">named pipes</a>) to enable a <a href="../glossary/#workload">workload</a> process to communicate with the Ankaios system. For that purpose, Ankaios creates a mount point for each <a href="../glossary/#workload">workload</a> to store the FIFO files. At the mount point <code>/run/ankaios/control_interface/</code> the <a href="../glossary/#workload">workload</a> developer can find the FIFO files <code>input</code> and <code>output</code> and use them for the communication with the Ankaios server. Ankaios uses its own communication protocol described in <a href="../_ankaios.proto/#oprotocol-documentation">protocol documentation</a> as a <a href="https://protobuf.com/docs/language-spec">protobuf IDL</a> which allows the client code to be generated in any programming language supported by the <a href="https://protobuf.dev/reference/">protobuf compiler</a>. The generated client code can then be integrated and used in a <a href="#communication-between-ankaios-and-workloads">workload</a>.</p>
 <h2 id="communication-between-ankaios-and-workloads">Communication between Ankaios and workloads<a class="headerlink" href="#communication-between-ankaios-and-workloads" title="Permanent link">&para;</a></h2>
-<pre class="mermaid"><code>---
-title: Communication between Ankaios and a workload
----
-flowchart TD
+<pre class="mermaid"><code>flowchart TD
     proto("ankaios.proto")
     gen_code("Generated Client Code")
     workload("Workload")
@@ -1467,10 +1479,7 @@ The byte length has a dynamic length and is encoded as <a href="https://protobuf
 <p>The following sections showcase in Rust some important parts of the communication with the Ankaios cluster using the control interface. The same concepts are also used in all of the example workload applications.</p>
 <h3 id="sending-request-message-from-a-workload-to-ankaios-server">Sending request message from a workload to Ankaios server<a class="headerlink" href="#sending-request-message-from-a-workload-to-ankaios-server" title="Permanent link">&para;</a></h3>
 <p>To send out a request message from the workload to the Ankaios Server the request message needs to be serialized using the generated serializing function, then encoded as <a href="#length-delimited-protobuf-message-layout">length-delimited protobuf message</a> and then written directly into the <code>output</code> FIFO file. The type of request message is <a href="../_ankaios.proto/#toserver">ToServer</a>.</p>
-<pre class="mermaid"><code>---
-title: Send request message via control interface
----
-flowchart TD
+<pre class="mermaid"><code>flowchart TD
     begin([Start])
     req_msg(Fill ToServer message)
     ser_msg(Serialize ToServer message using the generated serializing function)
@@ -1483,6 +1492,10 @@ flowchart TD
     ser_msg --&gt;enc_bytes
     enc_bytes --&gt; output
     output --&gt; fin</code></pre>
+<!-- Replace the figcaption and the mermaid picture. See: -->
+<!-- https://github.com/eclipse-ankaios/ankaios/pull/253#discussion_r1587603078 -->
+<figcaption>Send request message via control interface</figcaption>
+
 <p>Code snippet in <a href="https://www.rust-lang.org/">Rust</a> for sending request message via control interface:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">use</span><span class="w"> </span><span class="n">api</span>::<span class="n">proto</span><span class="p">;</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">use</span><span class="w"> </span><span class="n">prost</span>::<span class="n">Message</span><span class="p">;</span>
@@ -1547,10 +1560,7 @@ flowchart TD
 </code></pre></div>
 <h3 id="processing-response-message-from-ankaios-server">Processing response message from Ankaios server<a class="headerlink" href="#processing-response-message-from-ankaios-server" title="Permanent link">&para;</a></h3>
 <p>To process a response message from the Ankaios Server the workload needs to read out the bytes from the <code>input</code> FIFO file. As the bytes are encoded as <a href="#length-delimited-protobuf-message-layout">length-delimited protobuf message</a> with a variable length, the length needs to be decoded and extracted first. Then the length can be used to decode and deserialize the read bytes to a response message object for further processing. The type of the response message is <a href="../_ankaios.proto/#fromserver">FromServer</a>.</p>
-<pre class="mermaid"><code>---
-title: Read response message via control interface
----
-flowchart TD
+<pre class="mermaid"><code>flowchart TD
     begin([Start])
     input("Read bytes from /run/ankaios/control_interface/input")
     dec_length(Get length from read length delimited varint encoded bytes)
@@ -1563,6 +1573,10 @@ flowchart TD
     dec_length --&gt; deser_msg
     deser_msg --&gt; further_processing
     further_processing --&gt; fin</code></pre>
+<!-- Replace the figcaption and the mermaid picture. See: -->
+<!-- https://github.com/eclipse-ankaios/ankaios/pull/253#discussion_r1587603078 -->
+<figcaption>Read response message via control interface</figcaption>
+
 <p>Code Snippet in <a href="https://www.rust-lang.org/">Rust</a> for reading response message via control interface:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">use</span><span class="w"> </span><span class="n">api</span>::<span class="n">proto</span><span class="p">;</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">use</span><span class="w"> </span><span class="n">prost</span>::<span class="n">Message</span><span class="p">;</span>

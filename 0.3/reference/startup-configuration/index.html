@@ -851,6 +851,27 @@
   
   
     <li class="md-nav__item">
+      <a href="../restart-policy/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Restart Policy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../resource-usage/" class="md-nav__link">
         
   
@@ -1385,8 +1406,8 @@ A workload specification must contain the following information:</p>
 <h3 id="podmankuberuntimeconfig">PodmanKubeRuntimeConfig<a class="headerlink" href="#podmankuberuntimeconfig" title="Permanent link">&para;</a></h3>
 <p>The runtime configuration for the <code>podman-kube</code> runtime is specified as follows:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">generalOptions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">&lt;comma&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;separated&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;options&gt;</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nt">play_options</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">&lt;comma&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;separated&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;options&gt;</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="nt">down_options</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">&lt;comma&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;separated&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;options&gt;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nt">playOptions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">&lt;comma&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;separated&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;options&gt;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="nt">downOptions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">&lt;comma&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;separated&gt;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">&lt;options&gt;</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="nt">manifest</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;string containing the K8s manifest&gt;</span>
 </code></pre></div>
 <p>where each attribute is passed directly to <code>podman play kube</code>.</p>
@@ -1396,8 +1417,8 @@ A workload specification must contain the following information:</p>
 <p><code>podman --events-backend file play kube manifest.yaml --down --force</code></p>
 <p>they would translate to the following runtime configuration:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">generalOptions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;--events-backend&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;file&quot;</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nt">play_options</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;--userns&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;host&quot;</span><span class="p p-Indicator">]</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nt">down_options</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;--force&quot;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nt">playOptions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;--userns&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;host&quot;</span><span class="p p-Indicator">]</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nt">downOptions</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;--force&quot;</span><span class="p p-Indicator">]</span>
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="nt">manifest</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">&lt;contents of manifest.yaml&gt;</span>
 </code></pre></div>
 
