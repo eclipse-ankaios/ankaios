@@ -21,8 +21,6 @@ use super::{State, WorkloadState};
 #[serde(rename_all = "camelCase")]
 pub struct CompleteState {
     #[serde(default)]
-    pub startup_state: State,
-    #[serde(default)]
     pub desired_state: State,
     #[serde(default)]
     pub workload_states: Vec<WorkloadState>,
@@ -31,7 +29,6 @@ pub struct CompleteState {
 impl From<CompleteState> for proto::CompleteState {
     fn from(item: CompleteState) -> proto::CompleteState {
         proto::CompleteState {
-            startup_state: Some(proto::State::from(item.startup_state)),
             desired_state: Some(proto::State::from(item.desired_state)),
             workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
         }
@@ -43,7 +40,6 @@ impl TryFrom<proto::CompleteState> for CompleteState {
 
     fn try_from(item: proto::CompleteState) -> Result<Self, Self::Error> {
         Ok(CompleteState {
-            startup_state: item.startup_state.unwrap_or_default().try_into()?,
             desired_state: item.desired_state.unwrap_or_default().try_into()?,
             workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
         })
