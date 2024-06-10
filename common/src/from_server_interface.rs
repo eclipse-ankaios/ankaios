@@ -294,10 +294,6 @@ mod tests {
                                 api_version: "v0.1".into(),
                                 ..Default::default()
                             }),
-                            startup_state: Some(api::proto::State {
-                                api_version: "v0.1".into(),
-                                ..Default::default()
-                            }),
                             workload_states: vec![],
                         },
                     )),

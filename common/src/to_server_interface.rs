@@ -231,10 +231,6 @@ mod tests {
                     proto::UpdateStateRequest {
                         update_mask: vec!["test_update_mask_field".to_owned()],
                         new_state: Some(proto::CompleteState {
-                            startup_state: Some(proto::State {
-                                api_version: "v0.1".into(),
-                                ..Default::default()
-                            }),
                             desired_state: Some(proto::State {
                                 api_version: "v0.1".into(),
                                 workloads: HashMap::from([(
