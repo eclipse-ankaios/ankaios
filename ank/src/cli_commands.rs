@@ -637,27 +637,18 @@ impl CliCommands {
         cli_name: String,
         server_url: Url,
         no_wait: bool,
-        insecure: bool,
-        path_to_crt_pem: Option<String>,
-    ) -> Result<Self, String> {
-        let tls_config: Result<Option<TLSConfig>, String> = match (insecure, path_to_crt_pem) {
-            (true, _) => Ok(None),
-            (false, Some(path_to_crt_pem)) => Ok(Some(TLSConfig {
-                path_to_crt_pem,
-                ..Default::default()
-            })),
-            (false, None) => Err("ANKAIOS_CLI_CRT_PEM=\"\"".to_string()),
-        };
+        tls_config: Option<TLSConfig>,
+    ) -> Self {
         let (task, to_server, from_server) =
-            setup_cli_communication(cli_name.as_str(), server_url.clone(), tls_config.unwrap());
-        Ok(Self {
+            setup_cli_communication(cli_name.as_str(), server_url.clone(), tls_config);
+        Self {
             _response_timeout_ms: response_timeout_ms,
             cli_name,
             task,
             to_server,
             from_server,
             no_wait,
-        })
+        }
     }
 
     pub async fn shut_down(self) {

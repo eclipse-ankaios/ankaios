@@ -28,6 +28,7 @@ pub enum GrpcMiddlewareError {
     ConversionError(String),
     ServerNotAvailable(String),
     ConnectionInterrupted(String),
+    TLSError(String),
 }
 
 impl From<GrpcMiddlewareError> for CommunicationMiddlewareError {
@@ -88,6 +89,9 @@ impl fmt::Display for GrpcMiddlewareError {
             }
             GrpcMiddlewareError::ConnectionInterrupted(message) => {
                 write!(f, "Connection interrupted: '{message}'")
+            }
+            GrpcMiddlewareError::TLSError(message) => {
+                write!(f, "TLS error: '{message}'")
             }
         }
     }

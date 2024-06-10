@@ -54,6 +54,16 @@ pub struct GRPCCommunicationsClient {
     tls_config: Option<TLSConfig>,
 }
 
+fn get_server_url(server_address: &Url, tls_config: &Option<TLSConfig>) -> Url {
+    if tls_config.is_none() {
+        let mut server_url = server_address.clone();
+        let _ = server_url.set_scheme("http");
+        server_url
+    } else {
+        server_address.clone()
+    }
+}
+
 impl GRPCCommunicationsClient {
     pub fn new_agent_communication(
         name: String,
@@ -62,7 +72,7 @@ impl GRPCCommunicationsClient {
     ) -> Self {
         Self {
             name,
-            server_address,
+            server_address: get_server_url(&server_address, &tls_config),
             connection_type: ConnectionType::Agent,
             tls_config,
         }
@@ -74,7 +84,7 @@ impl GRPCCommunicationsClient {
     ) -> Self {
         Self {
             name,
-            server_address,
+            server_address: get_server_url(&server_address, &tls_config),
             connection_type: ConnectionType::Cli,
             tls_config,
         }
@@ -204,7 +214,9 @@ impl GRPCCommunicationsClient {
                         .domain_name("ank-server")
                         .ca_certificate(ca)
                         .identity(client_identity);
-                    let channel = Channel::from_static("https://127.0.0.1:25551")
+
+                    let channel = Channel::from_shared(self.server_address.to_string())
+                        .map_err(|err| GrpcMiddlewareError::TLSError(err.to_string()))?
                         .tls_config(tls)?
                         .connect()
                         .await?;
@@ -227,16 +239,51 @@ impl GRPCCommunicationsClient {
                     Ok(res)
                 }
             },
-            ConnectionType::Cli => {
-                let mut client =
-                    CliConnectionClient::connect(self.server_address.to_string()).await?;
+            ConnectionType::Cli => match &self.tls_config {
+                Some(tls_config) => {
+                    let ca_pem =
+                        std::fs::read_to_string(PathBuf::from(&tls_config.path_to_ca_pem)).unwrap();
+                    let ca = Certificate::from_pem(ca_pem);
+                    let client_cert_pem =
+                        std::fs::read_to_string(PathBuf::from(&tls_config.path_to_crt_pem))
+                            .unwrap();
+                    let client_cert = Certificate::from_pem(client_cert_pem);
 
-                let res = client
-                    .connect_cli(ReceiverStream::new(grpc_rx))
-                    .await?
-                    .into_inner();
-                Ok(res)
-            }
+                    let client_key_pem =
+                        std::fs::read_to_string(PathBuf::from(&tls_config.path_to_key_pem))
+                            .unwrap();
+                    let client_key = Certificate::from_pem(client_key_pem);
+                    let client_identity = Identity::from_pem(client_cert, client_key);
+
+                    let tls = ClientTlsConfig::new()
+                        .domain_name("ank-server")
+                        .ca_certificate(ca)
+                        .identity(client_identity);
+
+                    let channel = Channel::from_shared(self.server_address.to_string())
+                        .map_err(|err| GrpcMiddlewareError::TLSError(err.to_string()))?
+                        .tls_config(tls)?
+                        .connect()
+                        .await?;
+                    let mut client = CliConnectionClient::new(channel);
+
+                    let res = client
+                        .connect_cli(ReceiverStream::new(grpc_rx))
+                        .await?
+                        .into_inner();
+                    Ok(res)
+                }
+                None => {
+                    let mut client =
+                        CliConnectionClient::connect(self.server_address.to_string()).await?;
+
+                    let res = client
+                        .connect_cli(ReceiverStream::new(grpc_rx))
+                        .await?
+                        .into_inner();
+                    Ok(res)
+                }
+            },
         }
     }
 }

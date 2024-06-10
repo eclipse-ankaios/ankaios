@@ -13,6 +13,7 @@ logs
 *.profdata
 **/coverage
 .cache
+.certs
 
 # ignore python data
 __pycache__
