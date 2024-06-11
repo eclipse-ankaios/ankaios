@@ -15,9 +15,7 @@
 use crate::runtime_connectors::StateChecker;
 use crate::workload::{ControlLoopState, WorkloadCommand};
 use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
-use common::objects::{
-    ExecutionState, RestartPolicy, WorkloadInstanceName, WorkloadSpec, WorkloadState,
-};
+use common::objects::{ExecutionState, RestartPolicy, WorkloadInstanceName, WorkloadSpec};
 use common::std_extensions::IllegalStateResult;
 use futures_util::Future;
 use std::path::PathBuf;
@@ -86,18 +84,23 @@ impl WorkloadControlLoop {
                         .ok_or("Channel to listen to workload states of state checker closed.")
                         .unwrap_or_illegal_state();
 
-                    /* forward immediately the new workload state to the agent manager
-                    to avoid delays through the restart handling */
-                    // [impl->swdd~workload-control-loop-sends-workload-states~1]
-                    Self::send_workload_state_to_agent(
-                        &control_loop_state.to_agent_workload_state_sender,
-                        &new_workload_state.instance_name,
-                        new_workload_state.execution_state.clone(),
-                    ).await;
+                    // [impl->swdd~workload-control-loop-skips-restarts~1]
+                    if Self::is_same_workload(control_loop_state.instance_name(), &new_workload_state.instance_name) {
 
-                    // [impl->swdd~workload-control-loop-handles-workload-restarts~1]
-                    if Self::is_restart_required(&control_loop_state.workload_spec, &new_workload_state) {
-                        control_loop_state = Self::restart_workload_on_runtime(control_loop_state).await;
+                        /* forward immediately the new workload state to the agent manager
+                        to avoid delays through the restart handling */
+                        // [impl->swdd~workload-control-loop-sends-workload-states~1]
+                        Self::send_workload_state_to_agent(
+                            &control_loop_state.to_agent_workload_state_sender,
+                            &new_workload_state.instance_name,
+                            new_workload_state.execution_state.clone(),
+                        ).await;
+
+                        // [impl->swdd~workload-control-loop-handles-workload-restarts~1]
+                        if Self::compare_execution_state_with_restart_policy(&new_workload_state.execution_state, &control_loop_state.workload_spec.restart_policy) {
+                            // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
+                            control_loop_state = Self::restart_workload_on_runtime(control_loop_state).await;
+                        }
                     }
 
                     log::trace!("Restart handling done.");
@@ -203,16 +206,6 @@ impl WorkloadControlLoop {
             control_interface_path,
         )
         .await
-    }
-
-    fn is_restart_required(workload_spec: &WorkloadSpec, workload_state: &WorkloadState) -> bool {
-        // [impl->swdd~workload-control-loop-skips-restarts~1]
-        Self::is_same_workload(&workload_spec.instance_name, &workload_state.instance_name)
-            // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
-            && Self::compare_execution_state_with_restart_policy(
-                &workload_state.execution_state,
-                &workload_spec.restart_policy,
-            )
     }
 
     fn is_same_workload(
