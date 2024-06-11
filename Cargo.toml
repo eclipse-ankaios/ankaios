@@ -2,11 +2,11 @@
 resolver = "2"
 
 members = [
-    "api", 
-    "common", 
-    "agent", 
-    "server", 
-    "grpc", 
+    "api",
+    "common",
+    "agent",
+    "server",
+    "grpc",
     "ank"
     ]
 
