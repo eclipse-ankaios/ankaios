@@ -360,7 +360,6 @@ Status: approved
 The Ankaios Server provides an interface to get the CompleteState.
 The CompleteState includes:
 
-- StartupState
 - DesiredState
 - WorkloadState
 
