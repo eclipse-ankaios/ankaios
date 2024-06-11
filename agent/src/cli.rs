@@ -40,7 +40,7 @@ pub struct Arguments {
     #[clap(short = 'r', long = "run-folder", default_value_t = DEFAULT_RUN_FOLDER.into())]
     pub run_folder: String,
     #[clap(long = "insecure", default_value_t = false)]
-    /// Flag to disable TLS communication between Ankaios server, agent and ank CLI.
+    /// Flag to disable TLS communication between Ankaios agent and server.
     pub insecure: bool,
     #[clap(long = "ankaios_agent_ca_pem", env)]
     /// Path to agent ca pem file.
