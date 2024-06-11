@@ -1,7 +1,14 @@
 [workspace]
 resolver = "2"
 
-members = ["api", "common", "agent", "server", "grpc", "ank"]
+members = [
+    "api", 
+    "common", 
+    "agent", 
+    "server", 
+    "grpc", 
+    "ank"
+    ]
 
 [workspace.package]
 version = "0.3.1"
