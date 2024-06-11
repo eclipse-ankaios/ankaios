@@ -345,7 +345,6 @@ impl CliCommands {
             .get_complete_state(&object_field_mask)
             .await?;
         // [impl->swdd~cli-returns-api-version-with-desired-state~1]
-        // [impl->swdd~cli-returns-api-version-with-startup-state~1]
         // [impl->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
         match generate_compact_state_output(&res_complete_state, object_field_mask, output_format) {
             Ok(res) => Ok(res),
