@@ -724,7 +724,6 @@ mod tests {
     use grpc::security::TLSConfig;
     use mockall::predicate::eq;
     use std::io;
-    use std::{collections::HashMap, io, thread};
     use tabled::{settings::Style, Table};
 
     use super::apply_manifests::{

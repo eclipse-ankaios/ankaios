@@ -94,6 +94,10 @@ mod tests {
             agent_name: "test_agent_name".to_owned(),
             server_url: DEFAULT_SERVER_ADDRESS.parse().unwrap(),
             run_folder: DEFAULT_RUN_FOLDER.to_owned(),
+            insecure: true,
+            ankaios_agent_ca_pem: None,
+            ankaios_agent_crt_pem: None,
+            ankaios_agent_key_pem: None,
         };
 
         let _directory_mock_context =
@@ -110,6 +114,10 @@ mod tests {
             agent_name: "test_agent_name".to_owned(),
             server_url: DEFAULT_SERVER_ADDRESS.parse().unwrap(),
             run_folder: "/tmp/x".to_owned(),
+            insecure: true,
+            ankaios_agent_ca_pem: None,
+            ankaios_agent_crt_pem: None,
+            ankaios_agent_key_pem: None,
         };
 
         let _directory_mock_context = generate_test_directory_mock("/tmp/x", "test_agent_name_io");
