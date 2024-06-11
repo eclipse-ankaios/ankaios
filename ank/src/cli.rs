@@ -47,7 +47,7 @@ pub struct AnkCli {
     /// Do not wait for workloads to be created/deleted
     pub no_wait: bool,
     #[clap(long = "insecure", default_value_t = false)]
-    /// Flag to disable TLS communication between Ankaios server, agent and ank CLI.
+    /// Flag to disable TLS communication between ank CLI and Ankaios server.
     pub insecure: bool,
     #[clap(long = "ankaios_cli_ca_pem", env)]
     /// Path to cli ca pem file.
