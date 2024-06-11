@@ -6,9 +6,8 @@ box "Ankaios Ank"
     participant Main as main
     participant "Cli" as cli
     participant "CliCommands" as cli_commands
-    participant "<<thread>>\nMiddleware (gRPC)" as grpc_client
-    participant "<<task>>\nListen to Ankaios\nServer" as listen_to_server
-    participant "<<task>>\nListen to Agent \nManager" as listen_to_manager
+    participant "ServerConnection" as server_connection
+    participant "<<task>>\nCommunications Client" as communications_client
 end box
 
 box "Ankaios Server"
@@ -24,15 +23,17 @@ main -> cli ++: parse
 cli ->> main --
 main -> cli_commands ** : init
 activate cli_commands
-cli_commands ->> grpc_client ** : create and start in a new thread
+cli_commands -> server_connection ** :
 deactivate cli_commands
+activate server_connection
 
-grpc_client -> grpc_client ++: start and endless loop \ntrying to (re)connect to the server
-grpc_client ->> listen_to_server **: create an async task
-listen_to_server -> listen_to_server ++: start listening for \nFromServer messages
+server_connection ->> communications_client ** : create and start in a new task
+deactivate server_connection
+activate communications_client
 
-grpc_client ->> listen_to_manager **: create an async task
-listen_to_manager -> listen_to_manager ++: start listening for \nToServer messages
+communications_client ->> server ++: connect to server
+note left: if the connection is lost,\nwill try to reconnect
+communications_client -> communications_client: start listening for ToServer\nand FromServer messages
 
 == command ==
 

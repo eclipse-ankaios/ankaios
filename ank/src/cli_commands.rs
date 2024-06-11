@@ -17,6 +17,8 @@ use std::{
     fmt::{self, Display},
     time::Duration,
 };
+mod apply_manifests;
+mod server_connection;
 mod wait_list;
 use grpc::security::TLSConfig;
 use tokio::time::interval;
@@ -30,34 +32,23 @@ async fn read_file_to_string(file: String) -> std::io::Result<String> {
 use tests::read_to_string_mock as read_file_to_string;
 
 use common::{
-    commands::{CompleteStateRequest, Response, ResponseContent},
-    from_server_interface::{FromServer, FromServerReceiver},
-    objects::{CompleteState, State, StoredWorkloadSpec, Tag, WorkloadInstanceName, WorkloadState},
+    from_server_interface::FromServer,
+    objects::{CompleteState, State, StoredWorkloadSpec, Tag, WorkloadInstanceName},
     state_manipulation::{Object, Path},
-    to_server_interface::{ToServer, ToServerInterface, ToServerSender},
 };
-
-#[cfg(not(test))]
-use common::communications_client::CommunicationsClient;
-#[cfg(not(test))]
-use grpc::client::GRPCCommunicationsClient;
-
-#[cfg(test)]
-use tests::MockGRPCCommunicationsClient as GRPCCommunicationsClient;
 
 use tabled::{settings::Style, Table, Tabled};
 use url::Url;
 
+#[cfg_attr(test, mockall_double::double)]
+use self::server_connection::ServerConnection;
+use self::wait_list::WaitListDisplayTrait;
 use crate::{
     cli::{ApplyArgs, OutputFormat},
     cli_commands::wait_list::ParsedUpdateStateSuccess,
     output, output_and_error, output_debug,
 };
 
-use self::wait_list::WaitListDisplayTrait;
-
-const BUFFER_SIZE: usize = 20;
-const WAIT_TIME_MS: Duration = Duration::from_millis(3000);
 const SPINNER_SYMBOLS: [&str; 4] = ["|", "/", "-", "\\"];
 pub(crate) const COMPLETED_SYMBOL: &str = " ";
 
@@ -93,6 +84,16 @@ impl From<serde_yaml::Error> for CliError {
 impl From<serde_json::Error> for CliError {
     fn from(value: serde_json::Error) -> Self {
         CliError::JsonSerialization(format!("{value}"))
+    }
+}
+
+impl From<server_connection::ServerConnectionError> for CliError {
+    fn from(value: server_connection::ServerConnectionError) -> Self {
+        match value {
+            server_connection::ServerConnectionError::ExecutionError(message) => {
+                CliError::ExecutionError(message)
+            }
+        }
     }
 }
 
@@ -172,290 +173,12 @@ fn update_compact_state(
     Some(())
 }
 
-// [impl->swdd~server-handle-cli-communication~1]
-// [impl->swdd~cli-communication-over-middleware~1]
-fn setup_cli_communication(
-    cli_name: &str,
-    server_url: Url,
-    tls_config: Option<TLSConfig>,
-) -> (
-    tokio::task::JoinHandle<()>,
-    ToServerSender,
-    FromServerReceiver,
-) // (task,sender,receiver)
-{
-    let mut grpc_communications_client = GRPCCommunicationsClient::new_cli_communication(
-        cli_name.to_owned(),
-        server_url,
-        tls_config,
-    );
-
-    let (to_cli, cli_receiver) = tokio::sync::mpsc::channel::<FromServer>(BUFFER_SIZE);
-    let (to_server, server_receiver) = tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
-
-    let communications_task = tokio::spawn(async move {
-        if let Err(err) = grpc_communications_client
-            .run(server_receiver, to_cli.clone())
-            .await
-        {
-            output_and_error!("{err}");
-        }
-    });
-    (communications_task, to_server, cli_receiver)
-}
-
-mod apply_manifests {
-    use crate::cli_commands::{ApplyManifestTableDisplay, State};
-    use crate::{cli::ApplyArgs, output_debug};
-    use common::objects::CompleteState;
-    use common::state_manipulation::{Object, Path};
-    use std::{collections::HashSet, io};
-
-    pub type InputSourcePair = (String, Box<dyn io::Read + Send + Sync + 'static>);
-    pub type InputSources = Result<Vec<InputSourcePair>, String>;
-
-    #[cfg(not(test))]
-    pub fn open_manifest(
-        file_path: &str,
-    ) -> io::Result<(String, Box<dyn io::Read + Send + Sync + 'static>)> {
-        use std::fs::File;
-        match File::open(file_path) {
-            Ok(open_file) => Ok((file_path.to_owned(), Box::new(open_file))),
-            Err(err) => Err(err),
-        }
-    }
-    #[cfg(test)]
-    use super::tests::open_manifest_mock as open_manifest;
-
-    // [impl->swdd~cli-apply-supports-ankaios-manifest~1]
-    pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
-        let state_obj_parsing_check: serde_yaml::Value =
-            serde_yaml::from_reader(&mut manifest.1)
-                .map_err(|err| format!("Invalid manifest data provided: {}", err))?;
-        match Object::try_from(&state_obj_parsing_check) {
-            Err(err) => Err(format!(
-                "Error while parsing the manifest data.\nError: {err}"
-            )),
-            Ok(obj) => {
-                let mut workload_paths: HashSet<Path> = HashSet::new();
-                for path in Vec::<Path>::from(&obj) {
-                    let parts = path.parts();
-                    if parts.len() > 1 {
-                        let _ = &mut workload_paths
-                            .insert(Path::from(format!("{}.{}", parts[0], parts[1])));
-                    }
-                }
-
-                Ok((obj, workload_paths.into_iter().collect()))
-            }
-        }
-    }
-
-    // [impl->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
-    pub fn handle_agent_overwrite(
-        filter_masks: &Vec<common::state_manipulation::Path>,
-        desired_agent: &Option<String>,
-        mut state_obj: Object,
-        table_output: &mut [ApplyManifestTableDisplay],
-    ) -> Result<State, String> {
-        // No agent name specified through cli!
-        if desired_agent.is_none() {
-            // [impl->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
-            for field in filter_masks {
-                let path = &format!("{}.agent", String::from(field));
-                if state_obj.get(&path.into()).is_none() {
-                    return Err(
-                        "No agent name specified -> use '--agent' option to specify!".to_owned(),
-                    );
-                }
-            }
-        }
-        // An agent name specified through cli -> do an agent name overwrite!
-        else {
-            let desired_agent_name = desired_agent.as_ref().unwrap().to_string();
-            for field in filter_masks {
-                let path = &format!("{}.agent", String::from(field));
-                if state_obj
-                    .set(
-                        &path.into(),
-                        serde_yaml::Value::String(desired_agent_name.to_owned()),
-                    )
-                    .is_err()
-                {
-                    return Err("Could not find workload to update.".to_owned());
-                }
-            }
-            table_output.iter_mut().for_each(|row| {
-                row.base_info.agent = desired_agent_name.to_string();
-            })
-        }
-
-        state_obj
-            .try_into()
-            .map_err(|err| format!("Invalid manifest data provided: {}", err))
-    }
-
-    pub fn update_request_obj(
-        req_obj: &mut Object,
-        cur_obj: &Object,
-        paths: &[Path],
-        manifest_file_name: &str,
-        delete_mode: bool,
-        table_output: &mut Vec<ApplyManifestTableDisplay>,
-    ) -> Result<(), String> {
-        for workload_path in paths.iter() {
-            let workload_name = &workload_path.parts()[1];
-            let cur_workload_spec = cur_obj.get(workload_path).unwrap().clone();
-            if req_obj.get(workload_path).is_none() {
-                let _ = req_obj.set(workload_path, cur_workload_spec.clone());
-                let mapping_default = serde_yaml::Mapping::default();
-                let value_default = serde_yaml::Value::default();
-                let mut agent_name = "";
-
-                if !delete_mode {
-                    agent_name = cur_workload_spec
-                        .as_mapping()
-                        .unwrap_or(&mapping_default)
-                        .get("agent")
-                        .unwrap_or(&value_default)
-                        .as_str()
-                        .unwrap_or_default()
-                };
-
-                table_output.push(ApplyManifestTableDisplay::new(
-                    workload_name,
-                    agent_name,
-                    if delete_mode {
-                        super::ApplyManifestOperation::Remove
-                    } else {
-                        super::ApplyManifestOperation::AddOrUpdate
-                    },
-                    manifest_file_name,
-                ));
-            } else {
-                return Err(format!(
-                    "Multiple workloads with the same name '{}' found!",
-                    workload_name
-                ));
-            }
-        }
-
-        Ok(())
-    }
-
-    pub fn create_filter_masks_from_paths(
-        paths: &[common::state_manipulation::Path],
-        prefix: &str,
-    ) -> Vec<String> {
-        let mut filter_masks = paths
-            .iter()
-            .map(|path| format!("{}.{}", prefix, String::from(path)))
-            .collect::<Vec<String>>();
-        filter_masks.sort();
-        filter_masks.dedup();
-        filter_masks
-    }
-    // [impl->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
-    // [impl->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
-    pub fn generate_state_obj_and_filter_masks_from_manifests(
-        manifests: &mut [InputSourcePair],
-        apply_args: &ApplyArgs,
-        table_output: &mut Vec<ApplyManifestTableDisplay>,
-    ) -> Result<(CompleteState, Vec<String>), String> {
-        let mut req_obj: Object = State::default().try_into().unwrap();
-        let mut req_paths: Vec<common::state_manipulation::Path> = Vec::new();
-        for manifest in manifests.iter_mut() {
-            let (cur_obj, mut cur_workload_paths) = parse_manifest(manifest)?;
-
-            update_request_obj(
-                &mut req_obj,
-                &cur_obj,
-                &cur_workload_paths,
-                &manifest.0,
-                apply_args.delete_mode,
-                table_output,
-            )?;
-
-            req_paths.append(&mut cur_workload_paths);
-        }
-
-        if req_paths.is_empty() {
-            return Err("No workload provided in manifests!".to_owned());
-        }
-
-        let filter_masks = create_filter_masks_from_paths(&req_paths, "desiredState");
-        output_debug!("\nfilter_masks:\n{:?}\n", filter_masks);
-
-        let complete_state_req_obj = if apply_args.delete_mode {
-            CompleteState {
-                ..Default::default()
-            }
-        } else {
-            let state_from_req_obj =
-                handle_agent_overwrite(&req_paths, &apply_args.agent_name, req_obj, table_output)?;
-            CompleteState {
-                desired_state: state_from_req_obj,
-                ..Default::default()
-            }
-        };
-        output_debug!("\nstate_obj:\n{:?}\n", complete_state_req_obj);
-
-        Ok((complete_state_req_obj, filter_masks))
-    }
-
-    impl ApplyArgs {
-        pub fn get_input_sources(&self) -> InputSources {
-            if let Some(first_arg) = self.manifest_files.first() {
-                match first_arg.as_str() {
-                    // [impl->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
-                    "-" => Ok(vec![("stdin".to_owned(), Box::new(io::stdin()))]),
-                    // [impl->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
-                    _ => {
-                        let mut res: InputSources = Ok(vec![]);
-                        for file_path in self.manifest_files.iter() {
-                            match open_manifest(file_path) {
-                                Ok(open_file) => res.as_mut().unwrap().push(open_file),
-                                Err(err) => {
-                                    res = Err(match err.kind() {
-                                        io::ErrorKind::NotFound => {
-                                            format!("File '{}' not found!", file_path)
-                                        }
-                                        _ => err.to_string(),
-                                    });
-                                    break;
-                                }
-                            }
-                        }
-                        res
-                    }
-                }
-            } else {
-                Ok(vec![])
-            }
-        }
-    }
-}
-#[derive(Debug, Tabled, Clone)]
-#[tabled(rename_all = "UPPERCASE")]
-struct WorkloadBaseTableDisplay {
-    #[tabled(rename = "WORKLOAD NAME")]
-    name: String,
-    agent: String,
-}
-
-impl WorkloadBaseTableDisplay {
-    fn new(name: &str, agent: &str) -> Self {
-        WorkloadBaseTableDisplay {
-            name: name.to_string(),
-            agent: agent.to_string(),
-        }
-    }
-}
 #[derive(Debug, Tabled, Clone)]
 #[tabled(rename_all = "UPPERCASE")]
 struct GetWorkloadTableDisplay {
-    #[tabled(inline)]
-    base_info: WorkloadBaseTableDisplay,
+    #[tabled(rename = "WORKLOAD NAME")]
+    name: String,
+    agent: String,
     runtime: String,
     #[tabled(rename = "EXECUTION STATE")]
     execution_state: String,
@@ -519,7 +242,7 @@ impl Display for WaitListDisplay {
                 }
             })
             .collect();
-        data.sort_by_key(|x| &x.data.base_info.name);
+        data.sort_by_key(|x| &x.data.name);
 
         // [impl->swdd~cli-shall-present-workloads-as-table~1]
         write!(
@@ -573,7 +296,8 @@ impl GetWorkloadTableDisplay {
         additional_info: &str,
     ) -> Self {
         GetWorkloadTableDisplay {
-            base_info: WorkloadBaseTableDisplay::new(name, agent),
+            name: name.to_string(),
+            agent: agent.to_string(),
             runtime: runtime.to_string(),
             execution_state: execution_state.to_string(),
             additional_info: additional_info.to_string(),
@@ -581,54 +305,11 @@ impl GetWorkloadTableDisplay {
     }
 }
 
-#[derive(Debug, Clone)]
-enum ApplyManifestOperation {
-    AddOrUpdate,
-    Remove,
-}
-
-impl fmt::Display for ApplyManifestOperation {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ApplyManifestOperation::AddOrUpdate => write!(f, "Add/Update"),
-            ApplyManifestOperation::Remove => write!(f, "Remove"),
-        }
-    }
-}
-
-#[derive(Debug, Tabled, Clone)]
-#[tabled(rename_all = "UPPERCASE")]
-pub struct ApplyManifestTableDisplay {
-    #[tabled(inline)]
-    base_info: WorkloadBaseTableDisplay,
-    operation: ApplyManifestOperation,
-    #[tabled(rename = "FILE")]
-    manifest_file: String,
-}
-
-impl ApplyManifestTableDisplay {
-    fn new(
-        workload_name: &str,
-        agent_name: &str,
-        operation: ApplyManifestOperation,
-        manifest_file: &str,
-    ) -> Self {
-        ApplyManifestTableDisplay {
-            base_info: WorkloadBaseTableDisplay::new(workload_name, agent_name),
-            operation,
-            manifest_file: manifest_file.to_string(),
-        }
-    }
-}
-
 pub struct CliCommands {
     // Left here for the future use.
     _response_timeout_ms: u64,
-    cli_name: String,
-    task: tokio::task::JoinHandle<()>,
-    to_server: ToServerSender,
-    from_server: FromServerReceiver,
     no_wait: bool,
+    server_connection: ServerConnection,
 }
 
 impl CliCommands {
@@ -639,67 +320,21 @@ impl CliCommands {
         no_wait: bool,
         tls_config: Option<TLSConfig>,
     ) -> Self {
-        let (task, to_server, from_server) =
-            setup_cli_communication(cli_name.as_str(), server_url.clone(), tls_config);
+        // let (task, to_server, from_server) =
+        //     setup_cli_communication(cli_name.as_str(), server_url.clone(), tls_config);
         Self {
             _response_timeout_ms: response_timeout_ms,
-            cli_name,
-            task,
-            to_server,
-            from_server,
             no_wait,
+            server_connection: ServerConnection::new(
+                cli_name.as_str(),
+                server_url.clone(),
+                tls_config,
+            ),
         }
     }
 
     pub async fn shut_down(self) {
-        drop(self.to_server);
-
-        let _ = self.task.await;
-    }
-
-    async fn get_complete_state(
-        &mut self,
-        object_field_mask: &Vec<String>,
-    ) -> Result<Box<CompleteState>, CliError> {
-        output_debug!(
-            "get_complete_state: object_field_mask={:?} ",
-            object_field_mask
-        );
-
-        // send complete state request to server
-        self.to_server
-            .request_complete_state(
-                self.cli_name.to_owned(),
-                CompleteStateRequest {
-                    field_mask: object_field_mask.clone(),
-                },
-            )
-            .await
-            .map_err(|err| CliError::ExecutionError(err.to_string()))?;
-
-        let poll_complete_state_response = async {
-            loop {
-                match self.from_server.recv().await {
-                    Some(FromServer::Response(Response {
-                        request_id: _,
-                        response_content: ResponseContent::CompleteState(res),
-                    })) => return Ok(res),
-                    None => return Err("Channel preliminary closed."),
-                    Some(message) => {
-                        output_debug!("Got unexpected message: {:?}", message)
-                    }
-                }
-            }
-        };
-        match tokio::time::timeout(WAIT_TIME_MS, poll_complete_state_response).await {
-            Ok(Ok(res)) => Ok(res),
-            Ok(Err(err)) => Err(CliError::ExecutionError(format!(
-                "Failed to get complete state.\nError: {err}"
-            ))),
-            Err(_) => Err(CliError::ExecutionError(format!(
-                "Failed to get complete state in time (timeout={WAIT_TIME_MS:?})."
-            ))),
-        }
+        self.server_connection.shut_down().await
     }
 
     pub async fn get_state(
@@ -713,7 +348,10 @@ impl CliCommands {
             output_format
         );
 
-        let res_complete_state = self.get_complete_state(&object_field_mask).await?;
+        let res_complete_state = self
+            .server_connection
+            .get_complete_state(&object_field_mask)
+            .await?;
         // [impl->swdd~cli-returns-api-version-with-desired-state~1]
         // [impl->swdd~cli-returns-api-version-with-startup-state~1]
         // [impl->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
@@ -825,7 +463,7 @@ impl CliCommands {
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
         if let Some(agent_name) = agent_name {
-            workload_infos.retain(|wi| wi.1.base_info.agent == agent_name);
+            workload_infos.retain(|wi| wi.1.agent == agent_name);
         }
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
@@ -835,12 +473,12 @@ impl CliCommands {
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
         if !workload_name.is_empty() {
-            workload_infos.retain(|wi| workload_name.iter().any(|wn| wn == &wi.1.base_info.name));
+            workload_infos.retain(|wi| workload_name.iter().any(|wn| wn == &wi.1.name));
         }
 
         // The order of workloads in RequestCompleteState is not sable -> make sure that the user sees always the same order.
         // [impl->swdd~cli-shall-sort-list-of-workloads~1]
-        workload_infos.sort_by_key(|wi| wi.1.base_info.name.clone());
+        workload_infos.sort_by_key(|wi| wi.1.name.clone());
 
         output_debug!("The table after filtering:\n{:?}", workload_infos);
 
@@ -854,7 +492,10 @@ impl CliCommands {
     async fn get_workloads(
         &mut self,
     ) -> Result<Vec<(WorkloadInstanceName, GetWorkloadTableDisplay)>, CliError> {
-        let res_complete_state = self.get_complete_state(&Vec::new()).await?;
+        let res_complete_state = self
+            .server_connection
+            .get_complete_state(&Vec::new())
+            .await?;
 
         let mut workload_infos: Vec<(WorkloadInstanceName, GetWorkloadTableDisplay)> =
             res_complete_state
@@ -880,9 +521,7 @@ impl CliCommands {
                 .desired_state
                 .workloads
                 .iter()
-                .find(|&(wl_name, wl_spec)| {
-                    *wl_name == wi.1.base_info.name && wl_spec.agent == wi.1.base_info.agent
-                })
+                .find(|&(wl_name, wl_spec)| *wl_name == wi.1.name && wl_spec.agent == wi.1.agent)
             {
                 wi.1.runtime = found_wl_spec.runtime.clone();
             }
@@ -959,58 +598,10 @@ impl CliCommands {
         new_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<(), CliError> {
-        let request_id = uuid::Uuid::new_v4().to_string();
-        output_debug!("Sending the new state {:?}", new_state);
-        self.to_server
-            .update_state(request_id.clone(), new_state, update_mask)
-            .await
-            .map_err(|err| CliError::ExecutionError(err.to_string()))?;
-
-        let mut missed_messages = Vec::new();
-
-        let update_state_success = loop {
-            let Some(server_message) = self.from_server.recv().await else {
-                return Err(CliError::ExecutionError(
-                    "Connection to server interrupted".into(),
-                ));
-            };
-            match server_message {
-                FromServer::Response(response) => {
-                    if response.request_id != request_id {
-                        output_debug!(
-                            "Received unexpected response for request ID: '{}'",
-                            response.request_id
-                        );
-                    } else {
-                        match response.response_content {
-                            ResponseContent::UpdateStateSuccess(update_state_success) => {
-                                break update_state_success
-                            }
-                            // [impl->swdd~cli-requests-update-state-with-watch-error~1]
-                            ResponseContent::Error(error) => {
-                                return Err(CliError::ExecutionError(format!(
-                                    "SetState failed with: '{}'",
-                                    error.message
-                                )));
-                            }
-                            // [impl->swdd~cli-requests-update-state-with-watch-error~1]
-                            response_content => {
-                                return Err(CliError::ExecutionError(format!(
-                                    "Received unexpected response: {:?}",
-                                    response_content
-                                )));
-                            }
-                        }
-                    }
-                }
-                FromServer::UpdateWorkloadState(mut update_workload_state) => {
-                    missed_messages.append(&mut update_workload_state.workload_states);
-                }
-                other_message => {
-                    output_debug!("Received unexpected message: {:?}", other_message)
-                }
-            }
-        };
+        let update_state_success = self
+            .server_connection
+            .update_state(new_state, update_mask)
+            .await?;
 
         output_debug!("Got update success: {:?}", update_state_success);
 
@@ -1026,8 +617,7 @@ impl CliCommands {
             Ok(())
         } else {
             // [impl->swdd~cli-requests-update-state-with-watch-success~1]
-            self.wait_for_complete(update_state_success, missed_messages)
-                .await
+            self.wait_for_complete(update_state_success).await
         }
     }
 
@@ -1035,7 +625,6 @@ impl CliCommands {
     async fn wait_for_complete(
         &mut self,
         update_state_success: ParsedUpdateStateSuccess,
-        missed_messages: Vec<WorkloadState>,
     ) -> Result<(), CliError> {
         let mut changed_workloads =
             HashSet::from_iter(update_state_success.added_workloads.iter().cloned());
@@ -1045,7 +634,7 @@ impl CliCommands {
             output!("No workloads to update");
             return Ok(());
         } else {
-            output!("Applied successfully the manifest(s). Waiting for target workload states (press Ctrl+C to interrupt waiting).\n");
+            output!("Successfully applied the manifest(s).\nWaiting for workload(s) to reach desired states (press Ctrl+C to interrupt).\n");
         }
 
         let states_of_all_workloads = self.get_workloads().await.unwrap();
@@ -1063,23 +652,28 @@ impl CliCommands {
             },
         );
 
-        wait_list.update(missed_messages);
+        let missed_workload_states = self
+            .server_connection
+            .take_missed_from_server_messages()
+            .into_iter()
+            .filter_map(|m| {
+                if let FromServer::UpdateWorkloadState(u) = m {
+                    Some(u)
+                } else {
+                    None
+                }
+            })
+            .flat_map(|u| u.workload_states);
+
+        wait_list.update(missed_workload_states);
         let mut spinner_interval = interval(Duration::from_millis(100));
 
         while !wait_list.is_empty() {
             tokio::select! {
-                server_message = self.from_server.recv() => {
-                    output_debug!("Got server message: {:?}", server_message);
-                    let Some(server_message) = server_message else {
-                        return Err(CliError::ExecutionError(
-                            "Connection to server interrupted".into(),
-                        ));
-                    };
-                    if let FromServer::UpdateWorkloadState(update_workload_state) = server_message {
-                        wait_list.update(update_workload_state.workload_states);
-                    } else {
-                        output_debug!("Received unexpected message: {:?}", server_message);
-                    }
+                update_workload_state = self.server_connection.read_next_update_workload_state() => {
+                    let update_workload_state = update_workload_state?;
+                    output_debug!("Got update workload state: {:?}", update_workload_state);
+                    wait_list.update(update_workload_state.workload_states);
                 }
                 _ = spinner_interval.tick() => {
                     wait_list.step_spinner();
@@ -1094,14 +688,9 @@ impl CliCommands {
         use apply_manifests::*;
         match apply_args.get_input_sources() {
             Ok(mut manifests) => {
-                let mut table_output = Vec::<ApplyManifestTableDisplay>::default();
                 let (complete_state_req_obj, filter_masks) =
-                    generate_state_obj_and_filter_masks_from_manifests(
-                        &mut manifests,
-                        &apply_args,
-                        &mut table_output,
-                    )
-                    .map_err(CliError::ExecutionError)?;
+                    generate_state_obj_and_filter_masks_from_manifests(&mut manifests, &apply_args)
+                        .map_err(CliError::ExecutionError)?;
 
                 // [impl->swdd~cli-apply-send-update-state~1]
                 self.update_state_and_wait_for_complete(complete_state_req_obj, filter_masks)
@@ -1122,10 +711,7 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use common::{
-        commands::{
-            self, CompleteStateRequest, RequestContent, Response, ResponseContent,
-            UpdateStateRequest, UpdateStateSuccess, UpdateWorkloadState,
-        },
+        commands::{Response, UpdateStateSuccess, UpdateWorkloadState},
         from_server_interface::{FromServer, FromServerSender},
         objects::{
             self, generate_test_workload_spec_with_param, CompleteState, ExecutionState,
@@ -1133,22 +719,23 @@ mod tests {
         },
         state_manipulation::{Object, Path},
         test_utils::{self, generate_test_complete_state},
-        to_server_interface::{ToServer, ToServerReceiver},
+        to_server_interface::ToServerReceiver,
     };
     use grpc::security::TLSConfig;
+    use mockall::predicate::eq;
+    use std::io;
     use std::{collections::HashMap, io, thread};
     use tabled::{settings::Style, Table};
-    use tokio::sync::mpsc::{Receiver, Sender};
 
     use super::apply_manifests::{
         create_filter_masks_from_paths, generate_state_obj_and_filter_masks_from_manifests,
         handle_agent_overwrite, parse_manifest, update_request_obj, InputSourcePair,
     };
-    use super::{ApplyManifestOperation, ApplyManifestTableDisplay};
     use crate::{
         cli::OutputFormat,
         cli_commands::{
-            generate_compact_state_output, get_filtered_value, update_compact_state, ApplyArgs,
+            generate_compact_state_output, get_filtered_value,
+            server_connection::MockServerConnection, update_compact_state, ApplyArgs,
             GetWorkloadTableDisplay,
         },
     };
@@ -1174,6 +761,7 @@ mod tests {
             }
         }
     }"#;
+    const OTHER_REQUEST_ID: &str = "other_request_id";
 
     mockall::lazy_static! {
         pub static ref FAKE_READ_TO_STRING_MOCK_RESULT_LIST: tokio::sync::Mutex<std::collections::VecDeque<io::Result<String>>>  =
@@ -1202,39 +790,6 @@ mod tests {
         }
     }
 
-    fn generate_multiple_test_apply_manifest_table_display() -> String {
-        let operation = ApplyManifestOperation::AddOrUpdate;
-        return tabled::Table::new(vec![
-            ApplyManifestTableDisplay::new(
-                "simple",
-                "agent1",
-                operation.clone(),
-                "manifest_file_name",
-            ),
-            ApplyManifestTableDisplay::new("complex", "agent1", operation, "manifest_file_name"),
-        ])
-        .with(tabled::settings::Style::blank())
-        .to_string();
-    }
-
-    fn generate_multiple_test_apply_manifest_table_display_operation_remove() -> String {
-        let operation = ApplyManifestOperation::Remove;
-        return tabled::Table::new(vec![
-            ApplyManifestTableDisplay::new("simple", "", operation.clone(), "manifest_file_name"),
-            ApplyManifestTableDisplay::new("complex", "", operation, "manifest_file_name"),
-        ])
-        .with(tabled::settings::Style::blank())
-        .to_string();
-    }
-
-    fn generate_apply_manifest_table_output(
-        table_output: &Vec<super::ApplyManifestTableDisplay>,
-    ) -> String {
-        tabled::Table::new(table_output)
-            .with(tabled::settings::Style::blank())
-            .to_string()
-    }
-
     pub fn open_manifest_mock(
         _file_path: &str,
     ) -> io::Result<(String, Box<dyn io::Read + Send + Sync + 'static>)> {
@@ -1245,49 +800,20 @@ mod tests {
             .unwrap()
     }
 
-    fn prepare_server_response(
-        complete_states: Vec<FromServer>,
-        to_cli: FromServerSender,
-    ) -> Result<(), String> {
-        let sync_code = thread::spawn(move || {
-            complete_states.into_iter().for_each(|cs| {
-                to_cli.blocking_send(cs).unwrap();
-            });
-        });
-        sync_code.join().unwrap();
-        Ok(())
-    }
-
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[tokio::test]
-    async fn get_workloads_empty_table() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
+    async fn utest_get_workloads_empty_table() {
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| Ok(Box::new(test_utils::generate_test_complete_state(vec![]))));
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
 
-        let empty_complete_state = vec![FromServer::Response(Response {
-            request_id: "TestCli".to_owned(),
-            response_content: ResponseContent::CompleteState(Box::new(
-                test_utils::generate_test_complete_state(Vec::new()),
-            )),
-        })];
-
-        let mut mock_client = MockGRPCCommunicationsClient::default();
-        mock_client
-            .expect_run()
-            .return_once(|_r, to_cli| prepare_server_response(empty_complete_state, to_cli));
-
-        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
-        mock_new
-            .expect()
-            .return_once(move |_name, _server_address| mock_client);
-
-        let mut cmd = CliCommands::init(
-            RESPONSE_TIMEOUT_MS,
-            "TestCli".to_string(),
-            Url::parse("http://localhost").unwrap(),
-            false,
-        );
         let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
@@ -1305,50 +831,36 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     // [utest->swdd~cli-shall-sort-list-of-workloads~1]
     #[tokio::test]
-    async fn get_workloads_no_filtering() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
+    async fn utest_get_workloads_no_filtering() {
+        let test_data = test_utils::generate_test_complete_state(vec![
+            generate_test_workload_spec_with_param(
+                "agent_A".to_string(),
+                "name1".to_string(),
+                "runtime".to_string(),
+            ),
+            generate_test_workload_spec_with_param(
+                "agent_B".to_string(),
+                "name2".to_string(),
+                "runtime".to_string(),
+            ),
+            generate_test_workload_spec_with_param(
+                "agent_B".to_string(),
+                "name3".to_string(),
+                "runtime".to_string(),
+            ),
+        ]);
 
-        let complete_state = vec![FromServer::Response(Response {
-            request_id: "TestCli".to_owned(),
-            response_content: ResponseContent::CompleteState(Box::new(
-                test_utils::generate_test_complete_state(vec![
-                    generate_test_workload_spec_with_param(
-                        "agent_A".to_string(),
-                        "name1".to_string(),
-                        "runtime".to_string(),
-                    ),
-                    generate_test_workload_spec_with_param(
-                        "agent_B".to_string(),
-                        "name2".to_string(),
-                        "runtime".to_string(),
-                    ),
-                    generate_test_workload_spec_with_param(
-                        "agent_B".to_string(),
-                        "name3".to_string(),
-                        "runtime".to_string(),
-                    ),
-                ]),
-            )),
-        })];
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| Ok(Box::new(test_data)));
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
 
-        let mut mock_client = MockGRPCCommunicationsClient::default();
-        mock_client
-            .expect_run()
-            .return_once(|_r, to_cli| prepare_server_response(complete_state, to_cli));
-
-        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
-        mock_new
-            .expect()
-            .return_once(move |_name, _server_address| mock_client);
-
-        let mut cmd = CliCommands::init(
-            RESPONSE_TIMEOUT_MS,
-            "TestCli".to_string(),
-            Url::parse("http://localhost").unwrap(),
-            false,
-        );
         let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
@@ -1381,50 +893,36 @@ mod tests {
 
     // [utest->swdd~cli-shall-filter-list-of-workloads~1]
     #[tokio::test]
-    async fn get_workloads_filter_workload_name() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
+    async fn utest_get_workloads_filter_workload_name() {
+        let test_data = test_utils::generate_test_complete_state(vec![
+            generate_test_workload_spec_with_param(
+                "agent_A".to_string(),
+                "name1".to_string(),
+                "runtime".to_string(),
+            ),
+            generate_test_workload_spec_with_param(
+                "agent_B".to_string(),
+                "name2".to_string(),
+                "runtime".to_string(),
+            ),
+            generate_test_workload_spec_with_param(
+                "agent_B".to_string(),
+                "name3".to_string(),
+                "runtime".to_string(),
+            ),
+        ]);
 
-        let complete_state = vec![FromServer::Response(Response {
-            request_id: "TestCli".to_owned(),
-            response_content: ResponseContent::CompleteState(Box::new(
-                test_utils::generate_test_complete_state(vec![
-                    generate_test_workload_spec_with_param(
-                        "agent_A".to_string(),
-                        "name1".to_string(),
-                        "runtime".to_string(),
-                    ),
-                    generate_test_workload_spec_with_param(
-                        "agent_B".to_string(),
-                        "name2".to_string(),
-                        "runtime".to_string(),
-                    ),
-                    generate_test_workload_spec_with_param(
-                        "agent_B".to_string(),
-                        "name3".to_string(),
-                        "runtime".to_string(),
-                    ),
-                ]),
-            )),
-        })];
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| Ok(Box::new(test_data)));
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
 
-        let mut mock_client = MockGRPCCommunicationsClient::default();
-        mock_client
-            .expect_run()
-            .return_once(|_r, to_cli| prepare_server_response(complete_state, to_cli));
-
-        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
-        mock_new
-            .expect()
-            .return_once(move |_name, _server_address| mock_client);
-
-        let mut cmd = CliCommands::init(
-            RESPONSE_TIMEOUT_MS,
-            "TestCli".to_string(),
-            Url::parse("http://localhost").unwrap(),
-            false,
-        );
         let cmd_text = cmd
             .get_workloads_table(None, None, vec!["name1".to_string()])
             .await;
@@ -1443,50 +941,35 @@ mod tests {
 
     // [utest->swdd~cli-shall-filter-list-of-workloads~1]
     #[tokio::test]
-    async fn get_workloads_filter_agent() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
+    async fn utest_get_workloads_filter_agent() {
+        let test_data = test_utils::generate_test_complete_state(vec![
+            generate_test_workload_spec_with_param(
+                "agent_A".to_string(),
+                "name1".to_string(),
+                "runtime".to_string(),
+            ),
+            generate_test_workload_spec_with_param(
+                "agent_B".to_string(),
+                "name2".to_string(),
+                "runtime".to_string(),
+            ),
+            generate_test_workload_spec_with_param(
+                "agent_B".to_string(),
+                "name3".to_string(),
+                "runtime".to_string(),
+            ),
+        ]);
 
-        let complete_state = vec![FromServer::Response(Response {
-            request_id: "TestCli".to_owned(),
-            response_content: ResponseContent::CompleteState(Box::new(
-                test_utils::generate_test_complete_state(vec![
-                    generate_test_workload_spec_with_param(
-                        "agent_A".to_string(),
-                        "name1".to_string(),
-                        "runtime".to_string(),
-                    ),
-                    generate_test_workload_spec_with_param(
-                        "agent_B".to_string(),
-                        "name2".to_string(),
-                        "runtime".to_string(),
-                    ),
-                    generate_test_workload_spec_with_param(
-                        "agent_B".to_string(),
-                        "name3".to_string(),
-                        "runtime".to_string(),
-                    ),
-                ]),
-            )),
-        })];
-
-        let mut mock_client = MockGRPCCommunicationsClient::default();
-        mock_client
-            .expect_run()
-            .return_once(|_r, to_cli| prepare_server_response(complete_state, to_cli));
-
-        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
-        mock_new
-            .expect()
-            .return_once(move |_name, _server_address| mock_client);
-
-        let mut cmd = CliCommands::init(
-            RESPONSE_TIMEOUT_MS,
-            "TestCli".to_string(),
-            Url::parse("http://localhost").unwrap(),
-            false,
-        );
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| Ok(Box::new(test_data)));
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
         let cmd_text = cmd
             .get_workloads_table(Some("agent_B".to_string()), None, Vec::new())
             .await;
@@ -1514,50 +997,35 @@ mod tests {
 
     // [utest->swdd~cli-shall-filter-list-of-workloads~1]
     #[tokio::test]
-    async fn get_workloads_filter_state() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
+    async fn utest_get_workloads_filter_state() {
+        let test_data = test_utils::generate_test_complete_state(vec![
+            generate_test_workload_spec_with_param(
+                "agent_A".to_string(),
+                "name1".to_string(),
+                "runtime".to_string(),
+            ),
+            generate_test_workload_spec_with_param(
+                "agent_B".to_string(),
+                "name2".to_string(),
+                "runtime".to_string(),
+            ),
+            generate_test_workload_spec_with_param(
+                "agent_B".to_string(),
+                "name3".to_string(),
+                "runtime".to_string(),
+            ),
+        ]);
 
-        let complete_state = vec![FromServer::Response(Response {
-            request_id: "TestCli".to_owned(),
-            response_content: ResponseContent::CompleteState(Box::new(
-                test_utils::generate_test_complete_state(vec![
-                    generate_test_workload_spec_with_param(
-                        "agent_A".to_string(),
-                        "name1".to_string(),
-                        "runtime".to_string(),
-                    ),
-                    generate_test_workload_spec_with_param(
-                        "agent_B".to_string(),
-                        "name2".to_string(),
-                        "runtime".to_string(),
-                    ),
-                    generate_test_workload_spec_with_param(
-                        "agent_B".to_string(),
-                        "name3".to_string(),
-                        "runtime".to_string(),
-                    ),
-                ]),
-            )),
-        })];
-
-        let mut mock_client = MockGRPCCommunicationsClient::default();
-        mock_client
-            .expect_run()
-            .return_once(|_r, to_cli| prepare_server_response(complete_state, to_cli));
-
-        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
-        mock_new
-            .expect()
-            .return_once(move |_name, _server_address| mock_client);
-
-        let mut cmd = CliCommands::init(
-            RESPONSE_TIMEOUT_MS,
-            "TestCli".to_string(),
-            Url::parse("http://localhost").unwrap(),
-            false,
-        );
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| Ok(Box::new(test_data)));
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
         let cmd_text = cmd
             .get_workloads_table(None, Some("Failed".to_string()), Vec::new())
             .await;
@@ -1570,11 +1038,7 @@ mod tests {
 
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[tokio::test]
-    async fn get_workloads_deleted_workload() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
+    async fn utest_get_workloads_deleted_workload() {
         let test_data = objects::CompleteState {
             workload_states: vec![common::objects::generate_test_workload_state_with_agent(
                 "Workload_1",
@@ -1584,27 +1048,16 @@ mod tests {
             ..Default::default()
         };
 
-        let complete_state = vec![FromServer::Response(Response {
-            request_id: "TestCli".to_owned(),
-            response_content: ResponseContent::CompleteState(Box::new(test_data.clone())),
-        })];
-
-        let mut mock_client = MockGRPCCommunicationsClient::default();
-        mock_client
-            .expect_run()
-            .return_once(|_r, to_cli| prepare_server_response(complete_state, to_cli));
-
-        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
-        mock_new
-            .expect()
-            .return_once(move |_name, _server_address| mock_client);
-
-        let mut cmd = CliCommands::init(
-            RESPONSE_TIMEOUT_MS,
-            "TestCli".to_string(),
-            Url::parse("http://localhost").unwrap(),
-            false,
-        );
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| Ok(Box::new(test_data)));
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
 
         let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
@@ -1627,77 +1080,65 @@ mod tests {
     // [utest->swdd~cli-provides-delete-workload~1]
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
     #[tokio::test]
-    async fn delete_workloads_two_workloads() {
+    async fn utest_delete_workloads_two_workloads() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
 
         let complete_state_update = CompleteState::default();
 
-        let mut mock_client_builder = MockGRPCCommunicationClientBuilder::default();
-        mock_client_builder.expect_receive_request(
-            "update_state_request",
-            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state_update.clone(),
-                update_mask: vec![
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_update_state()
+            .with(
+                eq(complete_state_update.clone()),
+                eq(vec![
                     "desiredState.workloads.name1".to_string(),
                     "desiredState.workloads.name2".to_string(),
-                ],
-            })),
-        );
-        mock_client_builder.will_send_response(
-            "update_state_request",
-            ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
-                added_workloads: vec![],
-                deleted_workloads: vec![
-                    "name1.abc.agent_B".to_string(),
-                    "name2.abc.agent_B".to_string(),
-                ],
-            }),
-        );
-        // mock wait_for_complete
-        mock_client_builder.expect_receive_request(
-            "wait_for_complete_complete_state_request",
-            RequestContent::CompleteStateRequest(CompleteStateRequest { field_mask: vec![] }),
-        );
-        mock_client_builder.will_send_response(
-            "wait_for_complete_complete_state_request",
-            ResponseContent::CompleteState(Box::new(complete_state_update)),
-        );
-        mock_client_builder.will_send_message(FromServer::UpdateWorkloadState(
-            UpdateWorkloadState {
-                workload_states: vec![
-                    WorkloadState {
-                        instance_name: "name1.abc.agent_B".try_into().unwrap(),
-                        execution_state: ExecutionState {
-                            state: objects::ExecutionStateEnum::Removed,
-                            additional_info: "".to_string(),
+                ]),
+            )
+            .return_once(|_, _| {
+                Ok(UpdateStateSuccess {
+                    added_workloads: vec![],
+                    deleted_workloads: vec![
+                        "name1.abc.agent_B".to_string(),
+                        "name2.abc.agent_B".to_string(),
+                    ],
+                })
+            });
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| Ok(Box::new(complete_state_update)));
+
+        mock_server_connection
+            .expect_take_missed_from_server_messages()
+            .return_once(|| {
+                vec![FromServer::UpdateWorkloadState(UpdateWorkloadState {
+                    workload_states: vec![
+                        WorkloadState {
+                            instance_name: "name1.abc.agent_B".try_into().unwrap(),
+                            execution_state: ExecutionState {
+                                state: objects::ExecutionStateEnum::Removed,
+                                additional_info: "".to_string(),
+                            },
                         },
-                    },
-                    WorkloadState {
-                        instance_name: "name2.abc.agent_B".try_into().unwrap(),
-                        execution_state: ExecutionState {
-                            state: objects::ExecutionStateEnum::Removed,
-                            additional_info: "".to_string(),
+                        WorkloadState {
+                            instance_name: "name2.abc.agent_B".try_into().unwrap(),
+                            execution_state: ExecutionState {
+                                state: objects::ExecutionStateEnum::Removed,
+                                additional_info: "".to_string(),
+                            },
                         },
-                    },
-                ],
-            },
-        ));
+                    ],
+                })]
+            });
 
-        let mock_client = mock_client_builder.build();
-
-        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
-        mock_new
-            .expect()
-            .return_once(move |_name, _server_address| mock_client);
-
-        let mut cmd = CliCommands::init(
-            RESPONSE_TIMEOUT_MS,
-            "TestCli".to_string(),
-            Url::parse("http://localhost").unwrap(),
-            false,
-        );
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
 
         let delete_result = cmd
             .delete_workloads(vec!["name1".to_string(), "name2".to_string()])
@@ -1708,42 +1149,32 @@ mod tests {
     // [utest->swdd~cli-provides-delete-workload~1]
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-delete-workload~2]
     #[tokio::test]
-    async fn delete_workloads_unknown_workload() {
+    async fn utest_delete_workloads_unknown_workload() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
 
         let complete_state_update = CompleteState::default();
 
-        let mut mock_client_builder = MockGRPCCommunicationClientBuilder::default();
-        mock_client_builder.expect_receive_request(
-            "update_state_request",
-            RequestContent::UpdateStateRequest(Box::new(UpdateStateRequest {
-                state: complete_state_update,
-                update_mask: vec!["desiredState.workloads.unknown_workload".to_string()],
-            })),
-        );
-        mock_client_builder.will_send_response(
-            "update_state_request",
-            ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
-                added_workloads: vec![],
-                deleted_workloads: vec![],
-            }),
-        );
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_update_state()
+            .with(
+                eq(complete_state_update),
+                eq(vec!["desiredState.workloads.unknown_workload".to_string()]),
+            )
+            .return_once(|_, _| {
+                Ok(UpdateStateSuccess {
+                    added_workloads: vec![],
+                    deleted_workloads: vec![],
+                })
+            });
 
-        let mock_client = mock_client_builder.build();
-
-        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
-        mock_new
-            .expect()
-            .return_once(move |_name, _server_address| mock_client);
-
-        let mut cmd = CliCommands::init(
-            RESPONSE_TIMEOUT_MS,
-            "TestCli".to_string(),
-            Url::parse("http://localhost").unwrap(),
-            false,
-        );
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
 
         let delete_result = cmd
             .delete_workloads(vec!["unknown_workload".to_string()])
@@ -1756,11 +1187,7 @@ mod tests {
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-get-desired-state~1]
     // [utest->swdd~cli-provides-get-desired-state~1]
     #[tokio::test]
-    async fn get_state_complete_desired_state_yaml() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
+    async fn utest_get_state_complete_desired_state_yaml() {
         let test_data = test_utils::generate_test_complete_state(vec![
             generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
@@ -1779,27 +1206,18 @@ mod tests {
             ),
         ]);
 
-        let complete_state = vec![FromServer::Response(Response {
-            request_id: "TestCli".to_owned(),
-            response_content: ResponseContent::CompleteState(Box::new(test_data.clone())),
-        })];
+        let mut mock_server_connection = MockServerConnection::default();
+        let test_data_clone = test_data.clone();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| Ok(Box::new(test_data_clone)));
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
 
-        let mut mock_client = MockGRPCCommunicationsClient::default();
-        mock_client
-            .expect_run()
-            .return_once(|_r, to_cli| prepare_server_response(complete_state, to_cli));
-
-        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
-        mock_new
-            .expect()
-            .return_once(move |_name, _server_address| mock_client);
-
-        let mut cmd = CliCommands::init(
-            3000,
-            "TestCli".to_string(),
-            Url::parse("http://localhost").unwrap(),
-            false,
-        );
         let cmd_text = cmd
             .get_state(vec![], crate::cli::OutputFormat::Yaml)
             .await
@@ -1810,11 +1228,7 @@ mod tests {
 
     // [utest -> swdd~cli-shall-support-desired-state-json~1]
     #[tokio::test]
-    async fn get_state_complete_desired_state_json() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
+    async fn utest_get_state_complete_desired_state_json() {
         let test_data = test_utils::generate_test_complete_state(vec![
             generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
@@ -1833,27 +1247,18 @@ mod tests {
             ),
         ]);
 
-        let complete_state = vec![FromServer::Response(Response {
-            request_id: "TestCli".to_owned(),
-            response_content: ResponseContent::CompleteState(Box::new(test_data.clone())),
-        })];
+        let mut mock_server_connection = MockServerConnection::default();
+        let cloned_test_data = test_data.clone();
+        mock_server_connection
+            .expect_get_complete_state()
+            .return_once(|_| Ok(Box::new(cloned_test_data)));
 
-        let mut mock_client = MockGRPCCommunicationsClient::default();
-        mock_client
-            .expect_run()
-            .return_once(|_r, to_cli| prepare_server_response(complete_state, to_cli));
+        let mut cmd = CliCommands {
+            _response_timeout_ms: 0,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
 
-        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
-        mock_new
-            .expect()
-            .return_once(move |_name, _server_address| mock_client);
-
-        let mut cmd = CliCommands::init(
-            3000,
-            "TestCli".to_string(),
-            Url::parse("http://localhost").unwrap(),
-            false,
-        );
         let cmd_text = cmd
             .get_state(vec![], crate::cli::OutputFormat::Json)
             .await
@@ -1865,34 +1270,20 @@ mod tests {
 
     // [utest->swdd~cli-returns-api-version-with-startup-state~1]
     #[tokio::test]
-    async fn get_state_startup_state() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
+    async fn utest_get_state_startup_state() {
         let test_data = CompleteState::default();
 
-        let complete_state = vec![FromServer::Response(Response {
-            request_id: "TestCli".to_owned(),
-            response_content: ResponseContent::CompleteState(Box::new(test_data.clone())),
-        })];
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec!["startupState".to_owned()]))
+            .return_once(|_| Ok(Box::new(test_data)));
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
 
-        let mut mock_client = MockGRPCCommunicationsClient::default();
-        mock_client
-            .expect_run()
-            .return_once(|_r, to_cli| prepare_server_response(complete_state, to_cli));
-
-        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
-        mock_new
-            .expect()
-            .return_once(move |_name, _server_address| mock_client);
-
-        let mut cmd = CliCommands::init(
-            3000,
-            "TestCli".to_string(),
-            Url::parse("http://localhost").unwrap(),
-            false,
-        );
         let cmd_text = cmd
             .get_state(
                 vec!["startupState".to_owned()],
@@ -1910,11 +1301,7 @@ mod tests {
     // [utest -> swdd~cli-returns-desired-state-from-server~1]
     // [utest->swdd~cli-returns-api-version-with-desired-state~1]
     #[tokio::test]
-    async fn get_state_single_field_of_desired_state() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
+    async fn utest_get_state_single_field_of_desired_state() {
         let test_data = test_utils::generate_test_complete_state(vec![
             generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
@@ -1933,27 +1320,18 @@ mod tests {
             ),
         ]);
 
-        let complete_state = vec![FromServer::Response(Response {
-            request_id: "TestCli".to_owned(),
-            response_content: ResponseContent::CompleteState(Box::new(test_data.clone())),
-        })];
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec!["desiredState.workloads.name3.runtime".into()]))
+            .return_once(|_| Ok(Box::new(test_data)));
 
-        let mut mock_client = MockGRPCCommunicationsClient::default();
-        mock_client
-            .expect_run()
-            .return_once(|_r, to_cli| prepare_server_response(complete_state, to_cli));
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
 
-        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
-        mock_new
-            .expect()
-            .return_once(move |_name, _server_address| mock_client);
-
-        let mut cmd = CliCommands::init(
-            3000,
-            "TestCli".to_string(),
-            Url::parse("http://localhost").unwrap(),
-            false,
-        );
         let cmd_text = cmd
             .get_state(
                 vec!["desiredState.workloads.name3.runtime".to_owned()],
@@ -1972,11 +1350,7 @@ mod tests {
     // [utest->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
     // [utest->swdd~cli-returns-api-version-with-desired-state~1]
     #[tokio::test]
-    async fn get_state_multiple_fields_of_desired_state() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
+    async fn utest_get_state_multiple_fields_of_desired_state() {
         let test_data = test_utils::generate_test_complete_state(vec![
             generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
@@ -1995,27 +1369,20 @@ mod tests {
             ),
         ]);
 
-        let complete_state = vec![FromServer::Response(Response {
-            request_id: "TestCli".to_owned(),
-            response_content: ResponseContent::CompleteState(Box::new(test_data.clone())),
-        })];
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![
+                "desiredState.workloads.name1.runtime".into(),
+                "desiredState.workloads.name2.runtime".into(),
+            ]))
+            .return_once(|_| Ok(Box::new(test_data)));
 
-        let mut mock_client = MockGRPCCommunicationsClient::default();
-        mock_client
-            .expect_run()
-            .return_once(|_r, to_cli| prepare_server_response(complete_state, to_cli));
-
-        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
-        mock_new
-            .expect()
-            .return_once(move |_name, _server_address| mock_client);
-
-        let mut cmd = CliCommands::init(
-            3000,
-            "TestCli".to_string(),
-            Url::parse("http://localhost").unwrap(),
-            false,
-        );
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
 
         let cmd_text = cmd
             .get_state(
@@ -2033,34 +1400,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn get_state_single_field_without_api_version() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
+    async fn utest_get_state_single_field_without_api_version() {
         let test_data = test_utils::generate_test_complete_state(Vec::new());
 
-        let complete_state = vec![FromServer::Response(Response {
-            request_id: "TestCli".to_owned(),
-            response_content: ResponseContent::CompleteState(Box::new(test_data.clone())),
-        })];
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec!["workloadStates".to_owned()]))
+            .return_once(|_| Ok(Box::new(test_data)));
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
 
-        let mut mock_client = MockGRPCCommunicationsClient::default();
-        mock_client
-            .expect_run()
-            .return_once(|_r, to_cli| prepare_server_response(complete_state, to_cli));
-
-        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
-        mock_new
-            .expect()
-            .return_once(move |_name, _server_address| mock_client);
-
-        let mut cmd = CliCommands::init(
-            3000,
-            "TestCli".to_string(),
-            Url::parse("http://localhost").unwrap(),
-            false,
-        );
         let cmd_text = cmd
             .get_state(
                 vec!["workloadStates".to_owned()],
@@ -2075,8 +1428,8 @@ mod tests {
     // [utest->swdd~cli-provides-run-workload~1]
     // [utest->swdd~cli-blocks-until-ankaios-server-responds-run-workload~2]
     #[tokio::test]
-    async fn run_workload_one_new_workload() {
-        let test_workload_name = "name4".to_string();
+    async fn utest_run_workload_one_new_workload() {
+        const TEST_WORKLOAD_NAME: &str = "name4";
         let test_workload_agent = "agent_B".to_string();
         let test_workload_runtime_name = "runtime2".to_string();
         let test_workload_runtime_cfg = "some config".to_string();
@@ -2099,59 +1452,56 @@ mod tests {
         complete_state_update
             .desired_state
             .workloads
-            .insert(test_workload_name.clone(), new_workload);
+            .insert(TEST_WORKLOAD_NAME.into(), new_workload);
 
-        let mut mock_client_builder = MockGRPCCommunicationClientBuilder::default();
-        mock_client_builder.expect_receive_request(
-            "update_state_request",
-            RequestContent::UpdateStateRequest(Box::new(commands::UpdateStateRequest {
-                state: complete_state_update.clone(),
-                update_mask: vec![format!("desiredState.workloads.{}", test_workload_name)],
-            })),
-        );
-        mock_client_builder.will_send_response(
-            "update_state_request",
-            ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
-                added_workloads: vec![format!("{}.abc.agent_B", test_workload_name)],
-                deleted_workloads: vec![],
-            }),
-        );
-        mock_client_builder.expect_receive_request(
-            "wait_for_complete_complete_state_request",
-            RequestContent::CompleteStateRequest(CompleteStateRequest { field_mask: vec![] }),
-        );
-        mock_client_builder.will_send_response(
-            "wait_for_complete_complete_state_request",
-            ResponseContent::CompleteState(Box::new(complete_state_update)),
-        );
-        mock_client_builder.will_send_message(FromServer::UpdateWorkloadState(
-            UpdateWorkloadState {
-                workload_states: vec![WorkloadState {
-                    instance_name: "name4.abc.agent_B".try_into().unwrap(),
-                    execution_state: ExecutionState {
-                        state: objects::ExecutionStateEnum::Running(objects::RunningSubstate::Ok),
-                        additional_info: "".to_string(),
-                    },
-                }],
-            },
-        ));
-        let mock_client = mock_client_builder.build();
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_update_state()
+            .with(
+                eq(complete_state_update.clone()),
+                eq(vec![format!(
+                    "desiredState.workloads.{}",
+                    TEST_WORKLOAD_NAME
+                )]),
+            )
+            .return_once(|_, _| {
+                Ok(UpdateStateSuccess {
+                    added_workloads: vec![format!(
+                        "{}.abc.agent_B",
+                        TEST_WORKLOAD_NAME.to_string()
+                    )],
+                    deleted_workloads: vec![],
+                })
+            });
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| Ok(Box::new(complete_state_update)));
+        mock_server_connection
+            .expect_take_missed_from_server_messages()
+            .return_once(|| {
+                vec![FromServer::UpdateWorkloadState(UpdateWorkloadState {
+                    workload_states: vec![WorkloadState {
+                        instance_name: "name4.abc.agent_B".try_into().unwrap(),
+                        execution_state: ExecutionState {
+                            state: objects::ExecutionStateEnum::Running(
+                                objects::RunningSubstate::Ok,
+                            ),
+                            additional_info: "".to_string(),
+                        },
+                    }],
+                })]
+            });
 
-        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
-        mock_new
-            .expect()
-            .return_once(move |_name, _server_address| mock_client);
-
-        let mut cmd = CliCommands::init(
-            RESPONSE_TIMEOUT_MS,
-            "TestCli".to_string(),
-            Url::parse("http://localhost").unwrap(),
-            false,
-        );
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
 
         let run_workload_result = cmd
             .run_workload(
-                test_workload_name,
+                TEST_WORKLOAD_NAME.into(),
                 test_workload_runtime_name,
                 test_workload_runtime_cfg,
                 test_workload_agent,
@@ -2569,7 +1919,6 @@ mod tests {
 
     #[test]
     fn utest_update_request_obj_ok() {
-        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
         let mut req_obj = Object::default();
         let content_value: Value = serde_yaml::from_str(
             r#"
@@ -2587,22 +1936,9 @@ mod tests {
             Path::from("workloads.complex"),
         ];
         let expected_obj = Object::try_from(&content_value).unwrap();
-        let expected_output = generate_multiple_test_apply_manifest_table_display();
 
-        assert!(update_request_obj(
-            &mut req_obj,
-            &cur_obj,
-            &paths,
-            "manifest_file_name",
-            false,
-            &mut table_output,
-        )
-        .is_ok());
+        assert!(update_request_obj(&mut req_obj, &cur_obj, &paths,).is_ok());
         assert_eq!(expected_obj, req_obj);
-        assert_eq!(
-            expected_output,
-            generate_apply_manifest_table_output(&table_output)
-        );
     }
 
     #[test]
@@ -2621,20 +1957,11 @@ mod tests {
 
         let paths = vec![Path::from("workloads.same_workload_name")];
 
-        assert!(update_request_obj(
-            &mut req_obj,
-            &cur_obj,
-            &paths,
-            "manifest_file_name",
-            false,
-            &mut Vec::<super::ApplyManifestTableDisplay>::default(),
-        )
-        .is_err());
+        assert!(update_request_obj(&mut req_obj, &cur_obj, &paths,).is_err());
     }
 
     #[test]
     fn utest_update_request_obj_delete_mode_on_ok() {
-        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
         let mut req_obj = Object::default();
         let content_value: Value = serde_yaml::from_str(
             r#"
@@ -2651,22 +1978,8 @@ mod tests {
             Path::from("workloads.simple"),
             Path::from("workloads.complex"),
         ];
-        let expected_output =
-            generate_multiple_test_apply_manifest_table_display_operation_remove();
 
-        assert!(update_request_obj(
-            &mut req_obj,
-            &cur_obj,
-            &paths,
-            "manifest_file_name",
-            true,
-            &mut table_output,
-        )
-        .is_ok());
-        assert_eq!(
-            expected_output,
-            generate_apply_manifest_table_output(&table_output)
-        );
+        assert!(update_request_obj(&mut req_obj, &cur_obj, &paths).is_ok());
     }
 
     #[test]
@@ -2683,8 +1996,6 @@ mod tests {
 
     #[test]
     fn utest_handle_agent_overwrite_agent_name_provided_through_agent_flag() {
-        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
-
         let state = test_utils::generate_test_state_from_workloads(vec![
             generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
@@ -2706,7 +2017,6 @@ mod tests {
                 &vec!["workloads.wl1".into()],
                 &Some("overwritten_agent_name".to_string()),
                 state.try_into().unwrap(),
-                &mut table_output
             )
             .unwrap(),
             expected_state
@@ -2715,8 +2025,6 @@ mod tests {
 
     #[test]
     fn utest_handle_agent_overwrite_one_agent_name_provided_in_workload_specs() {
-        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
-
         let state = test_utils::generate_test_state_from_workloads(vec![
             generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
@@ -2730,7 +2038,6 @@ mod tests {
                 &vec!["workloads.wl1".into()],
                 &None,
                 state.clone().try_into().unwrap(),
-                &mut table_output
             )
             .unwrap(),
             state
@@ -2739,7 +2046,6 @@ mod tests {
 
     #[test]
     fn utest_handle_agent_overwrite_multiple_agent_names_provided_in_workload_specs() {
-        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
         let state = test_utils::generate_test_state_from_workloads(vec![
             generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
@@ -2758,7 +2064,6 @@ mod tests {
                 &vec!["workloads.wl1".into(), "workloads.wl2".into()],
                 &None,
                 state.clone().try_into().unwrap(),
-                &mut table_output
             )
             .unwrap(),
             state
@@ -2768,7 +2073,6 @@ mod tests {
     // [utest->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
     #[test]
     fn utest_handle_agent_overwrite_no_agent_name_provided_at_all() {
-        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
         let state = test_utils::generate_test_state_from_workloads(vec![
             generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
@@ -2783,15 +2087,12 @@ mod tests {
 
         assert_eq!(
             Err("No agent name specified -> use '--agent' option to specify!".to_string()),
-            handle_agent_overwrite(&vec!["workloads.wl1".into()], &None, obj, &mut table_output)
+            handle_agent_overwrite(&vec!["workloads.wl1".into()], &None, obj)
         );
-        assert!(table_output.is_empty())
     }
 
     #[test]
     fn utest_handle_agent_overwrite_missing_agent_name() {
-        let mut table_output = Vec::<super::ApplyManifestTableDisplay>::default();
-
         let state = test_utils::generate_test_state_from_workloads(vec![
             generate_test_workload_spec_with_param(
                 "agent_A".to_string(),
@@ -2817,7 +2118,6 @@ mod tests {
                 &vec!["workloads.wl1".into()],
                 &Some("overwritten_agent_name".to_string()),
                 obj,
-                &mut table_output
             )
             .unwrap(),
             expected_state
@@ -2868,7 +2168,6 @@ mod tests {
                     manifest_files: vec![manifest_file_name.to_string()],
                     delete_mode: false,
                 },
-                &mut Vec::<super::ApplyManifestTableDisplay>::default(),
             )
         );
     }
@@ -2906,7 +2205,6 @@ mod tests {
                     manifest_files: vec![manifest_file_name.to_string()],
                     delete_mode: true,
                 },
-                &mut Vec::<super::ApplyManifestTableDisplay>::default(),
             )
         );
     }
@@ -2927,14 +2225,13 @@ mod tests {
                     manifest_files: vec![manifest_file_name.to_string()],
                     delete_mode: true,
                 },
-                &mut Vec::<super::ApplyManifestTableDisplay>::default(),
             )
         );
     }
 
     //[utest->swdd~cli-apply-send-update-state~1]
     #[tokio::test]
-    async fn apply_manifests_delete_mode_ok() {
+    async fn utest_apply_manifests_delete_mode_ok() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -2961,55 +2258,46 @@ mod tests {
             ..Default::default()
         };
 
-        let mut mock_client_builder = MockGRPCCommunicationClientBuilder::default();
-        mock_client_builder.expect_receive_request(
-            "update_state_request",
-            RequestContent::UpdateStateRequest(Box::new(commands::UpdateStateRequest {
-                state: updated_state.clone(),
-                update_mask: vec!["desiredState.workloads.simple_manifest1".to_string()],
-            })),
-        );
-        mock_client_builder.will_send_response(
-            "update_state_request",
-            ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
-                added_workloads: vec![],
-                deleted_workloads: vec!["name4.abc.agent_B".to_string()],
-            }),
-        );
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_update_state()
+            .with(
+                eq(updated_state.clone()),
+                eq(vec!["desiredState.workloads.simple_manifest1".to_string()]),
+            )
+            .return_once(|_, _| {
+                Ok(UpdateStateSuccess {
+                    added_workloads: vec![],
+                    deleted_workloads: vec!["name4.abc.agent_B".to_string()],
+                })
+            });
+        let updated_state_clone = updated_state.clone();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| Ok(Box::new(updated_state_clone)));
+        mock_server_connection
+            .expect_take_missed_from_server_messages()
+            .return_once(std::vec::Vec::new);
+        mock_server_connection
+            .expect_read_next_update_workload_state()
+            .return_once(|| {
+                Ok(UpdateWorkloadState {
+                    workload_states: vec![WorkloadState {
+                        instance_name: "name4.abc.agent_B".try_into().unwrap(),
+                        execution_state: ExecutionState {
+                            state: objects::ExecutionStateEnum::Removed,
+                            ..Default::default()
+                        },
+                    }],
+                })
+            });
 
-        mock_client_builder.expect_receive_request(
-            "complete_state_request",
-            RequestContent::CompleteStateRequest(CompleteStateRequest { field_mask: vec![] }),
-        );
-        mock_client_builder.will_send_response(
-            "complete_state_request",
-            ResponseContent::CompleteState(Box::new(updated_state)),
-        );
-        mock_client_builder.will_send_message(FromServer::UpdateWorkloadState(
-            UpdateWorkloadState {
-                workload_states: vec![WorkloadState {
-                    instance_name: "name4.abc.agent_B".try_into().unwrap(),
-                    execution_state: ExecutionState {
-                        state: objects::ExecutionStateEnum::Removed,
-                        ..Default::default()
-                    },
-                }],
-            },
-        ));
-
-        let mock_client = mock_client_builder.build();
-
-        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
-        mock_new
-            .expect()
-            .return_once(move |_name, _server_address| mock_client);
-
-        let mut cmd = CliCommands::init(
-            RESPONSE_TIMEOUT_MS,
-            "TestCli".to_string(),
-            Url::parse("http://localhost").unwrap(),
-            false,
-        );
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
 
         let apply_result = cmd
             .apply_manifests(ApplyArgs {
@@ -3023,7 +2311,7 @@ mod tests {
 
     //[utest->swdd~cli-apply-send-update-state~1]
     #[tokio::test]
-    async fn apply_manifests_ok() {
+    async fn utest_apply_manifests_ok() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -3050,57 +2338,68 @@ mod tests {
             ..Default::default()
         };
 
-        let mut mock_client_builder = MockGRPCCommunicationClientBuilder::default();
-        mock_client_builder.expect_receive_request(
-            "update_state_request",
-            RequestContent::UpdateStateRequest(Box::new(commands::UpdateStateRequest {
-                state: updated_state.clone(),
-                update_mask: vec!["desiredState.workloads.simple_manifest1".to_string()],
-            })),
-        );
-        mock_client_builder.will_send_response(
-            "update_state_request",
-            ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
-                added_workloads: vec!["simple_manifest1.abc.agent_B".to_string()],
-                deleted_workloads: vec![],
-            }),
-        );
-        mock_client_builder.expect_receive_request(
-            "complete_state_request",
-            RequestContent::CompleteStateRequest(CompleteStateRequest { field_mask: vec![] }),
-        );
-        mock_client_builder.will_send_response(
-            "complete_state_request",
-            ResponseContent::CompleteState(Box::new(CompleteState {
-                desired_state: updated_state.desired_state,
-                ..Default::default()
-            })),
-        );
-        mock_client_builder.will_send_message(FromServer::UpdateWorkloadState(
-            UpdateWorkloadState {
-                workload_states: vec![WorkloadState {
-                    instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
-                    execution_state: ExecutionState {
-                        state: objects::ExecutionStateEnum::Running(RunningSubstate::Ok),
-                        ..Default::default()
-                    },
-                }],
-            },
-        ));
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_update_state()
+            .with(
+                eq(updated_state.clone()),
+                eq(vec!["desiredState.workloads.simple_manifest1".to_string()]),
+            )
+            .return_once(|_, _| {
+                Ok(UpdateStateSuccess {
+                    added_workloads: vec!["simple_manifest1.abc.agent_B".to_string()],
+                    deleted_workloads: vec![],
+                })
+            });
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| {
+                Ok(Box::new(CompleteState {
+                    desired_state: updated_state.desired_state,
+                    ..Default::default()
+                }))
+            });
+        mock_server_connection
+            .expect_take_missed_from_server_messages()
+            .return_once(|| {
+                vec![
+                    FromServer::Response(Response {
+                        request_id: OTHER_REQUEST_ID.into(),
+                        response_content: common::commands::ResponseContent::Error(
+                            Default::default(),
+                        ),
+                    }),
+                    FromServer::UpdateWorkloadState(UpdateWorkloadState {
+                        workload_states: vec![WorkloadState {
+                            instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
+                            execution_state: ExecutionState {
+                                state: objects::ExecutionStateEnum::Running(RunningSubstate::Ok),
+                                ..Default::default()
+                            },
+                        }],
+                    }),
+                ]
+            });
+        mock_server_connection
+            .expect_read_next_update_workload_state()
+            .return_once(|| {
+                Ok(UpdateWorkloadState {
+                    workload_states: vec![WorkloadState {
+                        instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
+                        execution_state: ExecutionState {
+                            state: objects::ExecutionStateEnum::Running(RunningSubstate::Ok),
+                            ..Default::default()
+                        },
+                    }],
+                })
+            });
 
-        let mock_client = mock_client_builder.build();
-
-        let mock_new = MockGRPCCommunicationsClient::new_cli_communication_context();
-        mock_new
-            .expect()
-            .return_once(move |_name, _server_address| mock_client);
-
-        let mut cmd = CliCommands::init(
-            RESPONSE_TIMEOUT_MS,
-            "TestCli".to_string(),
-            Url::parse("http://localhost").unwrap(),
-            false,
-        );
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
 
         let apply_result = cmd
             .apply_manifests(ApplyArgs {
@@ -3110,122 +2409,5 @@ mod tests {
             })
             .await;
         assert!(apply_result.is_ok());
-    }
-
-    #[derive(Default)]
-    struct MockGRPCCommunicationClientBuilder {
-        join_handle: Option<tokio::sync::oneshot::Receiver<tokio::task::JoinHandle<()>>>,
-        is_ready: Option<tokio::sync::oneshot::Receiver<Receiver<ToServer>>>,
-        actions: Vec<MockGRPCCommunicationClientAction>,
-    }
-
-    #[derive(Clone)]
-    enum MockGRPCCommunicationClientAction {
-        WillSendMessage(FromServer),
-        WillSendResponse(String, ResponseContent),
-        ExpectReceiveRequest(String, RequestContent),
-    }
-
-    impl MockGRPCCommunicationClientBuilder {
-        pub fn build(&mut self) -> MockGRPCCommunicationsClient {
-            let mut mock_client = MockGRPCCommunicationsClient::default();
-            mock_client.expect_run().return_once(self.create());
-            mock_client
-        }
-
-        fn create(
-            &mut self,
-        ) -> impl FnOnce(Receiver<ToServer>, Sender<FromServer>) -> Result<(), String> {
-            let (join_handler_sender, join_handler) = tokio::sync::oneshot::channel();
-            let (is_ready_sender, is_ready) = tokio::sync::oneshot::channel();
-            let actions = self.actions.clone();
-            self.join_handle = Some(join_handler);
-            self.is_ready = Some(is_ready);
-            |mut to_server: Receiver<ToServer>, from_server: Sender<FromServer>| {
-                let _ = join_handler_sender.send(tokio::spawn(async move {
-                    let mut request_ids = HashMap::<String, String>::new();
-                    for a in actions {
-                        match a {
-                            MockGRPCCommunicationClientAction::WillSendMessage(message) => {
-                                from_server.send(message).await.unwrap()
-                            }
-                            MockGRPCCommunicationClientAction::WillSendResponse(
-                                request_name,
-                                response,
-                            ) => {
-                                let request_id = request_ids.get(&request_name).unwrap();
-                                from_server
-                                    .send(FromServer::Response(Response {
-                                        request_id: request_id.to_owned(),
-                                        response_content: response,
-                                    }))
-                                    .await
-                                    .unwrap();
-                            }
-                            MockGRPCCommunicationClientAction::ExpectReceiveRequest(
-                                request_name,
-                                expected_request,
-                            ) => {
-                                let actual_message = to_server.recv().await.unwrap();
-                                let common::to_server_interface::ToServer::Request(actual_request) =
-                                    actual_message
-                                else {
-                                    panic!("Expected a request")
-                                };
-                                request_ids.insert(request_name, actual_request.request_id);
-                                assert_eq!(actual_request.request_content, expected_request);
-                            }
-                        }
-                    }
-                    is_ready_sender.send(to_server).unwrap();
-                }));
-                Ok(())
-            }
-        }
-
-        pub fn will_send_message(&mut self, message: FromServer) {
-            self.actions
-                .push(MockGRPCCommunicationClientAction::WillSendMessage(message));
-        }
-
-        pub fn will_send_response(&mut self, request_name: &str, response: ResponseContent) {
-            self.actions
-                .push(MockGRPCCommunicationClientAction::WillSendResponse(
-                    request_name.to_string(),
-                    response,
-                ));
-        }
-
-        pub fn expect_receive_request(&mut self, request_name: &str, request: RequestContent) {
-            self.actions
-                .push(MockGRPCCommunicationClientAction::ExpectReceiveRequest(
-                    request_name.to_string(),
-                    request,
-                ));
-        }
-    }
-
-    impl Drop for MockGRPCCommunicationClientBuilder {
-        fn drop(&mut self) {
-            let Some(join_handle) = &mut self.join_handle else {
-                return;
-            };
-
-            let Ok(join_handle) = join_handle.try_recv() else {
-                return;
-            };
-
-            let Some(is_ready) = &mut self.is_ready else {
-                return;
-            };
-
-            let Ok(mut to_server) = is_ready.try_recv() else {
-                panic!("Not all messages have been sent or received");
-            };
-            join_handle.abort();
-            if let Ok(message) = to_server.try_recv() {
-                panic!("Received unexpected message: {:#?}", message);
-            }
-        }
     }
 }

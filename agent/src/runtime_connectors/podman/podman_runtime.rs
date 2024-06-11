@@ -166,12 +166,12 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
             }
             Err(err) => {
                 // [impl->swdd~podman-create-workload-deletes-failed-container~1]
-                log::info!("Podman has returned error '{err}', deleting broken container.");
+                log::debug!("Creating container failed, cleaning up. Error: '{err}'");
                 match PodmanCli::remove_workloads_by_id(&workload_spec.instance_name.to_string())
                     .await
                 {
                     Ok(()) => log::debug!("The broken container has been deleted successfully"),
-                    Err(e) => log::info!("Container cleanup failed with error '{}'", e),
+                    Err(e) => log::warn!("Failed container cleanup after failed create. Error: '{}'", e),
                 }
 
                 // No matter if we have deleted the broken container or not, we have to report that the "workload create" failed.
