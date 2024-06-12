@@ -15,16 +15,46 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test_and_build_linux_amd64:
-    name: Test and build Linux amd64
+  build_and_system_tests_linux_amd64:
+    name: Build and run system tests Linux amd64
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.2
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
-      - uses: Swatinem/rust-cache@v2.6.2
+      - name: Build debug
+        run: cargo build
+      - name: Run system tests
+        run: |
+          mkdir -p target/robot_tests_result
+          chown vscode target/robot_tests_result
+          if [ ${{ github.event_name == 'pull_request' }} ]; then
+            SYSTEM_TEST_EXCLUDE_TAG="non_execution_during_pull_request_verification"
+            echo "Run is a PR verification, system tests tagged with '$SYSTEM_TEST_EXCLUDE_TAG' are NOT executed and skipped."
+            su vscode -c "tools/run_robot_tests.sh --exclude $SYSTEM_TEST_EXCLUDE_TAG tests"
+          else
+            echo "Run is not a PR verification, all system tests are executed."
+            su vscode -c "tools/run_robot_tests.sh tests"
+          fi
+      - uses: actions/upload-artifact@v4.3.3
+        if: success() || failure()
+        with:
+          name: robot-tests-result
+          path: target/robot_tests_result
 
+  unit_tests_and_code_checks_linux_amd64:
+    name: Run unit tests Linux amd64
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4.1.1
+      - name: Run unit tests
+        run: RUST_LOG=debug cargo nextest run
+      - name: Run clippy code checks
+        run: cargo clippy --all-targets --no-deps --all-features -- -D warnings
         # If the next step fails, then a license used by a new dependency is currently
         # not part of the whitelist in deny.toml. If the new license fits to the project
         # then it should be added to the whitelist otherwise the dependency needs to be
@@ -41,22 +71,15 @@ jobs:
           name: licenses
           path: build/licenses.html
 
-      - name: Run tests
-        run: RUST_LOG=debug cargo nextest run
-
-      - name: Run robot tests
-        run: |
-          cargo build
-          mkdir -p target/robot_tests_result
-          chown vscode target/robot_tests_result
-          su vscode -c "tools/run_robot_tests.sh tests"
-      - uses: actions/upload-artifact@v4.3.3
-        if: success() || failure()
-        with:
-          name: robot-tests-result
-          path: target/robot_tests_result
-
-      - name: Create code coverage report
+  code_coverage_linux_amd64:
+    name: Create code coverage report
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4.1.1
+      - name: Create code coverage html report
         run: |
           rustup component add llvm-tools-preview
           tools/generate_test_coverage_report.sh test --html
@@ -65,6 +88,15 @@ jobs:
           name: code-coverage
           path: target/llvm-cov/html
 
+
+  build_linux_amd64_debian_package:
+    name: Build Linux amd64 debian package
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4.1.1
       - name: Build linux-amd64 release-mode
         run: |
           cargo build --release
@@ -89,7 +121,7 @@ jobs:
     # requesting the support for arm64: https://github.com/actions/runner-images/issues/5631
     # if arm64 variants will be released we can switch to an arm64 image and save the longer built time for cross platform build
     # and in addition, tests for arm64 can be enabled in this job, too
-    name: Build Linux arm64
+    name: Build Linux arm64 debian package
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/eclipse-ankaios/devcontainer-base:0.9.2
