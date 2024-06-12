@@ -103,7 +103,7 @@ Test Ankaios CLI get workloads
     And Ankaios agent is started with "ank-agent --name agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
-    When user triggers "ank get workloads"
+    When user triggers "ank -k get workloads"
     # Asserts
     Then the workload "nginx" shall have the execution state "Running" on agent "agent_A"
     And the workload "hello1" shall have the execution state "Removed" from agent "agent_B"
