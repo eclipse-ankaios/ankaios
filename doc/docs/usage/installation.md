@@ -3,7 +3,7 @@
 Ankaios has been tested with the following Linux distributions. Others might
 work as well but have not been tested.
 
-* Ubuntu 23.04
+* Ubuntu 24.04 LTS
 * Ubuntu 22.04 LTS
 * Ubuntu 20.04 LTS
 
@@ -24,6 +24,16 @@ container runtime
 (see [Podman installation instructions](https://podman.io/docs/installation)).
 For using the `podman` runtime, Podman version 3.4.2 is sufficient but the
 `podman-kube` runtime requires at least Podman version 4.3.1.
+
+!!! note
+
+    On Ubuntu 24.04 there is a [known problem with Podman stopping containers](https://bugs.launchpad.net/ubuntu/+source/libpod/+bug/2040483).
+    The following workaround disables AppArmor for Podman. Run the following steps as root after installation of Podman:
+
+    ```shell
+    mkdir -p /etc/containers/containers.conf.d
+    printf '[CONTAINERS]\napparmor_profile=""\n' > /etc/containers/containers.conf.d/disable-apparmor.conf
+    ```
 
 ## Installation methods
 

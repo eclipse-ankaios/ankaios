@@ -251,7 +251,7 @@ impl WorkloadControlLoop {
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     {
         log::info!(
-            "Failed to create workload: '{}': '{}'",
+            "Retrying workload creation for: '{}'. Error: '{}'",
             instance_name.workload_name(),
             error_msg
         );
@@ -347,8 +347,8 @@ impl WorkloadControlLoop {
             .await
         {
             Ok((new_workload_id, new_state_checker)) => {
-                log::debug!(
-                    "Created workload '{}' successfully.",
+                log::info!(
+                    "Successfully created workload '{}'.",
                     new_instance_name.workload_name()
                 );
                 control_loop_state.workload_id = Some(new_workload_id);

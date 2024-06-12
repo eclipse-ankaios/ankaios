@@ -67,8 +67,8 @@ The runtime configuration for the `podman-kube` runtime is specified as follows:
 
 ```yaml
 generalOptions: [<comma>, <separated>, <options>]
-play_options: [<comma>, <separated>, <options>]
-down_options: [<comma>, <separated>, <options>]
+playOptions: [<comma>, <separated>, <options>]
+downOptions: [<comma>, <separated>, <options>]
 manifest: <string containing the K8s manifest>
 ```
 
@@ -86,7 +86,7 @@ they would translate to the following runtime configuration:
 
 ```yaml
 generalOptions: ["--events-backend", "file"]
-play_options: ["--userns", "host"]
-down_options: ["--force"]
+playOptions: ["--userns", "host"]
+downOptions: ["--force"]
 manifest: <contents of manifest.yaml>
 ```

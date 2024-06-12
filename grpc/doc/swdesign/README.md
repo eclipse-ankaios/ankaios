@@ -417,7 +417,7 @@ Needs:
 
 ## Data view
 
-The Structure of the objects used by the gRPC Communication Middleware is defined in the protobuf file located under [proto/ankaios.proto](../../proto/ankaios.proto).
+The Structure of the objects used by the gRPC Communication Middleware is defined in the protobuf file located under [proto/grpc_api.proto](../../proto/grpc_api.proto).
 
 ## Error management view
 

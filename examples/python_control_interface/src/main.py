@@ -1,4 +1,5 @@
-import ankaios_pb2 as ank
+import ank_base_pb2 as ank_base
+import control_api_pb2 as control_api
 from google.protobuf.internal.encoder import _VarintBytes
 from google.protobuf.internal.decoder import _DecodeVarint
 import threading
@@ -27,18 +28,18 @@ def create_request_to_add_new_workload():
     the update mask to add only the new workload.
     """
 
-    return ank.ToServer(
-        request=ank.Request(
+    return control_api.ToAnkaios(
+        request=ank_base.Request(
             requestId=REQUEST_ID,
-            updateStateRequest=ank.UpdateStateRequest(
-                newState=ank.CompleteState(
-                    desiredState=ank.State(
+            updateStateRequest=ank_base.UpdateStateRequest(
+                newState=ank_base.CompleteState(
+                    desiredState=ank_base.State(
                         apiVersion="v0.1",
                         workloads={
-                            "dynamic_nginx": ank.Workload(
+                            "dynamic_nginx": ank_base.Workload(
                                 agent="agent_A",
                                 runtime="podman",
-                                restartPolicy=ank.NEVER,
+                                restartPolicy=ank_base.NEVER,
                                 runtimeConfig="image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]")
                         }
                     )
@@ -53,9 +54,9 @@ def create_request_for_complete_state():
     for querying the workload states.
     """
 
-    return ank.ToServer(
-        request=ank.Request(
-            completeStateRequest=ank.CompleteStateRequest(
+    return control_api.ToAnkaios(
+        request=ank_base.Request(
+            completeStateRequest=ank_base.CompleteStateRequest(
                 fieldMask=["workloadStates"]
             ),
             requestId=REQUEST_ID,
@@ -85,16 +86,16 @@ def read_from_control_interface():
                     break
                 msg_buf += next_byte
 
-            from_server = ank.FromServer()
+            from_ankaios = control_api.FromAnkaios()
             try:
-                from_server.ParseFromString(msg_buf) # Deserialize the received proto msg
+                from_ankaios.ParseFromString(msg_buf) # Deserialize the received proto msg
             except Exception as e:
                 logger.info(f"Invalid response, parsing error: '{e}'")
                 continue
 
-            request_id = from_server.response.requestId
-            if from_server.response.requestId == REQUEST_ID:
-                logger.info(f"Receiving Response containing the workload states of the current state:\nFromServer {{\n{from_server}}}\n")
+            request_id = from_ankaios.response.requestId
+            if from_ankaios.response.requestId == REQUEST_ID:
+                logger.info(f"Receiving Response containing the workload states of the current state:\nFromServer {{\n{from_ankaios}}}\n")
             else:
                 logger.info(f"RequestId does not match. Skipping messages from requestId: {request_id}")
 
@@ -123,7 +124,7 @@ def write_to_control_interface():
             f.write(_VarintBytes(request_complete_state_byte_len)) # Send the byte length of the proto msg
             f.write(proto_request_complete_state_msg) # Send the proto msg itself
             f.flush()
-            time.sleep(WAITING_TIME_IN_SEC) # Wait according to WAITING_TIME_IN_SEC until sending the next Request to server to avoid spamming...
+            time.sleep(WAITING_TIME_IN_SEC) # Wait according to WAITING_TIME_IN_SEC until sending the next Request to Ankaios to avoid spamming...
 
 if __name__ == '__main__':
     read_thread = threading.Thread(target=read_from_control_interface)

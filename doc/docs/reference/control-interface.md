@@ -72,13 +72,13 @@ The following sections showcase in Rust some important parts of the communicatio
 
 ### Sending request message from a workload to Ankaios server
 
-To send out a request message from the workload to the Ankaios Server the request message needs to be serialized using the generated serializing function, then encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) and then written directly into the `output` FIFO file. The type of request message is [ToServer](_ankaios.proto.md#toserver).
+To send out a request message from the workload to the Ankaios Server the request message needs to be serialized using the generated serializing function, then encoded as [length-delimited protobuf message](#length-delimited-protobuf-message-layout) and then written directly into the `output` FIFO file. The type of request message is [ToAnkaios](_ankaios.proto.md#toankaios).
 
 ```mermaid
 flowchart TD
     begin([Start])
-    req_msg(Fill ToServer message)
-    ser_msg(Serialize ToServer message using the generated serializing function)
+    req_msg(Fill ToAnkaios message)
+    ser_msg(Serialize ToAnkaios message using the generated serializing function)
     enc_bytes(Encode as length-delimited varint)
     output("Write encoded bytes to /run/ankaios/control_interface/output")
     fin([end])
@@ -97,20 +97,21 @@ flowchart TD
 Code snippet in [Rust](https://www.rust-lang.org/) for sending request message via control interface:
 
 ```rust
-use api::proto;
+use api::ank_base::{Workload, RestartPolicy, Tag, UpdateStateRequest, Request, request::RequestContent, CompleteState, State};
+use api::control_api::{ToAnkaios, to_ankaios::ToAnkaiosEnum};
 use prost::Message;
 use std::{collections::HashMap, fs::File, io::Write, path::Path};
 
 const ANKAIOS_CONTROL_INTERFACE_BASE_PATH: &str = "/run/ankaios/control_interface";
 
-fn create_update_workload_request() -> proto::ToServer {
+fn create_update_workload_request() -> ToAnkaios {
     let new_workloads = HashMap::from([(
         "dynamic_nginx".to_string(),
-        proto::Workload {
+        Workload {
             runtime: "podman".to_string(),
             agent: "agent_A".to_string(),
-            restart_policy: proto::RestartPolicy::Never,
-            tags: vec![proto::Tag {
+            restart_policy: RestartPolicy::Never.into(),
+            tags: vec![Tag {
                 key: "owner".to_string(),
                 value: "Ankaios team".to_string(),
             }],
@@ -120,13 +121,13 @@ fn create_update_workload_request() -> proto::ToServer {
         },
     )]);
 
-    proto::ToServer {
-        to_server_enum: Some(proto::to_server::ToServerEnum::Request(proto::Request {
+    ToAnkaios {
+        to_ankaios_enum: Some(ToAnkaiosEnum::Request(Request {
             request_id: "request_id".to_string(),
-            request_content: Some(proto::request::RequestContent::UpdateStateRequest(
-                proto::UpdateStateRequest {
-                    new_state: Some(proto::CompleteState {
-                        desired_state: Some(proto::State {
+            request_content: Some(RequestContent::UpdateStateRequest(
+                UpdateStateRequest {
+                    new_state: Some(CompleteState {
+                        desired_state: Some(State {
                             api_version: "v0.1".to_string(),
                             workloads: new_workloads,
                         }),
@@ -186,7 +187,7 @@ flowchart TD
 Code Snippet in [Rust](https://www.rust-lang.org/) for reading response message via control interface:
 
 ```rust
-use api::proto;
+use api::control_api::FromAnkaios;
 use prost::Message;
 use std::{fs::File, io, io::Read, path::Path};
 
@@ -227,7 +228,7 @@ fn read_from_control_interface() {
 
     loop {
         if let Ok(binary) = read_protobuf_data(&mut ex_req) {
-            let proto = proto::FromServer::decode(&mut Box::new(binary.as_ref()));
+            let proto = FromAnkaios::decode(&mut Box::new(binary.as_ref()));
 
             println!("{}", &format!("Receiving FromServer containing the workload states of the current state: {:#?}", proto));
         }
