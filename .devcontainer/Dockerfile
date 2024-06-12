@@ -12,11 +12,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-FROM ghcr.io/eclipse-ankaios/devcontainer-base:0.9.1
+FROM ghcr.io/eclipse-ankaios/devcontainer-base:0.9.2
 
 ARG USERNAME=vscode
 
-RUN apt-get update && apt-get -y install musl-tools
 # add git completion for bash
 RUN curl -L https://raw.githubusercontent.com/git/git/master/contrib/completion/git-completion.bash -o /home/${USERNAME}/.git-completion.bash
 RUN echo 'if [ -f ~/.git-completion.bash ]; then\n\
