@@ -320,8 +320,6 @@ impl CliCommands {
         no_wait: bool,
         tls_config: Option<TLSConfig>,
     ) -> Self {
-        // let (task, to_server, from_server) =
-        //     setup_cli_communication(cli_name.as_str(), server_url.clone(), tls_config);
         Self {
             _response_timeout_ms: response_timeout_ms,
             no_wait,

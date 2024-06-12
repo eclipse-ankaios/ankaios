@@ -44,13 +44,13 @@ pub struct Arguments {
     pub insecure: bool,
     #[clap(long = "ankagent_ca_pem", env)]
     /// Path to agent ca pem file.
-    pub ankaios_agent_ca_pem: Option<String>,
+    pub ankagent_ca_pem: Option<String>,
     #[clap(long = "ankagent_crt_pem", env)]
     /// Path to agent certificate pem file.
-    pub ankaios_agent_crt_pem: Option<String>,
+    pub ankagent_crt_pem: Option<String>,
     #[clap(long = "ankagent_key_pem", env)]
     /// Path to agent key pem file.
-    pub ankaios_agent_key_pem: Option<String>,
+    pub ankagent_key_pem: Option<String>,
 }
 
 impl Arguments {

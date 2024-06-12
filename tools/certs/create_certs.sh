@@ -2,7 +2,7 @@
 set -e
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-ROOT_DIR="${WORKSPACE:-$(realpath -e "$SCRIPT_DIR/../")}"
+ROOT_DIR="${WORKSPACE:-$(realpath -e "$SCRIPT_DIR/../../")}"
 CONFIGS_DIR="$SCRIPT_DIR/config"
 CERTS_OUT_DIR="$ROOT_DIR/.certs"
 

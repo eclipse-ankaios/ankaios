@@ -105,9 +105,9 @@ async fn main() {
 
     let tls_config: Result<Option<TLSConfig>, String> = match (
         args.insecure,
-        args.ankaios_agent_ca_pem,
-        args.ankaios_agent_crt_pem,
-        args.ankaios_agent_key_pem,
+        args.ankagent_ca_pem,
+        args.ankagent_crt_pem,
+        args.ankagent_key_pem,
     ) {
         (true, _, _, _) => Ok(None),
         (false, Some(path_to_ca_pem), Some(path_to_crt_pem), Some(path_to_key_pem)) => {
@@ -118,7 +118,7 @@ async fn main() {
             }))
         }
         (false, ca_pem, crt_pem, key_pem) => Err(format!(
-            "ANKAIOS_AGENT_CA_PEM={} ANKAIOS_AGENT_CRT_PEM={} ANKAIOS_AGENT_KEY_PEM={}",
+            "ANKAGENT_CA_PEM={} ANKAGENT_CRT_PEM={} ANKAGENT_KEY_PEM={}",
             ca_pem.unwrap_or(String::from("\"\"")),
             crt_pem.unwrap_or(String::from("\"\"")),
             key_pem.unwrap_or(String::from("\"\""))

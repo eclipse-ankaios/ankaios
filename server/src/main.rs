@@ -80,7 +80,7 @@ async fn main() {
             }))
         }
         (_, ca_pem, crt_pem, key_pem) => Err(format!(
-            "ANKAIOS_SERVER_CA_PEM={} ANKAIOS_SERVER_CRT_PEM={} ANKAIOS_SERVER_KEY_PEM={}",
+            "ANKSERVER_CA_PEM={} ANKSERVER_CRT_PEM={} ANKSERVER_KEY_PEM={}",
             ca_pem.unwrap_or(String::from("\"\"")),
             crt_pem.unwrap_or(String::from("\"\"")),
             key_pem.unwrap_or(String::from("\"\""))

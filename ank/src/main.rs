@@ -54,7 +54,7 @@ async fn main() {
             }))
         }
         (false, ca_pem, crt_pem, key_pem) => Err(format!(
-            "ANKAIOS_CLI_CA_PEM={} ANKAIOS_CLI_CRT_PEM={} ANKAIOS_CLI_KEY_PEM={}",
+            "ANK_CA_PEM={} ANK_CRT_PEM={} ANK_KEY_PEM={}",
             ca_pem.unwrap_or(String::from("\"\"")),
             crt_pem.unwrap_or(String::from("\"\"")),
             key_pem.unwrap_or(String::from("\"\""))

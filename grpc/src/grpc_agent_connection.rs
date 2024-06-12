@@ -13,6 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::pin::Pin;
+use std::str::FromStr;
 
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
@@ -25,9 +26,9 @@ use x509_parser::der_parser::asn1_rs::FromDer;
 use x509_parser::extensions::GeneralName;
 
 use crate::agent_senders_map::AgentSendersMap;
+use crate::grpc_api::{self, agent_connection_server::AgentConnection, to_server::ToServerEnum};
 use crate::to_server_proxy::{forward_from_proto_to_ankaios, GRPCToServerStreaming};
 use common::to_server_interface::{self, ToServerInterface};
-use crate::grpc_api::{self, agent_connection_server::AgentConnection, to_server::ToServerEnum};
 
 #[derive(Debug)]
 pub struct GRPCAgentConnection {
@@ -108,7 +109,10 @@ impl AgentConnection for GRPCAgentConnection {
             ToServerEnum::AgentHello(grpc_api::AgentHello { agent_name }) => {
                 log::trace!("Received a hello from '{}'", agent_name);
 
-                if sans.is_empty() || sans.contains(&agent_name) {
+                if sans.is_empty()
+                    || sans.contains(&agent_name)
+                    || sans.contains(&String::from("*"))
+                {
                     // [impl->swdd~grpc-agent-connection-stores-from-server-channel-tx~1]
                     self.agent_senders
                         .insert(&agent_name, new_agent_sender.to_owned());

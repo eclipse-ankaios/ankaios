@@ -102,11 +102,13 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                 }
             }
             None => {
+                log::warn!(
+                    "!!!ANKSERVER IS STARTED IN INSECURE MODE (-k, --insecure) -> TLS is disabled!!!"
+                );
                 tokio::select! {
                     // [impl->swdd~grpc-server-spawns-tonic-service~1]
                     // [impl->swdd~grpc-delegate-workflow-to-external-library~1]
                     result = Server::builder()
-                        // .tls_config(tls).map_err(|err| CommunicationMiddlewareError(err.to_string()))?
                         .add_service(AgentConnectionServer::new(my_connection))
                         // [impl->swdd~grpc-server-provides-endpoint-for-cli-connection-handling~1]
                         .add_service(CliConnectionServer::new(my_cli_connection))
@@ -128,31 +130,6 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                 }
             }
         }
-
-        // tokio::select! {
-        //     // [impl->swdd~grpc-server-spawns-tonic-service~1]
-        //     // [impl->swdd~grpc-delegate-workflow-to-external-library~1]
-        //     result = Server::builder()
-        //         // .tls_config(tls).map_err(|err| CommunicationMiddlewareError(err.to_string()))?
-        //         .add_service(AgentConnectionServer::new(my_connection))
-        //         // [impl->swdd~grpc-server-provides-endpoint-for-cli-connection-handling~1]
-        //         .add_service(CliConnectionServer::new(my_cli_connection))
-        //         .serve(addr) => {
-        //             result.map_err(|err| {
-        //                 GrpcMiddlewareError::StartError(format!("{err:?}"))
-        //             })?
-        //         }
-        //     // [impl->swdd~grpc-server-forwards-from-server-messages-to-grpc-client~1]
-        //     _ = from_server_proxy::forward_from_ankaios_to_proto(
-        //         &agent_senders_clone,
-        //         &mut receiver,
-        //     ) => {
-        //         Err(GrpcMiddlewareError::ConnectionInterrupted(
-        //             "Connection between Ankaios server and the communication middleware dropped.".into())
-        //         )?
-        //     }
-
-        // }
         Ok(())
     }
 }

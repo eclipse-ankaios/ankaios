@@ -8,5 +8,4 @@ CN = agent_A
 subjectAltName = @alt_names
 extendedKeyUsage = clientAuth
 [alt_names]
-DNS.1 = agent_A
-DNS.2 = agent_B
+DNS.1 = *
