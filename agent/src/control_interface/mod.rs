@@ -12,6 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+mod to_ankaios;
 mod directory;
 mod fifo;
 mod filesystem;
@@ -22,6 +23,7 @@ mod pipes_channel_context_info;
 mod pipes_channel_task;
 mod reopen_file;
 
+pub use to_ankaios::ToAnkaios;
 pub use directory::*;
 pub use fifo::*;
 pub use filesystem::*;

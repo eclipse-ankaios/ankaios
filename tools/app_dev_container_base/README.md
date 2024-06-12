@@ -24,7 +24,7 @@ The devcontainer contains the following:
     - Ankaios CLI
 
 - Control interface dependencies:
-    - ankaios.proto (located at /usr/local/lib/ankaios/ankaios.proto)
+    - ank_base.proto and control_api.proto (located at /usr/local/lib/ankaios/proto)
     - protobuf-compiler
     - grpcurl
 

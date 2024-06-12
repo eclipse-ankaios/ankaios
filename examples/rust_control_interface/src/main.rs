@@ -12,10 +12,15 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use api::proto::{
-    request::RequestContent, to_server::ToServerEnum, CompleteState, CompleteStateRequest,
-    FromServer, Request, RestartPolicy, State, Tag, ToServer, UpdateStateRequest, Workload,
+use api::ank_base::{
+    request::RequestContent, CompleteState, CompleteStateRequest, Request, RestartPolicy, State,
+    Tag, UpdateStateRequest, Workload,
 };
+
+use api::control_api::{
+    from_ankaios::FromAnkaiosEnum, to_ankaios::ToAnkaiosEnum, FromAnkaios, ToAnkaios,
+};
+
 use prost::Message;
 use std::{
     collections::HashMap,
@@ -45,7 +50,7 @@ mod logging {
 /// Create the Request containing an UpdateStateRequest
 /// that contains the details for adding the new workload and
 /// the update mask to add only the new workload.
-fn create_request_to_add_new_workload() -> ToServer {
+fn create_request_to_add_new_workload() -> ToAnkaios {
     let new_workloads = HashMap::from([(
         "dynamic_nginx".to_string(),
         Workload {
@@ -62,8 +67,8 @@ fn create_request_to_add_new_workload() -> ToServer {
         },
     )]);
 
-    ToServer {
-        to_server_enum: Some(ToServerEnum::Request(Request {
+    ToAnkaios {
+        to_ankaios_enum: Some(ToAnkaiosEnum::Request(Request {
             request_id: REQUEST_ID.to_string(),
             request_content: Some(RequestContent::UpdateStateRequest(UpdateStateRequest {
                 new_state: Some(CompleteState {
@@ -81,9 +86,9 @@ fn create_request_to_add_new_workload() -> ToServer {
 
 /// Create a Request to request the CompleteState
 /// for querying the workload states.
-fn create_request_for_complete_state() -> ToServer {
-    ToServer {
-        to_server_enum: Some(ToServerEnum::Request(Request {
+fn create_request_for_complete_state() -> ToAnkaios {
+    ToAnkaios {
+        to_ankaios_enum: Some(ToAnkaiosEnum::Request(Request {
             request_id: REQUEST_ID.to_string(),
             request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
                 field_mask: vec![String::from("workloadStates")],
@@ -134,10 +139,9 @@ fn read_from_control_interface() {
 
     loop {
         if let Ok(binary) = read_protobuf_data(&mut ex_req) {
-            match FromServer::decode(&mut Box::new(binary.as_ref())) {
-                Ok(from_server) => {
-                    let Some(api::proto::from_server::FromServerEnum::Response(response)) =
-                        &from_server.from_server_enum
+            match FromAnkaios::decode(&mut Box::new(binary.as_ref())) {
+                Ok(from_ankaios) => {
+                    let Some(FromAnkaiosEnum::Response(response)) = &from_ankaios.from_ankaios_enum
                     else {
                         logging::log("No response. Continue.");
                         continue;
@@ -147,7 +151,7 @@ fn read_from_control_interface() {
                     if request_id == REQUEST_ID {
                         logging::log(&format!(
                             "Receiving Response containing the workload states of the current state:\n{:#?}",
-                            from_server
+                            from_ankaios
                         ));
                     } else {
                         logging::log(&format!(

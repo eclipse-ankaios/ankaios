@@ -15,8 +15,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use api::proto;
-
 use crate::helpers::serialize_to_ordered_map;
 use crate::objects::Tag;
 
@@ -33,37 +31,6 @@ pub struct DeletedWorkload {
     pub dependencies: HashMap<String, DeleteCondition>,
 }
 
-impl TryFrom<proto::DeletedWorkload> for DeletedWorkload {
-    type Error = String;
-
-    fn try_from(deleted_workload: proto::DeletedWorkload) -> Result<Self, Self::Error> {
-        Ok(DeletedWorkload {
-            instance_name: deleted_workload
-                .instance_name
-                .ok_or("No instance name")?
-                .into(),
-            dependencies: deleted_workload
-                .dependencies
-                .into_iter()
-                .map(|(k, v)| Ok((k, v.try_into()?)))
-                .collect::<Result<HashMap<String, DeleteCondition>, String>>()?,
-        })
-    }
-}
-
-impl From<DeletedWorkload> for proto::DeletedWorkload {
-    fn from(value: DeletedWorkload) -> Self {
-        proto::DeletedWorkload {
-            instance_name: proto::WorkloadInstanceName::from(value.instance_name).into(),
-            dependencies: value
-                .dependencies
-                .into_iter()
-                .map(|(k, v)| (k, v as i32))
-                .collect(),
-        }
-    }
-}
-
 // [impl->swdd~common-object-serialization~1]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(default, rename_all = "camelCase")]
@@ -75,42 +42,6 @@ pub struct WorkloadSpec {
     pub restart_policy: RestartPolicy,
     pub runtime: String,
     pub runtime_config: String,
-}
-
-impl TryFrom<proto::AddedWorkload> for WorkloadSpec {
-    type Error = String;
-
-    fn try_from(workload: proto::AddedWorkload) -> Result<Self, String> {
-        Ok(WorkloadSpec {
-            dependencies: workload
-                .dependencies
-                .into_iter()
-                .map(|(k, v)| Ok((k, v.try_into()?)))
-                .collect::<Result<HashMap<String, AddCondition>, String>>()?,
-            restart_policy: workload.restart_policy.try_into()?,
-            runtime: workload.runtime,
-            instance_name: workload.instance_name.ok_or("No instance name")?.into(),
-            tags: workload.tags.into_iter().map(|x| x.into()).collect(),
-            runtime_config: workload.runtime_config,
-        })
-    }
-}
-
-impl From<WorkloadSpec> for proto::AddedWorkload {
-    fn from(workload: WorkloadSpec) -> Self {
-        proto::AddedWorkload {
-            instance_name: proto::WorkloadInstanceName::from(workload.instance_name).into(),
-            dependencies: workload
-                .dependencies
-                .into_iter()
-                .map(|(k, v)| (k, v as i32))
-                .collect(),
-            restart_policy: workload.restart_policy as i32,
-            runtime: workload.runtime,
-            runtime_config: workload.runtime_config,
-            tags: workload.tags.into_iter().map(|x| x.into()).collect(),
-        }
-    }
 }
 
 pub type AgentWorkloadMap = HashMap<String, (WorkloadCollection, DeletedWorkloadCollection)>;
@@ -352,139 +283,9 @@ pub fn generate_test_workload_spec_with_dependencies(
 // [utest->swdd~common-object-serialization~1]
 #[cfg(test)]
 mod tests {
-    use api::proto;
-    use std::collections::HashMap;
 
     use crate::objects::*;
     use crate::test_utils::*;
-
-    #[test]
-    fn utest_converts_to_proto_deleted_workload() {
-        let proto_workload = generate_test_proto_deleted_workload();
-        let workload =
-            generate_test_deleted_workload("agent".to_string(), "workload X".to_string());
-
-        assert_eq!(proto::DeletedWorkload::from(workload), proto_workload);
-    }
-
-    #[test]
-    fn utest_converts_to_ankaios_deleted_workload() {
-        let proto_workload = generate_test_proto_deleted_workload();
-        let workload =
-            generate_test_deleted_workload("agent".to_string(), "workload X".to_string());
-
-        assert_eq!(DeletedWorkload::try_from(proto_workload), Ok(workload));
-    }
-
-    #[test]
-    fn utest_converts_to_ankaios_deleted_workload_fails() {
-        let mut proto_workload = generate_test_proto_deleted_workload();
-        proto_workload.dependencies.insert("workload B".into(), -1);
-
-        assert!(DeletedWorkload::try_from(proto_workload).is_err());
-    }
-
-    #[test]
-    fn utest_converts_to_proto_added_workload() {
-        let workload_spec = generate_test_workload_spec();
-
-        let proto_workload = proto::AddedWorkload {
-            instance_name: Some(proto::WorkloadInstanceName {
-                workload_name: "name".to_string(),
-                agent_name: "agent".to_string(),
-                id: workload_spec.runtime_config.hash_config(),
-            }),
-            dependencies: HashMap::from([
-                (
-                    String::from("workload A"),
-                    proto::AddCondition::AddCondRunning.into(),
-                ),
-                (
-                    String::from("workload C"),
-                    proto::AddCondition::AddCondSucceeded.into(),
-                ),
-            ]),
-            restart_policy: proto::RestartPolicy::Always.into(),
-            runtime: String::from("runtime"),
-            runtime_config: workload_spec.runtime_config.clone(),
-            tags: vec![proto::Tag {
-                key: "key".into(),
-                value: "value".into(),
-            }],
-        };
-
-        assert_eq!(proto::AddedWorkload::from(workload_spec), proto_workload);
-    }
-
-    #[test]
-    fn utest_converts_to_ankaios_added_workload() {
-        let workload = WorkloadSpec {
-            dependencies: HashMap::from([
-                (String::from("workload A"), AddCondition::AddCondRunning),
-                (String::from("workload C"), AddCondition::AddCondSucceeded),
-            ]),
-            restart_policy: RestartPolicy::Always,
-            runtime: String::from("runtime"),
-            instance_name: WorkloadInstanceName::builder()
-                .agent_name("agent")
-                .workload_name("name")
-                .build(),
-            tags: vec![],
-            runtime_config: String::from("some config"),
-        };
-
-        let proto_workload = proto::AddedWorkload {
-            instance_name: Some(proto::WorkloadInstanceName {
-                workload_name: "name".to_string(),
-                agent_name: "agent".to_string(),
-                ..Default::default()
-            }),
-            dependencies: HashMap::from([
-                (
-                    String::from("workload A"),
-                    proto::AddCondition::AddCondRunning.into(),
-                ),
-                (
-                    String::from("workload C"),
-                    proto::AddCondition::AddCondSucceeded.into(),
-                ),
-            ]),
-            restart_policy: proto::RestartPolicy::Always.into(),
-            runtime: String::from("runtime"),
-            runtime_config: String::from("some config"),
-            tags: vec![],
-        };
-
-        assert_eq!(WorkloadSpec::try_from(proto_workload), Ok(workload));
-    }
-
-    #[test]
-    fn utest_converts_to_ankaios_added_workload_fails() {
-        let proto_workload = proto::AddedWorkload {
-            instance_name: Some(proto::WorkloadInstanceName {
-                workload_name: "name".to_string(),
-                ..Default::default()
-            }),
-            dependencies: HashMap::from([
-                (
-                    String::from("workload A"),
-                    proto::AddCondition::AddCondRunning.into(),
-                ),
-                (String::from("workload B"), -1),
-                (
-                    String::from("workload C"),
-                    proto::AddCondition::AddCondSucceeded.into(),
-                ),
-            ]),
-            restart_policy: proto::RestartPolicy::Always.into(),
-            runtime: String::from("runtime"),
-            runtime_config: String::from("some config"),
-            tags: vec![],
-        };
-
-        assert!(WorkloadSpec::try_from(proto_workload).is_err());
-    }
-
     #[test]
     fn utest_get_workloads_per_agent_one_agent_one_workload() {
         let added_workloads = vec![

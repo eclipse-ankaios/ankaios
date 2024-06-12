@@ -67,8 +67,8 @@ RUN mkdir -p /var/lib/shared/overlay-images \
     touch /var/lib/shared/vfs-images/images.lock && \
     touch /var/lib/shared/vfs-layers/layers.lock
 
-RUN mkdir -p /workspaces/ && mkdir -p /usr/local/lib/ankaios
+RUN mkdir -p /workspaces/
 
 # Download and install latest Ankaios release
-RUN if [ -n "$ANKAIOS_VERSION" ] ; then curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/download/${ANKAIOS_VERSION}/install.sh | bash -s -- -v ${ANKAIOS_VERSION} ; curl -sL https://github.com/eclipse-ankaios/ankaios/releases/download/${ANKAIOS_VERSION}/ankaios.proto -o /usr/local/lib/ankaios/ankaios.proto ; else curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh | bash -; curl -sL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/ankaios.proto -o /usr/local/lib/ankaios/ankaios.proto ; fi
+RUN if [ -n "$ANKAIOS_VERSION" ] ; then curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/download/${ANKAIOS_VERSION}/install.sh | bash -s -- -v ${ANKAIOS_VERSION} ; curl -sL https://github.com/eclipse-ankaios/ankaios/releases/download/${ANKAIOS_VERSION}/{ank_base,control_api}.proto --create-dirs -O --output-dir /usr/local/lib/ankaios/proto ; else curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh | bash -; curl -sL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/{ank_base,control_api}.proto --create-dirs -O --output-dir /usr/local/lib/ankaios/proto ; fi
 
