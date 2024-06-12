@@ -56,7 +56,6 @@ pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> crate::obje
                 execution_state: ExecutionState::running(),
             })
             .collect(),
-        ..Default::default()
     }
 }
 
@@ -120,8 +119,6 @@ fn generate_test_delete_dependencies() -> HashMap<String, DeleteCondition> {
         DeleteCondition::DelCondNotPendingNorRunning,
     )])
 }
-
-
 
 pub fn generate_test_proto_workload() -> ank_base::Workload {
     ank_base::Workload {
