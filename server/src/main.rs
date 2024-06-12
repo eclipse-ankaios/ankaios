@@ -67,9 +67,9 @@ async fn main() {
 
     let tls_config: Result<Option<TLSConfig>, String> = match (
         args.insecure,
-        args.ankaios_server_ca_pem,
-        args.ankaios_server_crt_pem,
-        args.ankaios_server_key_pem,
+        args.ankserver_ca_pem,
+        args.ankserver_crt_pem,
+        args.ankserver_key_pem,
     ) {
         (true, _, _, _) => Ok(None),
         (false, Some(path_to_ca_pem), Some(path_to_crt_pem), Some(path_to_key_pem)) => {

@@ -39,16 +39,16 @@ pub struct Arguments {
     /// An existing path where to manage the fifo files.
     #[clap(short = 'r', long = "run-folder", default_value_t = DEFAULT_RUN_FOLDER.into())]
     pub run_folder: String,
-    #[clap(short = "k", long = "insecure", default_value_t = false)]
+    #[clap(short = 'k', long = "insecure", default_value_t = false)]
     /// Flag to disable TLS communication between Ankaios agent and server.
     pub insecure: bool,
-    #[clap(long = "ankaios_agent_ca_pem", env)]
+    #[clap(long = "ankagent_ca_pem", env)]
     /// Path to agent ca pem file.
     pub ankaios_agent_ca_pem: Option<String>,
-    #[clap(long = "ankaios_agent_crt_pem", env)]
+    #[clap(long = "ankagent_crt_pem", env)]
     /// Path to agent certificate pem file.
     pub ankaios_agent_crt_pem: Option<String>,
-    #[clap(long = "ankaios_agent_key_pem", env)]
+    #[clap(long = "ankagent_key_pem", env)]
     /// Path to agent key pem file.
     pub ankaios_agent_key_pem: Option<String>,
 }

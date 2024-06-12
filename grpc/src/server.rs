@@ -26,7 +26,6 @@ use crate::grpc_cli_connection::GRPCCliConnection;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 
 use crate::security::TLSConfig;
-use api::proto::agent_connection_server::AgentConnectionServer;
 
 use crate::from_server_proxy;
 use crate::grpc_agent_connection::GRPCAgentConnection;
