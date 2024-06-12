@@ -49,6 +49,7 @@ jobs:
             git fetch origin gh-pages --depth=1
 
       - name: Generate documentation and deploy (push on main)
+        # execute only on push to main branch or when called by another workflow
         if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref_name == 'main' }}
         run: |
             tools/generate_docs.sh deploy
