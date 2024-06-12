@@ -16,7 +16,7 @@ use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
 
-use api::proto;
+use api::ank_base;
 
 use crate::std_extensions::UnreachableOption;
 
@@ -192,66 +192,68 @@ impl ExecutionState {
     }
 }
 
-impl From<ExecutionStateEnum> for proto::execution_state::ExecutionStateEnum {
+impl From<ExecutionStateEnum> for ank_base::execution_state::ExecutionStateEnum {
     fn from(item: ExecutionStateEnum) -> Self {
         match item {
             ExecutionStateEnum::AgentDisconnected => {
-                proto::execution_state::ExecutionStateEnum::AgentDisconnected(
-                    proto::AgentDisconnected::AgentDisconnected as i32,
+                ank_base::execution_state::ExecutionStateEnum::AgentDisconnected(
+                    ank_base::AgentDisconnected::AgentDisconnected as i32,
                 )
             }
             ExecutionStateEnum::Pending(value) => {
-                proto::execution_state::ExecutionStateEnum::Pending(value as i32)
+                ank_base::execution_state::ExecutionStateEnum::Pending(value as i32)
             }
             ExecutionStateEnum::Running(value) => {
-                proto::execution_state::ExecutionStateEnum::Running(value as i32)
+                ank_base::execution_state::ExecutionStateEnum::Running(value as i32)
             }
             ExecutionStateEnum::Succeeded(value) => {
-                proto::execution_state::ExecutionStateEnum::Succeeded(value as i32)
+                ank_base::execution_state::ExecutionStateEnum::Succeeded(value as i32)
             }
             ExecutionStateEnum::Failed(value) => {
-                proto::execution_state::ExecutionStateEnum::Failed(value as i32)
+                ank_base::execution_state::ExecutionStateEnum::Failed(value as i32)
             }
             ExecutionStateEnum::NotScheduled => {
-                proto::execution_state::ExecutionStateEnum::NotScheduled(
-                    proto::NotScheduled::NotScheduled as i32,
+                ank_base::execution_state::ExecutionStateEnum::NotScheduled(
+                    ank_base::NotScheduled::NotScheduled as i32,
                 )
             }
-            ExecutionStateEnum::Removed => {
-                proto::execution_state::ExecutionStateEnum::Removed(proto::Removed::Removed as i32)
-            }
+            ExecutionStateEnum::Removed => ank_base::execution_state::ExecutionStateEnum::Removed(
+                ank_base::Removed::Removed as i32,
+            ),
             ExecutionStateEnum::Stopping(value) => {
-                proto::execution_state::ExecutionStateEnum::Stopping(value as i32)
+                ank_base::execution_state::ExecutionStateEnum::Stopping(value as i32)
             }
         }
     }
 }
 
-impl From<proto::execution_state::ExecutionStateEnum> for ExecutionStateEnum {
-    fn from(item: proto::execution_state::ExecutionStateEnum) -> Self {
+impl From<ank_base::execution_state::ExecutionStateEnum> for ExecutionStateEnum {
+    fn from(item: ank_base::execution_state::ExecutionStateEnum) -> Self {
         match item {
-            proto::execution_state::ExecutionStateEnum::AgentDisconnected(_) => {
+            ank_base::execution_state::ExecutionStateEnum::AgentDisconnected(_) => {
                 ExecutionStateEnum::AgentDisconnected
             }
-            proto::execution_state::ExecutionStateEnum::Pending(value) => {
+            ank_base::execution_state::ExecutionStateEnum::Pending(value) => {
                 ExecutionStateEnum::Pending(value.into())
             }
-            proto::execution_state::ExecutionStateEnum::Running(value) => {
+            ank_base::execution_state::ExecutionStateEnum::Running(value) => {
                 ExecutionStateEnum::Running(value.into())
             }
-            proto::execution_state::ExecutionStateEnum::Stopping(value) => {
+            ank_base::execution_state::ExecutionStateEnum::Stopping(value) => {
                 ExecutionStateEnum::Stopping(value.into())
             }
-            proto::execution_state::ExecutionStateEnum::Succeeded(value) => {
+            ank_base::execution_state::ExecutionStateEnum::Succeeded(value) => {
                 ExecutionStateEnum::Succeeded(value.into())
             }
-            proto::execution_state::ExecutionStateEnum::Failed(value) => {
+            ank_base::execution_state::ExecutionStateEnum::Failed(value) => {
                 ExecutionStateEnum::Failed(value.into())
             }
-            proto::execution_state::ExecutionStateEnum::NotScheduled(_) => {
+            ank_base::execution_state::ExecutionStateEnum::NotScheduled(_) => {
                 ExecutionStateEnum::NotScheduled
             }
-            proto::execution_state::ExecutionStateEnum::Removed(_) => ExecutionStateEnum::Removed,
+            ank_base::execution_state::ExecutionStateEnum::Removed(_) => {
+                ExecutionStateEnum::Removed
+            }
         }
     }
 }
@@ -426,23 +428,23 @@ impl ExecutionState {
     }
 }
 
-impl From<ExecutionState> for proto::ExecutionState {
+impl From<ExecutionState> for ank_base::ExecutionState {
     fn from(item: ExecutionState) -> Self {
-        proto::ExecutionState {
+        ank_base::ExecutionState {
             additional_info: item.additional_info,
             execution_state_enum: Some(item.state.into()),
         }
     }
 }
 
-impl From<proto::ExecutionState> for ExecutionState {
-    fn from(item: proto::ExecutionState) -> Self {
+impl From<ank_base::ExecutionState> for ExecutionState {
+    fn from(item: ank_base::ExecutionState) -> Self {
         ExecutionState {
             additional_info: item.additional_info,
             state: item
                 .execution_state_enum
-                .unwrap_or(proto::execution_state::ExecutionStateEnum::Failed(
-                    proto::Failed::Unknown as i32,
+                .unwrap_or(ank_base::execution_state::ExecutionStateEnum::Failed(
+                    ank_base::Failed::Unknown as i32,
                 ))
                 .into(),
         }
@@ -484,26 +486,28 @@ pub struct WorkloadState {
     pub execution_state: ExecutionState,
 }
 
-impl From<WorkloadState> for proto::WorkloadState {
+impl From<WorkloadState> for ank_base::WorkloadState {
     fn from(item: WorkloadState) -> Self {
-        proto::WorkloadState {
+        ank_base::WorkloadState {
             instance_name: Some(item.instance_name.into()),
             execution_state: Some(item.execution_state.into()),
         }
     }
 }
 
-impl From<proto::WorkloadState> for WorkloadState {
-    fn from(item: proto::WorkloadState) -> Self {
+impl From<ank_base::WorkloadState> for WorkloadState {
+    fn from(item: ank_base::WorkloadState) -> Self {
         WorkloadState {
             instance_name: item.instance_name.unwrap_or_unreachable().into(),
             execution_state: item
                 .execution_state
-                .unwrap_or(proto::ExecutionState {
+                .unwrap_or(ank_base::ExecutionState {
                     additional_info: "Cannot covert, proceeding with unknown".to_owned(),
-                    execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Failed(
-                        proto::Failed::Unknown as i32,
-                    )),
+                    execution_state_enum: Some(
+                        ank_base::execution_state::ExecutionStateEnum::Failed(
+                            ank_base::Failed::Unknown as i32,
+                        ),
+                    ),
                 })
                 .into(),
         }
@@ -556,7 +560,7 @@ pub fn generate_test_workload_state(
 // [utest->swdd~common-object-representation~1]
 #[cfg(test)]
 mod tests {
-    use api::proto::{self};
+    use api::ank_base::{self};
 
     use crate::objects::{
         workload_state::NO_MORE_RETRIES_MSG, ExecutionState, WorkloadInstanceName, WorkloadState,
@@ -620,21 +624,24 @@ mod tests {
                 .build(),
         };
 
-        let proto_wl_state = proto::WorkloadState {
-            execution_state: Some(proto::ExecutionState {
+        let proto_wl_state = ank_base::WorkloadState {
+            execution_state: Some(ank_base::ExecutionState {
                 additional_info: additional_info.to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
-                    proto::Pending::Starting.into(),
+                execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Pending(
+                    ank_base::Pending::Starting.into(),
                 )),
             }),
-            instance_name: Some(proto::WorkloadInstanceName {
+            instance_name: Some(ank_base::WorkloadInstanceName {
                 workload_name: "john".to_string(),
                 agent_name: "strange".to_string(),
                 ..Default::default()
             }),
         };
 
-        assert_eq!(proto::WorkloadState::from(ankaios_wl_state), proto_wl_state);
+        assert_eq!(
+            ank_base::WorkloadState::from(ankaios_wl_state),
+            proto_wl_state
+        );
     }
 
     // [utest->swdd~common-workload-state-identification~1]
@@ -648,14 +655,14 @@ mod tests {
                 .build(),
         };
 
-        let proto_wl_state = proto::WorkloadState {
-            execution_state: Some(proto::ExecutionState {
+        let proto_wl_state = ank_base::WorkloadState {
+            execution_state: Some(ank_base::ExecutionState {
                 additional_info: "".to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Running(
-                    proto::Running::Ok.into(),
+                execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Running(
+                    ank_base::Running::Ok.into(),
                 )),
             }),
-            instance_name: Some(proto::WorkloadInstanceName {
+            instance_name: Some(ank_base::WorkloadInstanceName {
                 workload_name: "john".to_string(),
                 agent_name: "strange".to_string(),
                 ..Default::default()
@@ -672,94 +679,98 @@ mod tests {
         let additional_info = "some additional info";
 
         assert_eq!(
-            proto::ExecutionState {
+            ank_base::ExecutionState {
                 additional_info: "".to_string(),
                 execution_state_enum: Some(
-                    proto::execution_state::ExecutionStateEnum::AgentDisconnected(
-                        proto::AgentDisconnected::AgentDisconnected.into(),
+                    ank_base::execution_state::ExecutionStateEnum::AgentDisconnected(
+                        ank_base::AgentDisconnected::AgentDisconnected.into(),
                     )
                 ),
             },
             ExecutionState::agent_disconnected().into(),
         );
         assert_eq!(
-            proto::ExecutionState {
+            ank_base::ExecutionState {
                 additional_info: NO_MORE_RETRIES_MSG.to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
-                    proto::Pending::StartingFailed.into(),
+                execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Pending(
+                    ank_base::Pending::StartingFailed.into(),
                 )),
             },
             ExecutionState::retry_failed_no_retry().into(),
         );
         assert_eq!(
-            proto::ExecutionState {
+            ank_base::ExecutionState {
                 additional_info: "".to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Removed(
-                    proto::Removed::Removed.into(),
+                execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Removed(
+                    ank_base::Removed::Removed.into(),
                 )),
             },
             ExecutionState::removed().into(),
         );
 
         assert_eq!(
-            proto::ExecutionState {
+            ank_base::ExecutionState {
                 additional_info: additional_info.to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Failed(
-                    proto::Failed::Unknown.into(),
+                execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Failed(
+                    ank_base::Failed::Unknown.into(),
                 )),
             },
             ExecutionState::unknown(additional_info).into(),
         );
         assert_eq!(
-            proto::ExecutionState {
+            ank_base::ExecutionState {
                 additional_info: additional_info.to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
-                    proto::Pending::Starting.into(),
+                execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Pending(
+                    ank_base::Pending::Starting.into(),
                 )),
             },
             ExecutionState::starting(additional_info).into(),
         );
         assert_eq!(
-            proto::ExecutionState {
+            ank_base::ExecutionState {
                 additional_info: additional_info.to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Failed(
-                    proto::Failed::ExecFailed.into(),
+                execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Failed(
+                    ank_base::Failed::ExecFailed.into(),
                 )),
             },
             ExecutionState::failed(additional_info).into(),
         );
         assert_eq!(
-            proto::ExecutionState {
+            ank_base::ExecutionState {
                 additional_info: "".to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Succeeded(
-                    proto::Succeeded::Ok.into(),
-                )),
+                execution_state_enum: Some(
+                    ank_base::execution_state::ExecutionStateEnum::Succeeded(
+                        ank_base::Succeeded::Ok.into(),
+                    )
+                ),
             },
             ExecutionState::succeeded().into(),
         );
         assert_eq!(
-            proto::ExecutionState {
+            ank_base::ExecutionState {
                 additional_info: "".to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Running(
-                    proto::Running::Ok.into(),
+                execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Running(
+                    ank_base::Running::Ok.into(),
                 )),
             },
             ExecutionState::running().into(),
         );
         assert_eq!(
-            proto::ExecutionState {
+            ank_base::ExecutionState {
                 additional_info: additional_info.to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Stopping(
-                    proto::Stopping::Stopping.into(),
-                )),
+                execution_state_enum: Some(
+                    ank_base::execution_state::ExecutionStateEnum::Stopping(
+                        ank_base::Stopping::Stopping.into(),
+                    )
+                ),
             },
             ExecutionState::stopping(additional_info).into(),
         );
         assert_eq!(
-            proto::ExecutionState {
+            ank_base::ExecutionState {
                 additional_info: "".to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Failed(
-                    proto::Failed::Lost.into(),
+                execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Failed(
+                    ank_base::Failed::Lost.into(),
                 )),
             },
             ExecutionState::lost().into(),
@@ -774,11 +785,11 @@ mod tests {
 
         assert_eq!(
             ExecutionState::agent_disconnected(),
-            proto::ExecutionState {
+            ank_base::ExecutionState {
                 additional_info: "".to_string(),
                 execution_state_enum: Some(
-                    proto::execution_state::ExecutionStateEnum::AgentDisconnected(
-                        proto::AgentDisconnected::AgentDisconnected.into(),
+                    ank_base::execution_state::ExecutionStateEnum::AgentDisconnected(
+                        ank_base::AgentDisconnected::AgentDisconnected.into(),
                     )
                 ),
             }
@@ -786,20 +797,20 @@ mod tests {
         );
         assert_eq!(
             ExecutionState::retry_failed_no_retry(),
-            proto::ExecutionState {
+            ank_base::ExecutionState {
                 additional_info: NO_MORE_RETRIES_MSG.to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
-                    proto::Pending::StartingFailed.into(),
+                execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Pending(
+                    ank_base::Pending::StartingFailed.into(),
                 )),
             }
             .into(),
         );
         assert_eq!(
             ExecutionState::removed(),
-            proto::ExecutionState {
+            ank_base::ExecutionState {
                 additional_info: "".to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Removed(
-                    proto::Removed::Removed.into(),
+                execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Removed(
+                    ank_base::Removed::Removed.into(),
                 )),
             }
             .into(),
@@ -807,70 +818,74 @@ mod tests {
 
         assert_eq!(
             ExecutionState::unknown(additional_info),
-            proto::ExecutionState {
+            ank_base::ExecutionState {
                 additional_info: additional_info.to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Failed(
-                    proto::Failed::Unknown.into(),
+                execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Failed(
+                    ank_base::Failed::Unknown.into(),
                 )),
             }
             .into(),
         );
         assert_eq!(
             ExecutionState::starting(additional_info),
-            proto::ExecutionState {
+            ank_base::ExecutionState {
                 additional_info: additional_info.to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Pending(
-                    proto::Pending::Starting.into(),
+                execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Pending(
+                    ank_base::Pending::Starting.into(),
                 )),
             }
             .into(),
         );
         assert_eq!(
             ExecutionState::failed(additional_info),
-            proto::ExecutionState {
+            ank_base::ExecutionState {
                 additional_info: additional_info.to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Failed(
-                    proto::Failed::ExecFailed.into(),
+                execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Failed(
+                    ank_base::Failed::ExecFailed.into(),
                 )),
             }
             .into(),
         );
         assert_eq!(
             ExecutionState::succeeded(),
-            proto::ExecutionState {
+            ank_base::ExecutionState {
                 additional_info: "".to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Succeeded(
-                    proto::Succeeded::Ok.into(),
-                )),
+                execution_state_enum: Some(
+                    ank_base::execution_state::ExecutionStateEnum::Succeeded(
+                        ank_base::Succeeded::Ok.into(),
+                    )
+                ),
             }
             .into(),
         );
         assert_eq!(
             ExecutionState::running(),
-            proto::ExecutionState {
+            ank_base::ExecutionState {
                 additional_info: "".to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Running(
-                    proto::Running::Ok.into(),
+                execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Running(
+                    ank_base::Running::Ok.into(),
                 )),
             }
             .into(),
         );
         assert_eq!(
             ExecutionState::stopping(additional_info),
-            proto::ExecutionState {
+            ank_base::ExecutionState {
                 additional_info: additional_info.to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Stopping(
-                    proto::Stopping::Stopping.into(),
-                )),
+                execution_state_enum: Some(
+                    ank_base::execution_state::ExecutionStateEnum::Stopping(
+                        ank_base::Stopping::Stopping.into(),
+                    )
+                ),
             }
             .into(),
         );
         assert_eq!(
             ExecutionState::lost(),
-            proto::ExecutionState {
+            ank_base::ExecutionState {
                 additional_info: "".to_string(),
-                execution_state_enum: Some(proto::execution_state::ExecutionStateEnum::Failed(
-                    proto::Failed::Lost.into(),
+                execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Failed(
+                    ank_base::Failed::Lost.into(),
                 )),
             }
             .into(),

@@ -60,7 +60,8 @@ jobs:
           coverage-report.zip \
           req_tracing_report.html \
           install.sh \
-          ankaios.proto \
+          ank_base.proto \
+          control_api.proto \
           linux-amd64/ankaios-linux-amd64.tar.gz \
           linux-amd64/ankaios-linux-amd64.tar.gz.sha512sum.txt \
           linux-arm64/ankaios-linux-arm64.tar.gz \

@@ -14,7 +14,7 @@
 
 use std::collections::HashMap;
 
-use api::proto;
+use api::ank_base;
 use serde::{Serialize, Serializer};
 
 use crate::objects::{
@@ -87,7 +87,7 @@ pub fn generate_test_state() -> State {
     }
 }
 
-pub fn generate_test_proto_state() -> proto::State {
+pub fn generate_test_proto_state() -> ank_base::State {
     let workload_name_1 = "workload_name_1".to_string();
     let workload_name_2 = "workload_name_2".to_string();
 
@@ -95,7 +95,7 @@ pub fn generate_test_proto_state() -> proto::State {
     proto_workloads.insert(workload_name_1, generate_test_proto_workload());
     proto_workloads.insert(workload_name_2, generate_test_proto_workload());
 
-    proto::State {
+    ank_base::State {
         api_version: "v0.1".into(),
         workloads: proto_workloads,
     }
@@ -105,11 +105,11 @@ fn generate_test_proto_dependencies() -> HashMap<String, i32> {
     HashMap::from([
         (
             String::from("workload A"),
-            proto::AddCondition::AddCondRunning.into(),
+            ank_base::AddCondition::AddCondRunning.into(),
         ),
         (
             String::from("workload C"),
-            proto::AddCondition::AddCondSucceeded.into(),
+            ank_base::AddCondition::AddCondSucceeded.into(),
         ),
     ])
 }
@@ -121,22 +121,17 @@ fn generate_test_delete_dependencies() -> HashMap<String, DeleteCondition> {
     )])
 }
 
-fn generate_test_proto_delete_dependencies() -> HashMap<String, i32> {
-    HashMap::from([(
-        String::from("workload A"),
-        proto::DeleteCondition::DelCondNotPendingNorRunning.into(),
-    )])
-}
 
-pub fn generate_test_proto_workload() -> proto::Workload {
-    proto::Workload {
+
+pub fn generate_test_proto_workload() -> ank_base::Workload {
+    ank_base::Workload {
         agent: String::from("agent"),
         dependencies: generate_test_proto_dependencies(),
-        restart_policy: proto::RestartPolicy::Always.into(),
+        restart_policy: ank_base::RestartPolicy::Always.into(),
         runtime: String::from("runtime"),
         runtime_config: "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
             .to_string(),
-        tags: vec![proto::Tag {
+        tags: vec![ank_base::Tag {
             key: "key".into(),
             value: "value".into(),
         }],
@@ -166,19 +161,6 @@ pub fn generate_test_deleted_workload_with_dependencies(
     let mut deleted_workload = generate_test_deleted_workload(agent, name);
     deleted_workload.dependencies = dependencies;
     deleted_workload
-}
-
-pub fn generate_test_proto_deleted_workload() -> proto::DeletedWorkload {
-    let instance_name = WorkloadInstanceName::builder()
-        .agent_name("agent")
-        .workload_name("workload X")
-        .config(&String::from("config"))
-        .build();
-
-    proto::DeletedWorkload {
-        instance_name: Some(instance_name.into()),
-        dependencies: generate_test_proto_delete_dependencies(),
-    }
 }
 
 pub struct MockAllContextSync {
