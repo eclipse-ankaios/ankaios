@@ -34,6 +34,9 @@ mockall = "0.11"
 mockall_double = "0.3"
 futures-util = "0.3"
 
+[build-dependencies]
+tonic-build = "0.9"
+
 [lib]
 name = "grpc"
 path = "src/lib.rs"

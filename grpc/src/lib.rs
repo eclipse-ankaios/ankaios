@@ -38,3 +38,7 @@ mod grpc_cli_connection;
 pub mod grpc_middleware_error;
 pub mod server;
 mod to_server_proxy;
+
+use api::ank_base;
+pub mod grpc_api;
+pub use crate::grpc_api::*;

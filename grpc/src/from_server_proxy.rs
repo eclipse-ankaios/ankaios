@@ -15,9 +15,9 @@
 use crate::agent_senders_map::AgentSendersMap;
 use crate::ankaios_streaming::GRPCStreaming;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
-use api::proto::from_server::FromServerEnum;
-use api::proto::response::ResponseContent;
-use api::proto::{self};
+use api::ank_base;
+use api::ank_base::response::ResponseContent;
+use crate::grpc_api::{self, from_server::FromServerEnum};
 
 use async_trait::async_trait;
 use common::commands::Response;
@@ -33,25 +33,25 @@ use common::request_id_prepending::detach_prefix_from_request_id;
 use tonic::Streaming;
 
 pub struct GRPCFromServerStreaming {
-    inner: Streaming<proto::FromServer>,
+    inner: Streaming<grpc_api::FromServer>,
 }
 
 impl GRPCFromServerStreaming {
-    pub fn new(inner: Streaming<proto::FromServer>) -> Self {
+    pub fn new(inner: Streaming<grpc_api::FromServer>) -> Self {
         Self { inner }
     }
 }
 
 #[async_trait]
-impl GRPCStreaming<proto::FromServer> for GRPCFromServerStreaming {
-    async fn message(&mut self) -> Result<Option<proto::FromServer>, tonic::Status> {
+impl GRPCStreaming<grpc_api::FromServer> for GRPCFromServerStreaming {
+    async fn message(&mut self) -> Result<Option<grpc_api::FromServer>, tonic::Status> {
         self.inner.message().await
     }
 }
 
 // [impl->swdd~grpc-client-forwards-from-server-messages-to-agent~1]
 pub async fn forward_from_proto_to_ankaios(
-    grpc_streaming: &mut impl GRPCStreaming<proto::FromServer>,
+    grpc_streaming: &mut impl GRPCStreaming<grpc_api::FromServer>,
     agent_tx: &FromServerSender,
 ) -> Result<(), GrpcMiddlewareError> {
     while let Some(value) = grpc_streaming.message().await? {
@@ -141,13 +141,15 @@ pub async fn forward_from_ankaios_to_proto(
                     );
 
                     let result = sender
-                        .send(Ok(proto::FromServer {
-                            from_server_enum: Some(proto::from_server::FromServerEnum::Response(
-                                proto::Response {
-                                    request_id,
-                                    response_content: Some(response_content),
-                                },
-                            )),
+                        .send(Ok(grpc_api::FromServer {
+                            from_server_enum: Some(
+                                grpc_api::from_server::FromServerEnum::Response(
+                                    ank_base::Response {
+                                        request_id,
+                                        response_content: Some(response_content),
+                                    },
+                                ),
+                            ),
                         }))
                         .await;
                     if result.is_err() {
@@ -175,7 +177,7 @@ async fn distribute_workload_states_to_agents(
 
     for agent_name in agent_senders.get_all_agent_names() {
         // Filter the workload states as we don't want to send an agent its own updates
-        let filtered_workload_states: Vec<proto::WorkloadState> = workload_state_collection
+        let filtered_workload_states: Vec<ank_base::WorkloadState> = workload_state_collection
             .clone()
             .into_iter()
             .filter(|workload_state| workload_state.instance_name.agent_name() != agent_name)
@@ -195,9 +197,9 @@ async fn distribute_workload_states_to_agents(
                 filtered_workload_states
             );
             let result = sender
-                .send(Ok(proto::FromServer {
+                .send(Ok(grpc_api::FromServer {
                     from_server_enum: Some(FromServerEnum::UpdateWorkloadState(
-                        proto::UpdateWorkloadState {
+                        grpc_api::UpdateWorkloadState {
                             workload_states: filtered_workload_states,
                         },
                     )),
@@ -226,17 +228,19 @@ async fn distribute_workloads_to_agents(
             log::trace!("Sending added and deleted workloads to agent '{}'.\n\tAdded workloads: {:?}.\n\tDeleted workloads: {:?}.",
                 agent_name, added_workload_vector, deleted_workload_vector);
             let result = sender
-                .send(Ok(proto::FromServer {
-                    from_server_enum: Some(FromServerEnum::UpdateWorkload(proto::UpdateWorkload {
-                        added_workloads: added_workload_vector
-                            .into_iter()
-                            .map(|x| x.into())
-                            .collect(),
-                        deleted_workloads: deleted_workload_vector
-                            .into_iter()
-                            .map(|x| x.into())
-                            .collect(),
-                    })),
+                .send(Ok(grpc_api::FromServer {
+                    from_server_enum: Some(FromServerEnum::UpdateWorkload(
+                        grpc_api::UpdateWorkload {
+                            added_workloads: added_workload_vector
+                                .into_iter()
+                                .map(|x| x.into())
+                                .collect(),
+                            deleted_workloads: deleted_workload_vector
+                                .into_iter()
+                                .map(|x| x.into())
+                                .collect(),
+                        },
+                    )),
                 }))
                 .await;
             if result.is_err() {
@@ -271,8 +275,7 @@ mod tests {
 
     use super::{forward_from_ankaios_to_proto, forward_from_proto_to_ankaios};
     use crate::{agent_senders_map::AgentSendersMap, from_server_proxy::GRPCStreaming};
-    use api::proto::response;
-    use api::proto::{self, from_server::FromServerEnum, FromServer, UpdateWorkload};
+    use api::ank_base::{self, response};
     use async_trait::async_trait;
     use common::from_server_interface::FromServerInterface;
     use common::objects::{
@@ -281,6 +284,7 @@ mod tests {
     };
     use common::objects::{CompleteState, State, WorkloadSpec};
     use common::test_utils::*;
+    use crate::grpc_api::{self, from_server::FromServerEnum, FromServer, UpdateWorkload};
     use tokio::sync::mpsc::error::TryRecvError;
     use tokio::{
         join,
@@ -319,16 +323,16 @@ mod tests {
 
     #[derive(Default, Clone)]
     struct MockGRPCFromServerStreaming {
-        msgs: LinkedList<Option<proto::FromServer>>,
+        msgs: LinkedList<Option<grpc_api::FromServer>>,
     }
     impl MockGRPCFromServerStreaming {
-        fn new(msgs: LinkedList<Option<proto::FromServer>>) -> Self {
+        fn new(msgs: LinkedList<Option<grpc_api::FromServer>>) -> Self {
             MockGRPCFromServerStreaming { msgs }
         }
     }
     #[async_trait]
-    impl GRPCStreaming<proto::FromServer> for MockGRPCFromServerStreaming {
-        async fn message(&mut self) -> Result<Option<proto::FromServer>, tonic::Status> {
+    impl GRPCStreaming<grpc_api::FromServer> for MockGRPCFromServerStreaming {
+        async fn message(&mut self) -> Result<Option<grpc_api::FromServer>, tonic::Status> {
             if let Some(msg) = self.msgs.pop_front() {
                 Ok(msg)
             } else {
@@ -442,7 +446,7 @@ mod tests {
         let (to_agent, mut agent_receiver) =
             mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
-        let mut workload: proto::AddedWorkload = generate_test_workload_spec_with_param(
+        let mut workload: grpc_api::AddedWorkload = generate_test_workload_spec_with_param(
             "agent_name".to_string(),
             "name".to_string(),
             "workload1".to_string(),
@@ -486,8 +490,8 @@ mod tests {
         let (to_agent, mut agent_receiver) =
             mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
-        let workload: proto::DeletedWorkload = proto::DeletedWorkload {
-            instance_name: Some(proto::WorkloadInstanceName {
+        let workload: grpc_api::DeletedWorkload = grpc_api::DeletedWorkload {
+            instance_name: Some(ank_base::WorkloadInstanceName {
                 workload_name: "name".to_string(),
                 ..Default::default()
             }),
@@ -564,7 +568,7 @@ mod tests {
             MockGRPCFromServerStreaming::new(LinkedList::from([
                 Some(FromServer {
                     from_server_enum: Some(FromServerEnum::UpdateWorkloadState(
-                        proto::UpdateWorkloadState::default(),
+                        grpc_api::UpdateWorkloadState::default(),
                     )),
                 }),
                 None,
@@ -701,9 +705,9 @@ mod tests {
 
         assert!(matches!(
             result.from_server_enum,
-            Some(FromServerEnum::Response(proto::Response {
+            Some(FromServerEnum::Response(ank_base::Response {
                 request_id,
-                response_content: Some(proto::response::ResponseContent::CompleteState(proto::CompleteState{
+                response_content: Some(ank_base::response::ResponseContent::CompleteState(ank_base::CompleteState{
                     desired_state: Some(desired_state),
                     startup_state: Some(startup_state),
                     workload_states}))
@@ -724,12 +728,12 @@ mod tests {
         let my_request_id = "my_request_id".to_owned();
 
         let proto_complete_state =
-            proto::response::ResponseContent::CompleteState(proto::CompleteState {
+            ank_base::response::ResponseContent::CompleteState(ank_base::CompleteState {
                 desired_state: Some(State::default().into()),
-                startup_state: Some(proto::State {
+                startup_state: Some(ank_base::State {
                     workloads: [(
                         "workload".into(),
-                        proto::Workload {
+                        ank_base::Workload {
                             dependencies: [("workload 2".into(), -1)].into(),
                             ..Default::default()
                         },
@@ -744,7 +748,7 @@ mod tests {
         let mut mock_grpc_ex_request_streaming =
             MockGRPCFromServerStreaming::new(LinkedList::from([
                 Some(FromServer {
-                    from_server_enum: Some(FromServerEnum::Response(proto::Response {
+                    from_server_enum: Some(FromServerEnum::Response(ank_base::Response {
                         request_id: my_request_id,
                         response_content: Some(proto_complete_state),
                     })),
@@ -789,13 +793,13 @@ mod tests {
             workload_states: vec![],
         };
 
-        let proto_complete_state = proto::CompleteState {
+        let proto_complete_state = ank_base::CompleteState {
             desired_state: Some(test_complete_state.desired_state.clone().into()),
             startup_state: Some(test_complete_state.startup_state.clone().into()),
             workload_states: vec![],
         };
 
-        let proto_response = proto::Response {
+        let proto_response = ank_base::Response {
             request_id: my_request_id.clone(),
             response_content: Some(response::ResponseContent::CompleteState(
                 proto_complete_state,

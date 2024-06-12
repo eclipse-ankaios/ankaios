@@ -26,11 +26,8 @@ use x509_parser::extensions::GeneralName;
 
 use crate::agent_senders_map::AgentSendersMap;
 use crate::to_server_proxy::{forward_from_proto_to_ankaios, GRPCToServerStreaming};
-use api::proto;
-use api::proto::agent_connection_server::AgentConnection;
-use api::proto::to_server::ToServerEnum;
-
 use common::to_server_interface::{self, ToServerInterface};
+use crate::grpc_api::{self, agent_connection_server::AgentConnection, to_server::ToServerEnum};
 
 #[derive(Debug)]
 pub struct GRPCAgentConnection {
@@ -57,12 +54,12 @@ fn has_multiple_peer_certs(peer_certs: &[Certificate]) -> bool {
 #[tonic::async_trait]
 impl AgentConnection for GRPCAgentConnection {
     type ConnectAgentStream =
-        Pin<Box<dyn Stream<Item = Result<proto::FromServer, Status>> + Send + 'static>>;
+        Pin<Box<dyn Stream<Item = Result<grpc_api::FromServer, Status>> + Send + 'static>>;
 
     // [impl->swdd~grpc-client-connects-with-agent-hello~1]
     async fn connect_agent(
         &self,
-        request: Request<tonic::Streaming<proto::ToServer>>,
+        request: Request<tonic::Streaming<grpc_api::ToServer>>,
     ) -> Result<Response<Self::ConnectAgentStream>, Status> {
         let mut sans: Vec<String> = vec![];
         if let Some(peer_certs) = &request.peer_certs() {
@@ -94,7 +91,7 @@ impl AgentConnection for GRPCAgentConnection {
 
         // [impl->swdd~grpc-agent-connection-creates-from-server-channel~1]
         let (new_agent_sender, new_agent_receiver) = tokio::sync::mpsc::channel::<
-            Result<proto::FromServer, tonic::Status>,
+            Result<grpc_api::FromServer, tonic::Status>,
         >(common::CHANNEL_CAPACITY);
 
         let ankaios_tx = self.to_ankaios_server.clone();
@@ -108,7 +105,7 @@ impl AgentConnection for GRPCAgentConnection {
             .to_server_enum
             .ok_or_else(invalid_argument_empty)?
         {
-            ToServerEnum::AgentHello(proto::AgentHello { agent_name }) => {
+            ToServerEnum::AgentHello(grpc_api::AgentHello { agent_name }) => {
                 log::trace!("Received a hello from '{}'", agent_name);
 
                 if sans.is_empty() || sans.contains(&agent_name) {
