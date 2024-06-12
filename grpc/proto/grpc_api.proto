@@ -1,0 +1,123 @@
+// Copyright (c) 2023 Elektrobit Automotive GmbH
+//
+// This program and the accompanying materials are made available under the
+// terms of the Apache License, Version 2.0 which is available at
+// https://www.apache.org/licenses/LICENSE-2.0.
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+/**
+* The Ankaios communication protocol is used in the communcation between the following components:
+*
+* 1. Ankaios Agent and Ankaios Server,
+*
+* 2. Ankaios CLI and Ankaios Server,
+*
+* The protocol consists of the following top-level message types:
+*
+* 1. [ToServer](#toserver): agent/cli -> server
+*
+* 2. [FromServer](#fromserver): server -> agent/cli
+*
+*/
+syntax = "proto3";
+package grpc_api;
+
+import "ank_base.proto";
+
+service AgentConnection {
+    rpc ConnectAgent (stream ToServer) returns (stream FromServer);
+}
+
+service CliConnection {
+    rpc ConnectCli (stream ToServer) returns (stream FromServer);
+}
+
+/**
+* Messages to the Ankaios server.
+*/
+message ToServer {
+    oneof ToServerEnum {
+        AgentHello agentHello = 1; /// This message is for internal usage only!
+        UpdateWorkloadState updateWorkloadState = 2; /// A message to Ankaios server to update the execution state of a workload.
+        ank_base.Request request = 3;
+        Goodbye goodbye = 4;
+    }
+}
+
+/**
+* Messages from the Ankaios server to e.g. the Ankaios agent.
+*/
+message FromServer {
+    oneof FromServerEnum {
+        UpdateWorkload updateWorkload = 1; /// A message containing lists of workloads to be added or deleted.
+        UpdateWorkloadState updateWorkloadState = 2; /// A message containing list of workload execution states.
+        ank_base.Response response = 3; /// A message containing a response to a previous request.
+    }
+}
+
+/**
+* A message to the Ankaios server to register a new agent.
+*/
+message AgentHello {
+    string agentName = 1; /// A unique agent name.
+}
+
+
+
+/**
+* A message to the Ankaios server to signalize a client (agent or cli) is shutting down.
+*/
+message Goodbye {
+}
+
+/**
+* A message providing information about the workloads to be added and/or deleted.
+*/
+message UpdateWorkload {
+    repeated AddedWorkload addedWorkloads = 1; /// A list of messages containing information about a workload to be added by an Ankaios agent.
+    repeated DeletedWorkload deletedWorkloads = 2; /// A list of messages containing information about a workload to be deleted by an Ankaios agent.
+}
+
+/**
+* A message containing information about a workload to be added to the Ankaios cluster.
+*/
+message AddedWorkload {
+    ank_base.WorkloadInstanceName instanceName = 1; /// The instance name of the workload.
+    string runtime = 2; /// The name of the runtime, e.g., podman.
+    map<string, ank_base.AddCondition> dependencies = 3; /// A list of dependencies to other workloads with their corresponding, expected states. Can be used to enable a synchronized start of a workload.
+    ank_base.RestartPolicy restartPolicy = 4; /// An enum value that defines the condition under which a workload is restarted.
+    repeated ank_base.Tag tags = 5; /// A list of tags.
+    string runtimeConfig = 6; /// The configuration information specific to the runtime.
+}
+
+/**
+* A message containing information about a workload to be deleted from the Anakaios system.
+*/
+message DeletedWorkload {
+    ank_base.WorkloadInstanceName instanceName = 1; /// The instance name of the workload.
+    map<string, DeleteCondition> dependencies = 2; /// A list of dependencies to other workloads with their corresponding, expected states. Can be used to enable a synchronized stop of a workload.
+}
+
+/**
+* An enum type describing the conditions for deleting a workload. Used for dependency management, and update strategies.
+*/
+enum DeleteCondition {
+    DEL_COND_RUNNING = 0; /// The workload is operational.
+    DEL_COND_NOT_PENDING_NOR_RUNNING = 1; /// The workload is not scheduled or running.
+}
+
+/**
+* A message containing the list the workload states.
+*/
+message UpdateWorkloadState {
+    repeated ank_base.WorkloadState workloadStates = 1; /// A list of workload states.
+}
+
+

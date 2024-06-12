@@ -14,7 +14,6 @@
 
 use crate::commands;
 use crate::objects::{CompleteState, DeletedWorkload, WorkloadSpec, WorkloadState};
-use api::proto;
 use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
@@ -33,7 +32,6 @@ impl From<SendError<FromServer>> for FromServerInterfaceError {
     }
 }
 
-// [impl->swdd~from-server-channel~1]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FromServer {
     UpdateWorkload(commands::UpdateWorkload),
@@ -42,51 +40,7 @@ pub enum FromServer {
     Stop(commands::Stop),
 }
 
-impl TryFrom<FromServer> for proto::FromServer {
-    type Error = &'static str;
-
-    fn try_from(item: FromServer) -> Result<Self, Self::Error> {
-        match item {
-            FromServer::UpdateWorkload(ankaios) => Ok(proto::FromServer {
-                from_server_enum: Some(proto::from_server::FromServerEnum::UpdateWorkload(
-                    proto::UpdateWorkload {
-                        added_workloads: ankaios
-                            .added_workloads
-                            .into_iter()
-                            .map(|x| x.into())
-                            .collect(),
-                        deleted_workloads: ankaios
-                            .deleted_workloads
-                            .into_iter()
-                            .map(|x| x.into())
-                            .collect(),
-                    },
-                )),
-            }),
-            FromServer::UpdateWorkloadState(ankaios) => Ok(proto::FromServer {
-                from_server_enum: Some(proto::from_server::FromServerEnum::UpdateWorkloadState(
-                    proto::UpdateWorkloadState {
-                        workload_states: ankaios
-                            .workload_states
-                            .iter()
-                            .map(|x| x.to_owned().into())
-                            .collect(),
-                    },
-                )),
-            }),
-            FromServer::Response(ankaios) => Ok(proto::FromServer {
-                from_server_enum: Some(proto::from_server::FromServerEnum::Response(
-                    proto::Response {
-                        request_id: ankaios.request_id,
-                        response_content: Some(ankaios.response_content.into()),
-                    },
-                )),
-            }),
-            FromServer::Stop(_) => Err("Stop command not implemented in proto"),
-        }
-    }
-}
-
+// [impl->swdd~from-server-channel~1]
 #[async_trait]
 pub trait FromServerInterface {
     async fn update_workload(
@@ -213,94 +167,140 @@ impl FromServerInterface for FromServerSender {
 
 #[cfg(test)]
 mod tests {
+
     use crate::{
         commands,
-        from_server_interface::FromServer,
-        objects::{WorkloadInstanceName, WorkloadSpec},
-        test_utils::{generate_test_deleted_workload, generate_test_proto_deleted_workload},
+        from_server_interface::{FromServer, FromServerInterface},
+        objects::{generate_test_workload_spec, generate_test_workload_state, ExecutionState},
+        test_utils::{generate_test_complete_state, generate_test_deleted_workload},
     };
 
-    use api::proto::{self, from_server::FromServerEnum, AddedWorkload};
+    use super::{FromServerReceiver, FromServerSender};
 
-    #[test]
-    fn utest_convert_from_server_to_proto_update_workload() {
-        let instance_name = WorkloadInstanceName::builder()
-            .workload_name("test_workload")
-            .build();
-        let test_ex_com = FromServer::UpdateWorkload(commands::UpdateWorkload {
-            added_workloads: vec![WorkloadSpec {
-                instance_name,
-                runtime: "tes_runtime".to_owned(),
-                ..Default::default()
-            }],
-            deleted_workloads: vec![generate_test_deleted_workload(
-                "agent".to_string(),
-                "workload X".to_string(),
-            )],
-        });
-        let expected_ex_com = Ok(proto::FromServer {
-            from_server_enum: Some(FromServerEnum::UpdateWorkload(proto::UpdateWorkload {
-                added_workloads: vec![AddedWorkload {
-                    instance_name: Some(proto::WorkloadInstanceName {
-                        workload_name: "test_workload".to_owned(),
-                        ..Default::default()
-                    }),
-                    runtime: "tes_runtime".to_owned(),
-                    ..Default::default()
-                }],
-                deleted_workloads: vec![generate_test_proto_deleted_workload()],
-            })),
-        });
+    const TEST_CHANNEL_CAPA: usize = 5;
+    const WORKLOAD_NAME: &str = "X";
+    const AGENT_NAME: &str = "agent_A";
+    const REQUEST_ID: &str = "emkw489ejf89ml";
 
-        assert_eq!(proto::FromServer::try_from(test_ex_com), expected_ex_com);
+    // [utest->swdd~from-server-channel~1]
+    #[tokio::test]
+    async fn utest_to_server_send_update_workload() {
+        let (tx, mut rx): (FromServerSender, FromServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        let added_workloads = vec![generate_test_workload_spec()];
+        let deleted_workloads = vec![generate_test_deleted_workload(
+            AGENT_NAME.to_string(),
+            WORKLOAD_NAME.to_string(),
+        )];
+        assert!(tx
+            .update_workload(added_workloads.clone(), deleted_workloads.clone())
+            .await
+            .is_ok());
+
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            FromServer::UpdateWorkload(commands::UpdateWorkload {
+                added_workloads,
+                deleted_workloads,
+            })
+        )
     }
 
-    #[test]
-    fn utest_convert_from_server_to_proto_update_workload_state() {
-        let workload_state = crate::objects::generate_test_workload_state_with_agent(
-            "test_workload",
-            "test_agent",
-            crate::objects::ExecutionState::running(),
-        );
+    // [utest->swdd~from-server-channel~1]
+    #[tokio::test]
+    async fn utest_to_server_send_update_workload_state() {
+        let (tx, mut rx): (FromServerSender, FromServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
-        let test_ex_com = FromServer::UpdateWorkloadState(commands::UpdateWorkloadState {
-            workload_states: vec![workload_state.clone()],
-        });
-        let expected_ex_com = Ok(proto::FromServer {
-            from_server_enum: Some(FromServerEnum::UpdateWorkloadState(
-                proto::UpdateWorkloadState {
-                    workload_states: vec![workload_state.into()],
-                },
-            )),
-        });
+        let workload_state = generate_test_workload_state(WORKLOAD_NAME, ExecutionState::running());
+        assert!(tx
+            .update_workload_state(vec![workload_state.clone()])
+            .await
+            .is_ok());
 
-        assert_eq!(proto::FromServer::try_from(test_ex_com), expected_ex_com);
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            FromServer::UpdateWorkloadState(commands::UpdateWorkloadState {
+                workload_states: vec![workload_state],
+            })
+        )
     }
 
-    #[test]
-    fn utest_convert_from_server_to_proto_complete_state() {
-        let test_ex_com = FromServer::Response(commands::Response {
-            request_id: "req_id".to_owned(),
-            response_content: commands::ResponseContent::CompleteState(Box::default()),
-        });
+    // [utest->swdd~from-server-channel~1]
+    #[tokio::test]
+    async fn utest_to_server_send_complete_state() {
+        let (tx, mut rx): (FromServerSender, FromServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
-        let expected_ex_com = Ok(proto::FromServer {
-            from_server_enum: Some(proto::from_server::FromServerEnum::Response(
-                proto::Response {
-                    request_id: "req_id".to_owned(),
-                    response_content: Some(proto::response::ResponseContent::CompleteState(
-                        proto::CompleteState {
-                            desired_state: Some(api::proto::State {
-                                api_version: "v0.1".into(),
-                                ..Default::default()
-                            }),
-                            workload_states: vec![],
-                        },
-                    )),
-                },
-            )),
-        });
+        let complete_state = generate_test_complete_state(vec![generate_test_workload_spec()]);
+        assert!(tx
+            .complete_state(REQUEST_ID.to_string(), complete_state.clone())
+            .await
+            .is_ok());
 
-        assert_eq!(proto::FromServer::try_from(test_ex_com), expected_ex_com);
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            FromServer::Response(commands::Response {
+                request_id: REQUEST_ID.to_string(),
+                response_content: commands::ResponseContent::CompleteState(Box::new(
+                    complete_state,
+                )),
+            })
+        )
+    }
+
+    // [utest->swdd~from-server-channel~1]
+    #[tokio::test]
+    async fn utest_to_server_send_update_state_success() {
+        let (tx, mut rx): (FromServerSender, FromServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        let added_workloads = vec!["some_name".to_string(), "some_other_name".to_string()];
+        let deleted_workloads = vec!["some_name_1".to_string(), "some_other_name_1".to_string()];
+        assert!(tx
+            .update_state_success(
+                REQUEST_ID.to_string(),
+                added_workloads.clone(),
+                deleted_workloads.clone()
+            )
+            .await
+            .is_ok());
+
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            FromServer::Response(commands::Response {
+                request_id: REQUEST_ID.to_string(),
+                response_content: commands::ResponseContent::UpdateStateSuccess(
+                    commands::UpdateStateSuccess {
+                        added_workloads,
+                        deleted_workloads,
+                    },
+                ),
+            })
+        )
+    }
+
+    // [utest->swdd~from-server-channel~1]
+    #[tokio::test]
+    async fn utest_to_server_send_error() {
+        let (tx, mut rx): (FromServerSender, FromServerReceiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
+
+        let error = commands::Error {
+            message: "error".to_string(),
+        };
+        assert!(tx
+            .error(REQUEST_ID.to_string(), error.clone())
+            .await
+            .is_ok());
+
+        assert_eq!(
+            rx.recv().await.unwrap(),
+            FromServer::Response(commands::Response {
+                request_id: REQUEST_ID.to_string(),
+                response_content: commands::ResponseContent::Error(error),
+            })
+        )
     }
 }

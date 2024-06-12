@@ -1,4 +1,4 @@
-# Example Component - SW Design
+# Common library - SW Design
 
 ## About this document
 
