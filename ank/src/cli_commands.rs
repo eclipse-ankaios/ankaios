@@ -14,12 +14,13 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    fmt::{self, Display},
+    fmt::{self, Debug, Display},
     time::Duration,
 };
 mod apply_manifests;
 mod server_connection;
 mod wait_list;
+use crossterm::terminal;
 use tokio::time::interval;
 use wait_list::WaitList;
 
@@ -242,11 +243,32 @@ impl Display for WaitListDisplay {
         data.sort_by_key(|x| &x.data.name);
 
         // [impl->swdd~cli-shall-present-workloads-as-table~1]
-        write!(
-            f,
-            "{}",
-            Table::new(data).with(tabled::settings::Style::blank())
-        )
+
+        let terminal_width = terminal::size().unwrap_or((80, 0)).0 as usize;
+        let max_additional_info_length = data
+            .iter()
+            .max_by(|left, right| {
+                left.data
+                    .additional_info
+                    .len()
+                    .cmp(&right.data.additional_info.len())
+            })
+            .map(|get_workload_table_with_spinner| {
+                get_workload_table_with_spinner.data.additional_info.len()
+            });
+
+        let mut table_binding = Table::new(data);
+        let table = table_binding.with(Style::blank());
+        let natural_table_width = table.total_width();
+        let width_of_all_columns_without_the_last =
+            natural_table_width - max_additional_info_length.unwrap_or(0);
+        let rest_column_size = terminal_width - width_of_all_columns_without_the_last;
+        let table = table_binding.with(
+            tabled::settings::Modify::new(tabled::settings::object::Columns::single(4))
+                .with(tabled::settings::Width::wrap(rest_column_size)),
+        );
+
+        write!(f, "{}", table)
     }
 }
 
@@ -482,9 +504,25 @@ impl CliCommands {
 
         // [impl->swdd~cli-shall-present-list-of-workloads~1]
         // [impl->swdd~cli-shall-present-workloads-as-table~1]
-        Ok(Table::new(workload_infos.iter().map(|x| &x.1))
-            .with(Style::blank())
-            .to_string())
+        let terminal_width = terminal::size().unwrap_or((80, 0)).0 as usize;
+        let workload_table_info = workload_infos.iter().map(|x| &x.1);
+        let max_additional_info_length = workload_table_info
+            .into_iter()
+            .max_by(|left, right| left.additional_info.len().cmp(&right.additional_info.len()))
+            .map(|table_info| table_info.additional_info.len());
+
+        let mut table_binding = Table::new(workload_infos.iter().map(|x| &x.1));
+        let table = table_binding.with(Style::blank());
+        let natural_table_width = table.total_width();
+        let width_of_all_columns_without_the_last =
+            natural_table_width - max_additional_info_length.unwrap_or(0);
+        let rest_column_size = terminal_width - width_of_all_columns_without_the_last;
+        let table = table_binding.with(
+            tabled::settings::Modify::new(tabled::settings::object::Columns::single(4))
+                .with(tabled::settings::Width::wrap(rest_column_size)),
+        );
+
+        Ok(table.to_string())
     }
 
     async fn get_workloads(
