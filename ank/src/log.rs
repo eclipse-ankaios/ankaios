@@ -65,18 +65,27 @@ pub(crate) fn output_fn(args: fmt::Arguments<'_>) {
     }
 }
 
+fn terminal_width() -> usize {
+    let terminal_width = terminal::size().unwrap_or((80, 0)).0 as usize;
+
+    // This is a workaround for terminals that return a wrong width of 0 instead of None
+    if 0 == terminal_width {
+        return 80;
+    }
+    terminal_width
+}
+
 pub(crate) fn output_update_fn(args: fmt::Arguments<'_>) {
     if !is_quiet() {
         let args = args.to_string();
 
-        let terminal_width = terminal::size().unwrap_or((80, 0)).0 as usize;
         // limit line length to terminal_width by introducing newline characters
         let args = args
             .split('\n')
             .flat_map(|line| {
                 line.chars()
                     .collect::<Vec<_>>()
-                    .chunks(terminal_width)
+                    .chunks(terminal_width())
                     .map(|x| x.iter().collect::<String>())
                     .collect::<Vec<_>>()
             })
