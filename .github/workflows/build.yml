@@ -27,7 +27,6 @@ jobs:
         run: cargo build
       - name: Prepare system tests
         run: |
-          echo "Retrieved github.event_name = ${{ github.event_name }}"
           mkdir -p target/robot_tests_result
           chown vscode target/robot_tests_result
       - name: Run system tests in pull request verification
@@ -39,7 +38,7 @@ jobs:
       - name: Run all system tests
         if: ${{ github.event_name != 'pull_request' }}
         run: |
-            echo "Run is ${{ github.event_name }}, all system tests are executed."
+            echo "Event name is '${{ github.event_name }}', all system tests are executed."
             su vscode -c "tools/run_robot_tests.sh tests"
       - uses: actions/upload-artifact@v4.3.3
         if: success() || failure()
