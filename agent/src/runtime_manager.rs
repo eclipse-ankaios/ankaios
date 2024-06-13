@@ -249,8 +249,9 @@ impl RuntimeManager {
                             } else {
                                 // [impl->swdd~agent-existing-workloads-replace-updated~2]
 
-                                log::info!("Replacing existing workload '{}'.",
-                                workload_state.instance_name.workload_name()
+                                log::info!(
+                                    "Replacing existing workload '{}'.",
+                                    workload_state.instance_name.workload_name()
                                 );
 
                                 /* Temporary workaround until direct start of bundles is implemented to prevent
@@ -338,7 +339,7 @@ impl RuntimeManager {
 
         for (_, workload_spec) in added_workloads {
             let workload_name = workload_spec.instance_name.workload_name();
-            if self.workloads.get(workload_name).is_some() {
+            if self.workloads.contains_key(workload_name) {
                 log::warn!(
                     "Added workload '{}' already exists. Updating without considering delete dependencies.",
                     workload_name

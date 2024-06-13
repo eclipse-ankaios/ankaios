@@ -35,6 +35,7 @@ pub struct PodmanWorkloadId {
     pub id: String,
 }
 
+#[allow(clippy::to_string_trait_impl)]
 impl ToString for PodmanWorkloadId {
     fn to_string(&self) -> String {
         self.id.to_owned()
@@ -171,7 +172,10 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
                     .await
                 {
                     Ok(()) => log::debug!("The broken container has been deleted successfully"),
-                    Err(e) => log::warn!("Failed container cleanup after failed create. Error: '{}'", e),
+                    Err(e) => log::warn!(
+                        "Failed container cleanup after failed create. Error: '{}'",
+                        e
+                    ),
                 }
 
                 // No matter if we have deleted the broken container or not, we have to report that the "workload create" failed.

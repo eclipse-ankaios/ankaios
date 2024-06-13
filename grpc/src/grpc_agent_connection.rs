@@ -13,7 +13,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::pin::Pin;
-use std::str::FromStr;
 
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;

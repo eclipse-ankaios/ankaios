@@ -257,7 +257,9 @@ impl WaitListDisplayTrait for WaitListDisplay {
     fn update(&mut self, workload_state: &common::objects::WorkloadState) {
         if let Some(entry) = self.data.get_mut(&workload_state.instance_name) {
             entry.execution_state = workload_state.execution_state.state.to_string();
-            entry.additional_info = workload_state.execution_state.additional_info.clone();
+            entry
+                .additional_info
+                .clone_from(&workload_state.execution_state.additional_info);
         }
     }
 
@@ -521,7 +523,7 @@ impl CliCommands {
                 .iter()
                 .find(|&(wl_name, wl_spec)| *wl_name == wi.1.name && wl_spec.agent == wi.1.agent)
             {
-                wi.1.runtime = found_wl_spec.runtime.clone();
+                wi.1.runtime.clone_from(&found_wl_spec.runtime);
             }
         }
 

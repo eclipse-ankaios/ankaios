@@ -644,7 +644,7 @@ mod tests {
         );
 
         let mut new_workload_spec = old_workload_spec.clone();
-        new_workload_spec.runtime_config = "changed config".to_owned();
+        new_workload_spec.runtime_config = "changed config".to_string();
         new_workload_spec.instance_name = WorkloadInstanceName::builder()
             .agent_name(old_workload_spec.instance_name.agent_name())
             .workload_name(old_workload_spec.instance_name.workload_name())
@@ -797,7 +797,7 @@ mod tests {
         );
 
         let mut new_workload_spec = old_workload_spec.clone();
-        new_workload_spec.runtime_config = "changed config".to_owned();
+        new_workload_spec.runtime_config = "changed config".to_string();
         new_workload_spec.instance_name = WorkloadInstanceName::builder()
             .agent_name(old_workload_spec.instance_name.agent_name())
             .workload_name(old_workload_spec.instance_name.workload_name())
@@ -886,7 +886,7 @@ mod tests {
         );
 
         let mut new_workload_spec = old_workload_spec.clone();
-        new_workload_spec.runtime_config = "changed config".to_owned();
+        new_workload_spec.runtime_config = "changed config".to_string();
         new_workload_spec.instance_name = WorkloadInstanceName::builder()
             .agent_name(old_workload_spec.instance_name.agent_name())
             .workload_name(old_workload_spec.instance_name.workload_name())
@@ -964,7 +964,7 @@ mod tests {
         );
 
         let mut new_workload_spec = old_workload_spec.clone();
-        new_workload_spec.runtime_config = "changed config".to_owned();
+        new_workload_spec.runtime_config = "changed config".to_string();
         new_workload_spec.instance_name = WorkloadInstanceName::builder()
             .agent_name(old_workload_spec.instance_name.agent_name())
             .workload_name(old_workload_spec.instance_name.workload_name())
@@ -1048,7 +1048,7 @@ mod tests {
         );
 
         let mut new_workload_spec = old_workload_spec.clone();
-        new_workload_spec.runtime_config = "changed config".to_owned();
+        new_workload_spec.runtime_config = "changed config".to_string();
         new_workload_spec.instance_name = WorkloadInstanceName::builder()
             .agent_name(old_workload_spec.instance_name.agent_name())
             .workload_name(old_workload_spec.instance_name.workload_name())
