@@ -1135,6 +1135,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#run-long-runtime-system-tests-upon-merge-into-main" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run long-runtime system tests upon merge into main
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1461,6 +1470,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#run-long-runtime-system-tests-upon-merge-into-main" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run long-runtime system tests upon merge into main
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1645,6 +1663,20 @@ A basic Ankaios system test consists of the following sections:</p>
 <a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>    And the workload &quot;hello3&quot; shall have the execution state &quot;Succeeded&quot; on agent &quot;agent_B&quot;
 <a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>    [Teardown]    Clean up Ankaios
 </code></pre></div>
+<h3 id="run-long-runtime-system-tests-upon-merge-into-main">Run long-runtime system tests upon merge into main<a class="headerlink" href="#run-long-runtime-system-tests-upon-merge-into-main" title="Permanent link">&para;</a></h3>
+<p>To keep the pull request status check runtime short, system tests with a longer runtime (&gt; 30-40 seconds) shall be excluded from the pull request CI/CD verification by assigning the tag "non_execution_during_pull_request_verification" directly to the test case. When the pull request is merged into the main branch, the system test is executed. A contributor shall check the test results of those system tests afterwards.</p>
+<p>Example system test that runs only on merge into main:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>...
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>*** Test Cases ***
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>...
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>Test Ankaios Podman stops retries after reaching the retry attempt limit
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="hll">    [Tags]    non_execution_during_pull_request_verification
+</span><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    [Setup]    Run Keywords    Setup Ankaios
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>...
+</code></pre></div>
 <h2 id="system-test-execution">System test execution<a class="headerlink" href="#system-test-execution" title="Permanent link">&para;</a></h2>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
@@ -1660,72 +1692,72 @@ We recomment to only execute the system tests in the dev container.</p>
 </ol>
 <h3 id="run-in-dev-container">Run in dev container<a class="headerlink" href="#run-in-dev-container" title="Permanent link">&para;</a></h3>
 <p>Generic syntax:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>/workspaces/ankaios$<span class="w"> </span><span class="o">[</span><span class="nv">ANK_BIN_DIR</span><span class="o">=</span>path_to_ankaios_executables<span class="o">]</span><span class="w"> </span>tools/run_robot_tests<span class="w"> </span>&lt;options&gt;<span class="w"> </span>&lt;directory<span class="w"> </span>or<span class="w"> </span>robot<span class="w"> </span>file&gt;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>/workspaces/ankaios$<span class="w"> </span><span class="o">[</span><span class="nv">ANK_BIN_DIR</span><span class="o">=</span>path_to_ankaios_executables<span class="o">]</span><span class="w"> </span>tools/run_robot_tests<span class="w"> </span>&lt;options&gt;<span class="w"> </span>&lt;directory<span class="w"> </span>or<span class="w"> </span>robot<span class="w"> </span>file&gt;
 </code></pre></div>
 <p>If <em>ANK_BIN_DIR</em> is not provided the script looks in the path <code>{Ankaios root folder}/target/x86_64-unknown-linux-musl/debug</code> for the Ankaios executables.
 The supported options are the same as of <code>robot</code> cli, so for more detailed description about it see <a href="https://robotframework.org/robotframework/latest/RobotFrameworkUserGuide.html#using-command-line-options">here</a>.</p>
 <p><em>Note: In order to be able to start <code>podman</code> runtime in the dev container properly, the dev container needs to be run in <code>privilege</code> mode.</em></p>
 <h4 id="example-run-all-tests-under-the-folder-tests">Example: Run all tests under the folder tests<a class="headerlink" href="#example-run-all-tests-under-the-folder-tests" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>/workspaces/ankaios$<span class="w"> </span>tools/run_robot_tests.sh<span class="w"> </span>tests
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>/workspaces/ankaios$<span class="w"> </span>tools/run_robot_tests.sh<span class="w"> </span>tests
 </code></pre></div>
 <p>Example output:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>Use default executable directory: /workspaces/ankaios/tools/../target/x86_64-unknown-linux-musl/debug
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>Found ank 0.1.0
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>Found ank-server 0.1.0
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>Found ank-agent 0.1.0
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>==============================================================================
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>Tests
-<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>==============================================================================
-<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>Tests.Stests
-<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>==============================================================================
-<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>Tests.Stests.Workloads
-<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>==============================================================================
-<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>Tests.Stests.Workloads.List Workloads :: List workloads test cases.
-<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>==============================================================================
-<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>Test Ankaios CLI get workloads                                        | PASS |
-<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>------------------------------------------------------------------------------
-<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>Tests.Stests.Workloads.List Workloads :: List workloads test cases.   | PASS |
-<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>1 test, 1 passed, 0 failed
-<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>==============================================================================
-<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>Tests.Stests.Workloads.Update Workload :: Update workload test cases.
-<a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>==============================================================================
-<a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a>Test Ankaios CLI update workload                                      | PASS |
-<a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a>------------------------------------------------------------------------------
-<a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a>Tests.Stests.Workloads.Update Workload :: Update workload test cases. | PASS |
-<a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a>1 test, 1 passed, 0 failed
-<a id="__codelineno-6-25" name="__codelineno-6-25" href="#__codelineno-6-25"></a>==============================================================================
-<a id="__codelineno-6-26" name="__codelineno-6-26" href="#__codelineno-6-26"></a>Tests.Stests.Workloads                                                | PASS |
-<a id="__codelineno-6-27" name="__codelineno-6-27" href="#__codelineno-6-27"></a>2 tests, 2 passed, 0 failed
-<a id="__codelineno-6-28" name="__codelineno-6-28" href="#__codelineno-6-28"></a>==============================================================================
-<a id="__codelineno-6-29" name="__codelineno-6-29" href="#__codelineno-6-29"></a>Tests.Stests                                                          | PASS |
-<a id="__codelineno-6-30" name="__codelineno-6-30" href="#__codelineno-6-30"></a>2 tests, 2 passed, 0 failed
-<a id="__codelineno-6-31" name="__codelineno-6-31" href="#__codelineno-6-31"></a>==============================================================================
-<a id="__codelineno-6-32" name="__codelineno-6-32" href="#__codelineno-6-32"></a>Tests                                                                 | PASS |
-<a id="__codelineno-6-33" name="__codelineno-6-33" href="#__codelineno-6-33"></a>2 tests, 2 passed, 0 failed
-<a id="__codelineno-6-34" name="__codelineno-6-34" href="#__codelineno-6-34"></a>==============================================================================
-<a id="__codelineno-6-35" name="__codelineno-6-35" href="#__codelineno-6-35"></a>Output:  /workspaces/ankaios/target/robot_tests_result/output.xml
-<a id="__codelineno-6-36" name="__codelineno-6-36" href="#__codelineno-6-36"></a>Log:     /workspaces/ankaios/target/robot_tests_result/log.html
-<a id="__codelineno-6-37" name="__codelineno-6-37" href="#__codelineno-6-37"></a>Report:  /workspaces/ankaios/target/robot_tests_result/report.html
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>Use default executable directory: /workspaces/ankaios/tools/../target/x86_64-unknown-linux-musl/debug
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>Found ank 0.1.0
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>Found ank-server 0.1.0
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>Found ank-agent 0.1.0
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>==============================================================================
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>Tests
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>==============================================================================
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>Tests.Stests
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>==============================================================================
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>Tests.Stests.Workloads
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>==============================================================================
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>Tests.Stests.Workloads.List Workloads :: List workloads test cases.
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>==============================================================================
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>Test Ankaios CLI get workloads                                        | PASS |
+<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>------------------------------------------------------------------------------
+<a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>Tests.Stests.Workloads.List Workloads :: List workloads test cases.   | PASS |
+<a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>1 test, 1 passed, 0 failed
+<a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>==============================================================================
+<a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a>Tests.Stests.Workloads.Update Workload :: Update workload test cases.
+<a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a>==============================================================================
+<a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a>Test Ankaios CLI update workload                                      | PASS |
+<a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a>------------------------------------------------------------------------------
+<a id="__codelineno-7-23" name="__codelineno-7-23" href="#__codelineno-7-23"></a>Tests.Stests.Workloads.Update Workload :: Update workload test cases. | PASS |
+<a id="__codelineno-7-24" name="__codelineno-7-24" href="#__codelineno-7-24"></a>1 test, 1 passed, 0 failed
+<a id="__codelineno-7-25" name="__codelineno-7-25" href="#__codelineno-7-25"></a>==============================================================================
+<a id="__codelineno-7-26" name="__codelineno-7-26" href="#__codelineno-7-26"></a>Tests.Stests.Workloads                                                | PASS |
+<a id="__codelineno-7-27" name="__codelineno-7-27" href="#__codelineno-7-27"></a>2 tests, 2 passed, 0 failed
+<a id="__codelineno-7-28" name="__codelineno-7-28" href="#__codelineno-7-28"></a>==============================================================================
+<a id="__codelineno-7-29" name="__codelineno-7-29" href="#__codelineno-7-29"></a>Tests.Stests                                                          | PASS |
+<a id="__codelineno-7-30" name="__codelineno-7-30" href="#__codelineno-7-30"></a>2 tests, 2 passed, 0 failed
+<a id="__codelineno-7-31" name="__codelineno-7-31" href="#__codelineno-7-31"></a>==============================================================================
+<a id="__codelineno-7-32" name="__codelineno-7-32" href="#__codelineno-7-32"></a>Tests                                                                 | PASS |
+<a id="__codelineno-7-33" name="__codelineno-7-33" href="#__codelineno-7-33"></a>2 tests, 2 passed, 0 failed
+<a id="__codelineno-7-34" name="__codelineno-7-34" href="#__codelineno-7-34"></a>==============================================================================
+<a id="__codelineno-7-35" name="__codelineno-7-35" href="#__codelineno-7-35"></a>Output:  /workspaces/ankaios/target/robot_tests_result/output.xml
+<a id="__codelineno-7-36" name="__codelineno-7-36" href="#__codelineno-7-36"></a>Log:     /workspaces/ankaios/target/robot_tests_result/log.html
+<a id="__codelineno-7-37" name="__codelineno-7-37" href="#__codelineno-7-37"></a>Report:  /workspaces/ankaios/target/robot_tests_result/report.html
 </code></pre></div>
 <h4 id="example-run-a-single-test-file">Example: Run a single test file<a class="headerlink" href="#example-run-a-single-test-file" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>/workspaces/ankaios$<span class="w"> </span>tools/run_robot_tests.sh<span class="w"> </span>tests/stests/workloads/list_workloads.robot
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>/workspaces/ankaios$<span class="w"> </span>tools/run_robot_tests.sh<span class="w"> </span>tests/stests/workloads/list_workloads.robot
 </code></pre></div>
 <p>Example output:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>Use default executable directory: /workspaces/ankaios/tools/../target/x86_64-unknown-linux-musl/debug
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>Found ank 0.1.0
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>Found ank-server 0.1.0
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>Found ank-agent 0.1.0
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>==============================================================================
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>List Workloads :: List workloads test cases.
-<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>==============================================================================
-<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>Test Ankaios CLI get workloads                                        | PASS |
-<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>------------------------------------------------------------------------------
-<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>List Workloads :: List workloads test cases.                          | PASS |
-<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>1 test, 1 passed, 0 failed
-<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>==============================================================================
-<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>Output:  /workspaces/ankaios/target/robot_tests_result/output.xml
-<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>Log:     /workspaces/ankaios/target/robot_tests_result/log.html
-<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a>Report:  /workspaces/ankaios/target/robot_tests_result/report.html
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>Use default executable directory: /workspaces/ankaios/tools/../target/x86_64-unknown-linux-musl/debug
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>Found ank 0.1.0
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>Found ank-server 0.1.0
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>Found ank-agent 0.1.0
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>==============================================================================
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>List Workloads :: List workloads test cases.
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>==============================================================================
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>Test Ankaios CLI get workloads                                        | PASS |
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>------------------------------------------------------------------------------
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>List Workloads :: List workloads test cases.                          | PASS |
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>1 test, 1 passed, 0 failed
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>==============================================================================
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>Output:  /workspaces/ankaios/target/robot_tests_result/output.xml
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>Log:     /workspaces/ankaios/target/robot_tests_result/log.html
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>Report:  /workspaces/ankaios/target/robot_tests_result/report.html
 </code></pre></div>
 <h2 id="integration-in-github-workflows">Integration in GitHub workflows<a class="headerlink" href="#integration-in-github-workflows" title="Permanent link">&para;</a></h2>
 <p>The execution of the system tests is integrated in the GitHub workflow build step and will be triggered on each commit on a pull request.</p>
