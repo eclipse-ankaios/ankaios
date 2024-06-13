@@ -39,8 +39,7 @@ jobs:
       - name: Run all system tests
         if: ${{ github.event_name != 'pull_request' }}
         run: |
-            echo "Retrieved github.event_name = ${{ github.event_name }}"
-            echo "Run is not a PR verification, all system tests are executed."
+            echo "Run is ${{ github.event_name }}, all system tests are executed."
             su vscode -c "tools/run_robot_tests.sh tests"
       - uses: actions/upload-artifact@v4.3.3
         if: success() || failure()
