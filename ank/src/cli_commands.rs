@@ -35,7 +35,6 @@ use common::{
     from_server_interface::FromServer,
     objects::{CompleteState, State, StoredWorkloadSpec, Tag, WorkloadInstanceName},
     state_manipulation::{Object, Path},
-    std_extensions::UnreachableOption,
 };
 
 use tabled::{
