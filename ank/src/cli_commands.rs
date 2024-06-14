@@ -366,7 +366,7 @@ impl<'a> WorkloadTableInfos<'a> {
             .iter()
             .map(|table_info| table_info.additional_info.len())
             .max()
-            .unwrap_or_unreachable()
+            .unwrap_or(0)
     }
 }
 
