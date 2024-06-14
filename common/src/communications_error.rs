@@ -2,6 +2,7 @@ use std::fmt;
 
 use tokio::task::JoinError;
 
+#[derive(Debug, Clone)]
 pub struct CommunicationMiddlewareError(pub String);
 
 impl From<JoinError> for CommunicationMiddlewareError {

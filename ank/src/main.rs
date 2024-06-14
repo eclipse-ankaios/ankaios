@@ -42,7 +42,10 @@ async fn main() {
         cli_name.to_string(),
         args.server_url,
         args.no_wait,
-    );
+    )
+    .unwrap_or_else(|err| {
+        output_and_error!("Cannot connect to server: '{}'", err);
+    });
 
     match args.command {
         cli::Commands::Get(get_args) => match get_args.command {
