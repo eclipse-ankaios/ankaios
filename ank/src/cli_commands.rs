@@ -35,9 +35,13 @@ use common::{
     from_server_interface::FromServer,
     objects::{CompleteState, State, StoredWorkloadSpec, Tag, WorkloadInstanceName},
     state_manipulation::{Object, Path},
+    std_extensions::UnreachableOption,
 };
 
-use tabled::{settings::Style, Table, Tabled};
+use tabled::{
+    settings::{object::Columns, Modify, Style, Width},
+    Table, Tabled,
+};
 use url::Url;
 
 #[cfg_attr(test, mockall_double::double)]
@@ -193,6 +197,7 @@ struct GetWorkloadTableDisplayWithSpinner<'a> {
 
 impl GetWorkloadTableDisplay {
     const EXECUTION_STATE_POS: usize = 3;
+    const ADDITIONAL_INFO_POS: usize = 4;
 }
 
 impl<'a> Tabled for GetWorkloadTableDisplayWithSpinner<'a> {
@@ -244,31 +249,37 @@ impl Display for WaitListDisplay {
 
         // [impl->swdd~cli-shall-present-workloads-as-table~1]
 
-        let terminal_width = terminal::size().unwrap_or((80, 0)).0 as usize;
-        let max_additional_info_length = data
-            .iter()
-            .max_by(|left, right| {
-                left.data
-                    .additional_info
-                    .len()
-                    .cmp(&right.data.additional_info.len())
-            })
-            .map(|get_workload_table_with_spinner| {
-                get_workload_table_with_spinner.data.additional_info.len()
-            });
+        // let terminal_width = terminal::size().unwrap_or((80, 0)).0 as usize;
+        // let max_additional_info_length = data
+        //     .iter()
+        //     .max_by(|left, right| {
+        //         left.data
+        //             .additional_info
+        //             .len()
+        //             .cmp(&right.data.additional_info.len())
+        //     })
+        //     .map(|get_workload_table_with_spinner| {
+        //         get_workload_table_with_spinner.data.additional_info.len()
+        //     });
 
-        let mut table_binding = Table::new(data);
-        let table = table_binding.with(Style::blank());
-        let natural_table_width = table.total_width();
-        let width_of_all_columns_without_the_last =
-            natural_table_width - max_additional_info_length.unwrap_or(0);
-        let rest_column_size = terminal_width - width_of_all_columns_without_the_last;
-        let table = table_binding.with(
-            tabled::settings::Modify::new(tabled::settings::object::Columns::single(4))
-                .with(tabled::settings::Width::wrap(rest_column_size)),
-        );
+        // let mut initial_table = Table::new(data);
+        // let styled_table = initial_table.with(Style::blank());
+        // let total_table_width = styled_table.total_width();
+        // let table_width_except_last_column =
+        //     total_table_width - max_additional_info_length.unwrap_or(0);
+        // let remaining_terminal_width = terminal_width - table_width_except_last_column;
+        // let styled_table = styled_table.with(
+        //     tabled::settings::Modify::new(tabled::settings::object::Columns::single(
+        //         GetWorkloadTableDisplay::ADDITIONAL_INFO_POS,
+        //     ))
+        //     .with(tabled::settings::Width::wrap(remaining_terminal_width)),
+        // );
 
-        write!(f, "{}", table)
+        let workload_infos: Vec<&GetWorkloadTableDisplay> = data.iter().map(|x| x.data).collect();
+
+        let styled_table = WorkloadTableInfos(&workload_infos).to_table();
+
+        write!(f, "{}", styled_table)
     }
 }
 
@@ -330,6 +341,59 @@ impl GetWorkloadTableDisplay {
 
 fn trim_and_replace_newlines(text: &str) -> String {
     text.trim().replace('\n', ", ")
+}
+
+pub struct WorkloadTableInfos<'a>(&'a [&'a GetWorkloadTableDisplay]);
+
+impl<'a> WorkloadTableInfos<'a> {
+    pub fn to_table(&self) -> Table {
+        let mut basic_table: Table = self.create_basic_table();
+
+        let total_table_width: usize = basic_table.total_width();
+        let remaining_terminal_width_for_additional_info =
+            self.get_available_terminal_width_for_additional_info(total_table_width);
+
+        let styled_table = self.wrap_additional_info_column(
+            &mut basic_table,
+            remaining_terminal_width_for_additional_info,
+        );
+
+        styled_table.to_owned()
+    }
+
+    fn create_basic_table(&self) -> Table {
+        let mut table = Table::new(self.0);
+        let basic_styled_table = table.with(Style::blank());
+        basic_styled_table.to_owned()
+    }
+
+    fn wrap_additional_info_column(
+        &self,
+        initial_table: &'a mut Table,
+        remaining_terminal_width: usize,
+    ) -> &'a Table {
+        initial_table.with(
+            Modify::new(Columns::single(
+                GetWorkloadTableDisplay::ADDITIONAL_INFO_POS,
+            ))
+            .with(Width::wrap(remaining_terminal_width)),
+        )
+    }
+
+    fn get_available_terminal_width_for_additional_info(&self, total_table_width: usize) -> usize {
+        let terminal_width = terminal::size().unwrap_or((80, 0)).0 as usize;
+        let max_additional_info_length = self.get_length_of_longest_additional_info();
+        let table_width_except_last_column = total_table_width - max_additional_info_length;
+        terminal_width - table_width_except_last_column
+    }
+
+    fn get_length_of_longest_additional_info(&self) -> usize {
+        self.0
+            .iter()
+            .map(|table_info| table_info.additional_info.len())
+            .max()
+            .unwrap_or_unreachable()
+    }
 }
 
 pub struct CliCommands {
@@ -504,25 +568,31 @@ impl CliCommands {
 
         // [impl->swdd~cli-shall-present-list-of-workloads~1]
         // [impl->swdd~cli-shall-present-workloads-as-table~1]
-        let terminal_width = terminal::size().unwrap_or((80, 0)).0 as usize;
-        let workload_table_info = workload_infos.iter().map(|x| &x.1);
-        let max_additional_info_length = workload_table_info
-            .into_iter()
-            .max_by(|left, right| left.additional_info.len().cmp(&right.additional_info.len()))
-            .map(|table_info| table_info.additional_info.len());
+        // let terminal_width = terminal::size().unwrap_or((80, 0)).0 as usize;
+        // let workload_table_info = workload_infos.iter().map(|x| &x.1);
+        // let max_additional_info_length = workload_table_info
+        //     .into_iter()
+        //     .max_by(|left, right| left.additional_info.len().cmp(&right.additional_info.len()))
+        //     .map(|table_info| table_info.additional_info.len());
 
-        let mut table_binding = Table::new(workload_infos.iter().map(|x| &x.1));
-        let table = table_binding.with(Style::blank());
-        let natural_table_width = table.total_width();
-        let width_of_all_columns_without_the_last =
-            natural_table_width - max_additional_info_length.unwrap_or(0);
-        let rest_column_size = terminal_width - width_of_all_columns_without_the_last;
-        let table = table_binding.with(
-            tabled::settings::Modify::new(tabled::settings::object::Columns::single(4))
-                .with(tabled::settings::Width::wrap(rest_column_size)),
-        );
+        // let mut raw_table = Table::new(workload_infos.iter().map(|x| &x.1));
+        // let styled_table = raw_table.with(Style::blank());
+        // let total_table_width: usize = styled_table.total_width();
+        // let table_width_except_last_column =
+        //     total_table_width - max_additional_info_length.unwrap_or(0);
+        // let remaining_terminal_width = terminal_width - table_width_except_last_column;
+        // let styled_table = styled_table.with(
+        //     tabled::settings::Modify::new(tabled::settings::object::Columns::single(
+        //         GetWorkloadTableDisplay::ADDITIONAL_INFO_POS,
+        //     ))
+        //     .with(tabled::settings::Width::wrap(remaining_terminal_width)),
+        // );
+        let workload_infos: Vec<&GetWorkloadTableDisplay> =
+            workload_infos.iter().map(|x| &x.1).collect();
 
-        Ok(table.to_string())
+        let styled_table = WorkloadTableInfos(&workload_infos).to_table();
+
+        Ok(styled_table.to_string())
     }
 
     async fn get_workloads(
