@@ -17,8 +17,9 @@ use std::collections::HashMap;
 
 type AgentName = String;
 
-type WorkloadStatesMap = HashMap<WorkloadInstanceName, WorkloadState>;
-type AgentWorkloadStates = HashMap<AgentName, WorkloadStatesMap>;
+type WorkloadIdStatesMap = HashMap<String, ExecutionState>;
+type WorkloadNameStatesMap = HashMap<String, WorkloadIdStatesMap>;
+type AgentWorkloadStates = HashMap<AgentName, WorkloadNameStatesMap>;
 
 pub struct WorkloadStateDB {
     stored_states: AgentWorkloadStates,
@@ -35,10 +36,19 @@ impl WorkloadStateDB {
     pub fn get_all_workload_states(&self) -> Vec<WorkloadState> {
         self.stored_states
             .iter()
-            .flat_map(|(_, workload_states)| {
-                workload_states
+            .flat_map(|(agent_name, name_state_map)| {
+                name_state_map
                     .iter()
-                    .map(|(_, workload_state)| workload_state.to_owned())
+                    .flat_map(move |(wl_name, id_state_map)| {
+                        id_state_map
+                            .iter()
+                            .map(move |(wl_id, exec_state)| WorkloadState {
+                                instance_name: WorkloadInstanceName::new(
+                                    agent_name, wl_name, wl_id,
+                                ),
+                                execution_state: exec_state.to_owned(),
+                            })
+                    })
             })
             .collect()
     }
@@ -47,7 +57,17 @@ impl WorkloadStateDB {
     pub fn get_workload_state_for_agent(&self, agent_name: &str) -> Vec<WorkloadState> {
         self.stored_states
             .get(agent_name)
-            .map(|x| x.iter().map(|(_, v)| v.to_owned()).collect())
+            .map(|name_map| {
+                name_map
+                    .iter()
+                    .flat_map(|(wl_name, id_map)| {
+                        id_map.iter().map(move |(wl_id, exec_state)| WorkloadState {
+                            instance_name: WorkloadInstanceName::new(agent_name, wl_name, wl_id),
+                            execution_state: exec_state.to_owned(),
+                        })
+                    })
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
@@ -59,10 +79,19 @@ impl WorkloadStateDB {
         self.stored_states
             .iter()
             .filter(|(agent_name, _)| *agent_name != excluding_agent_name)
-            .flat_map(|(_, workload_states)| {
-                workload_states
+            .flat_map(|(agent_name, name_state_map)| {
+                name_state_map
                     .iter()
-                    .map(|(_, workload_state)| workload_state.to_owned())
+                    .flat_map(move |(wl_name, id_state_map)| {
+                        id_state_map
+                            .iter()
+                            .map(move |(wl_id, exec_state)| WorkloadState {
+                                instance_name: WorkloadInstanceName::new(
+                                    agent_name, wl_name, wl_id,
+                                ),
+                                execution_state: exec_state.to_owned(),
+                            })
+                    })
             })
             .collect()
     }
@@ -70,8 +99,10 @@ impl WorkloadStateDB {
     // [impl->swdd~server-set-workload-state-on-disconnect~1]
     pub fn agent_disconnected(&mut self, agent_name: &str) {
         if let Some(agent_states) = self.stored_states.get_mut(agent_name) {
-            agent_states.iter_mut().for_each(|(_, wl_state)| {
-                wl_state.execution_state = ExecutionState::agent_disconnected()
+            agent_states.iter_mut().for_each(|(_, name_map)| {
+                name_map
+                    .iter_mut()
+                    .for_each(|(_, exec_state)| *exec_state = ExecutionState::agent_disconnected())
             })
         }
     }
@@ -82,14 +113,13 @@ impl WorkloadStateDB {
             self.stored_states
                 .entry(spec.instance_name.agent_name().to_owned())
                 .or_default()
-                .entry(spec.instance_name.to_owned())
-                .or_insert(WorkloadState {
-                    instance_name: spec.instance_name.to_owned(),
-                    execution_state: if spec.instance_name.agent_name().is_empty() {
-                        ExecutionState::not_scheduled()
-                    } else {
-                        ExecutionState::initial()
-                    },
+                .entry(spec.instance_name.workload_name().to_owned())
+                .or_default()
+                .entry(spec.instance_name.id().to_owned())
+                .or_insert(if spec.instance_name.agent_name().is_empty() {
+                    ExecutionState::not_scheduled()
+                } else {
+                    ExecutionState::initial()
                 });
         }
     }
@@ -97,7 +127,9 @@ impl WorkloadStateDB {
     // [impl->swdd~server-deletes-removed-workload-state~1]
     pub fn remove(&mut self, instance_name: &WorkloadInstanceName) {
         if let Some(agent_states) = self.stored_states.get_mut(instance_name.agent_name()) {
-            agent_states.remove(instance_name);
+            if let Some(workload_states) = agent_states.get_mut(instance_name.workload_name()) {
+                workload_states.remove(instance_name.id());
+            }
         }
     }
 
@@ -110,7 +142,12 @@ impl WorkloadStateDB {
                 self.stored_states
                     .entry(workload_state.instance_name.agent_name().to_owned())
                     .or_default()
-                    .insert(workload_state.instance_name.to_owned(), workload_state);
+                    .entry(workload_state.instance_name.workload_name().to_owned())
+                    .or_default()
+                    .insert(
+                        workload_state.instance_name.id().to_owned(),
+                        workload_state.execution_state,
+                    );
             }
         });
     }
@@ -166,14 +203,45 @@ mod tests {
             ExecutionState::running(),
         );
 
-        let mut wls = HashMap::new();
-        wls.insert(wl_1_state.instance_name.to_owned(), wl_1_state);
-        wls.insert(wl_2_state.instance_name.to_owned(), wl_2_state);
-        wls_db.stored_states.insert(AGENT_A.to_string(), wls);
+        let mut wls1_id_1 = HashMap::new();
+        let mut wls2_id_2 = HashMap::new();
 
-        let mut wls_2 = HashMap::new();
-        wls_2.insert(wl_3_state.instance_name.to_owned(), wl_3_state);
-        wls_db.stored_states.insert(AGENT_B.to_string(), wls_2);
+        wls1_id_1.insert(
+            wl_1_state.instance_name.id().to_owned(),
+            wl_1_state.execution_state,
+        );
+        wls2_id_2.insert(
+            wl_2_state.instance_name.id().to_owned(),
+            wl_2_state.execution_state,
+        );
+
+        let mut wls_agent_a = HashMap::new();
+        wls_agent_a.insert(
+            wl_1_state.instance_name.workload_name().to_owned(),
+            wls1_id_1,
+        );
+        wls_agent_a.insert(
+            wl_2_state.instance_name.workload_name().to_owned(),
+            wls2_id_2,
+        );
+
+        wls_db
+            .stored_states
+            .insert(AGENT_A.to_string(), wls_agent_a);
+
+        let mut wls3_id_3 = HashMap::new();
+        wls3_id_3.insert(
+            wl_3_state.instance_name.id().to_owned(),
+            wl_3_state.execution_state,
+        );
+        let mut wls_agent_b = HashMap::new();
+        wls_agent_b.insert(
+            wl_3_state.instance_name.workload_name().to_owned(),
+            wls3_id_3,
+        );
+        wls_db
+            .stored_states
+            .insert(AGENT_B.to_string(), wls_agent_b);
 
         wls_db
     }

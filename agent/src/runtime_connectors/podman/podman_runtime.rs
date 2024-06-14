@@ -124,7 +124,7 @@ impl RuntimeConnector<PodmanWorkloadId, GenericPollingStateChecker> for PodmanRu
 
         let workload_instance_names: Vec<WorkloadInstanceName> = res
             .iter()
-            .filter_map(|x| WorkloadInstanceName::new(x))
+            .filter_map(|x| x.as_str().try_into().ok())
             .collect();
 
         self.workload_instance_names_to_workload_states(&workload_instance_names)
@@ -316,8 +316,8 @@ mod tests {
                 .map(|x| x.instance_name.clone())
                 .collect::<Vec<WorkloadInstanceName>>(),
             vec![
-                WorkloadInstanceName::new("container1.hash.dummy_agent").unwrap(),
-                WorkloadInstanceName::new("container2.hash.dummy_agent").unwrap()
+                "container1.hash.dummy_agent".try_into().unwrap(),
+                "container2.hash.dummy_agent".try_into().unwrap()
             ]
         );
     }
@@ -559,7 +559,7 @@ mod tests {
             .expect()
             .return_const(Ok(vec!["test_workload_id".to_string()]));
 
-        let workload_name = WorkloadInstanceName::new("container1.hash.dummy_agent").unwrap();
+        let workload_name = "container1.hash.dummy_agent".try_into().unwrap();
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime.get_workload_id(&workload_name).await;
@@ -579,7 +579,7 @@ mod tests {
         let context = PodmanCli::list_workload_ids_by_label_context();
         context.expect().return_const(Ok(Vec::new()));
 
-        let workload_name = WorkloadInstanceName::new("container1.hash.dummy_agent").unwrap();
+        let workload_name = "container1.hash.dummy_agent".try_into().unwrap();
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime.get_workload_id(&workload_name).await;
@@ -599,7 +599,7 @@ mod tests {
         let context = PodmanCli::list_workload_ids_by_label_context();
         context.expect().return_const(Err("simulated error".into()));
 
-        let workload_name = WorkloadInstanceName::new("container1.hash.dummy_agent").unwrap();
+        let workload_name = "container1.hash.dummy_agent".try_into().unwrap();
 
         let podman_runtime = PodmanRuntime {};
         let res = podman_runtime.get_workload_id(&workload_name).await;

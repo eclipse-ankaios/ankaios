@@ -302,7 +302,7 @@ mod tests {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
 
         let inner_workload_instance_name =
-            WorkloadInstanceName::new(&format!("agent.{}.hash", WORKLOAD_1_NAME));
+            WorkloadInstanceName::new("agent", WORKLOAD_1_NAME, "hash");
         let new_workload_instance_name = WorkloadInstanceName::default();
 
         let mut pipes_channel_context_info_mock = MockPipesChannelContextInfo::default();
@@ -325,11 +325,7 @@ mod tests {
         inner_control_interface_mock
             .expect_get_api_location()
             .once()
-            .return_const(
-                inner_workload_instance_name
-                    .unwrap()
-                    .pipes_folder_name(PIPES_LOCATION.as_ref()),
-            );
+            .return_const(inner_workload_instance_name.pipes_folder_name(PIPES_LOCATION.as_ref()));
 
         test_workload_with_control_interface.control_interface = Some(inner_control_interface_mock);
 
@@ -342,8 +338,8 @@ mod tests {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
 
         let inner_workload_instance_name =
-            WorkloadInstanceName::new(&format!("agent.{}.hash", WORKLOAD_1_NAME));
-        let new_workload_instance_name = inner_workload_instance_name.clone().unwrap(); // simulates equal location
+            WorkloadInstanceName::new("agent", WORKLOAD_1_NAME, "hash");
+        let new_workload_instance_name = inner_workload_instance_name.clone(); // simulates equal location
 
         let mut pipes_channel_context_info_mock = MockPipesChannelContextInfo::default();
         pipes_channel_context_info_mock
@@ -365,11 +361,7 @@ mod tests {
         inner_control_interface_mock
             .expect_get_api_location()
             .once()
-            .return_const(
-                inner_workload_instance_name
-                    .unwrap()
-                    .pipes_folder_name(PIPES_LOCATION.as_ref()),
-            );
+            .return_const(inner_workload_instance_name.pipes_folder_name(PIPES_LOCATION.as_ref()));
 
         test_workload_with_control_interface.control_interface = Some(inner_control_interface_mock);
 
