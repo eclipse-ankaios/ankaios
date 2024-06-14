@@ -247,36 +247,9 @@ impl Display for WaitListDisplay {
             .collect();
         data.sort_by_key(|x| &x.data.name);
 
-        // [impl->swdd~cli-shall-present-workloads-as-table~1]
-
-        // let terminal_width = terminal::size().unwrap_or((80, 0)).0 as usize;
-        // let max_additional_info_length = data
-        //     .iter()
-        //     .max_by(|left, right| {
-        //         left.data
-        //             .additional_info
-        //             .len()
-        //             .cmp(&right.data.additional_info.len())
-        //     })
-        //     .map(|get_workload_table_with_spinner| {
-        //         get_workload_table_with_spinner.data.additional_info.len()
-        //     });
-
-        // let mut initial_table = Table::new(data);
-        // let styled_table = initial_table.with(Style::blank());
-        // let total_table_width = styled_table.total_width();
-        // let table_width_except_last_column =
-        //     total_table_width - max_additional_info_length.unwrap_or(0);
-        // let remaining_terminal_width = terminal_width - table_width_except_last_column;
-        // let styled_table = styled_table.with(
-        //     tabled::settings::Modify::new(tabled::settings::object::Columns::single(
-        //         GetWorkloadTableDisplay::ADDITIONAL_INFO_POS,
-        //     ))
-        //     .with(tabled::settings::Width::wrap(remaining_terminal_width)),
-        // );
-
         let workload_infos: Vec<&GetWorkloadTableDisplay> = data.iter().map(|x| x.data).collect();
 
+        // [impl->swdd~cli-shall-present-workloads-as-table~1]
         let styled_table = WorkloadTableInfos(&workload_infos).to_table();
 
         write!(f, "{}", styled_table)
@@ -346,6 +319,7 @@ fn trim_and_replace_newlines(text: &str) -> String {
 pub struct WorkloadTableInfos<'a>(&'a [&'a GetWorkloadTableDisplay]);
 
 impl<'a> WorkloadTableInfos<'a> {
+    // [impl->swdd~cli-shall-present-workloads-as-table~1]
     pub fn to_table(&self) -> Table {
         let mut basic_table: Table = self.create_basic_table();
 
@@ -567,29 +541,10 @@ impl CliCommands {
         output_debug!("The table after filtering:\n{:?}", workload_infos);
 
         // [impl->swdd~cli-shall-present-list-of-workloads~1]
-        // [impl->swdd~cli-shall-present-workloads-as-table~1]
-        // let terminal_width = terminal::size().unwrap_or((80, 0)).0 as usize;
-        // let workload_table_info = workload_infos.iter().map(|x| &x.1);
-        // let max_additional_info_length = workload_table_info
-        //     .into_iter()
-        //     .max_by(|left, right| left.additional_info.len().cmp(&right.additional_info.len()))
-        //     .map(|table_info| table_info.additional_info.len());
-
-        // let mut raw_table = Table::new(workload_infos.iter().map(|x| &x.1));
-        // let styled_table = raw_table.with(Style::blank());
-        // let total_table_width: usize = styled_table.total_width();
-        // let table_width_except_last_column =
-        //     total_table_width - max_additional_info_length.unwrap_or(0);
-        // let remaining_terminal_width = terminal_width - table_width_except_last_column;
-        // let styled_table = styled_table.with(
-        //     tabled::settings::Modify::new(tabled::settings::object::Columns::single(
-        //         GetWorkloadTableDisplay::ADDITIONAL_INFO_POS,
-        //     ))
-        //     .with(tabled::settings::Width::wrap(remaining_terminal_width)),
-        // );
         let workload_infos: Vec<&GetWorkloadTableDisplay> =
             workload_infos.iter().map(|x| &x.1).collect();
 
+        // [impl->swdd~cli-shall-present-workloads-as-table~1]
         let styled_table = WorkloadTableInfos(&workload_infos).to_table();
 
         Ok(styled_table.to_string())
