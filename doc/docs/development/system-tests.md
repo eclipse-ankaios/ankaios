@@ -112,6 +112,25 @@ Test Ankaios CLI get workloads
     [Teardown]    Clean up Ankaios
 ```
 
+### Run long-runtime system tests upon merge into main
+
+To keep the pull request status check runtime short, system tests with a longer runtime (> 30-40 seconds) shall be excluded from the pull request CI/CD verification by assigning the tag "non_execution_during_pull_request_verification" directly to the test case. When the pull request is merged into the main branch, the system test is executed. A contributor shall check the test results of those system tests afterwards.
+
+Example system test that runs only on merge into main:
+
+```robot hl_lines="7"
+...
+
+*** Test Cases ***
+...
+
+Test Ankaios Podman stops retries after reaching the retry attempt limit
+    [Tags]    non_execution_during_pull_request_verification
+    [Setup]    Run Keywords    Setup Ankaios
+
+...
+```
+
 ## System test execution
 
 !!! warning
