@@ -68,8 +68,8 @@ The following table shows the optional arguments that can be passed to the scrip
 | -v <version\> | e.g. `v0.1.0`, default: latest version |
 | -i <install-path\> | File path where Ankaios will be installed, default: `/usr/local/bin` |
 | -t <install-type\> | Installation type for systemd integration: `server`, `agent`, `none` or `both` (default) |
-| -s <server-options\> | Options which will be passed to the Ankaios server. Default `--startup-config /etc/ankaios/state.yaml` |
-| -a <agent-options\> | Options which will be passed to the Ankaios agent. Default `--name agent_A` |
+| -s <server-options\> | Options which will be passed to the Ankaios server. Default `--insecure --startup-config /etc/ankaios/state.yaml` |
+| -a <agent-options\> | Options which will be passed to the Ankaios agent. Default `--insecure --name agent_A` |
 
 To install a specific version run the following command and substitute `<version>` with a specific version tag e.g. `v0.1.0`:
 
