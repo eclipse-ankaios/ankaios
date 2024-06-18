@@ -46,7 +46,12 @@ pub struct AnkCli {
     #[clap(long = "no-wait")]
     /// Do not wait for workloads to be created/deleted
     pub no_wait: bool,
-    #[clap(short = 'k', long = "insecure", default_value_t = false)]
+    #[clap(
+        short = 'k',
+        long = "insecure",
+        env = "ANK_INSECURE",
+        default_value_t = false
+    )]
     /// Flag to disable TLS communication between ank CLI and Ankaios server.
     pub insecure: bool,
     #[clap(long = "ank_ca_pem", env)]

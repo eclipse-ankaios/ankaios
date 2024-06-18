@@ -31,7 +31,12 @@ pub struct Arguments {
     #[clap(short = 'a', long = "address", default_value_t = DEFAULT_SOCKET_ADDRESS.parse().unwrap())]
     /// The address, including the port, the server shall listen at.
     pub addr: SocketAddr,
-    #[clap(short = 'k', long = "insecure", default_value_t = false)]
+    #[clap(
+        short = 'k',
+        long = "insecure",
+        env = "ANKSERVER_INSECURE",
+        default_value_t = false
+    )]
     /// Flag to disable TLS communication between Ankaios server, agent and ank CLI.
     pub insecure: bool,
     #[clap(long = "ankserver_ca_pem", env)]
