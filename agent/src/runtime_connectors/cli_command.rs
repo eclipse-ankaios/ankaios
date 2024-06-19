@@ -105,7 +105,7 @@ mod tests {
     #[tokio::test]
     async fn utest_cli_command_fail_on_not_existing_command() {
         let result = CliCommand::new("non_existing_command").exec().await;
-        assert!(matches!(result, Err(x) if x.starts_with("Could not execute command")));
+        assert!(matches!(result, Err(x) if x.starts_with("Could not spawn command")));
     }
 
     #[tokio::test]
@@ -135,7 +135,7 @@ mod tests {
             .exec()
             .await;
 
-        assert!(matches!(result, Err(x) if x== "Execution of command failed: error"));
+        assert_eq!(result, Err("Execution of 'Command { std: \"bash\" \"-c\" \"echo output;echo error >&2; false\", kill_on_drop: false }' failed: 'error'".to_string()));
     }
 
     #[tokio::test]
@@ -157,7 +157,7 @@ mod tests {
             .await;
 
         assert!(
-            matches!(result, Err(x) if x.starts_with("Execution of command failed: Could not decode command's stderr as UTF8"))
+            matches!(result, Err(x) if x.contains("Could not decode command's stderr as UTF8"))
         );
     }
 
