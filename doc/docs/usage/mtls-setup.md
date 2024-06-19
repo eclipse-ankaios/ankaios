@@ -2,9 +2,9 @@
 
  Mutual TLS (MTLS) is a security protocol that verifies both the client and server identities before establishing a connection. To set up MTLS with OpenSSL perform the following actions:
 
-1. Generate CA keys and certificate
-2. Generate keys and certificates for `ank-server`, `ank-agent` and `ank` (CLI).
-3. Perform the Ankaios installation script `install.sh` with mTLS support.
+1. Generate CA key and certificate
+2. Generate keys and certificates for `ank-server`, `ank-agent` and `ank`
+3. Perform Ankaios installation with mTLS support
 
 ## Generate CA keys and certificate
 
@@ -22,13 +22,13 @@ CN = ankaios-ca
 
 Generate CA key:
 
-```bash
+```shell
 openssl genpkey -algorithm ED25519 -out ".certs/ca-key.pem"
 ```
 
 Generate CA certificate:
 
-```bash
+```shell
 openssl req -config "./ca.cnf" -new -x509 -key ".certs/ca-key.pem" -out ".certs/ca.pem"
 ```
 
@@ -56,19 +56,19 @@ DNS.1 = ank-server
 
 Generate ank-server key:
 
-```bash
+```shell
 openssl genpkey -algorithm ED25519 -out ".certs/ank-server-key.pem"
 ```
 
 Generate ank-server certificate signing request:
 
-```bash
+```shell
 openssl req -config "./ank-server.cnf" -new -key ".certs/ank-server-key.pem" -out ".certs/ank-server.csr"
 ```
 
 Generate ank-server certificate:
 
-```bash
+```shell
 openssl x509 -req -in ".certs/server.csr" -CA ".certs/ca.pem" -CAkey ".certs/ca-key.pem" -extensions v3_req -extfile "./ank-server.cnf" -out ".certs/ank-server.pem"
 ```
 
@@ -101,19 +101,19 @@ DNS.2 = agent_B
 
 Generate ank-agent key:
 
-```bash
+```shell
 openssl genpkey -algorithm ED25519 -out ".certs/ank-agent-key.pem"
 ```
 
 Generate ank-agent certificate signing request:
 
-```bash
+```shell
 openssl req -config "./ank-agent.cnf" -new -key ".certs/ank-agent-key.pem" -out ".certs/ank-agent.csr"
 ```
 
 Generate ank-agent certificate:
 
-```bash
+```shell
 openssl x509 -req -in ".certs/ank-agent.csr" -CA ".certs/ca.pem" -CAkey ".certs/ca-key.pem" -extensions v3_req -extfile "./ank-agent.cnf" -out ".certs/ank-agent.pem"
 ```
 
@@ -141,22 +141,61 @@ DNS.1 = ank
 
 Generate ank key:
 
-```bash
+```shell
 openssl genpkey -algorithm ED25519 -out ".certs/ank-key.pem"
 ```
 
 Generate ank certificate signing request:
 
-```bash
+```shell
 openssl req -config "./ank.cnf" -new -key ".certs/ank-key.pem" -out ".certs/ank.csr"
 ```
 
 Generate ank certificate:
 
-```bash
+```shell
 openssl x509 -req -in ".certs/ank.csr" -CA ".certs/ca.pem" -CAkey ".certs/ca-key.pem" -extensions v3_req -extfile "./ank.cnf" -out ".certs/ank.pem"
 ```
 
-## Perform the Ankaios installation script `install.sh` with mTLS support
+## Perform Ankaios installation with mTLS support
 
-TBD
+To set up Ankaios with mutual TLS (mTLS) support, you need to supply the necessary mTLS certificates to the `ank-server`, `ank-agent`, and `ank` CLI components. Here's a step-by-step guide:
+
+### Install the `ank-server` with mTLS certificates
+
+```shell
+curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh | bash -s -- -s "--ankserver_ca_pem ./certs/ca.pem --ankserver_crt_pem ./certs/ank-server.pem --ankserver_key_pem ./certs/ank-server-key.pem"
+```
+
+### Install the `ank-agent` with mTLS certificates
+
+```shell
+curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh | bash -s -- -s "--ankagent_ca_pem ./certs/ca.pem --ankagent_crt_pem ./certs/ank-agent.pem --ankagent_key_pem ./certs/ank-agent-key.pem"
+```
+
+### Configure the `ank` CLI with mTLS certificates
+
+To make it easier, we will set the mTLS certificates for the `ank` CLI by using environment variables:
+
+```shell
+export ANK_CA_PEM=./.certs/ca.pem ANK_CRT_PEM=./.certs/ank.pem ANK_KEY_PEM=./.certs/ank-key.pem
+```
+
+Now you can use the `ank` CLI as follows:
+
+```shell
+ank get workloads
+```
+
+Or in a single line call:
+
+```shell
+ANK_CA_PEM=./.certs/ca.pem ANK_CRT_PEM=./.certs/ank.pem ANK_KEY_PEM=./.certs/ank-key.pem ank get workloads
+```
+
+Alternatively, you can pass the mTLS certificates as command line arguments:
+
+```shell
+ank --ank_ca_pem=./.certs/ca.pem --ank_crt_pem=./.certs/ank.pem --ank_key_pem=./.certs/ank-key.pem get workloads
+```
+

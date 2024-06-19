@@ -37,7 +37,7 @@ For using the `podman` runtime, Podman version 3.4.2 is sufficient but the
 
 ## Installation methods
 
-There a different ways to install Ankaios.
+There are two methods to install Ankaios based on your specific requirements and focus areas. If you're new to Ankaios or TLS isn't a top priority at the moment, we recommend following the setup instructions in [Setup with script](#setup-with-script) without enabling mutual Transport Layer Security (mTLS) for communication. On the other hand, if you want to use mTLS for communication, follow the provided installation guidelines in [Setting up Ankaios with mTLS](./mtls-setup.md).
 
 ### Setup with script
 
