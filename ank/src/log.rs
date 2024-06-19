@@ -41,12 +41,12 @@ macro_rules! output_debug {
     ( $ ( $ arg : tt ) + ) => { $crate::log::output_debug_fn ( format_args ! ( $ ( $ arg ) + ) ) }
 }
 
-pub(crate) fn output_and_error_fn(args: fmt::Arguments<'_>) {
+pub(crate) fn output_and_error_fn(args: fmt::Arguments<'_>) -> ! {
     eprintln!("{} {}", "error:".bold().red(), args);
     exit(1);
 }
 
-pub(crate) fn output_and_exit_fn(args: fmt::Arguments<'_>) {
+pub(crate) fn output_and_exit_fn(args: fmt::Arguments<'_>) -> ! {
     std::println!("{}", args);
     exit(0);
 }

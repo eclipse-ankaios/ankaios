@@ -31,13 +31,10 @@ async fn read_file_to_string(file: String) -> std::io::Result<String> {
 use tests::read_to_string_mock as read_file_to_string;
 
 use common::{
-    from_server_interface::FromServer,
-    objects::{CompleteState, State, StoredWorkloadSpec, Tag, WorkloadInstanceName},
-    state_manipulation::{Object, Path},
+    communications_error::CommunicationMiddlewareError, from_server_interface::FromServer, objects::{CompleteState, State, StoredWorkloadSpec, Tag, WorkloadInstanceName}, state_manipulation::{Object, Path}
 };
 
 use tabled::{settings::Style, Table, Tabled};
-use url::Url;
 
 #[cfg_attr(test, mockall_double::double)]
 use self::server_connection::ServerConnection;
@@ -315,14 +312,14 @@ impl CliCommands {
     pub fn init(
         response_timeout_ms: u64,
         cli_name: String,
-        server_url: Url,
+        server_url: String,
         no_wait: bool,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, CommunicationMiddlewareError> {
+        Ok(Self {
             _response_timeout_ms: response_timeout_ms,
             no_wait,
-            server_connection: ServerConnection::new(cli_name.as_str(), server_url.clone()),
-        }
+            server_connection: ServerConnection::new(cli_name.as_str(), server_url.clone())?,
+        })
     }
 
     pub async fn shut_down(self) {
@@ -353,7 +350,6 @@ impl CliCommands {
                 output_and_error!(
                     "Error occurred during processing response from server.\nError: {err}"
                 );
-                Err(err)
             }
         }
     }
@@ -734,8 +730,6 @@ mod tests {
 
     use super::CliCommands;
 
-    use url::Url;
-
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
     const EXAMPLE_STATE_INPUT: &str = r#"{
@@ -771,7 +765,7 @@ mod tests {
 
     mockall::mock! {
         pub GRPCCommunicationsClient {
-            pub fn new_cli_communication(name: String, server_address: Url) -> Self;
+            pub fn new_cli_communication(name: String, server_address: String) -> Self;
             pub async fn run(
                 &mut self,
                 mut server_rx: ToServerReceiver,
