@@ -79,7 +79,7 @@ mod tests {
 
         let args = Arguments {
             agent_name: "test_agent_name".to_owned(),
-            server_url: DEFAULT_SERVER_ADDRESS.parse().unwrap(),
+            server_url: DEFAULT_SERVER_ADDRESS.to_string(),
             run_folder: DEFAULT_RUN_FOLDER.to_owned(),
         };
 
@@ -95,7 +95,7 @@ mod tests {
 
         let args = Arguments {
             agent_name: "test_agent_name".to_owned(),
-            server_url: DEFAULT_SERVER_ADDRESS.parse().unwrap(),
+            server_url: DEFAULT_SERVER_ADDRESS.to_string(),
             run_folder: "/tmp/x".to_owned(),
         };
 
