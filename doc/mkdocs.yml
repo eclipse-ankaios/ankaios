@@ -75,6 +75,8 @@ nav:
     - Upgrading:
       - usage/upgrading/v0_2_to_v0_3.md
       - usage/upgrading/v0_3_to_v0_4.md
+  - mTLS:
+    - mtls/mtls-setup.md
   - Reference:
     - reference/startup-configuration.md
     - reference/interacting-with-ankaios.md
