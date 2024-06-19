@@ -198,4 +198,3 @@ Alternatively, you can pass the mTLS certificates as command line arguments:
 ```shell
 ank --ank_ca_pem=./.certs/ca.pem --ank_crt_pem=./.certs/ank.pem --ank_key_pem=./.certs/ank-key.pem get workloads
 ```
-
