@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use api::proto;
+use api::ank_base;
 use serde::{Deserialize, Serialize};
 
 use super::{StoredWorkloadSpec, WorkloadSpec};
@@ -53,8 +53,8 @@ impl From<(String, &StoredWorkloadSpec)> for WorkloadInstanceName {
     }
 }
 
-impl From<proto::WorkloadInstanceName> for WorkloadInstanceName {
-    fn from(item: proto::WorkloadInstanceName) -> Self {
+impl From<ank_base::WorkloadInstanceName> for WorkloadInstanceName {
+    fn from(item: ank_base::WorkloadInstanceName) -> Self {
         WorkloadInstanceName {
             workload_name: item.workload_name,
             agent_name: item.agent_name,
@@ -63,9 +63,9 @@ impl From<proto::WorkloadInstanceName> for WorkloadInstanceName {
     }
 }
 
-impl From<WorkloadInstanceName> for proto::WorkloadInstanceName {
+impl From<WorkloadInstanceName> for ank_base::WorkloadInstanceName {
     fn from(item: WorkloadInstanceName) -> Self {
-        proto::WorkloadInstanceName {
+        ank_base::WorkloadInstanceName {
             workload_name: item.workload_name,
             agent_name: item.agent_name,
             id: item.id,

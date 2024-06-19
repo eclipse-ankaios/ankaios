@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Elektrobit Automotive GmbH
+// Copyright (c) 2024 Elektrobit Automotive GmbH
 //
 // This program and the accompanying materials are made available under the
 // terms of the Apache License, Version 2.0 which is available at
@@ -12,13 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub mod ank_base {
-
-    // [impl->swdd~ank-base-provides-object-definitions~1]
-    tonic::include_proto!("ank_base"); // The string specified here must match the proto package name
-}
-
-pub mod control_api {
-    // [impl->swdd~control-api-provides-control-interface-definitions~1]
-    tonic::include_proto!("control_api"); // The string specified here must match the proto package name
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tonic_build::configure()
+        .build_server(true)
+        .compile(
+            &["proto/grpc_api.proto"],
+            &["proto", "../api/proto"],
+        )
+        .unwrap();
+    Ok(())
 }

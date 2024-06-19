@@ -24,7 +24,7 @@ tokio = { version = "1.28", features = [
 tokio-stream = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
-url = "2.3"
+url = "= 2.5.0"
 uuid = { version = "1.3", features = ["v4", "fast-rng"] }
 
 [dev-dependencies]
@@ -32,6 +32,9 @@ common = { path = "../common", features = ["test_utils"] }
 mockall = "0.11"
 mockall_double = "0.3"
 futures-util = "0.3"
+
+[build-dependencies]
+tonic-build = "0.9"
 
 [lib]
 name = "grpc"

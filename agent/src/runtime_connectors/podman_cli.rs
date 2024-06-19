@@ -193,6 +193,7 @@ impl PodmanCli {
         args.extend(["kube", "play", "--quiet"]);
         args.extend(play_options.iter().map(|x| x as &str));
         args.push("-");
+        log::debug!("Executing play kube with args: {args:?}");
         let result = CliCommand::new(PODMAN_CMD)
             .args(&args)
             .stdin(kube_yml)
