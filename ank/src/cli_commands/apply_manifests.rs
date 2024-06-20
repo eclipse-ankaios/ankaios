@@ -194,12 +194,25 @@ mod tests {
     use common::{
         commands::{Response, UpdateStateSuccess, UpdateWorkloadState},
         from_server_interface::FromServer,
-        objects::{self, CompleteState, ExecutionState, RunningSubstate, WorkloadState},
+        objects::{
+            self, generate_test_workload_spec_with_param, CompleteState, ExecutionState,
+            RunningSubstate, State, WorkloadState,
+        },
+        state_manipulation::{Object, Path},
+        test_utils,
     };
+    use serde_yaml::Value;
 
     use crate::{
-        cli::{ApplyArgs, InputSources},
-        cli_commands::{server_connection::MockServerConnection, CliCommands},
+        cli::{ApplyArgs, InputSourcePair, InputSources},
+        cli_commands::{
+            apply_manifests::{
+                create_filter_masks_from_paths, generate_state_obj_and_filter_masks_from_manifests,
+                handle_agent_overwrite, parse_manifest, update_request_obj,
+            },
+            server_connection::MockServerConnection,
+            CliCommands,
+        },
     };
 
     mockall::mock! {
@@ -210,6 +223,352 @@ mod tests {
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
     const OTHER_REQUEST_ID: &str = "other_request_id";
+
+    // [utest->swdd~cli-apply-supports-ankaios-manifest~1]
+    #[test]
+    fn utest_parse_manifest_ok() {
+        let manifest_content = io::Cursor::new(
+            b"apiVersion: \"v0.1\"\nworkloads:
+    simple:
+      runtime: podman
+      agent: agent_A
+      runtimeConfig: |
+        image: docker.io/nginx:latest
+        commandOptions: [\"-p\", \"8081:80\"]",
+        );
+
+        assert!(parse_manifest(&mut (
+            "valid_manifest_content".to_string(),
+            Box::new(manifest_content)
+        ))
+        .is_ok());
+    }
+
+    #[test]
+    fn utest_parse_manifest_invalid_manifest_content() {
+        let manifest_content = io::Cursor::new(b"invalid manifest content");
+
+        let (obj, paths) = parse_manifest(&mut (
+            "invalid_manifest_content".to_string(),
+            Box::new(manifest_content),
+        ))
+        .unwrap();
+
+        assert!(TryInto::<State>::try_into(obj).is_err());
+        assert!(paths.is_empty());
+    }
+
+    #[test]
+    fn utest_update_request_obj_ok() {
+        let mut req_obj = Object::default();
+        let content_value: Value = serde_yaml::from_str(
+            r#"
+        workloads:
+         simple:
+            agent: agent1
+         complex:
+            agent: agent1
+        "#,
+        )
+        .unwrap();
+        let cur_obj = Object::try_from(&content_value).unwrap();
+        let paths = vec![
+            Path::from("workloads.simple"),
+            Path::from("workloads.complex"),
+        ];
+        let expected_obj = Object::try_from(&content_value).unwrap();
+
+        assert!(update_request_obj(&mut req_obj, &cur_obj, &paths,).is_ok());
+        assert_eq!(expected_obj, req_obj);
+    }
+
+    #[test]
+    fn utest_update_request_obj_failed_same_workload_names() {
+        let content_value: Value = serde_yaml::from_str(
+            r#"
+        workloads:
+         same_workload_name: {}
+        "#,
+        )
+        .unwrap();
+        let cur_obj = Object::try_from(&content_value).unwrap();
+
+        // simulates the workload 'same_workload_name' is already there
+        let mut req_obj = Object::try_from(&content_value).unwrap();
+
+        let paths = vec![Path::from("workloads.same_workload_name")];
+
+        assert!(update_request_obj(&mut req_obj, &cur_obj, &paths,).is_err());
+    }
+
+    #[test]
+    fn utest_update_request_obj_delete_mode_on_ok() {
+        let mut req_obj = Object::default();
+        let content_value: Value = serde_yaml::from_str(
+            r#"
+        workloads:
+         simple:
+            agent: agent1
+         complex:
+            agent: agent1
+        "#,
+        )
+        .unwrap();
+        let cur_obj = Object::try_from(&content_value).unwrap();
+        let paths = vec![
+            Path::from("workloads.simple"),
+            Path::from("workloads.complex"),
+        ];
+
+        assert!(update_request_obj(&mut req_obj, &cur_obj, &paths).is_ok());
+    }
+
+    #[test]
+    fn utest_create_filter_masks_from_paths_unique_ok() {
+        let paths = vec![
+            Path::from("workloads.simple"),
+            Path::from("workloads.simple"),
+        ];
+        assert_eq!(
+            vec!["currentState.workloads.simple"],
+            create_filter_masks_from_paths(&paths, "currentState")
+        );
+    }
+
+    #[test]
+    fn utest_handle_agent_overwrite_agent_name_provided_through_agent_flag() {
+        let state = test_utils::generate_test_state_from_workloads(vec![
+            generate_test_workload_spec_with_param(
+                "agent_A".to_string(),
+                "wl1".to_string(),
+                "runtime_X".to_string(),
+            ),
+        ]);
+
+        let expected_state = test_utils::generate_test_state_from_workloads(vec![
+            generate_test_workload_spec_with_param(
+                "overwritten_agent_name".to_string(),
+                "wl1".to_string(),
+                "runtime_X".to_string(),
+            ),
+        ]);
+
+        assert_eq!(
+            handle_agent_overwrite(
+                &vec!["workloads.wl1".into()],
+                &Some("overwritten_agent_name".to_string()),
+                state.try_into().unwrap(),
+            )
+            .unwrap(),
+            expected_state
+        );
+    }
+
+    #[test]
+    fn utest_handle_agent_overwrite_one_agent_name_provided_in_workload_specs() {
+        let state = test_utils::generate_test_state_from_workloads(vec![
+            generate_test_workload_spec_with_param(
+                "agent_A".to_string(),
+                "wl1".to_string(),
+                "runtime_X".to_string(),
+            ),
+        ]);
+
+        assert_eq!(
+            handle_agent_overwrite(
+                &vec!["workloads.wl1".into()],
+                &None,
+                state.clone().try_into().unwrap(),
+            )
+            .unwrap(),
+            state
+        );
+    }
+
+    #[test]
+    fn utest_handle_agent_overwrite_multiple_agent_names_provided_in_workload_specs() {
+        let state = test_utils::generate_test_state_from_workloads(vec![
+            generate_test_workload_spec_with_param(
+                "agent_A".to_string(),
+                "wl1".to_string(),
+                "runtime_X".to_string(),
+            ),
+            generate_test_workload_spec_with_param(
+                "agent_B".to_string(),
+                "wl2".to_string(),
+                "runtime_X".to_string(),
+            ),
+        ]);
+
+        assert_eq!(
+            handle_agent_overwrite(
+                &vec!["workloads.wl1".into(), "workloads.wl2".into()],
+                &None,
+                state.clone().try_into().unwrap(),
+            )
+            .unwrap(),
+            state
+        );
+    }
+
+    // [utest->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
+    #[test]
+    fn utest_handle_agent_overwrite_no_agent_name_provided_at_all() {
+        let state = test_utils::generate_test_state_from_workloads(vec![
+            generate_test_workload_spec_with_param(
+                "agent_A".to_string(),
+                "wl1".to_string(),
+                "runtime_X".to_string(),
+            ),
+        ]);
+
+        let mut obj: Object = state.try_into().unwrap();
+
+        obj.remove(&"workloads.wl1.agent".into()).unwrap();
+
+        assert_eq!(
+            Err("No agent name specified -> use '--agent' option to specify!".to_string()),
+            handle_agent_overwrite(&vec!["workloads.wl1".into()], &None, obj)
+        );
+    }
+
+    #[test]
+    fn utest_handle_agent_overwrite_missing_agent_name() {
+        let state = test_utils::generate_test_state_from_workloads(vec![
+            generate_test_workload_spec_with_param(
+                "agent_A".to_string(),
+                "wl1".to_string(),
+                "runtime_X".to_string(),
+            ),
+        ]);
+
+        let expected_state = test_utils::generate_test_state_from_workloads(vec![
+            generate_test_workload_spec_with_param(
+                "overwritten_agent_name".to_string(),
+                "wl1".to_string(),
+                "runtime_X".to_string(),
+            ),
+        ]);
+
+        let mut obj: Object = state.try_into().unwrap();
+
+        obj.remove(&"workloads.wl1.agent".into()).unwrap();
+
+        assert_eq!(
+            handle_agent_overwrite(
+                &vec!["workloads.wl1".into()],
+                &Some("overwritten_agent_name".to_string()),
+                obj,
+            )
+            .unwrap(),
+            expected_state
+        );
+    }
+
+    // [utest->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
+    // [utest->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
+    #[test]
+    fn utest_generate_state_obj_and_filter_masks_from_manifests_ok() {
+        let manifest_file_name = "manifest.yaml";
+        let manifest_content = io::Cursor::new(
+            b"apiVersion: \"v0.1\"\nworkloads:
+        simple:
+          runtime: podman
+          agent: agent_A
+          restartPolicy: ALWAYS
+          updateStrategy: AT_MOST_ONCE
+          accessRights:
+            allow: []
+            deny: []
+          tags:
+            - key: owner
+              value: Ankaios team
+          runtimeConfig: |
+            image: docker.io/nginx:latest
+            commandOptions: [\"-p\", \"8081:80\"]",
+        );
+
+        let mut data = String::new();
+        let _ = manifest_content.clone().read_to_string(&mut data);
+        let expected_complete_state_obj = CompleteState {
+            desired_state: serde_yaml::from_str(&data).unwrap(),
+            ..Default::default()
+        };
+
+        let expected_filter_masks = vec!["desiredState.workloads.simple".to_string()];
+
+        let mut manifests: Vec<InputSourcePair> =
+            vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
+
+        assert_eq!(
+            Ok((expected_complete_state_obj, expected_filter_masks)),
+            generate_state_obj_and_filter_masks_from_manifests(
+                &mut manifests[..],
+                &ApplyArgs {
+                    agent_name: None,
+                    manifest_files: vec![manifest_file_name.to_string()],
+                    delete_mode: false,
+                },
+            )
+        );
+    }
+
+    // [utest->swdd~cli-apply-generates-state-object-from-ankaios-manifests~1]
+    // [utest->swdd~cli-apply-generates-filter-masks-from-ankaios-manifests~1]
+    #[test]
+    fn utest_generate_state_obj_and_filter_masks_from_manifests_delete_mode_ok() {
+        let manifest_file_name = "manifest.yaml";
+        let manifest_content = io::Cursor::new(
+            b"apiVersion: \"v0.1\"\nworkloads:
+        simple:
+          runtime: podman
+          agent: agent_A
+          runtimeConfig: |
+            image: docker.io/nginx:latest
+            commandOptions: [\"-p\", \"8081:80\"]",
+        );
+
+        let expected_complete_state_obj = CompleteState {
+            ..Default::default()
+        };
+
+        let expected_filter_masks = vec!["desiredState.workloads.simple".to_string()];
+
+        let mut manifests: Vec<InputSourcePair> =
+            vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
+
+        assert_eq!(
+            Ok((expected_complete_state_obj, expected_filter_masks)),
+            generate_state_obj_and_filter_masks_from_manifests(
+                &mut manifests[..],
+                &ApplyArgs {
+                    agent_name: None,
+                    manifest_files: vec![manifest_file_name.to_string()],
+                    delete_mode: true,
+                },
+            )
+        );
+    }
+
+    #[test]
+    fn utest_generate_state_obj_and_filter_masks_from_manifests_no_workload_provided() {
+        let manifest_file_name = "manifest.yaml";
+        let manifest_content = io::Cursor::new(b"apiVersion: \"v0.1\"");
+        let mut manifests: Vec<InputSourcePair> =
+            vec![(manifest_file_name.to_string(), Box::new(manifest_content))];
+
+        assert_eq!(
+            Err("No workload provided in manifests!".to_string()),
+            generate_state_obj_and_filter_masks_from_manifests(
+                &mut manifests[..],
+                &ApplyArgs {
+                    agent_name: None,
+                    manifest_files: vec![manifest_file_name.to_string()],
+                    delete_mode: true,
+                },
+            )
+        );
+    }
 
     //[utest->swdd~cli-apply-send-update-state~1]
     #[tokio::test]
