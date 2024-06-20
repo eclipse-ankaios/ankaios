@@ -18,10 +18,12 @@ use std::{
     time::Duration,
 };
 mod apply_manifests;
-mod server_connection;
+pub mod server_connection;
 mod wait_list;
 use tokio::time::interval;
 use wait_list::WaitList;
+mod get_workload_table_display;
+use get_workload_table_display::{GetWorkloadTableDisplay, GetWorkloadTableDisplayWithSpinner};
 
 #[cfg(not(test))]
 async fn read_file_to_string(file: String) -> std::io::Result<String> {
@@ -31,67 +33,24 @@ async fn read_file_to_string(file: String) -> std::io::Result<String> {
 use tests::read_to_string_mock as read_file_to_string;
 
 use common::{
-    communications_error::CommunicationMiddlewareError, from_server_interface::FromServer, objects::{CompleteState, State, StoredWorkloadSpec, Tag, WorkloadInstanceName}, state_manipulation::{Object, Path}
+    communications_error::CommunicationMiddlewareError,
+    from_server_interface::FromServer,
+    objects::{CompleteState, State, StoredWorkloadSpec, Tag, WorkloadInstanceName},
+    state_manipulation::{Object, Path},
 };
 
-use tabled::{settings::Style, Table, Tabled};
+use tabled::{settings::Style, Table};
 
 #[cfg_attr(test, mockall_double::double)]
 use self::server_connection::ServerConnection;
 use self::wait_list::WaitListDisplayTrait;
 use crate::{
-    cli::{ApplyArgs, OutputFormat},
-    cli_commands::wait_list::ParsedUpdateStateSuccess,
+    cli::OutputFormat, cli_commands::wait_list::ParsedUpdateStateSuccess, cli_error::CliError,
     output, output_and_error, output_debug,
 };
 
 const SPINNER_SYMBOLS: [&str; 4] = ["|", "/", "-", "\\"];
 pub(crate) const COMPLETED_SYMBOL: &str = " ";
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum CliError {
-    YamlSerialization(String),
-    JsonSerialization(String),
-    ExecutionError(String),
-}
-
-impl fmt::Display for CliError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            CliError::YamlSerialization(message) => {
-                write!(f, "Could not serialize YAML object: '{message}'")
-            }
-            CliError::JsonSerialization(message) => {
-                write!(f, "Could not serialize JSON object: '{message}'")
-            }
-            CliError::ExecutionError(message) => {
-                write!(f, "Command failed: '{}'", message)
-            }
-        }
-    }
-}
-
-impl From<serde_yaml::Error> for CliError {
-    fn from(value: serde_yaml::Error) -> Self {
-        CliError::YamlSerialization(format!("{value}"))
-    }
-}
-
-impl From<serde_json::Error> for CliError {
-    fn from(value: serde_json::Error) -> Self {
-        CliError::JsonSerialization(format!("{value}"))
-    }
-}
-
-impl From<server_connection::ServerConnectionError> for CliError {
-    fn from(value: server_connection::ServerConnectionError) -> Self {
-        match value {
-            server_connection::ServerConnectionError::ExecutionError(message) => {
-                CliError::ExecutionError(message)
-            }
-        }
-    }
-}
 
 fn generate_compact_state_output(
     state: &CompleteState,
@@ -169,51 +128,6 @@ fn update_compact_state(
     Some(())
 }
 
-#[derive(Debug, Tabled, Clone)]
-#[tabled(rename_all = "UPPERCASE")]
-struct GetWorkloadTableDisplay {
-    #[tabled(rename = "WORKLOAD NAME")]
-    name: String,
-    agent: String,
-    runtime: String,
-    #[tabled(rename = "EXECUTION STATE")]
-    execution_state: String,
-    #[tabled(rename = "ADDITIONAL INFO")]
-    additional_info: String,
-}
-
-struct GetWorkloadTableDisplayWithSpinner<'a> {
-    data: &'a GetWorkloadTableDisplay,
-    spinner: &'a str,
-}
-
-impl GetWorkloadTableDisplay {
-    const EXECUTION_STATE_POS: usize = 3;
-}
-
-impl<'a> Tabled for GetWorkloadTableDisplayWithSpinner<'a> {
-    const LENGTH: usize = GetWorkloadTableDisplay::LENGTH;
-
-    fn fields(&self) -> Vec<std::borrow::Cow<'_, str>> {
-        let mut fields = self.data.fields();
-        *(fields[GetWorkloadTableDisplay::EXECUTION_STATE_POS].to_mut()) = format!(
-            "{} {}",
-            self.spinner,
-            fields[GetWorkloadTableDisplay::EXECUTION_STATE_POS]
-        );
-        fields
-    }
-
-    fn headers() -> Vec<std::borrow::Cow<'static, str>> {
-        let mut headers = GetWorkloadTableDisplay::headers();
-        *(headers[GetWorkloadTableDisplay::EXECUTION_STATE_POS].to_mut()) = format!(
-            "  {}",
-            headers[GetWorkloadTableDisplay::EXECUTION_STATE_POS]
-        );
-        headers
-    }
-}
-
 struct WaitListDisplay {
     data: HashMap<WorkloadInstanceName, GetWorkloadTableDisplay>,
     not_completed: HashSet<WorkloadInstanceName>,
@@ -280,24 +194,6 @@ impl Spinner {
 impl Display for Spinner {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", SPINNER_SYMBOLS[self.pos])
-    }
-}
-
-impl GetWorkloadTableDisplay {
-    fn new(
-        name: &str,
-        agent: &str,
-        runtime: &str,
-        execution_state: &str,
-        additional_info: &str,
-    ) -> Self {
-        GetWorkloadTableDisplay {
-            name: name.to_string(),
-            agent: agent.to_string(),
-            runtime: runtime.to_string(),
-            execution_state: execution_state.to_string(),
-            additional_info: additional_info.to_string(),
-        }
     }
 }
 
@@ -670,23 +566,6 @@ impl CliCommands {
         }
         Ok(())
     }
-
-    // [impl->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
-    pub async fn apply_manifests(&mut self, apply_args: ApplyArgs) -> Result<(), CliError> {
-        use apply_manifests::*;
-        match apply_args.get_input_sources() {
-            Ok(mut manifests) => {
-                let (complete_state_req_obj, filter_masks) =
-                    generate_state_obj_and_filter_masks_from_manifests(&mut manifests, &apply_args)
-                        .map_err(CliError::ExecutionError)?;
-
-                // [impl->swdd~cli-apply-send-update-state~1]
-                self.update_state_and_wait_for_complete(complete_state_req_obj, filter_masks)
-                    .await
-            }
-            Err(err) => Err(CliError::ExecutionError(err.to_string())),
-        }
-    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -699,11 +578,11 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use common::{
-        commands::{Response, UpdateStateSuccess, UpdateWorkloadState},
+        commands::{UpdateStateSuccess, UpdateWorkloadState},
         from_server_interface::{FromServer, FromServerSender},
         objects::{
-            self, generate_test_workload_spec_with_param, CompleteState, ExecutionState,
-            RunningSubstate, State, StoredWorkloadSpec, Tag, WorkloadState,
+            self, generate_test_workload_spec_with_param, CompleteState, ExecutionState, State,
+            StoredWorkloadSpec, Tag, WorkloadState,
         },
         state_manipulation::{Object, Path},
         test_utils::{self, generate_test_complete_state},
@@ -718,11 +597,10 @@ mod tests {
         handle_agent_overwrite, parse_manifest, update_request_obj, InputSourcePair,
     };
     use crate::{
-        cli::OutputFormat,
+        cli::{ApplyArgs, OutputFormat},
         cli_commands::{
             generate_compact_state_output, get_filtered_value,
-            server_connection::MockServerConnection, update_compact_state, ApplyArgs,
-            GetWorkloadTableDisplay,
+            server_connection::MockServerConnection, update_compact_state, GetWorkloadTableDisplay,
         },
     };
     use serde_yaml::Value;
@@ -745,14 +623,10 @@ mod tests {
             }
         }
     }"#;
-    const OTHER_REQUEST_ID: &str = "other_request_id";
 
     mockall::lazy_static! {
         pub static ref FAKE_READ_TO_STRING_MOCK_RESULT_LIST: tokio::sync::Mutex<std::collections::VecDeque<io::Result<String>>>  =
         tokio::sync::Mutex::new(std::collections::VecDeque::new());
-
-        pub static ref FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST: std::sync::Mutex<std::collections::VecDeque<io::Result<InputSourcePair>>>  =
-        std::sync::Mutex::new(std::collections::VecDeque::new());
     }
 
     pub async fn read_to_string_mock(_file: String) -> io::Result<String> {
@@ -772,16 +646,6 @@ mod tests {
                 agent_tx: FromServerSender,
             ) -> Result<(), String>;
         }
-    }
-
-    pub fn open_manifest_mock(
-        _file_path: &str,
-    ) -> io::Result<(String, Box<dyn io::Read + Send + Sync + 'static>)> {
-        FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
-            .lock()
-            .unwrap()
-            .pop_front()
-            .unwrap()
     }
 
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
@@ -1793,80 +1657,6 @@ mod tests {
         assert_eq!(empty_map, expected_map);
     }
 
-    // [utest->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
-    #[tokio::test]
-    async fn utest_apply_args_get_input_sources_manifest_files_ok() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let _dummy_content = io::Cursor::new(b"manifest content");
-        for i in 1..3 {
-            FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
-                .lock()
-                .unwrap()
-                .push_back(Ok((
-                    format!("manifest{i}.yml"),
-                    Box::new(_dummy_content.clone()),
-                )));
-        }
-
-        let args = ApplyArgs {
-            manifest_files: vec!["manifest1.yml".to_owned(), "manifest2.yml".to_owned()],
-            agent_name: None,
-            delete_mode: false,
-        };
-        let expected = vec!["manifest1.yml".to_owned(), "manifest2.yml".to_owned()];
-        let actual = args.get_input_sources().unwrap();
-
-        let get_file_name = |item: &InputSourcePair| -> String { item.0.to_owned() };
-        assert_eq!(
-            expected,
-            actual.iter().map(get_file_name).collect::<Vec<String>>()
-        )
-    }
-
-    #[tokio::test]
-    async fn utest_apply_args_get_input_sources_manifest_files_error() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let _dummy_content = io::Cursor::new(b"manifest content");
-        FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
-            .lock()
-            .unwrap()
-            .push_back(Err(io::Error::other(
-                "Some error occurred during open the manifest file!",
-            )));
-
-        let args = ApplyArgs {
-            manifest_files: vec!["manifest1.yml".to_owned()],
-            agent_name: None,
-            delete_mode: false,
-        };
-
-        assert!(args.get_input_sources().is_err(), "Expected an error");
-    }
-
-    // [utest->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
-    #[test]
-    fn utest_apply_args_get_input_sources_valid_manifest_stdin() {
-        let args = ApplyArgs {
-            manifest_files: vec!["-".to_owned()],
-            agent_name: None,
-            delete_mode: false,
-        };
-        let expected = vec!["stdin".to_owned()];
-        let actual = args.get_input_sources().unwrap();
-
-        let get_file_name = |item: &InputSourcePair| -> String { item.0.to_owned() };
-        assert_eq!(
-            expected,
-            actual.iter().map(get_file_name).collect::<Vec<String>>()
-        )
-    }
-
     // [utest->swdd~cli-apply-supports-ankaios-manifest~1]
     #[test]
     fn utest_parse_manifest_ok() {
@@ -2211,187 +2001,5 @@ mod tests {
                 },
             )
         );
-    }
-
-    //[utest->swdd~cli-apply-send-update-state~1]
-    #[tokio::test]
-    async fn utest_apply_manifests_delete_mode_ok() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let manifest_content = io::Cursor::new(
-            b"apiVersion: \"v0.1\"\nworkloads:
-    simple_manifest1:
-      runtime: podman
-      agent: agent_A
-      runtimeConfig: |
-            image: docker.io/nginx:latest
-            commandOptions: [\"-p\", \"8081:80\"]",
-        );
-
-        let mut manifest_data = String::new();
-        let _ = manifest_content.clone().read_to_string(&mut manifest_data);
-
-        FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
-            .lock()
-            .unwrap()
-            .push_back(Ok(("manifest.yml".to_string(), Box::new(manifest_content))));
-
-        let updated_state = CompleteState {
-            ..Default::default()
-        };
-
-        let mut mock_server_connection = MockServerConnection::default();
-        mock_server_connection
-            .expect_update_state()
-            .with(
-                eq(updated_state.clone()),
-                eq(vec!["desiredState.workloads.simple_manifest1".to_string()]),
-            )
-            .return_once(|_, _| {
-                Ok(UpdateStateSuccess {
-                    added_workloads: vec![],
-                    deleted_workloads: vec!["name4.abc.agent_B".to_string()],
-                })
-            });
-        let updated_state_clone = updated_state.clone();
-        mock_server_connection
-            .expect_get_complete_state()
-            .with(eq(vec![]))
-            .return_once(|_| Ok(Box::new(updated_state_clone)));
-        mock_server_connection
-            .expect_take_missed_from_server_messages()
-            .return_once(std::vec::Vec::new);
-        mock_server_connection
-            .expect_read_next_update_workload_state()
-            .return_once(|| {
-                Ok(UpdateWorkloadState {
-                    workload_states: vec![WorkloadState {
-                        instance_name: "name4.abc.agent_B".try_into().unwrap(),
-                        execution_state: ExecutionState {
-                            state: objects::ExecutionStateEnum::Removed,
-                            ..Default::default()
-                        },
-                    }],
-                })
-            });
-
-        let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
-            no_wait: false,
-            server_connection: mock_server_connection,
-        };
-
-        let apply_result = cmd
-            .apply_manifests(ApplyArgs {
-                agent_name: None,
-                delete_mode: true,
-                manifest_files: vec!["manifest_yaml".to_string()],
-            })
-            .await;
-        assert!(apply_result.is_ok());
-    }
-
-    //[utest->swdd~cli-apply-send-update-state~1]
-    #[tokio::test]
-    async fn utest_apply_manifests_ok() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let manifest_content = io::Cursor::new(
-            b"apiVersion: \"v0.1\"\nworkloads:
-        simple_manifest1:
-          runtime: podman
-          agent: agent_A
-          runtimeConfig: \"\"
-            ",
-        );
-
-        let mut manifest_data = String::new();
-        let _ = manifest_content.clone().read_to_string(&mut manifest_data);
-
-        FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
-            .lock()
-            .unwrap()
-            .push_back(Ok(("manifest.yml".to_string(), Box::new(manifest_content))));
-
-        let updated_state = CompleteState {
-            desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
-            ..Default::default()
-        };
-
-        let mut mock_server_connection = MockServerConnection::default();
-        mock_server_connection
-            .expect_update_state()
-            .with(
-                eq(updated_state.clone()),
-                eq(vec!["desiredState.workloads.simple_manifest1".to_string()]),
-            )
-            .return_once(|_, _| {
-                Ok(UpdateStateSuccess {
-                    added_workloads: vec!["simple_manifest1.abc.agent_B".to_string()],
-                    deleted_workloads: vec![],
-                })
-            });
-        mock_server_connection
-            .expect_get_complete_state()
-            .with(eq(vec![]))
-            .return_once(|_| {
-                Ok(Box::new(CompleteState {
-                    desired_state: updated_state.desired_state,
-                    ..Default::default()
-                }))
-            });
-        mock_server_connection
-            .expect_take_missed_from_server_messages()
-            .return_once(|| {
-                vec![
-                    FromServer::Response(Response {
-                        request_id: OTHER_REQUEST_ID.into(),
-                        response_content: common::commands::ResponseContent::Error(
-                            Default::default(),
-                        ),
-                    }),
-                    FromServer::UpdateWorkloadState(UpdateWorkloadState {
-                        workload_states: vec![WorkloadState {
-                            instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
-                            execution_state: ExecutionState {
-                                state: objects::ExecutionStateEnum::Running(RunningSubstate::Ok),
-                                ..Default::default()
-                            },
-                        }],
-                    }),
-                ]
-            });
-        mock_server_connection
-            .expect_read_next_update_workload_state()
-            .return_once(|| {
-                Ok(UpdateWorkloadState {
-                    workload_states: vec![WorkloadState {
-                        instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
-                        execution_state: ExecutionState {
-                            state: objects::ExecutionStateEnum::Running(RunningSubstate::Ok),
-                            ..Default::default()
-                        },
-                    }],
-                })
-            });
-
-        let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
-            no_wait: false,
-            server_connection: mock_server_connection,
-        };
-
-        let apply_result = cmd
-            .apply_manifests(ApplyArgs {
-                agent_name: None,
-                delete_mode: false,
-                manifest_files: vec!["manifest_yaml".to_string()],
-            })
-            .await;
-        assert!(apply_result.is_ok());
     }
 }

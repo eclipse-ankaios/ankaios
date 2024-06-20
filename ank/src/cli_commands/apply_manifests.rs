@@ -12,27 +12,15 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use super::CliCommands;
 use crate::cli_commands::State;
+use crate::cli_error::CliError;
 use crate::{cli::ApplyArgs, output_debug};
 use common::objects::CompleteState;
 use common::state_manipulation::{Object, Path};
 use std::{collections::HashSet, io};
 
 pub type InputSourcePair = (String, Box<dyn io::Read + Send + Sync + 'static>);
-pub type InputSources = Result<Vec<InputSourcePair>, String>;
-
-#[cfg(not(test))]
-pub fn open_manifest(
-    file_path: &str,
-) -> io::Result<(String, Box<dyn io::Read + Send + Sync + 'static>)> {
-    use std::fs::File;
-    match File::open(file_path) {
-        Ok(open_file) => Ok((file_path.to_owned(), Box::new(open_file))),
-        Err(err) => Err(err),
-    }
-}
-#[cfg(test)]
-use super::tests::open_manifest_mock as open_manifest;
 
 // [impl->swdd~cli-apply-supports-ankaios-manifest~1]
 pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
@@ -171,34 +159,237 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
     Ok((complete_state_req_obj, filter_masks))
 }
 
-impl ApplyArgs {
-    pub fn get_input_sources(&self) -> InputSources {
-        if let Some(first_arg) = self.manifest_files.first() {
-            match first_arg.as_str() {
-                // [impl->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
-                "-" => Ok(vec![("stdin".to_owned(), Box::new(io::stdin()))]),
-                // [impl->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
-                _ => {
-                    let mut res: InputSources = Ok(vec![]);
-                    for file_path in self.manifest_files.iter() {
-                        match open_manifest(file_path) {
-                            Ok(open_file) => res.as_mut().unwrap().push(open_file),
-                            Err(err) => {
-                                res = Err(match err.kind() {
-                                    io::ErrorKind::NotFound => {
-                                        format!("File '{}' not found!", file_path)
-                                    }
-                                    _ => err.to_string(),
-                                });
-                                break;
-                            }
-                        }
-                    }
-                    res
-                }
+impl CliCommands {
+    // [impl->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
+    pub async fn apply_manifests(&mut self, apply_args: ApplyArgs) -> Result<(), CliError> {
+        match apply_args.get_input_sources() {
+            Ok(mut manifests) => {
+                let (complete_state_req_obj, filter_masks) =
+                    generate_state_obj_and_filter_masks_from_manifests(&mut manifests, &apply_args)
+                        .map_err(CliError::ExecutionError)?;
+
+                // [impl->swdd~cli-apply-send-update-state~1]
+                self.update_state_and_wait_for_complete(complete_state_req_obj, filter_masks)
+                    .await
             }
-        } else {
-            Ok(vec![])
+            Err(err) => Err(CliError::ExecutionError(err.to_string())),
         }
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+#[cfg(test)]
+mod tests {
+    use std::io;
+    use std::io::Read;
+
+    use mockall::predicate::eq;
+
+    use common::{
+        commands::{Response, UpdateStateSuccess, UpdateWorkloadState},
+        from_server_interface::FromServer,
+        objects::{self, CompleteState, ExecutionState, RunningSubstate, WorkloadState},
+    };
+
+    use crate::{
+        cli::{ApplyArgs, InputSources},
+        cli_commands::{server_connection::MockServerConnection, CliCommands},
+    };
+
+    mockall::mock! {
+        pub ApplyArgs {
+            pub fn get_input_sources(&self) -> InputSources;
+        }
+    }
+
+    const RESPONSE_TIMEOUT_MS: u64 = 3000;
+    const OTHER_REQUEST_ID: &str = "other_request_id";
+
+    //[utest->swdd~cli-apply-send-update-state~1]
+    #[tokio::test]
+    async fn utest_apply_manifests_delete_mode_ok() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let manifest_content = io::Cursor::new(
+            b"apiVersion: \"v0.1\"\nworkloads:
+    simple_manifest1:
+      runtime: podman
+      agent: agent_A
+      runtimeConfig: |
+            image: docker.io/nginx:latest
+            commandOptions: [\"-p\", \"8081:80\"]",
+        );
+
+        let mut manifest_data = String::new();
+        let _ = manifest_content.clone().read_to_string(&mut manifest_data);
+
+        // FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
+        //     .lock()
+        //     .unwrap()
+        //     .push_back(Ok(("manifest.yml".to_string(), Box::new(manifest_content))));
+
+        let updated_state = CompleteState {
+            ..Default::default()
+        };
+
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_update_state()
+            .with(
+                eq(updated_state.clone()),
+                eq(vec!["desiredState.workloads.simple_manifest1".to_string()]),
+            )
+            .return_once(|_, _| {
+                Ok(UpdateStateSuccess {
+                    added_workloads: vec![],
+                    deleted_workloads: vec!["name4.abc.agent_B".to_string()],
+                })
+            });
+        let updated_state_clone = updated_state.clone();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| Ok(Box::new(updated_state_clone)));
+        mock_server_connection
+            .expect_take_missed_from_server_messages()
+            .return_once(std::vec::Vec::new);
+        mock_server_connection
+            .expect_read_next_update_workload_state()
+            .return_once(|| {
+                Ok(UpdateWorkloadState {
+                    workload_states: vec![WorkloadState {
+                        instance_name: "name4.abc.agent_B".try_into().unwrap(),
+                        execution_state: ExecutionState {
+                            state: objects::ExecutionStateEnum::Removed,
+                            ..Default::default()
+                        },
+                    }],
+                })
+            });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let apply_result = cmd
+            .apply_manifests(ApplyArgs {
+                agent_name: None,
+                delete_mode: true,
+                manifest_files: vec!["manifest_yaml".to_string()],
+            })
+            .await;
+        assert!(apply_result.is_ok());
+    }
+
+    //[utest->swdd~cli-apply-send-update-state~1]
+    #[tokio::test]
+    async fn utest_apply_manifests_ok() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let manifest_content = io::Cursor::new(
+            b"apiVersion: \"v0.1\"\nworkloads:
+        simple_manifest1:
+          runtime: podman
+          agent: agent_A
+          runtimeConfig: \"\"
+            ",
+        );
+
+        let mut manifest_data = String::new();
+        let _ = manifest_content.clone().read_to_string(&mut manifest_data);
+
+        // FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
+        //     .lock()
+        //     .unwrap()
+        //     .push_back(Ok(("manifest.yml".to_string(), Box::new(manifest_content))));
+
+        let updated_state = CompleteState {
+            desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
+            ..Default::default()
+        };
+
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_update_state()
+            .with(
+                eq(updated_state.clone()),
+                eq(vec!["desiredState.workloads.simple_manifest1".to_string()]),
+            )
+            .return_once(|_, _| {
+                Ok(UpdateStateSuccess {
+                    added_workloads: vec!["simple_manifest1.abc.agent_B".to_string()],
+                    deleted_workloads: vec![],
+                })
+            });
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| {
+                Ok(Box::new(CompleteState {
+                    desired_state: updated_state.desired_state,
+                    ..Default::default()
+                }))
+            });
+        mock_server_connection
+            .expect_take_missed_from_server_messages()
+            .return_once(|| {
+                vec![
+                    FromServer::Response(Response {
+                        request_id: OTHER_REQUEST_ID.into(),
+                        response_content: common::commands::ResponseContent::Error(
+                            Default::default(),
+                        ),
+                    }),
+                    FromServer::UpdateWorkloadState(UpdateWorkloadState {
+                        workload_states: vec![WorkloadState {
+                            instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
+                            execution_state: ExecutionState {
+                                state: objects::ExecutionStateEnum::Running(RunningSubstate::Ok),
+                                ..Default::default()
+                            },
+                        }],
+                    }),
+                ]
+            });
+        mock_server_connection
+            .expect_read_next_update_workload_state()
+            .return_once(|| {
+                Ok(UpdateWorkloadState {
+                    workload_states: vec![WorkloadState {
+                        instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
+                        execution_state: ExecutionState {
+                            state: objects::ExecutionStateEnum::Running(RunningSubstate::Ok),
+                            ..Default::default()
+                        },
+                    }],
+                })
+            });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let apply_result = cmd
+            .apply_manifests(ApplyArgs {
+                agent_name: None,
+                delete_mode: false,
+                manifest_files: vec!["manifest_yaml".to_string()],
+            })
+            .await;
+        assert!(apply_result.is_ok());
     }
 }
