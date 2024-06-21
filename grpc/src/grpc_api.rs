@@ -302,10 +302,6 @@ mod tests {
                     ank_base::UpdateStateRequest {
                         update_mask: vec!["test_update_mask_field".to_owned()],
                         new_state: Some(ank_base::CompleteState {
-                            startup_state: Some(ank_base::State {
-                                api_version: "v0.1".into(),
-                                ..Default::default()
-                            }),
                             desired_state: Some(ank_base::State {
                                 api_version: "v0.1".into(),
                                 workloads: HashMap::from([(
@@ -481,10 +477,6 @@ mod tests {
                 response_content: Some(ank_base::response::ResponseContent::CompleteState(
                     ank_base::CompleteState {
                         desired_state: Some(api::ank_base::State {
-                            api_version: "v0.1".into(),
-                            ..Default::default()
-                        }),
-                        startup_state: Some(api::ank_base::State {
                             api_version: "v0.1".into(),
                             ..Default::default()
                         }),
