@@ -20,6 +20,8 @@ use common::objects::CompleteState;
 use common::state_manipulation::{Object, Path};
 use std::{collections::HashSet, io};
 
+use crate::cli::HandleApplyArgs;
+
 pub type InputSourcePair = (String, Box<dyn io::Read + Send + Sync + 'static>);
 
 // [impl->swdd~cli-apply-supports-ankaios-manifest~1]
@@ -161,8 +163,12 @@ pub fn generate_state_obj_and_filter_masks_from_manifests(
 
 impl CliCommands {
     // [impl->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
-    pub async fn apply_manifests(&mut self, apply_args: ApplyArgs) -> Result<(), CliError> {
-        match apply_args.get_input_sources() {
+    pub async fn apply_manifests(
+        &mut self,
+        apply_args: ApplyArgs,
+        handle_args: Box<dyn HandleApplyArgs>,
+    ) -> Result<(), CliError> {
+        match handle_args.get_input_sources() {
             Ok(mut manifests) => {
                 let (complete_state_req_obj, filter_masks) =
                     generate_state_obj_and_filter_masks_from_manifests(&mut manifests, &apply_args)
@@ -204,7 +210,7 @@ mod tests {
     use serde_yaml::Value;
 
     use crate::{
-        cli::{ApplyArgs, InputSourcePair, InputSources},
+        cli::{ApplyArgs, InputSourcePair, MockHandleApplyArgs},
         cli_commands::{
             apply_manifests::{
                 create_filter_masks_from_paths, generate_state_obj_and_filter_masks_from_manifests,
@@ -214,12 +220,6 @@ mod tests {
             CliCommands,
         },
     };
-
-    mockall::mock! {
-        pub ApplyArgs {
-            pub fn get_input_sources(&self) -> InputSources;
-        }
-    }
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
     const OTHER_REQUEST_ID: &str = "other_request_id";
@@ -590,11 +590,6 @@ mod tests {
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
 
-        // FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
-        //     .lock()
-        //     .unwrap()
-        //     .push_back(Ok(("manifest.yml".to_string(), Box::new(manifest_content))));
-
         let updated_state = CompleteState {
             ..Default::default()
         };
@@ -640,12 +635,24 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
+        let mut mock_input_sources = MockHandleApplyArgs::new();
+        mock_input_sources
+            .expect_get_input_sources()
+            .return_once(|| {
+                Ok(vec![(
+                    "manifest.yml".to_string(),
+                    Box::new(manifest_content),
+                )])
+            });
         let apply_result = cmd
-            .apply_manifests(ApplyArgs {
-                agent_name: None,
-                delete_mode: true,
-                manifest_files: vec!["manifest_yaml".to_string()],
-            })
+            .apply_manifests(
+                ApplyArgs {
+                    agent_name: None,
+                    delete_mode: true,
+                    manifest_files: vec!["manifest_yaml".to_string()],
+                },
+                Box::new(mock_input_sources),
+            )
             .await;
         assert!(apply_result.is_ok());
     }
@@ -668,11 +675,6 @@ mod tests {
 
         let mut manifest_data = String::new();
         let _ = manifest_content.clone().read_to_string(&mut manifest_data);
-
-        // FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
-        //     .lock()
-        //     .unwrap()
-        //     .push_back(Ok(("manifest.yml".to_string(), Box::new(manifest_content))));
 
         let updated_state = CompleteState {
             desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
@@ -742,12 +744,24 @@ mod tests {
             server_connection: mock_server_connection,
         };
 
+        let mut mock_input_sources = MockHandleApplyArgs::new();
+        mock_input_sources
+            .expect_get_input_sources()
+            .return_once(|| {
+                Ok(vec![(
+                    "manifest.yml".to_string(),
+                    Box::new(manifest_content),
+                )])
+            });
         let apply_result = cmd
-            .apply_manifests(ApplyArgs {
-                agent_name: None,
-                delete_mode: false,
-                manifest_files: vec!["manifest_yaml".to_string()],
-            })
+            .apply_manifests(
+                ApplyArgs {
+                    agent_name: None,
+                    delete_mode: false,
+                    manifest_files: vec!["manifest_yaml".to_string()],
+                },
+                Box::new(mock_input_sources),
+            )
             .await;
         assert!(apply_result.is_ok());
     }

@@ -14,6 +14,9 @@
 
 use std::{error::Error, io};
 
+#[cfg(test)]
+use mockall::automock;
+
 use clap::{command, Parser, Subcommand};
 
 #[cfg(not(test))]
@@ -195,7 +198,7 @@ pub enum RunCommands {
 }
 
 /// Apply Ankaios manifest content or file(s)
-#[derive(clap::Args, Debug)]
+#[derive(clap::Args, Debug, Clone)]
 pub struct ApplyArgs {
     #[arg(value_name = "Ankaios manifest file(s) or '-' for stdin")]
     pub manifest_files: Vec<String>,
@@ -225,8 +228,14 @@ pub fn parse() -> AnkCli {
     AnkCli::parse()
 }
 
-impl ApplyArgs {
-    pub fn get_input_sources(&self) -> InputSources {
+#[cfg_attr(test, automock)]
+pub trait HandleApplyArgs {
+    fn get_input_sources(&self) -> InputSources;
+}
+
+// #[cfg_attr(test, automock)]
+impl HandleApplyArgs for ApplyArgs {
+    fn get_input_sources(&self) -> InputSources {
         if let Some(first_arg) = self.manifest_files.first() {
             match first_arg.as_str() {
                 // [impl->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
@@ -268,7 +277,7 @@ impl ApplyArgs {
 mod tests {
     use std::io;
 
-    use crate::cli::{ApplyArgs, InputSourcePair};
+    use crate::cli::{ApplyArgs, HandleApplyArgs, InputSourcePair};
 
     mockall::lazy_static! {
         pub static ref FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST: std::sync::Mutex<std::collections::VecDeque<io::Result<InputSourcePair>>>  =
