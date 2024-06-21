@@ -1611,7 +1611,7 @@ Ankaios also maintains a current state which can be retrieved with:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>ank<span class="w"> </span>delete<span class="w"> </span>workload<span class="w"> </span>databroker<span class="w"> </span>speed-provider<span class="w"> </span>speed-consumer
 <a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>ank<span class="w"> </span>get<span class="w"> </span>state
 </code></pre></div>
-<p>If we want to start the three workloads on startup of the Ankaios server and agents we need to create a startup state file.
+<p>If we want to start the three workloads on startup of the Ankaios server and agents we need to create a startup manifest file.
 In the default installation this file is <code>/etc/ankaios/state.yaml</code> as we can see in the systemd until file of the Ankaios server:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>$<span class="w"> </span>systemctl<span class="w"> </span>cat<span class="w"> </span>ank-server
 <a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="c1"># /etc/systemd/system/ank-server.service</span>
@@ -1625,7 +1625,7 @@ In the default installation this file is <code>/etc/ankaios/state.yaml</code> as
 <a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="o">[</span>Install<span class="o">]</span>
 <a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a><span class="nv">WantedBy</span><span class="o">=</span>default.target
 </code></pre></div>
-<p>Now we create a startup state file containing all three workloads:</p>
+<p>Now we create a startup manifest file containing all three workloads:</p>
 <div class="highlight"><span class="filename">/etc/ankaios/state.yaml</span><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
 <a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="nt">workloads</span><span class="p">:</span>
 <a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">  </span><span class="nt">databroker</span><span class="p">:</span>
