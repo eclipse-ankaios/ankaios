@@ -329,21 +329,6 @@ Needs:
 - impl
 - utest
 
-#### CLI returns `apiVersion` with the startup state
-`swdd~cli-returns-api-version-with-startup-state~1`
-
-Status: approved
-
-When the user invokes the CLI with a request to get startup state,
-the CLI shall display the field `apiVersion` of the startup state together with the requested startup state.
-
-Tags:
-- GetStartupState
-
-Needs:
-- impl
-- utest
-
 ### `ank get workload`
 
 ![Get a list of Workloads](plantuml/seq_get_workload.svg)

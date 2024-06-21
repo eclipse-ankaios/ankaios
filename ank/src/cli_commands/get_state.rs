@@ -97,7 +97,6 @@ impl CliCommands {
             .get_complete_state(&object_field_mask)
             .await?;
         // [impl->swdd~cli-returns-api-version-with-desired-state~1]
-        // [impl->swdd~cli-returns-api-version-with-startup-state~1]
         // [impl->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
         match generate_compact_state_output(&res_complete_state, object_field_mask, output_format) {
             Ok(res) => Ok(res),
@@ -120,7 +119,7 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use common::{
-        objects::{generate_test_workload_spec_with_param, CompleteState},
+        objects::generate_test_workload_spec_with_param,
         test_utils::{self, generate_test_complete_state},
     };
     use mockall::predicate::eq;
@@ -532,36 +531,6 @@ mod tests {
 
         let expected_text = serde_json::to_string_pretty(&test_data).unwrap();
         assert_eq!(cmd_text, expected_text);
-    }
-
-    // [utest->swdd~cli-returns-api-version-with-startup-state~1]
-    #[tokio::test]
-    async fn utest_get_state_startup_state() {
-        let test_data = CompleteState::default();
-
-        let mut mock_server_connection = MockServerConnection::default();
-        mock_server_connection
-            .expect_get_complete_state()
-            .with(eq(vec!["startupState".to_owned()]))
-            .return_once(|_| Ok(Box::new(test_data)));
-        let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
-            no_wait: false,
-            server_connection: mock_server_connection,
-        };
-
-        let cmd_text = cmd
-            .get_state(
-                vec!["startupState".to_owned()],
-                crate::cli::OutputFormat::Yaml,
-            )
-            .await
-            .unwrap();
-
-        let expected_single_field_result_text =
-            "startupState:\n  apiVersion: v0.1\n  workloads: {}\n";
-
-        assert_eq!(cmd_text, expected_single_field_result_text);
     }
 
     // [utest -> swdd~cli-returns-desired-state-from-server~1]

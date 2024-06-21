@@ -6,7 +6,7 @@ Two executables are used for each Ankaios deployment: the Ankaios server and the
 
 ![Architecture Overview](assets/architecture_overview.png)
 
-When started, the Ankaios server loads the configured startup state of the cluster and stores it as a desired state. To reach this desired state, the server instructs the Ankaios agents to start and stop workloads.
+When started, the Ankaios server loads the configured startup manifest file of the cluster and stores it as a desired state. To reach this desired state, the server instructs the Ankaios agents to start and stop workloads.
 Each Ankaios cluster runs exactly one instance of the Ankaios server making the server the single source of truth.
 
 A running instance of the Ankaios agent is present on every node where Ankaios needs to execute workloads.
