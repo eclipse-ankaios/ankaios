@@ -12,6 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::PATH_SEPARATOR;
+
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub struct Path {
     parts: Vec<String>,
@@ -42,7 +44,7 @@ impl From<&str> for Path {
             parts: if value.is_empty() {
                 vec![]
             } else {
-                value.split('.').map(|x| x.into()).collect()
+                value.split(PATH_SEPARATOR).map(|x| x.into()).collect()
             },
         }
     }

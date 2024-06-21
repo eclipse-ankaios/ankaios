@@ -71,3 +71,5 @@ pub use workload_instance_name::{ConfigHash, WorkloadInstanceName, WorkloadInsta
 
 mod agent_name;
 pub use agent_name::AgentName;
+
+mod control_interface_access;
