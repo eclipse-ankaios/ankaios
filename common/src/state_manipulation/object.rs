@@ -294,7 +294,6 @@ mod tests {
         let wl_spec = generate_test_workload_spec();
         let state = generate_test_state_from_workloads(vec![wl_spec.clone()]);
         let complete_state = CompleteState {
-            startup_state: state.clone(),
             desired_state: state,
             workload_states: generate_test_workload_states_map_from_specs(vec![wl_spec]),
         };
@@ -315,7 +314,6 @@ mod tests {
         let wl_spec = generate_test_workload_spec();
         let expected_state = generate_test_state_from_workloads(vec![wl_spec.clone()]);
         let expected = CompleteState {
-            startup_state: expected_state.clone(),
             desired_state: expected_state,
             workload_states: generate_test_workload_states_map_from_specs(vec![wl_spec]),
         };
@@ -669,7 +667,6 @@ mod tests {
         pub fn generate_test_complete_state() -> Mapping {
             let config_hash: &dyn common::objects::ConfigHash = &generate_test_runtime_config();
             Mapping::default()
-                .entry("startupState", generate_test_state())
                 .entry("desiredState", generate_test_state())
                 .entry(
                     "workloadStates",

@@ -31,13 +31,13 @@ async fn read_file_to_string(file: String) -> std::io::Result<String> {
 use tests::read_to_string_mock as read_file_to_string;
 
 use common::{
+    communications_error::CommunicationMiddlewareError,
     from_server_interface::FromServer,
     objects::{CompleteState, State, StoredWorkloadSpec, Tag, WorkloadInstanceName, WorkloadState},
     state_manipulation::{Object, Path},
 };
 
 use tabled::{settings::Style, Table, Tabled};
-use url::Url;
 
 #[cfg_attr(test, mockall_double::double)]
 use self::server_connection::ServerConnection;
@@ -315,14 +315,14 @@ impl CliCommands {
     pub fn init(
         response_timeout_ms: u64,
         cli_name: String,
-        server_url: Url,
+        server_url: String,
         no_wait: bool,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, CommunicationMiddlewareError> {
+        Ok(Self {
             _response_timeout_ms: response_timeout_ms,
             no_wait,
-            server_connection: ServerConnection::new(cli_name.as_str(), server_url.clone()),
-        }
+            server_connection: ServerConnection::new(cli_name.as_str(), server_url.clone())?,
+        })
     }
 
     pub async fn shut_down(self) {
@@ -345,7 +345,6 @@ impl CliCommands {
             .get_complete_state(&object_field_mask)
             .await?;
         // [impl->swdd~cli-returns-api-version-with-desired-state~1]
-        // [impl->swdd~cli-returns-api-version-with-startup-state~1]
         // [impl->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
         match generate_compact_state_output(&res_complete_state, object_field_mask, output_format) {
             Ok(res) => Ok(res),
@@ -353,7 +352,6 @@ impl CliCommands {
                 output_and_error!(
                     "Error occurred during processing response from server.\nError: {err}"
                 );
-                Err(err)
             }
         }
     }
@@ -734,8 +732,6 @@ mod tests {
 
     use super::CliCommands;
 
-    use url::Url;
-
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
     const EXAMPLE_STATE_INPUT: &str = r#"{
@@ -771,7 +767,7 @@ mod tests {
 
     mockall::mock! {
         pub GRPCCommunicationsClient {
-            pub fn new_cli_communication(name: String, server_address: Url) -> Self;
+            pub fn new_cli_communication(name: String, server_address: String) -> Self;
             pub async fn run(
                 &mut self,
                 mut server_rx: ToServerReceiver,
@@ -1257,36 +1253,6 @@ mod tests {
 
         let expected_text = serde_json::to_string_pretty(&test_data).unwrap();
         assert_eq!(cmd_text, expected_text);
-    }
-
-    // [utest->swdd~cli-returns-api-version-with-startup-state~1]
-    #[tokio::test]
-    async fn utest_get_state_startup_state() {
-        let test_data = CompleteState::default();
-
-        let mut mock_server_connection = MockServerConnection::default();
-        mock_server_connection
-            .expect_get_complete_state()
-            .with(eq(vec!["startupState".to_owned()]))
-            .return_once(|_| Ok(Box::new(test_data)));
-        let mut cmd = CliCommands {
-            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
-            no_wait: false,
-            server_connection: mock_server_connection,
-        };
-
-        let cmd_text = cmd
-            .get_state(
-                vec!["startupState".to_owned()],
-                crate::cli::OutputFormat::Yaml,
-            )
-            .await
-            .unwrap();
-
-        let expected_single_field_result_text =
-            "startupState:\n  apiVersion: v0.1\n  workloads: {}\n";
-
-        assert_eq!(cmd_text, expected_single_field_result_text);
     }
 
     // [utest -> swdd~cli-returns-desired-state-from-server~1]

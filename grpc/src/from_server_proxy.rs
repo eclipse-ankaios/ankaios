@@ -682,11 +682,8 @@ mod tests {
                 workloads: startup_workloads.clone(),
                 ..Default::default()
             },
-            startup_state: State {
-                workloads: startup_workloads.clone(),
-                ..Default::default()
-            },
             ..Default::default()
+
         };
 
         let complete_state_result = to_manager
@@ -709,12 +706,10 @@ mod tests {
                 request_id,
                 response_content: Some(ank_base::response::ResponseContent::CompleteState(ank_base::CompleteState{
                     desired_state: Some(desired_state),
-                    startup_state: Some(startup_state),
                     workload_states: _}))
 
             })) if request_id == my_request_id
             && desired_state == test_complete_state.desired_state.into()
-            && startup_state == test_complete_state.startup_state.into()
         ));
     }
 
@@ -728,8 +723,7 @@ mod tests {
 
         let proto_complete_state =
             ank_base::response::ResponseContent::CompleteState(ank_base::CompleteState {
-                desired_state: Some(State::default().into()),
-                startup_state: Some(ank_base::State {
+                desired_state: Some(ank_base::State {
                     workloads: [(
                         "workload".into(),
                         ank_base::Workload {
@@ -788,13 +782,11 @@ mod tests {
 
         let test_complete_state = CompleteState {
             desired_state: State::default(),
-            startup_state: State::default(),
             ..Default::default()
         };
 
         let proto_complete_state = ank_base::CompleteState {
             desired_state: Some(test_complete_state.desired_state.clone().into()),
-            startup_state: Some(test_complete_state.startup_state.clone().into()),
             ..Default::default()
         };
 
@@ -834,7 +826,6 @@ mod tests {
                     boxed_complete_state
                 )
             }) if request_id == my_request_id &&
-            boxed_complete_state.startup_state == expected_test_complete_state.startup_state &&
             boxed_complete_state.desired_state == expected_test_complete_state.desired_state &&
             boxed_complete_state.workload_states == expected_test_complete_state.workload_states
         ));

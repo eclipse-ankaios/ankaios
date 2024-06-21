@@ -384,13 +384,6 @@ mod tests {
     macro_rules! complete_state {
         ($expression:ident) => {
             $expression::CompleteState {
-                startup_state: $expression::State {
-                    api_version: "v0.1".into(),
-                    workloads: vec![("startup".into(), workload!($expression))]
-                        .into_iter()
-                        .collect(),
-                }
-                .into(),
                 desired_state: $expression::State {
                     api_version: "v0.1".into(),
                     workloads: vec![("desired".into(), workload!($expression))]
@@ -516,10 +509,6 @@ mod tests {
             unreachable!()
         };
         proto_request_content.new_state = Some(ank_base::CompleteState {
-            startup_state: Some(ank_base::State {
-                api_version: "v0.1".into(),
-                ..Default::default()
-            }),
             desired_state: Some(ank_base::State {
                 api_version: "v0.1".into(),
                 ..Default::default()
@@ -559,14 +548,6 @@ mod tests {
             .new_state
             .as_mut()
             .unwrap()
-            .startup_state = Some(ank_base::State {
-            api_version: "v0.1".into(),
-            ..Default::default()
-        });
-        proto_request_content
-            .new_state
-            .as_mut()
-            .unwrap()
             .desired_state = Some(ank_base::State {
             api_version: "v0.1".into(),
             ..Default::default()
@@ -577,44 +558,12 @@ mod tests {
         else {
             unreachable!()
         };
-        ankaios_request_content.state.startup_state = Default::default();
         ankaios_request_content.state.desired_state = Default::default();
 
         assert_eq!(
             ankaios::Request::try_from(proto_request_complete_state).unwrap(),
             ankaios_request_complete_state
         );
-    }
-
-    #[test]
-    fn utest_converts_from_proto_update_state_request_fails_invalid_startup_state() {
-        let mut proto_request_complete_state = update_state_request!(ank_base);
-
-        let ank_base::RequestContent::UpdateStateRequest(proto_request_content) =
-            proto_request_complete_state
-                .request_content
-                .as_mut()
-                .unwrap()
-        else {
-            unreachable!()
-        };
-        proto_request_content
-            .new_state
-            .as_mut()
-            .unwrap()
-            .startup_state
-            .as_mut()
-            .unwrap()
-            .workloads
-            .insert(
-                WORKLOAD_NAME_1.into(),
-                ank_base::Workload {
-                    dependencies: vec![("dependency".into(), -1)].into_iter().collect(),
-                    ..Default::default()
-                },
-            );
-
-        assert!(ankaios::Request::try_from(proto_request_complete_state).is_err());
     }
 
     #[test]
@@ -717,10 +666,6 @@ mod tests {
         else {
             unreachable!()
         };
-        proto_content.startup_state = Some(ank_base::State {
-            api_version: "v0.1".into(),
-            ..Default::default()
-        });
         proto_content.desired_state = Some(ank_base::State {
             api_version: "v0.1".into(),
             ..Default::default()
@@ -731,42 +676,12 @@ mod tests {
         else {
             unreachable!()
         };
-        ankaios_content.startup_state = Default::default();
         ankaios_content.desired_state = Default::default();
 
         assert_eq!(
             ankaios::Response::try_from(proto_complete_state_response).unwrap(),
             ankaios_complete_state_response
         );
-    }
-
-    #[test]
-    fn utest_converts_from_proto_complete_state_response_fails_invalid_startup_state() {
-        let mut proto_complete_state_response = complete_state_response!(ank_base);
-
-        let ank_base::ResponseContent::CompleteState(proto_request_content) =
-            proto_complete_state_response
-                .response_content
-                .as_mut()
-                .unwrap()
-        else {
-            unreachable!()
-        };
-
-        proto_request_content
-            .startup_state
-            .as_mut()
-            .unwrap()
-            .workloads
-            .insert(
-                WORKLOAD_NAME_1.into(),
-                ank_base::Workload {
-                    dependencies: vec![("dependency".into(), -1)].into_iter().collect(),
-                    ..Default::default()
-                },
-            );
-
-        assert!(ankaios::Response::try_from(proto_complete_state_response).is_err());
     }
 
     #[test]

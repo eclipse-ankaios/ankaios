@@ -47,7 +47,6 @@ pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> crate::obje
                 .collect(),
         },
         workload_states: generate_test_workload_states_map_from_specs(workloads),
-        ..Default::default()
     }
 }
 
