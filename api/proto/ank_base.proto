@@ -185,6 +185,7 @@ message Workload {
     repeated Tag tags = 4; /// A list of tag names.
     string runtime = 5; /// The name of the runtime e.g. podman.
     string runtimeConfig  = 6; /// The configuration information specific to the runtime.
+    ControlInterfaceAccess controlInterfaceAccess = 7;
 }
 
 /**
@@ -206,5 +207,29 @@ enum RestartPolicy {
 
 message Error {
     string message = 1;
+}
+
+message ControlInterfaceAccess {
+  repeated AccessRightsRule allowRules = 1;
+  repeated AccessRightsRule denyRules = 2;
+}
+
+message AccessRightsRule {
+  oneof AccessRightsRuleEnum {
+      StateRule stateRule = 1;
+  }
+}
+
+message StateRule {
+  ReadWriteEnum operation = 1;
+  repeated string filterMasks = 2;
+}
+
+
+enum ReadWriteEnum {
+  RW_NOTHING = 0;
+  RW_READ = 1;
+  RW_WRITE = 2;
+  RW_READ_WRITE = 5;
 }
 

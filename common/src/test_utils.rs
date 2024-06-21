@@ -135,6 +135,7 @@ pub fn generate_test_proto_workload() -> ank_base::Workload {
             key: "key".into(),
             value: "value".into(),
         }],
+        control_interface_access: Default::default()
     }
 }
 

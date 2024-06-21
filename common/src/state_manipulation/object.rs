@@ -721,7 +721,13 @@ mod tests {
                             )
                             .entry("restartPolicy", "ALWAYS")
                             .entry("runtime", "runtime")
-                            .entry("runtimeConfig", "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"),
+                            .entry("runtimeConfig", "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n")
+                            .entry(
+                                "controlInterfaceAccess",
+                                Mapping::default()
+                                    .entry("allowRules", vec![] as Vec<Value>)
+                                    .entry("denyRules", vec![] as Vec<Value>),
+                            ),
                     ),
                 )
         }
