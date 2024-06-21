@@ -210,14 +210,17 @@ fn generate_test_dependencies() -> HashMap<String, AddCondition> {
 }
 
 #[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_runtime_config() -> String {
+    "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n".to_string()
+}
+
+#[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_workload_spec_with_param(
     agent_name: String,
     workload_name: String,
     runtime_name: String,
 ) -> crate::objects::WorkloadSpec {
-    let runtime_config =
-        "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
-        .to_owned();
+    let runtime_config = generate_test_runtime_config();
 
     generate_test_workload_spec_with_runtime_config(
         agent_name,

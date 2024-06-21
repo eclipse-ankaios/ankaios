@@ -73,7 +73,30 @@ message UpdateStateSuccess {
 message CompleteState {
     State startupState = 1; /// The State information at the startup of the Ankaios System.
     State desiredState = 2; /// The state the user wants to reach.
-    repeated WorkloadState workloadStates = 3; /// The current states of the workloads.
+    WorkloadStatesMap workloadStates = 3; /// The current execution states of the workloads.
+}
+
+/**
+* A nested map that provides the execution state of a workload in a structured way.
+* The first level allows searches by agent.
+*/
+message WorkloadStatesMap {
+    map<string, ExecutionsStatesOfWorkload> agentStateMap = 1;
+}
+
+/**
+* A map providing the execution state of a workload for a given name.
+*/
+message ExecutionsStatesOfWorkload {
+    map<string, ExecutionsStatesForId> wlNameStateMap = 1;
+}
+
+/**
+* A map providing the execution state of a specific workload for a given id.
+* This level is needed as a workload could be running more than once on one agent in different versions.
+*/
+message ExecutionsStatesForId {
+    map<string, ExecutionState> idStateMap = 1;
 }
 
 message ExecutionState {

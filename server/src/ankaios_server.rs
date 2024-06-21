@@ -18,7 +18,7 @@ mod server_state;
 
 use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
-use common::objects::{CompleteState, DeletedWorkload, ExecutionState, State, WorkloadState};
+use common::objects::{CompleteState, DeletedWorkload, ExecutionState, State, WorkloadState, WorkloadStatesMap};
 
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
@@ -26,7 +26,6 @@ use common::to_server_interface::{ToServerReceiver, ToServerSender};
 #[cfg_attr(test, mockall_double::double)]
 use server_state::ServerState;
 
-use crate::workload_state_db::WorkloadStateDB;
 use common::{
     from_server_interface::{FromServer, FromServerInterface},
     to_server_interface::ToServer,
@@ -50,7 +49,7 @@ pub struct AnkaiosServer {
     // [impl->swdd~communication-to-from-server-middleware~1]
     to_agents: FromServerSender,
     server_state: ServerState,
-    workload_state_db: WorkloadStateDB,
+    workload_states_map: WorkloadStatesMap,
 }
 
 impl AnkaiosServer {
@@ -59,7 +58,7 @@ impl AnkaiosServer {
             receiver,
             to_agents,
             server_state: ServerState::default(),
-            workload_state_db: WorkloadStateDB::default(),
+            workload_states_map: WorkloadStatesMap::default(),
         }
     }
 
@@ -77,7 +76,7 @@ impl AnkaiosServer {
             match self.server_state.update(state, vec![]) {
                 Ok(Some((added_workloads, deleted_workloads))) => {
                     // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
-                    self.workload_state_db.initial_state(&added_workloads);
+                    self.workload_states_map.initial_state(&added_workloads);
 
                     let from_server_command = FromServer::UpdateWorkload(UpdateWorkload {
                         added_workloads,
@@ -111,7 +110,7 @@ impl AnkaiosServer {
         let mut deleted_states = vec![];
         deleted_workloads.retain(|deleted_wl| {
             if deleted_wl.instance_name.agent_name().is_empty() {
-                self.workload_state_db.remove(&deleted_wl.instance_name);
+                self.workload_states_map.remove(&deleted_wl.instance_name);
                 deleted_states.push(WorkloadState {
                     instance_name: deleted_wl.instance_name.clone(),
                     execution_state: ExecutionState::removed(),
@@ -140,7 +139,7 @@ impl AnkaiosServer {
 
                     // [impl->swdd~server-informs-a-newly-connected-agent-workload-states~1]
                     let workload_states = self
-                        .workload_state_db
+                        .workload_states_map
                         .get_workload_state_excluding_agent(&method_obj.agent_name);
 
                     if !workload_states.is_empty() {
@@ -183,14 +182,14 @@ impl AnkaiosServer {
                 ToServer::AgentGone(method_obj) => {
                     log::debug!("Received AgentGone from '{}'", method_obj.agent_name);
                     // [impl->swdd~server-set-workload-state-on-disconnect~1]
-                    self.workload_state_db
+                    self.workload_states_map
                         .agent_disconnected(&method_obj.agent_name);
 
                     // communicate the workload execution states to other agents
                     // [impl->swdd~server-distribute-workload-state-on-disconnect~1]
                     self.to_agents
                         .update_workload_state(
-                            self.workload_state_db
+                            self.workload_states_map
                                 .get_workload_state_for_agent(&method_obj.agent_name),
                         )
                         .await
@@ -213,7 +212,7 @@ impl AnkaiosServer {
                         );
                         match self.server_state.get_complete_state_by_field_mask(
                             &complete_state_request,
-                            &self.workload_state_db,
+                            &self.workload_states_map,
                         ) {
                             Ok(complete_state) => self
                                 .to_agents
@@ -281,7 +280,7 @@ impl AnkaiosServer {
                                     );
 
                                 // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
-                                self.workload_state_db.initial_state(&added_workloads);
+                                self.workload_states_map.initial_state(&added_workloads);
 
                                 let added_workloads_names = added_workloads
                                     .iter()
@@ -349,7 +348,7 @@ impl AnkaiosServer {
                     );
 
                     // [impl->swdd~server-stores-workload-state~1]
-                    self.workload_state_db
+                    self.workload_states_map
                         .process_new_states(method_obj.workload_states.clone());
 
                     // [impl->swdd~server-cleans-up-state~1]
@@ -662,7 +661,7 @@ mod tests {
 
         assert_eq!(
             server
-                .workload_state_db
+                .workload_states_map
                 .get_workload_state_for_agent(AGENT_A),
             vec![WorkloadState {
                 instance_name: workload.instance_name,
@@ -1219,7 +1218,7 @@ mod tests {
         );
 
         let workload_states = server
-            .workload_state_db
+            .workload_states_map
             .get_workload_state_for_agent(AGENT_A);
 
         let expected_workload_state = common::objects::generate_test_workload_state_with_agent(
@@ -1372,7 +1371,7 @@ mod tests {
 
         assert_eq!(
             server
-                .workload_state_db
+                .workload_states_map
                 .get_workload_state_for_agent(AGENT_A),
             vec![WorkloadState {
                 instance_name: updated_w1.instance_name,

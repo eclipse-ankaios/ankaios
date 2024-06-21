@@ -22,6 +22,13 @@ pub use state::State;
 mod complete_state;
 pub use complete_state::CompleteState;
 
+mod workload_states_map;
+pub use workload_states_map::WorkloadStatesMap;
+#[cfg(any(feature = "test_utils", test))]
+pub use workload_states_map::{
+    generate_test_workload_states_map_from_specs, generate_test_workload_states_map_with_data,
+};
+
 mod stored_workload_spec;
 #[cfg(any(feature = "test_utils", test))]
 pub use stored_workload_spec::{
@@ -44,8 +51,9 @@ pub use workload_state::{
 mod workload_spec;
 #[cfg(any(feature = "test_utils", test))]
 pub use workload_spec::{
-    generate_test_workload_spec, generate_test_workload_spec_with_dependencies,
-    generate_test_workload_spec_with_param, generate_test_workload_spec_with_runtime_config,
+    generate_test_runtime_config, generate_test_workload_spec,
+    generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
+    generate_test_workload_spec_with_runtime_config,
 };
 
 pub use workload_spec::{

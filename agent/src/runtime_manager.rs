@@ -249,8 +249,9 @@ impl RuntimeManager {
                             } else {
                                 // [impl->swdd~agent-existing-workloads-replace-updated~2]
 
-                                log::info!("Replacing existing workload '{}'.",
-                                workload_state.instance_name.workload_name()
+                                log::info!(
+                                    "Replacing existing workload '{}'.",
+                                    workload_state.instance_name.workload_name()
                                 );
 
                                 /* Temporary workaround until direct start of bundles is implemented to prevent
@@ -1746,6 +1747,7 @@ mod tests {
                 request_id == REQUEST_ID
                     && matches!(response_content, ResponseContent::CompleteState(complete_state) if complete_state
                         .workload_states
+                        .get_workload_state_for_agent(AGENT_NAME)
                         .first()
                         .unwrap()
                         .instance_name.workload_name()
@@ -1802,6 +1804,7 @@ mod tests {
                 request_id == REQUEST_ID
                     && matches!(response_content, ResponseContent::CompleteState(complete_state) if complete_state
                     .workload_states
+                    .get_workload_state_for_agent(AGENT_NAME)
                     .first()
                     .unwrap()
                     .instance_name.workload_name()

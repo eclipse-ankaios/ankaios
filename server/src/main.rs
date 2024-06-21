@@ -14,7 +14,6 @@
 
 mod ankaios_server;
 mod cli;
-mod workload_state_db;
 
 use common::objects::CompleteState;
 use std::fs;

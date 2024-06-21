@@ -35,10 +35,7 @@ pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State
 
 #[cfg(feature = "test_utils")]
 pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> crate::objects::CompleteState {
-    use crate::{
-        objects::CompleteState,
-        objects::{ExecutionState, WorkloadState},
-    };
+    use crate::objects::{generate_test_workload_states_map_from_specs, CompleteState};
 
     CompleteState {
         desired_state: State {
@@ -49,13 +46,7 @@ pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> crate::obje
                 .map(|v| (v.instance_name.workload_name().to_owned(), v.into()))
                 .collect(),
         },
-        workload_states: workloads
-            .into_iter()
-            .map(|v| WorkloadState {
-                instance_name: v.instance_name,
-                execution_state: ExecutionState::running(),
-            })
-            .collect(),
+        workload_states: generate_test_workload_states_map_from_specs(workloads),
         ..Default::default()
     }
 }
@@ -120,8 +111,6 @@ fn generate_test_delete_dependencies() -> HashMap<String, DeleteCondition> {
         DeleteCondition::DelCondNotPendingNorRunning,
     )])
 }
-
-
 
 pub fn generate_test_proto_workload() -> ank_base::Workload {
     ank_base::Workload {

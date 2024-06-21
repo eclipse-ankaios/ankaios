@@ -488,7 +488,7 @@ mod tests {
                             api_version: "v0.1".into(),
                             ..Default::default()
                         }),
-                        workload_states: vec![],
+                        ..Default::default()
                     },
                 )),
             })),

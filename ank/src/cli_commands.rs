@@ -32,7 +32,7 @@ use tests::read_to_string_mock as read_file_to_string;
 
 use common::{
     from_server_interface::FromServer,
-    objects::{CompleteState, State, StoredWorkloadSpec, Tag, WorkloadInstanceName},
+    objects::{CompleteState, State, StoredWorkloadSpec, Tag, WorkloadInstanceName, WorkloadState},
     state_manipulation::{Object, Path},
 };
 
@@ -490,8 +490,7 @@ impl CliCommands {
             .await?;
 
         let mut workload_infos: Vec<(WorkloadInstanceName, GetWorkloadTableDisplay)> =
-            res_complete_state
-                .workload_states
+            Vec::<WorkloadState>::from(res_complete_state.workload_states)
                 .into_iter()
                 .map(|wl_state| {
                     (
@@ -706,7 +705,8 @@ mod tests {
         commands::{Response, UpdateStateSuccess, UpdateWorkloadState},
         from_server_interface::{FromServer, FromServerSender},
         objects::{
-            self, generate_test_workload_spec_with_param, CompleteState, ExecutionState,
+            self, generate_test_workload_spec_with_param,
+            generate_test_workload_states_map_with_data, CompleteState, ExecutionState,
             RunningSubstate, State, StoredWorkloadSpec, Tag, WorkloadState,
         },
         state_manipulation::{Object, Path},
@@ -1030,11 +1030,12 @@ mod tests {
     #[tokio::test]
     async fn utest_get_workloads_deleted_workload() {
         let test_data = objects::CompleteState {
-            workload_states: vec![common::objects::generate_test_workload_state_with_agent(
-                "Workload_1",
+            workload_states: generate_test_workload_states_map_with_data(
                 "agent_A",
+                "Workload_1",
+                "ID_X",
                 ExecutionState::removed(),
-            )],
+            ),
             ..Default::default()
         };
 
@@ -1412,7 +1413,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(cmd_text, "workloadStates: []\n");
+        assert_eq!(cmd_text, "workloadStates: {}\n");
     }
 
     // [utest->swdd~cli-provides-run-workload~1]

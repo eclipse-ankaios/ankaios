@@ -14,10 +14,10 @@
 
 use crate::agent_senders_map::AgentSendersMap;
 use crate::ankaios_streaming::GRPCStreaming;
+use crate::grpc_api::{self, from_server::FromServerEnum};
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 use api::ank_base;
 use api::ank_base::response::ResponseContent;
-use crate::grpc_api::{self, from_server::FromServerEnum};
 
 use async_trait::async_trait;
 use common::commands::Response;
@@ -274,6 +274,7 @@ mod tests {
     use std::collections::{HashMap, LinkedList};
 
     use super::{forward_from_ankaios_to_proto, forward_from_proto_to_ankaios};
+    use crate::grpc_api::{self, from_server::FromServerEnum, FromServer, UpdateWorkload};
     use crate::{agent_senders_map::AgentSendersMap, from_server_proxy::GRPCStreaming};
     use api::ank_base::{self, response};
     use async_trait::async_trait;
@@ -284,7 +285,6 @@ mod tests {
     };
     use common::objects::{CompleteState, State, WorkloadSpec};
     use common::test_utils::*;
-    use crate::grpc_api::{self, from_server::FromServerEnum, FromServer, UpdateWorkload};
     use tokio::sync::mpsc::error::TryRecvError;
     use tokio::{
         join,
@@ -686,7 +686,7 @@ mod tests {
                 workloads: startup_workloads.clone(),
                 ..Default::default()
             },
-            workload_states: vec![],
+            ..Default::default()
         };
 
         let complete_state_result = to_manager
@@ -710,12 +710,11 @@ mod tests {
                 response_content: Some(ank_base::response::ResponseContent::CompleteState(ank_base::CompleteState{
                     desired_state: Some(desired_state),
                     startup_state: Some(startup_state),
-                    workload_states}))
+                    workload_states: _}))
 
             })) if request_id == my_request_id
             && desired_state == test_complete_state.desired_state.into()
-            && startup_state ==test_complete_state.startup_state.into()
-            && workload_states == vec![]
+            && startup_state == test_complete_state.startup_state.into()
         ));
     }
 
@@ -741,7 +740,7 @@ mod tests {
                     .into(),
                     ..Default::default()
                 }),
-                workload_states: vec![],
+                ..Default::default()
             });
 
         // simulate the reception of an update workload state grpc from server message
@@ -790,13 +789,13 @@ mod tests {
         let test_complete_state = CompleteState {
             desired_state: State::default(),
             startup_state: State::default(),
-            workload_states: vec![],
+            ..Default::default()
         };
 
         let proto_complete_state = ank_base::CompleteState {
             desired_state: Some(test_complete_state.desired_state.clone().into()),
             startup_state: Some(test_complete_state.startup_state.clone().into()),
-            workload_states: vec![],
+            ..Default::default()
         };
 
         let proto_response = ank_base::Response {

@@ -15,7 +15,7 @@
 use api::ank_base;
 use serde::{Deserialize, Serialize};
 
-use super::{State, WorkloadState};
+use super::{State, WorkloadStatesMap};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -25,7 +25,7 @@ pub struct CompleteState {
     #[serde(default)]
     pub desired_state: State,
     #[serde(default)]
-    pub workload_states: Vec<WorkloadState>,
+    pub workload_states: WorkloadStatesMap,
 }
 
 impl From<CompleteState> for ank_base::CompleteState {
@@ -33,7 +33,7 @@ impl From<CompleteState> for ank_base::CompleteState {
         ank_base::CompleteState {
             startup_state: Some(ank_base::State::from(item.startup_state)),
             desired_state: Some(ank_base::State::from(item.desired_state)),
-            workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
+            workload_states: item.workload_states.into(),
         }
     }
 }
@@ -45,7 +45,7 @@ impl TryFrom<ank_base::CompleteState> for CompleteState {
         Ok(CompleteState {
             startup_state: item.startup_state.unwrap_or_default().try_into()?,
             desired_state: item.desired_state.unwrap_or_default().try_into()?,
-            workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
+            workload_states: item.workload_states.unwrap_or_default().into(),
         })
     }
 }
