@@ -35,7 +35,7 @@ fn convert_rule_vec(
 ) -> Result<Vec<AccessRightsRule>, String> {
     value
         .into_iter()
-        .map(|x| AccessRightsRule::try_from(x))
+        .map(AccessRightsRule::try_from)
         .collect::<Result<Vec<AccessRightsRule>, String>>()
 }
 
