@@ -54,9 +54,6 @@ ank get state
 which creates:
 
 ```yaml
-startupState:
-  apiVersion: v0.1
-  workloads: {}
 desiredState:
   apiVersion: v0.1
   workloads:

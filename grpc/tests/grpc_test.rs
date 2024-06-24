@@ -15,7 +15,6 @@ mod grpc_tests {
     use grpc::{client::GRPCCommunicationsClient, server::GRPCCommunicationsServer};
 
     use tokio::time::timeout;
-    use url::Url;
 
     enum CommunicationType {
         Cli,
@@ -32,7 +31,7 @@ mod grpc_tests {
         tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>,
     ) {
         let (to_grpc_client, grpc_client_receiver) = tokio::sync::mpsc::channel::<ToServer>(20);
-        let url = Url::parse(&format!("http://{}", server_addr)).expect("error");
+        let url = format!("http://{}", server_addr);
         let mut grpc_communications_client = match comm_type {
             CommunicationType::Cli => {
                 GRPCCommunicationsClient::new_cli_communication(test_request_id.to_owned(), url)
@@ -40,7 +39,7 @@ mod grpc_tests {
             CommunicationType::Agent => {
                 GRPCCommunicationsClient::new_agent_communication(test_request_id.to_owned(), url)
             }
-        };
+        }.unwrap();
 
         let grpc_client_task = tokio::spawn(async move {
             grpc_communications_client
