@@ -43,6 +43,7 @@ use crate::{
     cli_commands::wait_list::ParsedUpdateStateSuccess, cli_error::CliError, output, output_debug,
 };
 
+// The CLI commands are implemented in the modules included above. The rest are the common function.
 pub struct CliCommands {
     // Left here for the future use.
     _response_timeout_ms: u64,
