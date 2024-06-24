@@ -39,27 +39,23 @@ async fn main() {
         args
     );
 
-    let tls_config: Result<Option<TLSConfig>, String> = match (
-        args.insecure,
-        args.ank_ca_pem,
-        args.ank_crt_pem,
-        args.ank_key_pem,
-    ) {
-        (true, _, _, _) => Ok(None),
-        (false, Some(path_to_ca_pem), Some(path_to_crt_pem), Some(path_to_key_pem)) => {
-            Ok(Some(TLSConfig {
-                path_to_ca_pem,
-                path_to_crt_pem,
-                path_to_key_pem,
-            }))
-        }
-        (false, ca_pem, crt_pem, key_pem) => Err(format!(
-            "ANK_CA_PEM={} ANK_CRT_PEM={} ANK_KEY_PEM={}",
-            ca_pem.unwrap_or(String::from("\"\"")),
-            crt_pem.unwrap_or(String::from("\"\"")),
-            key_pem.unwrap_or(String::from("\"\""))
-        )),
-    };
+    let tls_config: Result<Option<TLSConfig>, String> =
+        match (args.insecure, args.ca_pem, args.crt_pem, args.key_pem) {
+            (true, _, _, _) => Ok(None),
+            (false, Some(path_to_ca_pem), Some(path_to_crt_pem), Some(path_to_key_pem)) => {
+                Ok(Some(TLSConfig {
+                    path_to_ca_pem,
+                    path_to_crt_pem,
+                    path_to_key_pem,
+                }))
+            }
+            (false, ca_pem, crt_pem, key_pem) => Err(format!(
+                "ANK_CA_PEM={} ANK_CRT_PEM={} ANK_KEY_PEM={}",
+                ca_pem.unwrap_or(String::from("\"\"")),
+                crt_pem.unwrap_or(String::from("\"\"")),
+                key_pem.unwrap_or(String::from("\"\""))
+            )),
+        };
 
     let mut cmd = CliCommands::init(
         args.response_timeout_ms,

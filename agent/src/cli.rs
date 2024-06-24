@@ -47,15 +47,15 @@ pub struct Arguments {
     )]
     /// Flag to disable TLS communication between Ankaios agent and server.
     pub insecure: bool,
-    #[clap(long = "ankagent_ca_pem", env)]
+    #[clap(long = "ca_pem", env = "ANKAGENT_CA_PEM")]
     /// Path to agent ca pem file.
-    pub ankagent_ca_pem: Option<String>,
-    #[clap(long = "ankagent_crt_pem", env)]
+    pub ca_pem: Option<String>,
+    #[clap(long = "crt_pem", env = "ANKAGENT_CRT_PEM")]
     /// Path to agent certificate pem file.
-    pub ankagent_crt_pem: Option<String>,
-    #[clap(long = "ankagent_key_pem", env)]
+    pub crt_pem: Option<String>,
+    #[clap(long = "key_pem", env = "ANKAGENT_KEY_PEM")]
     /// Path to agent key pem file.
-    pub ankagent_key_pem: Option<String>,
+    pub key_pem: Option<String>,
 }
 
 impl Arguments {

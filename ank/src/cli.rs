@@ -54,15 +54,15 @@ pub struct AnkCli {
     )]
     /// Flag to disable TLS communication between ank CLI and Ankaios server.
     pub insecure: bool,
-    #[clap(long = "ank_ca_pem", env)]
+    #[clap(long = "ca_pem", env = "ANK_CA_PEM")]
     /// Path to cli ca pem file.
-    pub ank_ca_pem: Option<String>,
-    #[clap(long = "ank_crt_pem", env)]
+    pub ca_pem: Option<String>,
+    #[clap(long = "crt_pem", env = "ANK_CRT_PEM")]
     /// Path to cli certificate pem file.
-    pub ank_crt_pem: Option<String>,
-    #[clap(long = "ank_key_pem", env)]
+    pub crt_pem: Option<String>,
+    #[clap(long = "key_pem", env = "ANK_KEY_PEM")]
     /// Path to cli key pem file.
-    pub ank_key_pem: Option<String>,
+    pub key_pem: Option<String>,
 }
 
 /// Supported actions

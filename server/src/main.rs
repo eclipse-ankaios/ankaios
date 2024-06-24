@@ -65,27 +65,23 @@ async fn main() {
     let (to_server, server_receiver) = create_to_server_channel(common::CHANNEL_CAPACITY);
     let (to_agents, agents_receiver) = create_from_server_channel(common::CHANNEL_CAPACITY);
 
-    let tls_config: Result<Option<TLSConfig>, String> = match (
-        args.insecure,
-        args.ankserver_ca_pem,
-        args.ankserver_crt_pem,
-        args.ankserver_key_pem,
-    ) {
-        (true, _, _, _) => Ok(None),
-        (false, Some(path_to_ca_pem), Some(path_to_crt_pem), Some(path_to_key_pem)) => {
-            Ok(Some(TLSConfig {
-                path_to_ca_pem,
-                path_to_crt_pem,
-                path_to_key_pem,
-            }))
-        }
-        (_, ca_pem, crt_pem, key_pem) => Err(format!(
-            "ANKSERVER_CA_PEM={} ANKSERVER_CRT_PEM={} ANKSERVER_KEY_PEM={}",
-            ca_pem.unwrap_or(String::from("\"\"")),
-            crt_pem.unwrap_or(String::from("\"\"")),
-            key_pem.unwrap_or(String::from("\"\""))
-        )),
-    };
+    let tls_config: Result<Option<TLSConfig>, String> =
+        match (args.insecure, args.ca_pem, args.crt_pem, args.key_pem) {
+            (true, _, _, _) => Ok(None),
+            (false, Some(path_to_ca_pem), Some(path_to_crt_pem), Some(path_to_key_pem)) => {
+                Ok(Some(TLSConfig {
+                    path_to_ca_pem,
+                    path_to_crt_pem,
+                    path_to_key_pem,
+                }))
+            }
+            (_, ca_pem, crt_pem, key_pem) => Err(format!(
+                "ANKSERVER_CA_PEM={} ANKSERVER_CRT_PEM={} ANKSERVER_KEY_PEM={}",
+                ca_pem.unwrap_or(String::from("\"\"")),
+                crt_pem.unwrap_or(String::from("\"\"")),
+                key_pem.unwrap_or(String::from("\"\""))
+            )),
+        };
 
     let mut communications_server = GRPCCommunicationsServer::new(
         to_server.clone(),

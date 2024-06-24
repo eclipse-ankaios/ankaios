@@ -39,15 +39,15 @@ pub struct Arguments {
     )]
     /// Flag to disable TLS communication between Ankaios server, agent and ank CLI.
     pub insecure: bool,
-    #[clap(long = "ankserver_ca_pem", env)]
+    #[clap(long = "ca_pem", env = "ANKSERVER_CA_PEM")]
     /// Path to server ca certificate pem file.
-    pub ankserver_ca_pem: Option<String>,
-    #[clap(long = "ankserver_crt_pem", env)]
+    pub ca_pem: Option<String>,
+    #[clap(long = "crt_pem", env = "ANKSERVER_CRT_PEM")]
     /// Path to server certificate pem file.
-    pub ankserver_crt_pem: Option<String>,
-    #[clap(long = "ankserver_key_pem", env)]
+    pub crt_pem: Option<String>,
+    #[clap(long = "key_pem", env = "ANKSERVER_KEY_PEM")]
     /// Path to server key pem file.
-    pub ankserver_key_pem: Option<String>,
+    pub key_pem: Option<String>,
 }
 // Note: this code is intentionally without unit tests.
 // There is no business logic which can be tested, here we have only a config and a call of "clap" crate.

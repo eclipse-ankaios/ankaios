@@ -1,4 +1,4 @@
-# Setting Up Ankaios with mTLS
+# Setting up Ankaios with mTLS
 
  Mutual TLS (MTLS) is a security protocol that verifies both the client and server identities before establishing a connection. To set up MTLS with OpenSSL perform the following actions:
 
@@ -164,13 +164,13 @@ To set up Ankaios with mutual TLS (mTLS) support, you need to supply the necessa
 ### Install the `ank-server` with mTLS certificates
 
 ```shell
-curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh | bash -s -- -s "--ankserver_ca_pem ./certs/ca.pem --ankserver_crt_pem ./certs/ank-server.pem --ankserver_key_pem ./certs/ank-server-key.pem"
+curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh | bash -s -- -s "--ca_pem ./certs/ca.pem --crt_pem ./certs/ank-server.pem --key_pem ./certs/ank-server-key.pem"
 ```
 
 ### Install the `ank-agent` with mTLS certificates
 
 ```shell
-curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh | bash -s -- -s "--ankagent_ca_pem ./certs/ca.pem --ankagent_crt_pem ./certs/ank-agent.pem --ankagent_key_pem ./certs/ank-agent-key.pem"
+curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh | bash -s -- -s "--ca_pem ./certs/ca.pem --crt_pem ./certs/ank-agent.pem --key_pem ./certs/ank-agent-key.pem"
 ```
 
 ### Configure the `ank` CLI with mTLS certificates
@@ -196,5 +196,5 @@ ANK_CA_PEM=./.certs/ca.pem ANK_CRT_PEM=./.certs/ank.pem ANK_KEY_PEM=./.certs/ank
 Alternatively, you can pass the mTLS certificates as command line arguments:
 
 ```shell
-ank --ank_ca_pem=./.certs/ca.pem --ank_crt_pem=./.certs/ank.pem --ank_key_pem=./.certs/ank-key.pem get workloads
+ank --ca_pem=./.certs/ca.pem --crt_pem=./.certs/ank.pem --key_pem=./.certs/ank-key.pem get workloads
 ```
