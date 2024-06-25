@@ -7,14 +7,13 @@ fn terminal_width() -> usize {
 }
 
 use super::GetWorkloadTableDisplay;
-use common::std_extensions::UnreachableOption;
 use tabled::{
     settings::{object::Columns, Modify, Style, Width},
     Table, Tabled,
 };
 pub struct WorkloadTable<'a> {
     data: &'a [&'a GetWorkloadTableDisplay],
-    table: Option<Table>,
+    table: Table,
 }
 
 impl<'a> WorkloadTable<'a> {
@@ -23,17 +22,17 @@ impl<'a> WorkloadTable<'a> {
         let basic_styled_table = table.with(Style::blank());
         Self {
             data,
-            table: Some(basic_styled_table.to_owned()),
+            table: basic_styled_table.to_owned(),
         }
     }
 
     pub fn create_default_table(&mut self) -> String {
-        self.table_as_ref().unwrap_or_unreachable().to_string()
+        self.table.to_string()
     }
 
     // [impl->swdd~cli-shall-present-workloads-as-table~1]
     pub fn create_table_truncated_additional_info(&mut self) -> Option<String> {
-        let total_table_width: usize = self.table_as_mut()?.total_width();
+        let total_table_width: usize = self.table.total_width();
         let additional_info_terminal_width =
             self.terminal_width_for_additional_info(total_table_width)?;
 
@@ -48,14 +47,14 @@ impl<'a> WorkloadTable<'a> {
                 suffix_length_additional_info,
             );
 
-            Some(self.table_as_mut()?.to_string())
+            Some(self.table.to_string())
         } else {
             None
         }
     }
 
     pub fn create_table_wrapped_additional_info(&mut self) -> Option<String> {
-        let total_table_width: usize = self.table_as_mut()?.total_width();
+        let total_table_width: usize = self.table.total_width();
         let additional_info_terminal_width =
             self.terminal_width_for_additional_info(total_table_width)?;
 
@@ -64,15 +63,7 @@ impl<'a> WorkloadTable<'a> {
             GetWorkloadTableDisplay::ADDITIONAL_INFO_POS,
         );
 
-        Some(self.table_as_mut()?.to_string())
-    }
-
-    fn table_as_ref(&self) -> Option<&Table> {
-        self.table.as_ref()
-    }
-
-    fn table_as_mut(&mut self) -> Option<&mut Table> {
-        self.table.as_mut()
+        Some(self.table.to_string())
     }
 
     fn truncate_table_column(
@@ -81,31 +72,24 @@ impl<'a> WorkloadTable<'a> {
         column_position: usize,
         suffix_additional_info: &str,
         suffix_length: usize,
-    ) -> Option<()> {
-        self.table_as_mut()?.with(
+    ) {
+        self.table.with(
             Modify::new(Columns::single(column_position)).with(
                 Width::truncate(remaining_terminal_width - suffix_length)
                     .suffix(suffix_additional_info),
             ),
         );
-        Some(())
     }
 
-    fn wrap_table_column(
-        &mut self,
-        remaining_terminal_width: usize,
-        column_position: usize,
-    ) -> Option<()> {
-        self.table_as_mut()?.with(
+    fn wrap_table_column(&mut self, remaining_terminal_width: usize, column_position: usize) {
+        self.table.with(
             Modify::new(Columns::single(column_position))
                 .with(Width::wrap(remaining_terminal_width)),
         );
-        Some(())
     }
 
     fn terminal_width_for_additional_info(&self, total_table_width: usize) -> Option<usize> {
         let terminal_width = terminal_width();
-        println!("terminal_width: {}", terminal_width);
         let column_name_length =
             GetWorkloadTableDisplay::headers()[GetWorkloadTableDisplay::ADDITIONAL_INFO_POS].len();
         let additional_info_width =
