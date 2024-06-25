@@ -40,6 +40,7 @@ fn convert_rule_vec(
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(tag = "type")]
 pub enum AccessRightsRule {
     StateRule(StateRule),
 }
@@ -74,6 +75,7 @@ impl From<AccessRightsRule> for api::ank_base::AccessRightsRule {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct StateRule {
     pub operation: ReadWriteEnum,
     pub filter_mask: Vec<String>,

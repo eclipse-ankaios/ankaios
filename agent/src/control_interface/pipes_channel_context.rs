@@ -17,6 +17,7 @@ use common::objects::WorkloadInstanceName;
 #[cfg(test)]
 use mockall::automock;
 
+use super::authorizer::Authorizer;
 #[cfg_attr(test, mockall_double::double)]
 use super::input_output::InputOutput;
 #[cfg_attr(test, mockall_double::double)]
@@ -61,6 +62,7 @@ impl PipesChannelContext {
         run_directory: &Path,
         execution_instance_name: &WorkloadInstanceName,
         output_pipe_channel: ToServerSender,
+        authorizer: Authorizer,
     ) -> Result<Self, PipesChannelContextError> {
         // [impl->swdd~agent-control-interface-pipes-path-naming~1]
         match InputOutput::new(execution_instance_name.pipes_folder_name(run_directory)) {
@@ -79,6 +81,7 @@ impl PipesChannelContext {
                         input_pipe_channels.move_receiver(),
                         output_pipe_channel,
                         request_id_prefix,
+                        authorizer,
                     )
                     .run_task(),
                 })
@@ -125,7 +128,7 @@ mod tests {
     const CONFIG: &str = "config";
 
     use crate::control_interface::{
-        generate_test_input_output_mock, generate_test_pipes_channel_task_mock,
+        generate_test_input_output_mock, generate_test_pipes_channel_task_mock, Authorizer,
         MockFromServerChannels, MockReopenFile, PipesChannelContext,
     };
     use common::objects::WorkloadInstanceName;
@@ -167,6 +170,7 @@ mod tests {
                 .config(&String::from(CONFIG))
                 .build(),
             mpsc::channel(1).0,
+            Authorizer::default(),
         )
         .unwrap();
 
@@ -216,6 +220,7 @@ mod tests {
                 .config(&String::from(CONFIG))
                 .build(),
             mpsc::channel(1).0,
+            Authorizer::default(),
         )
         .unwrap();
 

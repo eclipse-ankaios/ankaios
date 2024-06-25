@@ -19,6 +19,7 @@ use common::{objects::WorkloadInstanceName, to_server_interface::ToServerSender}
 #[cfg(test)]
 use mockall::automock;
 
+use super::authorizer::Authorizer;
 #[cfg_attr(test, mockall_double::double)]
 use super::PipesChannelContext;
 
@@ -27,6 +28,7 @@ pub struct PipesChannelContextInfo {
     run_folder: PathBuf,
     workload_instance_name: WorkloadInstanceName,
     control_interface_to_server_sender: ToServerSender,
+    authorizer: Authorizer,
 }
 
 #[cfg_attr(test, automock)]
@@ -35,11 +37,13 @@ impl PipesChannelContextInfo {
         run_folder: &Path,
         control_interface_to_server_sender: ToServerSender,
         workload_instance_name: &WorkloadInstanceName,
+        authorizer: Authorizer,
     ) -> Self {
         Self {
             run_folder: run_folder.to_path_buf(),
             workload_instance_name: workload_instance_name.clone(),
             control_interface_to_server_sender,
+            authorizer,
         }
     }
 
@@ -56,6 +60,7 @@ impl PipesChannelContextInfo {
             &self.run_folder,
             &self.workload_instance_name,
             self.control_interface_to_server_sender.clone(),
+            self.authorizer,
         ) {
             Ok(res) => Some(res),
             _ => None,
@@ -91,6 +96,7 @@ mod tests {
             Path::new(PIPES_LOCATION),
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &workload_instance_name,
+            Authorizer::default(),
         );
 
         assert_eq!(
@@ -112,6 +118,7 @@ mod tests {
             &WorkloadInstanceName::builder()
                 .workload_name(WORKLOAD_1_NAME)
                 .build(),
+            Authorizer::default(),
         );
 
         assert_eq!(&path.to_path_buf(), new_context_info.get_run_folder());
@@ -127,6 +134,7 @@ mod tests {
             Path::new(PIPES_LOCATION),
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &workload_instance_name,
+            Authorizer::default(),
         );
 
         assert_eq!(
@@ -147,13 +155,14 @@ mod tests {
             &WorkloadInstanceName::builder()
                 .workload_name(WORKLOAD_1_NAME)
                 .build(),
+            Authorizer::default(),
         );
 
         let pipes_channel_context_mock = MockPipesChannelContext::new_context();
         pipes_channel_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _| Ok(MockPipesChannelContext::default()));
+            .return_once(|_, _, _, _| Ok(MockPipesChannelContext::default()));
 
         assert!(new_context_info.create_control_interface().is_some());
     }
@@ -170,13 +179,14 @@ mod tests {
             &WorkloadInstanceName::builder()
                 .workload_name(WORKLOAD_1_NAME)
                 .build(),
+            Authorizer::default(),
         );
 
         let pipes_channel_context_mock = MockPipesChannelContext::new_context();
         pipes_channel_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _| {
+            .return_once(|_, _, _, _| {
                 Err(PipesChannelContextError::CouldNotCreateFifo(String::from(
                     "error",
                 )))
