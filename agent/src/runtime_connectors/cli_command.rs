@@ -8,6 +8,14 @@ pub use tests::MockCliCommand;
 pub struct CliCommand<'a> {
     command: Command,
     stdin: Option<&'a [u8]>,
+    program: String,
+    args: Vec<String>,
+}
+
+impl std::fmt::Display for CliCommand<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.args)
+    }
 }
 
 impl<'a> CliCommand<'a> {
@@ -20,11 +28,14 @@ impl<'a> CliCommand<'a> {
         Self {
             command,
             stdin: None,
+            program: program.to_owned(),
+            args: Vec::new(),
         }
     }
 
     pub fn args(&mut self, args: &[&str]) -> &mut Self {
         self.command.args(args);
+        self.args = args.iter().map(|s| s.to_string()).collect();
         self
     }
 
@@ -36,8 +47,8 @@ impl<'a> CliCommand<'a> {
     pub async fn exec(&mut self) -> Result<String, String> {
         let mut child = self.command.spawn().map_err(|err| {
             format!(
-                "Could not spawn command '{:?}'. Error: '{}'",
-                self.command, err
+                "Error: '{}'. Could not spawn command '{:?}'.",
+                err, self.command
             )
         })?;
 
@@ -58,12 +69,24 @@ impl<'a> CliCommand<'a> {
             let stderr = String::from_utf8(result.stderr).unwrap_or_else(|err| {
                 format!("Could not decode command's stderr as UTF8: '{}'", err)
             });
+
+            let args_with_quotes = self.get_quoted_args(); // quoted args for easy debugging of the user
+
             Err(format!(
-                "Execution of '{:?}' failed: '{}'",
-                self.command,
-                stderr.trim()
+                "{}. Execution of '{} {}'",
+                stderr.trim(),
+                self.program,
+                args_with_quotes,
             ))
         }
+    }
+
+    fn get_quoted_args(&self) -> String {
+        self.args
+            .iter()
+            .map(|arg| format!("\"{}\"", arg))
+            .collect::<Vec<String>>()
+            .join(" ")
     }
 }
 
