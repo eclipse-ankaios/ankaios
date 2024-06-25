@@ -20,7 +20,7 @@ use std::{
 mod apply_manifests;
 mod server_connection;
 mod wait_list;
-use serde::ser::Error;
+mod workload_table;
 use tokio::time::interval;
 use wait_list::WaitList;
 
@@ -38,10 +38,8 @@ use common::{
     state_manipulation::{Object, Path},
 };
 
-use tabled::{
-    settings::{object::Columns, Modify, Style, Width},
-    Table, Tabled,
-};
+use tabled::Tabled;
+use workload_table::WorkloadTable;
 
 #[cfg_attr(test, mockall_double::double)]
 use self::server_connection::ServerConnection;
@@ -49,7 +47,6 @@ use self::wait_list::WaitListDisplayTrait;
 use crate::{
     cli::{ApplyArgs, OutputFormat},
     cli_commands::wait_list::ParsedUpdateStateSuccess,
-    log::terminal_width,
     output, output_and_error, output_debug,
 };
 
@@ -259,9 +256,7 @@ impl Display for WaitListDisplay {
             output_debug!(
                 "Failed to create truncated table output. Continue with default table layout."
             );
-            let default_table_output = workload_table_infos
-                .create_default_table()
-                .ok_or_else(|| fmt::Error::custom("Failed to create default table output"))?;
+            let default_table_output = workload_table_infos.create_default_table();
             write!(f, "{}", default_table_output)
         }
     }
@@ -325,142 +320,6 @@ impl GetWorkloadTableDisplay {
 
 fn trim_and_replace_newlines(text: &str) -> String {
     text.trim().replace('\n', ", ")
-}
-
-pub struct WorkloadTable<'a> {
-    data: &'a [&'a GetWorkloadTableDisplay],
-    table: Option<Table>,
-}
-
-impl<'a> WorkloadTable<'a> {
-    fn new(data: &'a [&'a GetWorkloadTableDisplay]) -> Self {
-        Self { data, table: None }
-    }
-
-    pub fn create_default_table(&mut self) -> Option<String> {
-        self.initialize_basic_table();
-        Some(self.table_as_ref()?.to_string())
-    }
-
-    // [impl->swdd~cli-shall-present-workloads-as-table~1]
-    pub fn create_table_truncated_additional_info(&mut self) -> Option<String> {
-        self.initialize_basic_table();
-        let total_table_width: usize = self.table_as_mut()?.total_width();
-        let additional_info_terminal_width =
-            self.terminal_width_for_additional_info(total_table_width)?;
-
-        const ADDITIONAL_INFO_SUFFIX: &str = "...";
-        let suffix_length_additional_info = ADDITIONAL_INFO_SUFFIX.len();
-
-        if additional_info_terminal_width > suffix_length_additional_info {
-            self.truncate_table_column(
-                additional_info_terminal_width,
-                GetWorkloadTableDisplay::ADDITIONAL_INFO_POS,
-                ADDITIONAL_INFO_SUFFIX,
-                suffix_length_additional_info,
-            );
-
-            Some(self.table_as_mut()?.to_string())
-        } else {
-            None
-        }
-    }
-
-    pub fn create_table_wrapped_additional_info(&mut self) -> Option<String> {
-        self.initialize_basic_table();
-
-        let total_table_width: usize = self.table_as_mut()?.total_width();
-        let additional_info_terminal_width =
-            self.terminal_width_for_additional_info(total_table_width)?;
-
-        self.wrap_table_column(
-            additional_info_terminal_width,
-            GetWorkloadTableDisplay::ADDITIONAL_INFO_POS,
-        );
-
-        Some(self.table_as_mut()?.to_string())
-    }
-
-    fn table_as_ref(&self) -> Option<&Table> {
-        self.table.as_ref()
-    }
-
-    fn table_as_mut(&mut self) -> Option<&mut Table> {
-        self.table.as_mut()
-    }
-
-    fn initialize_basic_table(&mut self) {
-        let mut table = Table::new(self.data);
-        let basic_styled_table = table.with(Style::blank());
-        self.table = Some(basic_styled_table.to_owned());
-    }
-
-    fn truncate_table_column(
-        &mut self,
-        remaining_terminal_width: usize,
-        column_position: usize,
-        suffix_additional_info: &str,
-        suffix_length: usize,
-    ) -> Option<()> {
-        self.table_as_mut()?.with(
-            Modify::new(Columns::single(column_position)).with(
-                Width::truncate(remaining_terminal_width - suffix_length)
-                    .suffix(suffix_additional_info),
-            ),
-        );
-        Some(())
-    }
-
-    fn wrap_table_column(
-        &mut self,
-        remaining_terminal_width: usize,
-        column_position: usize,
-    ) -> Option<()> {
-        self.table_as_mut()?.with(
-            Modify::new(Columns::single(column_position))
-                .with(Width::wrap(remaining_terminal_width)),
-        );
-        Some(())
-    }
-
-    fn terminal_width_for_additional_info(&self, total_table_width: usize) -> Option<usize> {
-        let terminal_width = terminal_width();
-        let column_name_length =
-            GetWorkloadTableDisplay::headers()[GetWorkloadTableDisplay::ADDITIONAL_INFO_POS].len();
-        let additional_info_width =
-            if let Some(max_additional_info_length) = self.length_of_longest_additional_info() {
-                if max_additional_info_length > column_name_length {
-                    max_additional_info_length
-                } else {
-                    // Avoid wrapping the column name when additional info is shorter
-                    column_name_length
-                }
-            } else {
-                /* On empty table, the max length of the additional info is the column name itself
-                to avoid wrapping the column name. */
-                column_name_length
-            };
-
-        let table_width_except_last_column = total_table_width - additional_info_width;
-
-        let is_reasonable_terminal_width = || {
-            terminal_width >= column_name_length
-                && (terminal_width - column_name_length) >= table_width_except_last_column
-        };
-
-        if is_reasonable_terminal_width() {
-            Some(terminal_width - table_width_except_last_column)
-        } else {
-            None // no space left
-        }
-    }
-
-    fn length_of_longest_additional_info(&self) -> Option<usize> {
-        self.data
-            .iter()
-            .map(|table_info| table_info.additional_info.len())
-            .max()
-    }
 }
 
 pub struct CliCommands {
@@ -645,9 +504,7 @@ impl CliCommands {
             output_debug!(
                 "Failed to create wrapped table output. Continue with default table layout."
             );
-            workload_table_infos.create_default_table().ok_or_else(|| {
-                CliError::ExecutionError("Failed to create default table output.".to_string())
-            })
+            Ok(workload_table_infos.create_default_table())
         }
     }
 
