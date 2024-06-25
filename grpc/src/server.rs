@@ -19,13 +19,14 @@ use common::communications_server::CommunicationsServer;
 use tonic::transport::{Certificate, Identity, Server};
 
 use std::net::SocketAddr;
+use std::path::Path;
 
 use crate::agent_senders_map::AgentSendersMap;
 use crate::grpc_api::agent_connection_server::AgentConnectionServer;
 use crate::grpc_cli_connection::GRPCCliConnection;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 
-use crate::security::TLSConfig;
+use crate::security::{check_and_read_pem_file, TLSConfig};
 
 use crate::from_server_proxy;
 use crate::grpc_agent_connection::GRPCAgentConnection;
@@ -65,11 +66,11 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                 let crt_pem = &tls_config.path_to_crt_pem;
                 let key_pem = &tls_config.path_to_key_pem;
 
-                let ca = std::fs::read_to_string(ca_pem)
+                let ca = check_and_read_pem_file(Path::new(ca_pem))
                     .map_err(|err| CommunicationMiddlewareError(err.to_string()))?;
-                let cert = std::fs::read_to_string(crt_pem)
+                let cert = check_and_read_pem_file(Path::new(crt_pem))
                     .map_err(|err| CommunicationMiddlewareError(err.to_string()))?;
-                let key = std::fs::read_to_string(key_pem)
+                let key = check_and_read_pem_file(Path::new(key_pem))
                     .map_err(|err| CommunicationMiddlewareError(err.to_string()))?;
 
                 let server_identity = Identity::from_pem(cert, key);

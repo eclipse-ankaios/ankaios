@@ -55,11 +55,15 @@ async fn main() {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     let args = cli::parse();
+    let server_url = match args.insecure {
+        true => args.server_url.replace("http[s]", "http"),
+        false => args.server_url.replace("http[s]", "https"),
+    };
 
     log::debug!(
         "Starting the Ankaios agent with \n\tname: '{}', \n\tserver url: '{}', \n\trun directory: '{}'",
         args.agent_name,
-        args.server_url,
+        server_url,
         args.run_folder,
     );
 
@@ -123,7 +127,7 @@ async fn main() {
 
     let grpc_communications_client = GRPCCommunicationsClient::new_agent_communication(
         args.agent_name.clone(),
-        args.server_url,
+        server_url,
         tls_config.unwrap_or_exit("Missing certificate file"),
     );
 

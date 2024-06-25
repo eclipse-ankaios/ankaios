@@ -14,7 +14,7 @@
 
 pub const CHANNEL_CAPACITY: usize = 20;
 pub const DEFAULT_SOCKET_ADDRESS: &str = "127.0.0.1:25551";
-pub const DEFAULT_SERVER_ADDRESS: &str = "https://127.0.0.1:25551";
+pub const DEFAULT_SERVER_ADDRESS: &str = "http[s]://127.0.0.1:25551";
 
 pub mod commands;
 pub mod communications_client;

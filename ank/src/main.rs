@@ -39,6 +39,11 @@ async fn main() {
         args
     );
 
+    let server_url = match args.insecure {
+        true => args.server_url.replace("http[s]", "http"),
+        false => args.server_url.replace("http[s]", "https"),
+    };
+
     let tls_config: Result<Option<TLSConfig>, String> =
         match (args.insecure, args.ca_pem, args.crt_pem, args.key_pem) {
             (true, _, _, _) => Ok(None),
@@ -60,7 +65,7 @@ async fn main() {
     let mut cmd = CliCommands::init(
         args.response_timeout_ms,
         cli_name.to_string(),
-        args.server_url,
+        server_url,
         args.no_wait,
         tls_config.unwrap_or_exit_func(
             |err| output_and_error!("Missing certificate files: {}", err),

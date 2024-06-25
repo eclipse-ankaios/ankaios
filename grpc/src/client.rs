@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::from_server_proxy;
 use crate::from_server_proxy::GRPCFromServerStreaming;
@@ -21,7 +21,7 @@ use crate::grpc_api::{
     cli_connection_client::CliConnectionClient, to_server::ToServerEnum, AgentHello,
 };
 use crate::grpc_middleware_error::GrpcMiddlewareError;
-use crate::security::TLSConfig;
+use crate::security::{check_and_read_pem_file, TLSConfig};
 use crate::to_server_proxy;
 
 use common::communications_client::CommunicationsClient;
@@ -209,17 +209,14 @@ impl GRPCCommunicationsClient {
         match self.connection_type {
             ConnectionType::Agent => match &self.tls_config {
                 Some(tls_config) => {
-                    let ca_pem =
-                        std::fs::read_to_string(PathBuf::from(&tls_config.path_to_ca_pem)).unwrap();
+                    let ca_pem = check_and_read_pem_file(Path::new(&tls_config.path_to_ca_pem))?;
                     let ca = Certificate::from_pem(ca_pem);
                     let client_cert_pem =
-                        std::fs::read_to_string(PathBuf::from(&tls_config.path_to_crt_pem))
-                            .unwrap();
+                        check_and_read_pem_file(Path::new(&tls_config.path_to_crt_pem))?;
                     let client_cert = Certificate::from_pem(client_cert_pem);
 
                     let client_key_pem =
-                        std::fs::read_to_string(PathBuf::from(&tls_config.path_to_key_pem))
-                            .unwrap();
+                        check_and_read_pem_file(Path::new(&tls_config.path_to_key_pem))?;
                     let client_key = Certificate::from_pem(client_key_pem);
                     let client_identity = Identity::from_pem(client_cert, client_key);
 

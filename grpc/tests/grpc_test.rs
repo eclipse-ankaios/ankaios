@@ -32,7 +32,6 @@ mod grpc_tests {
     ) {
         let (to_grpc_client, grpc_client_receiver) = tokio::sync::mpsc::channel::<ToServer>(20);
         let url = format!("http://{}", server_addr);
-        println!("generate_test_grpc_communication_client url: {:?}", url);
         let grpc_communications_client = match comm_type {
             CommunicationType::Cli => GRPCCommunicationsClient::new_cli_communication(
                 test_request_id.to_owned(),

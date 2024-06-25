@@ -13,11 +13,11 @@
 // SPDX-License-Identifier: Apache-2.0
 use std::fmt;
 
+use crate::grpc_api::{FromServer, ToServer};
 use common::{
     communications_error::CommunicationMiddlewareError,
     from_server_interface::FromServerInterfaceError, to_server_interface::ToServerError,
 };
-use crate::grpc_api::{FromServer, ToServer};
 use tokio::sync::mpsc::error::SendError;
 
 #[derive(Debug, Clone)]
@@ -28,6 +28,7 @@ pub enum GrpcMiddlewareError {
     ConversionError(String),
     ServerNotAvailable(String),
     ConnectionInterrupted(String),
+    CertificateError(String),
     TLSError(String),
 }
 
@@ -89,6 +90,9 @@ impl fmt::Display for GrpcMiddlewareError {
             }
             GrpcMiddlewareError::ConnectionInterrupted(message) => {
                 write!(f, "Connection interrupted: '{message}'")
+            }
+            GrpcMiddlewareError::CertificateError(message) => {
+                write!(f, "Certificate error: '{message}'")
             }
             GrpcMiddlewareError::TLSError(message) => {
                 write!(f, "TLS error: '{message}'")
