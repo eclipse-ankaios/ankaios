@@ -62,8 +62,7 @@ mod tests {
     use tabled::{settings::Style, Table};
 
     use crate::cli_commands::{
-        get_workload_table_display::GetWorkloadTableDisplay,
-        server_connection::MockServerConnection, CliCommands,
+        server_connection::MockServerConnection, workload_table_row::WorkloadTableRow, CliCommands,
     };
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
@@ -85,7 +84,7 @@ mod tests {
         let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
-        let expected_empty_table: Vec<GetWorkloadTableDisplay> = Vec::new();
+        let expected_empty_table: Vec<WorkloadTableRow> = Vec::new();
         let expected_table_text = Table::new(expected_empty_table)
             .with(Style::blank())
             .to_string();
@@ -132,22 +131,22 @@ mod tests {
         let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
-        let expected_table: Vec<GetWorkloadTableDisplay> = vec![
-            GetWorkloadTableDisplay::new(
+        let expected_table: Vec<WorkloadTableRow> = vec![
+            WorkloadTableRow::new(
                 "name1",
                 "agent_A",
                 "runtime",
                 &ExecutionState::running().state.to_string(),
                 Default::default(),
             ),
-            GetWorkloadTableDisplay::new(
+            WorkloadTableRow::new(
                 "name2",
                 "agent_B",
                 "runtime",
                 &ExecutionState::running().state.to_string(),
                 Default::default(),
             ),
-            GetWorkloadTableDisplay::new(
+            WorkloadTableRow::new(
                 "name3",
                 "agent_B",
                 "runtime",
@@ -196,7 +195,7 @@ mod tests {
             .await;
         assert!(cmd_text.is_ok());
 
-        let expected_table: Vec<GetWorkloadTableDisplay> = vec![GetWorkloadTableDisplay::new(
+        let expected_table: Vec<WorkloadTableRow> = vec![WorkloadTableRow::new(
             "name1",
             "agent_A",
             "runtime",
@@ -243,15 +242,15 @@ mod tests {
             .await;
         assert!(cmd_text.is_ok());
 
-        let expected_table: Vec<GetWorkloadTableDisplay> = vec![
-            GetWorkloadTableDisplay::new(
+        let expected_table: Vec<WorkloadTableRow> = vec![
+            WorkloadTableRow::new(
                 "name2",
                 "agent_B",
                 "runtime",
                 &ExecutionState::running().state.to_string(),
                 Default::default(),
             ),
-            GetWorkloadTableDisplay::new(
+            WorkloadTableRow::new(
                 "name3",
                 "agent_B",
                 "runtime",
@@ -299,7 +298,7 @@ mod tests {
             .await;
         assert!(cmd_text.is_ok());
 
-        let expected_table: Vec<GetWorkloadTableDisplay> = Vec::new();
+        let expected_table: Vec<WorkloadTableRow> = Vec::new();
         let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
         assert_eq!(cmd_text.unwrap(), expected_table_text);
     }
@@ -330,14 +329,13 @@ mod tests {
         let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
-        let expected_empty_table: Vec<GetWorkloadTableDisplay> =
-            vec![GetWorkloadTableDisplay::new(
-                "Workload_1",
-                "agent_A",
-                Default::default(),
-                "Removed",
-                Default::default(),
-            )];
+        let expected_empty_table: Vec<WorkloadTableRow> = vec![WorkloadTableRow::new(
+            "Workload_1",
+            "agent_A",
+            Default::default(),
+            "Removed",
+            Default::default(),
+        )];
         let expected_table_text = Table::new(expected_empty_table)
             .with(Style::blank())
             .to_string();

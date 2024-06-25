@@ -6,15 +6,15 @@ use std::{
 use common::objects::WorkloadInstanceName;
 use tabled::Table;
 
-use crate::cli_commands::get_workload_table_display::GetWorkloadTableDisplayWithSpinner;
+use crate::cli_commands::workload_table_row::WorkloadTableRowWithSpinner;
 
-use super::{get_workload_table_display::GetWorkloadTableDisplay, wait_list::WaitListDisplayTrait};
+use super::{wait_list::WaitListDisplayTrait, workload_table_row::WorkloadTableRow};
 
 pub(crate) const COMPLETED_SYMBOL: &str = " ";
 const SPINNER_SYMBOLS: [&str; 4] = ["|", "/", "-", "\\"];
 
 pub struct WaitListDisplay {
-    pub data: HashMap<WorkloadInstanceName, GetWorkloadTableDisplay>,
+    pub data: HashMap<WorkloadInstanceName, WorkloadTableRow>,
     pub not_completed: HashSet<WorkloadInstanceName>,
     pub spinner: Spinner,
 }
@@ -31,7 +31,7 @@ impl Display for WaitListDisplay {
                 } else {
                     COMPLETED_SYMBOL
                 };
-                GetWorkloadTableDisplayWithSpinner {
+                WorkloadTableRowWithSpinner {
                     data: table_entry,
                     spinner: update_state_symbol,
                 }

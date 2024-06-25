@@ -2,7 +2,7 @@ use tabled::Tabled;
 
 #[derive(Debug, Tabled, Clone)]
 #[tabled(rename_all = "UPPERCASE")]
-pub struct GetWorkloadTableDisplay {
+pub struct WorkloadTableRow {
     #[tabled(rename = "WORKLOAD NAME")]
     pub name: String,
     pub agent: String,
@@ -13,39 +13,37 @@ pub struct GetWorkloadTableDisplay {
     pub additional_info: String,
 }
 
-pub struct GetWorkloadTableDisplayWithSpinner<'a> {
-    pub data: &'a GetWorkloadTableDisplay,
+pub struct WorkloadTableRowWithSpinner<'a> {
+    pub data: &'a WorkloadTableRow,
     pub spinner: &'a str,
 }
 
-impl GetWorkloadTableDisplay {
+impl WorkloadTableRow {
     const EXECUTION_STATE_POS: usize = 3;
 }
 
-impl<'a> Tabled for GetWorkloadTableDisplayWithSpinner<'a> {
-    const LENGTH: usize = GetWorkloadTableDisplay::LENGTH;
+impl<'a> Tabled for WorkloadTableRowWithSpinner<'a> {
+    const LENGTH: usize = WorkloadTableRow::LENGTH;
 
     fn fields(&self) -> Vec<std::borrow::Cow<'_, str>> {
         let mut fields = self.data.fields();
-        *(fields[GetWorkloadTableDisplay::EXECUTION_STATE_POS].to_mut()) = format!(
+        *(fields[WorkloadTableRow::EXECUTION_STATE_POS].to_mut()) = format!(
             "{} {}",
             self.spinner,
-            fields[GetWorkloadTableDisplay::EXECUTION_STATE_POS]
+            fields[WorkloadTableRow::EXECUTION_STATE_POS]
         );
         fields
     }
 
     fn headers() -> Vec<std::borrow::Cow<'static, str>> {
-        let mut headers = GetWorkloadTableDisplay::headers();
-        *(headers[GetWorkloadTableDisplay::EXECUTION_STATE_POS].to_mut()) = format!(
-            "  {}",
-            headers[GetWorkloadTableDisplay::EXECUTION_STATE_POS]
-        );
+        let mut headers = WorkloadTableRow::headers();
+        *(headers[WorkloadTableRow::EXECUTION_STATE_POS].to_mut()) =
+            format!("  {}", headers[WorkloadTableRow::EXECUTION_STATE_POS]);
         headers
     }
 }
 
-impl GetWorkloadTableDisplay {
+impl WorkloadTableRow {
     pub fn new(
         name: &str,
         agent: &str,
@@ -53,7 +51,7 @@ impl GetWorkloadTableDisplay {
         execution_state: &str,
         additional_info: &str,
     ) -> Self {
-        GetWorkloadTableDisplay {
+        WorkloadTableRow {
             name: name.to_string(),
             agent: agent.to_string(),
             runtime: runtime.to_string(),
