@@ -17,7 +17,6 @@ use std::error::Error;
 use clap::{command, Parser, Subcommand};
 
 use common::DEFAULT_SERVER_ADDRESS;
-use url::Url;
 
 const ANK_SERVER_URL_ENV_KEY: &str = "ANK_SERVER_URL";
 
@@ -31,9 +30,9 @@ const ANK_SERVER_URL_ENV_KEY: &str = "ANK_SERVER_URL";
 pub struct AnkCli {
     #[command(subcommand)]
     pub command: Commands,
-    #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.parse().unwrap(), env = ANK_SERVER_URL_ENV_KEY)]
+    #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.to_string(), env = ANK_SERVER_URL_ENV_KEY)]
     /// The url to Ankaios server.
-    pub server_url: Url,
+    pub server_url: String,
     #[clap(long = "response-timeout", default_value_t = 3000)]
     /// The timeout in milliseconds to wait for a response.
     pub response_timeout_ms: u64,

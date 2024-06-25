@@ -250,7 +250,7 @@ ank delete workload databroker speed-provider speed-consumer
 ank get state
 ```
 
-If we want to start the three workloads on startup of the Ankaios server and agents we need to create a startup state file.
+If we want to start the three workloads on startup of the Ankaios server and agents we need to create a startup manifest file.
 In the default installation this file is `/etc/ankaios/state.yaml` as we can see in the systemd until file of the Ankaios server:
 
 ```shell
@@ -267,7 +267,7 @@ ExecStart=/usr/local/bin/ank-server --startup-config /etc/ankaios/state.yaml
 WantedBy=default.target
 ```
 
-Now we create a startup state file containing all three workloads:
+Now we create a startup manifest file containing all three workloads:
 
 ```yaml title="/etc/ankaios/state.yaml" hl_lines="13 14 24 25"
 apiVersion: v0.1

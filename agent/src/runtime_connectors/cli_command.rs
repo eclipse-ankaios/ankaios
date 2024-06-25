@@ -34,10 +34,12 @@ impl<'a> CliCommand<'a> {
     }
 
     pub async fn exec(&mut self) -> Result<String, String> {
-        let mut child = self
-            .command
-            .spawn()
-            .map_err(|err| format!("Could not execute command: {}", err))?;
+        let mut child = self.command.spawn().map_err(|err| {
+            format!(
+                "Could not spawn command '{:?}'. Error: '{}'",
+                self.command, err
+            )
+        })?;
 
         if let Some(stdin) = self.stdin {
             child
@@ -46,17 +48,21 @@ impl<'a> CliCommand<'a> {
                 .ok_or_else(|| "Could not access commands stdin".to_string())?
                 .write_all(stdin)
                 .await
-                .map_err(|err| format!("Could write data to command: {}", err))?;
+                .map_err(|err| format!("Could write stdin data to command: '{}'", err))?;
         }
         let result = child.wait_with_output().await.unwrap();
         if result.status.success() {
             String::from_utf8(result.stdout)
-                .map_err(|err| format!("Could not decode command's output as UTF8: {}", err))
+                .map_err(|err| format!("Could not decode command's output as UTF8: '{}'", err))
         } else {
             let stderr = String::from_utf8(result.stderr).unwrap_or_else(|err| {
-                format!("Could not decode command's stderr as UTF8: {}", err)
+                format!("Could not decode command's stderr as UTF8: '{}'", err)
             });
-            Err(format!("Execution of command failed: {}", stderr.trim()))
+            Err(format!(
+                "Execution of '{:?}' failed: '{}'",
+                self.command,
+                stderr.trim()
+            ))
         }
     }
 }
@@ -99,7 +105,7 @@ mod tests {
     #[tokio::test]
     async fn utest_cli_command_fail_on_not_existing_command() {
         let result = CliCommand::new("non_existing_command").exec().await;
-        assert!(matches!(result, Err(x) if x.starts_with("Could not execute command")));
+        assert!(matches!(result, Err(x) if x.starts_with("Could not spawn command")));
     }
 
     #[tokio::test]
@@ -129,7 +135,7 @@ mod tests {
             .exec()
             .await;
 
-        assert!(matches!(result, Err(x) if x== "Execution of command failed: error"));
+        assert_eq!(result, Err("Execution of 'Command { std: \"bash\" \"-c\" \"echo output;echo error >&2; false\", kill_on_drop: false }' failed: 'error'".to_string()));
     }
 
     #[tokio::test]
@@ -151,7 +157,7 @@ mod tests {
             .await;
 
         assert!(
-            matches!(result, Err(x) if x.starts_with("Execution of command failed: Could not decode command's stderr as UTF8"))
+            matches!(result, Err(x) if x.contains("Could not decode command's stderr as UTF8"))
         );
     }
 

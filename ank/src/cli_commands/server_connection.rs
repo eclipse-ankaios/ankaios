@@ -16,6 +16,7 @@ use std::{mem::take, time::Duration};
 
 use crate::{output_and_error, output_debug};
 use common::communications_client::CommunicationsClient;
+use common::communications_error::CommunicationMiddlewareError;
 use common::to_server_interface::ToServer;
 use common::{
     commands::{
@@ -29,7 +30,6 @@ use grpc::client::GRPCCommunicationsClient;
 use grpc::security::TLSConfig;
 #[cfg(test)]
 use mockall::automock;
-use url::Url;
 
 const BUFFER_SIZE: usize = 20;
 const WAIT_TIME_MS: Duration = Duration::from_millis(3000);
@@ -47,12 +47,16 @@ impl ServerConnection {
     // [impl->swdd~cli-communication-over-middleware~1]
     // testing the function does not bring any benefit so disable the dead code warning when building for test
     #[cfg_attr(test, allow(dead_code))]
-    pub fn new(cli_name: &str, server_url: Url, tls_config: Option<TLSConfig>) -> Self {
+    pub fn new(
+        cli_name: &str,
+        server_url: String,
+        tls_config: Option<TLSConfig>,
+    ) -> Result<Self, CommunicationMiddlewareError> {
         let mut grpc_communications_client = GRPCCommunicationsClient::new_cli_communication(
             cli_name.to_owned(),
             server_url,
             tls_config,
-        );
+        )?;
 
         let (to_cli, cli_receiver) = tokio::sync::mpsc::channel::<FromServer>(BUFFER_SIZE);
         let (to_server, server_receiver) = tokio::sync::mpsc::channel::<ToServer>(BUFFER_SIZE);
@@ -66,12 +70,12 @@ impl ServerConnection {
             }
         });
 
-        Self {
+        Ok(Self {
             to_server,
             from_server: cli_receiver,
             task,
             missed_from_server_messages: Vec::new(),
-        }
+        })
     }
 
     // testing the function does not bring any benefit so disable the dead code warning when building for test

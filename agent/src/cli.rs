@@ -19,7 +19,6 @@ use crate::control_interface::Directory;
 use crate::control_interface::FileSystemError;
 use clap::Parser;
 use common::DEFAULT_SERVER_ADDRESS;
-use url::Url;
 
 const DEFAULT_RUN_FOLDER: &str = "/tmp/ankaios/";
 const RUNFOLDER_SUFFIX: &str = "_io";
@@ -33,9 +32,9 @@ pub struct Arguments {
     #[clap(short = 'n', long = "name")]
     /// The name to use for the registration with the server. Every agent has to register with a unique name.
     pub agent_name: String,
-    #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.parse().unwrap())]
+    #[clap(short = 's', long = "server-url", default_value_t = DEFAULT_SERVER_ADDRESS.to_string())]
     /// The server url.
-    pub server_url: Url,
+    pub server_url: String,
     /// An existing path where to manage the fifo files.
     #[clap(short = 'r', long = "run-folder", default_value_t = DEFAULT_RUN_FOLDER.into())]
     pub run_folder: String,
@@ -97,12 +96,12 @@ mod tests {
 
         let args = Arguments {
             agent_name: "test_agent_name".to_owned(),
-            server_url: DEFAULT_SERVER_ADDRESS.parse().unwrap(),
+            server_url: DEFAULT_SERVER_ADDRESS.to_string(),
             run_folder: DEFAULT_RUN_FOLDER.to_owned(),
             insecure: true,
-            ankagent_ca_pem: None,
-            ankagent_crt_pem: None,
-            ankagent_key_pem: None,
+            ca_pem: None,
+            crt_pem: None,
+            key_pem: None,
         };
 
         let _directory_mock_context =
@@ -117,12 +116,12 @@ mod tests {
 
         let args = Arguments {
             agent_name: "test_agent_name".to_owned(),
-            server_url: DEFAULT_SERVER_ADDRESS.parse().unwrap(),
+            server_url: DEFAULT_SERVER_ADDRESS.to_string(),
             run_folder: "/tmp/x".to_owned(),
             insecure: true,
-            ankagent_ca_pem: None,
-            ankagent_crt_pem: None,
-            ankagent_key_pem: None,
+            ca_pem: None,
+            crt_pem: None,
+            key_pem: None,
         };
 
         let _directory_mock_context = generate_test_directory_mock("/tmp/x", "test_agent_name_io");

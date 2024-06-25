@@ -160,7 +160,6 @@ impl ServerState {
     ) -> Result<CompleteState, String> {
         let current_complete_state = CompleteState {
             desired_state: self.state.desired_state.clone(),
-            startup_state: self.state.startup_state.clone(),
             workload_states: workload_state_db.get_all_workload_states(),
         };
 

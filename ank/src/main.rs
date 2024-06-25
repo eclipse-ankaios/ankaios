@@ -66,7 +66,10 @@ async fn main() {
             |err| output_and_error!("Missing certificate files: {}", err),
             -1,
         ),
-    );
+    )
+    .unwrap_or_else(|err| {
+        output_and_error!("Cannot connect to server: '{}'", err);
+    });
 
     match args.command {
         cli::Commands::Get(get_args) => match get_args.command {
