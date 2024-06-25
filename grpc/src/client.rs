@@ -56,7 +56,7 @@ pub struct GRPCCommunicationsClient {
 
 fn get_server_url(server_address: &str, tls_config: &Option<TLSConfig>) -> String {
     if tls_config.is_none() {
-        server_address.replace("http", "https")
+        server_address.replace("https:", "http:")
     } else {
         server_address.to_owned()
     }
