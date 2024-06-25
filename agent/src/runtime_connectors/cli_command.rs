@@ -128,7 +128,7 @@ mod tests {
     #[tokio::test]
     async fn utest_cli_command_fail_on_not_existing_command() {
         let result = CliCommand::new("non_existing_command").exec().await;
-        assert!(matches!(result, Err(x) if x.starts_with("Could not spawn command")));
+        assert!(matches!(result, Err(x) if x.contains("Could not spawn command")));
     }
 
     #[tokio::test]
@@ -158,7 +158,13 @@ mod tests {
             .exec()
             .await;
 
-        assert_eq!(result, Err("Execution of 'Command { std: \"bash\" \"-c\" \"echo output;echo error >&2; false\", kill_on_drop: false }' failed: 'error'".to_string()));
+        assert_eq!(
+            result,
+            Err(
+                "error. Execution of 'bash \"-c\" \"echo output;echo error >&2; false\"'"
+                    .to_string()
+            )
+        );
     }
 
     #[tokio::test]
