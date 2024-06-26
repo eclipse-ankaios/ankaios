@@ -97,7 +97,9 @@ impl AnkaiosServer {
             }
         } else {
             // [impl->swdd~server-starts-without-startup-config~1]
-            log::info!("No startup state provided -> waiting for new workloads from the CLI");
+            log::info!(
+                "No startup configuration provided -> waiting for new workloads from the CLI"
+            );
         }
         self.listen_to_agents().await;
         Ok(())
@@ -387,7 +389,6 @@ impl AnkaiosServer {
 
 #[cfg(test)]
 mod tests {
-    use api::proto;
     use std::collections::HashMap;
 
     use super::AnkaiosServer;
@@ -1464,11 +1465,10 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let update_state_proto_no_version = proto::CompleteState {
+        let mut update_state_ankaios_no_version: CompleteState = CompleteState {
             ..Default::default()
         };
-        let update_state_ankaios_no_version: CompleteState =
-            CompleteState::try_from(update_state_proto_no_version).unwrap();
+        update_state_ankaios_no_version.desired_state.api_version = "".to_string();
 
         let update_mask = vec![format!("desiredState.workloads.{}", WORKLOAD_NAME_1)];
         let mut server = AnkaiosServer::new(server_receiver, to_agents);

@@ -12,8 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub mod proto {
+pub mod ank_base {
 
-    // [impl->swdd~grpc-delegate-workflow-to-external-library~1]
-    tonic::include_proto!("ankaios"); // The string specified here must match the proto package name
+    // [impl->swdd~ank-base-provides-object-definitions~1]
+    tonic::include_proto!("ank_base"); // The string specified here must match the proto package name
+}
+
+pub mod control_api {
+    // [impl->swdd~control-api-provides-control-interface-definitions~1]
+    tonic::include_proto!("control_api"); // The string specified here must match the proto package name
 }

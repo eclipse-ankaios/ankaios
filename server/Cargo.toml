@@ -30,7 +30,6 @@ serde_yaml = "0.9"
 clap = { version = "4.0", features = ["derive"] }
 
 [dev-dependencies]
-api = { path = "../api" }
 common = { path = "../common", features = ["test_utils"] }
 serde_json = "1.0"
 rand = "0.8.5"

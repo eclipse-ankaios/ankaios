@@ -3,7 +3,8 @@
 #include <thread>
 #include <chrono>
 #include <iomanip>
-#include "src/proto/ankaios.pb.h"
+#include "src/proto/ank_base.pb.h"
+#include "src/proto/control_api.pb.h"
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/util/delimited_message_util.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
@@ -29,49 +30,49 @@ namespace logging
 /* Create the Request containing an UpdateStateRequest
     that contains the details for adding the new workload and
     the update mask to add only the new workload. */
-ankaios::ToServer createRequestToAddNewWorkload()
+control_api::ToAnkaios createRequestToAddNewWorkload()
 {
-    ankaios::Workload newWorkload;
+    ank_base::Workload newWorkload;
     newWorkload.set_agent("agent_A");
     newWorkload.set_runtime("podman");
-    newWorkload.set_restartpolicy(ankaios::RestartPolicy::NEVER);
+    newWorkload.set_restartpolicy(ank_base::RestartPolicy::NEVER);
     newWorkload.set_runtimeconfig("image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]");
 
-    ankaios::State *state{new ankaios::State};
+    ank_base::State *state{new ank_base::State};
     std::string* apiVersion{new std::string("v0.1")};
     state->set_allocated_apiversion(apiVersion);
     state->mutable_workloads()->insert({"dynamic_nginx", std::move(newWorkload)});
 
-    ankaios::CompleteState *completeState{new ankaios::CompleteState};
+    ank_base::CompleteState *completeState{new ank_base::CompleteState};
     completeState->set_allocated_desiredstate(state);
 
-    ankaios::UpdateStateRequest *updateStateRequest{new ankaios::UpdateStateRequest};
+    ank_base::UpdateStateRequest *updateStateRequest{new ank_base::UpdateStateRequest};
     updateStateRequest->set_allocated_newstate(completeState);
     updateStateRequest->add_updatemask("desiredState.workloads.dynamic_nginx");
 
-    ankaios::Request* request {new ankaios::Request};
+    ank_base::Request* request {new ank_base::Request};
     request->set_allocated_updatestaterequest(updateStateRequest);
     request->set_requestid(REQUEST_ID);
 
-    ankaios::ToServer toServer;
-    toServer.set_allocated_request(request);
-    return toServer;
+    control_api::ToAnkaios toAnkaios;
+    toAnkaios.set_allocated_request(request);
+    return toAnkaios;
 }
 
 /* Create a Request to request the CompleteState
     for querying the workload states. */
-ankaios::ToServer createRequestForCompleteState()
+control_api::ToAnkaios createRequestForCompleteState()
 {
-    ankaios::CompleteStateRequest* completeStateRequest{new ankaios::CompleteStateRequest};
+    ank_base::CompleteStateRequest* completeStateRequest{new ank_base::CompleteStateRequest};
     completeStateRequest->add_fieldmask("workloadStates");
 
-    ankaios::Request* request {new ankaios::Request};
+    ank_base::Request* request {new ank_base::Request};
     request->set_allocated_completestaterequest(completeStateRequest);
     request->set_requestid(REQUEST_ID);
 
-    ankaios::ToServer toServer;
-    toServer.set_allocated_request(request);
-    return toServer;
+    control_api::ToAnkaios toAnkaios;
+    toAnkaios.set_allocated_request(request);
+    return toAnkaios;
 }
 
 /* Reads from the control interface input fifo and prints the workload states. */
@@ -93,23 +94,23 @@ void readFromControlInterface()
     bool result = true;
     do
     {
-        ankaios::FromServer fromServer;
+        control_api::FromAnkaios fromAnkaios;
         bool clean_eof = false;
         // read length-delimited protobuf message to output the workload states
-        result = google::protobuf::util::ParseDelimitedFromZeroCopyStream(&fromServer, &bufferedInputStream, &clean_eof);
+        result = google::protobuf::util::ParseDelimitedFromZeroCopyStream(&fromAnkaios, &bufferedInputStream, &clean_eof);
         if (!result)
         {
             logging::log(std::cerr, "Invalid response, parsing error.");
             continue;
         }
 
-        const auto requestId = fromServer.response().requestid();
+        const auto requestId = fromAnkaios.response().requestid();
         if (requestId == REQUEST_ID)
         {
         logging::log(std::cout,
                         "Receiving Response containing the workload states of the current state:\n",
-                        "FromServer {\n",
-                        fromServer.DebugString(),
+                        "FromAnkaios {\n",
+                        fromAnkaios.DebugString(),
                         "}\n");
         } else
         {
@@ -134,7 +135,7 @@ void writeToControlInterface()
 
     logging::log(std::cout,
                  "Sending Request containing details for adding the dynamic workload \"dynamic_nginx\":\n",
-                 "ToServer {\n",
+                 "ToAnkaios {\n",
                  requestToAddNewWorkload.DebugString(),
                  "}\n");
     // write length-delimited protobuf message into output fifo to add the new workload
@@ -147,7 +148,7 @@ void writeToControlInterface()
     {
         logging::log(std::cout,
                      "Sending Request containing details for requesting all workload states:\n",
-                     "ToServer {\n",
+                     "ToAnkaios {\n",
                      requestForCompleteState.DebugString(),
                      "}\n");
         // write length-delimited protobuf message into output fifo to receive the workload states

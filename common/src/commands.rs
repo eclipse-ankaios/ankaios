@@ -13,20 +13,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::objects::{CompleteState, DeletedWorkload, WorkloadSpec};
-use api::proto;
+use api::ank_base;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct AgentHello {
     pub agent_name: String,
-}
-
-impl From<proto::AgentHello> for AgentHello {
-    fn from(item: proto::AgentHello) -> Self {
-        AgentHello {
-            agent_name: item.agent_name,
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -39,29 +31,13 @@ pub struct UpdateWorkloadState {
     pub workload_states: Vec<crate::objects::WorkloadState>,
 }
 
-impl From<UpdateWorkloadState> for proto::UpdateWorkloadState {
-    fn from(item: UpdateWorkloadState) -> Self {
-        proto::UpdateWorkloadState {
-            workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
-        }
-    }
-}
-
-impl From<proto::UpdateWorkloadState> for UpdateWorkloadState {
-    fn from(item: proto::UpdateWorkloadState) -> Self {
-        UpdateWorkloadState {
-            workload_states: item.workload_states.into_iter().map(|x| x.into()).collect(),
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Request {
     pub request_id: String,
     pub request_content: RequestContent,
 }
 
-impl From<Request> for proto::Request {
+impl From<Request> for ank_base::Request {
     fn from(value: Request) -> Self {
         Self {
             request_id: value.request_id,
@@ -76,9 +52,9 @@ impl Request {
     }
 }
 
-impl TryFrom<proto::Request> for Request {
+impl TryFrom<ank_base::Request> for Request {
     type Error = String;
-    fn try_from(value: proto::Request) -> Result<Request, Self::Error> {
+    fn try_from(value: ank_base::Request) -> Result<Request, Self::Error> {
         Ok(Request {
             request_id: value.request_id,
             request_content: value
@@ -95,27 +71,27 @@ pub enum RequestContent {
     UpdateStateRequest(Box<UpdateStateRequest>),
 }
 
-impl From<RequestContent> for proto::request::RequestContent {
+impl From<RequestContent> for ank_base::request::RequestContent {
     fn from(value: RequestContent) -> Self {
         match value {
             RequestContent::CompleteStateRequest(content) => {
-                proto::request::RequestContent::CompleteStateRequest(content.into())
+                ank_base::request::RequestContent::CompleteStateRequest(content.into())
             }
             RequestContent::UpdateStateRequest(content) => {
-                proto::request::RequestContent::UpdateStateRequest((*content).into())
+                ank_base::request::RequestContent::UpdateStateRequest((*content).into())
             }
         }
     }
 }
 
-impl TryFrom<proto::request::RequestContent> for RequestContent {
+impl TryFrom<ank_base::request::RequestContent> for RequestContent {
     type Error = String;
-    fn try_from(value: proto::request::RequestContent) -> Result<Self, Self::Error> {
+    fn try_from(value: ank_base::request::RequestContent) -> Result<Self, Self::Error> {
         Ok(match value {
-            proto::request::RequestContent::UpdateStateRequest(value) => {
+            ank_base::request::RequestContent::UpdateStateRequest(value) => {
                 RequestContent::UpdateStateRequest(Box::new(value.try_into()?))
             }
-            proto::request::RequestContent::CompleteStateRequest(value) => {
+            ank_base::request::RequestContent::CompleteStateRequest(value) => {
                 RequestContent::CompleteStateRequest(value.into())
             }
         })
@@ -127,16 +103,16 @@ pub struct CompleteStateRequest {
     pub field_mask: Vec<String>,
 }
 
-impl From<CompleteStateRequest> for proto::CompleteStateRequest {
+impl From<CompleteStateRequest> for ank_base::CompleteStateRequest {
     fn from(item: CompleteStateRequest) -> Self {
-        proto::CompleteStateRequest {
+        ank_base::CompleteStateRequest {
             field_mask: item.field_mask,
         }
     }
 }
 
-impl From<proto::CompleteStateRequest> for CompleteStateRequest {
-    fn from(item: proto::CompleteStateRequest) -> Self {
+impl From<ank_base::CompleteStateRequest> for CompleteStateRequest {
+    fn from(item: ank_base::CompleteStateRequest) -> Self {
         CompleteStateRequest {
             field_mask: item.field_mask,
         }
@@ -149,7 +125,7 @@ pub struct UpdateStateRequest {
     pub update_mask: Vec<String>,
 }
 
-impl From<UpdateStateRequest> for proto::UpdateStateRequest {
+impl From<UpdateStateRequest> for ank_base::UpdateStateRequest {
     fn from(value: UpdateStateRequest) -> Self {
         Self {
             new_state: Some(value.state.into()),
@@ -158,10 +134,10 @@ impl From<UpdateStateRequest> for proto::UpdateStateRequest {
     }
 }
 
-impl TryFrom<proto::UpdateStateRequest> for UpdateStateRequest {
+impl TryFrom<ank_base::UpdateStateRequest> for UpdateStateRequest {
     type Error = String;
 
-    fn try_from(item: proto::UpdateStateRequest) -> Result<Self, Self::Error> {
+    fn try_from(item: ank_base::UpdateStateRequest) -> Result<Self, Self::Error> {
         Ok(UpdateStateRequest {
             state: item.new_state.unwrap_or_default().try_into()?,
             update_mask: item.update_mask,
@@ -182,7 +158,7 @@ pub struct Response {
     pub response_content: ResponseContent,
 }
 
-impl From<Response> for proto::Response {
+impl From<Response> for ank_base::Response {
     fn from(value: Response) -> Self {
         Self {
             request_id: value.request_id,
@@ -191,10 +167,10 @@ impl From<Response> for proto::Response {
     }
 }
 
-impl TryFrom<proto::Response> for Response {
+impl TryFrom<ank_base::Response> for Response {
     type Error = String;
 
-    fn try_from(value: proto::Response) -> Result<Self, Self::Error> {
+    fn try_from(value: ank_base::Response) -> Result<Self, Self::Error> {
         Ok(Self {
             request_id: value.request_id,
             response_content: value
@@ -213,32 +189,34 @@ pub enum ResponseContent {
     UpdateStateSuccess(UpdateStateSuccess),
 }
 
-impl From<ResponseContent> for proto::response::ResponseContent {
+impl From<ResponseContent> for ank_base::response::ResponseContent {
     fn from(value: ResponseContent) -> Self {
         match value {
-            ResponseContent::Error(error) => proto::response::ResponseContent::Error(error.into()),
+            ResponseContent::Error(error) => {
+                ank_base::response::ResponseContent::Error(error.into())
+            }
             ResponseContent::CompleteState(complete_state) => {
-                proto::response::ResponseContent::CompleteState((*complete_state).into())
+                ank_base::response::ResponseContent::CompleteState((*complete_state).into())
             }
             ResponseContent::UpdateStateSuccess(update_state_success) => {
-                proto::response::ResponseContent::UpdateStateSuccess(update_state_success.into())
+                ank_base::response::ResponseContent::UpdateStateSuccess(update_state_success.into())
             }
         }
     }
 }
 
-impl TryFrom<proto::response::ResponseContent> for ResponseContent {
+impl TryFrom<ank_base::response::ResponseContent> for ResponseContent {
     type Error = String;
 
-    fn try_from(value: proto::response::ResponseContent) -> Result<Self, String> {
+    fn try_from(value: ank_base::response::ResponseContent) -> Result<Self, String> {
         match value {
-            proto::response::ResponseContent::Error(error) => {
+            ank_base::response::ResponseContent::Error(error) => {
                 Ok(ResponseContent::Error(error.into()))
             }
-            proto::response::ResponseContent::CompleteState(complete_state) => Ok(
+            ank_base::response::ResponseContent::CompleteState(complete_state) => Ok(
                 ResponseContent::CompleteState(Box::new(complete_state.try_into()?)),
             ),
-            proto::response::ResponseContent::UpdateStateSuccess(update_state_success) => Ok(
+            ank_base::response::ResponseContent::UpdateStateSuccess(update_state_success) => Ok(
                 ResponseContent::UpdateStateSuccess(update_state_success.into()),
             ),
         }
@@ -251,17 +229,17 @@ pub struct Error {
     pub message: String,
 }
 
-impl From<proto::Error> for Error {
-    fn from(value: proto::Error) -> Self {
+impl From<ank_base::Error> for Error {
+    fn from(value: ank_base::Error) -> Self {
         Self {
             message: value.message,
         }
     }
 }
 
-impl From<Error> for proto::Error {
+impl From<Error> for ank_base::Error {
     fn from(value: Error) -> Self {
-        proto::Error {
+        ank_base::Error {
             message: value.message,
         }
     }
@@ -274,7 +252,7 @@ pub struct UpdateStateSuccess {
     pub deleted_workloads: Vec<String>,
 }
 
-impl From<UpdateStateSuccess> for proto::UpdateStateSuccess {
+impl From<UpdateStateSuccess> for ank_base::UpdateStateSuccess {
     fn from(value: UpdateStateSuccess) -> Self {
         Self {
             added_workloads: value.added_workloads,
@@ -283,8 +261,8 @@ impl From<UpdateStateSuccess> for proto::UpdateStateSuccess {
     }
 }
 
-impl From<proto::UpdateStateSuccess> for UpdateStateSuccess {
-    fn from(value: proto::UpdateStateSuccess) -> Self {
+impl From<ank_base::UpdateStateSuccess> for UpdateStateSuccess {
+    fn from(value: ank_base::UpdateStateSuccess) -> Self {
         Self {
             added_workloads: value.added_workloads,
             deleted_workloads: value.deleted_workloads,
@@ -310,12 +288,12 @@ pub struct Stop {}
 mod tests {
     use crate::objects::ConfigHash;
 
-    mod proto {
-        pub use api::proto::{
+    mod ank_base {
+        pub use api::ank_base::{
             execution_state::ExecutionStateEnum, request::RequestContent,
             response::ResponseContent, CompleteState, CompleteStateRequest, Error, ExecutionState,
-            Request, Response, Running, State, UpdateStateRequest, UpdateStateSuccess,
-            UpdateWorkloadState, Workload, WorkloadInstanceName, WorkloadState,
+            Request, Response, Running, State, UpdateStateRequest, UpdateStateSuccess, Workload,
+            WorkloadInstanceName, WorkloadState,
         };
     }
 
@@ -323,7 +301,7 @@ mod tests {
         pub use crate::{
             commands::{
                 CompleteStateRequest, Error, Request, RequestContent, Response, ResponseContent,
-                UpdateStateRequest, UpdateStateSuccess, UpdateWorkloadState,
+                UpdateStateRequest, UpdateStateSuccess,
             },
             objects::{
                 CompleteState, ExecutionState, State, StoredWorkloadSpec, WorkloadInstanceName,
@@ -341,14 +319,6 @@ mod tests {
     const WORKLOAD_NAME_3: &str = "workload_name_3";
     const HASH: &str = "hash_1";
     const ERROR_MESSAGE: &str = "error_message";
-
-    macro_rules! update_workload_state {
-        ($expression:ident) => {
-            $expression::UpdateWorkloadState {
-                workload_states: vec![workload_state!($expression)],
-            }
-        };
-    }
 
     macro_rules! complete_state_request {
         ($expression:ident) => {{
@@ -374,9 +344,9 @@ mod tests {
     }
 
     macro_rules! update_state_request_enum {
-        (proto) => {
-            proto::RequestContent::UpdateStateRequest(proto::UpdateStateRequest {
-                new_state: complete_state!(proto).into(),
+        (ank_base) => {
+            ank_base::RequestContent::UpdateStateRequest(ank_base::UpdateStateRequest {
+                new_state: complete_state!(ank_base).into(),
                 update_mask: vec![FIELD_1.into(), FIELD_2.into()],
             })
         };
@@ -415,13 +385,6 @@ mod tests {
     macro_rules! complete_state {
         ($expression:ident) => {
             $expression::CompleteState {
-                startup_state: $expression::State {
-                    api_version: "v0.1".into(),
-                    workloads: vec![("startup".into(), workload!($expression))]
-                        .into_iter()
-                        .collect(),
-                }
-                .into(),
                 desired_state: $expression::State {
                     api_version: "v0.1".into(),
                     workloads: vec![("desired".into(), workload!($expression))]
@@ -435,8 +398,8 @@ mod tests {
     }
 
     macro_rules! workload {
-        (proto) => {
-            proto::Workload {
+        (ank_base) => {
+            ank_base::Workload {
                 ..Default::default()
             }
         };
@@ -465,17 +428,17 @@ mod tests {
                 execution_state: ankaios::ExecutionState::running(),
             }
         }};
-        (proto) => {
-            proto::WorkloadState {
-                instance_name: proto::WorkloadInstanceName {
+        (ank_base) => {
+            ank_base::WorkloadState {
+                instance_name: ank_base::WorkloadInstanceName {
                     workload_name: WORKLOAD_NAME_1.into(),
                     agent_name: AGENT_NAME.into(),
                     id: HASH.into(),
                 }
                 .into(),
-                execution_state: proto::ExecutionState {
-                    execution_state_enum: proto::ExecutionStateEnum::Running(
-                        proto::Running::Ok.into(),
+                execution_state: ank_base::ExecutionState {
+                    execution_state_enum: ank_base::ExecutionStateEnum::Running(
+                        ank_base::Running::Ok.into(),
                     )
                     .into(),
                     ..Default::default()
@@ -501,41 +464,19 @@ mod tests {
     }
 
     #[test]
-    fn utest_converts_to_proto_update_workload_state() {
-        let ankaios_update_wl_state = update_workload_state!(ankaios);
-        let proto_update_wl_state = update_workload_state!(proto);
-
-        assert_eq!(
-            proto::UpdateWorkloadState::from(ankaios_update_wl_state),
-            proto_update_wl_state
-        );
-    }
-
-    #[test]
-    fn utest_converts_from_proto_update_workload_state() {
-        let proto_update_wl_state = update_workload_state!(proto);
-        let ankaios_update_wl_state = update_workload_state!(ankaios);
-
-        assert_eq!(
-            ankaios::UpdateWorkloadState::from(proto_update_wl_state),
-            ankaios_update_wl_state,
-        );
-    }
-
-    #[test]
     fn utest_converts_to_proto_complete_state_request() {
         let ankaios_request_complete_state = complete_state_request!(ankaios);
-        let proto_request_complete_state = complete_state_request!(proto);
+        let proto_request_complete_state = complete_state_request!(ank_base);
 
         assert_eq!(
-            proto::Request::from(ankaios_request_complete_state),
+            ank_base::Request::from(ankaios_request_complete_state),
             proto_request_complete_state
         );
     }
 
     #[test]
     fn utest_converts_from_proto_complete_state_request() {
-        let proto_request_complete_state = complete_state_request!(proto);
+        let proto_request_complete_state = complete_state_request!(ank_base);
         let ankaios_request_complete_state = complete_state_request!(ankaios);
 
         assert_eq!(
@@ -547,17 +488,17 @@ mod tests {
     #[test]
     fn utest_converts_to_proto_update_state_request() {
         let ankaios_request_complete_state = update_state_request!(ankaios);
-        let proto_request_complete_state = update_state_request!(proto);
+        let proto_request_complete_state = update_state_request!(ank_base);
 
         assert_eq!(
-            proto::Request::from(ankaios_request_complete_state),
+            ank_base::Request::from(ankaios_request_complete_state),
             proto_request_complete_state
         );
     }
 
     #[test]
     fn utest_converts_from_proto_update_state_request() {
-        let proto_request_complete_state = update_state_request!(proto);
+        let proto_request_complete_state = update_state_request!(ank_base);
         let ankaios_request_complete_state = update_state_request!(ankaios);
 
         assert_eq!(
@@ -568,10 +509,10 @@ mod tests {
 
     #[test]
     fn utest_converts_from_proto_update_state_request_with_empty_states() {
-        let mut proto_request_complete_state = update_state_request!(proto);
+        let mut proto_request_complete_state = update_state_request!(ank_base);
         let mut ankaios_request_complete_state = update_state_request!(ankaios);
 
-        let proto::RequestContent::UpdateStateRequest(proto_request_content) =
+        let ank_base::RequestContent::UpdateStateRequest(proto_request_content) =
             proto_request_complete_state
                 .request_content
                 .as_mut()
@@ -579,12 +520,8 @@ mod tests {
         else {
             unreachable!()
         };
-        proto_request_content.new_state = Some(proto::CompleteState {
-            startup_state: Some(proto::State {
-                api_version: "v0.1".into(),
-                ..Default::default()
-            }),
-            desired_state: Some(proto::State {
+        proto_request_content.new_state = Some(ank_base::CompleteState {
+            desired_state: Some(ank_base::State {
                 api_version: "v0.1".into(),
                 ..Default::default()
             }),
@@ -608,10 +545,10 @@ mod tests {
 
     #[test]
     fn utest_converts_from_proto_update_state_request_inner_state_with_empty_states() {
-        let mut proto_request_complete_state = update_state_request!(proto);
+        let mut proto_request_complete_state = update_state_request!(ank_base);
         let mut ankaios_request_complete_state = update_state_request!(ankaios);
 
-        let proto::RequestContent::UpdateStateRequest(proto_request_content) =
+        let ank_base::RequestContent::UpdateStateRequest(proto_request_content) =
             proto_request_complete_state
                 .request_content
                 .as_mut()
@@ -623,15 +560,7 @@ mod tests {
             .new_state
             .as_mut()
             .unwrap()
-            .startup_state = Some(proto::State {
-            api_version: "v0.1".into(),
-            ..Default::default()
-        });
-        proto_request_content
-            .new_state
-            .as_mut()
-            .unwrap()
-            .desired_state = Some(proto::State {
+            .desired_state = Some(ank_base::State {
             api_version: "v0.1".into(),
             ..Default::default()
         });
@@ -641,7 +570,6 @@ mod tests {
         else {
             unreachable!()
         };
-        ankaios_request_content.state.startup_state = Default::default();
         ankaios_request_content.state.desired_state = Default::default();
 
         assert_eq!(
@@ -651,41 +579,10 @@ mod tests {
     }
 
     #[test]
-    fn utest_converts_from_proto_update_state_request_fails_invalid_startup_state() {
-        let mut proto_request_complete_state = update_state_request!(proto);
-
-        let proto::RequestContent::UpdateStateRequest(proto_request_content) =
-            proto_request_complete_state
-                .request_content
-                .as_mut()
-                .unwrap()
-        else {
-            unreachable!()
-        };
-        proto_request_content
-            .new_state
-            .as_mut()
-            .unwrap()
-            .startup_state
-            .as_mut()
-            .unwrap()
-            .workloads
-            .insert(
-                WORKLOAD_NAME_1.into(),
-                proto::Workload {
-                    dependencies: vec![("dependency".into(), -1)].into_iter().collect(),
-                    ..Default::default()
-                },
-            );
-
-        assert!(ankaios::Request::try_from(proto_request_complete_state).is_err());
-    }
-
-    #[test]
     fn utest_converts_from_proto_update_state_request_fails_invalid_current_state() {
-        let mut proto_request_complete_state = update_state_request!(proto);
+        let mut proto_request_complete_state = update_state_request!(ank_base);
 
-        let proto::RequestContent::UpdateStateRequest(proto_request_content) =
+        let ank_base::RequestContent::UpdateStateRequest(proto_request_content) =
             proto_request_complete_state
                 .request_content
                 .as_mut()
@@ -703,7 +600,7 @@ mod tests {
             .workloads
             .insert(
                 WORKLOAD_NAME_1.into(),
-                proto::Workload {
+                ank_base::Workload {
                     dependencies: vec![("dependency".into(), -1)].into_iter().collect(),
                     ..Default::default()
                 },
@@ -714,7 +611,7 @@ mod tests {
 
     #[test]
     fn utest_converts_from_proto_request_fails_empty_request_content() {
-        let proto_request = proto::Request {
+        let proto_request = ank_base::Request {
             request_id: REQUEST_ID.into(),
             request_content: None,
         };
@@ -728,17 +625,17 @@ mod tests {
     #[test]
     fn utest_converts_to_proto_error_response() {
         let ankaios_error_response = error_response!(ankaios);
-        let proto_error_response = error_response!(proto);
+        let proto_error_response = error_response!(ank_base);
 
         assert_eq!(
-            proto::Response::from(ankaios_error_response),
+            ank_base::Response::from(ankaios_error_response),
             proto_error_response
         );
     }
 
     #[test]
     fn utest_converts_from_proto_error_response() {
-        let proto_error_response = error_response!(proto);
+        let proto_error_response = error_response!(ank_base);
         let ankaios_error_response = error_response!(ankaios);
 
         assert_eq!(
@@ -750,17 +647,17 @@ mod tests {
     #[test]
     fn utest_converts_to_proto_complete_state_response() {
         let ankaios_complete_state_response = complete_state_response!(ankaios);
-        let proto_complete_state_response = complete_state_response!(proto);
+        let proto_complete_state_response = complete_state_response!(ank_base);
 
         assert_eq!(
-            proto::Response::from(ankaios_complete_state_response),
+            ank_base::Response::from(ankaios_complete_state_response),
             proto_complete_state_response
         );
     }
 
     #[test]
     fn utest_converts_from_proto_complete_state_response() {
-        let proto_complete_state_response = complete_state_response!(proto);
+        let proto_complete_state_response = complete_state_response!(ank_base);
         let ankaios_complete_state_response = complete_state_response!(ankaios);
 
         assert_eq!(
@@ -771,21 +668,17 @@ mod tests {
 
     #[test]
     fn utest_converts_from_proto_complete_state_response_with_empty_states() {
-        let mut proto_complete_state_response = complete_state_response!(proto);
+        let mut proto_complete_state_response = complete_state_response!(ank_base);
         let mut ankaios_complete_state_response = complete_state_response!(ankaios);
 
-        let proto::ResponseContent::CompleteState(proto_content) = proto_complete_state_response
+        let ank_base::ResponseContent::CompleteState(proto_content) = proto_complete_state_response
             .response_content
             .as_mut()
             .unwrap()
         else {
             unreachable!()
         };
-        proto_content.startup_state = Some(proto::State {
-            api_version: "v0.1".into(),
-            ..Default::default()
-        });
-        proto_content.desired_state = Some(proto::State {
+        proto_content.desired_state = Some(ank_base::State {
             api_version: "v0.1".into(),
             ..Default::default()
         });
@@ -795,7 +688,6 @@ mod tests {
         else {
             unreachable!()
         };
-        ankaios_content.startup_state = Default::default();
         ankaios_content.desired_state = Default::default();
 
         assert_eq!(
@@ -805,48 +697,19 @@ mod tests {
     }
 
     #[test]
-    fn utest_converts_from_proto_complete_state_response_fails_invalid_startup_state() {
-        let mut proto_complete_state_response = complete_state_response!(proto);
-
-        let proto::ResponseContent::CompleteState(proto_request_content) =
-            proto_complete_state_response
-                .response_content
-                .as_mut()
-                .unwrap()
-        else {
-            unreachable!()
-        };
-
-        proto_request_content
-            .startup_state
-            .as_mut()
-            .unwrap()
-            .workloads
-            .insert(
-                WORKLOAD_NAME_1.into(),
-                proto::Workload {
-                    dependencies: vec![("dependency".into(), -1)].into_iter().collect(),
-                    ..Default::default()
-                },
-            );
-
-        assert!(ankaios::Response::try_from(proto_complete_state_response).is_err());
-    }
-
-    #[test]
     fn utest_converts_to_proto_update_state_success_response() {
         let ankaios_complete_state_response = update_state_success_response!(ankaios);
-        let proto_complete_state_response = update_state_success_response!(proto);
+        let proto_complete_state_response = update_state_success_response!(ank_base);
 
         assert_eq!(
-            proto::Response::from(ankaios_complete_state_response),
+            ank_base::Response::from(ankaios_complete_state_response),
             proto_complete_state_response
         );
     }
 
     #[test]
     fn utest_converts_from_proto_update_state_success_response() {
-        let proto_complete_state_response = update_state_success_response!(proto);
+        let proto_complete_state_response = update_state_success_response!(ank_base);
         let ankaios_complete_state_response = update_state_success_response!(ankaios);
 
         assert_eq!(
@@ -857,7 +720,7 @@ mod tests {
 
     #[test]
     fn utest_converts_from_proto_reponse_fails_empty_request_content() {
-        let proto_response = proto::Response {
+        let proto_response = ank_base::Response {
             request_id: REQUEST_ID.into(),
             response_content: None,
         };

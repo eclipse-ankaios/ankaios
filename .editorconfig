@@ -9,5 +9,5 @@ trim_trailing_whitespace = true
 [*.{md,yaml,yml}]
 indent_size = 2
 
-[*.{rs,toml}]
+[*.{rs,toml,proto}]
 indent_size = 4

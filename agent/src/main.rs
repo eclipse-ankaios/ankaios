@@ -103,7 +103,8 @@ async fn main() {
     );
 
     let mut grpc_communications_client =
-        GRPCCommunicationsClient::new_agent_communication(args.agent_name.clone(), args.server_url);
+        GRPCCommunicationsClient::new_agent_communication(args.agent_name.clone(), args.server_url)
+            .unwrap_or_exit("Cannot connect to server");
 
     let mut agent_manager = AgentManager::new(
         args.agent_name,

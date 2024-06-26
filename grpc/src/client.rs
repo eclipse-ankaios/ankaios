@@ -14,27 +14,26 @@
 
 use crate::from_server_proxy;
 use crate::from_server_proxy::GRPCFromServerStreaming;
+use crate::grpc_api::{
+    self, agent_connection_client::AgentConnectionClient,
+    cli_connection_client::CliConnectionClient, to_server::ToServerEnum, AgentHello,
+};
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 use crate::to_server_proxy;
-use api::proto;
-use api::proto::agent_connection_client::AgentConnectionClient;
-use api::proto::cli_connection_client::CliConnectionClient;
-use api::proto::to_server::ToServerEnum;
-use api::proto::AgentHello;
 
 use common::communications_client::CommunicationsClient;
 use common::communications_error::CommunicationMiddlewareError;
 use common::from_server_interface::FromServerSender;
 
+use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::ToServerReceiver;
 
+use regex::Regex;
 use tokio::select;
 use tokio::sync::mpsc::Receiver;
 use tokio_stream::wrappers::ReceiverStream;
 
 use async_trait::async_trait;
-
-use url::Url;
 
 const RECONNECT_TIMEOUT_SECONDS: u64 = 1;
 
@@ -45,24 +44,45 @@ enum ConnectionType {
 
 pub struct GRPCCommunicationsClient {
     name: String,
-    server_address: Url,
+    server_address: String,
     connection_type: ConnectionType,
 }
 
+fn verify_address_format(server_address: &String) -> Result<(), CommunicationMiddlewareError> {
+    let re = Regex::new(r"^https?:\/\/.+").unwrap_or_illegal_state();
+    if !re.is_match(server_address) {
+        return Err(CommunicationMiddlewareError(format!(
+            "Wrong server address format: '{}'.",
+            server_address
+        )));
+    }
+    Ok(())
+}
+
 impl GRPCCommunicationsClient {
-    pub fn new_agent_communication(name: String, server_address: Url) -> Self {
-        Self {
+    pub fn new_agent_communication(
+        name: String,
+        server_address: String,
+    ) -> Result<Self, CommunicationMiddlewareError> {
+        verify_address_format(&server_address)?;
+
+        Ok(Self {
             name,
             server_address,
             connection_type: ConnectionType::Agent,
-        }
+        })
     }
-    pub fn new_cli_communication(name: String, server_address: Url) -> Self {
-        Self {
+    pub fn new_cli_communication(
+        name: String,
+        server_address: String,
+    ) -> Result<Self, CommunicationMiddlewareError> {
+        verify_address_format(&server_address)?;
+
+        Ok(Self {
             name,
             server_address,
             connection_type: ConnectionType::Cli,
-        }
+        })
     }
 }
 
@@ -127,12 +147,12 @@ impl GRPCCommunicationsClient {
     ) -> Result<(), GrpcMiddlewareError> {
         // [impl->swdd~grpc-client-creates-to-server-channel~1]
         let (grpc_tx, grpc_rx) =
-            tokio::sync::mpsc::channel::<proto::ToServer>(common::CHANNEL_CAPACITY);
+            tokio::sync::mpsc::channel::<grpc_api::ToServer>(common::CHANNEL_CAPACITY);
 
         match self.connection_type {
             ConnectionType::Agent => {
                 grpc_tx
-                    .send(proto::ToServer {
+                    .send(grpc_api::ToServer {
                         to_server_enum: Some(ToServerEnum::AgentHello(AgentHello {
                             agent_name: self.name.to_owned(),
                         })),
@@ -166,8 +186,8 @@ impl GRPCCommunicationsClient {
 
     async fn connect_to_server(
         &self,
-        grpc_rx: Receiver<proto::ToServer>,
-    ) -> Result<tonic::Streaming<proto::FromServer>, GrpcMiddlewareError> {
+        grpc_rx: Receiver<grpc_api::ToServer>,
+    ) -> Result<tonic::Streaming<grpc_api::FromServer>, GrpcMiddlewareError> {
         match self.connection_type {
             ConnectionType::Agent => {
                 let mut client =

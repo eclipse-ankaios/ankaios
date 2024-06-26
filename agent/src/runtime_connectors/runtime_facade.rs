@@ -169,7 +169,7 @@ impl<
         };
 
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
-        log::info!(
+        log::debug!(
             "Creating '{}' workload '{}'.",
             runtime.name(),
             workload_name,
@@ -214,7 +214,7 @@ impl<
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
 
-        log::info!(
+        log::debug!(
             "Resuming '{}' workload '{}'.",
             runtime.name(),
             workload_name,
@@ -263,7 +263,7 @@ impl<
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
 
-        log::info!(
+        log::debug!(
             "Deleting '{}' workload '{}' on agent '{}'",
             runtime.name(),
             instance_name.workload_name(),

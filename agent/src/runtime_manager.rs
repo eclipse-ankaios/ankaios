@@ -249,7 +249,7 @@ impl RuntimeManager {
                             } else {
                                 // [impl->swdd~agent-existing-workloads-replace-updated~2]
 
-                                log::info!("Deleting existing workload '{}'. It is created when its dependencies are fulfilled.",
+                                log::info!("Replacing existing workload '{}'.",
                                 workload_state.instance_name.workload_name()
                                 );
 
