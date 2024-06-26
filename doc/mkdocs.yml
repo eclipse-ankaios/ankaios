@@ -68,7 +68,7 @@ extra:
 nav:
   - index.md
   - architecture.md
-  - Getting started:
+  - Usage:
     - usage/installation.md
     - usage/quickstart.md
     - usage/tutorial-vehicle-signals.md
@@ -76,7 +76,7 @@ nav:
       - usage/upgrading/v0_2_to_v0_3.md
       - usage/upgrading/v0_3_to_v0_4.md
   - mTLS:
-    - mtls/mtls-setup.md
+    - usage/mtls-setup.md
   - Reference:
     - reference/startup-configuration.md
     - reference/interacting-with-ankaios.md
