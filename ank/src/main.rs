@@ -68,7 +68,7 @@ async fn main() {
         server_url,
         args.no_wait,
         tls_config.unwrap_or_exit_func(
-            |err| output_and_error!("Missing certificate files: {}", err),
+            |err| output_and_error!("Missing certificate files: Provide the files via {} or deactivate mTLS with '-k' or '--insecure' option!", err),
             -1,
         ),
     )

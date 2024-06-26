@@ -118,7 +118,7 @@ async fn main() {
                 }))
             }
             (false, ca_pem, crt_pem, key_pem) => Err(format!(
-                "ANKAGENT_CA_PEM={} ANKAGENT_CRT_PEM={} ANKAGENT_KEY_PEM={}",
+                "Provide the file via ANKAGENT_CA_PEM={} ANKAGENT_CRT_PEM={} ANKAGENT_KEY_PEM={} or deactivate mTLS with '-k' or '--insecure' option!",
                 ca_pem.unwrap_or(String::from("\"\"")),
                 crt_pem.unwrap_or(String::from("\"\"")),
                 key_pem.unwrap_or(String::from("\"\""))

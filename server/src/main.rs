@@ -76,7 +76,7 @@ async fn main() {
                 }))
             }
             (_, ca_pem, crt_pem, key_pem) => Err(format!(
-                "ANKSERVER_CA_PEM={} ANKSERVER_CRT_PEM={} ANKSERVER_KEY_PEM={}",
+                "Provide the files via ANKSERVER_CA_PEM={} ANKSERVER_CRT_PEM={} ANKSERVER_KEY_PEM={} or deactivate mTLS with '-k' or '--insecure' option!",
                 ca_pem.unwrap_or(String::from("\"\"")),
                 crt_pem.unwrap_or(String::from("\"\"")),
                 key_pem.unwrap_or(String::from("\"\""))
