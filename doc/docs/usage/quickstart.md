@@ -48,7 +48,7 @@ This Ankaios agent will run the workload that has been assigned to it. We can
 use the Ankaios CLI to check the current state:
 
 ```shell
-ank get state
+ank -k get state
 ```
 
 which creates:
@@ -82,7 +82,7 @@ workloadStates:
 or
 
 ```shell
-ank get workloads
+ank -k get workloads
 ```
 
 which results in:
@@ -113,7 +113,7 @@ As the workload had a one time job its state is `Succeeded(Ok)` and we can
 delete it from the state again with:
 
 ```shell
-ank delete workload helloworld
+ank -k delete workload helloworld
 ```
 
 For next steps follow the [tutorial on sending and receiving vehicle data](tutorial-vehicle-signals.md) with workloads orchestrated by Ankaios.

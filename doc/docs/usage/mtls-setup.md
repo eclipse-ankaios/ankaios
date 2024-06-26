@@ -71,13 +71,13 @@ sudo openssl genpkey -algorithm ED25519 -out "/etc/ankaios/certs/ank-server-key.
 Generate ank-server certificate signing request:
 
 ```shell
-sudo openssl req -config "./ank-server.cnf" -new -key "/etc/ankaios/certs/ank-server-key.pem" -out "/etc/ankaios/certs/ank-server.csr"
+sudo openssl req -config "./ank-server.cnf" -new -key "/etc/ankaios/certs/ank-server-key.pem" -out "./ank-server.csr"
 ```
 
 Generate ank-server certificate:
 
 ```shell
-sudo openssl x509 -req -in "/etc/ankaios/certs/server.csr" -CA "/etc/ankaios/certs/ca.pem" -CAkey "/etc/ankaios/certs/ca-key.pem" -extensions v3_req -extfile "./ank-server.cnf" -out "/etc/ankaios/certs/ank-server.pem"
+sudo openssl x509 -req -in "./ank-server.csr" -CA "/etc/ankaios/certs/ca.pem" -CAkey "/etc/ankaios/certs/ca-key.pem" -extensions v3_req -extfile "./ank-server.cnf" -out "/etc/ankaios/certs/ank-server.pem"
 ```
 
 ## Generate key and certificate for `ank-agent`
@@ -115,13 +115,13 @@ sudo openssl genpkey -algorithm ED25519 -out "/etc/ankaios/certs/ank-agent-key.p
 Generate ank-agent certificate signing request:
 
 ```shell
-sudo openssl req -config "./ank-agent.cnf" -new -key "/etc/ankaios/certs/ank-agent-key.pem" -out "/etc/ankaios/certs/ank-agent.csr"
+sudo openssl req -config "./ank-agent.cnf" -new -key "/etc/ankaios/certs/ank-agent-key.pem" -out "./ank-agent.csr"
 ```
 
 Generate ank-agent certificate:
 
 ```shell
-sudo openssl x509 -req -in "/etc/ankaios/certs/ank-agent.csr" -CA "/etc/ankaios/certs/ca.pem" -CAkey "/etc/ankaios/certs/ca-key.pem" -extensions v3_req -extfile "./ank-agent.cnf" -out "/etc/ankaios/certs/ank-agent.pem"
+sudo openssl x509 -req -in "./ank-agent.csr" -CA "/etc/ankaios/certs/ca.pem" -CAkey "/etc/ankaios/certs/ca-key.pem" -extensions v3_req -extfile "./ank-agent.cnf" -out "/etc/ankaios/certs/ank-agent.pem"
 ```
 
 ## Generate key and certificate for the CLI `ank`
