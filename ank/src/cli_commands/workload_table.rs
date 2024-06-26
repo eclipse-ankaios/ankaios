@@ -38,20 +38,13 @@ impl<'a> WorkloadTable<'a> {
         let additional_info_terminal_width =
             self.terminal_width_for_additional_info(total_table_width)?;
 
-        let suffix_length_additional_info = Self::ADDITIONAL_INFO_SUFFIX.len();
+        self.truncate_table_column(
+            additional_info_terminal_width,
+            GetWorkloadTableDisplay::ADDITIONAL_INFO_POS,
+            Self::ADDITIONAL_INFO_SUFFIX,
+        );
 
-        if additional_info_terminal_width > suffix_length_additional_info {
-            self.truncate_table_column(
-                additional_info_terminal_width,
-                GetWorkloadTableDisplay::ADDITIONAL_INFO_POS,
-                Self::ADDITIONAL_INFO_SUFFIX,
-                suffix_length_additional_info,
-            );
-
-            Some(self.table.to_string())
-        } else {
-            None
-        }
+        Some(self.table.to_string())
     }
 
     pub fn create_table_wrapped_additional_info(&mut self) -> Option<String> {
@@ -72,13 +65,10 @@ impl<'a> WorkloadTable<'a> {
         remaining_terminal_width: usize,
         column_position: usize,
         suffix_additional_info: &str,
-        suffix_length: usize,
     ) {
         self.table.with(
-            Modify::new(Columns::single(column_position)).with(
-                Width::truncate(remaining_terminal_width - suffix_length)
-                    .suffix(suffix_additional_info),
-            ),
+            Modify::new(Columns::single(column_position))
+                .with(Width::truncate(remaining_terminal_width).suffix(suffix_additional_info)),
         );
     }
 
@@ -98,27 +88,25 @@ impl<'a> WorkloadTable<'a> {
                 if max_additional_info_length > column_name_length {
                     max_additional_info_length
                 } else {
-                    // Avoid wrapping the column name when additional info is shorter
+                    // Avoid messing up the column name when additional info is shorter
                     column_name_length
                 }
             } else {
                 /* On empty table, the max length of the additional info is the column name itself
-                to avoid wrapping the column name. */
+                to avoid messing up the column name. */
                 column_name_length
             };
 
         let table_width_except_last_column =
             total_table_width.checked_sub(additional_info_width)?;
 
-        let is_reasonable_terminal_width = || {
-            terminal_width >= column_name_length
-                && (terminal_width - column_name_length) >= table_width_except_last_column
-        };
+        let is_reasonable_terminal_width =
+            terminal_width.checked_sub(column_name_length)? >= table_width_except_last_column;
 
-        if is_reasonable_terminal_width() {
-            Some(terminal_width - table_width_except_last_column)
+        if is_reasonable_terminal_width {
+            Some(terminal_width.checked_sub(table_width_except_last_column)?)
         } else {
-            None // no space left
+            None // no reasonable space left
         }
     }
 
