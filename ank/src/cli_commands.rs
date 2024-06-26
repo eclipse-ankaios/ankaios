@@ -653,7 +653,7 @@ impl CliCommands {
             output!("No workloads to update");
             return Ok(());
         } else {
-            output!("{}", "Successfully applied the manifest(s).\nWaiting for workload(s) to reach desired states (press Ctrl+C to interrupt).\nFor detailed additional information, use the 'get workloads' command.\n");
+            output!("{}", "Successfully applied the manifest(s).\nWaiting for workload(s) to reach desired states (press Ctrl+C to interrupt).\n");
         }
 
         let states_of_all_workloads = self.get_workloads().await.unwrap();
