@@ -17,6 +17,8 @@ pub struct WorkloadTable<'a> {
 }
 
 impl<'a> WorkloadTable<'a> {
+    const ADDITIONAL_INFO_SUFFIX: &'static str = "...";
+
     pub fn new(data: &'a [&'a GetWorkloadTableDisplay]) -> Self {
         let mut table = Table::new(data);
         let basic_styled_table = table.with(Style::blank());
@@ -36,14 +38,13 @@ impl<'a> WorkloadTable<'a> {
         let additional_info_terminal_width =
             self.terminal_width_for_additional_info(total_table_width)?;
 
-        const ADDITIONAL_INFO_SUFFIX: &str = "...";
-        let suffix_length_additional_info = ADDITIONAL_INFO_SUFFIX.len();
+        let suffix_length_additional_info = Self::ADDITIONAL_INFO_SUFFIX.len();
 
         if additional_info_terminal_width > suffix_length_additional_info {
             self.truncate_table_column(
                 additional_info_terminal_width,
                 GetWorkloadTableDisplay::ADDITIONAL_INFO_POS,
-                ADDITIONAL_INFO_SUFFIX,
+                Self::ADDITIONAL_INFO_SUFFIX,
                 suffix_length_additional_info,
             );
 
