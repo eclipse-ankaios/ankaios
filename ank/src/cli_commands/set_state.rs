@@ -1,3 +1,5 @@
+use std::io;
+
 use common::{
     objects::{CompleteState, StoredWorkloadSpec},
     state_manipulation::{Object, Path},
@@ -61,7 +63,11 @@ impl CliCommands {
         if let Some(state_object_file) = state_object_file {
             match state_object_file.as_str() {
                 "-" => {
-                    todo!();
+                    let stdin = io::read_to_string(io::stdin()).unwrap_or_else(|error| {
+                        panic!("Could not read the state object file.\nError: {}", error)
+                    });
+                    let value: serde_yaml::Value = serde_yaml::from_str(&stdin)?;
+                    x = Object::try_from(&value)?;
                 }
                 _ => {
                     let state_object_data = read_file_to_string(state_object_file)
