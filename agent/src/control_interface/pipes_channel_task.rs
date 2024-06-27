@@ -12,6 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::sync::Arc;
+
 use crate::control_interface::ToAnkaios;
 
 use super::authorizer::Authorizer;
@@ -39,7 +41,7 @@ pub struct PipesChannelTask {
     input_pipe_receiver: FromServerReceiver,
     output_pipe_channel: ToServerSender,
     request_id_prefix: String,
-    authorizer: Authorizer,
+    authorizer: Arc<Authorizer>,
 }
 
 #[cfg_attr(test, mockall::automock)]
@@ -50,7 +52,7 @@ impl PipesChannelTask {
         input_pipe_receiver: FromServerReceiver,
         output_pipe_channel: ToServerSender,
         request_id_prefix: String,
-        authorizer: Authorizer,
+        authorizer: Arc<Authorizer>,
     ) -> Self {
         Self {
             output_stream,
@@ -190,7 +192,7 @@ mod tests {
             input_pipe_receiver,
             output_pipe_sender,
             request_id_prefix,
-            Authorizer::default(),
+            Arc::new(Authorizer::default()),
         );
 
         assert!(pipes_channel_task
@@ -258,7 +260,7 @@ mod tests {
             input_pipe_receiver,
             output_pipe_sender,
             request_id_prefix,
-            Authorizer::default(),
+            Arc::new(Authorizer::default()),
         );
 
         let handle = pipes_channel_task.run_task();

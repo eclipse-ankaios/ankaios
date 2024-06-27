@@ -51,8 +51,20 @@ impl PipesChannelContextInfo {
         &self.run_folder
     }
 
-    pub fn get_workload_instance_name(&self) -> &WorkloadInstanceName {
-        &self.workload_instance_name
+    pub fn has_same_configuration(&self, other: &PipesChannelContext) -> bool {
+        let self_location = self
+            .workload_instance_name
+            .pipes_folder_name(&self.run_folder);
+
+        let other_location = other.get_api_location();
+        if self_location.to_str().unwrap() != other_location.to_str().unwrap() {
+            return false;
+        };
+
+        let self_authorizer = &self.authorizer;
+        let other_authorizer = other.get_authorizer();
+
+        self_authorizer == other_authorizer
     }
 
     pub fn create_control_interface(self) -> Option<PipesChannelContext> {
@@ -79,6 +91,7 @@ impl PipesChannelContextInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     use crate::control_interface::MockPipesChannelContext;
     use crate::control_interface::PipesChannelContextError;
     use common::to_server_interface::ToServer;
@@ -125,22 +138,86 @@ mod tests {
     }
 
     #[test]
-    fn utest_get_workload_instance_name() {
+    fn utest_has_same_configuration_true() {
+        let run_folder = Path::new(PIPES_LOCATION);
+        let workload_instance_name = WorkloadInstanceName::builder()
+            .workload_name(WORKLOAD_1_NAME)
+            .build();
+        let pipes_folder = workload_instance_name.pipes_folder_name(run_folder);
+        let context_info_authorizer = Authorizer::test_value("same");
+        let other_context_authorizer = Authorizer::test_value("same");
+
+        let context_info = PipesChannelContextInfo::new(
+            run_folder,
+            tokio::sync::mpsc::channel::<ToServer>(1).0,
+            &workload_instance_name,
+            context_info_authorizer,
+        );
+
+        let mut other_context = PipesChannelContext::default();
+        other_context
+            .expect_get_api_location()
+            .once()
+            .return_const(pipes_folder);
+        other_context
+            .expect_get_authorizer()
+            .once()
+            .return_const(other_context_authorizer);
+
+        assert!(context_info.has_same_configuration(&other_context));
+    }
+
+    #[test]
+    fn utest_has_same_configuration_with_different_location_returns_false() {
+        let run_folder = Path::new(PIPES_LOCATION);
         let workload_instance_name = WorkloadInstanceName::builder()
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
-        let new_context_info = PipesChannelContextInfo::new(
-            Path::new(PIPES_LOCATION),
+        let context_info = PipesChannelContextInfo::new(
+            run_folder,
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &workload_instance_name,
             Authorizer::default(),
         );
 
-        assert_eq!(
+        let mut other_context = PipesChannelContext::default();
+        other_context
+            .expect_get_api_location()
+            .once()
+            .return_const(PathBuf::from("other_path"));
+
+        assert!(!context_info.has_same_configuration(&other_context));
+    }
+
+    #[test]
+    fn utest_has_same_configuration_with_different_authorizer_returns_false() {
+        let run_folder = Path::new(PIPES_LOCATION);
+        let workload_instance_name = WorkloadInstanceName::builder()
+            .workload_name(WORKLOAD_1_NAME)
+            .build();
+        let pipes_folder = workload_instance_name.pipes_folder_name(run_folder);
+        let context_info_authorizer = Authorizer::test_value("context_info_authorizer");
+        let other_context_authorizer = Authorizer::test_value("other_context_authorizer");
+
+        let context_info = PipesChannelContextInfo::new(
+            run_folder,
+            tokio::sync::mpsc::channel::<ToServer>(1).0,
             &workload_instance_name,
-            new_context_info.get_workload_instance_name()
+            context_info_authorizer,
         );
+
+        let mut other_context = PipesChannelContext::default();
+        other_context
+            .expect_get_api_location()
+            .once()
+            .return_const(pipes_folder);
+        other_context
+            .expect_get_authorizer()
+            .once()
+            .return_const(other_context_authorizer);
+
+        assert!(!context_info.has_same_configuration(&other_context));
     }
 
     #[tokio::test]

@@ -30,6 +30,7 @@ use common::{from_server_interface::FromServerSender, to_server_interface::ToSer
 use std::{
     fmt::{self, Display},
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use tokio::task::JoinHandle;
@@ -54,6 +55,7 @@ pub struct PipesChannelContext {
     pipes: InputOutput,
     input_pipe_sender: FromServerSender,
     task_handle: JoinHandle<()>,
+    authorizer: Arc<Authorizer>,
 }
 
 #[cfg_attr(test, automock)]
@@ -72,6 +74,8 @@ impl PipesChannelContext {
                 let request_id_prefix = [execution_instance_name.workload_name(), ""].join("@");
                 let input_pipe_channels = FromServerChannels::new(1024);
 
+                let authorizer = Arc::new(authorizer);
+
                 Ok(PipesChannelContext {
                     pipes,
                     input_pipe_sender: input_pipe_channels.get_sender(),
@@ -81,13 +85,18 @@ impl PipesChannelContext {
                         input_pipe_channels.move_receiver(),
                         output_pipe_channel,
                         request_id_prefix,
-                        authorizer,
+                        authorizer.clone(),
                     )
                     .run_task(),
+                    authorizer,
                 })
             }
             Err(e) => Err(PipesChannelContextError::CouldNotCreateFifo(e.to_string())),
         }
+    }
+
+    pub fn get_authorizer(&self) -> &Authorizer {
+        &self.authorizer
     }
 
     #[allow(dead_code)]
