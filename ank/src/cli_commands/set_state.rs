@@ -54,15 +54,37 @@ impl CliCommands {
         );
 
         let mut complete_state = CompleteState::default();
+        let mut x: Object = Object::default();
+
+        // I should start from here
+
         if let Some(state_object_file) = state_object_file {
-            let state_object_data =
-                read_file_to_string(state_object_file)
-                    .await
-                    .unwrap_or_else(|error| {
-                        panic!("Could not read the state object file.\nError: {}", error)
-                    });
-            let value: serde_yaml::Value = serde_yaml::from_str(&state_object_data)?;
-            let x = Object::try_from(&value)?;
+            match state_object_file.as_str() {
+                "-" => {
+                    todo!();
+                }
+                _ => {
+                    let state_object_data = read_file_to_string(state_object_file)
+                        .await
+                        .unwrap_or_else(|error| {
+                            panic!("Could not read the state object file.\nError: {}", error)
+                        });
+                    let value: serde_yaml::Value = serde_yaml::from_str(&state_object_data)?;
+                    x = Object::try_from(&value)?;
+                }
+            }
+
+            // if let Some(state_object_file) = state_object_file {
+            //     let state_object_data =
+            //         read_file_to_string(state_object_file)
+            //             .await
+            //             .unwrap_or_else(|error| {
+            //                 panic!("Could not read the state object file.\nError: {}", error)
+            //             });
+            //     let value: serde_yaml::Value = serde_yaml::from_str(&state_object_data)?;
+            //     let x: Object = Object::try_from(&value)?;
+
+            // and I should end it here
 
             // This here is a workaround for the default workload specs
             add_default_workload_spec_per_update_mask(&object_field_mask, &mut complete_state);
