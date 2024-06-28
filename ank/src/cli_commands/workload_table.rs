@@ -31,6 +31,7 @@ impl<'a> WorkloadTable<'a> {
         }
     }
 
+    // [impl->swdd~cli-shall-present-workloads-as-table~1]
     pub fn create_default_table(&mut self) -> String {
         self.table.to_string()
     }
@@ -50,6 +51,7 @@ impl<'a> WorkloadTable<'a> {
         Some(self.table.to_string())
     }
 
+    // [impl->swdd~cli-shall-present-workloads-as-table~1]
     pub fn create_table_wrapped_additional_info(&mut self) -> Option<String> {
         let total_table_width: usize = self.table.total_width();
         let additional_info_terminal_width =
@@ -169,6 +171,7 @@ mod tests {
     use crate::cli_commands::GetWorkloadTableDisplay;
     use common::objects::ExecutionState;
 
+    // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_create_default_table() {
         let table_row = GetWorkloadTableDisplay {
@@ -189,6 +192,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_create_truncated_table_additional_info() {
         let table_row = GetWorkloadTableDisplay {
@@ -217,6 +221,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_create_wrapped_table_additional_info() {
         let table_row = GetWorkloadTableDisplay {
@@ -237,12 +242,14 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_length_of_longest_additional_info_no_table_entries() {
         let table = WorkloadTable::new(&[]);
         assert_eq!(table.length_of_longest_additional_info(), None);
     }
 
+    // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_length_of_longest_additional_info() {
         let additional_info = "some additional info message".to_string();
@@ -263,6 +270,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_terminal_width_for_additional_info_no_table_entries() {
         let table = WorkloadTable::new(&[]);
@@ -274,6 +282,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_terminal_width_for_additional_info_column_name_bigger_than_info_msg() {
         let table_row = GetWorkloadTableDisplay {
@@ -295,6 +304,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_terminal_width_for_additional_info_no_reasonable_terminal_width_left() {
         let table_row = GetWorkloadTableDisplay {
