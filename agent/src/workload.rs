@@ -196,10 +196,9 @@ mod tests {
     use common::{
         commands::{Response, ResponseContent},
         from_server_interface::FromServer,
-        objects::{generate_test_workload_spec_with_param, CompleteState, WorkloadInstanceName},
+        objects::{generate_test_workload_spec_with_param, CompleteState},
         test_utils::generate_test_complete_state,
     };
-    use mockall::predicate::eq;
     use tokio::{sync::mpsc, time::timeout};
 
     use crate::{
