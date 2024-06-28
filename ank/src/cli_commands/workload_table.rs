@@ -8,7 +8,7 @@ fn terminal_width() -> usize {
 
 use super::GetWorkloadTableDisplay;
 use tabled::{
-    settings::{object::Columns, Modify, Style, Width},
+    settings::{object::Columns, Modify, Padding, Style, Width},
     Table, Tabled,
 };
 pub struct WorkloadTable<'a> {
@@ -21,7 +21,26 @@ impl<'a> WorkloadTable<'a> {
 
     pub fn new(data: &'a [&'a GetWorkloadTableDisplay]) -> Self {
         let mut table = Table::new(data);
+
         let basic_styled_table = table.with(Style::blank());
+
+        let last_column_default_padding =
+            basic_styled_table
+                .get_config()
+                .get_padding(tabled::grid::config::Entity::Column(
+                    GetWorkloadTableDisplay::ADDITIONAL_INFO_POS,
+                ));
+
+        /* Set the right padding of the last column to zero
+        to align the table content to the end of the terminal width for better usability. */
+        const ZERO_RIGHT_PADDING: usize = 0;
+        basic_styled_table.with(Modify::new(Columns::last()).with(Padding::new(
+            last_column_default_padding.left.size,
+            ZERO_RIGHT_PADDING,
+            last_column_default_padding.top.size,
+            last_column_default_padding.bottom.size,
+        )));
+
         Self {
             data,
             table: basic_styled_table.to_owned(),
@@ -93,7 +112,7 @@ impl<'a> WorkloadTable<'a> {
                 }
             } else {
                 /* On empty table, the max length of the additional info is the column name itself
-                to avoid messing up the column name. */
+                to avoid messing up the column name in the output. */
                 column_name_length
             };
 
@@ -104,9 +123,9 @@ impl<'a> WorkloadTable<'a> {
             terminal_width.checked_sub(column_name_length)? >= table_width_except_last_column;
 
         if is_reasonable_terminal_width {
-            Some(terminal_width.checked_sub(table_width_except_last_column)?)
+            terminal_width.checked_sub(table_width_except_last_column)
         } else {
-            None // no reasonable space left
+            None // no reasonable terminal width left, avoid breaking the column header name formatting
         }
     }
 
