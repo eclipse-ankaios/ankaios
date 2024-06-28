@@ -179,7 +179,7 @@ pub enum RunCommands {
 }
 
 /// Apply Ankaios manifest content or file(s)
-#[derive(clap::Args, Debug, Clone)]
+#[derive(clap::Args, Debug)]
 pub struct ApplyArgs {
     #[arg(value_name = "Ankaios manifest file(s) or '-' for stdin")]
     pub manifest_files: Vec<String>,
