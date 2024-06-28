@@ -21,43 +21,13 @@ impl<'a> WorkloadTable<'a> {
 
     pub fn new(data: &'a [&'a GetWorkloadTableDisplay]) -> Self {
         let mut table = Table::new(data);
+        let basic_table = table.with(Style::blank()).to_owned();
 
-        let basic_styled_table = table.with(Style::blank());
-
-        let first_column_default_padding =
-            basic_styled_table
-                .get_config()
-                .get_padding(tabled::grid::config::Entity::Column(
-                    GetWorkloadTableDisplay::FIRST_COLUMN_POS,
-                ));
-
-        let last_column_default_padding =
-            basic_styled_table
-                .get_config()
-                .get_padding(tabled::grid::config::Entity::Column(
-                    GetWorkloadTableDisplay::ADDITIONAL_INFO_POS,
-                ));
-
-        /* Set the left padding of the first and the right padding of the last column to zero
-        to align the table content to the full terminal width for better output quality. */
-        const ZERO_PADDING: usize = 0;
-        basic_styled_table
-            .with(Modify::new(Columns::first()).with(Padding::new(
-                ZERO_PADDING,
-                first_column_default_padding.right.size,
-                first_column_default_padding.top.size,
-                first_column_default_padding.bottom.size,
-            )))
-            .with(Modify::new(Columns::last()).with(Padding::new(
-                last_column_default_padding.left.size,
-                ZERO_PADDING,
-                last_column_default_padding.top.size,
-                last_column_default_padding.bottom.size,
-            )));
+        let custom_table = Self::set_custom_table_padding(basic_table);
 
         Self {
             data,
-            table: basic_styled_table.to_owned(),
+            table: custom_table.to_owned(),
         }
     }
 
@@ -72,8 +42,8 @@ impl<'a> WorkloadTable<'a> {
             self.terminal_width_for_additional_info(total_table_width)?;
 
         self.truncate_table_column(
-            additional_info_terminal_width,
             GetWorkloadTableDisplay::ADDITIONAL_INFO_POS,
+            additional_info_terminal_width,
             Self::ADDITIONAL_INFO_SUFFIX,
         );
 
@@ -86,17 +56,51 @@ impl<'a> WorkloadTable<'a> {
             self.terminal_width_for_additional_info(total_table_width)?;
 
         self.wrap_table_column(
-            additional_info_terminal_width,
             GetWorkloadTableDisplay::ADDITIONAL_INFO_POS,
+            additional_info_terminal_width,
         );
 
         Some(self.table.to_string())
     }
 
+    fn set_custom_table_padding(mut table: Table) -> Table {
+        let first_column_default_padding =
+            table
+                .get_config()
+                .get_padding(tabled::grid::config::Entity::Column(
+                    GetWorkloadTableDisplay::FIRST_COLUMN_POS,
+                ));
+
+        let last_column_default_padding =
+            table
+                .get_config()
+                .get_padding(tabled::grid::config::Entity::Column(
+                    GetWorkloadTableDisplay::ADDITIONAL_INFO_POS,
+                ));
+
+        /* Set the left padding of the first and the right padding of the last column to zero
+        to align the table content to the full terminal width for better output quality. */
+        const ZERO_PADDING: usize = 0;
+        table
+            .with(Modify::new(Columns::first()).with(Padding::new(
+                ZERO_PADDING,
+                first_column_default_padding.right.size,
+                first_column_default_padding.top.size,
+                first_column_default_padding.bottom.size,
+            )))
+            .with(Modify::new(Columns::last()).with(Padding::new(
+                last_column_default_padding.left.size,
+                ZERO_PADDING,
+                last_column_default_padding.top.size,
+                last_column_default_padding.bottom.size,
+            )));
+        table
+    }
+
     fn truncate_table_column(
         &mut self,
-        remaining_terminal_width: usize,
         column_position: usize,
+        remaining_terminal_width: usize,
         suffix_additional_info: &str,
     ) {
         self.table.with(
@@ -105,7 +109,7 @@ impl<'a> WorkloadTable<'a> {
         );
     }
 
-    fn wrap_table_column(&mut self, remaining_terminal_width: usize, column_position: usize) {
+    fn wrap_table_column(&mut self, column_position: usize, remaining_terminal_width: usize) {
         self.table.with(
             Modify::new(Columns::single(column_position))
                 .with(Width::wrap(remaining_terminal_width)),
