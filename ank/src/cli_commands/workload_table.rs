@@ -24,6 +24,13 @@ impl<'a> WorkloadTable<'a> {
 
         let basic_styled_table = table.with(Style::blank());
 
+        let first_column_default_padding =
+            basic_styled_table
+                .get_config()
+                .get_padding(tabled::grid::config::Entity::Column(
+                    GetWorkloadTableDisplay::FIRST_COLUMN_POS,
+                ));
+
         let last_column_default_padding =
             basic_styled_table
                 .get_config()
@@ -31,15 +38,22 @@ impl<'a> WorkloadTable<'a> {
                     GetWorkloadTableDisplay::ADDITIONAL_INFO_POS,
                 ));
 
-        /* Set the right padding of the last column to zero
-        to align the table content to the end of the terminal width for better usability. */
-        const ZERO_RIGHT_PADDING: usize = 0;
-        basic_styled_table.with(Modify::new(Columns::last()).with(Padding::new(
-            last_column_default_padding.left.size,
-            ZERO_RIGHT_PADDING,
-            last_column_default_padding.top.size,
-            last_column_default_padding.bottom.size,
-        )));
+        /* Set the left padding of the first and the right padding of the last column to zero
+        to align the table content to the full terminal width for better output quality. */
+        const ZERO_PADDING: usize = 0;
+        basic_styled_table
+            .with(Modify::new(Columns::first()).with(Padding::new(
+                ZERO_PADDING,
+                first_column_default_padding.right.size,
+                first_column_default_padding.top.size,
+                first_column_default_padding.bottom.size,
+            )))
+            .with(Modify::new(Columns::last()).with(Padding::new(
+                last_column_default_padding.left.size,
+                ZERO_PADDING,
+                last_column_default_padding.top.size,
+                last_column_default_padding.bottom.size,
+            )));
 
         Self {
             data,

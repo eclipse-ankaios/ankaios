@@ -188,6 +188,7 @@ struct GetWorkloadTableDisplay {
 }
 
 impl GetWorkloadTableDisplay {
+    const FIRST_COLUMN_POS: usize = 0;
     const EXECUTION_STATE_POS: usize = 3;
     const ADDITIONAL_INFO_POS: usize = 4;
 }
