@@ -95,6 +95,8 @@ impl PipesChannelContext {
         }
     }
 
+    #[allow(dead_code)]
+    // Used in the tests below for now
     pub fn get_authorizer(&self) -> &Authorizer {
         &self.authorizer
     }
