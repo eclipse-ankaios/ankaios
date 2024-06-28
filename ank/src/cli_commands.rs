@@ -43,6 +43,51 @@ use crate::{
     cli_commands::wait_list::ParsedUpdateStateSuccess, cli_error::CliError, output, output_debug,
 };
 
+#[cfg(test)]
+use self::tests::open_manifest_mock as open_manifest;
+
+#[cfg(not(test))]
+fn open_manifest(
+    file_path: &str,
+) -> std::io::Result<(String, Box<dyn std::io::Read + Send + Sync + 'static>)> {
+    use std::fs::File;
+    match File::open(file_path) {
+        Ok(open_file) => Ok((file_path.to_owned(), Box::new(open_file))),
+        Err(err) => Err(err),
+    }
+}
+
+pub fn get_input_sources(manifest_files: &[String]) -> Result<Vec<InputSourcePair>, String> {
+    if let Some(first_arg) = manifest_files.first() {
+        match first_arg.as_str() {
+            // [impl->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
+            "-" => Ok(vec![("stdin".to_owned(), Box::new(std::io::stdin()))]),
+            // [impl->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
+            _ => {
+                let mut res: Vec<InputSourcePair> = vec![];
+                for file_path in manifest_files.iter() {
+                    match open_manifest(file_path) {
+                        Ok(open_file) => res.push(open_file),
+                        Err(err) => {
+                            return Err(match err.kind() {
+                                std::io::ErrorKind::NotFound => {
+                                    format!("File '{}' not found!", file_path)
+                                }
+                                _ => err.to_string(),
+                            });
+                        }
+                    }
+                }
+                Ok(res)
+            }
+        }
+    } else {
+        Ok(vec![])
+    }
+}
+
+pub type InputSourcePair = (String, Box<dyn std::io::Read + Send + Sync + 'static>);
+
 // The CLI commands are implemented in the modules included above. The rest are the common function.
 pub struct CliCommands {
     // Left here for the future use.
@@ -198,5 +243,95 @@ impl CliCommands {
             }
         }
         Ok(())
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+#[cfg(test)]
+mod tests {
+    use std::io;
+
+    use super::{get_input_sources, InputSourcePair};
+
+    mockall::lazy_static! {
+        pub static ref FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST: std::sync::Mutex<std::collections::VecDeque<io::Result<InputSourcePair>>>  =
+        std::sync::Mutex::new(std::collections::VecDeque::new());
+    }
+
+    pub fn open_manifest_mock(
+        _file_path: &str,
+    ) -> io::Result<(String, Box<dyn io::Read + Send + Sync + 'static>)> {
+        FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .pop_front()
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn utest_apply_args_get_input_sources_manifest_files_error() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let _dummy_content = io::Cursor::new(b"manifest content");
+        FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .push_back(Err(io::Error::other(
+                "Some error occurred during open the manifest file!",
+            )));
+
+        assert!(
+            get_input_sources(&["manifest1.yml".to_owned()]).is_err(),
+            "Expected an error"
+        );
+    }
+
+    // [utest->swdd~cli-apply-accepts-ankaios-manifest-content-from-stdin~1]
+    #[test]
+    fn utest_apply_args_get_input_sources_valid_manifest_stdin() {
+        let expected = vec!["stdin".to_owned()];
+        let actual = get_input_sources(&["-".to_owned()]).unwrap();
+
+        let get_file_name = |item: &InputSourcePair| -> String { item.0.to_owned() };
+        assert_eq!(
+            expected,
+            actual.iter().map(get_file_name).collect::<Vec<String>>()
+        )
+    }
+
+    // [utest->swdd~cli-apply-accepts-list-of-ankaios-manifests~1]
+    #[tokio::test]
+    async fn utest_apply_args_get_input_sources_manifest_files_ok() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let _dummy_content = io::Cursor::new(b"manifest content");
+        for i in 1..3 {
+            FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST
+                .lock()
+                .unwrap()
+                .push_back(Ok((
+                    format!("manifest{i}.yml"),
+                    Box::new(_dummy_content.clone()),
+                )));
+        }
+
+        let expected = vec!["manifest1.yml".to_owned(), "manifest2.yml".to_owned()];
+        let actual = get_input_sources(&expected).unwrap();
+
+        let get_file_name = |item: &InputSourcePair| -> String { item.0.to_owned() };
+        assert_eq!(
+            expected,
+            actual.iter().map(get_file_name).collect::<Vec<String>>()
+        )
     }
 }

@@ -16,7 +16,6 @@ use std::env;
 
 mod cli;
 mod cli_commands;
-use cli::HandleApplyArgs;
 use cli_commands::CliCommands;
 mod cli_error;
 mod log;
@@ -153,8 +152,7 @@ async fn main() {
             None => unreachable!("Unreachable code."),
         },
         cli::Commands::Apply(apply_args) => {
-            let handle_apply_args: Box<dyn HandleApplyArgs> = Box::new(apply_args.clone());
-            if let Err(err) = cmd.apply_manifests(apply_args, handle_apply_args).await {
+            if let Err(err) = cmd.apply_manifests(apply_args).await {
                 output_and_error!("{}", err);
             }
         }
