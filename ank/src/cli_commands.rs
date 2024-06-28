@@ -743,7 +743,6 @@ mod tests {
     };
     use mockall::predicate::eq;
     use std::io;
-    use tabled::{settings::Style, Table};
 
     use super::apply_manifests::{
         create_filter_masks_from_paths, generate_state_obj_and_filter_masks_from_manifests,
@@ -971,22 +970,6 @@ mod tests {
             .await;
         assert!(cmd_text.is_ok());
 
-        let expected_table: Vec<GetWorkloadTableDisplay> = vec![
-            GetWorkloadTableDisplay::new(
-                "name2",
-                "agent_B",
-                "runtime",
-                &ExecutionState::running().state.to_string(),
-                Default::default(),
-            ),
-            GetWorkloadTableDisplay::new(
-                "name3",
-                "agent_B",
-                "runtime",
-                &ExecutionState::running().state.to_string(),
-                Default::default(),
-            ),
-        ];
         let expected_table_output = [
             "WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE   ADDITIONAL INFO",
             "name2           agent_B   runtime   Running(Ok)                      ",
