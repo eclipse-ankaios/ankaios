@@ -11,3 +11,9 @@ echo "Cleaning up podman..."
 podman stop -a >/dev/null 2>&1
 podman rm -a >/dev/null 2>&1
 echo "OK."
+
+# Cleanup tls env
+echo "Cleaning up tls env..."
+unset ANK_CA_PEM
+unset ANK_CRT_PEM
+unset ANK_KEY_PEM

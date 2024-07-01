@@ -46,7 +46,7 @@ setup_verify_arch() {
 }
 
 display_usage() {
-    echo -e "Usage: $0 [-v] [-i] [-t] [-s] [-a] [-tls]"
+    echo -e "Usage: $0 [-v] [-i] [-t] [-s] [-a]"
     echo -e "Install Ankaios on a system."
     echo -e "  -v VERSION: Ankaios specific VERSION to install. Default: latest version."
     echo -e "  -i PATH: Installation PATH. Default: $DEFAULT_BIN_DESTINATION"
