@@ -83,3 +83,68 @@ impl Display for Spinner {
         write!(f, "{}", SPINNER_SYMBOLS[self.pos])
     }
 }
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+#[cfg(test)]
+mod tests {
+
+    use std::collections::{HashMap, HashSet};
+
+    use common::objects::{ExecutionState, WorkloadInstanceName, WorkloadState};
+
+    use crate::cli_commands::{
+        wait_list::WaitListDisplayTrait, workload_table_row::WorkloadTableRow,
+    };
+
+    use super::WaitListDisplay;
+
+    #[test]
+    fn update_table() {
+        let workload_instance_name = WorkloadInstanceName::builder()
+            .agent_name("agent")
+            .config(&String::from("runtime"))
+            .workload_name("workload")
+            .build();
+        let mut wait_list_display = WaitListDisplay {
+            data: HashMap::from([(
+                workload_instance_name.clone(),
+                WorkloadTableRow {
+                    name: "workload".into(),
+                    agent: "agent".into(),
+                    runtime: "runtime".into(),
+                    execution_state: "execution_state".into(),
+                    additional_info: "additional_info".into(),
+                },
+            )]),
+            not_completed: HashSet::from([workload_instance_name.clone()]),
+            spinner: Default::default(),
+        };
+
+        assert_eq!(
+            wait_list_display
+                .data
+                .get(&workload_instance_name)
+                .unwrap()
+                .execution_state,
+            "execution_state"
+        );
+        wait_list_display.update(&WorkloadState {
+            instance_name: workload_instance_name.clone(),
+            execution_state: ExecutionState::succeeded(),
+        });
+        assert_eq!(
+            wait_list_display
+                .data
+                .get(&workload_instance_name)
+                .unwrap()
+                .execution_state,
+            "Succeeded(Ok)"
+        );
+    }
+}

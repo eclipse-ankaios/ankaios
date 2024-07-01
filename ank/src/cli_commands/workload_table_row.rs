@@ -69,4 +69,29 @@ impl WorkloadTableRow {
 //                    ##     #######   #########      ##                    //
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use tabled::Table;
+
+    use super::WorkloadTableRowWithSpinner;
+
+    #[test]
+    fn utest_one_row_table() {
+        let table_row = super::WorkloadTableRow {
+            name: "workload".into(),
+            agent: "agent".into(),
+            runtime: "runtime".into(),
+            execution_state: "execution_state".into(),
+            additional_info: "additional_info".into(),
+        };
+        let table_rows_with_spinner = vec![WorkloadTableRowWithSpinner {
+            data: &table_row,
+            spinner: "/",
+        }];
+        let mut table = Table::new(table_rows_with_spinner);
+        let expected_table = " WORKLOAD NAME   AGENT   RUNTIME     EXECUTION STATE   ADDITIONAL INFO \n workload        agent   runtime   / execution_state   additional_info ";
+        assert_eq!(
+            table.with(tabled::settings::Style::blank()).to_string(),
+            expected_table
+        );
+    }
+}
