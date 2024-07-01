@@ -249,17 +249,18 @@ impl Display for WaitListDisplay {
 
         // [impl->swdd~cli-shall-present-workloads-as-table~1]
         let mut workload_table_infos = WorkloadTable::new(&workload_infos);
-        if let Some(styled_table_output) =
-            workload_table_infos.create_table_truncated_additional_info()
-        {
-            write!(f, "{}", styled_table_output)
-        } else {
-            output_debug!(
-                "Failed to create truncated table output. Continue with default table layout."
-            );
-            let default_table_output = workload_table_infos.create_default_table();
-            write!(f, "{}", default_table_output)
-        }
+
+        let table_output = workload_table_infos
+            .create_table_truncated_additional_info()
+            .unwrap_or_else(|| {
+                output_debug!(
+                    "Failed to create truncated table output. Continue with default table layout."
+                );
+
+                workload_table_infos.create_default_table()
+            });
+
+        write!(f, "{}", table_output)
     }
 }
 
@@ -497,16 +498,15 @@ impl CliCommands {
 
         // [impl->swdd~cli-shall-present-workloads-as-table~1]
         let mut workload_table_infos = WorkloadTable::new(&workload_infos);
-        if let Some(wrapped_table_output) =
-            workload_table_infos.create_table_wrapped_additional_info()
-        {
-            Ok(wrapped_table_output)
-        } else {
-            output_debug!(
-                "Failed to create wrapped table output. Continue with default table layout."
-            );
-            Ok(workload_table_infos.create_default_table())
-        }
+
+        Ok(workload_table_infos
+            .create_table_wrapped_additional_info()
+            .unwrap_or_else(|| {
+                output_debug!(
+                    "Failed to create wrapped table output. Continue with default table layout."
+                );
+                workload_table_infos.create_default_table()
+            }))
     }
 
     async fn get_workloads(
