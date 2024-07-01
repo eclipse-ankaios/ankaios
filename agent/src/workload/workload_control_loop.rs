@@ -84,6 +84,7 @@ impl WorkloadControlLoop {
                         .ok_or("Channel to listen to workload states of state checker closed.")
                         .unwrap_or_illegal_state();
 
+                    // [impl->swdd~workload-control-loop-checks-workload-state-validity~1]
                     if Self::is_same_workload(control_loop_state.instance_name(), &new_workload_state.instance_name) {
 
                         /* forward immediately the new workload state to the agent manager
@@ -97,6 +98,7 @@ impl WorkloadControlLoop {
 
                         // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
                         if Self::restart_policy_matches_execution_state(&control_loop_state.workload_spec.restart_policy, &new_workload_state.execution_state) {
+                            // [impl->swdd~workload-control-loop-handles-workload-restarts~1]
                             control_loop_state = Self::restart_workload_on_runtime(control_loop_state).await;
                         }
                     }

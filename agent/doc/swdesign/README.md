@@ -1357,18 +1357,37 @@ Needs:
 - impl
 - utest
 
+#### WorkloadControlLoop checks workload state validity
+`swdd~workload-control-loop-checks-workload-state-validity~1`
+
+Status: approved
+
+When the WorkloadControlLoop receives a new workload state for a workload it manages, then the WorkloadControlLoop shall check the `WorkloadInstanceName` of the workload state and the workload it manages for equality.
+
+Rationale:
+The WorkloadControlLoop maintains consistency and validity of the workload it manages and its received workload states.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
+
 #### WorkloadControlLoop restarts workload with enabled restart policy
 `swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1`
 
 Status: approved
 
-When the WorkloadControlLoop receives a new workload state and the `WorkloadInstanceName` of the workload state is equal to the `WorkloadInstanceName` of the workload the WorkloadControlLoop manages and:
-* either the workload's `ExecutionState` is `Succeeded(Ok)` or `ExecutionState` is `Failed(ExecFailed)` and the workload's configured `RestartPolicy` contains the value `ALWAYS`
-* or the workload's `ExecutionState` is `Failed(ExecFailed)` and the workload's configured `RestartPolicy` contains the value `ON_FAILURE`,
-then the WorkloadControlLoop shall restart the workload.
+When the WorkloadControlLoop receives a new valid workload state, then the WorkloadControlLoop shall detect a restart of a workload by comparing the workload's RestartPolicy with the received ExecutionState of that workload according to the following table:
+
+| RestartPolicy | ExecutionState                      |
+|---------------|-------------------------------------|
+| ALWAYS        | Succeeded(Ok) or Failed(ExecFailed) |
+| ON_FAILURE    | Failed(ExecFailed)                  |
 
 Comment:
-In all other execution states and in case of the restart policy is `NEVER` the workload is not restarted.
+In case of the workload's restart policy is `NEVER` or other RestartPolicy-ExecutionState combinations the workload is not restarted.
 
 Rationale:
 The restart depends on the execution state of the workload.
@@ -1380,6 +1399,23 @@ Needs:
 - impl
 - utest
 - stest
+
+#### WorkloadControlLoop handles restarts of workloads
+`swdd~workload-control-loop-handles-workload-restarts~1`
+
+Status: approved
+
+When the WorkloadControlLoop detects that a restart of the workload is required, then the WorkloadControlLoop shall execute the restart of the workload.
+
+Rationale:
+The execution of a restart of the workload depends on the workload state and the configured restart policy.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
 
 #### WorkloadControlLoop restarts workloads using the update operation
 `swdd~workload-control-loop-restarts-workloads-using-update~1`
@@ -2538,7 +2574,7 @@ Needs:
 
 Status: approved
 
-When the WorkloadControlLoop receives a new workload state and the `WorkloadInstanceName` of the workload state is equal to the `WorkloadInstanceName` of the workload the WorkloadControlLoop manages, then the WorkloadControlLoop shall send the workload state to the AgentManager.
+When the WorkloadControlLoop receives a new valid workload state for its workload it manages, then the WorkloadControlLoop shall send the workload state to the AgentManager.
 
 Rationale:
 The AgentManager requires the knowledge about the workload states of all workloads.
