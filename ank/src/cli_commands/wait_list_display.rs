@@ -52,7 +52,9 @@ impl WaitListDisplayTrait for WaitListDisplay {
     fn update(&mut self, workload_state: &common::objects::WorkloadState) {
         if let Some(entry) = self.data.get_mut(&workload_state.instance_name) {
             entry.execution_state = workload_state.execution_state.state.to_string();
-            entry.additional_info = workload_state.execution_state.additional_info.clone();
+            entry
+                .additional_info
+                .clone_from(&workload_state.execution_state.additional_info);
         }
     }
 
