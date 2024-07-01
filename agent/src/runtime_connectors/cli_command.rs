@@ -12,12 +12,6 @@ pub struct CliCommand<'a> {
     args: Vec<String>,
 }
 
-impl std::fmt::Display for CliCommand<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self.args)
-    }
-}
-
 impl<'a> CliCommand<'a> {
     pub fn new(program: &str) -> Self {
         let mut command = Command::new(program);
