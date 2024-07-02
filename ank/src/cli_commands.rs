@@ -273,14 +273,6 @@ mod tests {
         std::sync::Mutex::new(std::collections::VecDeque::new());
     }
 
-    // pub async fn read_to_string_mock(_file: String) -> io::Result<String> {
-    //     FAKE_READ_TO_STRING_MOCK_RESULT_LIST
-    //         .lock()
-    //         .await
-    //         .pop_front()
-    //         .unwrap()
-    // }
-
     mockall::mock! {
         pub GRPCCommunicationsClient {
             pub fn new_cli_communication(name: String, server_address: String, tls_config: Option<TLSConfig>) -> Self;
