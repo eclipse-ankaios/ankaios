@@ -20,7 +20,7 @@ Just call:
 docker compose up -d
 ```
 
-Aftewards the `ank` CLI can be used to interact with Ankaios.
+Afterwards the `ank` CLI can be used to interact with Ankaios.
 Please make sure that the version of the `ank` CLI fits to the version of the Ankaios server and agent (see `compose.yaml`).
 
 ```shell
