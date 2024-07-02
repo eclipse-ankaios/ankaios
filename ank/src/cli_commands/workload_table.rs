@@ -6,6 +6,7 @@ fn terminal_width() -> usize {
     80
 }
 
+use super::workload_table_row::MaxAdditionalInfo;
 use super::WorkloadTableRow;
 use tabled::{
     settings::{object::Columns, Modify, Padding, Style, Width},
@@ -19,12 +20,13 @@ pub struct WorkloadTable {
 impl WorkloadTable {
     const ADDITIONAL_INFO_SUFFIX: &'static str = "...";
 
-    pub fn new<I, T>(iter: I, length_of_longest_additional_info: Option<usize>) -> Self
+    pub fn new<RowType>(rows: Vec<RowType>) -> Self
     where
-        I: IntoIterator<Item = T>,
-        T: Tabled,
+        RowType: Tabled,
+        Vec<RowType>: MaxAdditionalInfo,
     {
-        let mut table = Table::new(iter);
+        let length_of_longest_additional_info = rows.length_of_longest_additional_info();
+        let mut table = Table::new(rows);
         let basic_table = table.with(Style::blank()).to_owned();
 
         let custom_table = Self::set_custom_table_padding(basic_table);
@@ -179,10 +181,9 @@ mod tests {
             additional_info: "some long long additional info message".to_string(),
         };
 
-        let table_rows = [&row];
-        let length_of_longest_additional_info = Some(row.additional_info.len());
+        let table_rows = vec![row];
 
-        let mut table = WorkloadTable::new(table_rows, length_of_longest_additional_info);
+        let mut table = WorkloadTable::new(table_rows);
         let table_output = table.create_default_table();
         let expected_table_output_newlines = 1;
         assert_eq!(
@@ -202,10 +203,9 @@ mod tests {
             additional_info: "some long long additional info message".to_string(),
         };
 
-        let table_rows = [&row];
-        let length_of_longest_additional_info = Some(row.additional_info.len());
+        let table_rows = vec![row];
 
-        let mut table = WorkloadTable::new(table_rows, length_of_longest_additional_info);
+        let mut table = WorkloadTable::new(table_rows);
         let table_output = table.create_table_truncated_additional_info().unwrap();
         let expected_table_output_newlines = 1; // truncated additional info column with suffix '...'
         assert_eq!(
@@ -233,11 +233,12 @@ mod tests {
             additional_info: "some long long additional info message".to_string(),
         };
 
-        let table_rows = [&row];
-        let length_of_longest_additional_info = Some(row.additional_info.len());
+        let table_rows = vec![row];
 
-        let mut table = WorkloadTable::new(table_rows, length_of_longest_additional_info);
-        let table_output = table.create_table_wrapped_additional_info().unwrap();
+        let mut table = WorkloadTable::new(table_rows);
+        let table_output = table
+            .create_table_wrapped_additional_info()
+            .unwrap_or_default();
         let expected_table_output_newlines = 2; // because of wrapping the additional info column
         assert_eq!(
             table_output.matches('\n').count(),
@@ -248,9 +249,8 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_terminal_width_for_additional_info_no_table_entries() {
-        let length_of_longest_additional_info = None; // empty table
-        let empty_table: [&WorkloadTableRow; 0] = [];
-        let table = WorkloadTable::new(empty_table, length_of_longest_additional_info);
+        let empty_table: Vec<WorkloadTableRow> = Vec::new();
+        let table = WorkloadTable::new(empty_table);
         let table_width: usize = 70; // empty table but all header column names + paddings
         let expected_terminal_width = Some(25); // 80 (terminal width) - (70 - 15 (column name 'ADDITIONAL INFO')) = 25
         assert_eq!(
@@ -270,10 +270,9 @@ mod tests {
             additional_info: "short".to_string(),
         };
 
-        let table_rows = [&row];
-        let length_of_longest_additional_info = Some(row.additional_info.len());
+        let table_rows = vec![row];
 
-        let table = WorkloadTable::new(table_rows, length_of_longest_additional_info);
+        let table = WorkloadTable::new(table_rows);
         let table_width: usize = 70;
         let expected_terminal_width = Some(25); // 80 (terminal width) - (70 - 15 (column name 'ADDITIONAL INFO')) = 25
         assert_eq!(
@@ -293,10 +292,9 @@ mod tests {
             additional_info: "medium length message".to_string(),
         };
 
-        let table_rows = [&row];
-        let length_of_longest_additional_info = Some(row.additional_info.len());
+        let table_rows = vec![row];
 
-        let table = WorkloadTable::new(table_rows, length_of_longest_additional_info);
+        let table = WorkloadTable::new(table_rows);
         let table_width: usize = 100; // table bigger than terminal width
         assert!(table
             .terminal_width_for_additional_info(table_width)

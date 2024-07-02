@@ -1,5 +1,9 @@
 use tabled::Tabled;
 
+pub trait MaxAdditionalInfo {
+    fn length_of_longest_additional_info(&self) -> Option<usize>;
+}
+
 #[derive(Debug, Tabled, Clone)]
 #[tabled(rename_all = "UPPERCASE")]
 pub struct WorkloadTableRow {
@@ -13,9 +17,21 @@ pub struct WorkloadTableRow {
     pub additional_info: String,
 }
 
+impl MaxAdditionalInfo for Vec<WorkloadTableRow> {
+    fn length_of_longest_additional_info(&self) -> Option<usize> {
+        self.iter().map(|row| row.additional_info.len()).max()
+    }
+}
+
 pub struct WorkloadTableRowWithSpinner<'a> {
     pub data: &'a WorkloadTableRow,
     pub spinner: &'a str,
+}
+
+impl MaxAdditionalInfo for Vec<WorkloadTableRowWithSpinner<'_>> {
+    fn length_of_longest_additional_info(&self) -> Option<usize> {
+        self.iter().map(|row| row.data.additional_info.len()).max()
+    }
 }
 
 impl WorkloadTableRow {

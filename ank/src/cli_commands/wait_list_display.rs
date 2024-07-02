@@ -39,14 +39,8 @@ impl Display for WaitListDisplay {
             .collect();
         table_rows_with_spinner.sort_by_key(|x| &x.data.name);
 
-        let length_of_longest_additional_info = table_rows_with_spinner
-            .iter()
-            .map(|table_info| table_info.data.additional_info.len())
-            .max();
-
         // [impl->swdd~cli-shall-present-workloads-as-table~1]
-        let mut workload_table_infos =
-            WorkloadTable::new(&table_rows_with_spinner, length_of_longest_additional_info);
+        let mut workload_table_infos = WorkloadTable::new(table_rows_with_spinner);
 
         let table_output = workload_table_infos
             .create_table_truncated_additional_info()
