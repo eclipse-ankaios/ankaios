@@ -6,20 +6,20 @@ fn terminal_width() -> usize {
     80
 }
 
-use super::GetWorkloadTableDisplay;
+use super::WorkloadTableRow;
 use tabled::{
     settings::{object::Columns, Modify, Padding, Style, Width},
     Table, Tabled,
 };
 pub struct WorkloadTable<'a> {
-    data: &'a [&'a GetWorkloadTableDisplay],
+    data: &'a [&'a WorkloadTableRow],
     table: Table,
 }
 
 impl<'a> WorkloadTable<'a> {
     const ADDITIONAL_INFO_SUFFIX: &'static str = "...";
 
-    pub fn new(data: &'a [&'a GetWorkloadTableDisplay]) -> Self {
+    pub fn new(data: &'a [&'a WorkloadTableRow]) -> Self {
         let mut table = Table::new(data);
         let basic_table = table.with(Style::blank()).to_owned();
 
@@ -43,7 +43,7 @@ impl<'a> WorkloadTable<'a> {
             self.terminal_width_for_additional_info(total_table_width)?;
 
         self.truncate_table_column(
-            GetWorkloadTableDisplay::ADDITIONAL_INFO_POS,
+            WorkloadTableRow::ADDITIONAL_INFO_POS,
             additional_info_terminal_width,
             Self::ADDITIONAL_INFO_SUFFIX,
         );
@@ -58,7 +58,7 @@ impl<'a> WorkloadTable<'a> {
             self.terminal_width_for_additional_info(total_table_width)?;
 
         self.wrap_table_column(
-            GetWorkloadTableDisplay::ADDITIONAL_INFO_POS,
+            WorkloadTableRow::ADDITIONAL_INFO_POS,
             additional_info_terminal_width,
         );
 
@@ -70,14 +70,14 @@ impl<'a> WorkloadTable<'a> {
             table
                 .get_config()
                 .get_padding(tabled::grid::config::Entity::Column(
-                    GetWorkloadTableDisplay::FIRST_COLUMN_POS,
+                    WorkloadTableRow::FIRST_COLUMN_POS,
                 ));
 
         let last_column_default_padding =
             table
                 .get_config()
                 .get_padding(tabled::grid::config::Entity::Column(
-                    GetWorkloadTableDisplay::ADDITIONAL_INFO_POS,
+                    WorkloadTableRow::ADDITIONAL_INFO_POS,
                 ));
 
         /* Set the left padding of the first and the right padding of the last column to zero
@@ -121,7 +121,7 @@ impl<'a> WorkloadTable<'a> {
     fn terminal_width_for_additional_info(&self, total_table_width: usize) -> Option<usize> {
         let terminal_width = terminal_width();
         let column_name_length =
-            GetWorkloadTableDisplay::headers()[GetWorkloadTableDisplay::ADDITIONAL_INFO_POS].len();
+            WorkloadTableRow::headers()[WorkloadTableRow::ADDITIONAL_INFO_POS].len();
         let additional_info_width =
             if let Some(max_additional_info_length) = self.length_of_longest_additional_info() {
                 if max_additional_info_length > column_name_length {
@@ -168,13 +168,13 @@ impl<'a> WorkloadTable<'a> {
 #[cfg(test)]
 mod tests {
     use super::WorkloadTable;
-    use crate::cli_commands::GetWorkloadTableDisplay;
+    use crate::cli_commands::WorkloadTableRow;
     use common::objects::ExecutionState;
 
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_create_default_table() {
-        let table_row = GetWorkloadTableDisplay {
+        let table_row = WorkloadTableRow {
             name: "workload1".to_string(),
             agent: "agent1".to_string(),
             runtime: "podman".to_string(),
@@ -195,7 +195,7 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_create_truncated_table_additional_info() {
-        let table_row = GetWorkloadTableDisplay {
+        let table_row = WorkloadTableRow {
             name: "workload1".to_string(),
             agent: "agent1".to_string(),
             runtime: "podman".to_string(),
@@ -224,7 +224,7 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_create_wrapped_table_additional_info() {
-        let table_row = GetWorkloadTableDisplay {
+        let table_row = WorkloadTableRow {
             name: "workload1".to_string(),
             agent: "agent1".to_string(),
             runtime: "podman".to_string(),
@@ -254,7 +254,7 @@ mod tests {
     fn utest_length_of_longest_additional_info() {
         let additional_info = "some additional info message".to_string();
         let expected_additional_info_length = additional_info.len();
-        let table_row = GetWorkloadTableDisplay {
+        let table_row = WorkloadTableRow {
             name: "workload1".to_string(),
             agent: "agent1".to_string(),
             runtime: "podman".to_string(),
@@ -285,7 +285,7 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_terminal_width_for_additional_info_column_name_bigger_than_info_msg() {
-        let table_row = GetWorkloadTableDisplay {
+        let table_row = WorkloadTableRow {
             name: "workload1".to_string(),
             agent: "agent1".to_string(),
             runtime: "podman".to_string(),
@@ -307,7 +307,7 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_terminal_width_for_additional_info_no_reasonable_terminal_width_left() {
-        let table_row = GetWorkloadTableDisplay {
+        let table_row = WorkloadTableRow {
             name: "workload1".to_string(),
             agent: "agent1".to_string(),
             runtime: "podman".to_string(),
