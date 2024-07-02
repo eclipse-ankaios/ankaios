@@ -165,18 +165,12 @@ sudo openssl x509 -req -in "./ank.csr" -CA "/etc/ankaios/certs/ca.pem" -CAkey "/
 
 ## Perform Ankaios installation with mTLS support
 
-To set up Ankaios with mutual TLS (mTLS) support, you need to supply the necessary mTLS certificates to the `ank-server`, `ank-agent`, and `ank` CLI components. Here's a step-by-step guide:
+To set up Ankaios with mTLS support, you need to supply the necessary mTLS certificates to the `ank-server`, `ank-agent`, and `ank` CLI components. Here's a step-by-step guide:
 
-### Install the `ank-server` with mTLS certificates
+### Install `ank-server` and `ank-agent` with mTLS certificates
 
 ```shell
 curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh | bash -s -- -s "--startup-config /etc/ankaios/state.yaml --ca_pem /etc/ankaios/certs/ca.pem --crt_pem /etc/ankaios/certs/ank-server.pem --key_pem /etc/ankaios/certs/ank-server-key.pem" -a "--name agent_A --ca_pem /etc/ankaios/certs/ca.pem --crt_pem /etc/ankaios/certs/ank-agent.pem --key_pem /etc/ankaios/certs/ank-agent-key.pem"
-```
-
-### Install the `ank-agent` with mTLS certificates
-
-```shell
-curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh | bash -s -- -s "--ca_pem /etc/ankaios/certs/ca.pem --crt_pem /etc/ankaios/certs/ank-agent.pem --key_pem /etc/ankaios/certs/ank-agent-key.pem"
 ```
 
 ### Configure the `ank` CLI with mTLS certificates
