@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use crate::helpers::serialize_to_ordered_map;
 use crate::objects::Tag;
 
+use super::control_interface_access::ControlInterfaceAccess;
 use super::ExecutionState;
 use super::WorkloadInstanceName;
 
@@ -42,6 +43,7 @@ pub struct WorkloadSpec {
     pub restart_policy: RestartPolicy,
     pub runtime: String,
     pub runtime_config: String,
+    pub control_interface_access: ControlInterfaceAccess,
 }
 
 pub type AgentWorkloadMap = HashMap<String, (WorkloadCollection, DeletedWorkloadCollection)>;
@@ -210,14 +212,17 @@ fn generate_test_dependencies() -> HashMap<String, AddCondition> {
 }
 
 #[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_runtime_config() -> String {
+    "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n".to_string()
+}
+
+#[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_workload_spec_with_param(
     agent_name: String,
     workload_name: String,
     runtime_name: String,
 ) -> crate::objects::WorkloadSpec {
-    let runtime_config =
-        "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
-        .to_owned();
+    let runtime_config = generate_test_runtime_config();
 
     generate_test_workload_spec_with_runtime_config(
         agent_name,
@@ -250,6 +255,7 @@ pub fn generate_test_workload_spec_with_runtime_config(
             value: "value".into(),
         }],
         runtime_config,
+        control_interface_access: Default::default(),
     }
 }
 
@@ -286,6 +292,7 @@ mod tests {
 
     use crate::objects::*;
     use crate::test_utils::*;
+
     #[test]
     fn utest_get_workloads_per_agent_one_agent_one_workload() {
         let added_workloads = vec![

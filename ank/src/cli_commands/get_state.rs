@@ -354,21 +354,23 @@ mod tests {
         let expected_state = r#"{
             "desiredState": {
                 "workloads": {
-                  "name1": {
-                    "agent": "agent_A",
-                    "tags": [
-                        {
-                        "key": "key",
-                        "value": "value"
+                    "name1": {
+                        "agent": "agent_A",
+                        "tags": [{
+                            "key": "key",
+                            "value": "value"
+                        }],
+                        "dependencies": {
+                            "workload A": "ADD_COND_RUNNING",
+                            "workload C": "ADD_COND_SUCCEEDED"
+                        },
+                        "restartPolicy": "ALWAYS",
+                        "runtime": "podman",
+                        "runtimeConfig": "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n",
+                        "controlInterfaceAccess": {
+                            "allowRules": [],
+                            "denyRules": []
                         }
-                    ],
-                    "dependencies": {
-                        "workload A": "ADD_COND_RUNNING",
-                        "workload C": "ADD_COND_SUCCEEDED"
-                    },
-                    "restartPolicy": "ALWAYS",
-                    "runtime": "podman",
-                    "runtimeConfig": "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
                     }
                 }
             }
@@ -423,7 +425,11 @@ mod tests {
                         },
                         "restartPolicy": "ALWAYS",
                         "runtime": "podman",
-                        "runtimeConfig": "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
+                        "runtimeConfig": "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n",
+                        "controlInterfaceAccess": {
+                            allowRules: [],
+                            denyRules: [],
+                        }
                     },
                     "name2": {
                         "agent": "agent_B"
@@ -657,6 +663,6 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(cmd_text, "workloadStates: []\n");
+        assert_eq!(cmd_text, "workloadStates: {}\n");
     }
 }

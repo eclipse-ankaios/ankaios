@@ -19,7 +19,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::helpers::serialize_to_ordered_map;
 
-use super::{AddCondition, RestartPolicy, Tag, WorkloadInstanceName, WorkloadSpec};
+use super::{
+    control_interface_access::ControlInterfaceAccess, AddCondition, RestartPolicy, Tag,
+    WorkloadInstanceName, WorkloadSpec,
+};
 
 #[derive(Debug, Serialize, Default, Deserialize, Clone, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -33,6 +36,8 @@ pub struct StoredWorkloadSpec {
     pub restart_policy: RestartPolicy,
     pub runtime: String,
     pub runtime_config: String,
+    #[serde(default)]
+    pub control_interface_access: ControlInterfaceAccess,
 }
 
 impl TryFrom<ank_base::Workload> for StoredWorkloadSpec {
@@ -50,6 +55,10 @@ impl TryFrom<ank_base::Workload> for StoredWorkloadSpec {
             restart_policy: value.restart_policy.try_into()?,
             runtime: value.runtime,
             runtime_config: value.runtime_config,
+            control_interface_access: value
+                .control_interface_access
+                .unwrap_or_default()
+                .try_into()?,
         })
     }
 }
@@ -67,6 +76,7 @@ impl From<StoredWorkloadSpec> for ank_base::Workload {
             runtime: workload.runtime,
             runtime_config: workload.runtime_config,
             tags: workload.tags.into_iter().map(|x| x.into()).collect(),
+            control_interface_access: workload.control_interface_access.into(),
         }
     }
 }
@@ -84,6 +94,7 @@ impl From<(String, StoredWorkloadSpec)> for WorkloadSpec {
             restart_policy: spec.restart_policy,
             runtime: spec.runtime,
             runtime_config: spec.runtime_config,
+            control_interface_access: spec.control_interface_access,
         }
     }
 }
@@ -97,6 +108,7 @@ impl From<WorkloadSpec> for StoredWorkloadSpec {
             dependencies: value.dependencies,
             tags: value.tags,
             runtime_config: value.runtime_config,
+            control_interface_access: value.control_interface_access,
         }
     }
 }
@@ -128,6 +140,7 @@ pub fn generate_test_stored_workload_spec_with_config(
             value: "value".into(),
         }],
         runtime_config: runtime_config.into(),
+        control_interface_access: Default::default(),
     }
 }
 

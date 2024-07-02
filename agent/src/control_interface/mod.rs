@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-mod to_ankaios;
+mod authorizer;
 mod directory;
 mod fifo;
 mod filesystem;
@@ -22,8 +22,9 @@ mod pipes_channel_context;
 mod pipes_channel_context_info;
 mod pipes_channel_task;
 mod reopen_file;
+mod to_ankaios;
 
-pub use to_ankaios::ToAnkaios;
+pub use authorizer::Authorizer;
 pub use directory::*;
 pub use fifo::*;
 pub use filesystem::*;
@@ -35,3 +36,4 @@ pub use pipes_channel_context_info::*;
 #[cfg(test)]
 pub use pipes_channel_task::*;
 pub use reopen_file::*;
+pub use to_ankaios::ToAnkaios;

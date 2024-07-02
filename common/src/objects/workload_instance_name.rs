@@ -74,8 +74,16 @@ impl From<WorkloadInstanceName> for ank_base::WorkloadInstanceName {
 }
 
 impl WorkloadInstanceName {
-    pub fn new(input: &str) -> Option<WorkloadInstanceName> {
-        input.try_into().ok()
+    pub fn new(
+        agent_name: impl Into<String>,
+        workload_name: impl Into<String>,
+        id: impl Into<String>,
+    ) -> WorkloadInstanceName {
+        WorkloadInstanceName {
+            workload_name: workload_name.into(),
+            agent_name: agent_name.into(),
+            id: id.into(),
+        }
     }
 
     pub fn workload_name(&self) -> &str {
@@ -84,6 +92,10 @@ impl WorkloadInstanceName {
 
     pub fn agent_name(&self) -> &str {
         &self.agent_name
+    }
+
+    pub fn id(&self) -> &str {
+        &self.id
     }
 
     pub fn pipes_folder_name(&self, base_path: &Path) -> PathBuf {
@@ -155,6 +167,11 @@ impl WorkloadInstanceNameBuilder {
 
     pub fn workload_name(mut self, workload_name: impl Into<String>) -> Self {
         self.workload_name = workload_name.into();
+        self
+    }
+
+    pub fn id(mut self, id: impl Into<String>) -> Self {
+        self.hash = id.into();
         self
     }
 

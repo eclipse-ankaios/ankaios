@@ -17,6 +17,7 @@ use common::objects::WorkloadInstanceName;
 #[cfg(test)]
 use mockall::automock;
 
+use super::authorizer::Authorizer;
 #[cfg_attr(test, mockall_double::double)]
 use super::input_output::InputOutput;
 #[cfg_attr(test, mockall_double::double)]
@@ -29,6 +30,7 @@ use common::{from_server_interface::FromServerSender, to_server_interface::ToSer
 use std::{
     fmt::{self, Display},
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use tokio::task::JoinHandle;
@@ -53,6 +55,7 @@ pub struct PipesChannelContext {
     pipes: InputOutput,
     input_pipe_sender: FromServerSender,
     task_handle: JoinHandle<()>,
+    authorizer: Arc<Authorizer>,
 }
 
 #[cfg_attr(test, automock)]
@@ -61,6 +64,7 @@ impl PipesChannelContext {
         run_directory: &Path,
         execution_instance_name: &WorkloadInstanceName,
         output_pipe_channel: ToServerSender,
+        authorizer: Authorizer,
     ) -> Result<Self, PipesChannelContextError> {
         // [impl->swdd~agent-control-interface-pipes-path-naming~1]
         match InputOutput::new(execution_instance_name.pipes_folder_name(run_directory)) {
@@ -69,6 +73,8 @@ impl PipesChannelContext {
                 let output_stream = ReopenFile::create(pipes.get_input().get_path());
                 let request_id_prefix = [execution_instance_name.workload_name(), ""].join("@");
                 let input_pipe_channels = FromServerChannels::new(1024);
+
+                let authorizer = Arc::new(authorizer);
 
                 Ok(PipesChannelContext {
                     pipes,
@@ -79,12 +85,20 @@ impl PipesChannelContext {
                         input_pipe_channels.move_receiver(),
                         output_pipe_channel,
                         request_id_prefix,
+                        authorizer.clone(),
                     )
                     .run_task(),
+                    authorizer,
                 })
             }
             Err(e) => Err(PipesChannelContextError::CouldNotCreateFifo(e.to_string())),
         }
+    }
+
+    #[allow(dead_code)]
+    // Used in the tests below for now
+    pub fn get_authorizer(&self) -> &Authorizer {
+        &self.authorizer
     }
 
     #[allow(dead_code)]
@@ -125,7 +139,7 @@ mod tests {
     const CONFIG: &str = "config";
 
     use crate::control_interface::{
-        generate_test_input_output_mock, generate_test_pipes_channel_task_mock,
+        generate_test_input_output_mock, generate_test_pipes_channel_task_mock, Authorizer,
         MockFromServerChannels, MockReopenFile, PipesChannelContext,
     };
     use common::objects::WorkloadInstanceName;
@@ -167,6 +181,7 @@ mod tests {
                 .config(&String::from(CONFIG))
                 .build(),
             mpsc::channel(1).0,
+            Authorizer::default(),
         )
         .unwrap();
 
@@ -216,6 +231,7 @@ mod tests {
                 .config(&String::from(CONFIG))
                 .build(),
             mpsc::channel(1).0,
+            Authorizer::default(),
         )
         .unwrap();
 

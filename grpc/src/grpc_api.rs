@@ -138,6 +138,10 @@ impl TryFrom<AddedWorkload> for objects::WorkloadSpec {
             instance_name: workload.instance_name.ok_or("No instance name")?.into(),
             tags: workload.tags.into_iter().map(|x| x.into()).collect(),
             runtime_config: workload.runtime_config,
+            control_interface_access: workload
+                .control_interface_access
+                .unwrap_or_default()
+                .try_into()?,
         })
     }
 }
@@ -156,6 +160,7 @@ impl From<objects::WorkloadSpec> for AddedWorkload {
             runtime: workload.runtime,
             runtime_config: workload.runtime_config,
             tags: workload.tags.into_iter().map(|x| x.into()).collect(),
+            control_interface_access: workload.control_interface_access.into(),
         }
     }
 }
@@ -480,7 +485,7 @@ mod tests {
                             api_version: "v0.1".into(),
                             ..Default::default()
                         }),
-                        workload_states: vec![],
+                        ..Default::default()
                     },
                 )),
             })),
@@ -547,6 +552,7 @@ mod tests {
                 key: "key".into(),
                 value: "value".into(),
             }],
+            control_interface_access: Default::default(),
         };
 
         assert_eq!(AddedWorkload::from(workload_spec), proto_workload);
@@ -573,6 +579,7 @@ mod tests {
                 .build(),
             tags: vec![],
             runtime_config: String::from("some config"),
+            control_interface_access: Default::default(),
         };
 
         let proto_workload = AddedWorkload {
@@ -595,6 +602,7 @@ mod tests {
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
             tags: vec![],
+            control_interface_access: Default::default(),
         };
 
         assert_eq!(
@@ -625,6 +633,7 @@ mod tests {
             runtime: String::from("runtime"),
             runtime_config: String::from("some config"),
             tags: vec![],
+            control_interface_access: Default::default(),
         };
 
         assert!(ankaios::WorkloadSpec::try_from(proto_workload).is_err());
