@@ -19,6 +19,7 @@ mod cli_commands;
 use cli_commands::CliCommands;
 use common::std_extensions::GracefulExitResult;
 use grpc::security::TLSConfig;
+mod cli_error;
 mod log;
 
 #[cfg(test)]
