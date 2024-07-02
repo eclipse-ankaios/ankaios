@@ -16,7 +16,7 @@ use std::{collections::HashSet, fmt::Display};
 
 use common::{
     commands::UpdateStateSuccess,
-    objects::{PendingSubstate, WorkloadInstanceName, WorkloadState, NO_MORE_RETRIES_MSG},
+    objects::{PendingSubstate, WorkloadInstanceName, WorkloadState},
 };
 
 #[cfg(test)]
@@ -99,9 +99,7 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
                         self.display.set_complete(&workload_state.instance_name)
                     }
                 }
-                common::objects::ExecutionStateEnum::Pending(PendingSubstate::StartingFailed)
-                    if workload_state.execution_state.additional_info == NO_MORE_RETRIES_MSG =>
-                {
+                common::objects::ExecutionStateEnum::Pending(PendingSubstate::StartingFailed) => {
                     if self.added_workloads.remove(&workload_state.instance_name) {
                         self.display.set_complete(&workload_state.instance_name)
                     }
@@ -296,7 +294,7 @@ mod tests {
 
         let workload_state = WorkloadState {
             instance_name: i_name_2.clone(),
-            execution_state: ExecutionState::retry_failed_no_retry(),
+            execution_state: ExecutionState::retry_failed_no_retry("some error"),
         };
 
         let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_2);

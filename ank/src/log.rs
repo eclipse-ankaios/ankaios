@@ -65,7 +65,7 @@ pub(crate) fn output_fn(args: fmt::Arguments<'_>) {
     }
 }
 
-fn terminal_width() -> usize {
+pub fn terminal_width() -> usize {
     let terminal_width = terminal::size().unwrap_or((80, 0)).0 as usize;
 
     // This is a workaround for terminals that return a wrong width of 0 instead of None

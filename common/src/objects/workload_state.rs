@@ -23,7 +23,7 @@ use crate::std_extensions::UnreachableOption;
 use super::WorkloadInstanceName;
 
 const TRIGGERED_MSG: &str = "Triggered at runtime.";
-pub const NO_MORE_RETRIES_MSG: &str = "No more retries.";
+pub const NO_MORE_RETRIES_MSG: &str = "No more retries";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PendingSubstate {
@@ -315,10 +315,26 @@ impl ExecutionState {
         }
     }
 
-    pub fn retry_failed_no_retry() -> Self {
+    pub fn retry_starting(
+        current_retry: usize,
+        max_retries: usize,
+        additional_info: impl ToString,
+    ) -> Self {
+        ExecutionState {
+            state: ExecutionStateEnum::Pending(PendingSubstate::Starting),
+            additional_info: format!(
+                "Retry {} of {}: {}",
+                current_retry,
+                max_retries,
+                additional_info.to_string()
+            ),
+        }
+    }
+
+    pub fn retry_failed_no_retry(additional_info: impl ToString) -> Self {
         ExecutionState {
             state: ExecutionStateEnum::Pending(PendingSubstate::StartingFailed),
-            additional_info: NO_MORE_RETRIES_MSG.to_string(),
+            additional_info: format!("{}: {}", NO_MORE_RETRIES_MSG, additional_info.to_string()),
         }
     }
 
@@ -691,12 +707,12 @@ mod tests {
         );
         assert_eq!(
             ank_base::ExecutionState {
-                additional_info: NO_MORE_RETRIES_MSG.to_string(),
+                additional_info: format!("{}: {}", NO_MORE_RETRIES_MSG, additional_info),
                 execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Pending(
                     ank_base::Pending::StartingFailed.into(),
                 )),
             },
-            ExecutionState::retry_failed_no_retry().into(),
+            ExecutionState::retry_failed_no_retry(additional_info).into(),
         );
         assert_eq!(
             ank_base::ExecutionState {
@@ -796,9 +812,9 @@ mod tests {
             .into(),
         );
         assert_eq!(
-            ExecutionState::retry_failed_no_retry(),
+            ExecutionState::retry_failed_no_retry(additional_info),
             ank_base::ExecutionState {
-                additional_info: NO_MORE_RETRIES_MSG.to_string(),
+                additional_info: format!("{}: {}", NO_MORE_RETRIES_MSG, additional_info),
                 execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Pending(
                     ank_base::Pending::StartingFailed.into(),
                 )),
@@ -903,8 +919,15 @@ mod tests {
             String::from("AgentDisconnected")
         );
         assert_eq!(
-            ExecutionState::retry_failed_no_retry().to_string(),
-            format!("Pending(StartingFailed): '{}'", NO_MORE_RETRIES_MSG)
+            ExecutionState::retry_starting(1, 2, additional_info).to_string(),
+            format!("Pending(Starting): 'Retry 1 of 2: {additional_info}'")
+        );
+        assert_eq!(
+            ExecutionState::retry_failed_no_retry(additional_info).to_string(),
+            format!(
+                "Pending(StartingFailed): '{}: {}'",
+                NO_MORE_RETRIES_MSG, additional_info
+            )
         );
         assert_eq!(
             ExecutionState::removed().to_string(),
