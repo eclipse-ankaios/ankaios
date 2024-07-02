@@ -11,23 +11,27 @@ use tabled::{
     settings::{object::Columns, Modify, Padding, Style, Width},
     Table, Tabled,
 };
-pub struct WorkloadTable<'a> {
-    data: &'a [&'a WorkloadTableRow],
+pub struct WorkloadTable {
     table: Table,
+    length_of_longest_additional_info: Option<usize>,
 }
 
-impl<'a> WorkloadTable<'a> {
+impl WorkloadTable {
     const ADDITIONAL_INFO_SUFFIX: &'static str = "...";
 
-    pub fn new(data: &'a [&'a WorkloadTableRow]) -> Self {
-        let mut table = Table::new(data);
+    pub fn new<I, T>(iter: I, length_of_longest_additional_info: Option<usize>) -> Self
+    where
+        I: IntoIterator<Item = T>,
+        T: Tabled,
+    {
+        let mut table = Table::new(iter);
         let basic_table = table.with(Style::blank()).to_owned();
 
         let custom_table = Self::set_custom_table_padding(basic_table);
 
         Self {
-            data,
             table: custom_table.to_owned(),
+            length_of_longest_additional_info,
         }
     }
 
@@ -123,7 +127,7 @@ impl<'a> WorkloadTable<'a> {
         let column_name_length =
             WorkloadTableRow::headers()[WorkloadTableRow::ADDITIONAL_INFO_POS].len();
         let additional_info_width =
-            if let Some(max_additional_info_length) = self.length_of_longest_additional_info() {
+            if let Some(max_additional_info_length) = self.length_of_longest_additional_info {
                 if max_additional_info_length > column_name_length {
                     max_additional_info_length
                 } else {
@@ -148,13 +152,6 @@ impl<'a> WorkloadTable<'a> {
             None // no reasonable terminal width left, avoid breaking the column header name formatting
         }
     }
-
-    fn length_of_longest_additional_info(&self) -> Option<usize> {
-        self.data
-            .iter()
-            .map(|table_info| table_info.additional_info.len())
-            .max()
-    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -174,16 +171,18 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_create_default_table() {
-        let table_row = WorkloadTableRow {
+        let row: WorkloadTableRow = WorkloadTableRow {
             name: "workload1".to_string(),
             agent: "agent1".to_string(),
             runtime: "podman".to_string(),
             execution_state: ExecutionState::running().to_string(),
             additional_info: "some long long additional info message".to_string(),
         };
-        let data = [&table_row];
 
-        let mut table = WorkloadTable::new(&data);
+        let table_rows = [&row];
+        let length_of_longest_additional_info = Some(row.additional_info.len());
+
+        let mut table = WorkloadTable::new(table_rows, length_of_longest_additional_info);
         let table_output = table.create_default_table();
         let expected_table_output_newlines = 1;
         assert_eq!(
@@ -195,16 +194,18 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_create_truncated_table_additional_info() {
-        let table_row = WorkloadTableRow {
+        let row = WorkloadTableRow {
             name: "workload1".to_string(),
             agent: "agent1".to_string(),
             runtime: "podman".to_string(),
             execution_state: ExecutionState::running().to_string(),
             additional_info: "some long long additional info message".to_string(),
         };
-        let data = [&table_row];
 
-        let mut table = WorkloadTable::new(&data);
+        let table_rows = [&row];
+        let length_of_longest_additional_info = Some(row.additional_info.len());
+
+        let mut table = WorkloadTable::new(table_rows, length_of_longest_additional_info);
         let table_output = table.create_table_truncated_additional_info().unwrap();
         let expected_table_output_newlines = 1; // truncated additional info column with suffix '...'
         assert_eq!(
@@ -224,16 +225,18 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_create_wrapped_table_additional_info() {
-        let table_row = WorkloadTableRow {
+        let row = WorkloadTableRow {
             name: "workload1".to_string(),
             agent: "agent1".to_string(),
             runtime: "podman".to_string(),
             execution_state: ExecutionState::running().to_string(),
             additional_info: "some long long additional info message".to_string(),
         };
-        let data = [&table_row];
 
-        let mut table = WorkloadTable::new(&data);
+        let table_rows = [&row];
+        let length_of_longest_additional_info = Some(row.additional_info.len());
+
+        let mut table = WorkloadTable::new(table_rows, length_of_longest_additional_info);
         let table_output = table.create_table_wrapped_additional_info().unwrap();
         let expected_table_output_newlines = 2; // because of wrapping the additional info column
         assert_eq!(
@@ -244,36 +247,10 @@ mod tests {
 
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
-    fn utest_length_of_longest_additional_info_no_table_entries() {
-        let table = WorkloadTable::new(&[]);
-        assert_eq!(table.length_of_longest_additional_info(), None);
-    }
-
-    // [utest->swdd~cli-shall-present-workloads-as-table~1]
-    #[test]
-    fn utest_length_of_longest_additional_info() {
-        let additional_info = "some additional info message".to_string();
-        let expected_additional_info_length = additional_info.len();
-        let table_row = WorkloadTableRow {
-            name: "workload1".to_string(),
-            agent: "agent1".to_string(),
-            runtime: "podman".to_string(),
-            execution_state: ExecutionState::running().to_string(),
-            additional_info,
-        };
-        let data = [&table_row];
-
-        let table = WorkloadTable::new(&data);
-        assert_eq!(
-            table.length_of_longest_additional_info(),
-            Some(expected_additional_info_length)
-        );
-    }
-
-    // [utest->swdd~cli-shall-present-workloads-as-table~1]
-    #[test]
     fn utest_terminal_width_for_additional_info_no_table_entries() {
-        let table = WorkloadTable::new(&[]);
+        let length_of_longest_additional_info = None; // empty table
+        let empty_table: [&WorkloadTableRow; 0] = [];
+        let table = WorkloadTable::new(empty_table, length_of_longest_additional_info);
         let table_width: usize = 70; // empty table but all header column names + paddings
         let expected_terminal_width = Some(25); // 80 (terminal width) - (70 - 15 (column name 'ADDITIONAL INFO')) = 25
         assert_eq!(
@@ -285,7 +262,7 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_terminal_width_for_additional_info_column_name_bigger_than_info_msg() {
-        let table_row = WorkloadTableRow {
+        let row = WorkloadTableRow {
             name: "workload1".to_string(),
             agent: "agent1".to_string(),
             runtime: "podman".to_string(),
@@ -293,9 +270,10 @@ mod tests {
             additional_info: "short".to_string(),
         };
 
-        let data = [&table_row];
+        let table_rows = [&row];
+        let length_of_longest_additional_info = Some(row.additional_info.len());
 
-        let table = WorkloadTable::new(&data);
+        let table = WorkloadTable::new(table_rows, length_of_longest_additional_info);
         let table_width: usize = 70;
         let expected_terminal_width = Some(25); // 80 (terminal width) - (70 - 15 (column name 'ADDITIONAL INFO')) = 25
         assert_eq!(
@@ -307,7 +285,7 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_terminal_width_for_additional_info_no_reasonable_terminal_width_left() {
-        let table_row = WorkloadTableRow {
+        let row = WorkloadTableRow {
             name: "workload1".to_string(),
             agent: "agent1".to_string(),
             runtime: "podman".to_string(),
@@ -315,9 +293,10 @@ mod tests {
             additional_info: "medium length message".to_string(),
         };
 
-        let data = [&table_row];
+        let table_rows = [&row];
+        let length_of_longest_additional_info = Some(row.additional_info.len());
 
-        let table = WorkloadTable::new(&data);
+        let table = WorkloadTable::new(table_rows, length_of_longest_additional_info);
         let table_width: usize = 100; // table bigger than terminal width
         assert!(table
             .terminal_width_for_additional_info(table_width)

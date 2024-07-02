@@ -40,8 +40,14 @@ impl CliCommands {
         // [impl->swdd~cli-shall-present-list-of-workloads~1]
         let workload_infos: Vec<&WorkloadTableRow> = workload_infos.iter().map(|x| &x.1).collect();
 
+        let length_of_longest_additional_info = workload_infos
+            .iter()
+            .map(|table_info| table_info.additional_info.len())
+            .max();
+
         // [impl->swdd~cli-shall-present-workloads-as-table~1]
-        let mut workload_table_infos = WorkloadTable::new(&workload_infos);
+        let mut workload_table_infos =
+            WorkloadTable::new(&workload_infos, length_of_longest_additional_info);
 
         Ok(workload_table_infos
             .create_table_wrapped_additional_info()
