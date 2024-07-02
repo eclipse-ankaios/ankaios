@@ -17,6 +17,7 @@ use std::env;
 mod cli;
 mod cli_commands;
 use cli_commands::CliCommands;
+mod cli_error;
 mod log;
 
 #[cfg(test)]
