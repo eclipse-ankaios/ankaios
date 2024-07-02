@@ -41,7 +41,7 @@ impl CliCommands {
         let table_rows: Vec<WorkloadTableRow> = workload_infos.into_iter().map(|x| x.1).collect();
 
         // [impl->swdd~cli-shall-present-workloads-as-table~1]
-        let mut workload_table_infos = WorkloadTable::new(table_rows);
+        let workload_table_infos = WorkloadTable::new(table_rows);
 
         Ok(workload_table_infos
             .create_table_wrapped_additional_info()

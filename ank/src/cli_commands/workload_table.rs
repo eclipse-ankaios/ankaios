@@ -12,63 +12,67 @@ use tabled::{
     settings::{object::Columns, Modify, Padding, Style, Width},
     Table, Tabled,
 };
-pub struct WorkloadTable {
-    table: Table,
-    length_of_longest_additional_info: Option<usize>,
+pub struct WorkloadTable<RowType> {
+    rows: Vec<RowType>,
 }
 
-impl WorkloadTable {
+impl<RowType> WorkloadTable<RowType>
+where
+    RowType: Tabled,
+    Vec<RowType>: MaxAdditionalInfo,
+{
     const ADDITIONAL_INFO_SUFFIX: &'static str = "...";
 
-    pub fn new<RowType>(rows: Vec<RowType>) -> Self
-    where
-        RowType: Tabled,
-        Vec<RowType>: MaxAdditionalInfo,
-    {
-        let length_of_longest_additional_info = rows.length_of_longest_additional_info();
-        let mut table = Table::new(rows);
-        let basic_table = table.with(Style::blank()).to_owned();
-
-        let custom_table = Self::set_custom_table_padding(basic_table);
-
-        Self {
-            table: custom_table.to_owned(),
-            length_of_longest_additional_info,
-        }
+    pub fn new(rows: Vec<RowType>) -> Self {
+        Self { rows }
     }
 
     // [impl->swdd~cli-shall-present-workloads-as-table~1]
-    pub fn create_default_table(&mut self) -> String {
-        self.table.to_string()
+    pub fn create_default_table(&self) -> String {
+        let default_table = Self::default_table(&self.rows);
+        default_table.to_string()
     }
 
     // [impl->swdd~cli-shall-present-workloads-as-table~1]
-    pub fn create_table_truncated_additional_info(&mut self) -> Option<String> {
-        let total_table_width: usize = self.table.total_width();
-        let additional_info_terminal_width =
+    pub fn create_table_truncated_additional_info(&self) -> Option<String> {
+        let default_table = Self::default_table(&self.rows);
+
+        let total_table_width: usize = default_table.total_width();
+        let remaining_terminal_width =
             self.terminal_width_for_additional_info(total_table_width)?;
 
-        self.truncate_table_column(
+        let truncated_table = Self::truncate_table_column(
+            default_table,
             WorkloadTableRow::ADDITIONAL_INFO_POS,
-            additional_info_terminal_width,
+            remaining_terminal_width,
             Self::ADDITIONAL_INFO_SUFFIX,
         );
 
-        Some(self.table.to_string())
+        Some(truncated_table.to_string())
     }
 
     // [impl->swdd~cli-shall-present-workloads-as-table~1]
-    pub fn create_table_wrapped_additional_info(&mut self) -> Option<String> {
-        let total_table_width: usize = self.table.total_width();
-        let additional_info_terminal_width =
+    pub fn create_table_wrapped_additional_info(&self) -> Option<String> {
+        let default_table = Self::default_table(&self.rows);
+
+        let total_table_width: usize = default_table.total_width();
+        let remaining_terminal_width =
             self.terminal_width_for_additional_info(total_table_width)?;
 
-        self.wrap_table_column(
+        let wrapped_table = Self::wrap_table_column(
+            default_table,
             WorkloadTableRow::ADDITIONAL_INFO_POS,
-            additional_info_terminal_width,
+            remaining_terminal_width,
         );
 
-        Some(self.table.to_string())
+        Some(wrapped_table.to_string())
+    }
+
+    fn default_table(rows: &Vec<RowType>) -> Table {
+        let mut table = Table::new(rows);
+        let basic_table = table.with(Style::blank()).to_owned();
+
+        Self::set_custom_table_padding(basic_table)
     }
 
     fn set_custom_table_padding(mut table: Table) -> Table {
@@ -106,41 +110,49 @@ impl WorkloadTable {
     }
 
     fn truncate_table_column(
-        &mut self,
+        mut table: Table,
         column_position: usize,
         remaining_terminal_width: usize,
         suffix_additional_info: &str,
-    ) {
-        self.table.with(
+    ) -> Table {
+        table.with(
             Modify::new(Columns::single(column_position))
                 .with(Width::truncate(remaining_terminal_width).suffix(suffix_additional_info)),
         );
+        table
     }
 
-    fn wrap_table_column(&mut self, column_position: usize, remaining_terminal_width: usize) {
-        self.table.with(
+    fn wrap_table_column(
+        mut table: Table,
+        column_position: usize,
+        remaining_terminal_width: usize,
+    ) -> Table {
+        table.with(
             Modify::new(Columns::single(column_position))
                 .with(Width::wrap(remaining_terminal_width)),
         );
+        table
     }
 
     fn terminal_width_for_additional_info(&self, total_table_width: usize) -> Option<usize> {
         let terminal_width = terminal_width();
         let column_name_length =
             WorkloadTableRow::headers()[WorkloadTableRow::ADDITIONAL_INFO_POS].len();
-        let additional_info_width =
-            if let Some(max_additional_info_length) = self.length_of_longest_additional_info {
-                if max_additional_info_length > column_name_length {
-                    max_additional_info_length
-                } else {
-                    // Avoid messing up the column name when additional info is shorter
-                    column_name_length
-                }
+
+        let additional_info_width = if let Some(max_additional_info_length) =
+            self.rows.length_of_longest_additional_info()
+        {
+            if max_additional_info_length > column_name_length {
+                max_additional_info_length
             } else {
-                /* On empty table, the max length of the additional info is the column name itself
-                to avoid messing up the column name in the output. */
+                // Avoid messing up the column name when additional info is shorter
                 column_name_length
-            };
+            }
+        } else {
+            /* On empty table, the max length of the additional info is the column name itself
+            to avoid messing up the column name in the output. */
+            column_name_length
+        };
 
         let table_width_except_last_column =
             total_table_width.checked_sub(additional_info_width)?;
@@ -183,7 +195,7 @@ mod tests {
 
         let table_rows = vec![row];
 
-        let mut table = WorkloadTable::new(table_rows);
+        let table = WorkloadTable::new(table_rows);
         let table_output = table.create_default_table();
         let expected_table_output_newlines = 1;
         assert_eq!(
@@ -205,7 +217,7 @@ mod tests {
 
         let table_rows = vec![row];
 
-        let mut table = WorkloadTable::new(table_rows);
+        let table = WorkloadTable::new(table_rows);
         let table_output = table.create_table_truncated_additional_info().unwrap();
         let expected_table_output_newlines = 1; // truncated additional info column with suffix '...'
         assert_eq!(
@@ -235,7 +247,7 @@ mod tests {
 
         let table_rows = vec![row];
 
-        let mut table = WorkloadTable::new(table_rows);
+        let table = WorkloadTable::new(table_rows);
         let table_output = table
             .create_table_wrapped_additional_info()
             .unwrap_or_default();
