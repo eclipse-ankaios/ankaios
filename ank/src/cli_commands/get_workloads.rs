@@ -37,9 +37,9 @@ impl CliCommands {
 
         output_debug!("The table after filtering:\n{:?}", workload_infos);
 
+        // [impl->swdd~cli-shall-present-list-of-workloads~1]
         let workload_infos: Vec<&WorkloadTableRow> = workload_infos.iter().map(|x| &x.1).collect();
 
-        // [impl->swdd~cli-shall-present-list-of-workloads~1]
         // [impl->swdd~cli-shall-present-workloads-as-table~1]
         let mut workload_table_infos = WorkloadTable::new(&workload_infos);
 
@@ -68,11 +68,8 @@ mod tests {
         test_utils,
     };
     use mockall::predicate::eq;
-    use tabled::{settings::Style, Table};
 
-    use crate::cli_commands::{
-        server_connection::MockServerConnection, workload_table_row::WorkloadTableRow, CliCommands,
-    };
+    use crate::cli_commands::{server_connection::MockServerConnection, CliCommands};
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
