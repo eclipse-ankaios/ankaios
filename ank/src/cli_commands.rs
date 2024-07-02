@@ -33,8 +33,7 @@ mod set_state;
 use common::{
     communications_error::CommunicationMiddlewareError,
     from_server_interface::FromServer,
-    objects::{CompleteState, State, StoredWorkloadSpec, Tag, WorkloadInstanceName},
-    state_manipulation::{Object, Path},
+    objects::{CompleteState, State, WorkloadInstanceName},
 };
 
 use wait_list_display::WaitListDisplay;
@@ -262,19 +261,8 @@ impl CliCommands {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use common::{
-        commands::{Response, UpdateStateSuccess, UpdateWorkloadState},
-        from_server_interface::{FromServer, FromServerSender},
-        objects::{
-            self, generate_test_workload_spec_with_param, CompleteState, ExecutionState,
-            RunningSubstate, State, StoredWorkloadSpec, Tag, WorkloadState,
-        },
-        state_manipulation::{Object, Path},
-        test_utils::{self, generate_test_complete_state},
-        to_server_interface::ToServerReceiver,
-    };
+    use common::{from_server_interface::FromServerSender, to_server_interface::ToServerReceiver};
     use grpc::security::TLSConfig;
-    use mockall::predicate::eq;
 
     use std::io;
 
@@ -285,13 +273,13 @@ mod tests {
         std::sync::Mutex::new(std::collections::VecDeque::new());
     }
 
-    pub async fn read_to_string_mock(_file: String) -> io::Result<String> {
-        FAKE_READ_TO_STRING_MOCK_RESULT_LIST
-            .lock()
-            .await
-            .pop_front()
-            .unwrap()
-    }
+    // pub async fn read_to_string_mock(_file: String) -> io::Result<String> {
+    //     FAKE_READ_TO_STRING_MOCK_RESULT_LIST
+    //         .lock()
+    //         .await
+    //         .pop_front()
+    //         .unwrap()
+    // }
 
     mockall::mock! {
         pub GRPCCommunicationsClient {
