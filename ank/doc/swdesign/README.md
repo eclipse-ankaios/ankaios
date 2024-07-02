@@ -139,7 +139,7 @@ Status: approved
 The Ankaios CLI shall only directly communicate with the Ankaios Server.
 
 Tags:
-- CliStartup
+- CliCommands
 
 Needs:
 - impl
@@ -155,7 +155,7 @@ All communication between Server and Ankaios CLI goes through a Communication Mi
 Rationale: Ankaios shall provide a possibility to exchange the communication layer, but dynamic reconfigurations at startup or runtime are not required.
 
 Tags:
-- CliStartup
+- CliCommands
 
 Needs:
 - impl
@@ -174,7 +174,7 @@ Rationale:
 This increases usability for the Ankaios CLI when the Ankaios CLI is used in different terminal windows to connect to the same Ankaios server remotely.
 
 Tags:
-- CliStartup
+- Cli
 
 Needs:
 - impl
@@ -187,7 +187,7 @@ Status: approved
 Command line arguments provided to the the Ankaios CLI shall overwrite environment variables.
 
 Tags:
-- CliStartup
+- Cli
 
 Needs:
 - impl
@@ -200,7 +200,7 @@ Status: approved
 The Ankaios CLI shall be a standalone application (separate from the Ankaios Server and Client).
 
 Tags:
-- CliStartup
+- CliCommands
 
 Needs:
 - impl
@@ -218,7 +218,8 @@ Status: approved
 The Ankaios CLI shall provide a function to get the desired state.
 
 Tags:
-- GetDesiredState
+- Cli
+- CliCommands
 
 Needs:
 - impl
@@ -232,7 +233,7 @@ Status: approved
 When the user invokes the CLI with a request to the get desired state, the CLI shall block and wait until the response from the Ankaios Server is received.
 
 Tags:
-- GetDesiredState
+- CliCommands
 
 Needs:
 - impl
@@ -246,7 +247,7 @@ Status: approved
 When the CLI receives the desired state from Ankaios Server, the CLI shall return this response to the user.
 
 Tags:
-- GetDesiredState
+- CliCommands
 
 Needs:
 - impl
@@ -261,7 +262,7 @@ When the CLI receives the desired state from Ankaios Server via CLI communicatio
 the CLI shall support the possibility to present the desired state as a JSON to the user.
 
 Tags:
-- GetDesiredState
+- CliCommands
 
 Needs:
 - impl
@@ -276,7 +277,7 @@ When the CLI receives the desired state from Ankaios Server via CLI communicatio
 the CLI shall support the possibility to present the desired state as a YAML to the user.
 
 Tags:
-- GetDesiredState
+- CliCommands
 
 Needs:
 - impl
@@ -290,7 +291,7 @@ Status: approved
 The Ankaios CLI shall provide an option to request and deliver only a part of the desired state.
 
 Tags:
-- GetDesiredState
+- Cli
 
 Needs:
 - impl
@@ -304,7 +305,7 @@ Status: approved
 When an object field mask is provided as additional argument, the Ankaios CLI shall return the compact state containing the values of the given fields.
 
 Tags:
-- GetDesiredState
+- CliCommands
 
 Needs:
 - impl
@@ -323,7 +324,7 @@ Output of the `ank get state` can be (and it is meant to be) used as input for t
 The `ank set state` requires the apiVersion, therefore the `ank get state` must display `apiVersion` too.
 
 Tags:
-- GetDesiredState
+- CliCommands
 
 Needs:
 - impl
@@ -341,7 +342,8 @@ Status: approved
 The Ankaios CLI shall provide a function to get the list of workloads.
 
 Tags:
-- GetWorkloads
+- Cli
+- CliCommands
 
 Needs:
 - impl
@@ -355,7 +357,7 @@ Status: approved
 When the user invokes the CLI with a request to get the list of workloads, the CLI shall block and wait until the response from the Ankaios Server is received.
 
 Tags:
-- GetWorkloads
+- CliCommands
 
 Needs:
 - impl
@@ -369,7 +371,7 @@ Status: approved
 When the CLI receives the list of workloads from the Ankaios Server via CLI communication interface, the CLI shall sort the list by workload name.
 
 Tags:
-- GetWorkloads
+- CliCommands
 
 Needs:
 - impl
@@ -382,7 +384,8 @@ When the CLI receives the list of workloads from the Ankaios Server via CLI comm
 the CLI shall filter the workloads from the server using filtering criteria entered by the user in the command.
 
 Tags:
-- GetWorkloads
+- Cli
+- CliCommands
 
 Needs:
 - impl
@@ -399,7 +402,7 @@ and the CLI has filtered the list,
 the CLI shall present the processed list of workloads to the user.
 
 Tags:
-- GetWorkloads
+- CliCommands
 
 Needs:
 - impl
@@ -440,7 +443,8 @@ Status: approved
 The Ankaios CLI shall provide a function to set the desired state.
 
 Tags:
-- SetDesiredState
+- Cli
+- CliCommands
 
 Needs:
 - swdd
@@ -455,7 +459,7 @@ Status: approved
 When the user invokes the CLI with a request to set the desired state, the CLI shall request an update of the state including a watch on the updated workloads.
 
 Tags:
-- SetDesiredState
+- CliCommands
 
 Needs:
 - impl
@@ -553,7 +557,8 @@ Status: approved
 When the user invokes the CLI with a request to the set desired state, the CLI shall support files in YAML format with the state object.
 
 Tags:
-- SetDesiredState
+- Cli
+- CliCommands
 
 Needs:
 - impl
@@ -571,7 +576,8 @@ Status: approved
 The Ankaios CLI shall provide a function to delete workloads.
 
 Tags:
-- DeleteWorkload
+- Cli
+- CliCommands
 
 Needs:
 - impl
@@ -585,7 +591,7 @@ Status: approved
 When the user invokes the CLI with a request to delete workloads, the CLI shall request an update of the state including a watch on the updated workloads.
 
 Tags:
-- DeleteWorkload
+- CliCommands
 
 Needs:
 - impl
@@ -603,7 +609,8 @@ Status: approved
 The Ankaios CLI shall provide a function to run workload.
 
 Tags:
-- RunWorkload
+- Cli
+- CliCommands
 
 Needs:
 - impl
@@ -617,7 +624,7 @@ Status: approved
 When the user invokes the CLI with a request to run a workload, the CLI shall request an update of the state including a watch on the updated workloads.
 
 Tags:
-- RunWorkload
+- CliCommands
 
 Needs:
 - impl
@@ -661,7 +668,7 @@ Status: approved
 The Ankaios CLI apply command shall support the Ankaios manifest file format.
 
 Tags:
-- AnkaiosManifest
+- CliCommands
 
 Needs:
 - impl
@@ -675,6 +682,9 @@ Status: approved
 When the user calls the Ankaios Cli `apply` command with one or multiple files,
 the Ankaios CLI shall process the content of all provided files.
 
+Tags:
+- CliCommands
+
 Needs:
 - impl
 - utest
@@ -687,6 +697,9 @@ Status: approved
 
 When the user calls the Ankaios CLI `apply` command with a file named `-`,
 the Ankaios CLI shall read data from stdin.
+
+Tags:
+- CliCommands
 
 Needs:
 - impl
@@ -702,6 +715,9 @@ When the user does not provide the optional argument `-d`
 and the Ankaios CLI accepts the manifest content from file(s) or from `stdin`,
 the Ankaios CLI shall parse the manifest content into a state object.
 
+Tags:
+- CliCommands
+
 Needs:
 - impl
 - utest
@@ -714,6 +730,9 @@ Status: approved
 
 When the Ankaios CLI accepts the manifest content from file(s) or from `stdin`,
 the Ankaios CLI shall parse the manifest content into a list of filter masks.
+
+Tags:
+- CliCommands
 
 Needs:
 - impl
@@ -730,6 +749,9 @@ and the CLI has generated a state object from the input
 and the CLI has generated a filter masks from the input,
 the CLI shall request an update of the state including a watch on the updated workloads.
 
+Tags:
+- CliCommands
+
 Needs:
 - impl
 - utest
@@ -743,6 +765,9 @@ Status: approved
 When the user provides the optional argument `--agent`
 and the Ankaios CLI parses the manifest content into a state object,
 the Ankaios CLI shall overwrite the agent names in the state object, built as specified in the manifest content, with the one given by the argument.
+
+Tags:
+- CliCommands
 
 Needs:
 - impl
@@ -758,6 +783,9 @@ When the agent name is not specified in a workload specification
 and the user does not provide the agent name via the optional argument `--agent`
 and the user calls the Ankaios CLI `apply` command,
 the Ankaios CLI shall create a list of filter masks from all `workloads` in the `desiredState` of all given files.
+
+Tags:
+- CliCommands
 
 Needs:
 - impl
@@ -778,6 +806,9 @@ the Ankaios CLI shall store all unrelated received messages for later processing
 
 Rationale:
 While communicating with the Ankaios server the ank CLI could already receive unsolicited `UpdateWorkloadState` messages that are needed later during command execution. Storing the messages ensure that they are not missed and the CLI does not block endlessly waiting for them, e.g., while waiting for the end state for an apply command.
+
+Tags:
+- CliCommands
 
 Needs:
 - impl
