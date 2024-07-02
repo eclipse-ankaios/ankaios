@@ -26,3 +26,5 @@ echo "Generate ank-cli certificates ..."
 openssl genpkey -algorithm ED25519 -out "$CERTS_OUT_DIR/cli-key.pem"
 openssl req -config "$CONFIGS_DIR/cli.cnf" -new -key "$CERTS_OUT_DIR/cli-key.pem" -out "$CERTS_OUT_DIR/cli.csr"
 openssl x509 -req -in "$CERTS_OUT_DIR/cli.csr" -CA "$CERTS_OUT_DIR/ca.pem" -CAkey "$CERTS_OUT_DIR/ca-key.pem" -extensions v3_req -extfile "$CONFIGS_DIR/cli.cnf" -out "$CERTS_OUT_DIR/cli.pem"
+
+chmod 600 $CERTS_OUT_DIR/*.pem

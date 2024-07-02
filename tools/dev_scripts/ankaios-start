@@ -7,7 +7,7 @@ LOG_DIR="$(readlink -f "$SCRIPT_DIR/../../logs")"
 mkdir -p "$LOG_DIR"
 
 start_with_tls_enabled() {
-    sudo "$SCRIPT_DIR/../certs/create_certs.sh"
+    "$SCRIPT_DIR/../certs/create_certs.sh"
 
     echo "Staring up Ankaios server with TLS enabled"
     ANKSERVER_CA_PEM=.certs/ca.pem \
