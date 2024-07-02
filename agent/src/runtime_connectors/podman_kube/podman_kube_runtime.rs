@@ -42,6 +42,7 @@ pub struct PodmanKubeWorkloadId {
     pub down_options: Vec<String>,
 }
 
+#[allow(clippy::to_string_trait_impl)]
 impl ToString for PodmanKubeWorkloadId {
     fn to_string(&self) -> String {
         if let Some(pods) = &self.pods {
@@ -52,9 +53,11 @@ impl ToString for PodmanKubeWorkloadId {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct PlayKubeOutput {}
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct PlayKubeError {}
 

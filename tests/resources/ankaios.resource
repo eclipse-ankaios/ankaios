@@ -99,6 +99,7 @@ Ankaios server is started with config "${config_path}"
     ...    %{ANK_BIN_DIR}${/}ank-server
     ...    --startup-config
     ...    ${config_path}
+    ...    --insecure
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
     ...    env:RUST_LOG=debug
     ...    alias=ank-server
@@ -116,6 +117,7 @@ the Ankaios server shall exit with an error code
 Ankaios server is started without config
     Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
+    ...    --insecure
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
     ...    env:RUST_LOG=debug
 
@@ -124,6 +126,7 @@ Ankaios agent is started with name "${name}"
     ...    %{ANK_BIN_DIR}${/}ank-agent
     ...    --name
     ...    ${name}
+    ...    --insecure
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
     ...    env:RUST_LOG=debug
     ...    alias=${name}
@@ -152,7 +155,7 @@ Podman has terminated all existing containers
 
 all workloads of agent "${agent_name}" have an initial execution state
     ${list_result}=    Wait For Initial Execution State
-    ...    %{ANK_BIN_DIR}${/}ank get workloads
+    ...    %{ANK_BIN_DIR}${/}ank --insecure get workloads
     ...    ${agent_name}
     ...    60
     Should Not Be Empty
@@ -189,7 +192,7 @@ the workload "${workload_name}" shall have the execution state "${expected_execu
     @{list_result}=    Create List
     IF    ${timeout} > 0
         @{list_result}=    Wait For Execution State
-        ...    %{ANK_BIN_DIR}${/}ank get workloads
+        ...    %{ANK_BIN_DIR}${/}ank --insecure get workloads
         ...    ${workload_name}
         ...    ${expected_agent_name}
         ...    ${expected_execution_state}
@@ -200,7 +203,7 @@ the workload "${workload_name}" shall have the execution state "${expected_execu
     ...    msg=Timeout: Workload '${workload_name}' on agent '${expected_agent_name}' does not have the execution state '${expected_execution_state}'!
 
 the workload "${workload_name}" shall not exist
-    ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get workloads
+    ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank --insecure get workloads
     @{list_result}=    table to list    ${command_result.stdout}
     &{workload_table}=    table to dict    ${list_result}    WORKLOAD NAME
     Dictionary Should Not Contain Key    ${workload_table}    ${workload_name}
@@ -210,7 +213,7 @@ the workload "${workload_name}" shall not exist on agent "${expected_agent_name}
     @{list_result}=    Create List
     IF    ${timeout} >= 0
         @{list_result}=    Wait For Workload Removal
-        ...    %{ANK_BIN_DIR}${/}ank get workloads
+        ...    %{ANK_BIN_DIR}${/}ank --insecure get workloads
         ...    ${workload_name}
         ...    ${expected_agent_name}
         ...    ${timeout}
@@ -224,7 +227,7 @@ the workload "${workload_name}" shall not exist within "${timeout}" seconds
     @{list_result}=    Create List
     IF    ${timeout} >= 0
         @{list_result}=    Wait For Workload Removal
-        ...    %{ANK_BIN_DIR}${/}ank get workloads
+        ...    %{ANK_BIN_DIR}${/}ank --insecure get workloads
         ...    ${workload_name}
         ...    ""
         ...    ${timeout}

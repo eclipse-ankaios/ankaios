@@ -38,6 +38,23 @@ pub struct Arguments {
     /// An existing path where to manage the fifo files.
     #[clap(short = 'r', long = "run-folder", default_value_t = DEFAULT_RUN_FOLDER.into())]
     pub run_folder: String,
+    #[clap(
+        short = 'k',
+        long = "insecure",
+        env = "ANKAGENT_INSECURE",
+        default_value_t = false
+    )]
+    /// Flag to disable TLS communication between Ankaios agent and server.
+    pub insecure: bool,
+    #[clap(long = "ca_pem", env = "ANKAGENT_CA_PEM")]
+    /// Path to agent ca pem file.
+    pub ca_pem: Option<String>,
+    #[clap(long = "crt_pem", env = "ANKAGENT_CRT_PEM")]
+    /// Path to agent certificate pem file.
+    pub crt_pem: Option<String>,
+    #[clap(long = "key_pem", env = "ANKAGENT_KEY_PEM")]
+    /// Path to agent key pem file.
+    pub key_pem: Option<String>,
 }
 
 impl Arguments {
@@ -81,6 +98,10 @@ mod tests {
             agent_name: "test_agent_name".to_owned(),
             server_url: DEFAULT_SERVER_ADDRESS.to_string(),
             run_folder: DEFAULT_RUN_FOLDER.to_owned(),
+            insecure: true,
+            ca_pem: None,
+            crt_pem: None,
+            key_pem: None,
         };
 
         let _directory_mock_context =
@@ -97,6 +118,10 @@ mod tests {
             agent_name: "test_agent_name".to_owned(),
             server_url: DEFAULT_SERVER_ADDRESS.to_string(),
             run_folder: "/tmp/x".to_owned(),
+            insecure: true,
+            ca_pem: None,
+            crt_pem: None,
+            key_pem: None,
         };
 
         let _directory_mock_context = generate_test_directory_mock("/tmp/x", "test_agent_name_io");

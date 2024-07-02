@@ -32,17 +32,21 @@ mod grpc_tests {
     ) {
         let (to_grpc_client, grpc_client_receiver) = tokio::sync::mpsc::channel::<ToServer>(20);
         let url = format!("http://{}", server_addr);
-        let mut grpc_communications_client = match comm_type {
-            CommunicationType::Cli => {
-                GRPCCommunicationsClient::new_cli_communication(test_request_id.to_owned(), url)
-            }
-            CommunicationType::Agent => {
-                GRPCCommunicationsClient::new_agent_communication(test_request_id.to_owned(), url)
-            }
-        }.unwrap();
+        let grpc_communications_client = match comm_type {
+            CommunicationType::Cli => GRPCCommunicationsClient::new_cli_communication(
+                test_request_id.to_owned(),
+                url,
+                None,
+            ),
+            CommunicationType::Agent => GRPCCommunicationsClient::new_agent_communication(
+                test_request_id.to_owned(),
+                url,
+                None,
+            ),
+        };
 
         let grpc_client_task = tokio::spawn(async move {
-            grpc_communications_client
+            grpc_communications_client?
                 .run(grpc_client_receiver, to_grpc_server)
                 .await
         });
@@ -74,7 +78,7 @@ mod grpc_tests {
         let (to_server, server_receiver) = tokio::sync::mpsc::channel::<ToServer>(20);
 
         // create communication server
-        let mut communications_server = GRPCCommunicationsServer::new(to_server);
+        let mut communications_server = GRPCCommunicationsServer::new(to_server, None);
 
         let socket_addr: std::net::SocketAddr = server_addr.parse().unwrap();
 
@@ -159,6 +163,7 @@ mod grpc_tests {
 
         // read request forwarded by grpc communication server
         let result = timeout(Duration::from_millis(3000), server_receiver.recv()).await;
+        println!("{:?}", result);
 
         assert!(matches!(
             result,

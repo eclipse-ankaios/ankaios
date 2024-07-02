@@ -50,7 +50,7 @@ impl DeleteGraph {
                 .delete_graph
                 .get(workload.instance_name.workload_name())
             {
-                workload.dependencies = delete_conditions.clone();
+                workload.dependencies.clone_from(delete_conditions);
             }
         }
     }
