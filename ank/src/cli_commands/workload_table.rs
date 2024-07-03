@@ -6,7 +6,7 @@ fn terminal_width() -> usize {
     80
 }
 
-use super::workload_table_row::MaxAdditionalInfo;
+use super::workload_table_row::{ColumnPosition, MaxAdditionalInfo};
 use super::WorkloadTableRow;
 use tabled::{
     settings::{object::Columns, Modify, Padding, Style, Width},
@@ -18,7 +18,7 @@ pub struct WorkloadTable<RowType> {
 
 impl<RowType> WorkloadTable<RowType>
 where
-    RowType: Tabled,
+    RowType: Tabled + ColumnPosition,
     Vec<RowType>: MaxAdditionalInfo,
 {
     const ADDITIONAL_INFO_SUFFIX: &'static str = "...";
@@ -43,7 +43,7 @@ where
 
         let truncated_table = Self::truncate_table_column(
             default_table,
-            WorkloadTableRow::ADDITIONAL_INFO_POS,
+            RowType::ADDITIONAL_INFO_POS,
             remaining_terminal_width,
             Self::ADDITIONAL_INFO_SUFFIX,
         );
@@ -61,7 +61,7 @@ where
 
         let wrapped_table = Self::wrap_table_column(
             default_table,
-            WorkloadTableRow::ADDITIONAL_INFO_POS,
+            RowType::ADDITIONAL_INFO_POS,
             remaining_terminal_width,
         );
 
@@ -80,14 +80,14 @@ where
             table
                 .get_config()
                 .get_padding(tabled::grid::config::Entity::Column(
-                    WorkloadTableRow::FIRST_COLUMN_POS,
+                    RowType::FIRST_COLUMN_POS,
                 ));
 
         let last_column_default_padding =
             table
                 .get_config()
                 .get_padding(tabled::grid::config::Entity::Column(
-                    WorkloadTableRow::ADDITIONAL_INFO_POS,
+                    RowType::ADDITIONAL_INFO_POS,
                 ));
 
         /* Set the left padding of the first and the right padding of the last column to zero
@@ -136,8 +136,7 @@ where
 
     fn terminal_width_for_additional_info(&self, total_table_width: usize) -> Option<usize> {
         let terminal_width = terminal_width();
-        let column_name_length =
-            WorkloadTableRow::headers()[WorkloadTableRow::ADDITIONAL_INFO_POS].len();
+        let column_name_length = RowType::headers()[WorkloadTableRow::ADDITIONAL_INFO_POS].len();
 
         let additional_info_width = if let Some(max_additional_info_length) =
             self.rows.length_of_longest_additional_info()
