@@ -7,7 +7,6 @@ fn terminal_width() -> usize {
 }
 
 use super::workload_table_row::{ColumnPosition, MaxAdditionalInfo};
-use super::WorkloadTableRow;
 use tabled::{
     settings::{object::Columns, Modify, Padding, Style, Width},
     Table, Tabled,
