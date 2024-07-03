@@ -14,6 +14,12 @@ The Ankaios Communication Middleware is specified by two interfaces defined by t
 
 The Communication Middleware interfaces define how the middleware is started and how data flows in and out of it. To be able to have an easily exchangeable middleware and at the same time reduce the amount of code, the data flow is going through the Communication Channels also defined by the Common library.
 
+Furthermore, the gRPC Communication Middleware supports mutual Transport Layer Security (mTLS), providing an additional layer of security for any gRPC communication between the Ankaios Server and its connected Agents. This feature ensures that both the server and the agent are authenticated before establishing a secure connection, thereby protecting sensitive data from potential eavesdropping or tampering.
+
+To enable mTLS, the gRPC Communication Middleware leverages client and server certificates, which are managed within the Common Library. When an Agent attempts to connect to the Ankaios Server, it presents its certificate for verification. Similarly, the server presents its own certificate to the connecting Agent. If both certificates are valid and trusted, the connection is established securely using mTLS.
+
+By implementing this security measure, the gRPC Communication Middleware ensures that only authorized Agents can connect to the Ankaios Server, thereby enhancing the overall system's resilience against unauthorized access.
+
 ## Constraints, risks and decisions
 
 No Constraints or risks are known at the time of writing this document.
@@ -45,13 +51,31 @@ Considered alternatives:
 * implementing the gRPC protocol completely inside the middleware
 * using an http library and a protobuf converter
 
+#### On demand mTLS activation for gRPC workflows
+`swdd~grpc-mtls-on-demand-activation~1`
+
+Status: approved
+
+When the user demands activation of Mutual TLS (mTLS) for gRPC workflows, Ankaios shall establish secure gRPC communication between the involved parties.
+
+Rationale:
+
+To avoid complexity, coming with mTLS configuration e.g. certificates generation and management, during development phase, mTLS can be activated on demand.
+
+Needs:
+- impl
+
+Assumptions:
+
+No assumptions were taken.
+
 ## Structural view
 
 ![Unit overview](drawio/unit_overview.drawio.svg)
 
 ### gRPC Client
 
-The gRPC Client handles two types of communication. The first type is for the Ankaios Agent. The second one is for the Anakaios CLI.
+The gRPC Client handles two types of communication. The first type is for the Ankaios Agent. The second one is for the Ankaios CLI.
 Upon startup, the gRPC Client establishes the connection to the server. In case of the Ankaios Agent type of communication the server sends the "Agent Hello".
 Where in case of the Ankaios CLI type of communication the server does not send the "Agent Hello".
 Once the connection is there, it forwards messages from and to the Ankaios Agent or to the Ankaios CLI depending on the connection type.
