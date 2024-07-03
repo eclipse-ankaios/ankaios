@@ -5,7 +5,15 @@ This includes quick evaluation without installation, or running Ankaios on non-L
 
 ## Pre-conditions
 
-Docker Desktop or docker engine with `docker compose` must be available.
+Docker Desktop or docker engine with the compose plugin must be available.
+
+On Manjaro the compose plugin can be installed with:
+
+```shell
+sudo pacman -S docker-compose
+```
+
+Afterwards the plugin is avilable as sub command `docker compose`.
 
 ## Startup
 
