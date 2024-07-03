@@ -136,7 +136,7 @@ where
 
     fn terminal_width_for_additional_info(&self, total_table_width: usize) -> Option<usize> {
         let terminal_width = terminal_width();
-        let column_name_length = RowType::headers()[WorkloadTableRow::ADDITIONAL_INFO_POS].len();
+        let column_name_length = RowType::headers()[RowType::ADDITIONAL_INFO_POS].len();
 
         let additional_info_width = if let Some(max_additional_info_length) =
             self.rows.length_of_longest_additional_info()
