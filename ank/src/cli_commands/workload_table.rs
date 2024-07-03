@@ -137,20 +137,11 @@ where
         let terminal_width = terminal_width();
         let column_name_length = RowType::headers()[RowType::ADDITIONAL_INFO_POS].len();
 
-        let additional_info_width = if let Some(max_additional_info_length) =
-            self.rows.length_of_longest_additional_info()
-        {
-            if max_additional_info_length > column_name_length {
-                max_additional_info_length
-            } else {
-                // Avoid messing up the column name when additional info is shorter
-                column_name_length
-            }
-        } else {
-            /* On empty table, the max length of the additional info is the column name itself
-            to avoid messing up the column name in the output. */
-            column_name_length
-        };
+        let additional_info_width = self
+            .rows
+            .length_of_longest_additional_info()
+            .unwrap_or(0) // to rows => length is 0
+            .max(column_name_length); // the min length shall be the header column name length
 
         let table_width_except_last_column =
             total_table_width.checked_sub(additional_info_width)?;
