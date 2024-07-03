@@ -14,7 +14,7 @@
 
 use common::{
     commands::Request,
-    objects::{AccessRightsRule, ControlInterfaceAccess},
+    objects::{AccessRightsRule, ControlInterfaceAccess, ReadWriteEnum},
     PATH_SEPARATOR,
 };
 
@@ -22,8 +22,12 @@ const WILDCARD_SYMBOL: &str = "*";
 
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct Authorizer {
-    allow_state_rule: Vec<Rule<AllowPathPattern>>,
-    deny_state_rule: Vec<Rule<DenyPathPattern>>,
+    allow_write_state_rule: Vec<Rule<AllowPathPattern>>,
+    deny_write_state_rule: Vec<Rule<DenyPathPattern>>,
+    allow_read_state_rule: Vec<Rule<AllowPathPattern>>,
+    deny_read_state_rule: Vec<Rule<DenyPathPattern>>,
+    allow_read_write_state_rule: Vec<Rule<AllowPathPattern>>,
+    deny_read_write_state_rule: Vec<Rule<DenyPathPattern>>,
 }
 
 // #[cfg_attr(test, automock)]
@@ -31,54 +35,89 @@ impl Authorizer {
     #[cfg(test)]
     pub fn test_value(name: &str) -> Self {
         Self {
-            allow_state_rule: vec![Rule {
+            allow_write_state_rule: vec![Rule {
                 patterns: vec![AllowPathPattern {
                     sections: vec![PathPatterSection::String(name.into())],
                 }],
             }],
-            deny_state_rule: vec![],
+            ..Default::default()
         }
     }
 
     pub fn authorize(&self, request: &Request) -> bool {
-        let mask = match &request.request_content {
-            common::commands::RequestContent::CompleteStateRequest(r) => &r.field_mask,
-            common::commands::RequestContent::UpdateStateRequest(r) => &r.update_mask,
-        };
-        mask.iter().all(|m| self.match_single_mask_path(m))
-    }
-
-    pub fn match_single_mask_path(&self, path: &str) -> bool {
-        let path = Path::from(path);
-        self.allow_state_rule.iter().any(|r| r.matches(&path))
-            && !self.deny_state_rule.iter().any(|r| r.matches(&path))
+        match &request.request_content {
+            common::commands::RequestContent::CompleteStateRequest(r) => {
+                r.field_mask.iter().all(|path| {
+                    let path = path.as_str().into();
+                    (self.allow_read_state_rule.matches(&path)
+                        || self.allow_read_write_state_rule.matches(&path))
+                        && !(self.deny_read_state_rule.matches(&path)
+                            || self.deny_read_write_state_rule.matches(&path))
+                })
+            }
+            common::commands::RequestContent::UpdateStateRequest(r) => {
+                r.update_mask.iter().all(|path| {
+                    let path = path.as_str().into();
+                    (self.allow_write_state_rule.matches(&path)
+                        || self.allow_read_write_state_rule.matches(&path))
+                        && !(self.deny_write_state_rule.matches(&path)
+                            || self.deny_read_write_state_rule.matches(&path))
+                })
+            }
+        }
+        // mask.iter().all(|m| self.match_single_mask_path(m))
     }
 }
 
 impl From<&ControlInterfaceAccess> for Authorizer {
     fn from(value: &ControlInterfaceAccess) -> Self {
-        fn to_rule_list<T>(rule_list: &[AccessRightsRule]) -> Vec<Rule<T>>
+        struct ReadWriteFiltered<T: PathPattern> {
+            read: Vec<Rule<T>>,
+            write: Vec<Rule<T>>,
+            read_write: Vec<Rule<T>>,
+        }
+
+        fn split_to_read_write_rules<T>(rule_list: &[AccessRightsRule]) -> ReadWriteFiltered<T>
         where
-            T: for<'a> From<&'a str>,
             T: PathPattern,
+            T: for<'a> From<&'a str>,
         {
-            rule_list
-                .iter()
-                .map(|access_rights| {
-                    let AccessRightsRule::StateRule(state_rule) = access_rights;
-                    let v: Vec<T> = state_rule
+            let mut res = ReadWriteFiltered {
+                read: Vec::new(),
+                write: Vec::new(),
+                read_write: Vec::new(),
+            };
+
+            rule_list.iter().fold((), |(), access_rights| {
+                let AccessRightsRule::StateRule(state_rule) = access_rights;
+                let rule = Rule {
+                    patterns: state_rule
                         .filter_mask
                         .iter()
                         .map(|x| (**x).into())
-                        .collect();
-                    Rule { patterns: v }
-                })
-                .collect()
+                        .collect(),
+                };
+                match state_rule.operation {
+                    ReadWriteEnum::Read => res.read.push(rule),
+                    ReadWriteEnum::Write => res.write.push(rule),
+                    ReadWriteEnum::ReadWrite => res.read_write.push(rule),
+                    ReadWriteEnum::Nothing => {}
+                };
+            });
+
+            res
         }
 
+        let allow_rules = split_to_read_write_rules(&value.allow_rules);
+        let deny_rules = split_to_read_write_rules(&value.deny_rules);
+
         Self {
-            allow_state_rule: to_rule_list(&value.allow_rules),
-            deny_state_rule: to_rule_list(&value.deny_rules),
+            allow_write_state_rule: allow_rules.write,
+            deny_write_state_rule: deny_rules.write,
+            allow_read_state_rule: allow_rules.read,
+            deny_read_state_rule: deny_rules.read,
+            allow_read_write_state_rule: allow_rules.read_write,
+            deny_read_write_state_rule: deny_rules.read_write,
         }
     }
 }
@@ -88,8 +127,8 @@ struct Rule<P: PathPattern> {
     patterns: Vec<P>,
 }
 
-impl<P: PathPattern> Rule<P> {
-    pub fn matches(&self, path: &Path) -> bool {
+impl<P: PathPattern> PathPattern for Rule<P> {
+    fn matches(&self, path: &Path) -> bool {
         self.patterns.iter().any(|p| p.matches(path))
     }
 }
@@ -127,6 +166,12 @@ impl From<&str> for Path {
 
 trait PathPattern {
     fn matches(&self, other: &Path) -> bool;
+}
+
+impl<T: PathPattern> PathPattern for Vec<T> {
+    fn matches(&self, path: &Path) -> bool {
+        self.iter().any(|r| r.matches(path))
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

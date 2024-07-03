@@ -73,4 +73,6 @@ mod agent_name;
 pub use agent_name::AgentName;
 
 mod control_interface_access;
-pub use control_interface_access::{AccessRightsRule, ControlInterfaceAccess, StateRule};
+pub use control_interface_access::{
+    AccessRightsRule, ControlInterfaceAccess, ReadWriteEnum, StateRule,
+};
