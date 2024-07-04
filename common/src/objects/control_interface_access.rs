@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ControlInterfaceAccess {
+    #[serde(default)]
     pub allow_rules: Vec<AccessRightsRule>,
+    #[serde(default)]
     pub deny_rules: Vec<AccessRightsRule>,
 }
 
