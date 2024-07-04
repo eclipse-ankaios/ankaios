@@ -1,3 +1,17 @@
+// Copyright (c) 2023 Elektrobit Automotive GmbH
+//
+// This program and the accompanying materials are made available under the
+// terms of the Apache License, Version 2.0 which is available at
+// https://www.apache.org/licenses/LICENSE-2.0.
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 use std::{env, fmt, process::exit, sync::Mutex};
 
 use crossterm::{cursor, style::Stylize, terminal};
@@ -65,7 +79,7 @@ pub(crate) fn output_fn(args: fmt::Arguments<'_>) {
     }
 }
 
-fn terminal_width() -> usize {
+pub fn terminal_width() -> usize {
     let terminal_width = terminal::size().unwrap_or((80, 0)).0 as usize;
 
     // This is a workaround for terminals that return a wrong width of 0 instead of None

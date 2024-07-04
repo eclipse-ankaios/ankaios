@@ -138,9 +138,16 @@ impl WorkloadControlLoop {
                             )
                             .await;
                         }
-                        // [impl->swdd~agent-workload-control-loop-executes-create~2]
+                        // [impl->swdd~agent-workload-control-loop-executes-create~3]
                         Some(WorkloadCommand::Create) => {
                             log::debug!("Received WorkloadCommand::Create.");
+
+                            Self::send_workload_state_to_agent(
+                                &control_loop_state.to_agent_workload_state_sender,
+                                control_loop_state.instance_name(),
+                                ExecutionState::starting_triggered(),
+                            )
+                            .await;
 
                             control_loop_state = Self::create_workload_on_runtime(
                                 control_loop_state,
@@ -290,11 +297,11 @@ impl WorkloadControlLoop {
                 retry_counter.limit()
             );
 
-            // [impl->swdd~agent-workload-control-loop-retry-limit-set-execution-state~1]
+            // [impl->swdd~agent-workload-control-loop-retry-limit-set-execution-state~2]
             Self::send_workload_state_to_agent(
                 &control_loop_state.to_agent_workload_state_sender,
                 control_loop_state.instance_name(),
-                ExecutionState::retry_failed_no_retry(),
+                ExecutionState::retry_failed_no_retry(error_msg),
             )
             .await;
 
@@ -314,7 +321,7 @@ impl WorkloadControlLoop {
         control_loop_state
     }
 
-    // [impl->swdd~agent-workload-control-loop-executes-create~2]
+    // [impl->swdd~agent-workload-control-loop-executes-create~3]
     async fn create_workload_on_runtime<WorkloadId, StChecker, ErrorFunc, Fut>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         func_on_error: ErrorFunc,
@@ -326,13 +333,6 @@ impl WorkloadControlLoop {
         ErrorFunc: FnOnce(ControlLoopState<WorkloadId, StChecker>, WorkloadInstanceName, String) -> Fut
             + 'static,
     {
-        Self::send_workload_state_to_agent(
-            &control_loop_state.to_agent_workload_state_sender,
-            control_loop_state.instance_name(),
-            ExecutionState::starting_triggered(),
-        )
-        .await;
-
         let new_instance_name = control_loop_state.workload_spec.instance_name.clone();
 
         match control_loop_state
@@ -356,10 +356,16 @@ impl WorkloadControlLoop {
                 control_loop_state
             }
             Err(err) => {
+                let current_retry_counter = control_loop_state.retry_counter.current_retry();
+
                 Self::send_workload_state_to_agent(
                     &control_loop_state.to_agent_workload_state_sender,
                     &new_instance_name,
-                    ExecutionState::starting_failed(err.to_string()),
+                    ExecutionState::retry_starting(
+                        current_retry_counter,
+                        MAX_RETRIES,
+                        err.to_string(),
+                    ),
                 )
                 .await;
 
@@ -487,6 +493,14 @@ impl WorkloadControlLoop {
             // [impl->swdd~agent-workload-control-loop-update-create-failed-allows-retry~1]
             control_loop_state.workload_spec = *spec;
             control_loop_state.control_interface_path = control_interface_path;
+
+            Self::send_workload_state_to_agent(
+                &control_loop_state.to_agent_workload_state_sender,
+                control_loop_state.instance_name(),
+                ExecutionState::starting_triggered(),
+            )
+            .await;
+
             control_loop_state =
                 Self::create_workload_on_runtime(control_loop_state, Self::send_retry_for_workload)
                     .await;
@@ -1055,6 +1069,7 @@ mod tests {
             .config(&new_workload_spec.runtime_config)
             .build();
 
+        let create_runtime_error_msg = "some create error";
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
             .expect(vec![
@@ -1063,7 +1078,7 @@ mod tests {
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
                     Err(crate::runtime_connectors::RuntimeError::Create(
-                        "some create error".to_string(),
+                        create_runtime_error_msg.to_owned(),
                     )),
                 ),
                 // We also send a delete command, but as no new workload was generated, there is also no
@@ -1109,7 +1124,7 @@ mod tests {
                 (&new_instance_name, ExecutionState::starting_triggered()),
                 (
                     &new_instance_name,
-                    ExecutionState::starting_failed("some create error"),
+                    ExecutionState::retry_starting(1, super::MAX_RETRIES, create_runtime_error_msg),
                 ),
                 (&new_instance_name, ExecutionState::stopping_requested()),
                 (&new_instance_name, ExecutionState::removed()),
@@ -1285,7 +1300,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~2]
+    // [utest->swdd~agent-workload-control-loop-executes-create~3]
     #[tokio::test]
     async fn utest_workload_obj_run_create_successful() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1343,7 +1358,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~2]
+    // [utest->swdd~agent-workload-control-loop-executes-create~3]
     // [utest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
     #[tokio::test]
     async fn utest_workload_obj_run_retry_creation_successful_after_create_command_fails() {
@@ -1409,7 +1424,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~2]
+    // [utest->swdd~agent-workload-control-loop-executes-create~3]
     // [utest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
     #[tokio::test]
     async fn utest_workload_obj_run_create_with_retry_workload_command_channel_closed() {
@@ -1532,7 +1547,7 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-executes-retry~1]
     // [utest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
     // [utest->swdd~agent-workload-control-loop-limits-retry-attempts~1]
-    // [utest->swdd~agent-workload-control-loop-retry-limit-set-execution-state~1]
+    // [utest->swdd~agent-workload-control-loop-retry-limit-set-execution-state~2]
     #[tokio::test]
     async fn utest_workload_obj_run_retry_attempts_exceeded_workload_creation() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1547,6 +1562,7 @@ mod tests {
 
         let instance_name = workload_spec.instance_name.clone();
 
+        let create_runtime_error_msg = "some create error";
         let mut runtime_expectations = vec![];
 
         // instead of short vector initialization a for loop is used because RuntimeCall with its submembers shall not be clone-able.
@@ -1555,7 +1571,7 @@ mod tests {
                 workload_spec.clone(),
                 Some(PIPES_LOCATION.into()),
                 Err(crate::runtime_connectors::RuntimeError::Create(
-                    "some create error".to_string(),
+                    create_runtime_error_msg.to_owned(),
                 )),
             ));
         }
@@ -1596,17 +1612,18 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&instance_name, ExecutionState::starting_triggered()),
                 (
                     &instance_name,
-                    ExecutionState::starting_failed("some create error"),
+                    ExecutionState::retry_starting(1, super::MAX_RETRIES, create_runtime_error_msg),
                 ),
-                (&instance_name, ExecutionState::starting_triggered()),
                 (
                     &instance_name,
-                    ExecutionState::starting_failed("some create error"),
+                    ExecutionState::retry_starting(2, super::MAX_RETRIES, create_runtime_error_msg),
                 ),
-                (&instance_name, ExecutionState::retry_failed_no_retry()),
+                (
+                    &instance_name,
+                    ExecutionState::retry_failed_no_retry(create_runtime_error_msg),
+                ),
                 (&instance_name, ExecutionState::stopping_requested()),
                 (&instance_name, ExecutionState::removed()),
             ],

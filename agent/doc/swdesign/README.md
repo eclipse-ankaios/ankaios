@@ -779,20 +779,20 @@ Needs:
 - utest
 
 ##### WorkloadControlLoop executes create command
-`swdd~agent-workload-control-loop-executes-create~2`
+`swdd~agent-workload-control-loop-executes-create~3`
 
 Status: approved
 
-When the WorkloadControlLoop receives an create command, the WorkloadControlLoop shall:
+When the WorkloadControlLoop receives a create command, the WorkloadControlLoop shall:
 * send a `Pending(Starting)` with additional information "Triggered at runtime." workload state for that workload
 * create a new workload via the corresponding runtime connector (which creates and starts a state checker)
 * upon successful creation of the workload:
     * store the Id and reference to the state checker for the created workload inside the WorkloadControlLoop
 * upon failed creation of the workload:
-    * send a `Pending(StartingFailed)` workload state for that workload
+    * send a `Pending(Starting)` workload state with additional information about the current retry counter state, appended by the cause of failure for that workload
 
 Comment:
-For details on the runtime connector specific actions, e.g., create, see the specific runtime connector workflows.
+For details on the runtime connector specific actions, e.g. create, see the specific runtime connector workflows.
 
 Rationale:
 The WorkloadControlLoop allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
@@ -1499,6 +1499,9 @@ When the WorkloadControlLoop receives a retry command, the WorkloadControlLoop s
 * create a new workload via the corresponding runtime connector (which creates and starts a state checker)
 * store the new Id and reference to the state checker inside the WorkloadControlLoop
 
+Comment:
+The `Pending(Starting)` execution state of the workload is kept on a failed retry until the retry limit is exceeded to avoid fast execution state changes on the user side.
+
 Tags:
 - WorkloadControlLoop
 
@@ -1526,11 +1529,11 @@ Needs:
 - stest
 
 #### WorkloadControlLoop sets execution state of workload to failed after reaching the retry limit
-`swdd~agent-workload-control-loop-retry-limit-set-execution-state~1`
+`swdd~agent-workload-control-loop-retry-limit-set-execution-state~2`
 
 Status: approved
 
-When the WorkloadControlLoop receives a retry command and the maximum amount of retry attempts is reached, the WorkloadControlLoop shall set the execution state of the workload to `Pending(StartingFailed)` with additional information "No more retries.".
+When the WorkloadControlLoop receives a retry command and the maximum amount of retry attempts is reached, the WorkloadControlLoop shall set the execution state of the workload to `Pending(StartingFailed)` with additional information about the failure cause prefixed with "No more retries: ".
 
 Rationale:
 The workload has a well defined state after reaching the retry attempt limit indicating that the create of the workload has failed.
