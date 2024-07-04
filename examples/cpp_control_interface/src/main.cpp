@@ -64,7 +64,7 @@ control_api::ToAnkaios createRequestToAddNewWorkload()
 control_api::ToAnkaios createRequestForCompleteState()
 {
     ank_base::CompleteStateRequest* completeStateRequest{new ank_base::CompleteStateRequest};
-    completeStateRequest->add_fieldmask("workloadStates");
+    completeStateRequest->add_fieldmask("workloadStates.agent_A.dynamic_nginx");
 
     ank_base::Request* request {new ank_base::Request};
     request->set_allocated_completestaterequest(completeStateRequest);
