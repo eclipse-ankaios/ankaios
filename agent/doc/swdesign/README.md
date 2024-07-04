@@ -792,7 +792,7 @@ When the WorkloadControlLoop receives a create command, the WorkloadControlLoop 
     * send a `Pending(Starting)` workload state with additional information about the current retry counter state, appended by the cause of failure for that workload
 
 Comment:
-For details on the runtime connector specific actions, e.g. create, see the specific runtime connector workflows. In case of a workload creation error, the execution state is set to `Pending(Starting)` with additional information indicating that the system will retry creation.
+For details on the runtime connector specific actions, e.g. create, see the specific runtime connector workflows.
 
 Rationale:
 The WorkloadControlLoop allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
