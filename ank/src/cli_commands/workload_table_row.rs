@@ -110,6 +110,7 @@ mod tests {
 
     use super::{WorkloadTableRow, WorkloadTableRowWithSpinner};
 
+    // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_one_row_table() {
         let table_row = super::WorkloadTableRow {
@@ -131,6 +132,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_additional_info_msg_without_new_lines() {
         let additional_info_msg = "some error with\nsome\nnewlines";
