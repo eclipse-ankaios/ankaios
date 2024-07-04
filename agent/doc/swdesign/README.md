@@ -1357,33 +1357,15 @@ Needs:
 - impl
 - utest
 
-#### WorkloadControlLoop handles restarts of workloads
-`swdd~workload-control-loop-handles-workload-restarts~1`
+#### WorkloadControlLoop checks workload state validity
+`swdd~workload-control-loop-checks-workload-state-validity~1`
 
 Status: approved
 
-When the WorkloadControlLoop receives a new workload state for a workload it manages and the WorkloadControlLoop detects that a restart of the workload is required according to its restart policy, then the WorkloadControlLoop shall execute the restart of the workload.
+When the WorkloadControlLoop receives a new workload state for a workload it manages, then the WorkloadControlLoop shall check the `WorkloadInstanceName` of the workload state and the workload it manages for equality.
 
 Rationale:
-The execution of a restart of the workload depends on the workload state and the configured restart policy.
-
-Tags:
-- WorkloadControlLoop
-
-Needs:
-- impl
-- utest
-
-#### WorkloadControlLoop skips restarts
-`swdd~workload-control-loop-skips-restarts~1`
-
-When the WorkloadControlLoop handles a restart of a workload and the workload's current `WorkloadInstanceName` inside the WorkloadControlLoop differs from the `WorkloadInstanceName` inside the received workload state, then the WorkloadControlLoop shall skip the restart.
-
-Comment:
-If the workload changed in the meantime, there is no need to restart it.
-
-Rationale:
-This prevents unneeded restarts of workloads when a new workload state of the old workload is received after an update operation was performed.
+The WorkloadControlLoop maintains consistency and validity of the workload it manages and its received workload states.
 
 Tags:
 - WorkloadControlLoop
@@ -1397,13 +1379,15 @@ Needs:
 
 Status: approved
 
-When the workload has not changed and:
-* either the workload's `ExecutionState` is `Succeeded(Ok)` or `ExecutionState` is `Failed(ExecFailed)` and the workload's configured `RestartPolicy` contains the value `ALWAYS`
-* or the workload's `ExecutionState` is `Failed(ExecFailed)` and the workload's configured `RestartPolicy` contains the value `ON_FAILURE`,
-then the WorkloadControlLoop shall restart the workload.
+When the WorkloadControlLoop receives a new valid workload state, then the WorkloadControlLoop shall detect a restart of a workload by comparing the workload's RestartPolicy with the received ExecutionState of that workload according to the following table:
+
+| RestartPolicy | ExecutionState                      |
+|---------------|-------------------------------------|
+| ALWAYS        | Succeeded(Ok) or Failed(ExecFailed) |
+| ON_FAILURE    | Failed(ExecFailed)                  |
 
 Comment:
-In all other execution states and in case of the restart policy is `NEVER` the workload is not restarted.
+In case of the workload's restart policy is `NEVER` or other RestartPolicy-ExecutionState combinations the workload is not restarted.
 
 Rationale:
 The restart depends on the execution state of the workload.
@@ -1415,6 +1399,23 @@ Needs:
 - impl
 - utest
 - stest
+
+#### WorkloadControlLoop handles restarts of workloads
+`swdd~workload-control-loop-handles-workload-restarts~1`
+
+Status: approved
+
+When the WorkloadControlLoop detects that a restart of the workload is required, then the WorkloadControlLoop shall execute the restart of the workload.
+
+Rationale:
+The execution of a restart of the workload depends on the workload state and the configured restart policy.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
 
 #### WorkloadControlLoop restarts workloads using the update operation
 `swdd~workload-control-loop-restarts-workloads-using-update~1`
@@ -2572,11 +2573,11 @@ Needs:
 - utest
 
 #### WorkloadControlLoop sends workload states to server
-`swdd~workload-control-loop-sends-workload-states~1`
+`swdd~workload-control-loop-sends-workload-states~2`
 
 Status: approved
 
-When the WorkloadControlLoop receives a new workload state, then the WorkloadControlLoop shall send the workload state to the AgentManager.
+When the WorkloadControlLoop receives a new valid workload state for its workload it manages, then the WorkloadControlLoop shall send the workload state to the AgentManager.
 
 Rationale:
 The AgentManager requires the knowledge about the workload states of all workloads.
