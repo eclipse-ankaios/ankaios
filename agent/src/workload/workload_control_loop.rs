@@ -358,7 +358,6 @@ impl WorkloadControlLoop {
             Err(err) => {
                 let current_retry_counter = control_loop_state.retry_counter.current_retry();
 
-                // Set workload state to signal retrying of the workload creation
                 Self::send_workload_state_to_agent(
                     &control_loop_state.to_agent_workload_state_sender,
                     &new_instance_name,
