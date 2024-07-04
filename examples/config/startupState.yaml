@@ -7,5 +7,23 @@ workloads:
     tags:
       - key: owner
         value: Ankaios team
+    controlInterfaceAccess:
+      allowRules:
+        - type: StateRule
+          operation: Write
+          filterMask:
+            # workload has write access to the config of the workload dynamic_nginx
+            - "desiredState.workloads.dynamic_nginx"
+        - type: StateRule
+          operation: Read
+          filterMask:
+            # workload is allowed to read the workload state of the workload dynamic_nginx
+            - "workloadStates.agent_A.dynamic_nginx"
+      denyRules:
+        - type: StateRule
+          operation: ReadWrite
+          filterMask:
+            # workload is not allowed to read/write its own config from/to the desired state
+            - "desiredState.workloads.control_interface_example"
     runtimeConfig: |
       image: control_interface_prod:0.1
