@@ -37,13 +37,13 @@ where
         let default_table = Self::default_table(&self.rows);
 
         let total_table_width: usize = default_table.total_width();
-        let remaining_terminal_width =
+        let available_additional_info_width =
             self.terminal_width_for_additional_info(total_table_width)?;
 
-        let truncated_table = Self::truncate_table_column(
-            default_table,
+        let truncated_table = Self::truncate_column_of_table(
             RowType::ADDITIONAL_INFO_POS,
-            remaining_terminal_width,
+            default_table,
+            available_additional_info_width,
             Self::ADDITIONAL_INFO_SUFFIX,
         );
 
@@ -55,13 +55,13 @@ where
         let default_table = Self::default_table(&self.rows);
 
         let total_table_width: usize = default_table.total_width();
-        let remaining_terminal_width =
+        let available_additional_info_width =
             self.terminal_width_for_additional_info(total_table_width)?;
 
-        let wrapped_table = Self::wrap_table_column(
-            default_table,
+        let wrapped_table = Self::wrap_column_of_table(
             RowType::ADDITIONAL_INFO_POS,
-            remaining_terminal_width,
+            default_table,
+            available_additional_info_width,
         );
 
         Some(wrapped_table.to_string())
@@ -108,27 +108,26 @@ where
         table
     }
 
-    fn truncate_table_column(
-        mut table: Table,
+    fn truncate_column_of_table(
         column_position: usize,
-        remaining_terminal_width: usize,
+        mut table: Table,
+        new_column_width: usize,
         suffix_additional_info: &str,
     ) -> Table {
         table.with(
             Modify::new(Columns::single(column_position))
-                .with(Width::truncate(remaining_terminal_width).suffix(suffix_additional_info)),
+                .with(Width::truncate(new_column_width).suffix(suffix_additional_info)),
         );
         table
     }
 
-    fn wrap_table_column(
-        mut table: Table,
+    fn wrap_column_of_table(
         column_position: usize,
-        remaining_terminal_width: usize,
+        mut table: Table,
+        new_column_width: usize,
     ) -> Table {
         table.with(
-            Modify::new(Columns::single(column_position))
-                .with(Width::wrap(remaining_terminal_width)),
+            Modify::new(Columns::single(column_position)).with(Width::wrap(new_column_width)),
         );
         table
     }
