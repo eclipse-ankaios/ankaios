@@ -148,13 +148,13 @@ DNS.1 = ank
 Generate ank key:
 
 ```shell
-sudo openssl genpkey -algorithm ED25519 -out "${XDG_CONFIG_HOME:-$HOME/.config}/ankaios/ank-key.pem"
+openssl genpkey -algorithm ED25519 -out "${XDG_CONFIG_HOME:-$HOME/.config}/ankaios/ank-key.pem"
 ```
 
 Generate ank certificate signing request:
 
 ```shell
-sudo openssl req -config "./ank.cnf" -new -key "${XDG_CONFIG_HOME:-$HOME/.config}/ankaios/ank-key.pem" -out "./ank.csr"
+openssl req -config "./ank.cnf" -new -key "${XDG_CONFIG_HOME:-$HOME/.config}/ankaios/ank-key.pem" -out "./ank.csr"
 ```
 
 Generate ank certificate:
