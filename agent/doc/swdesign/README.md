@@ -779,20 +779,20 @@ Needs:
 - utest
 
 ##### WorkloadControlLoop executes create command
-`swdd~agent-workload-control-loop-executes-create~2`
+`swdd~agent-workload-control-loop-executes-create~3`
 
 Status: approved
 
-When the WorkloadControlLoop receives an create command, the WorkloadControlLoop shall:
+When the WorkloadControlLoop receives a create command, the WorkloadControlLoop shall:
 * send a `Pending(Starting)` with additional information "Triggered at runtime." workload state for that workload
 * create a new workload via the corresponding runtime connector (which creates and starts a state checker)
 * upon successful creation of the workload:
     * store the Id and reference to the state checker for the created workload inside the WorkloadControlLoop
 * upon failed creation of the workload:
-    * send a `Pending(StartingFailed)` workload state for that workload
+    * send a `Pending(Starting)` workload state with additional information about the current retry counter state, appended by the cause of failure for that workload
 
 Comment:
-For details on the runtime connector specific actions, e.g., create, see the specific runtime connector workflows.
+For details on the runtime connector specific actions, e.g. create, see the specific runtime connector workflows.
 
 Rationale:
 The WorkloadControlLoop allows to asynchronously carry out time consuming actions and still maintain the order of the actions as they are queued on a command channel.
@@ -1357,33 +1357,15 @@ Needs:
 - impl
 - utest
 
-#### WorkloadControlLoop handles restarts of workloads
-`swdd~workload-control-loop-handles-workload-restarts~1`
+#### WorkloadControlLoop checks workload state validity
+`swdd~workload-control-loop-checks-workload-state-validity~1`
 
 Status: approved
 
-When the WorkloadControlLoop receives a new workload state for a workload it manages and the WorkloadControlLoop detects that a restart of the workload is required according to its restart policy, then the WorkloadControlLoop shall execute the restart of the workload.
+When the WorkloadControlLoop receives a new workload state for a workload it manages, then the WorkloadControlLoop shall check the `WorkloadInstanceName` of the workload state and the workload it manages for equality.
 
 Rationale:
-The execution of a restart of the workload depends on the workload state and the configured restart policy.
-
-Tags:
-- WorkloadControlLoop
-
-Needs:
-- impl
-- utest
-
-#### WorkloadControlLoop skips restarts
-`swdd~workload-control-loop-skips-restarts~1`
-
-When the WorkloadControlLoop handles a restart of a workload and the workload's current `WorkloadInstanceName` inside the WorkloadControlLoop differs from the `WorkloadInstanceName` inside the received workload state, then the WorkloadControlLoop shall skip the restart.
-
-Comment:
-If the workload changed in the meantime, there is no need to restart it.
-
-Rationale:
-This prevents unneeded restarts of workloads when a new workload state of the old workload is received after an update operation was performed.
+The WorkloadControlLoop maintains consistency and validity of the workload it manages and its received workload states.
 
 Tags:
 - WorkloadControlLoop
@@ -1397,13 +1379,15 @@ Needs:
 
 Status: approved
 
-When the workload has not changed and:
-* either the workload's `ExecutionState` is `Succeeded(Ok)` or `ExecutionState` is `Failed(ExecFailed)` and the workload's configured `RestartPolicy` contains the value `ALWAYS`
-* or the workload's `ExecutionState` is `Failed(ExecFailed)` and the workload's configured `RestartPolicy` contains the value `ON_FAILURE`,
-then the WorkloadControlLoop shall restart the workload.
+When the WorkloadControlLoop receives a new valid workload state, then the WorkloadControlLoop shall detect a restart of a workload by comparing the workload's RestartPolicy with the received ExecutionState of that workload according to the following table:
+
+| RestartPolicy | ExecutionState                      |
+|---------------|-------------------------------------|
+| ALWAYS        | Succeeded(Ok) or Failed(ExecFailed) |
+| ON_FAILURE    | Failed(ExecFailed)                  |
 
 Comment:
-In all other execution states and in case of the restart policy is `NEVER` the workload is not restarted.
+In case of the workload's restart policy is `NEVER` or other RestartPolicy-ExecutionState combinations the workload is not restarted.
 
 Rationale:
 The restart depends on the execution state of the workload.
@@ -1415,6 +1399,23 @@ Needs:
 - impl
 - utest
 - stest
+
+#### WorkloadControlLoop handles restarts of workloads
+`swdd~workload-control-loop-handles-workload-restarts~1`
+
+Status: approved
+
+When the WorkloadControlLoop detects that a restart of the workload is required, then the WorkloadControlLoop shall execute the restart of the workload.
+
+Rationale:
+The execution of a restart of the workload depends on the workload state and the configured restart policy.
+
+Tags:
+- WorkloadControlLoop
+
+Needs:
+- impl
+- utest
 
 #### WorkloadControlLoop restarts workloads using the update operation
 `swdd~workload-control-loop-restarts-workloads-using-update~1`
@@ -1499,6 +1500,9 @@ When the WorkloadControlLoop receives a retry command, the WorkloadControlLoop s
 * create a new workload via the corresponding runtime connector (which creates and starts a state checker)
 * store the new Id and reference to the state checker inside the WorkloadControlLoop
 
+Comment:
+The `Pending(Starting)` execution state of the workload is kept on a failed retry until the retry limit is exceeded to avoid fast execution state changes on the user side.
+
 Tags:
 - WorkloadControlLoop
 
@@ -1526,11 +1530,11 @@ Needs:
 - stest
 
 #### WorkloadControlLoop sets execution state of workload to failed after reaching the retry limit
-`swdd~agent-workload-control-loop-retry-limit-set-execution-state~1`
+`swdd~agent-workload-control-loop-retry-limit-set-execution-state~2`
 
 Status: approved
 
-When the WorkloadControlLoop receives a retry command and the maximum amount of retry attempts is reached, the WorkloadControlLoop shall set the execution state of the workload to `Pending(StartingFailed)` with additional information "No more retries.".
+When the WorkloadControlLoop receives a retry command and the maximum amount of retry attempts is reached, the WorkloadControlLoop shall set the execution state of the workload to `Pending(StartingFailed)` with additional information about the failure cause prefixed with "No more retries: ".
 
 Rationale:
 The workload has a well defined state after reaching the retry attempt limit indicating that the create of the workload has failed.
@@ -2569,11 +2573,11 @@ Needs:
 - utest
 
 #### WorkloadControlLoop sends workload states to server
-`swdd~workload-control-loop-sends-workload-states~1`
+`swdd~workload-control-loop-sends-workload-states~2`
 
 Status: approved
 
-When the WorkloadControlLoop receives a new workload state, then the WorkloadControlLoop shall send the workload state to the AgentManager.
+When the WorkloadControlLoop receives a new valid workload state for its workload it manages, then the WorkloadControlLoop shall send the workload state to the AgentManager.
 
 Rationale:
 The AgentManager requires the knowledge about the workload states of all workloads.

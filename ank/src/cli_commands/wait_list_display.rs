@@ -1,13 +1,27 @@
+// Copyright (c) 2024 Elektrobit Automotive GmbH
+//
+// This program and the accompanying materials are made available under the
+// terms of the Apache License, Version 2.0 which is available at
+// https://www.apache.org/licenses/LICENSE-2.0.
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 use std::{
     collections::{HashMap, HashSet},
     fmt::{self, Display},
 };
 
 use common::objects::WorkloadInstanceName;
-use tabled::Table;
 
-use crate::cli_commands::workload_table_row::WorkloadTableRowWithSpinner;
+use crate::{cli_commands::workload_table_row::WorkloadTableRowWithSpinner, output_debug};
 
+use super::workload_table::WorkloadTable;
 use super::{wait_list::WaitListDisplayTrait, workload_table_row::WorkloadTableRow};
 
 pub(crate) const COMPLETED_SYMBOL: &str = " ";
@@ -22,7 +36,7 @@ pub struct WaitListDisplay {
 impl Display for WaitListDisplay {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let current_spinner = self.spinner.to_string();
-        let mut data: Vec<_> = self
+        let mut table_rows_with_spinner: Vec<_> = self
             .data
             .iter()
             .map(|(workload_name, table_entry)| {
@@ -37,14 +51,22 @@ impl Display for WaitListDisplay {
                 }
             })
             .collect();
-        data.sort_by_key(|x| &x.data.name);
+        table_rows_with_spinner.sort_by_key(|x| &x.data.name);
 
         // [impl->swdd~cli-shall-present-workloads-as-table~1]
-        write!(
-            f,
-            "{}",
-            Table::new(data).with(tabled::settings::Style::blank())
-        )
+        let workload_table_infos = WorkloadTable::new(table_rows_with_spinner);
+
+        let table_output = workload_table_infos
+            .create_table_truncated_additional_info()
+            .unwrap_or_else(|| {
+                output_debug!(
+                    "Failed to create truncated table output. Continue with default table layout."
+                );
+
+                workload_table_infos.create_default_table()
+            });
+
+        write!(f, "{}", table_output)
     }
 }
 
@@ -52,9 +74,7 @@ impl WaitListDisplayTrait for WaitListDisplay {
     fn update(&mut self, workload_state: &common::objects::WorkloadState) {
         if let Some(entry) = self.data.get_mut(&workload_state.instance_name) {
             entry.execution_state = workload_state.execution_state.state.to_string();
-            entry
-                .additional_info
-                .clone_from(&workload_state.execution_state.additional_info);
+            entry.set_additional_info(&workload_state.execution_state.additional_info);
         }
     }
 

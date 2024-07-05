@@ -15,9 +15,7 @@
 use crate::runtime_connectors::StateChecker;
 use crate::workload::{ControlLoopState, WorkloadCommand};
 use crate::workload_state::{WorkloadStateSender, WorkloadStateSenderInterface};
-use common::objects::{
-    ExecutionState, RestartPolicy, WorkloadInstanceName, WorkloadSpec, WorkloadState,
-};
+use common::objects::{ExecutionState, RestartPolicy, WorkloadInstanceName, WorkloadSpec};
 use common::std_extensions::IllegalStateResult;
 use futures_util::Future;
 use std::path::PathBuf;
@@ -86,18 +84,23 @@ impl WorkloadControlLoop {
                         .ok_or("Channel to listen to workload states of state checker closed.")
                         .unwrap_or_illegal_state();
 
-                    /* forward immediately the new workload state to the agent manager
-                    to avoid delays through the restart handling */
-                    // [impl->swdd~workload-control-loop-sends-workload-states~1]
-                    Self::send_workload_state_to_agent(
-                        &control_loop_state.to_agent_workload_state_sender,
-                        &new_workload_state.instance_name,
-                        new_workload_state.execution_state.clone(),
-                    ).await;
+                    // [impl->swdd~workload-control-loop-checks-workload-state-validity~1]
+                    if Self::is_same_workload(control_loop_state.instance_name(), &new_workload_state.instance_name) {
 
-                    // [impl->swdd~workload-control-loop-handles-workload-restarts~1]
-                    if Self::is_restart_required(&control_loop_state.workload_spec, &new_workload_state) {
-                        control_loop_state = Self::restart_workload_on_runtime(control_loop_state).await;
+                        /* forward immediately the new workload state to the agent manager
+                        to avoid delays through the restart handling */
+                        // [impl->swdd~workload-control-loop-sends-workload-states~2]
+                        Self::send_workload_state_to_agent(
+                            &control_loop_state.to_agent_workload_state_sender,
+                            &new_workload_state.instance_name,
+                            new_workload_state.execution_state.clone(),
+                        ).await;
+
+                        // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
+                        if Self::restart_policy_matches_execution_state(&control_loop_state.workload_spec.restart_policy, &new_workload_state.execution_state) {
+                            // [impl->swdd~workload-control-loop-handles-workload-restarts~1]
+                            control_loop_state = Self::restart_workload_on_runtime(control_loop_state).await;
+                        }
                     }
 
                     log::trace!("Restart handling done.");
@@ -138,9 +141,16 @@ impl WorkloadControlLoop {
                             )
                             .await;
                         }
-                        // [impl->swdd~agent-workload-control-loop-executes-create~2]
+                        // [impl->swdd~agent-workload-control-loop-executes-create~3]
                         Some(WorkloadCommand::Create) => {
                             log::debug!("Received WorkloadCommand::Create.");
+
+                            Self::send_workload_state_to_agent(
+                                &control_loop_state.to_agent_workload_state_sender,
+                                control_loop_state.instance_name(),
+                                ExecutionState::starting_triggered(),
+                            )
+                            .await;
 
                             control_loop_state = Self::create_workload_on_runtime(
                                 control_loop_state,
@@ -205,16 +215,6 @@ impl WorkloadControlLoop {
         .await
     }
 
-    fn is_restart_required(workload_spec: &WorkloadSpec, workload_state: &WorkloadState) -> bool {
-        // [impl->swdd~workload-control-loop-skips-restarts~1]
-        Self::is_same_workload(&workload_spec.instance_name, &workload_state.instance_name)
-            // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
-            && Self::compare_execution_state_with_restart_policy(
-                &workload_state.execution_state,
-                &workload_spec.restart_policy,
-            )
-    }
-
     fn is_same_workload(
         lhs_instance_name: &WorkloadInstanceName,
         rhs_instance_name: &WorkloadInstanceName,
@@ -222,10 +222,9 @@ impl WorkloadControlLoop {
         lhs_instance_name.eq(rhs_instance_name)
     }
 
-    // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
-    fn compare_execution_state_with_restart_policy(
-        execution_state: &ExecutionState,
+    fn restart_policy_matches_execution_state(
         restart_policy: &RestartPolicy,
+        execution_state: &ExecutionState,
     ) -> bool {
         match restart_policy {
             RestartPolicy::Never => false,
@@ -290,11 +289,11 @@ impl WorkloadControlLoop {
                 retry_counter.limit()
             );
 
-            // [impl->swdd~agent-workload-control-loop-retry-limit-set-execution-state~1]
+            // [impl->swdd~agent-workload-control-loop-retry-limit-set-execution-state~2]
             Self::send_workload_state_to_agent(
                 &control_loop_state.to_agent_workload_state_sender,
                 control_loop_state.instance_name(),
-                ExecutionState::retry_failed_no_retry(),
+                ExecutionState::retry_failed_no_retry(error_msg),
             )
             .await;
 
@@ -314,7 +313,7 @@ impl WorkloadControlLoop {
         control_loop_state
     }
 
-    // [impl->swdd~agent-workload-control-loop-executes-create~2]
+    // [impl->swdd~agent-workload-control-loop-executes-create~3]
     async fn create_workload_on_runtime<WorkloadId, StChecker, ErrorFunc, Fut>(
         mut control_loop_state: ControlLoopState<WorkloadId, StChecker>,
         func_on_error: ErrorFunc,
@@ -326,13 +325,6 @@ impl WorkloadControlLoop {
         ErrorFunc: FnOnce(ControlLoopState<WorkloadId, StChecker>, WorkloadInstanceName, String) -> Fut
             + 'static,
     {
-        Self::send_workload_state_to_agent(
-            &control_loop_state.to_agent_workload_state_sender,
-            control_loop_state.instance_name(),
-            ExecutionState::starting_triggered(),
-        )
-        .await;
-
         let new_instance_name = control_loop_state.workload_spec.instance_name.clone();
 
         match control_loop_state
@@ -356,10 +348,16 @@ impl WorkloadControlLoop {
                 control_loop_state
             }
             Err(err) => {
+                let current_retry_counter = control_loop_state.retry_counter.current_retry();
+
                 Self::send_workload_state_to_agent(
                     &control_loop_state.to_agent_workload_state_sender,
                     &new_instance_name,
-                    ExecutionState::starting_failed(err.to_string()),
+                    ExecutionState::retry_starting(
+                        current_retry_counter,
+                        MAX_RETRIES,
+                        err.to_string(),
+                    ),
                 )
                 .await;
 
@@ -487,6 +485,14 @@ impl WorkloadControlLoop {
             // [impl->swdd~agent-workload-control-loop-update-create-failed-allows-retry~1]
             control_loop_state.workload_spec = *spec;
             control_loop_state.control_interface_path = control_interface_path;
+
+            Self::send_workload_state_to_agent(
+                &control_loop_state.to_agent_workload_state_sender,
+                control_loop_state.instance_name(),
+                ExecutionState::starting_triggered(),
+            )
+            .await;
+
             control_loop_state =
                 Self::create_workload_on_runtime(control_loop_state, Self::send_retry_for_workload)
                     .await;
@@ -595,8 +601,7 @@ mod tests {
     use std::time::Duration;
 
     use common::objects::{
-        generate_test_workload_spec, generate_test_workload_spec_with_param, ExecutionState,
-        WorkloadInstanceName,
+        generate_test_workload_spec_with_param, ExecutionState, WorkloadInstanceName,
     };
     use common::objects::{generate_test_workload_state_with_workload_spec, RestartPolicy};
 
@@ -1055,6 +1060,7 @@ mod tests {
             .config(&new_workload_spec.runtime_config)
             .build();
 
+        let create_runtime_error_msg = "some create error";
         let mut runtime_mock = MockRuntimeConnector::new();
         runtime_mock
             .expect(vec![
@@ -1063,7 +1069,7 @@ mod tests {
                     new_workload_spec.clone(),
                     Some(PIPES_LOCATION.into()),
                     Err(crate::runtime_connectors::RuntimeError::Create(
-                        "some create error".to_string(),
+                        create_runtime_error_msg.to_owned(),
                     )),
                 ),
                 // We also send a delete command, but as no new workload was generated, there is also no
@@ -1109,7 +1115,7 @@ mod tests {
                 (&new_instance_name, ExecutionState::starting_triggered()),
                 (
                     &new_instance_name,
-                    ExecutionState::starting_failed("some create error"),
+                    ExecutionState::retry_starting(1, super::MAX_RETRIES, create_runtime_error_msg),
                 ),
                 (&new_instance_name, ExecutionState::stopping_requested()),
                 (&new_instance_name, ExecutionState::removed()),
@@ -1285,7 +1291,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~2]
+    // [utest->swdd~agent-workload-control-loop-executes-create~3]
     #[tokio::test]
     async fn utest_workload_obj_run_create_successful() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1343,7 +1349,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~2]
+    // [utest->swdd~agent-workload-control-loop-executes-create~3]
     // [utest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
     #[tokio::test]
     async fn utest_workload_obj_run_retry_creation_successful_after_create_command_fails() {
@@ -1409,7 +1415,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-workload-control-loop-executes-create~2]
+    // [utest->swdd~agent-workload-control-loop-executes-create~3]
     // [utest->swdd~agent-workload-control-loop-retries-workload-creation-on-create-failure~1]
     #[tokio::test]
     async fn utest_workload_obj_run_create_with_retry_workload_command_channel_closed() {
@@ -1532,7 +1538,7 @@ mod tests {
     // [utest->swdd~agent-workload-control-loop-executes-retry~1]
     // [utest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
     // [utest->swdd~agent-workload-control-loop-limits-retry-attempts~1]
-    // [utest->swdd~agent-workload-control-loop-retry-limit-set-execution-state~1]
+    // [utest->swdd~agent-workload-control-loop-retry-limit-set-execution-state~2]
     #[tokio::test]
     async fn utest_workload_obj_run_retry_attempts_exceeded_workload_creation() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1547,6 +1553,7 @@ mod tests {
 
         let instance_name = workload_spec.instance_name.clone();
 
+        let create_runtime_error_msg = "some create error";
         let mut runtime_expectations = vec![];
 
         // instead of short vector initialization a for loop is used because RuntimeCall with its submembers shall not be clone-able.
@@ -1555,7 +1562,7 @@ mod tests {
                 workload_spec.clone(),
                 Some(PIPES_LOCATION.into()),
                 Err(crate::runtime_connectors::RuntimeError::Create(
-                    "some create error".to_string(),
+                    create_runtime_error_msg.to_owned(),
                 )),
             ));
         }
@@ -1596,17 +1603,18 @@ mod tests {
         assert_execution_state_sequence(
             state_change_rx,
             vec![
-                (&instance_name, ExecutionState::starting_triggered()),
                 (
                     &instance_name,
-                    ExecutionState::starting_failed("some create error"),
+                    ExecutionState::retry_starting(1, super::MAX_RETRIES, create_runtime_error_msg),
                 ),
-                (&instance_name, ExecutionState::starting_triggered()),
                 (
                     &instance_name,
-                    ExecutionState::starting_failed("some create error"),
+                    ExecutionState::retry_starting(2, super::MAX_RETRIES, create_runtime_error_msg),
                 ),
-                (&instance_name, ExecutionState::retry_failed_no_retry()),
+                (
+                    &instance_name,
+                    ExecutionState::retry_failed_no_retry(create_runtime_error_msg),
+                ),
                 (&instance_name, ExecutionState::stopping_requested()),
                 (&instance_name, ExecutionState::removed()),
             ],
@@ -2228,7 +2236,7 @@ mod tests {
     }
 
     // [utest->swdd~workload-control-loop-receives-workload-states~1]
-    // [utest->swdd~workload-control-loop-sends-workload-states~1]
+    // [utest->swdd~workload-control-loop-sends-workload-states~2]
     #[tokio::test]
     async fn utest_forward_received_workload_states_of_state_checker() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -2340,7 +2348,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~workload-control-loop-handles-workload-restarts~1]
+    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
     // [utest->swdd~workload-control-loop-restarts-workloads-using-update~1]
     #[tokio::test]
     async fn utest_restart_workload() {
@@ -2424,116 +2432,96 @@ mod tests {
     // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
     #[test]
     fn utest_is_restart_allowed_never() {
-        let mut workload_spec = generate_test_workload_spec();
-        workload_spec.restart_policy = RestartPolicy::Never;
+        let restart_policy = RestartPolicy::Never;
 
-        assert!(!WorkloadControlLoop::is_restart_required(
-            &workload_spec,
-            &generate_test_workload_state_with_workload_spec(
-                &workload_spec,
-                ExecutionState::running()
+        assert!(
+            !WorkloadControlLoop::restart_policy_matches_execution_state(
+                &restart_policy,
+                &ExecutionState::running()
             )
-        ));
-        assert!(!WorkloadControlLoop::is_restart_required(
-            &workload_spec,
-            &generate_test_workload_state_with_workload_spec(
-                &workload_spec,
-                ExecutionState::succeeded()
+        );
+        assert!(
+            !WorkloadControlLoop::restart_policy_matches_execution_state(
+                &restart_policy,
+                &ExecutionState::succeeded()
             )
-        ));
-        assert!(!WorkloadControlLoop::is_restart_required(
-            &workload_spec,
-            &generate_test_workload_state_with_workload_spec(
-                &workload_spec,
-                ExecutionState::failed("some error".to_owned())
+        );
+        assert!(
+            !WorkloadControlLoop::restart_policy_matches_execution_state(
+                &restart_policy,
+                &ExecutionState::failed("some error".to_owned())
             )
-        ));
+        );
     }
 
     // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
     #[test]
     fn utest_is_restart_allowed_on_failure() {
-        let mut workload_spec = generate_test_workload_spec();
-        workload_spec.restart_policy = RestartPolicy::OnFailure;
+        let restart_policy = RestartPolicy::OnFailure;
 
-        assert!(!WorkloadControlLoop::is_restart_required(
-            &workload_spec,
-            &generate_test_workload_state_with_workload_spec(
-                &workload_spec,
-                ExecutionState::running()
+        assert!(
+            !WorkloadControlLoop::restart_policy_matches_execution_state(
+                &restart_policy,
+                &ExecutionState::running()
             )
+        );
+        assert!(WorkloadControlLoop::restart_policy_matches_execution_state(
+            &restart_policy,
+            &ExecutionState::failed("some error".to_owned())
         ));
-        assert!(WorkloadControlLoop::is_restart_required(
-            &workload_spec,
-            &generate_test_workload_state_with_workload_spec(
-                &workload_spec,
-                ExecutionState::failed("some error".to_owned())
+        assert!(
+            !WorkloadControlLoop::restart_policy_matches_execution_state(
+                &restart_policy,
+                &ExecutionState::succeeded()
             )
-        ));
-        assert!(!WorkloadControlLoop::is_restart_required(
-            &workload_spec,
-            &generate_test_workload_state_with_workload_spec(
-                &workload_spec,
-                ExecutionState::succeeded()
-            )
-        ));
+        );
     }
 
     // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
     #[test]
-    fn utest_is_restart_allowed_always() {
-        let mut workload_spec = generate_test_workload_spec();
-        workload_spec.restart_policy = RestartPolicy::Always;
+    fn utest_restart_policy_matches_execution_state_always() {
+        let restart_policy = RestartPolicy::Always;
 
-        assert!(!WorkloadControlLoop::is_restart_required(
-            &workload_spec,
-            &generate_test_workload_state_with_workload_spec(
-                &workload_spec,
-                ExecutionState::running()
+        assert!(
+            !WorkloadControlLoop::restart_policy_matches_execution_state(
+                &restart_policy,
+                &ExecutionState::running()
             )
+        );
+        assert!(WorkloadControlLoop::restart_policy_matches_execution_state(
+            &restart_policy,
+            &ExecutionState::failed("some error".to_owned())
         ));
-        assert!(WorkloadControlLoop::is_restart_required(
-            &workload_spec,
-            &generate_test_workload_state_with_workload_spec(
-                &workload_spec,
-                ExecutionState::failed("some error".to_owned())
-            )
-        ));
-        assert!(WorkloadControlLoop::is_restart_required(
-            &workload_spec,
-            &generate_test_workload_state_with_workload_spec(
-                &workload_spec,
-                ExecutionState::succeeded()
-            )
+        assert!(WorkloadControlLoop::restart_policy_matches_execution_state(
+            &restart_policy,
+            &ExecutionState::succeeded()
         ));
     }
 
-    // [utest->swdd~workload-control-loop-skips-restarts~1]
+    // [utest->swdd~agent-sends-workload-states-of-its-workloads-to-server~2]
+    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
     #[test]
-    fn utest_is_restart_allowed_different_instance_names() {
-        let mut workload_spec = generate_test_workload_spec();
-        workload_spec.restart_policy = RestartPolicy::Never;
+    fn utest_is_same_workload() {
+        let current_instance_name = WorkloadInstanceName::builder()
+            .workload_name(WORKLOAD_1_NAME)
+            .agent_name(AGENT_NAME)
+            .config(&String::from("existing config"))
+            .build();
 
-        let mut workload_state = generate_test_workload_state_with_workload_spec(
-            &workload_spec,
-            ExecutionState::succeeded(),
-        );
-        workload_state.instance_name = WorkloadInstanceName::builder()
-            .workload_name(workload_spec.instance_name.workload_name())
-            .agent_name(workload_spec.instance_name.agent_name())
+        assert!(WorkloadControlLoop::is_same_workload(
+            &current_instance_name,
+            &current_instance_name
+        ));
+
+        let new_instance_name = WorkloadInstanceName::builder()
+            .workload_name(WORKLOAD_1_NAME)
+            .agent_name(AGENT_NAME)
             .config(&String::from("different config"))
             .build();
 
-        assert!(!WorkloadControlLoop::is_restart_required(
-            &workload_spec,
-            &workload_state
-        ));
-
-        workload_state.execution_state = ExecutionState::failed("some error".to_owned());
-
-        assert!(!WorkloadControlLoop::is_restart_required(
-            &workload_spec,
-            &workload_state
+        assert!(!WorkloadControlLoop::is_same_workload(
+            &current_instance_name,
+            &new_instance_name
         ));
     }
 }

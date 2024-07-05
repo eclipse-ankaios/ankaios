@@ -1,7 +1,21 @@
+// Copyright (c) 2024 Elektrobit Automotive GmbH
+//
+// This program and the accompanying materials are made available under the
+// terms of the Apache License, Version 2.0 which is available at
+// https://www.apache.org/licenses/LICENSE-2.0.
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::{cli_error::CliError, output_debug};
 
-use tabled::{settings::Style, Table};
-
+use super::workload_table::WorkloadTable;
+use super::workload_table_row::WorkloadTableRow;
 use super::CliCommands;
 
 impl CliCommands {
@@ -38,10 +52,19 @@ impl CliCommands {
         output_debug!("The table after filtering:\n{:?}", workload_infos);
 
         // [impl->swdd~cli-shall-present-list-of-workloads~1]
+        let table_rows: Vec<WorkloadTableRow> = workload_infos.into_iter().map(|x| x.1).collect();
+
         // [impl->swdd~cli-shall-present-workloads-as-table~1]
-        Ok(Table::new(workload_infos.iter().map(|x| &x.1))
-            .with(Style::blank())
-            .to_string())
+        let workload_table_infos = WorkloadTable::new(table_rows);
+
+        Ok(workload_table_infos
+            .create_table_wrapped_additional_info()
+            .unwrap_or_else(|| {
+                output_debug!(
+                    "Failed to create wrapped table output. Continue with default table layout."
+                );
+                workload_table_infos.create_default_table()
+            }))
     }
 }
 
@@ -59,11 +82,8 @@ mod tests {
         test_utils,
     };
     use mockall::predicate::eq;
-    use tabled::{settings::Style, Table};
 
-    use crate::cli_commands::{
-        server_connection::MockServerConnection, workload_table_row::WorkloadTableRow, CliCommands,
-    };
+    use crate::cli_commands::{server_connection::MockServerConnection, CliCommands};
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
@@ -84,12 +104,10 @@ mod tests {
         let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
-        let expected_empty_table: Vec<WorkloadTableRow> = Vec::new();
-        let expected_table_text = Table::new(expected_empty_table)
-            .with(Style::blank())
-            .to_string();
+        let expected_table_output =
+            "WORKLOAD NAME   AGENT   RUNTIME   EXECUTION STATE   ADDITIONAL INFO";
 
-        assert_eq!(cmd_text.unwrap(), expected_table_text);
+        assert_eq!(cmd_text.unwrap(), expected_table_output);
     }
 
     // [utest->swdd~cli-provides-list-of-workloads~1]
@@ -131,31 +149,15 @@ mod tests {
         let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
-        let expected_table: Vec<WorkloadTableRow> = vec![
-            WorkloadTableRow::new(
-                "name1",
-                "agent_A",
-                "runtime",
-                &ExecutionState::running().state.to_string(),
-                Default::default(),
-            ),
-            WorkloadTableRow::new(
-                "name2",
-                "agent_B",
-                "runtime",
-                &ExecutionState::running().state.to_string(),
-                Default::default(),
-            ),
-            WorkloadTableRow::new(
-                "name3",
-                "agent_B",
-                "runtime",
-                &ExecutionState::running().state.to_string(),
-                Default::default(),
-            ),
-        ];
-        let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
-        assert_eq!(cmd_text.unwrap(), expected_table_text);
+        let expected_table_output = [
+            "WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE   ADDITIONAL INFO",
+            "name1           agent_A   runtime   Running(Ok)                      ",
+            "name2           agent_B   runtime   Running(Ok)                      ",
+            "name3           agent_B   runtime   Running(Ok)                      ",
+        ]
+        .join("\n");
+
+        assert_eq!(cmd_text.unwrap(), expected_table_output);
     }
 
     // [utest->swdd~cli-shall-filter-list-of-workloads~1]
@@ -195,15 +197,13 @@ mod tests {
             .await;
         assert!(cmd_text.is_ok());
 
-        let expected_table: Vec<WorkloadTableRow> = vec![WorkloadTableRow::new(
-            "name1",
-            "agent_A",
-            "runtime",
-            &ExecutionState::running().state.to_string(),
-            Default::default(),
-        )];
-        let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
-        assert_eq!(cmd_text.unwrap(), expected_table_text);
+        let expected_table_output = [
+            "WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE   ADDITIONAL INFO",
+            "name1           agent_A   runtime   Running(Ok)                      ",
+        ]
+        .join("\n");
+
+        assert_eq!(cmd_text.unwrap(), expected_table_output);
     }
 
     // [utest->swdd~cli-shall-filter-list-of-workloads~1]
@@ -242,24 +242,14 @@ mod tests {
             .await;
         assert!(cmd_text.is_ok());
 
-        let expected_table: Vec<WorkloadTableRow> = vec![
-            WorkloadTableRow::new(
-                "name2",
-                "agent_B",
-                "runtime",
-                &ExecutionState::running().state.to_string(),
-                Default::default(),
-            ),
-            WorkloadTableRow::new(
-                "name3",
-                "agent_B",
-                "runtime",
-                &ExecutionState::running().state.to_string(),
-                Default::default(),
-            ),
-        ];
-        let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
-        assert_eq!(cmd_text.unwrap(), expected_table_text);
+        let expected_table_output = [
+            "WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE   ADDITIONAL INFO",
+            "name2           agent_B   runtime   Running(Ok)                      ",
+            "name3           agent_B   runtime   Running(Ok)                      ",
+        ]
+        .join("\n");
+
+        assert_eq!(cmd_text.unwrap(), expected_table_output);
     }
 
     // [utest->swdd~cli-shall-filter-list-of-workloads~1]
@@ -298,9 +288,10 @@ mod tests {
             .await;
         assert!(cmd_text.is_ok());
 
-        let expected_table: Vec<WorkloadTableRow> = Vec::new();
-        let expected_table_text = Table::new(expected_table).with(Style::blank()).to_string();
-        assert_eq!(cmd_text.unwrap(), expected_table_text);
+        let expected_table_output =
+            "WORKLOAD NAME   AGENT   RUNTIME   EXECUTION STATE   ADDITIONAL INFO";
+
+        assert_eq!(cmd_text.unwrap(), expected_table_output);
     }
 
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
@@ -329,17 +320,12 @@ mod tests {
         let cmd_text = cmd.get_workloads_table(None, None, Vec::new()).await;
         assert!(cmd_text.is_ok());
 
-        let expected_empty_table: Vec<WorkloadTableRow> = vec![WorkloadTableRow::new(
-            "Workload_1",
-            "agent_A",
-            Default::default(),
-            "Removed",
-            Default::default(),
-        )];
-        let expected_table_text = Table::new(expected_empty_table)
-            .with(Style::blank())
-            .to_string();
+        let expected_table_output = [
+            "WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE   ADDITIONAL INFO",
+            "Workload_1      agent_A             Removed                          ",
+        ]
+        .join("\n");
 
-        assert_eq!(cmd_text.unwrap(), expected_table_text);
+        assert_eq!(cmd_text.unwrap(), expected_table_output);
     }
 }

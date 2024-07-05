@@ -99,7 +99,7 @@ Test Ankaios Podman retry creation of a workload on creation failure intercepted
 # [stest->swdd~agent-workload-control-loop-executes-retry~1]
 # [stest->swdd~agent-workload-control-loop-requests-retries-on-failing-retry-attempt~1]
 # [stest->swdd~agent-workload-control-loop-limits-retry-attempts~1]
-# [stest->swdd~agent-workload-control-loop-retry-limit-set-execution-state~1]
+# [stest->swdd~agent-workload-control-loop-retry-limit-set-execution-state~2]
 Test Ankaios Podman stops retries after reaching the retry attempt limit
     [Tags]    non_execution_during_pull_request_verification
     [Setup]    Run Keywords    Setup Ankaios

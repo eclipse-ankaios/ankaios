@@ -422,7 +422,7 @@ When the CLI presents workloads to the user, the CLI shall display the workloads
 
 Note:
 The column runtime is not filled when the workload has been deleted.
-This can happen when the workload has been deleted from the current state and the workload state is reported as "removed".
+This can happen when the workload has been deleted from the current state and the workload state is reported as "removed". The table shall be well displayed and shall not flicker on updates.
 
 Tags:
 - CliCommands
