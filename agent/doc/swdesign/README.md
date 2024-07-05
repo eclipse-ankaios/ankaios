@@ -1375,7 +1375,7 @@ Needs:
 - utest
 
 #### WorkloadControlLoop restarts workload with enabled restart policy
-`swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1`
+`swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2`
 
 Status: approved
 
@@ -1401,7 +1401,7 @@ Needs:
 - stest
 
 #### WorkloadControlLoop handles restarts of workloads
-`swdd~workload-control-loop-handles-workload-restarts~1`
+`swdd~workload-control-loop-handles-workload-restarts~2`
 
 Status: approved
 
