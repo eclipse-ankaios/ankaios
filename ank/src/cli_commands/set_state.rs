@@ -18,13 +18,12 @@ use common::{
 };
 
 #[cfg(not(test))]
-async fn read_file_to_string(file: String) -> std::io::Result<String> {
+fn read_file_to_string(file: String) -> std::io::Result<String> {
     std::fs::read_to_string(file)
 }
+use crate::{cli_error::CliError, output_and_error, output_debug};
 #[cfg(test)]
 use tests::read_to_string_mock as read_file_to_string;
-
-use crate::{cli_error::CliError, output_debug};
 
 use super::CliCommands;
 
@@ -70,11 +69,9 @@ impl CliCommands {
         let mut complete_state = CompleteState::default();
         if let Some(state_object_file) = state_object_file {
             let state_object_data =
-                read_file_to_string(state_object_file)
-                    .await
-                    .unwrap_or_else(|error| {
-                        panic!("Could not read the state object file.\nError: {}", error)
-                    });
+                read_file_to_string(state_object_file).unwrap_or_else(|error| {
+                    output_and_error!("Could not read the state object file.\nError: {}", error)
+                });
             let value: serde_yaml::Value = serde_yaml::from_str(&state_object_data)?;
             let x = Object::try_from(&value)?;
 
@@ -122,7 +119,65 @@ impl CliCommands {
 mod tests {
     use std::io;
 
-    pub async fn read_to_string_mock(_file: String) -> io::Result<String> {
-        Ok("".into())
+    use common::{
+        commands::UpdateStateSuccess, objects::generate_test_workload_spec_with_param,
+        test_utils::generate_test_complete_state,
+    };
+
+    const RESPONSE_TIMEOUT_MS: u64 = 100;
+
+    use super::*;
+    use crate::cli_commands::server_connection::MockServerConnection;
+
+    pub fn read_to_string_mock(_file: String) -> io::Result<String> {
+        let new_workload = generate_test_workload_spec_with_param(
+            "agent_A".to_string(),
+            "name1".to_string(),
+            "runtime".to_string(),
+        );
+        let new_complete_state = generate_test_complete_state(vec![new_workload]);
+
+        let complete_state_file_content =
+            serde_yaml::to_string(&new_complete_state).unwrap_or_default();
+        Ok(complete_state_file_content)
+    }
+
+    // [utest->swdd~cli-provides-set-desired-state~1]
+    #[tokio::test]
+    async fn utest_set_desired_state() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let new_workload = generate_test_workload_spec_with_param(
+            "agent_A".to_string(),
+            "name1".to_string(),
+            "runtime".to_string(),
+        );
+        let new_workload_instance_name = new_workload.instance_name.clone();
+
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_update_state()
+            .once()
+            .returning(move |_, _| {
+                Ok(UpdateStateSuccess {
+                    added_workloads: vec![new_workload_instance_name.to_string()],
+                    ..Default::default()
+                })
+            });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: true, // disable wait
+            server_connection: mock_server_connection,
+        };
+
+        let object_field_mask = vec!["desiredState.workloads.name1".to_string()];
+        let state_object_file = Some("some/path/to/newState.yaml".to_string());
+
+        let set_state_result = cmd.set_state(object_field_mask, state_object_file).await;
+
+        assert!(set_state_result.is_ok());
     }
 }
