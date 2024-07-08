@@ -60,7 +60,7 @@ Test Ankaios CLI update state with cycle in interworkload dependencies is reject
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
-    And user triggers "ank set state -f ${new_state_yaml_file} desiredState.workloads.workload_C"
+    And user triggers "ank set state desiredState.workloads.workload_C ${new_state_yaml_file}"
     # Asserts
     Then the workload "workload_C" shall not exist
     And podman shall not have a container for workload "workload_C" on agent "agentA" within "5" seconds

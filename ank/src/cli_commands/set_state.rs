@@ -1,4 +1,4 @@
-use std::io;
+use std::io::{self, Read};
 
 use common::{
     objects::{CompleteState, StoredWorkloadSpec},
@@ -9,10 +9,10 @@ use common::{
 async fn read_file_to_string(file: String) -> std::io::Result<String> {
     std::fs::read_to_string(file)
 }
-#[cfg(test)]
-use tests::read_to_string_mock as read_file_to_string;
+// #[cfg(test)]
+// use tests::read_to_string_mock as read_file_to_string;
 
-use crate::{cli_error::CliError, output_debug};
+use crate::{cli_error::CliError, output_and_error, output_debug};
 
 use super::CliCommands;
 
@@ -43,6 +43,56 @@ fn add_default_workload_spec_per_update_mask(
     }
 }
 
+async fn process_inputs<R: Read>(reader: R, state_object_file: &String, temp_obj: &mut Object) {
+    match state_object_file.as_str() {
+        "-" => {
+            let stdin = io::read_to_string(reader).unwrap_or_else(|error| {
+                output_and_error!("Could not read the state object file.\nError: {}", error)
+            });
+            let value: serde_yaml::Value = serde_yaml::from_str(&stdin).unwrap();
+            *temp_obj = Object::try_from(&value).unwrap();
+        }
+        _ => {
+            let state_object_data = read_file_to_string(state_object_file.clone())
+                .await
+                .unwrap_or_else(|error| {
+                    output_and_error!("Could not read the state object file.\nError: {}", error)
+                });
+            let value: serde_yaml::Value = serde_yaml::from_str(&state_object_data).unwrap();
+            *temp_obj = Object::try_from(&value).unwrap();
+        }
+    }
+}
+
+fn overwrite_using_field_mask(
+    complete_state_object: &mut Object,
+    object_field_mask: &Vec<String>,
+    temp_obj: &Object,
+) {
+    // let mut complete_state_object: Object = *complete_state.try_into();
+    for field_mask in object_field_mask {
+        let path: Path = field_mask.into();
+
+        println!("{:?}", path);
+        println!("{:?}", complete_state_object);
+
+        complete_state_object
+            .set(
+                &path,
+                temp_obj
+                    .get(&path)
+                    .ok_or(CliError::ExecutionError(format!(
+                        "Specified update mask '{field_mask}' not found in the input config.",
+                    )))
+                    .unwrap()
+                    .clone(),
+            )
+            .map_err(|err| CliError::ExecutionError(err.to_string()))
+            .unwrap();
+    }
+    // *complete_state = complete_state_object.try_into()?;
+}
+
 impl CliCommands {
     pub async fn set_state(
         &mut self,
@@ -56,61 +106,17 @@ impl CliCommands {
         );
 
         let mut complete_state = CompleteState::default();
-        let mut x: Object = Object::default();
-
-        // I should start from here
+        let mut temp_obj: Object = Object::default();
 
         if let Some(state_object_file) = state_object_file {
-            match state_object_file.as_str() {
-                "-" => {
-                    let stdin = io::read_to_string(io::stdin()).unwrap_or_else(|error| {
-                        panic!("Could not read the state object file.\nError: {}", error)
-                    });
-                    let value: serde_yaml::Value = serde_yaml::from_str(&stdin)?;
-                    x = Object::try_from(&value)?;
-                }
-                _ => {
-                    let state_object_data = read_file_to_string(state_object_file)
-                        .await
-                        .unwrap_or_else(|error| {
-                            panic!("Could not read the state object file.\nError: {}", error)
-                        });
-                    let value: serde_yaml::Value = serde_yaml::from_str(&state_object_data)?;
-                    x = Object::try_from(&value)?;
-                }
-            }
-
-            // if let Some(state_object_file) = state_object_file {
-            //     let state_object_data =
-            //         read_file_to_string(state_object_file)
-            //             .await
-            //             .unwrap_or_else(|error| {
-            //                 panic!("Could not read the state object file.\nError: {}", error)
-            //             });
-            //     let value: serde_yaml::Value = serde_yaml::from_str(&state_object_data)?;
-            //     let x: Object = Object::try_from(&value)?;
-
-            // and I should end it here
+            process_inputs(io::stdin(), &state_object_file, &mut temp_obj).await;
 
             // This here is a workaround for the default workload specs
             add_default_workload_spec_per_update_mask(&object_field_mask, &mut complete_state);
 
             // now overwrite with the values from the field mask
             let mut complete_state_object: Object = complete_state.try_into()?;
-            for field_mask in &object_field_mask {
-                let path: Path = field_mask.into();
-
-                complete_state_object
-                    .set(
-                        &path,
-                        x.get(&path)
-                            .ok_or(CliError::ExecutionError(format!(
-                                "Specified update mask '{field_mask}' not found in the input config.",
-                            )))?
-                            .clone(),
-                    )
-                    .map_err(|err| CliError::ExecutionError(err.to_string()))?;
-            }
+            overwrite_using_field_mask(&mut complete_state_object, &object_field_mask, &temp_obj);
             complete_state = complete_state_object.try_into()?;
         }
 
@@ -134,9 +140,108 @@ impl CliCommands {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use std::io;
+    use super::*;
+    use common::{
+        objects::{CompleteState, StoredWorkloadSpec},
+        state_manipulation::{Object, Path},
+    };
+    use serde_yaml::Value;
+    use std::io::Cursor;
 
-    pub async fn read_to_string_mock(_file: String) -> io::Result<String> {
-        Ok("".into())
+    const SAMPLE_CONFIG: &str = r#"desiredState:
+        workloads:
+          nginx:
+            agent: agent_A
+            tags:
+            - key: owner
+              value: Ankaios team
+            dependencies: {}
+            restartPolicy: NEVER
+            runtime: podman
+            runtimeConfig: |
+              image: docker.io/nginx:latest
+              commandOptions: ["-p", "8081:80"]"#;
+
+    #[test]
+    fn test_add_default_workload_spec_empty_update_mask() {
+        let update_mask = vec![];
+        let mut complete_state = CompleteState {
+            desired_state: Default::default(),
+            ..Default::default()
+        };
+
+        add_default_workload_spec_per_update_mask(&update_mask, &mut complete_state);
+
+        assert!(complete_state.desired_state.workloads.is_empty());
+    }
+
+    #[test]
+    fn test_add_default_workload_spec_with_update_mask() {
+        let update_mask = vec!["desiredState.workloads.nginx".to_string()];
+        let mut complete_state = CompleteState {
+            desired_state: Default::default(),
+            ..Default::default()
+        };
+
+        add_default_workload_spec_per_update_mask(&update_mask, &mut complete_state);
+
+        assert!(complete_state.desired_state.workloads.contains_key("nginx"));
+    }
+
+    #[test]
+    fn test_add_default_workload_spec_invalid_path() {
+        let update_mask = vec!["invalid.path".to_string()];
+        let mut complete_state = CompleteState {
+            desired_state: Default::default(),
+            ..Default::default()
+        };
+
+        add_default_workload_spec_per_update_mask(&update_mask, &mut complete_state);
+
+        assert!(complete_state.desired_state.workloads.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_process_inputs_stdin() {
+        let input = SAMPLE_CONFIG;
+        let reader = Cursor::new(input);
+        let state_object_file = "-".to_string();
+        let mut temp_obj = Object::default();
+
+        process_inputs(reader, &state_object_file, &mut temp_obj).await;
+
+        let value: Value = serde_yaml::from_str(SAMPLE_CONFIG).unwrap();
+        let expected_obj = Object::try_from(&value).unwrap();
+
+        assert_eq!(temp_obj, expected_obj);
+    }
+
+    // #[tokio::test]
+    // async fn test_process_inputs_file() {
+    //     // Mock the read_file_to_string function
+    //     let mut mock = MockReadFileToString::new();
+    //     mock.expect_read_to_string()
+    //         .with(eq("state_file.yaml".to_string()))
+    //         .returning(|_| Ok(SAMPLE_CONFIG.to_string()));
+
+    //     let state_object_file = "state_file.yaml".to_string();
+    //     let mut temp_obj = Object::default();
+
+    //     process_inputs(io::empty(), &state_object_file, &mut temp_obj).await;
+
+    //     let value: Value = serde_yaml::from_str(SAMPLE_CONFIG).unwrap();
+    //     let expected_obj = Object::try_from(&value).unwrap();
+
+    //     assert_eq!(temp_obj, expected_obj);
+    // }
+
+    #[tokio::test]
+    async fn test_process_inputs_invalid_yaml() {
+        let input = "invalid yaml";
+        let reader = Cursor::new(input);
+        let state_object_file = "-".to_string();
+        let mut temp_obj = Object::default();
+
+        process_inputs(reader, &state_object_file, &mut temp_obj).await;
     }
 }
