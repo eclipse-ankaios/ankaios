@@ -55,9 +55,18 @@ impl PipesChannelContextInfo {
         let self_location = self
             .workload_instance_name
             .pipes_folder_name(&self.run_folder);
+        let Some(self_location) = self_location.to_str() else {
+            log::warn!("Could not convert old pipes folder location to string.");
+            return false;
+        };
 
         let other_location = other.get_api_location();
-        if self_location.to_str().unwrap() != other_location.to_str().unwrap() {
+        let Some(other_location) = other_location.to_str() else {
+            log::warn!("Could not convert new pipes folder location to string.");
+            return false;
+        };
+
+        if self_location != other_location {
             return false;
         };
 
