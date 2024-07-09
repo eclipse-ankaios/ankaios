@@ -30,7 +30,6 @@ pub struct Authorizer {
     deny_read_write_state_rule: Vec<Rule<DenyPathPattern>>,
 }
 
-// #[cfg_attr(test, automock)]
 impl Authorizer {
     #[cfg(test)]
     pub fn test_value(name: &str) -> Self {
@@ -65,7 +64,6 @@ impl Authorizer {
                 })
             }
         }
-        // mask.iter().all(|m| self.match_single_mask_path(m))
     }
 }
 
@@ -132,20 +130,6 @@ impl<P: PathPattern> PathPattern for Rule<P> {
         self.patterns.iter().any(|p| p.matches(path))
     }
 }
-
-// impl Rule {
-//     pub fn applies(&self, filter_mask: String, target_value: String) -> bool {
-//         self.filter_mask_applies(filter_mask) && self.targe_value_applies(target_value)
-//     }
-
-//     fn filter_mask_applies(&self, filter_mask: String) -> bool {
-//         self.filter_masks.is_empty() || self.filter_masks.iter().any(|x| x.matches(&filter_mask))
-//     }
-
-//     fn targe_value_applies(&self, target_value: String) -> bool {
-//         self.target_values.is_empty() || self.target_values.contains(&target_value)
-//     }
-// }
 
 #[derive(Clone, Debug)]
 struct Path {
@@ -324,17 +308,4 @@ mod tests {
         assert!(!p.matches(&"some.pre2.fix2".into()));
         assert!(!p.matches(&"some.pre2.fix2.test".into()));
     }
-
-    // #[test]
-    // fn utest_foobar() {
-    //     let rule = Rule {
-    //         filter_masks: vec![
-    //             Path::from("workloads.nginx.agent"),
-    //             Path::from("workloads.nginx.agent"),
-    //         ],
-    //         target_values: vec!["agent_A".into(), "agent_B".into()],
-    //     };
-
-    //     assert!(rule.applies(filter_mask, target_value))
-    // }
 }
