@@ -71,8 +71,8 @@ message UpdateStateSuccess {
 * This is a response to the [CompleteStateRequest](#completestaterequest) message.
 */
 message CompleteState {
-    State desiredState = 2; /// The state the user wants to reach.
-    WorkloadStatesMap workloadStates = 3; /// The current execution states of the workloads.
+    State desiredState = 1; /// The state the user wants to reach.
+    WorkloadStatesMap workloadStates = 2; /// The current execution states of the workloads.
 }
 
 /**
@@ -231,27 +231,41 @@ message Error {
     string message = 1;
 }
 
+/**
+* A message containing the parts of the control interface the workload as authorized to access.
+* By default, all access is denied.
+* Only if a matching allow rule is found, and no matching deny rules is found, the access is allowed.
+*/
 message ControlInterfaceAccess {
-  repeated AccessRightsRule allowRules = 1;
-  repeated AccessRightsRule denyRules = 2;
+  repeated AccessRightsRule allowRules = 1; // Rules allow the access
+  repeated AccessRightsRule denyRules = 2; // Rules denying the access
 }
 
+/**
+* A message containing an allow or deny rule.
+**/
 message AccessRightsRule {
   oneof AccessRightsRuleEnum {
-      StateRule stateRule = 1;
+      StateRule stateRule = 1; // Rule for getting or setting the state
   }
 }
 
+/**
+* Message containing a rule for getting or setting the state
+**/
 message StateRule {
-  ReadWriteEnum operation = 1;
-  repeated string filterMasks = 2;
+  ReadWriteEnum operation = 1; // Defines which actions are allowed
+  repeated string filterMasks = 2; // Pathes definind what can be accessed. Segements of path can be a wildcare "*".
 }
 
 
+/**
+* An enum type describing which action is allowed.
+*/
 enum ReadWriteEnum {
-  RW_NOTHING = 0;
-  RW_READ = 1;
-  RW_WRITE = 2;
-  RW_READ_WRITE = 5;
+  RW_NOTHING = 0; // Allow nothing
+  RW_READ = 1;  // Allow read
+  RW_WRITE = 2; // Allow write
+  RW_READ_WRITE = 5; // Allow read and write
 }
 
