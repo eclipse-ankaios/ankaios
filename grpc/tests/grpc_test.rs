@@ -163,7 +163,6 @@ mod grpc_tests {
 
         // read request forwarded by grpc communication server
         let result = timeout(Duration::from_millis(3000), server_receiver.recv()).await;
-        println!("{:?}", result);
 
         assert!(matches!(
             result,

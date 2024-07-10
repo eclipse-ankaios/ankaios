@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{fmt::Display, path::PathBuf};
 
 use async_trait::async_trait;
 
@@ -35,10 +35,9 @@ pub struct PodmanWorkloadId {
     pub id: String,
 }
 
-#[allow(clippy::to_string_trait_impl)]
-impl ToString for PodmanWorkloadId {
-    fn to_string(&self) -> String {
-        self.id.to_owned()
+impl Display for PodmanWorkloadId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.id.to_owned())
     }
 }
 
