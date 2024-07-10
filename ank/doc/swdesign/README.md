@@ -562,7 +562,7 @@ Tags:
 
 Needs:
 - impl
-- utest
+- stest
 
 ### `ank delete workload`
 

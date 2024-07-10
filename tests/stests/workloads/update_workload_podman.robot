@@ -29,6 +29,7 @@ ${new_state_yaml_file}          ${EMPTY}
 *** Test Cases ***
 # [itest->swdd~cli-standalone-application~1]
 # [itest->swdd~server-handle-cli-communication~1]
+# [stest->swdd~cli-supports-yaml-to-set-desired-state~1]
 Test Ankaios CLI update workload
     [Setup]    Run Keywords    Setup Ankaios
     ...    AND    Set Global Variable    ${default_state_yaml_file}    ${CONFIGS_DIR}/default.yaml

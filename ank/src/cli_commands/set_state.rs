@@ -72,6 +72,8 @@ impl CliCommands {
                 read_file_to_string(state_object_file).unwrap_or_else(|error| {
                     output_and_error!("Could not read the state object file.\nError: {}", error)
                 });
+
+            // [impl->swdd~cli-supports-yaml-to-set-desired-state~1]
             let value: serde_yaml::Value = serde_yaml::from_str(&state_object_data)?;
             let x = Object::try_from(&value)?;
 
