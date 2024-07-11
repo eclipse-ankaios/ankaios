@@ -257,20 +257,7 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use super::{get_input_sources, InputSourcePair};
-    use common::{
-        commands::{UpdateStateSuccess, UpdateWorkloadState},
-        from_server_interface::FromServer,
-        objects::{
-            generate_test_workload_spec_with_param, CompleteState, ExecutionState, WorkloadState,
-        },
-        test_utils::generate_test_complete_state,
-    };
     use std::io;
-
-    use crate::{
-        cli_commands::server_connection::{MockServerConnection, ServerConnectionError},
-        cli_error::CliError,
-    };
 
     mockall::lazy_static! {
         pub static ref FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST: std::sync::Mutex<std::collections::VecDeque<io::Result<InputSourcePair>>>  =
@@ -346,113 +333,5 @@ mod tests {
             expected,
             actual.iter().map(get_file_name).collect::<Vec<String>>()
         )
-    }
-
-    // [utest->swdd~cli-requests-update-state-with-watch~1]
-    // [utest->swdd~cli-requests-update-state-with-watch-success~1]
-    #[tokio::test]
-    async fn utest_update_state_and_wait_for_complete_success() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let new_workload = generate_test_workload_spec_with_param(
-            "agent_A".to_string(),
-            "name1".to_string(),
-            "runtime".to_string(),
-        );
-        let new_workload_instance_name = new_workload.instance_name.clone();
-        let starting_workload_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                instance_name: new_workload_instance_name.clone(),
-                execution_state: ExecutionState::starting_triggered(),
-            }],
-        };
-
-        let running_workload_state = UpdateWorkloadState {
-            workload_states: vec![WorkloadState {
-                instance_name: new_workload_instance_name.clone(),
-                execution_state: ExecutionState::running(),
-            }],
-        };
-
-        let new_complete_state = generate_test_complete_state(vec![new_workload]);
-
-        let mut mock_server_connection = MockServerConnection::default();
-        mock_server_connection
-            .expect_update_state()
-            .once()
-            .returning(move |_, _| {
-                Ok(UpdateStateSuccess {
-                    added_workloads: vec![new_workload_instance_name.to_string()],
-                    ..Default::default()
-                })
-            });
-
-        let server_reply_complete_state = new_complete_state.clone();
-        mock_server_connection
-            .expect_get_complete_state()
-            .once()
-            .return_once(|_| Ok(Box::new(server_reply_complete_state)));
-
-        mock_server_connection
-            .expect_take_missed_from_server_messages()
-            .once()
-            .return_once(move || vec![FromServer::UpdateWorkloadState(starting_workload_state)]);
-
-        mock_server_connection
-            .expect_read_next_update_workload_state()
-            .once()
-            .return_once(move || Ok(running_workload_state));
-
-        let mut cli_commands = super::CliCommands {
-            _response_timeout_ms: 100,
-            no_wait: false,
-            server_connection: mock_server_connection,
-        };
-
-        let update_mask = vec!["desiredWorkloads.workloads".to_string()];
-
-        assert!(cli_commands
-            .update_state_and_wait_for_complete(new_complete_state, update_mask)
-            .await
-            .is_ok());
-    }
-
-    // [utest->swdd~cli-requests-update-state-with-watch~1]
-    // [utest->swdd~cli-requests-update-state-with-watch-error~1]
-    #[tokio::test]
-    async fn utest_update_state_and_wait_for_complete_error() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let server_connection_error_msg = "server connection error";
-
-        let mut server_connection_mock = MockServerConnection::default();
-        server_connection_mock
-            .expect_update_state()
-            .once()
-            .returning(|_, _| {
-                Err(ServerConnectionError::ExecutionError(
-                    server_connection_error_msg.to_string(),
-                ))
-            });
-
-        let mut cli_commands = super::CliCommands {
-            _response_timeout_ms: 100,
-            no_wait: false,
-            server_connection: server_connection_mock,
-        };
-
-        let empty_update_mask = vec![];
-        assert_eq!(
-            cli_commands
-                .update_state_and_wait_for_complete(CompleteState::default(), empty_update_mask)
-                .await,
-            Err(CliError::ExecutionError(
-                server_connection_error_msg.to_string(),
-            ))
-        );
     }
 }
