@@ -19,8 +19,14 @@ use serde::{Deserialize, Serialize};
 
 use super::{ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState};
 
+type AgentName = String;
+type WorkloadName = String;
+type WorkloadId = String;
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
-pub struct WorkloadStatesMap(HashMap<String, HashMap<String, HashMap<String, ExecutionState>>>);
+pub struct WorkloadStatesMap(
+    HashMap<AgentName, HashMap<WorkloadName, HashMap<WorkloadId, ExecutionState>>>,
+);
 
 impl WorkloadStatesMap {
     pub fn new() -> WorkloadStatesMap {
