@@ -256,8 +256,9 @@ impl CliCommands {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use super::{get_input_sources, InputSourcePair};
     use std::io;
+
+    use super::{get_input_sources, InputSourcePair};
 
     mockall::lazy_static! {
         pub static ref FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST: std::sync::Mutex<std::collections::VecDeque<io::Result<InputSourcePair>>>  =
