@@ -71,9 +71,8 @@ message UpdateStateSuccess {
 * This is a response to the [CompleteStateRequest](#completestaterequest) message.
 */
 message CompleteState {
-    State startupState = 1; /// The State information at the startup of the Ankaios System.
-    State desiredState = 2; /// The state the user wants to reach.
-    repeated WorkloadState workloadStates = 3; /// The current states of the workloads.
+    State desiredState = 1; /// The state the user wants to reach.
+    repeated WorkloadState workloadStates = 2; /// The current states of the workloads.
 }
 
 message ExecutionState {

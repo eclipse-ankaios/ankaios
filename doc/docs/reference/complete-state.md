@@ -2,14 +2,11 @@
 
 ## CompleteState
 
-The complete state data structure [CompleteState](./_ankaios.proto.md#completestate) is used for building a request to Ankaios server to change or receive the state of the Ankaios system. It contains the `startupState` which describes the states provided at the start of the Ankaios system via the [startup configuration](./startup-configuration.md), the `desiredState` which describes the state of the Ankaios system the user wants to have and the `workloadStates` which gives the information about the execution state of all the workloads. By using of [CompleteState](./_ankaios.proto.md#completestate) in conjunction with the object field mask specific parts of the Ankaios state could be retrieved or updated.
+The complete state data structure [CompleteState](./_ankaios.proto.md#completestate) is used for building a request to Ankaios server to change or receive the state of the Ankaios system. It contains the `desiredState` which describes the state of the Ankaios system the user wants to have and the `workloadStates` which gives the information about the execution state of all the workloads. By using of [CompleteState](./_ankaios.proto.md#completestate) in conjunction with the object field mask specific parts of the Ankaios state could be retrieved or updated.
 
 Example: `ank get state` returns the complete state of Ankaios system:
 
 ```bash
-startupState:
-  apiVersion: v0.1
-  workloads: {}
 desiredState:
   apiVersion: v0.1
   workloads:

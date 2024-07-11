@@ -29,8 +29,8 @@ ${new_state_yaml_file}          ${EMPTY}
 
 # [stest->swdd~server-state-rejects-state-with-cyclic-dependencies~1]
 # [stest->swdd~server-fails-on-invalid-startup-state~1]
-Test Ankaios reject startup state config with cyclic interworkload dependencies
-    [Documentation]    The cycle is workload_A <-> workload_B inside startup state.
+Test Ankaios reject startup config with cyclic interworkload dependencies
+    [Documentation]    The cycle is workload_A <-> workload_B inside startup config.
     [Setup]    Run Keywords    Setup Ankaios
 
     # Preconditions

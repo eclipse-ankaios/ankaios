@@ -38,7 +38,7 @@ For simplicity, the initial setup of the Ankaios Server done in the main.rs is a
 
 ### StartupStateLoader
 
-The StartupStateLoader loads the initial startup state, parses it and pushes it into the AnkaiosServer. The StartupStateLoader is also responsible for persisting the startup state.
+The StartupStateLoader loads the initial startup manifest file, parses it and pushes it into the AnkaiosServer. The StartupStateLoader is also responsible for persisting the startup configuration.
 
 ### Communication Middleware
 
@@ -360,7 +360,6 @@ Status: approved
 The Ankaios Server provides an interface to get the CompleteState.
 The CompleteState includes:
 
-- StartupState
 - DesiredState
 - WorkloadState
 

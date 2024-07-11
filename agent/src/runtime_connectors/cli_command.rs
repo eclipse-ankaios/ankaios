@@ -8,6 +8,8 @@ pub use tests::MockCliCommand;
 pub struct CliCommand<'a> {
     command: Command,
     stdin: Option<&'a [u8]>,
+    program: String,
+    args: Vec<String>,
 }
 
 impl<'a> CliCommand<'a> {
@@ -20,11 +22,14 @@ impl<'a> CliCommand<'a> {
         Self {
             command,
             stdin: None,
+            program: program.to_owned(),
+            args: Vec::new(),
         }
     }
 
     pub fn args(&mut self, args: &[&str]) -> &mut Self {
         self.command.args(args);
+        self.args = args.iter().map(|s| s.to_string()).collect();
         self
     }
 
@@ -34,10 +39,12 @@ impl<'a> CliCommand<'a> {
     }
 
     pub async fn exec(&mut self) -> Result<String, String> {
-        let mut child = self
-            .command
-            .spawn()
-            .map_err(|err| format!("Could not execute command: {}", err))?;
+        let mut child = self.command.spawn().map_err(|err| {
+            format!(
+                "Error: '{}'. Could not spawn command '{:?}'.",
+                err, self.command
+            )
+        })?;
 
         if let Some(stdin) = self.stdin {
             child
@@ -46,18 +53,34 @@ impl<'a> CliCommand<'a> {
                 .ok_or_else(|| "Could not access commands stdin".to_string())?
                 .write_all(stdin)
                 .await
-                .map_err(|err| format!("Could write data to command: {}", err))?;
+                .map_err(|err| format!("Could write stdin data to command: '{}'", err))?;
         }
         let result = child.wait_with_output().await.unwrap();
         if result.status.success() {
             String::from_utf8(result.stdout)
-                .map_err(|err| format!("Could not decode command's output as UTF8: {}", err))
+                .map_err(|err| format!("Could not decode command's output as UTF8: '{}'", err))
         } else {
             let stderr = String::from_utf8(result.stderr).unwrap_or_else(|err| {
-                format!("Could not decode command's stderr as UTF8: {}", err)
+                format!("Could not decode command's stderr as UTF8: '{}'", err)
             });
-            Err(format!("Execution of command failed: {}", stderr.trim()))
+
+            let args_with_quotes = self.get_quoted_args(); // quoted args for easy debugging of the user
+
+            Err(format!(
+                "{}. Execution of '{} {}'",
+                stderr.trim(),
+                self.program,
+                args_with_quotes,
+            ))
         }
+    }
+
+    fn get_quoted_args(&self) -> String {
+        self.args
+            .iter()
+            .map(|arg| format!("\"{}\"", arg))
+            .collect::<Vec<String>>()
+            .join(" ")
     }
 }
 
@@ -99,7 +122,7 @@ mod tests {
     #[tokio::test]
     async fn utest_cli_command_fail_on_not_existing_command() {
         let result = CliCommand::new("non_existing_command").exec().await;
-        assert!(matches!(result, Err(x) if x.starts_with("Could not execute command")));
+        assert!(matches!(result, Err(x) if x.contains("Could not spawn command")));
     }
 
     #[tokio::test]
@@ -129,7 +152,13 @@ mod tests {
             .exec()
             .await;
 
-        assert!(matches!(result, Err(x) if x== "Execution of command failed: error"));
+        assert_eq!(
+            result,
+            Err(
+                "error. Execution of 'bash \"-c\" \"echo output;echo error >&2; false\"'"
+                    .to_string()
+            )
+        );
     }
 
     #[tokio::test]
@@ -151,7 +180,7 @@ mod tests {
             .await;
 
         assert!(
-            matches!(result, Err(x) if x.starts_with("Execution of command failed: Could not decode command's stderr as UTF8"))
+            matches!(result, Err(x) if x.contains("Could not decode command's stderr as UTF8"))
         );
     }
 

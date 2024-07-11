@@ -1,5 +1,18 @@
-use std::io::{self, Read};
+// Copyright (c) 2024 Elektrobit Automotive GmbH
+//
+// This program and the accompanying materials are made available under the
+// terms of the Apache License, Version 2.0 which is available at
+// https://www.apache.org/licenses/LICENSE-2.0.
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
 
+use std::io::{self, Read};
 use common::{
     objects::{CompleteState, StoredWorkloadSpec},
     state_manipulation::{Object, Path},
@@ -9,7 +22,8 @@ use common::{
 async fn read_file_to_string(file: String) -> std::io::Result<String> {
     std::fs::read_to_string(file)
 }
-// #[cfg(test)]
+
+#[cfg(test)]
 use tests::read_to_string_mock as read_file_to_string;
 
 use crate::{cli_error::CliError, output_and_error, output_debug};
@@ -69,7 +83,6 @@ fn overwrite_using_field_mask(
     object_field_mask: &Vec<String>,
     temp_obj: &Object,
 ) {
-    // let mut complete_state_object: Object = *complete_state.try_into();
     for field_mask in object_field_mask {
         let path: Path = field_mask.into();
 
@@ -90,7 +103,6 @@ fn overwrite_using_field_mask(
             .map_err(|err| CliError::ExecutionError(err.to_string()))
             .unwrap();
     }
-    // *complete_state = complete_state_object.try_into()?;
 }
 
 impl CliCommands {
