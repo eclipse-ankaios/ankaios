@@ -295,20 +295,6 @@ Needs:
 - impl
 - utest
 
-#### Server deletes removed Workload State
-`swdd~server-deletes-removed-workload-state~1`
-
-Status: approved
-
-When the WorkloadStateDB receives a workload state stating a workload was removed, the WorkloadStateDB shall delete that state from its storage.
-
-Tags:
-- WorkloadStateDB
-
-Needs:
-- impl
-- utest
-
 ### Workload State update on disconnected agents
 The following diagram shows the sequence of updating the Workload States of a disconnected agent and the distribution of its Workload States to other connected agents:
 

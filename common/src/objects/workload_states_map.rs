@@ -28,6 +28,7 @@ pub struct WorkloadStatesMap(
     HashMap<AgentName, HashMap<WorkloadName, HashMap<WorkloadId, ExecutionState>>>,
 );
 
+// [impl->swdd~state-map-for-workload-execution-states~1]
 impl WorkloadStatesMap {
     pub fn new() -> WorkloadStatesMap {
         WorkloadStatesMap(HashMap::new())
@@ -40,9 +41,6 @@ impl WorkloadStatesMap {
         self.0.entry(key)
     }
 
-    // TODO: fix all the requirements tracing
-
-    // [impl->swdd~server-distribute-workload-state-on-disconnect~1]
     pub fn get_workload_state_for_agent(&self, agent_name: &str) -> Vec<WorkloadState> {
         self.0
             .get(agent_name)
@@ -60,7 +58,6 @@ impl WorkloadStatesMap {
             .unwrap_or_default()
     }
 
-    // [impl->swdd~server-informs-a-newly-connected-agent-workload-states~1]
     pub fn get_workload_state_excluding_agent(
         &self,
         excluding_agent_name: &str,
@@ -85,7 +82,6 @@ impl WorkloadStatesMap {
             .collect()
     }
 
-    // [impl->swdd~server-set-workload-state-on-disconnect~1]
     pub fn agent_disconnected(&mut self, agent_name: &str) {
         if let Some(agent_states) = self.0.get_mut(agent_name) {
             agent_states.iter_mut().for_each(|(_, name_map)| {
@@ -96,7 +92,6 @@ impl WorkloadStatesMap {
         }
     }
 
-    // [impl->swdd~server-sets-state-of-new-workloads-to-pending~1]
     pub fn initial_state(&mut self, workload_specs: &Vec<WorkloadSpec>) {
         for spec in workload_specs {
             self.entry(spec.instance_name.agent_name().to_owned())
@@ -112,7 +107,6 @@ impl WorkloadStatesMap {
         }
     }
 
-    // [impl->swdd~server-deletes-removed-workload-state~1]
     pub fn remove(&mut self, instance_name: &WorkloadInstanceName) {
         if let Some(agent_states) = self.0.get_mut(instance_name.agent_name()) {
             if let Some(workload_states) = agent_states.get_mut(instance_name.workload_name()) {
@@ -128,7 +122,6 @@ impl WorkloadStatesMap {
         }
     }
 
-    // [impl->swdd~server-stores-workload-state~1]
     pub fn process_new_states(&mut self, workload_states: Vec<WorkloadState>) {
         workload_states.into_iter().for_each(|workload_state| {
             if workload_state.execution_state.is_removed() {
@@ -323,6 +316,7 @@ pub fn generate_test_workload_states_map_from_workload_states(
     wl_states_map
 }
 
+// [utest->swdd~state-map-for-workload-execution-states~1]
 #[cfg(test)]
 mod tests {
     use std::vec;
@@ -396,7 +390,6 @@ mod tests {
         )
     }
 
-    // [utest->swdd~server-stores-workload-state~1]
     #[test]
     fn utest_workload_states_store_new() {
         let mut wls_db = create_test_setup();
@@ -432,7 +425,6 @@ mod tests {
         )
     }
 
-    // [utest->swdd~server-stores-workload-state~1]
     #[test]
     fn utest_workload_states_store_update() {
         let mut wls_db = create_test_setup();
@@ -463,7 +455,6 @@ mod tests {
         )
     }
 
-    // [utest->swdd~server-informs-a-newly-connected-agent-workload-states~1]
     #[test]
     fn utest_get_workload_states_excluding_agent_returns_correct() {
         let wls_db = create_test_setup();
@@ -492,7 +483,6 @@ mod tests {
         )
     }
 
-    // [utest->swdd~server-set-workload-state-on-disconnect~1]
     #[test]
     fn utest_mark_all_workload_state_for_agent_disconnected() {
         let mut wls_db = create_test_setup();
@@ -521,7 +511,6 @@ mod tests {
         )
     }
 
-    // [utest->swdd~server-distribute-workload-state-on-disconnect~1]
     #[test]
     fn utest_get_workload_state_for_agent_returns_workload_state_of_existing_agent_name() {
         let wls_db = create_test_setup();
@@ -550,7 +539,6 @@ mod tests {
         )
     }
 
-    // [utest->swdd~server-distribute-workload-state-on-disconnect~1]
     #[test]
     fn utest_get_workload_state_for_agent_returns_empty_list_of_non_existing_agent_name() {
         let wls_db = create_test_setup();
@@ -560,7 +548,6 @@ mod tests {
         );
     }
 
-    // [utest->swdd~server-deletes-removed-workload-state~1]
     #[test]
     fn utest_workload_states_deletes_removed() {
         let mut wls_db = create_test_setup();
@@ -591,7 +578,6 @@ mod tests {
         )
     }
 
-    // [utest->swdd~server-sets-state-of-new-workloads-to-pending~1]
     #[test]
     fn utest_workload_states_initial_state() {
         let mut wls_db = WorkloadStatesMap::new();

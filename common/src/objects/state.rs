@@ -23,7 +23,7 @@ use api::ank_base;
 
 const CURRENT_API_VERSION: &str = "v0.1";
 
-// [impl->swdd~common-object-representation~1]#[accessible_by_field_name]
+// [impl->swdd~common-object-representation~1]
 // [impl->swdd~common-object-serialization~1]
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
