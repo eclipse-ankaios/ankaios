@@ -10,7 +10,7 @@ async fn read_file_to_string(file: String) -> std::io::Result<String> {
     std::fs::read_to_string(file)
 }
 // #[cfg(test)]
-// use tests::read_to_string_mock as read_file_to_string;
+use tests::read_to_string_mock as read_file_to_string;
 
 use crate::{cli_error::CliError, output_and_error, output_debug};
 
@@ -141,12 +141,19 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cli_commands::server_connection::MockServerConnection;
     use common::{
-        objects::{CompleteState, StoredWorkloadSpec},
-        state_manipulation::{Object, Path},
+        commands::UpdateStateSuccess, objects::CompleteState, state_manipulation::Object,
     };
+    use mockall::predicate::eq;
     use serde_yaml::Value;
     use std::io::Cursor;
+
+    pub async fn read_to_string_mock(_file: String) -> io::Result<String> {
+        Ok(_file.into())
+    }
+
+    const RESPONSE_TIMEOUT_MS: u64 = 3000;
 
     const SAMPLE_CONFIG: &str = r#"desiredState:
         workloads:
@@ -163,7 +170,7 @@ mod tests {
               commandOptions: ["-p", "8081:80"]"#;
 
     #[test]
-    fn test_add_default_workload_spec_empty_update_mask() {
+    fn utest_add_default_workload_spec_empty_update_mask() {
         let update_mask = vec![];
         let mut complete_state = CompleteState {
             desired_state: Default::default(),
@@ -176,10 +183,9 @@ mod tests {
     }
 
     #[test]
-    fn test_add_default_workload_spec_with_update_mask() {
-        let update_mask = vec!["desiredState.workloads.nginx".to_string()];
+    fn utest_add_default_workload_spec_with_update_mask() {
+        let update_mask = vec!["desiredState.workloads.nginx.restartPolicy".to_string()];
         let mut complete_state = CompleteState {
-            desired_state: Default::default(),
             ..Default::default()
         };
 
@@ -189,7 +195,7 @@ mod tests {
     }
 
     #[test]
-    fn test_add_default_workload_spec_invalid_path() {
+    fn utest_add_default_workload_spec_invalid_path() {
         let update_mask = vec!["invalid.path".to_string()];
         let mut complete_state = CompleteState {
             desired_state: Default::default(),
@@ -202,7 +208,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_process_inputs_stdin() {
+    async fn utest_process_inputs_stdin() {
         let input = SAMPLE_CONFIG;
         let reader = Cursor::new(input);
         let state_object_file = "-".to_string();
@@ -216,32 +222,44 @@ mod tests {
         assert_eq!(temp_obj, expected_obj);
     }
 
-    // #[tokio::test]
-    // async fn test_process_inputs_file() {
-    //     // Mock the read_file_to_string function
-    //     let mut mock = MockReadFileToString::new();
-    //     mock.expect_read_to_string()
-    //         .with(eq("state_file.yaml".to_string()))
-    //         .returning(|_| Ok(SAMPLE_CONFIG.to_string()));
+    #[tokio::test]
+    async fn utest_process_inputs_file() {
+        let state_object_file = SAMPLE_CONFIG.to_owned();
+        let mut temp_obj = Object::default();
 
-    //     let state_object_file = "state_file.yaml".to_string();
-    //     let mut temp_obj = Object::default();
+        process_inputs(io::empty(), &state_object_file, &mut temp_obj).await;
 
-    //     process_inputs(io::empty(), &state_object_file, &mut temp_obj).await;
+        let value: Value = serde_yaml::from_str(SAMPLE_CONFIG).unwrap();
+        let expected_obj = Object::try_from(&value).unwrap();
 
-    //     let value: Value = serde_yaml::from_str(SAMPLE_CONFIG).unwrap();
-    //     let expected_obj = Object::try_from(&value).unwrap();
-
-    //     assert_eq!(temp_obj, expected_obj);
-    // }
+        assert_eq!(temp_obj, expected_obj);
+    }
 
     #[tokio::test]
-    async fn test_process_inputs_invalid_yaml() {
+    async fn utest_process_inputs_invalid_yaml() {
         let input = "invalid yaml";
         let reader = Cursor::new(input);
         let state_object_file = "-".to_string();
         let mut temp_obj = Object::default();
 
         process_inputs(reader, &state_object_file, &mut temp_obj).await;
+    }
+
+    /// I NEED SOME HELP ON THIS UTEST
+    #[tokio::test]
+    async fn utest_set_state_ok() {
+        let update_mask = vec!["desiredState.workloads.nginx.restartPolicy".to_string()];
+        let state_object_file = Some(SAMPLE_CONFIG.to_owned());
+
+        let mock_server_connection = MockServerConnection::default();
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let set_state_result = cmd.set_state(update_mask, state_object_file).await;
+        assert!(set_state_result.is_ok());
     }
 }
