@@ -57,6 +57,7 @@ fn add_default_workload_spec_per_update_mask(
     }
 }
 
+// [impl->swdd~cli-supports-yaml-to-set-desired-state~1]
 async fn process_inputs<R: Read>(reader: R, state_object_file: &String, temp_obj: &mut Object) {
     match state_object_file.as_str() {
         "-" => {
@@ -261,6 +262,7 @@ mod tests {
         )
     }
 
+    // [utest->swdd~cli-supports-yaml-to-set-desired-state~1]
     #[tokio::test]
     async fn utest_process_inputs_stdin() {
         let input = SAMPLE_CONFIG;
@@ -276,6 +278,7 @@ mod tests {
         assert_eq!(temp_obj, expected_obj);
     }
 
+    // [utest->swdd~cli-supports-yaml-to-set-desired-state~1]
     #[tokio::test]
     async fn utest_process_inputs_file() {
         let state_object_file = SAMPLE_CONFIG.to_owned();
@@ -289,6 +292,7 @@ mod tests {
         assert_eq!(temp_obj, expected_obj);
     }
 
+    // [utest->swdd~cli-supports-yaml-to-set-desired-state~1]
     #[tokio::test]
     async fn utest_process_inputs_invalid_yaml() {
         let input = "invalid yaml";
@@ -299,7 +303,7 @@ mod tests {
         process_inputs(reader, &state_object_file, &mut temp_obj).await;
     }
 
-    /// I NEED SOME HELP ON THIS UTEST
+    // [utest->swdd~cli-provides-set-desired-state~1]
     #[tokio::test]
     async fn utest_set_state_ok() {
         let update_mask = vec!["desiredState.workloads.nginx.restartPolicy".to_string()];
