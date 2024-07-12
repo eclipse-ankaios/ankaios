@@ -46,21 +46,91 @@ impl Authorizer {
     pub fn authorize(&self, request: &Request) -> bool {
         match &request.request_content {
             common::commands::RequestContent::CompleteStateRequest(r) => {
-                r.field_mask.iter().all(|path| {
-                    let path = path.as_str().into();
-                    (self.allow_read_state_rule.matches(&path)
-                        || self.allow_read_write_state_rule.matches(&path))
-                        && !(self.deny_read_state_rule.matches(&path)
-                            || self.deny_read_write_state_rule.matches(&path))
+                r.field_mask.iter().all(|path_string| {
+                    let path = path_string.as_str().into();
+                    let allow_reason = if let (true, reason) =
+                        self.allow_read_state_rule.matches(&path)
+                    {
+                        reason
+                    } else if let (true, reason) = self.allow_read_write_state_rule.matches(&path) {
+                        reason
+                    } else {
+                        log::debug!(
+                            "Denying field mask '{}' of request '{}' as no rule matches",
+                            path_string,
+                            request.request_id
+                        );
+                        return false;
+                    };
+
+                    let deny_reason = if let (true, reason) =
+                        self.deny_read_state_rule.matches(&path)
+                    {
+                        reason
+                    } else if let (true, reason) = self.deny_read_write_state_rule.matches(&path) {
+                        reason
+                    } else {
+                        log::debug!(
+                            "Allow field mask '{}' of request '{}' as '{}' is allowed",
+                            path_string,
+                            request.request_id,
+                            allow_reason
+                        );
+                        return true;
+                    };
+
+                    log::debug!(
+                        "Deny field mask '{}' of request '{}',also allowed by '{}', as denied by '{}'",
+                        path_string,
+                        request.request_id,
+                        allow_reason,
+                        deny_reason
+                    );
+                    false
                 })
             }
             common::commands::RequestContent::UpdateStateRequest(r) => {
-                r.update_mask.iter().all(|path| {
-                    let path = path.as_str().into();
-                    (self.allow_write_state_rule.matches(&path)
-                        || self.allow_read_write_state_rule.matches(&path))
-                        && !(self.deny_write_state_rule.matches(&path)
-                            || self.deny_read_write_state_rule.matches(&path))
+                r.update_mask.iter().all(|path_string| {
+                    let path = path_string.as_str().into();
+                    let allow_reason = if let (true, reason) =
+                        self.allow_write_state_rule.matches(&path)
+                    {
+                        reason
+                    } else if let (true, reason) = self.allow_read_write_state_rule.matches(&path) {
+                        reason
+                    } else {
+                        log::debug!(
+                            "Deny update mask '{}' of request '{}' as no rule matches",
+                            path_string,
+                            request.request_id
+                        );
+                        return false;
+                    };
+
+                    let deny_reason = if let (true, reason) =
+                        self.deny_write_state_rule.matches(&path)
+                    {
+                        reason
+                    } else if let (true, reason) = self.deny_read_write_state_rule.matches(&path) {
+                        reason
+                    } else {
+                        log::debug!(
+                            "Allow update mask '{}' of request '{}' as '{}' is allowed",
+                            path_string,
+                            request.request_id,
+                            allow_reason
+                        );
+                        return true;
+                    };
+
+                    log::debug!(
+                        "Deny update mask '{}' of request '{}', also allowed by '{}', as denied by '{}'",
+                        path_string,
+                        request.request_id,
+                        allow_reason,
+                        deny_reason
+                    );
+                    false
                 })
             }
         }
@@ -126,8 +196,17 @@ struct Rule<P: PathPattern> {
 }
 
 impl<P: PathPattern> PathPattern for Rule<P> {
-    fn matches(&self, path: &Path) -> bool {
-        self.patterns.iter().any(|p| p.matches(path))
+    fn matches(&self, path: &Path) -> (bool, PathPatternMatchReason) {
+        self.patterns
+            .iter()
+            .find_map(|p| {
+                if let (true, reason) = p.matches(path) {
+                    Some((true, reason))
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| (false, String::new()))
     }
 }
 
@@ -148,13 +227,25 @@ impl From<&str> for Path {
     }
 }
 
-trait PathPattern {
-    fn matches(&self, other: &Path) -> bool;
+impl ToString for Path {
+    fn to_string(&self) -> String {
+        self.sections.join(".")
+    }
 }
 
-impl<T: PathPattern> PathPattern for Vec<T> {
-    fn matches(&self, path: &Path) -> bool {
-        self.iter().any(|r| r.matches(path))
+type PathPatternMatchReason = String;
+trait PathPattern {
+    fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason);
+}
+
+impl<T: PathPattern + std::fmt::Debug> PathPattern for Vec<T> {
+    fn matches(&self, path: &Path) -> (bool, PathPatternMatchReason) {
+        for r in self {
+            if let (true, reason) = r.matches(path) {
+                return (true, reason);
+            }
+        }
+        return (false, String::new());
     }
 }
 
@@ -172,14 +263,24 @@ impl From<&str> for AllowPathPattern {
 }
 
 impl PathPattern for AllowPathPattern {
-    fn matches(&self, other: &Path) -> bool {
+    fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason) {
         if self.sections.len() > other.sections.len() {
-            return false;
+            return (false, String::new());
         }
-        self.sections
-            .iter()
-            .zip(other.sections.iter())
-            .all(|(a, b)| a.matches(b))
+        for (a, b) in self.sections.iter().zip(other.sections.iter()) {
+            if !a.matches(b) {
+                return (false, String::new());
+            }
+        }
+
+        (
+            true,
+            self.sections
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("."),
+        )
     }
 }
 
@@ -197,12 +298,20 @@ impl From<&str> for DenyPathPattern {
 }
 
 impl PathPattern for DenyPathPattern {
-    fn matches(&self, other: &Path) -> bool {
-        !self
-            .sections
-            .iter()
-            .zip(other.sections.iter())
-            .any(|(a, b)| !a.matches(b))
+    fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason) {
+        for (a, b) in self.sections.iter().zip(other.sections.iter()) {
+            if !a.matches(b) {
+                return (false, String::new());
+            }
+        }
+        (
+            true,
+            self.sections
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join("."),
+        )
     }
 }
 
@@ -218,6 +327,15 @@ impl From<&str> for PathPatterSection {
             Self::Wildcard
         } else {
             Self::String(value.into())
+        }
+    }
+}
+
+impl ToString for PathPatterSection {
+    fn to_string(&self) -> String {
+        match self {
+            PathPatterSection::Wildcard => "*".into(),
+            PathPatterSection::String(s) => s.clone(),
         }
     }
 }
@@ -247,12 +365,12 @@ mod tests {
     fn utest_allow_path_pattern() {
         let p = AllowPathPattern::from("some.pre.fix");
 
-        assert!(p.matches(&"some.pre.fix".into()));
-        assert!(p.matches(&"some.pre.fix.test".into()));
-        assert!(!p.matches(&"some.pre".into()));
-        assert!(!p.matches(&"some.pre.fixtest".into()));
-        assert!(!p.matches(&"some.pre.test".into()));
-        assert!(!p.matches(&"some.pre.test.2".into()));
+        assert!(p.matches(&"some.pre.fix".into()).0);
+        assert!(p.matches(&"some.pre.fix.test".into()).0);
+        assert!(!p.matches(&"some.pre".into()).0);
+        assert!(!p.matches(&"some.pre.fixtest".into()).0);
+        assert!(!p.matches(&"some.pre.test".into()).0);
+        assert!(!p.matches(&"some.pre.test.2".into()).0);
     }
 
     #[test]
@@ -260,52 +378,52 @@ mod tests {
         let p = AllowPathPattern::from("some.*.fix");
         println!("Patterh: {:?}", p);
 
-        assert!(p.matches(&"some.pre.fix".into()));
-        assert!(p.matches(&"some.pre.fix.test".into()));
-        assert!(!p.matches(&"some.pre".into()));
-        assert!(!p.matches(&"some.pre.fixtest".into()));
-        assert!(!p.matches(&"some.pre.test".into()));
-        assert!(!p.matches(&"some.pre.test.2".into()));
-        assert!(p.matches(&"some.pre2.fix".into()));
-        assert!(p.matches(&"some.pre2.fix.test".into()));
-        assert!(!p.matches(&"some.pre2".into()));
-        assert!(!p.matches(&"some.pre2.fixtest".into()));
-        assert!(!p.matches(&"some.pre2.test".into()));
-        assert!(!p.matches(&"some.pre2.test.2".into()));
+        assert!(p.matches(&"some.pre.fix".into()).0);
+        assert!(p.matches(&"some.pre.fix.test".into()).0);
+        assert!(!p.matches(&"some.pre".into()).0);
+        assert!(!p.matches(&"some.pre.fixtest".into()).0);
+        assert!(!p.matches(&"some.pre.test".into()).0);
+        assert!(!p.matches(&"some.pre.test.2".into()).0);
+        assert!(p.matches(&"some.pre2.fix".into()).0);
+        assert!(p.matches(&"some.pre2.fix.test".into()).0);
+        assert!(!p.matches(&"some.pre2".into()).0);
+        assert!(!p.matches(&"some.pre2.fixtest".into()).0);
+        assert!(!p.matches(&"some.pre2.test".into()).0);
+        assert!(!p.matches(&"some.pre2.test.2".into()).0);
     }
 
     #[test]
     fn utest_deny_path_pattern() {
         let p = DenyPathPattern::from("some.pre.fix");
 
-        assert!(p.matches(&"".into()));
-        assert!(p.matches(&"some.pre".into()));
-        assert!(p.matches(&"some.pre.fix".into()));
-        assert!(p.matches(&"some.pre.fix.test".into()));
-        assert!(!p.matches(&"some2.pre".into()));
-        assert!(!p.matches(&"some2.pre.fix".into()));
-        assert!(!p.matches(&"some.pre.fix2".into()));
-        assert!(!p.matches(&"some.pre.fix2.test".into()));
+        assert!(p.matches(&"".into()).0);
+        assert!(p.matches(&"some.pre".into()).0);
+        assert!(p.matches(&"some.pre.fix".into()).0);
+        assert!(p.matches(&"some.pre.fix.test".into()).0);
+        assert!(!p.matches(&"some2.pre".into()).0);
+        assert!(!p.matches(&"some2.pre.fix".into()).0);
+        assert!(!p.matches(&"some.pre.fix2".into()).0);
+        assert!(!p.matches(&"some.pre.fix2.test".into()).0);
     }
 
     #[test]
     fn utest_deny_path_pattern_with_wildcard() {
         let p = DenyPathPattern::from("some.*.fix");
 
-        assert!(p.matches(&"".into()));
-        assert!(p.matches(&"some.pre".into()));
-        assert!(p.matches(&"some.pre.fix".into()));
-        assert!(p.matches(&"some.pre.fix.test".into()));
-        assert!(!p.matches(&"some2.pre".into()));
-        assert!(!p.matches(&"some2.pre.fix".into()));
-        assert!(!p.matches(&"some.pre.fix2".into()));
-        assert!(!p.matches(&"some.pre.fix2.test".into()));
-        assert!(p.matches(&"some.pre2".into()));
-        assert!(p.matches(&"some.pre2.fix".into()));
-        assert!(p.matches(&"some.pre2.fix.test".into()));
-        assert!(!p.matches(&"some2.pre2".into()));
-        assert!(!p.matches(&"some2.pre2.fix".into()));
-        assert!(!p.matches(&"some.pre2.fix2".into()));
-        assert!(!p.matches(&"some.pre2.fix2.test".into()));
+        assert!(p.matches(&"".into()).0);
+        assert!(p.matches(&"some.pre".into()).0);
+        assert!(p.matches(&"some.pre.fix".into()).0);
+        assert!(p.matches(&"some.pre.fix.test".into()).0);
+        assert!(!p.matches(&"some2.pre".into()).0);
+        assert!(!p.matches(&"some2.pre.fix".into()).0);
+        assert!(!p.matches(&"some.pre.fix2".into()).0);
+        assert!(!p.matches(&"some.pre.fix2.test".into()).0);
+        assert!(p.matches(&"some.pre2".into()).0);
+        assert!(p.matches(&"some.pre2.fix".into()).0);
+        assert!(p.matches(&"some.pre2.fix.test".into()).0);
+        assert!(!p.matches(&"some2.pre2".into()).0);
+        assert!(!p.matches(&"some2.pre2.fix".into()).0);
+        assert!(!p.matches(&"some.pre2.fix2".into()).0);
+        assert!(!p.matches(&"some.pre2.fix2.test".into()).0);
     }
 }
