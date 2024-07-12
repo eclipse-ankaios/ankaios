@@ -32,13 +32,13 @@ CN = ankaios-ca
 Generate CA key:
 
 ```shell
-sudo openssl genpkey -algorithm ED25519 -out "/etc/ankaios/certs/ca-key.pem"
+sudo openssl genpkey -algorithm ED25519 -out "./ca-key.pem"
 ```
 
 Generate CA certificate:
 
 ```shell
-sudo openssl req -config "./ca.cnf" -new -x509 -key "/etc/ankaios/certs/ca-key.pem" -out "/etc/ankaios/certs/ca.pem"
+sudo openssl req -config "./ca.cnf" -new -x509 -key "./ca-key.pem" -out "/etc/ankaios/certs/ca.pem"
 ```
 
 ## Generate key and certificate for `ank-server`
@@ -77,7 +77,7 @@ sudo openssl req -config "./ank-server.cnf" -new -key "/etc/ankaios/certs/ank-se
 Generate ank-server certificate:
 
 ```shell
-sudo openssl x509 -req -in "./ank-server.csr" -CA "/etc/ankaios/certs/ca.pem" -CAkey "/etc/ankaios/certs/ca-key.pem" -extensions v3_req -extfile "./ank-server.cnf" -out "/etc/ankaios/certs/ank-server.pem"
+sudo openssl x509 -req -in "./ank-server.csr" -CA "/etc/ankaios/certs/ca.pem" -CAkey "./ca-key.pem" -extensions v3_req -extfile "./ank-server.cnf" -out "/etc/ankaios/certs/ank-server.pem"
 ```
 
 ## Generate key and certificate for `ank-agent`
@@ -121,7 +121,7 @@ sudo openssl req -config "./ank-agent.cnf" -new -key "/etc/ankaios/certs/ank-age
 Generate ank-agent certificate:
 
 ```shell
-sudo openssl x509 -req -in "./ank-agent.csr" -CA "/etc/ankaios/certs/ca.pem" -CAkey "/etc/ankaios/certs/ca-key.pem" -extensions v3_req -extfile "./ank-agent.cnf" -out "/etc/ankaios/certs/ank-agent.pem"
+sudo openssl x509 -req -in "./ank-agent.csr" -CA "/etc/ankaios/certs/ca.pem" -CAkey "./ca-key.pem" -extensions v3_req -extfile "./ank-agent.cnf" -out "/etc/ankaios/certs/ank-agent.pem"
 ```
 
 ## Generate key and certificate for the CLI `ank`
@@ -160,7 +160,7 @@ openssl req -config "./ank.cnf" -new -key "${XDG_CONFIG_HOME:-$HOME/.config}/ank
 Generate ank certificate:
 
 ```shell
-sudo openssl x509 -req -in "./ank.csr" -CA "/etc/ankaios/certs/ca.pem" -CAkey "/etc/ankaios/certs/ca-key.pem" -extensions v3_req -extfile "./ank.cnf" -out "${XDG_CONFIG_HOME:-$HOME/.config}/ankaios/ank.pem"
+sudo openssl x509 -req -in "./ank.csr" -CA "/etc/ankaios/certs/ca.pem" -CAkey "./ca-key.pem" -extensions v3_req -extfile "./ank.cnf" -out "${XDG_CONFIG_HOME:-$HOME/.config}/ankaios/ank.pem"
 ```
 
 ## Perform Ankaios installation with mTLS support
