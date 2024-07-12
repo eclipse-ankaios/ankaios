@@ -245,7 +245,7 @@ impl<T: PathPattern + std::fmt::Debug> PathPattern for Vec<T> {
                 return (true, reason);
             }
         }
-        return (false, String::new());
+        (false, String::new())
     }
 }
 
@@ -257,7 +257,11 @@ struct AllowPathPattern {
 impl From<&str> for AllowPathPattern {
     fn from(value: &str) -> Self {
         Self {
-            sections: value.split(PATH_SEPARATOR).map(Into::into).collect(),
+            sections: if value.is_empty() {
+                Vec::new()
+            } else {
+                value.split(PATH_SEPARATOR).map(Into::into).collect()
+            },
         }
     }
 }
@@ -292,7 +296,11 @@ struct DenyPathPattern {
 impl From<&str> for DenyPathPattern {
     fn from(value: &str) -> Self {
         Self {
-            sections: value.split(PATH_SEPARATOR).map(Into::into).collect(),
+            sections: if value.is_empty() {
+                Vec::new()
+            } else {
+                value.split(PATH_SEPARATOR).map(Into::into).collect()
+            },
         }
     }
 }
@@ -367,6 +375,7 @@ mod tests {
 
         assert!(p.matches(&"some.pre.fix".into()).0);
         assert!(p.matches(&"some.pre.fix.test".into()).0);
+        assert!(!p.matches(&"".into()).0);
         assert!(!p.matches(&"some.pre".into()).0);
         assert!(!p.matches(&"some.pre.fixtest".into()).0);
         assert!(!p.matches(&"some.pre.test".into()).0);
@@ -376,7 +385,6 @@ mod tests {
     #[test]
     fn utest_allow_path_pattern_with_wildcard() {
         let p = AllowPathPattern::from("some.*.fix");
-        println!("Patterh: {:?}", p);
 
         assert!(p.matches(&"some.pre.fix".into()).0);
         assert!(p.matches(&"some.pre.fix.test".into()).0);
@@ -390,6 +398,14 @@ mod tests {
         assert!(!p.matches(&"some.pre2.fixtest".into()).0);
         assert!(!p.matches(&"some.pre2.test".into()).0);
         assert!(!p.matches(&"some.pre2.test.2".into()).0);
+    }
+
+    #[test]
+    fn utest_empty_allow_path_pattern() {
+        let p = AllowPathPattern::from("");
+
+        assert!(p.matches(&"".into()).0);
+        assert!(p.matches(&"some.pre".into()).0);
     }
 
     #[test]
@@ -425,5 +441,13 @@ mod tests {
         assert!(!p.matches(&"some2.pre2.fix".into()).0);
         assert!(!p.matches(&"some.pre2.fix2".into()).0);
         assert!(!p.matches(&"some.pre2.fix2.test".into()).0);
+    }
+
+    #[test]
+    fn utest_empty_deny_path_pattern() {
+        let p = DenyPathPattern::from("");
+
+        assert!(p.matches(&"".into()).0);
+        assert!(p.matches(&"some.pre".into()).0);
     }
 }
