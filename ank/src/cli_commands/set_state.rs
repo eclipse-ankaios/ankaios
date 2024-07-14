@@ -64,8 +64,12 @@ async fn process_inputs<R: Read>(reader: R, state_object_file: &String, temp_obj
             let stdin = io::read_to_string(reader).unwrap_or_else(|error| {
                 output_and_error!("Could not read the state object file.\nError: {}", error)
             });
-            let value: serde_yaml::Value = serde_yaml::from_str(&stdin).unwrap();
-            *temp_obj = Object::try_from(&value).unwrap();
+            let value: serde_yaml::Value = serde_yaml::from_str(&stdin).unwrap_or_else(|error| {
+                output_and_error!("Could not convert to yaml Value.\nError: {}", error)
+            });
+            *temp_obj = Object::try_from(&value).unwrap_or_else(|error| {
+                output_and_error!("Could not convert object.\n Error: {}", error)
+            });
         }
         _ => {
             let state_object_data = read_file_to_string(state_object_file.clone())
@@ -73,8 +77,13 @@ async fn process_inputs<R: Read>(reader: R, state_object_file: &String, temp_obj
                 .unwrap_or_else(|error| {
                     output_and_error!("Could not read the state object file.\nError: {}", error)
                 });
-            let value: serde_yaml::Value = serde_yaml::from_str(&state_object_data).unwrap();
-            *temp_obj = Object::try_from(&value).unwrap();
+            let value: serde_yaml::Value =
+                serde_yaml::from_str(&state_object_data).unwrap_or_else(|error| {
+                    output_and_error!("Could not convert to yaml Value.\nError: {}", error)
+                });
+            *temp_obj = Object::try_from(&value).unwrap_or_else(|error| {
+                output_and_error!("Could not convert object.\n Error: {}", error)
+            });
         }
     }
 }
@@ -95,11 +104,21 @@ fn overwrite_using_field_mask(
                     .ok_or(CliError::ExecutionError(format!(
                         "Specified update mask '{field_mask}' not found in the input config.",
                     )))
-                    .unwrap()
+                    .unwrap_or_else(|error| {
+                        output_and_error!(
+                            "Encountered error while overwritting using field mask. Error: {}",
+                            error
+                        )
+                    })
                     .clone(),
             )
             .map_err(|err| CliError::ExecutionError(err.to_string()))
-            .unwrap();
+            .unwrap_or_else(|error| {
+                output_and_error!(
+                    "Encountered error while overwritting using field mask. Error: {}",
+                    error
+                )
+            });
     }
 }
 
