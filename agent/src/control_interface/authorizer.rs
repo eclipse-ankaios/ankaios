@@ -36,7 +36,7 @@ impl Authorizer {
         Self {
             allow_write_state_rule: vec![Rule {
                 patterns: vec![AllowPathPattern {
-                    sections: vec![PathPatterSection::String(name.into())],
+                    sections: vec![PathPatternSection::String(name.into())],
                 }],
             }],
             ..Default::default()
@@ -251,7 +251,7 @@ impl<T: PathPattern + std::fmt::Debug> PathPattern for Vec<T> {
 
 #[derive(Clone, Debug, PartialEq)]
 struct AllowPathPattern {
-    sections: Vec<PathPatterSection>,
+    sections: Vec<PathPatternSection>,
 }
 
 impl From<&str> for AllowPathPattern {
@@ -290,7 +290,7 @@ impl PathPattern for AllowPathPattern {
 
 #[derive(Clone, Debug, PartialEq)]
 struct DenyPathPattern {
-    sections: Vec<PathPatterSection>,
+    sections: Vec<PathPatternSection>,
 }
 
 impl From<&str> for DenyPathPattern {
@@ -324,12 +324,12 @@ impl PathPattern for DenyPathPattern {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-enum PathPatterSection {
+enum PathPatternSection {
     Wildcard,
     String(String),
 }
 
-impl From<&str> for PathPatterSection {
+impl From<&str> for PathPatternSection {
     fn from(value: &str) -> Self {
         if value == WILDCARD_SYMBOL {
             Self::Wildcard
@@ -339,20 +339,20 @@ impl From<&str> for PathPatterSection {
     }
 }
 
-impl ToString for PathPatterSection {
+impl ToString for PathPatternSection {
     fn to_string(&self) -> String {
         match self {
-            PathPatterSection::Wildcard => "*".into(),
-            PathPatterSection::String(s) => s.clone(),
+            PathPatternSection::Wildcard => "*".into(),
+            PathPatternSection::String(s) => s.clone(),
         }
     }
 }
 
-impl PathPatterSection {
+impl PathPatternSection {
     pub fn matches(&self, other: &String) -> bool {
         match self {
-            PathPatterSection::Wildcard => true,
-            PathPatterSection::String(self_string) => self_string == other,
+            PathPatternSection::Wildcard => true,
+            PathPatternSection::String(self_string) => self_string == other,
         }
     }
 }
