@@ -19,8 +19,9 @@ use std::{
 
 use crate::control_interface::Authorizer;
 
+use api::ank_base;
+
 use common::{
-    commands::Response,
     objects::{
         AgentName, DeletedWorkload, ExecutionState, WorkloadInstanceName, WorkloadSpec,
         WorkloadState,
@@ -152,15 +153,13 @@ impl RuntimeManager {
     }
 
     // [impl->swdd~agent-forward-responses-to-control-interface-pipe~1]
-    pub async fn forward_response(&mut self, response: Response) {
+    pub async fn forward_response(&mut self, mut response: ank_base::Response) {
         // [impl->swdd~agent-uses-id-prefix-forward-control-interface-response-correct-workload~1]
         // [impl->swdd~agent-remove-id-prefix-forwarding-control-interface-response~1]
         let (workload_name, request_id) = detach_prefix_from_request_id(&response.request_id);
         if let Some(workload) = self.workloads.get_mut(&workload_name) {
-            if let Err(err) = workload
-                .forward_response(request_id, response.response_content)
-                .await
-            {
+            response.request_id = request_id;
+            if let Err(err) = workload.forward_response(response).await {
                 log::warn!(
                     "Could not forward response to workload '{}': '{}'",
                     workload_name,

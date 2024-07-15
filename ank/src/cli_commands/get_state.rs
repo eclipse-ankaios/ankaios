@@ -1,84 +1,9 @@
-use common::objects::CompleteState;
-
-use crate::{cli::OutputFormat, cli_error::CliError, output_and_error, output_debug};
+use crate::{
+    cli::OutputFormat, cli_error::CliError
+    , output_debug,
+};
 
 use super::CliCommands;
-
-fn get_filtered_value<'a>(
-    map: &'a serde_yaml::Value,
-    mask: &[&str],
-) -> Option<&'a serde_yaml::Value> {
-    mask.iter()
-        .try_fold(map, |current_level, mask_part| current_level.get(mask_part))
-}
-
-fn update_compact_state(
-    new_compact_state: &mut serde_yaml::Value,
-    mask: &[&str],
-    new_mapping: serde_yaml::Value,
-) -> Option<()> {
-    if mask.is_empty() {
-        return Some(());
-    }
-
-    let mut current_level = new_compact_state;
-
-    for mask_part in mask {
-        if current_level.get(mask_part).is_some() {
-            current_level = current_level.get_mut(mask_part)?;
-            continue;
-        }
-
-        if let serde_yaml::Value::Mapping(current_mapping) = current_level {
-            current_mapping.insert(
-                (*mask_part).into(),
-                serde_yaml::Value::Mapping(Default::default()),
-            );
-
-            current_level = current_mapping.get_mut(mask_part)?;
-        } else {
-            return None;
-        }
-    }
-
-    *current_level = new_mapping;
-    Some(())
-}
-
-fn generate_compact_state_output(
-    state: &CompleteState,
-    object_field_mask: Vec<String>,
-    output_format: OutputFormat,
-) -> Result<String, CliError> {
-    let convert_to_output = |map: serde_yaml::Value| -> Result<String, CliError> {
-        match output_format {
-            // [impl -> swdd~cli-shall-support-desired-state-yaml~1]
-            OutputFormat::Yaml => Ok(serde_yaml::to_string(&map)?),
-            // [impl -> swdd~cli-shall-support-desired-state-json~1]
-            OutputFormat::Json => Ok(serde_json::to_string_pretty(&map)?),
-        }
-    };
-
-    let deserialized_state: serde_yaml::Value = serde_yaml::to_value(state)?;
-
-    if object_field_mask.is_empty() {
-        return convert_to_output(deserialized_state);
-    }
-
-    let mut compact_state = serde_yaml::Value::Mapping(Default::default());
-    for mask in object_field_mask {
-        let splitted_masks: Vec<&str> = mask.split('.').collect();
-        if let Some(filtered_mapping) = get_filtered_value(&deserialized_state, &splitted_masks) {
-            update_compact_state(
-                &mut compact_state,
-                &splitted_masks,
-                filtered_mapping.to_owned(),
-            );
-        }
-    }
-
-    convert_to_output(compact_state)
-}
 
 impl CliCommands {
     pub async fn get_state(
@@ -92,19 +17,20 @@ impl CliCommands {
             output_format
         );
 
-        let res_complete_state = self
+        // [impl->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
+        let filtered_complete_state = self
             .server_connection
             .get_complete_state(&object_field_mask)
             .await?;
-        // [impl->swdd~cli-returns-api-version-with-desired-state~1]
-        // [impl->swdd~cli-returns-compact-state-object-when-object-field-mask-provided~1]
-        match generate_compact_state_output(&res_complete_state, object_field_mask, output_format) {
-            Ok(res) => Ok(res),
-            Err(err) => {
-                output_and_error!(
-                    "Error occurred during processing response from server.\nError: {err}"
-                );
-            }
+
+        output_debug!("Raw complete state: {:?}", filtered_complete_state);
+
+        let serialized_state: serde_yaml::Value = serde_yaml::to_value(filtered_complete_state)?;
+        match output_format {
+            // [impl -> swdd~cli-shall-support-desired-state-yaml~1]
+            OutputFormat::Yaml => Ok(serde_yaml::to_string(&serialized_state)?),
+            // [impl -> swdd~cli-shall-support-desired-state-json~1]
+            OutputFormat::Json => Ok(serde_json::to_string_pretty(&serialized_state)?),
         }
     }
 }

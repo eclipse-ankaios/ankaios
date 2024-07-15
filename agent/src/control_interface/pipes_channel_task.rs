@@ -19,9 +19,8 @@ use crate::control_interface::ToAnkaios;
 use super::authorizer::Authorizer;
 #[cfg_attr(test, mockall_double::double)]
 use super::ReopenFile;
-use api::control_api;
+use api::{ank_base, control_api};
 use common::{
-    commands::{Error, Response, ResponseContent},
     from_server_interface::{FromServer, FromServerReceiver},
     to_server_interface::{ToServer, ToServerSender},
 };
@@ -86,11 +85,11 @@ impl PipesChannelTask {
                                     let _ = self.output_pipe_channel.send(ToServer::Request(request)).await;
                                 } else {
                                     log::debug!("Denying request '{:?}' from authorizer '{:?}'", request, self.authorizer);
-                                    let error = Response {
+                                    let error = ank_base::Response {
                                         request_id: request.request_id,
-                                        response_content: ResponseContent::Error(Error {
+                                        response_content: Some(ank_base::response::ResponseContent::Error(ank_base::Error {
                                             message: "Access denied".into(),
-                                        }),
+                                        })),
                                     };
                                     let _ = self.forward_from_server(error).await;
                                 };
@@ -108,7 +107,7 @@ impl PipesChannelTask {
         tokio::spawn(self.run())
     }
 
-    async fn forward_from_server(&mut self, response: Response) -> io::Result<()> {
+    async fn forward_from_server(&mut self, response: ank_base::Response) -> io::Result<()> {
         use control_api::from_ankaios::FromAnkaiosEnum;
         let message = control_api::FromAnkaios {
             from_ankaios_enum: Some(FromAnkaiosEnum::Response(response.into())),

@@ -113,16 +113,16 @@ fn generate_test_delete_dependencies() -> HashMap<String, DeleteCondition> {
 
 pub fn generate_test_proto_workload() -> ank_base::Workload {
     ank_base::Workload {
-        agent: String::from("agent"),
-        dependencies: generate_test_proto_dependencies(),
-        restart_policy: ank_base::RestartPolicy::Always.into(),
-        runtime: String::from("runtime"),
-        runtime_config: "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
-            .to_string(),
-        tags: vec![ank_base::Tag {
+        agent: Some(String::from("agent")),
+        dependencies: Some(generate_test_proto_dependencies()),
+        restart_policy: Some(ank_base::RestartPolicy::Always.into()),
+        runtime: Some(String::from("runtime")),
+        runtime_config: Some("generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
+            .to_string()),
+        tags: Some(Tags{tags:vec![ank_base::Tag {
             key: "key".into(),
             value: "value".into(),
-        }],
+        }]}),
         control_interface_access: Default::default()
     }
 }

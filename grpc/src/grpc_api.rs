@@ -77,13 +77,8 @@ impl TryFrom<from_server_interface::FromServer> for FromServer {
                     },
                 )),
             }),
-            from_server_interface::FromServer::Response(ankaios) => Ok(FromServer {
-                from_server_enum: Some(from_server::FromServerEnum::Response(
-                    super::ank_base::Response {
-                        request_id: ankaios.request_id,
-                        response_content: Some(ankaios.response_content.into()),
-                    },
-                )),
+            from_server_interface::FromServer::Response(response) => Ok(FromServer {
+                from_server_enum: Some(from_server::FromServerEnum::Response(response)),
             }),
             from_server_interface::FromServer::Stop(_) => {
                 Err("Stop command not implemented in proto")

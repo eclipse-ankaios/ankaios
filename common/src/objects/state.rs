@@ -46,11 +46,13 @@ impl From<State> for ank_base::State {
     fn from(item: State) -> Self {
         ank_base::State {
             api_version: item.api_version,
-            workloads: item
-                .workloads
-                .into_iter()
-                .map(|(k, v)| (k, v.into()))
-                .collect(),
+            workloads: Some(ank_base::WorkloadMap {
+                workloads: item
+                    .workloads
+                    .into_iter()
+                    .map(|(k, v)| (k, v.into()))
+                    .collect(),
+            }),
         }
     }
 }
@@ -62,6 +64,8 @@ impl TryFrom<ank_base::State> for State {
         Ok(State {
             api_version: item.api_version,
             workloads: item
+                .workloads
+                .ok_or("Missing workloads map")?
                 .workloads
                 .into_iter()
                 .map(|(k, v)| Ok((k.to_owned(), v.try_into()?)))

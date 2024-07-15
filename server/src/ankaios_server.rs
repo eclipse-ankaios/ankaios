@@ -16,9 +16,12 @@ mod cycle_check;
 mod delete_graph;
 mod server_state;
 
+use api::ank_base;
 use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
-use common::objects::{CompleteState, DeletedWorkload, ExecutionState, State, WorkloadState, WorkloadStatesMap};
+use common::objects::{
+    CompleteState, DeletedWorkload, ExecutionState, State, WorkloadState, WorkloadStatesMap,
+};
 
 use common::std_extensions::IllegalStateResult;
 use common::to_server_interface::{ToServerReceiver, ToServerSender};
@@ -226,7 +229,7 @@ impl AnkaiosServer {
                                 self.to_agents
                                     .complete_state(
                                         request_id,
-                                        common::objects::CompleteState {
+                                        ank_base::CompleteState {
                                             ..Default::default()
                                         },
                                     )
@@ -255,13 +258,11 @@ impl AnkaiosServer {
                             self.to_agents
                                 .error(
                                     request_id,
-                                    common::commands::Error {
-                                        message: format!(
-                                            "Unsupported API version. Received '{}', expected '{}'",
-                                            update_state_request.state.desired_state.api_version,
-                                            State::default().api_version
-                                        ),
-                                    },
+                                    format!(
+                                        "Unsupported API version. Received '{}', expected '{}'",
+                                        update_state_request.state.desired_state.api_version,
+                                        State::default().api_version
+                                    ),
                                 )
                                 .await
                                 .unwrap_or_illegal_state();
@@ -333,9 +334,7 @@ impl AnkaiosServer {
                                 self.to_agents
                                     .error(
                                         request_id,
-                                        common::commands::Error {
-                                            message: format!("Update rejected: '{error_msg}'"),
-                                        },
+                                        format!("Update rejected: '{error_msg}'"),
                                     )
                                     .await
                                     .unwrap_or_illegal_state();

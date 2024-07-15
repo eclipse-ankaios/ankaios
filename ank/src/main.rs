@@ -18,6 +18,7 @@ mod cli;
 mod cli_commands;
 use cli_commands::CliCommands;
 mod cli_error;
+mod filtered_complete_state;
 mod log;
 
 #[cfg(test)]

@@ -45,18 +45,18 @@ impl<'a> Tabled for WorkloadTableRowWithSpinner<'a> {
 
 impl WorkloadTableRow {
     pub fn new(
-        name: &str,
-        agent: &str,
-        runtime: &str,
-        execution_state: &str,
-        additional_info: &str,
+        name: impl Into<String>,
+        agent: impl Into<String>,
+        runtime: impl Into<String>,
+        execution_state: impl Into<String>,
+        additional_info: impl Into<String>,
     ) -> Self {
         WorkloadTableRow {
-            name: name.to_string(),
-            agent: agent.to_string(),
-            runtime: runtime.to_string(),
-            execution_state: execution_state.to_string(),
-            additional_info: additional_info.to_string(),
+            name: name.into(),
+            agent: agent.into(),
+            runtime: runtime.into(),
+            execution_state: execution_state.into(),
+            additional_info: additional_info.into(),
         }
     }
 }

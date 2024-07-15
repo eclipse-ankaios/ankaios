@@ -32,7 +32,7 @@ mod set_state;
 use common::{
     communications_error::CommunicationMiddlewareError,
     from_server_interface::FromServer,
-    objects::{CompleteState, State, WorkloadInstanceName, WorkloadState},
+    objects::{CompleteState, State, WorkloadInstanceName, WorkloadState, WorkloadStatesMap},
 };
 
 use wait_list_display::WaitListDisplay;
@@ -122,31 +122,41 @@ impl CliCommands {
             .get_complete_state(&Vec::new())
             .await?;
 
-        let mut workload_infos: Vec<(WorkloadInstanceName, WorkloadTableRow)> = Vec::<WorkloadState>::from(res_complete_state.workload_states)
-            .into_iter()
-            .map(|wl_state| {
-                (
-                    wl_state.instance_name.clone(),
-                    WorkloadTableRow::new(
-                        wl_state.instance_name.workload_name(),
-                        wl_state.instance_name.agent_name(),
-                        Default::default(),
-                        &wl_state.execution_state.state.to_string(),
-                        &wl_state.execution_state.additional_info.to_string(),
-                    ),
-                )
-            })
-            .collect();
+        let mut workload_infos: Vec<(WorkloadInstanceName, WorkloadTableRow)> =
+        // TODO: fix this strange double conversion
+            Vec::<WorkloadState>::from(Into::<WorkloadStatesMap>::into(res_complete_state.workload_states.unwrap_or_default()))
+                .into_iter()
+                .map(|wl_state| {
+                    (
+                        wl_state.instance_name.clone(),
+                        WorkloadTableRow::new(
+                            wl_state.instance_name.workload_name(),
+                            wl_state.instance_name.agent_name(),
+                            "",
+                            &wl_state.execution_state.state.to_string(),
+                            &wl_state.execution_state.additional_info.to_string(),
+                        ),
+                    )
+                })
+                .collect();
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
         for wi in &mut workload_infos {
-            if let Some((_found_wl_name, found_wl_spec)) = res_complete_state
-                .desired_state
-                .workloads
-                .iter()
-                .find(|&(wl_name, wl_spec)| *wl_name == wi.1.name && wl_spec.agent == wi.1.agent)
-            {
-                wi.1.runtime = found_wl_spec.runtime.clone();
+            if let Some(ref desired_state) = res_complete_state.desired_state {
+                // TODO: switch the thing here to a match
+                if let Some(ref workloads) = desired_state.workloads {
+                    if let Some((_found_wl_name, found_wl_spec)) =
+                        workloads.iter().find(|&(wl_name, wl_spec)| {
+                            if let Some(agent_name) = &wl_spec.agent {
+                                *wl_name == wi.1.name && *agent_name == wi.1.agent
+                            } else {
+                                false
+                            }
+                        })
+                    {
+                        wi.1.runtime = found_wl_spec.runtime.clone().unwrap_or_default();
+                    }
+                }
             }
         }
 

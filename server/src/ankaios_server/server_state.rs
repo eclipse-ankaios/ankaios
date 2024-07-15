@@ -12,10 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use api::ank_base;
+
 use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
 use common::objects::{WorkloadInstanceName, WorkloadState, WorkloadStatesMap};
+use common::std_extensions::IllegalStateResult;
 use common::{
     commands::CompleteStateRequest,
     objects::{CompleteState, DeletedWorkload, State, WorkloadSpec},
@@ -154,17 +157,51 @@ impl ServerState {
     // [impl->swdd~server-filters-get-complete-state-result~2]
     pub fn get_complete_state_by_field_mask(
         &self,
-        _request_complete_state: &CompleteStateRequest,
+        request_complete_state: &CompleteStateRequest,
         workload_states_map: &WorkloadStatesMap,
-    ) -> Result<CompleteState, String> {
-        let current_complete_state = CompleteState {
+    ) -> Result<ank_base::CompleteState, String> {
+        let current_complete_state: ank_base::CompleteState = CompleteState {
             desired_state: self.state.desired_state.clone(),
             workload_states: workload_states_map.clone(),
-        };
+        }
+        .into();
 
-        // TODO: filtering is missing here
+        if !request_complete_state.field_mask.is_empty() {
+            let current_complete_state: Object =
+                current_complete_state.try_into().unwrap_or_illegal_state();
+            let mut return_state = Object::default();
 
-        Ok(current_complete_state)
+            // TODO this can probably be done better
+            let mut filters = request_complete_state.field_mask.clone();
+            if !filters
+                .iter()
+                .filter(|field| field.starts_with("desiredState"))
+                .collect::<Vec<_>>()
+                .is_empty()
+            {
+                filters.push("desiredState.apiVersion".to_string());
+            }
+
+            for field in &filters {
+                if let Some(value) = current_complete_state.get(&field.into()) {
+                    return_state.set(&field.into(), value.to_owned())?;
+                } else {
+                    log::debug!(
+                        concat!(
+                        "Result for CompleteState incomplete, as requested field does not exist:\n",
+                        "   field: {}"),
+                        field
+                    );
+                    continue;
+                };
+            }
+
+            return_state.try_into().map_err(|err: serde_yaml::Error| {
+                format!("The result for CompleteState is invalid: '{}'", err)
+            })
+        } else {
+            Ok(current_complete_state.into())
+        }
     }
 
     // [impl->swdd~agent-from-agent-field~1]
@@ -251,16 +288,21 @@ impl ServerState {
 mod tests {
     use std::collections::HashMap;
 
+    use api::ank_base;
     use common::{
         commands::CompleteStateRequest,
         objects::{
             generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
-            CompleteState, DeletedWorkload, State, WorkloadSpec, WorkloadStatesMap,
+            CompleteState, DeletedWorkload, State, StoredWorkloadSpec, WorkloadSpec,
+            WorkloadStatesMap,
         },
         test_utils::generate_test_complete_state,
     };
 
-    use crate::ankaios_server::{delete_graph::MockDeleteGraph, server_state::UpdateStateError};
+    use crate::{
+        ankaios_server::{delete_graph::MockDeleteGraph, server_state::UpdateStateError},
+        workload_state_db::WorkloadStateDB,
+    };
 
     use super::ServerState;
     const AGENT_A: &str = "agent_A";
@@ -300,15 +342,15 @@ mod tests {
 
         let request_complete_state = CompleteStateRequest { field_mask: vec![] };
 
-        let mut workload_state_db = WorkloadStatesMap::default();
-        workload_state_db.process_new_states(server_state.state.workload_states.clone().into());
+        let mut workload_state_db = WorkloadStateDB::default();
+        workload_state_db.process_new_states(server_state.state.workload_states.clone());
 
-        let received_complete_state = server_state
+        let mut complete_state = server_state
             .get_complete_state_by_field_mask(&request_complete_state, &workload_state_db)
             .unwrap();
 
         // TODO: the test currently expects the entire state to be returned as the filtering is missing
-        let expected_complete_state = server_state.state;
+        let expected_complete_state = server_state.state.into();
         assert_eq!(received_complete_state, expected_complete_state);
     }
 
@@ -334,17 +376,83 @@ mod tests {
             ],
         };
 
-        let mut workload_state_db = WorkloadStatesMap::default();
-        workload_state_db.process_new_states(server_state.state.workload_states.clone().into());
+        let mut workload_state_map = WorkloadStatesMap::default();
+        workload_state_map.process_new_states(server_state.state.workload_states.clone().into());
 
-        let received_complete_state = server_state
-            .get_complete_state_by_field_mask(&request_complete_state, &workload_state_db)
+        let complete_state = server_state
+            .get_complete_state_by_field_mask(&request_complete_state, &workload_state_map)
             .unwrap();
 
         // TODO: the test currently expects the entire state to be returned as the filtering is missing
-        let expected_complete_state = server_state.state;
+        let expected_complete_state = server_state.state.into();
         assert_eq!(received_complete_state, expected_complete_state);
     }
+
+    // TODO: check the tests from here
+    // TODO: This will be fixed with https://github.com/eclipse-ankaios/ankaios/issues/196
+    // [utest->swdd~server-provides-interface-get-complete-state~1]
+    // [utest->swdd~server-filters-get-complete-state-result~2]
+    #[test]
+    fn utest_server_state_get_complete_state_by_field_mask() {
+        let w1 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let w2 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_2.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let w3 = generate_test_workload_spec_with_param(
+            AGENT_B.to_string(),
+            WORKLOAD_NAME_3.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let server_state = ServerState {
+            state: generate_test_complete_state(vec![w1.clone(), w2.clone(), w3.clone()]),
+            ..Default::default()
+        };
+
+        let request_complete_state = CompleteStateRequest {
+            field_mask: vec![
+                format!("desiredState.workloads.{}", WORKLOAD_NAME_1),
+                format!("desiredState.workloads.{}.agent", WORKLOAD_NAME_3),
+            ],
+        };
+
+        let mut workload_state_map = WorkloadStatesMap::default();
+        workload_state_map.process_new_states(server_state.state.workload_states.clone().into());
+
+        let complete_state = server_state
+            .get_complete_state_by_field_mask(&request_complete_state, &workload_state_map)
+            .unwrap();
+
+        let mut expected_complete_state: ank_base::CompleteState =
+            server_state.state.clone().into();
+
+        // expected_complete_state.desired_state.unwrap().workloads = HashMap::from([
+        //     (
+        //         w1.instance_name.workload_name().to_owned(),
+        //         w1.clone().into(),
+        //     ),
+        //     (
+        //         w3.instance_name.workload_name().to_owned(),
+        //         StoredWorkloadSpec {
+        //             agent: AGENT_B.to_string(),
+        //             ..Default::default()
+        //         }
+        //         .into(),
+        //     ),
+        // ]);
+        // expected_complete_state.workload_states = WorkloadStatesMap::default();
+        // assert_eq!(expected_complete_state, complete_state);
+    }
+
+    // TODO: check the tests to here
 
     // [utest->swdd~agent-from-agent-field~1]
     #[test]

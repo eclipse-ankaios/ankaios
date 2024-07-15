@@ -20,7 +20,6 @@ use api::ank_base;
 use api::ank_base::response::ResponseContent;
 
 use async_trait::async_trait;
-use common::commands::Response;
 use common::from_server_interface::{
     FromServer, FromServerInterface, FromServerReceiver, FromServerSender,
 };
@@ -88,9 +87,6 @@ pub async fn forward_from_proto_to_ankaios(
                 }
                 FromServerEnum::Response(response) => {
                     // [impl->swdd~agent-adds-workload-prefix-id-control-interface-request~1]
-                    let response: Response = response
-                        .try_into()
-                        .map_err(GrpcMiddlewareError::ConversionError)?;
                     agent_tx.response(response).await?;
                 }
             }
@@ -133,7 +129,7 @@ pub async fn forward_from_ankaios_to_proto(
                 let (agent_name, request_id) =
                     detach_prefix_from_request_id(response.request_id.as_ref());
                 if let Some(sender) = agent_senders.get(&agent_name) {
-                    let response_content: ResponseContent = response.response_content.into();
+                    let response_content: Option<ResponseContent> = response.response_content;
                     log::trace!(
                         "Sending response to agent '{}': {:?}.",
                         agent_name,
@@ -146,7 +142,7 @@ pub async fn forward_from_ankaios_to_proto(
                                 grpc_api::from_server::FromServerEnum::Response(
                                     ank_base::Response {
                                         request_id,
-                                        response_content: Some(response_content),
+                                        response_content,
                                     },
                                 ),
                             ),
@@ -281,9 +277,7 @@ mod tests {
     use common::from_server_interface::FromServerInterface;
     use common::objects::{
         generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
-        StoredWorkloadSpec,
     };
-    use common::objects::{CompleteState, State, WorkloadSpec};
     use common::test_utils::*;
     use tokio::sync::mpsc::error::TryRecvError;
     use tokio::{
@@ -668,20 +662,21 @@ mod tests {
         let (to_manager, mut manager_receiver, _, mut agent_rx, agent_senders_map) =
             create_test_setup(agent_name);
 
-        let mut startup_workloads = HashMap::<String, StoredWorkloadSpec>::new();
+        let mut startup_workloads = HashMap::<String, ank_base::Workload>::new();
         startup_workloads.insert(
             String::from(WORKLOAD_NAME),
-            generate_test_stored_workload_spec(agent_name.to_string(), "my_runtime".to_string()),
+            generate_test_stored_workload_spec(agent_name.to_string(), "my_runtime".to_string())
+                .into(),
         );
 
         let my_request_id = "my_request_id".to_owned();
         let prefixed_my_request_id = format!("{agent_name}@{my_request_id}");
 
-        let test_complete_state = CompleteState {
-            desired_state: State {
+        let test_complete_state = ank_base::CompleteState {
+            desired_state: Some(ank_base::State {
                 workloads: startup_workloads.clone(),
                 ..Default::default()
-            },
+            }),
             ..Default::default()
 
         };
@@ -706,10 +701,10 @@ mod tests {
                 request_id,
                 response_content: Some(ank_base::response::ResponseContent::CompleteState(ank_base::CompleteState{
                     desired_state: Some(desired_state),
-                    workload_states: _}))
+                    workload_states}))
 
             })) if request_id == my_request_id
-            && desired_state == test_complete_state.desired_state.into()
+            && desired_state == test_complete_state.desired_state.unwrap()
         ));
     }
 
@@ -768,25 +763,26 @@ mod tests {
         let (to_agent, mut agent_receiver) =
             mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
 
-        let mut startup_workloads = HashMap::<String, WorkloadSpec>::new();
+        let mut startup_workloads = HashMap::<String, ank_base::Workload>::new();
         startup_workloads.insert(
             String::from(WORKLOAD_NAME),
-            generate_test_workload_spec_with_param(
-                agent_name.to_string(),
-                WORKLOAD_NAME.to_string(),
-                "my_runtime".to_string(),
-            ),
+            generate_test_stored_workload_spec(agent_name.to_string(), "my_runtime".to_string())
+                .into(),
         );
 
         let my_request_id = "my_request_id".to_owned();
 
-        let test_complete_state = CompleteState {
-            desired_state: State::default(),
+
+        let test_complete_state = ank_base::CompleteState {
+            desired_state: Some(ank_base::State {
+                workloads: startup_workloads.clone(),
+                ..Default::default()
+            }),
             ..Default::default()
         };
 
         let proto_complete_state = ank_base::CompleteState {
-            desired_state: Some(test_complete_state.desired_state.clone().into()),
+            desired_state: test_complete_state.desired_state.clone(),
             ..Default::default()
         };
 
@@ -823,11 +819,11 @@ mod tests {
             common::from_server_interface::FromServer::Response(common::commands::Response {
                 request_id,
                 response_content: common::commands::ResponseContent::CompleteState(
-                    boxed_complete_state
+                    complete_state
                 )
             }) if request_id == my_request_id &&
-            boxed_complete_state.desired_state == expected_test_complete_state.desired_state &&
-            boxed_complete_state.workload_states == expected_test_complete_state.workload_states
+            complete_state.desired_state == expected_test_complete_state.desired_state &&
+            complete_state.workload_states == expected_test_complete_state.workload_states
         ));
     }
 }

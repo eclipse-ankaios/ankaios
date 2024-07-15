@@ -14,14 +14,14 @@
 
 use std::{mem::take, time::Duration};
 
+use crate::filtered_complete_state::FilteredCompleteState;
 use crate::{output_and_error, output_debug};
+use api::ank_base;
 use common::communications_client::CommunicationsClient;
 use common::communications_error::CommunicationMiddlewareError;
 use common::to_server_interface::ToServer;
 use common::{
-    commands::{
-        CompleteStateRequest, Response, ResponseContent, UpdateStateSuccess, UpdateWorkloadState,
-    },
+    commands::{CompleteStateRequest, UpdateWorkloadState},
     from_server_interface::{FromServer, FromServerReceiver},
     objects::CompleteState,
     to_server_interface::{ToServerInterface, ToServerSender},
@@ -81,7 +81,7 @@ impl ServerConnection {
     pub async fn get_complete_state(
         &mut self,
         object_field_mask: &Vec<String>,
-    ) -> Result<Box<CompleteState>, ServerConnectionError> {
+    ) -> Result<FilteredCompleteState, ServerConnectionError> {
         output_debug!(
             "get_complete_state: object_field_mask={:?} ",
             object_field_mask
@@ -102,10 +102,14 @@ impl ServerConnection {
         let poll_complete_state_response = async {
             loop {
                 match self.from_server.recv().await {
-                    Some(FromServer::Response(Response {
+                    Some(FromServer::Response(ank_base::Response {
                         request_id: received_request_id,
-                        response_content: ResponseContent::CompleteState(res),
-                    })) if received_request_id == request_id => return Ok(res),
+                        response_content:
+                            Some(ank_base::response::ResponseContent::CompleteState(res)),
+                    })) if received_request_id == request_id => {
+                        output_debug!("Received from server: {res:?} ");
+                        return Ok(res.into());
+                    }
                     None => return Err("Channel preliminary closed."),
                     Some(message) => {
                         // [impl->swdd~cli-stores-unexpected-message~1]
@@ -129,7 +133,7 @@ impl ServerConnection {
         &mut self,
         new_state: CompleteState,
         update_mask: Vec<String>,
-    ) -> Result<UpdateStateSuccess, ServerConnectionError> {
+    ) -> Result<ank_base::UpdateStateSuccess, ServerConnectionError> {
         let request_id = uuid::Uuid::new_v4().to_string();
         output_debug!("Sending the new state {:?}", new_state);
         self.to_server
@@ -145,14 +149,17 @@ impl ServerConnection {
                     ));
                 };
                 match server_message {
-                    FromServer::Response(Response {
+                    FromServer::Response(ank_base::Response {
                         request_id: received_request_id,
-                        response_content: ResponseContent::UpdateStateSuccess(update_state_success),
+                        response_content:
+                            Some(ank_base::response::ResponseContent::UpdateStateSuccess(
+                                update_state_success,
+                            )),
                     }) if received_request_id == request_id => return Ok(update_state_success),
                     // [impl->swdd~cli-requests-update-state-with-watch-error~1]
-                    FromServer::Response(Response {
+                    FromServer::Response(ank_base::Response {
                         request_id: received_request_id,
-                        response_content: ResponseContent::Error(error),
+                        response_content: Some(ank_base::response::ResponseContent::Error(error)),
                     }) if received_request_id == request_id => {
                         return Err(ServerConnectionError::ExecutionError(format!(
                             "SetState failed with: '{}'",

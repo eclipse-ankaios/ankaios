@@ -13,8 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use api::ank_base::{
-    request::RequestContent, CompleteState, CompleteStateRequest, Request, RestartPolicy, State,
-    Tag, UpdateStateRequest, Workload,
+    request::RequestContent, CompleteState, CompleteStateRequest, Dependencies, Request,
+    RestartPolicy, State, Tag, Tags, UpdateStateRequest, Workload,
 };
 
 use api::control_api::{
@@ -54,16 +54,21 @@ fn create_request_to_add_new_workload() -> ToAnkaios {
     let new_workloads = HashMap::from([(
         "dynamic_nginx".to_string(),
         Workload {
-            runtime: "podman".to_string(),
-            agent: "agent_A".to_string(),
-            restart_policy: RestartPolicy::Never.into(),
-            tags: vec![Tag {
-                key: "owner".to_string(),
-                value: "Ankaios team".to_string(),
-            }],
-            runtime_config: "image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]"
-                .to_string(),
-            dependencies: HashMap::new(),
+            runtime: Some("podman".to_string()),
+            agent: Some("agent_A".to_string()),
+            restart_policy: Some(RestartPolicy::Never.into()),
+            tags: Some(Tags {
+                tags: vec![Tag {
+                    key: "owner".to_string(),
+                    value: "Ankaios team".to_string(),
+                }],
+            }),
+            runtime_config: Some(
+                "image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]".to_string(),
+            ),
+            dependencies: Some(Dependencies {
+                dependencies: HashMap::new(),
+            }),
             control_interface_access: None,
         },
     )]);

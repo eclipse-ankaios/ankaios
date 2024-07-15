@@ -15,7 +15,8 @@
 use std::collections::HashSet;
 
 use super::Path;
-use crate::objects::{CompleteState, State};
+use crate::objects as ankaios;
+use api::ank_base as proto;
 use serde_yaml::{
     from_value,
     mapping::{Entry::Occupied, Entry::Vacant},
@@ -45,56 +46,82 @@ impl TryFrom<&serde_yaml::Value> for Object {
     }
 }
 
-impl TryFrom<&State> for Object {
+impl TryFrom<&ankaios::State> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_from(value: &State) -> Result<Self, Self::Error> {
+    fn try_from(value: &ankaios::State) -> Result<Self, Self::Error> {
         Ok(Object {
             data: to_value(value)?,
         })
     }
 }
 
-impl TryFrom<State> for Object {
+impl TryFrom<ankaios::State> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_from(value: State) -> Result<Self, Self::Error> {
+    fn try_from(value: ankaios::State) -> Result<Self, Self::Error> {
         (&value).try_into()
     }
 }
 
-impl TryFrom<CompleteState> for Object {
+impl TryFrom<ankaios::CompleteState> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_from(value: CompleteState) -> Result<Self, Self::Error> {
+    fn try_from(value: ankaios::CompleteState) -> Result<Self, Self::Error> {
         Ok(Object {
             data: to_value(value)?,
         })
     }
 }
 
-impl TryFrom<&CompleteState> for Object {
+impl TryFrom<proto::CompleteState> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_from(value: &CompleteState) -> Result<Self, Self::Error> {
+    fn try_from(value: proto::CompleteState) -> Result<Self, Self::Error> {
         Ok(Object {
             data: to_value(value)?,
         })
     }
 }
 
-impl TryInto<State> for Object {
+impl TryFrom<&ankaios::CompleteState> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_into(self) -> Result<State, Self::Error> {
+    fn try_from(value: &ankaios::CompleteState) -> Result<Self, Self::Error> {
+        Ok(Object {
+            data: to_value(value)?,
+        })
+    }
+}
+
+impl TryInto<ankaios::State> for Object {
+    type Error = serde_yaml::Error;
+
+    fn try_into(self) -> Result<ankaios::State, Self::Error> {
         from_value(self.data)
     }
 }
 
-impl TryInto<CompleteState> for Object {
+impl TryInto<ankaios::CompleteState> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_into(self) -> Result<CompleteState, Self::Error> {
+    fn try_into(self) -> Result<ankaios::CompleteState, Self::Error> {
+        from_value(self.data)
+    }
+}
+
+impl TryInto<proto::State> for Object {
+    type Error = serde_yaml::Error;
+
+    fn try_into(self) -> Result<proto::State, Self::Error> {
+        from_value(self.data)
+    }
+}
+
+impl TryInto<proto::CompleteState> for Object {
+    type Error = serde_yaml::Error;
+
+    fn try_into(self) -> Result<proto::CompleteState, Self::Error> {
         from_value(self.data)
     }
 }
@@ -258,8 +285,8 @@ impl Object {
 mod tests {
     use crate::{
         objects::{
-            generate_test_workload_spec, generate_test_workload_states_map_from_specs,
-            CompleteState, State,
+            generate_test_workload_spec, generate_test_workload_state_with_agent, CompleteState,
+            ExecutionState, State,
         },
         test_utils::generate_test_state_from_workloads,
     };
@@ -291,11 +318,14 @@ mod tests {
 
     #[test]
     fn utest_object_from_complete_state() {
-        let wl_spec = generate_test_workload_spec();
-        let state = generate_test_state_from_workloads(vec![wl_spec.clone()]);
+        let state = generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
         let complete_state = CompleteState {
             desired_state: state,
-            workload_states: generate_test_workload_states_map_from_specs(vec![wl_spec]),
+            workload_states: vec![generate_test_workload_state_with_agent(
+                "workload A",
+                "agent",
+                ExecutionState::running(),
+            )],
         };
 
         let expected = Object {
@@ -311,11 +341,16 @@ mod tests {
         let object = Object {
             data: object::generate_test_complete_state().into(),
         };
-        let wl_spec = generate_test_workload_spec();
-        let expected_state = generate_test_state_from_workloads(vec![wl_spec.clone()]);
+
+        let expected_state =
+            generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
         let expected = CompleteState {
             desired_state: expected_state,
-            workload_states: generate_test_workload_states_map_from_specs(vec![wl_spec]),
+            workload_states: vec![generate_test_workload_state_with_agent(
+                "workload A",
+                "agent",
+                ExecutionState::running(),
+            )],
         };
         let actual: CompleteState = object.try_into().unwrap();
 
@@ -662,27 +697,27 @@ mod tests {
     mod object {
         use serde_yaml::Value;
 
-        use crate::objects::generate_test_runtime_config;
-
         pub fn generate_test_complete_state() -> Mapping {
-            let config_hash: &dyn common::objects::ConfigHash = &generate_test_runtime_config();
+            let config_hash: &dyn common::objects::ConfigHash = &"config".to_string();
             Mapping::default()
                 .entry("desiredState", generate_test_state())
                 .entry(
                     "workloadStates",
-                    Mapping::default().entry(
-                        "agent",
-                        Mapping::default().entry(
-                            "name",
-                            Mapping::default().entry(
-                                config_hash.hash_config(),
-                                Mapping::default()
-                                    .entry("state", "Running")
-                                    .entry("subState", "Ok")
-                                    .entry("additionalInfo", ""),
-                            ),
-                        ),
-                    ),
+                    vec![Mapping::default()
+                        .entry(
+                            "instanceName",
+                            Mapping::default()
+                                .entry("agentName", "agent")
+                                .entry("workloadName", "workload A")
+                                .entry("id", config_hash.hash_config()),
+                        )
+                        .entry(
+                            "executionState",
+                            Mapping::default()
+                                .entry("state", "Running")
+                                .entry("subState", "Ok")
+                                .entry("additionalInfo", ""),
+                        )],
                 )
         }
 
@@ -710,13 +745,7 @@ mod tests {
                             )
                             .entry("restartPolicy", "ALWAYS")
                             .entry("runtime", "runtime")
-                            .entry("runtimeConfig", "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n")
-                            .entry(
-                                "controlInterfaceAccess",
-                                Mapping::default()
-                                    .entry("allowRules", vec![] as Vec<Value>)
-                                    .entry("denyRules", vec![] as Vec<Value>),
-                            ),
+                            .entry("runtimeConfig", "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"),
                     ),
                 )
         }

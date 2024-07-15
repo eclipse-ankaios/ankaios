@@ -30,8 +30,9 @@ use crate::control_interface::PipesChannelContext;
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::PipesChannelContextInfo;
 
+use api::ank_base;
+
 use common::{
-    commands::{self, ResponseContent},
     from_server_interface::FromServer,
     objects::{WorkloadInstanceName, WorkloadSpec},
 };
@@ -160,8 +161,7 @@ impl Workload {
     // [impl->swdd~agent-forward-responses-to-control-interface-pipe~1]
     pub async fn forward_response(
         &mut self,
-        request_id: String,
-        response_content: ResponseContent,
+        response: ank_base::Response,
     ) -> Result<(), WorkloadError> {
         let control_interface =
             self.control_interface
@@ -171,10 +171,7 @@ impl Workload {
                 ))?;
         control_interface
             .get_input_pipe_sender()
-            .send(FromServer::Response(commands::Response {
-                request_id,
-                response_content,
-            }))
+            .send(FromServer::Response(response))
             .await
             .map_err(|err| WorkloadError::CompleteState(err.to_string()))
     }
