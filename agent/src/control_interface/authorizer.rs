@@ -156,7 +156,7 @@ impl From<&ControlInterfaceAccess> for Authorizer {
                 read_write: Vec::new(),
             };
 
-            rule_list.iter().fold((), |(), access_rights| {
+            for access_rights in rule_list {
                 let AccessRightsRule::StateRule(state_rule) = access_rights;
                 let rule = Rule {
                     patterns: state_rule
@@ -171,7 +171,7 @@ impl From<&ControlInterfaceAccess> for Authorizer {
                     ReadWriteEnum::ReadWrite => res.read_write.push(rule),
                     ReadWriteEnum::Nothing => {}
                 };
-            });
+            }
 
             res
         }
