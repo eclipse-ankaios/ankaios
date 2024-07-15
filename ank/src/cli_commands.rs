@@ -200,7 +200,7 @@ impl CliCommands {
             output!("Successfully applied the manifest(s).\nWaiting for workload(s) to reach desired states (press Ctrl+C to interrupt).\n");
         }
 
-        let states_of_all_workloads = self.get_workloads().await.unwrap();
+        let states_of_all_workloads = self.get_workloads().await?;
         let states_of_changed_workloads = states_of_all_workloads
             .into_iter()
             .filter(|x| changed_workloads.contains(&x.0))

@@ -531,16 +531,16 @@ Needs:
 - utest
 
 #### CLI checks for final state of a workload
-`swdd~cli-checks-for-final-workload-state~1`
+`swdd~cli-checks-for-final-workload-state~2`
 
 Status: approved
 
 When the CLI checks if a workload has reached its final expected workload execution state, the CLI shall regard the state for final if the state is one of:
-* running
-* succeeded
-* failed
-* removed
-* pending(starting_failed) with "No more retries"
+* Running(Ok)
+* Succeeded(Ok)
+* Failed(ExecFailed)
+* Removed
+* Pending(StartingFailed)
 
 Tags:
 - CliCommands
