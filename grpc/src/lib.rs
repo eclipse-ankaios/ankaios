@@ -36,25 +36,35 @@ pub mod security {
         pub path_to_key_pem: String,
     }
 
-    pub fn check_and_read_pem_file(path_of_pem_file: &Path) -> Result<String, GrpcMiddlewareError> {
+    pub fn read_pem_file(
+        path_of_pem_file: &Path,
+        check_permisions: bool,
+    ) -> Result<String, GrpcMiddlewareError> {
         let mut file = File::open(path_of_pem_file).map_err(|err| {
             GrpcMiddlewareError::CertificateError(format!(
                 "Error during opening the given file {:?}: {}",
                 path_of_pem_file, err
             ))
         })?;
-        let permissions = file
-            .metadata()
-            .map_err(|err| {
-                GrpcMiddlewareError::CertificateError(format!(
-                    "Error during getting permissions of the given file {:?}: {}",
-                    path_of_pem_file, err
-                ))
-            })?
-            .permissions();
-        let owner_readable = (permissions.mode() & 0o400) == 0o400; // read for the owner
-        let group_not_readable = (permissions.mode() & 0o040) != 0o040; // not read for the group
-        let others_not_readable = (permissions.mode() & 0o004) != 0o004; // not read for others
+
+        let mut owner_readable = true;
+        let mut group_not_readable = true;
+        let mut others_not_readable = true;
+
+        if check_permisions {
+            let permissions = file
+                .metadata()
+                .map_err(|err| {
+                    GrpcMiddlewareError::CertificateError(format!(
+                        "Error during getting permissions of the given file {:?}: {}",
+                        path_of_pem_file, err
+                    ))
+                })?
+                .permissions();
+            owner_readable = (permissions.mode() & 0o400) == 0o400; // read for the owner
+            group_not_readable = (permissions.mode() & 0o040) != 0o040; // not read for the group
+            others_not_readable = (permissions.mode() & 0o004) != 0o004; // not read for others
+        }
 
         if owner_readable && group_not_readable && others_not_readable {
             let mut buffer = String::new();

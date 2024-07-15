@@ -14,6 +14,7 @@
 
 use std::pin::Pin;
 
+use common::std_extensions::GracefulExitResult;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 
@@ -70,20 +71,29 @@ impl AgentConnection for GRPCAgentConnection {
             }
 
             let client_cert = &peer_certs[0];
-            let client_cert = X509Certificate::from_der(client_cert.as_ref()).unwrap().1;
+            let client_cert = X509Certificate::from_der(client_cert.as_ref())
+                .unwrap_or_exit("Could not parse certificate.")
+                .1;
             log::info!("Client Subject: {}", client_cert.subject().to_string());
-            sans = client_cert
+            let subject_alt_names = client_cert
                 .subject_alternative_name()
-                .expect("could not get subject alt names")
-                .expect("no subject alt names found")
-                .value
-                .general_names
-                .iter()
-                .filter_map(|x| match x {
-                    GeneralName::DNSName(v) => Some(v.to_string()),
-                    _ => None,
-                })
-                .collect();
+                .unwrap_or_exit("Could not get subject alt names");
+
+            if let Some(subject_alt_names) = subject_alt_names {
+                sans = subject_alt_names
+                    .value
+                    .general_names
+                    .iter()
+                    .filter_map(|x| match x {
+                        GeneralName::DNSName(v) => Some(v.to_string()),
+                        _ => None,
+                    })
+                    .collect();
+            } else {
+                return Err(Status::unauthenticated(
+                    "No subject alt names found in agent certificates!",
+                ));
+            }
             log::info!("Client SAN: {:?}", sans);
         }
 

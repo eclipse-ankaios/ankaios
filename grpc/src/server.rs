@@ -26,7 +26,7 @@ use crate::grpc_api::agent_connection_server::AgentConnectionServer;
 use crate::grpc_cli_connection::GRPCCliConnection;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 
-use crate::security::{check_and_read_pem_file, TLSConfig};
+use crate::security::{read_pem_file, TLSConfig};
 
 use crate::from_server_proxy;
 use crate::grpc_agent_connection::GRPCAgentConnection;
@@ -66,11 +66,11 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                 let crt_pem = &tls_config.path_to_crt_pem;
                 let key_pem = &tls_config.path_to_key_pem;
 
-                let ca = check_and_read_pem_file(Path::new(ca_pem))
+                let ca = read_pem_file(Path::new(ca_pem), false)
                     .map_err(|err| CommunicationMiddlewareError(err.to_string()))?;
-                let cert = check_and_read_pem_file(Path::new(crt_pem))
+                let cert = read_pem_file(Path::new(crt_pem), false)
                     .map_err(|err| CommunicationMiddlewareError(err.to_string()))?;
-                let key = check_and_read_pem_file(Path::new(key_pem))
+                let key = read_pem_file(Path::new(key_pem), true)
                     .map_err(|err| CommunicationMiddlewareError(err.to_string()))?;
 
                 let server_identity = Identity::from_pem(cert, key);
