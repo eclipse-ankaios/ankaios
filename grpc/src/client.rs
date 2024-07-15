@@ -209,8 +209,10 @@ impl GRPCCommunicationsClient {
         match self.connection_type {
             ConnectionType::Agent => match &self.tls_config {
                 Some(tls_config) => {
+                    // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
                     let ca_pem = read_pem_file(Path::new(&tls_config.path_to_ca_pem), false)?;
                     let ca = Certificate::from_pem(ca_pem);
+                    // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
                     let client_cert_pem =
                         read_pem_file(Path::new(&tls_config.path_to_crt_pem), false)?;
                     let client_cert = Certificate::from_pem(client_cert_pem);
@@ -251,17 +253,16 @@ impl GRPCCommunicationsClient {
             },
             ConnectionType::Cli => match &self.tls_config {
                 Some(tls_config) => {
-                    let ca_pem =
-                        std::fs::read_to_string(PathBuf::from(&tls_config.path_to_ca_pem)).unwrap();
+                    // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
+                    let ca_pem = read_pem_file(Path::new(&tls_config.path_to_ca_pem), false)?;
                     let ca = Certificate::from_pem(ca_pem);
+                    // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
                     let client_cert_pem =
-                        std::fs::read_to_string(PathBuf::from(&tls_config.path_to_crt_pem))
-                            .unwrap();
+                        read_pem_file(Path::new(&tls_config.path_to_crt_pem), false)?;
                     let client_cert = Certificate::from_pem(client_cert_pem);
 
                     let client_key_pem =
-                        std::fs::read_to_string(PathBuf::from(&tls_config.path_to_key_pem))
-                            .unwrap();
+                        read_pem_file(Path::new(&tls_config.path_to_key_pem), true)?;
                     let client_key = Certificate::from_pem(client_key_pem);
                     let client_identity = Identity::from_pem(client_cert, client_key);
 

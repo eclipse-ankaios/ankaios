@@ -33,6 +33,7 @@ common = { path = "../common", features = ["test_utils"] }
 mockall = "0.11"
 mockall_double = "0.3"
 futures-util = "0.3"
+tempfile = "3.10"
 
 [build-dependencies]
 tonic-build = "0.9"

@@ -66,8 +66,10 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                 let crt_pem = &tls_config.path_to_crt_pem;
                 let key_pem = &tls_config.path_to_key_pem;
 
+                // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
                 let ca = read_pem_file(Path::new(ca_pem), false)
                     .map_err(|err| CommunicationMiddlewareError(err.to_string()))?;
+                // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
                 let cert = read_pem_file(Path::new(crt_pem), false)
                     .map_err(|err| CommunicationMiddlewareError(err.to_string()))?;
                 let key = read_pem_file(Path::new(key_pem), true)

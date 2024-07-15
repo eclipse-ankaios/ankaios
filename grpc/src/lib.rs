@@ -36,6 +36,7 @@ pub mod security {
         pub path_to_key_pem: String,
     }
 
+    // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
     pub fn read_pem_file(
         path_of_pem_file: &Path,
         check_permisions: bool,
@@ -61,9 +62,14 @@ pub mod security {
                     ))
                 })?
                 .permissions();
+            println!("{:?}", permissions.mode());
             owner_readable = (permissions.mode() & 0o400) == 0o400; // read for the owner
             group_not_readable = (permissions.mode() & 0o040) != 0o040; // not read for the group
             others_not_readable = (permissions.mode() & 0o004) != 0o004; // not read for others
+            println!(
+                "ow{} gr{} ot{}",
+                owner_readable, group_not_readable, others_not_readable
+            );
         }
 
         if owner_readable && group_not_readable && others_not_readable {
@@ -95,3 +101,45 @@ mod to_server_proxy;
 use api::ank_base;
 pub mod grpc_api;
 pub use crate::grpc_api::*;
+
+#[cfg(test)]
+mod tests {
+    use std::io::Write;
+
+    use super::security::*;
+    use crate::grpc_middleware_error::GrpcMiddlewareError;
+    use std::os::unix::fs::PermissionsExt;
+    use tempfile::NamedTempFile;
+
+    // [utest->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
+    #[test]
+    fn test_read_pem_file() {
+        let pem_content = r#"-----BEGIN CERTIFICATE-----
+MIIDrzCCAkGgAwIBAgIQBzANBgkqhkiG9w0BAQUFADCBiDELMAkGA1UEBhMCVVMx
+...blabla
+-----END CERTIFICATE-----"#;
+
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(pem_content.as_bytes()).unwrap();
+
+        // Test with check_permisions set to false (no permission checks)
+        let result = read_pem_file(temp_file.path(), false).unwrap();
+        assert_eq!(result, pem_content);
+
+        let mut permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
+        // Test with check_permissions set to true and correct permissions
+        permissions.set_mode(0o600);
+        println!("pm {:?}", permissions.mode());
+        let _ = temp_file.as_file_mut().set_permissions(permissions);
+        let result = read_pem_file(temp_file.path(), true).unwrap();
+        assert_eq!(result, pem_content);
+
+        // Test with check_permissions set to true and incorrect permissions (not readable by others)
+        permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
+        permissions.set_mode(0o644);
+        println!("pm {:?}", permissions.mode());
+        let _ = temp_file.as_file_mut().set_permissions(permissions);
+        let error = read_pem_file(temp_file.path(), true).err().unwrap();
+        assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
+    }
+}
