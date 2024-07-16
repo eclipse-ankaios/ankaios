@@ -141,22 +141,24 @@ impl CliCommands {
                 .collect();
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-        for wi in &mut workload_infos {
-            if let Some(ref desired_state) = res_complete_state.desired_state {
-                // TODO: switch the thing here to a match
-                if let Some(ref workloads) = desired_state.workloads {
-                    if let Some((_found_wl_name, found_wl_spec)) =
-                        workloads.iter().find(|&(wl_name, wl_spec)| {
-                            if let Some(agent_name) = &wl_spec.agent {
-                                *wl_name == wi.1.name && *agent_name == wi.1.agent
-                            } else {
-                                false
-                            }
-                        })
-                    {
-                        wi.1.runtime = found_wl_spec.runtime.clone().unwrap_or_default();
-                    }
-                }
+        let desired_state_workloads = res_complete_state
+            .desired_state
+            .and_then(|desired_state| desired_state.workloads)
+            .unwrap_or_default();
+        for (_, table_row) in &mut workload_infos {
+            let runtime_name = desired_state_workloads
+                .iter()
+                .find(|&(wl_name, wl_spec)| {
+                    *wl_name == table_row.name
+                        && wl_spec.agent.as_deref().is_some()
+                        && wl_spec.agent.as_deref().unwrap() == table_row.agent
+                        && wl_spec.runtime.as_ref().is_some()
+                })
+                // runtime is valid because the filter above has found one
+                .map(|(_, found_wl_spec)| found_wl_spec.runtime.as_ref().unwrap());
+
+            if let Some(runtime) = runtime_name {
+                table_row.runtime.clone_from(runtime);
             }
         }
 
