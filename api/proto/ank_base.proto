@@ -17,16 +17,21 @@
 syntax = "proto3";
 package ank_base;
 
-// TODO: documentation
+/**
+* A message containing a request to the Ankaios server to update the state or to request the complete state of the Ankaios system.
+*/
 message Request {
     string requestId = 1;
     oneof RequestContent {
-        UpdateStateRequest updateStateRequest = 2; /// A message to Ankaios server to update the State of one or more agent(s).
+        UpdateStateRequest updateStateRequest = 2; /// A message to Ankaios server to update the state of one or more agent(s).
         CompleteStateRequest completeStateRequest = 3; /// A message to Ankaios server to request the complete state by the given request id and the optional field mask.
     }
 }
 
-// TODO: documentation
+/**
+* A message containing a response from the Ankaios server to a particular request.
+* The response content depends on the request content previously sent to the Ankaios server.
+*/
 message Response {
     string requestId = 1;
     oneof ResponseContent {
@@ -64,7 +69,9 @@ message UpdateStateRequest {
     repeated string updateMask = 2; /// A list of symbolic field paths within the state message structure e.g. 'desiredState.workloads.nginx' to specify what to be updated.
 }
 
-// TODO: documentation
+/**
+* A message from the server containing the ids of the workloads that have been started and stopped in response to a previously sent UpdateStateRequest.
+*/
 message UpdateStateSuccess {
     repeated string addedWorkloads = 1; /// Workload istance names of workloads which will be started
     repeated string deletedWorkloads = 2; /// Workload instance names of workloads which will be stopped
@@ -102,7 +109,9 @@ message ExecutionsStatesForId {
     map<string, ExecutionState> idStateMap = 1;
 }
 
-// TODO: documentation
+/**
+* A message containing information about the detailed state of a workload in the Ankaios system.
+*/
 message ExecutionState {
     string additionalInfo = 1; /// The additional info contains more detailed information from the runtime regarding the execution state.
     oneof ExecutionStateEnum {
