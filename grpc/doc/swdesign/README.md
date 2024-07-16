@@ -127,7 +127,7 @@ To avoid complexity, coming with mTLS configuration e.g. certificates generation
 
 Needs:
 - impl
-- utest
+- itest
 
 Assumptions:
 
@@ -146,7 +146,7 @@ To avoid complexity, coming with mTLS configuration e.g. certificates generation
 
 Needs:
 - impl
-- utest
+- itest
 
 Assumptions:
 
@@ -165,7 +165,7 @@ To avoid complexity, coming with mTLS configuration e.g. certificates generation
 
 Needs:
 - impl
-- utest
+- itest
 
 Assumptions:
 
@@ -184,7 +184,7 @@ To avoid complexity, coming with mTLS configuration e.g. certificates generation
 
 Needs:
 - impl
-- utest
+- itest
 
 Assumptions:
 
@@ -203,7 +203,7 @@ To avoid complexity, coming with mTLS configuration e.g. certificates generation
 
 Needs:
 - impl
-- utest
+- itest
 
 Assumptions:
 
@@ -222,7 +222,7 @@ To avoid complexity, coming with mTLS configuration e.g. certificates generation
 
 Needs:
 - impl
-- utest
+- itest
 
 Assumptions:
 

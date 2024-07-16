@@ -75,6 +75,8 @@ impl CommunicationsServer for GRPCCommunicationsServer {
                 let key = read_pem_file(Path::new(key_pem), true)
                     .map_err(|err| CommunicationMiddlewareError(err.to_string()))?;
 
+                println!("ca: {:?}, cert: {:?}, key: {:?}", ca, cert, key);
+
                 let server_identity = Identity::from_pem(cert, key);
                 let tls = tonic::transport::ServerTlsConfig::new()
                     .client_ca_root(Certificate::from_pem(ca))
