@@ -132,7 +132,7 @@ impl CliCommands {
                         WorkloadTableRow::new(
                             wl_state.instance_name.workload_name(),
                             wl_state.instance_name.agent_name(),
-                            "",
+                            String::default(),
                             &wl_state.execution_state.state.to_string(),
                             &wl_state.execution_state.additional_info.to_string(),
                         ),
