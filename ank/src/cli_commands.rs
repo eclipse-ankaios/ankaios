@@ -32,7 +32,7 @@ mod set_state;
 use common::{
     communications_error::CommunicationMiddlewareError,
     from_server_interface::FromServer,
-    objects::{CompleteState, State, WorkloadInstanceName, WorkloadState, WorkloadStatesMap},
+    objects::{CompleteState, State, WorkloadInstanceName, WorkloadState},
 };
 
 use wait_list_display::WaitListDisplay;
@@ -122,9 +122,9 @@ impl CliCommands {
             .get_complete_state(&Vec::new())
             .await?;
 
+        let wl_states = res_complete_state.workload_states.unwrap_or_default();
         let mut workload_infos: Vec<(WorkloadInstanceName, WorkloadTableRow)> =
-        // TODO: fix this strange double conversion
-            Vec::<WorkloadState>::from(Into::<WorkloadStatesMap>::into(res_complete_state.workload_states.unwrap_or_default()))
+            Vec::<WorkloadState>::from(wl_states)
                 .into_iter()
                 .map(|wl_state| {
                     (
