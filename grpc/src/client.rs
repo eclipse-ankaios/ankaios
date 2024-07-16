@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::from_server_proxy;
 use crate::from_server_proxy::GRPCFromServerStreaming;
@@ -217,6 +217,7 @@ impl GRPCCommunicationsClient {
                         read_pem_file(Path::new(&tls_config.path_to_crt_pem), false)?;
                     let client_cert = Certificate::from_pem(client_cert_pem);
 
+                    // [impl->swdd~grpc-supports-pem-file-format-for-keys~1]
                     let client_key_pem =
                         read_pem_file(Path::new(&tls_config.path_to_key_pem), true)?;
                     let client_key = Certificate::from_pem(client_key_pem);
@@ -261,6 +262,7 @@ impl GRPCCommunicationsClient {
                         read_pem_file(Path::new(&tls_config.path_to_crt_pem), false)?;
                     let client_cert = Certificate::from_pem(client_cert_pem);
 
+                    // [impl->swdd~grpc-supports-pem-file-format-for-keys~1]
                     let client_key_pem =
                         read_pem_file(Path::new(&tls_config.path_to_key_pem), true)?;
                     let client_key = Certificate::from_pem(client_key_pem);

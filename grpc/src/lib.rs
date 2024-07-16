@@ -62,14 +62,11 @@ pub mod security {
                     ))
                 })?
                 .permissions();
-            println!("{:?}", permissions.mode());
+
+            // [impl->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~1]
             owner_readable = (permissions.mode() & 0o400) == 0o400; // read for the owner
             group_not_readable = (permissions.mode() & 0o040) != 0o040; // not read for the group
             others_not_readable = (permissions.mode() & 0o004) != 0o004; // not read for others
-            println!(
-                "ow{} gr{} ot{}",
-                owner_readable, group_not_readable, others_not_readable
-            );
         }
 
         if owner_readable && group_not_readable && others_not_readable {
@@ -111,33 +108,39 @@ mod tests {
     use std::os::unix::fs::PermissionsExt;
     use tempfile::NamedTempFile;
 
-    // [utest->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
-    #[test]
-    fn test_read_pem_file() {
-        let pem_content = r#"-----BEGIN CERTIFICATE-----
+    static TEST_PEM_CONTENT: &str = r#"-----BEGIN CERTIFICATE-----
 MIIDrzCCAkGgAwIBAgIQBzANBgkqhkiG9w0BAQUFADCBiDELMAkGA1UEBhMCVVMx
 ...blabla
 -----END CERTIFICATE-----"#;
 
+    // [utest->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
+    // [utest->swdd~grpc-supports-pem-file-format-for-keys~1]
+    #[test]
+    fn test_read_pem_file() {
         let mut temp_file = NamedTempFile::new().unwrap();
-        temp_file.write_all(pem_content.as_bytes()).unwrap();
+        temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
 
-        // Test with check_permisions set to false (no permission checks)
+        // Test with check_permissions set to false (no permission checks)
         let result = read_pem_file(temp_file.path(), false).unwrap();
-        assert_eq!(result, pem_content);
+        assert_eq!(result, TEST_PEM_CONTENT);
+    }
+
+    // [utest->swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~1]
+    #[test]
+    fn test_read_pem_file_and_check_permissions() {
+        let mut temp_file = NamedTempFile::new().unwrap();
+        temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
 
         let mut permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
-        // Test with check_permissions set to true and correct permissions
+        // Test with check_permissions set to true and correct permissions (rw for owner, no rw for group and others)
         permissions.set_mode(0o600);
-        println!("pm {:?}", permissions.mode());
         let _ = temp_file.as_file_mut().set_permissions(permissions);
         let result = read_pem_file(temp_file.path(), true).unwrap();
-        assert_eq!(result, pem_content);
+        assert_eq!(result, TEST_PEM_CONTENT);
 
-        // Test with check_permissions set to true and incorrect permissions (not readable by others)
+        // Test with check_permissions set to true and incorrect permissions (readable by groups and others)
         permissions = temp_file.as_file_mut().metadata().unwrap().permissions();
         permissions.set_mode(0o644);
-        println!("pm {:?}", permissions.mode());
         let _ = temp_file.as_file_mut().set_permissions(permissions);
         let error = read_pem_file(temp_file.path(), true).err().unwrap();
         assert!(matches!(error, GrpcMiddlewareError::CertificateError(_)));
