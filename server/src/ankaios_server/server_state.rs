@@ -153,11 +153,14 @@ pub type AddedDeletedWorkloads = Option<(Vec<WorkloadSpec>, Vec<DeletedWorkload>
 
 #[cfg_attr(test, automock)]
 impl ServerState {
+    const API_VERSION_FILTER_MASK: &'static str = "desiredState.apiVersion";
+    const DESIRED_STATE_FIELD_MASK_PART: &'static str = "desiredState";
+
     // [impl->swdd~server-provides-interface-get-complete-state~1]
     // [impl->swdd~server-filters-get-complete-state-result~2]
     pub fn get_complete_state_by_field_mask(
         &self,
-        request_complete_state: &CompleteStateRequest,
+        request_complete_state: CompleteStateRequest,
         workload_states_map: &WorkloadStatesMap,
     ) -> Result<ank_base::CompleteState, String> {
         let current_complete_state: ank_base::CompleteState = CompleteState {
@@ -167,21 +170,17 @@ impl ServerState {
         .into();
 
         if !request_complete_state.field_mask.is_empty() {
+            let mut filters = request_complete_state.field_mask;
+            if filters
+                .iter()
+                .any(|field| field.starts_with(Self::DESIRED_STATE_FIELD_MASK_PART))
+            {
+                filters.push(Self::API_VERSION_FILTER_MASK.to_owned());
+            }
+
             let current_complete_state: Object =
                 current_complete_state.try_into().unwrap_or_illegal_state();
             let mut return_state = Object::default();
-
-            // TODO this can probably be done better
-            let mut filters = request_complete_state.field_mask.clone();
-            if !filters
-                .iter()
-                .filter(|field| field.starts_with("desiredState"))
-                .collect::<Vec<_>>()
-                .is_empty()
-            {
-                filters.push("desiredState.apiVersion".to_string());
-            }
-
             for field in &filters {
                 if let Some(value) = current_complete_state.get(&field.into()) {
                     return_state.set(&field.into(), value.to_owned())?;
@@ -200,7 +199,7 @@ impl ServerState {
                 format!("The result for CompleteState is invalid: '{}'", err)
             })
         } else {
-            Ok(current_complete_state.into())
+            Ok(current_complete_state)
         }
     }
 

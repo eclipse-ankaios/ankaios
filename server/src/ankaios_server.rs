@@ -216,7 +216,7 @@ impl AnkaiosServer {
                             complete_state_request.field_mask
                         );
                         match self.server_state.get_complete_state_by_field_mask(
-                            &complete_state_request,
+                            complete_state_request,
                             &self.workload_states_map,
                         ) {
                             Ok(complete_state) => self
@@ -332,10 +332,7 @@ impl AnkaiosServer {
                                 // [impl->swdd~server-continues-on-invalid-updated-state~1]
                                 log::error!("Update rejected: '{error_msg}'",);
                                 self.to_agents
-                                    .error(
-                                        request_id,
-                                        format!("Update rejected: '{error_msg}'"),
-                                    )
+                                    .error(request_id, format!("Update rejected: '{error_msg}'"))
                                     .await
                                     .unwrap_or_illegal_state();
                             }
