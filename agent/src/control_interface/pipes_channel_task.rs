@@ -77,6 +77,7 @@ impl PipesChannelTask {
                 // [impl->swdd~agent-forward-request-from-control-interface-pipe-to-server~1]
                 to_ankaios_binary = self.input_stream.read_protobuf_data() => {
                     if let Ok(to_ankaios) = decode_to_server(to_ankaios_binary) {
+                        // [impl->swdd~agent-converts-control-interface-message-to-ankaios-object~1]
                         match to_ankaios.try_into() {
                             Ok(ToAnkaios::Request(mut request)) => {
                                 if self.authorizer.authorize(&request) {
