@@ -39,7 +39,7 @@ pub mod security {
     // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
     pub fn read_pem_file(
         path_of_pem_file: &Path,
-        check_permisions: bool,
+        check_permissions: bool,
     ) -> Result<String, GrpcMiddlewareError> {
         let mut file = File::open(path_of_pem_file).map_err(|err| {
             GrpcMiddlewareError::CertificateError(format!(
@@ -52,7 +52,7 @@ pub mod security {
         let mut group_not_readable = true;
         let mut others_not_readable = true;
 
-        if check_permisions {
+        if check_permissions {
             let permissions = file
                 .metadata()
                 .map_err(|err| {
@@ -116,7 +116,7 @@ MIIDrzCCAkGgAwIBAgIQBzANBgkqhkiG9w0BAQUFADCBiDELMAkGA1UEBhMCVVMx
     // [utest->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
     // [utest->swdd~grpc-supports-pem-file-format-for-keys~1]
     #[test]
-    fn test_read_pem_file() {
+    fn utest_read_pem_file() {
         let mut temp_file = NamedTempFile::new().unwrap();
         temp_file.write_all(TEST_PEM_CONTENT.as_bytes()).unwrap();
 

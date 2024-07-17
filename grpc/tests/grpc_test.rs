@@ -1,7 +1,13 @@
 #[cfg(test)]
 mod grpc_tests {
 
-    use std::{io::Write, os::unix::fs::PermissionsExt, time::Duration};
+    use std::{
+        fs::File,
+        io::{self, Write},
+        os::unix::fs::PermissionsExt,
+        path::PathBuf,
+        time::Duration,
+    };
 
     use common::{
         commands::{self, CompleteStateRequest, Request, RequestContent},
@@ -18,7 +24,7 @@ mod grpc_tests {
         server::GRPCCommunicationsServer,
     };
 
-    use tempfile::NamedTempFile;
+    use tempfile::TempDir;
     use tokio::time::timeout;
 
     static TEST_CA_PEM_CONTENT: &str = r#"-----BEGIN CERTIFICATE-----
@@ -74,119 +80,144 @@ kqGIMAUGAytlcANBAP+3ZZ8micEqh8q+3PjGwF16bUZf3UmakLu40nu0LcUglCBq
 MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
 -----END PRIVATE KEY-----"#;
 
-    type TestCertsKeysSet = (
-        NamedTempFile,
-        NamedTempFile,
-        NamedTempFile,
-        NamedTempFile,
-        NamedTempFile,
-        NamedTempFile,
-        NamedTempFile,
-    );
-
-    fn generate_test_pem_files() -> TestCertsKeysSet /*(ca_pem_file,server_pem_file,server_key_pem_file,agent_pem_file,agent_key_pem_file,cli_pem_file,cli_key_pem_file)*/
-    {
-        let mut ca_pem_file = NamedTempFile::new().unwrap();
-        ca_pem_file
-            .write_all(TEST_CA_PEM_CONTENT.as_bytes())
-            .unwrap();
-
-        let mut server_pem_file = NamedTempFile::new().unwrap();
-        server_pem_file
-            .write_all(TEST_SERVER_CRT_PEM_CONTENT.as_bytes())
-            .unwrap();
-
-        let mut server_key_pem_file = NamedTempFile::new().unwrap();
-        let mut server_key_permissions = server_key_pem_file
-            .as_file_mut()
-            .metadata()
-            .unwrap()
-            .permissions();
-        server_key_permissions.set_mode(0o600);
-        let _ = server_key_pem_file
-            .as_file_mut()
-            .set_permissions(server_key_permissions);
-        server_key_pem_file
-            .write_all(TEST_SERVER_KEY_PEM_CONTENT.as_bytes())
-            .unwrap();
-
-        let mut agent_pem_file = NamedTempFile::new().unwrap();
-        agent_pem_file
-            .write_all(TEST_AGENT_CRT_PEM_CONTENT.as_bytes())
-            .unwrap();
-
-        let mut agent_key_pem_file = NamedTempFile::new().unwrap();
-        let mut agent_key_permissions = agent_key_pem_file
-            .as_file_mut()
-            .metadata()
-            .unwrap()
-            .permissions();
-        agent_key_permissions.set_mode(0o600);
-        let _ = agent_key_pem_file
-            .as_file_mut()
-            .set_permissions(agent_key_permissions);
-        agent_key_pem_file
-            .write_all(TEST_AGENT_KEY_PEM_CONTENT.as_bytes())
-            .unwrap();
-
-        let mut cli_pem_file = NamedTempFile::new().unwrap();
-        cli_pem_file
-            .write_all(TEST_CLI_CRT_PEM_CONTENT.as_bytes())
-            .unwrap();
-
-        let mut cli_key_pem_file = NamedTempFile::new().unwrap();
-        let mut cli_key_permissions = cli_key_pem_file
-            .as_file_mut()
-            .metadata()
-            .unwrap()
-            .permissions();
-        cli_key_permissions.set_mode(0o600);
-        let _ = server_key_pem_file
-            .as_file_mut()
-            .set_permissions(cli_key_permissions);
-        cli_key_pem_file
-            .write_all(TEST_CLI_KEY_PEM_CONTENT.as_bytes())
-            .unwrap();
-        (
-            ca_pem_file,
-            server_pem_file,
-            server_key_pem_file,
-            agent_pem_file,
-            agent_key_pem_file,
-            cli_pem_file,
-            cli_key_pem_file,
-        )
+    pub struct TestPEMFilesPackage {
+        // The directory and everything inside it will be automatically deleted once the returned TempDir is destroyed.
+        pub working_dir: TempDir,
+        pub ca_pem_file_path: PathBuf,
+        pub server_pem_file_path: PathBuf,
+        pub server_key_pem_file_path: PathBuf,
+        pub agent_pem_file_path: PathBuf,
+        pub agent_key_pem_file_path: PathBuf,
+        pub cli_pem_file_path: PathBuf,
+        pub cli_key_pem_file_path: PathBuf,
     }
-    fn generate_test_tls_configs(
-        test_certs_keys_set: &TestCertsKeysSet,
-    ) -> (
-        Option<security::TLSConfig>,
-        Option<security::TLSConfig>,
-        Option<security::TLSConfig>,
-    ) /*(server tls config, agent tls config, cli tls config)*/ {
-        let server_tls_config = TLSConfig {
-            path_to_ca_pem: test_certs_keys_set.0.path().to_str().unwrap().to_string(),
-            path_to_crt_pem: test_certs_keys_set.1.path().to_str().unwrap().to_string(),
-            path_to_key_pem: test_certs_keys_set.2.path().to_str().unwrap().to_string(),
-        };
 
-        let agent_tls_config = TLSConfig {
-            path_to_ca_pem: test_certs_keys_set.0.path().to_str().unwrap().to_string(),
-            path_to_crt_pem: test_certs_keys_set.3.path().to_str().unwrap().to_string(),
-            path_to_key_pem: test_certs_keys_set.4.path().to_str().unwrap().to_string(),
-        };
+    impl TestPEMFilesPackage {
+        pub fn new() -> Result<Self, io::Error> {
+            let working_dir = TempDir::new()?;
+            let ca_pem_file_path = working_dir.path().join("ca.pem");
+            let mut ca_pem_file = File::create(ca_pem_file_path.as_path())?;
+            ca_pem_file.write_all(TEST_CA_PEM_CONTENT.as_bytes())?;
+            // ensure that all in-memory data reaches the filesystem before returning to prevent probable concurrency issues.
+            ca_pem_file.sync_all()?;
 
-        let cli_tls_config = TLSConfig {
-            path_to_ca_pem: test_certs_keys_set.0.path().to_str().unwrap().to_string(),
-            path_to_crt_pem: test_certs_keys_set.5.path().to_str().unwrap().to_string(),
-            path_to_key_pem: test_certs_keys_set.6.path().to_str().unwrap().to_string(),
-        };
+            let server_pem_file_path = working_dir.path().join("server.pem");
+            let mut server_pem_file = File::create(server_pem_file_path.as_path())?;
+            server_pem_file.write_all(TEST_SERVER_CRT_PEM_CONTENT.as_bytes())?;
+            server_pem_file.sync_all()?;
 
-        (
-            Some(server_tls_config),
-            Some(agent_tls_config),
-            Some(cli_tls_config),
-        )
+            let server_key_pem_file_path = working_dir.path().join("server-key.pem");
+            let mut server_key_pem_file = File::create(server_key_pem_file_path.as_path())?;
+            server_key_pem_file.write_all(TEST_SERVER_KEY_PEM_CONTENT.as_bytes())?;
+            let mut server_key_permissions = server_key_pem_file.metadata()?.permissions();
+            server_key_permissions.set_mode(0o600);
+            let _ = server_key_pem_file.set_permissions(server_key_permissions);
+            server_key_pem_file.sync_all()?;
+
+            let agent_pem_file_path = working_dir.path().join("agent.pem");
+            let mut agent_pem_file = File::create(agent_pem_file_path.as_path())?;
+            agent_pem_file.write_all(TEST_AGENT_CRT_PEM_CONTENT.as_bytes())?;
+            agent_pem_file.sync_all()?;
+
+            let agent_key_pem_file_path = working_dir.path().join("agent-key.pem");
+            let mut agent_key_pem_file = File::create(agent_key_pem_file_path.as_path())?;
+            agent_key_pem_file.write_all(TEST_AGENT_KEY_PEM_CONTENT.as_bytes())?;
+            let mut agent_key_permissions = agent_key_pem_file.metadata()?.permissions();
+            agent_key_permissions.set_mode(0o600);
+            let _ = agent_key_pem_file.set_permissions(agent_key_permissions);
+            agent_key_pem_file.sync_all()?;
+
+            let cli_pem_file_path = working_dir.path().join("cli.pem");
+            let mut cli_pem_file = File::create(cli_pem_file_path.as_path())?;
+            cli_pem_file.write_all(TEST_CLI_CRT_PEM_CONTENT.as_bytes())?;
+            cli_pem_file.sync_all()?;
+
+            let cli_key_pem_file_path = working_dir.path().join("cli-key.pem");
+            let mut cli_key_pem_file = File::create(cli_key_pem_file_path.as_path())?;
+            cli_key_pem_file.write_all(TEST_CLI_KEY_PEM_CONTENT.as_bytes())?;
+            let mut cli_key_permissions = cli_key_pem_file.metadata()?.permissions();
+            cli_key_permissions.set_mode(0o600);
+            let _ = cli_key_pem_file.set_permissions(cli_key_permissions);
+            cli_key_pem_file.sync_all()?;
+
+            Ok(Self {
+                working_dir,
+                ca_pem_file_path,
+                server_pem_file_path,
+                server_key_pem_file_path,
+                agent_pem_file_path,
+                agent_key_pem_file_path,
+                cli_pem_file_path,
+                cli_key_pem_file_path,
+            })
+        }
+
+        pub fn get_server_tls_config(&self) -> TLSConfig {
+            TLSConfig {
+                path_to_ca_pem: self
+                    .ca_pem_file_path
+                    .clone()
+                    .into_os_string()
+                    .into_string()
+                    .unwrap(),
+                path_to_crt_pem: self
+                    .server_pem_file_path
+                    .clone()
+                    .into_os_string()
+                    .into_string()
+                    .unwrap(),
+                path_to_key_pem: self
+                    .server_key_pem_file_path
+                    .clone()
+                    .into_os_string()
+                    .into_string()
+                    .unwrap(),
+            }
+        }
+        pub fn get_agent_tls_config(&self) -> TLSConfig {
+            TLSConfig {
+                path_to_ca_pem: self
+                    .ca_pem_file_path
+                    .clone()
+                    .into_os_string()
+                    .into_string()
+                    .unwrap(),
+                path_to_crt_pem: self
+                    .agent_pem_file_path
+                    .clone()
+                    .into_os_string()
+                    .into_string()
+                    .unwrap(),
+                path_to_key_pem: self
+                    .agent_key_pem_file_path
+                    .clone()
+                    .into_os_string()
+                    .into_string()
+                    .unwrap(),
+            }
+        }
+        pub fn get_cli_tls_config(&self) -> TLSConfig {
+            TLSConfig {
+                path_to_ca_pem: self
+                    .ca_pem_file_path
+                    .clone()
+                    .into_os_string()
+                    .into_string()
+                    .unwrap(),
+                path_to_crt_pem: self
+                    .cli_pem_file_path
+                    .clone()
+                    .into_os_string()
+                    .into_string()
+                    .unwrap(),
+                path_to_key_pem: self
+                    .cli_key_pem_file_path
+                    .clone()
+                    .into_os_string()
+                    .into_string()
+                    .unwrap(),
+            }
+        }
     }
 
     enum CommunicationType {
@@ -205,10 +236,7 @@ MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
         tokio::task::JoinHandle<Result<(), CommunicationMiddlewareError>>,
     ) {
         let (to_grpc_client, grpc_client_receiver) = tokio::sync::mpsc::channel::<ToServer>(20);
-        let url = match tls_config {
-            None => format!("http://{}", server_addr),
-            Some(_) => format!("https://{}", server_addr),
-        };
+        let url = format!("http://{}", server_addr);
         let grpc_communications_client = match comm_type {
             CommunicationType::Cli => GRPCCommunicationsClient::new_cli_communication(
                 test_request_id.to_owned(),
@@ -235,7 +263,7 @@ MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
         port: u16,
         comm_type: CommunicationType,
         test_request_id: &str,
-        tls_mode: bool,
+        tls_pem_files_package: Option<&TestPEMFilesPackage>,
     ) -> (
         ToServerSender,                                                    // to_grpc_client
         ToServerReceiver,                                                  // server_receiver
@@ -244,7 +272,7 @@ MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
     ) {
         ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         //                                         _____________                                _________________
-        //                                        |             | -----grpc over http--------> |    0.0.0.0:port |
+        //                                        |             | -----grpc over http(s)--------> |    0.0.0.0:port |
         //  test_case ------->to_grpc_client----->| grpc_client |                              |    grpc_server  |
         //                                        |_____________|                              |_________________|
         //                                                                                              |---to_server---> server_receiver
@@ -255,12 +283,16 @@ MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
         let (to_grpc_server, grpc_server_receiver) = tokio::sync::mpsc::channel::<FromServer>(20);
         let (to_server, server_receiver) = tokio::sync::mpsc::channel::<ToServer>(20);
 
-        let (server_tls_config, agent_tls_config, cli_tls_config) = if tls_mode {
-            let test_certs_and_keys_pem_files = generate_test_pem_files();
-            generate_test_tls_configs(&test_certs_and_keys_pem_files)
-        } else {
-            (None, None, None)
-        };
+        let (server_tls_config, agent_tls_config, cli_tls_config) =
+            if let Some(tls_pem_files_package) = tls_pem_files_package {
+                (
+                    Some(tls_pem_files_package.get_server_tls_config()),
+                    Some(tls_pem_files_package.get_agent_tls_config()),
+                    Some(tls_pem_files_package.get_cli_tls_config()),
+                )
+            } else {
+                (None, None, None)
+            };
 
         // create communication server
         let mut communications_server = GRPCCommunicationsServer::new(to_server, server_tls_config);
@@ -294,17 +326,19 @@ MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
         )
     }
 
-    // [itest->swdd~grpc-server-provides-endpoint-for-cli-connection-handling~1]
-    // [itest->swdd~grpc-server-creates-cli-connection~1]
+    // [itest->swdd~grpc-server-activate-mtls-when-certificates-and-key-provided-upon-start~1]
+    // [itest->swdd~grpc-cli-activate-mtls-when-certificates-and-key-provided-upon-start~1]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)] // set worker_threads = 1 to solve the failing of the test on woodpecker
-    async fn itest_grpc_communication_client_cli_connection_grpc_server_received_request_complete_state(
+    async fn itest_grpc_communication_client_cli_connection_grpc_server_received_request_complete_state_with_tls(
     ) {
         let test_request_id = "test_request_id";
+        let test_pem_files_package = TestPEMFilesPackage::new().unwrap();
+
         let (to_grpc_client, mut server_receiver, _, _) = generate_test_grpc_communication_setup(
             25551,
             CommunicationType::Cli,
             test_request_id,
-            false,
+            Some(&test_pem_files_package),
         )
         .await;
 
@@ -315,6 +349,51 @@ MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
                 CompleteStateRequest { field_mask: vec![] },
             )
             .await;
+
+        assert!(request_complete_state_result.is_ok());
+
+        // read request forwarded by grpc communication server
+        let result = timeout(Duration::from_millis(3000), server_receiver.recv()).await;
+
+        println!("result: {:?}", result);
+
+        assert!(matches!(
+            result,
+            Ok(Some(ToServer::Request(
+                Request{
+                    request_id,
+                    request_content: RequestContent::CompleteStateRequest(CompleteStateRequest {
+                        field_mask
+                    })
+                }
+            ))) if request_id.contains(test_request_id) && field_mask.is_empty()
+        ));
+    }
+
+    // [itest->swdd~grpc-server-provides-endpoint-for-cli-connection-handling~1]
+    // [itest->swdd~grpc-server-creates-cli-connection~1]
+    // [itest->swdd~grpc-server-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1]
+    // [itest->swdd~grpc-cli-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)] // set worker_threads = 1 to solve the failing of the test on woodpecker
+    async fn itest_grpc_communication_client_cli_connection_grpc_server_received_request_complete_state(
+    ) {
+        let test_request_id = "test_request_id";
+        let (to_grpc_client, mut server_receiver, _, _) = generate_test_grpc_communication_setup(
+            25551,
+            CommunicationType::Cli,
+            test_request_id,
+            None,
+        )
+        .await;
+
+        // send request to grpc client
+        let request_complete_state_result = to_grpc_client
+            .request_complete_state(
+                test_request_id.to_owned(),
+                CompleteStateRequest { field_mask: vec![] },
+            )
+            .await;
+
         assert!(request_complete_state_result.is_ok());
 
         // read request forwarded by grpc communication server
@@ -342,7 +421,7 @@ MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
             50052,
             CommunicationType::Cli,
             test_request_id,
-            false,
+            None,
         )
         .await;
 
@@ -368,6 +447,7 @@ MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
         ));
     }
 
+    // [itest->swdd~grpc-agent-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)] // set worker_threads = 1 to solve the failing of the test on woodpecker
     async fn itest_grpc_communication_client_agent_connection_grpc_server_received_agent_hello() {
         let test_agent_name = "test_agent_name";
@@ -375,7 +455,30 @@ MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
             50053,
             CommunicationType::Agent,
             test_agent_name,
-            false,
+            None,
+        )
+        .await;
+
+        let result = timeout(Duration::from_millis(10000), server_receiver.recv()).await;
+
+        assert!(matches!(
+            result,
+            Ok(Some(ToServer::AgentHello(commands::AgentHello { agent_name }))) if agent_name == test_agent_name
+        ));
+    }
+
+    // [itest->swdd~grpc-agent-activate-mtls-when-certificates-and-key-provided-upon-start~1]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)] // set worker_threads = 1 to solve the failing of the test on woodpecker
+    async fn itest_grpc_communication_client_agent_connection_grpc_server_received_agent_hello_with_tls(
+    ) {
+        let test_agent_name = "test_agent_name";
+        let test_pem_files_package = TestPEMFilesPackage::new().unwrap();
+
+        let (_, mut server_receiver, _, _) = generate_test_grpc_communication_setup(
+            50053,
+            CommunicationType::Agent,
+            test_agent_name,
+            Some(&test_pem_files_package),
         )
         .await;
 
