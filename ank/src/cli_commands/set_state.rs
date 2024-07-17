@@ -19,14 +19,13 @@ use common::{
 use std::io::{self, Read};
 
 #[cfg(not(test))]
-async fn read_file_to_string(file: String) -> std::io::Result<String> {
+fn read_file_to_string(file: String) -> std::io::Result<String> {
     std::fs::read_to_string(file)
 }
 
+use crate::{cli_error::CliError, output_and_error, output_debug};
 #[cfg(test)]
 use tests::read_to_string_mock as read_file_to_string;
-
-use crate::{cli_error::CliError, output_and_error, output_debug};
 
 use super::CliCommands;
 
