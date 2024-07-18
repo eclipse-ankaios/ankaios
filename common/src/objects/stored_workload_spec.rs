@@ -45,24 +45,24 @@ impl TryFrom<ank_base::Workload> for StoredWorkloadSpec {
 
     fn try_from(value: ank_base::Workload) -> Result<Self, String> {
         Ok(StoredWorkloadSpec {
-            agent: value.agent.ok_or("Missing")?,
+            agent: value.agent.ok_or("Missing field agent")?,
             tags: value
                 .tags
-                .ok_or("Missing Tags")?
+                .unwrap_or_default()
                 .tags
                 .into_iter()
                 .map(|x| x.into())
                 .collect(),
             dependencies: value
                 .dependencies
-                .ok_or("Missing dependencies")?
+                .unwrap_or_default()
                 .dependencies
                 .into_iter()
                 .map(|(k, v)| Ok((k, v.try_into()?)))
                 .collect::<Result<HashMap<String, AddCondition>, String>>()?,
-            restart_policy: value.restart_policy.ok_or("Missing")?.try_into()?,
-            runtime: value.runtime.ok_or("Missing")?,
-            runtime_config: value.runtime_config.ok_or("Missing")?,
+            restart_policy: value.restart_policy.unwrap_or_default().try_into()?,
+            runtime: value.runtime.ok_or("Missing field runtime")?,
+            runtime_config: value.runtime_config.ok_or("Missing field runtimeConfig")?,
             control_interface_access: value
                 .control_interface_access
                 .unwrap_or_default()
