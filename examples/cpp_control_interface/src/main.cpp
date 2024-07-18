@@ -35,13 +35,19 @@ control_api::ToAnkaios createRequestToAddNewWorkload()
     ank_base::Workload newWorkload;
     newWorkload.set_agent("agent_A");
     newWorkload.set_runtime("podman");
+    ank_base::Tags *tags{new ank_base::Tags};
+    newWorkload.set_allocated_tags(tags);
+    ank_base::Dependencies *dependencies{new ank_base::Dependencies};
+    newWorkload.set_allocated_dependencies(dependencies);
     newWorkload.set_restartpolicy(ank_base::RestartPolicy::NEVER);
     newWorkload.set_runtimeconfig("image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]");
 
     ank_base::State *state{new ank_base::State};
     std::string* apiVersion{new std::string("v0.1")};
     state->set_allocated_apiversion(apiVersion);
-    state->mutable_workloads()->insert({"dynamic_nginx", std::move(newWorkload)});
+    ank_base::WorkloadMap *workloads{new ank_base::WorkloadMap};
+    workloads->mutable_workloads()->insert({"dynamic_nginx", std::move(newWorkload)});
+    state->set_allocated_workloads(workloads);
 
     ank_base::CompleteState *completeState{new ank_base::CompleteState};
     completeState->set_allocated_desiredstate(state);
