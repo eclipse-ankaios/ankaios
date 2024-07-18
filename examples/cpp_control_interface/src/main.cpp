@@ -35,10 +35,6 @@ control_api::ToAnkaios createRequestToAddNewWorkload()
     ank_base::Workload newWorkload;
     newWorkload.set_agent("agent_A");
     newWorkload.set_runtime("podman");
-    ank_base::Tags *tags{new ank_base::Tags};
-    newWorkload.set_allocated_tags(tags);
-    ank_base::Dependencies *dependencies{new ank_base::Dependencies};
-    newWorkload.set_allocated_dependencies(dependencies);
     newWorkload.set_restartpolicy(ank_base::RestartPolicy::NEVER);
     newWorkload.set_runtimeconfig("image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]");
 
