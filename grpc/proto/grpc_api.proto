@@ -95,6 +95,7 @@ message AddedWorkload {
     ank_base.RestartPolicy restartPolicy = 4; /// An enum value that defines the condition under which a workload is restarted.
     repeated ank_base.Tag tags = 5; /// A list of tags.
     string runtimeConfig = 6; /// The configuration information specific to the runtime.
+    ank_base.ControlInterfaceAccess controlInterfaceAccess = 7; /// Defines which parts of the control interface the workload is authorized to access
 }
 
 /**

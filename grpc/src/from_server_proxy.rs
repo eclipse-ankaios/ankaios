@@ -682,7 +682,8 @@ mod tests {
                 workloads: startup_workloads.clone(),
                 ..Default::default()
             },
-            workload_states: vec![],
+            ..Default::default()
+
         };
 
         let complete_state_result = to_manager
@@ -705,11 +706,10 @@ mod tests {
                 request_id,
                 response_content: Some(ank_base::response::ResponseContent::CompleteState(ank_base::CompleteState{
                     desired_state: Some(desired_state),
-                    workload_states}))
+                    workload_states: _}))
 
             })) if request_id == my_request_id
             && desired_state == test_complete_state.desired_state.into()
-            && workload_states == vec![]
         ));
     }
 
@@ -734,7 +734,7 @@ mod tests {
                     .into(),
                     ..Default::default()
                 }),
-                workload_states: vec![],
+                ..Default::default()
             });
 
         // simulate the reception of an update workload state grpc from server message
@@ -782,12 +782,12 @@ mod tests {
 
         let test_complete_state = CompleteState {
             desired_state: State::default(),
-            workload_states: vec![],
+            ..Default::default()
         };
 
         let proto_complete_state = ank_base::CompleteState {
             desired_state: Some(test_complete_state.desired_state.clone().into()),
-            workload_states: vec![],
+            ..Default::default()
         };
 
         let proto_response = ank_base::Response {

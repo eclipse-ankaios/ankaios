@@ -78,7 +78,7 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use common::{
-        objects::{self, generate_test_workload_spec_with_param, ExecutionState},
+        objects::{self, generate_test_workload_spec_with_param, generate_test_workload_states_map_with_data, ExecutionState},
         test_utils,
     };
     use mockall::predicate::eq;
@@ -298,11 +298,12 @@ mod tests {
     #[tokio::test]
     async fn utest_get_workloads_deleted_workload() {
         let test_data = objects::CompleteState {
-            workload_states: vec![common::objects::generate_test_workload_state_with_agent(
-                "Workload_1",
+            workload_states: generate_test_workload_states_map_with_data(
                 "agent_A",
+                "Workload_1",
+                "ID_X",
                 ExecutionState::removed(),
-            )],
+            ),
             ..Default::default()
         };
 
