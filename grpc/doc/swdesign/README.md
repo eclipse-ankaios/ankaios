@@ -51,183 +51,6 @@ Considered alternatives:
 * implementing the gRPC protocol completely inside the middleware
 * using an http library and a protobuf converter
 
-#### Support PEM file format for X509 certificates
-`swdd~grpc-supports-pem-file-format-for-X509-certificates~1`
-
-Status: approved
-
-When a PEM file is provided as certificate, the gRPC middleware shall:
-* parse the given PEM file into x509 certificate buffer format.
-* use the parsed x509 certificate to setup the TLS configuration.
-
-Rationale:
-
-The advantage of using a PEM file is due to its text-based, human-readable format, making it more versatile, as it can contain certificates, private keys, public keys and even certificate chain, compared to DER.
-
-Needs:
-- impl
-- utest
-
-Assumptions:
-
-No assumptions were taken.
-
-#### Support PEM file format for keys
-`swdd~grpc-supports-pem-file-format-for-keys~1`
-
-Status: approved
-
-When a PEM file is provided as a key, the gRPC middleware shall:
-* parse the given PEM file into a buffer containing the key.
-* use the parsed key to setup the TLS configuration.
-
-Rationale:
-
-The advantage of using a PEM file is due to its text-based, human-readable format, making it more versatile, as it can contain certificates, private keys, public keys and even certificate chain, compared to DER.
-
-Needs:
-- impl
-- utest
-
-Assumptions:
-
-No assumptions were taken.
-
-#### Check given PEM file for proper unix file permission
-`swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~1`
-
-Status: approved
-
-When a PEM file is provided, the gRPC middleware shall check the given PEM file to have one of the following unix file permission:
-* 400
-* 600
-
-Rationale:
-
-Due to security reasons certificates and keys shall not be read- and writable by groups and others.
-
-Needs:
-- impl
-- utest
-
-Assumptions:
-
-No assumptions were taken.
-
-#### Activate mTLS on gRPC server when certificates and key are provided upon the start
-`swdd~grpc-server-activate-mtls-when-certificates-and-key-provided-upon-start~1`
-
-Status: approved
-
-When the root, the server's certificate and the key is provided upon start of the gRPC server, the gRPC server shall use the provided certificates and the key to activate mTLS for the gRPC communication between the involved parties.
-
-Rationale:
-
-To avoid complexity, coming with mTLS configuration e.g. certificates generation and management, during development phase, mTLS can be activated on demand.
-
-Needs:
-- impl
-- itest
-
-Assumptions:
-
-No assumptions were taken.
-
-#### Deactivate mTLS on gRPC server no certificates and no key provided upon the start
-`swdd~grpc-server-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1`
-
-Status: approved
-
-When no root, no server's certificate and no key are provided upon start of the gRPC server, the gRPC server shall establish a gRPC communication between the involved parties without mTLS.
-
-Rationale:
-
-To avoid complexity, coming with mTLS configuration e.g. certificates generation and management, during development phase, mTLS can be activated on demand.
-
-Needs:
-- impl
-- itest
-
-Assumptions:
-
-No assumptions were taken.
-
-#### Activate mTLS on gRPC agent connection when certificates and key are provided upon the start
-`swdd~grpc-agent-activate-mtls-when-certificates-and-key-provided-upon-start~1`
-
-Status: approved
-
-When the root, the agent's certificate and the key is provided upon start of the gRPC agent connection, the gRPC agent client shall use the provided certificates and the key to activate mTLS for the gRPC communication between the involved parties.
-
-Rationale:
-
-To avoid complexity, coming with mTLS configuration e.g. certificates generation and management, during development phase, mTLS can be activated on demand.
-
-Needs:
-- impl
-- itest
-
-Assumptions:
-
-No assumptions were taken.
-
-#### Deactivate mTLS on gRPC agent connection when no certificates and no key provided upon the start
-`swdd~grpc-agent-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1`
-
-Status: approved
-
-When no root, no agent's certificate and no key are provided upon start of the gRPC agent connection, the gRPC agent client shall establish a gRPC communication between the involved parties without mTLS.
-
-Rationale:
-
-To avoid complexity, coming with mTLS configuration e.g. certificates generation and management, during development phase, mTLS can be activated on demand.
-
-Needs:
-- impl
-- itest
-
-Assumptions:
-
-No assumptions were taken.
-
-#### Activate mTLS on gRPC cli connection when certificates and key are provided upon the start
-`swdd~grpc-cli-activate-mtls-when-certificates-and-key-provided-upon-start~1`
-
-Status: approved
-
-When the root, the cli's certificate and the key is provided upon start of the gRPC cli connection, the gRPC cli client shall use the provided certificates and the key to activate mTLS for the gRPC communication between the involved parties.
-
-Rationale:
-
-To avoid complexity, coming with mTLS configuration e.g. certificates generation and management, during development phase, mTLS can be activated on demand.
-
-Needs:
-- impl
-- itest
-
-Assumptions:
-
-No assumptions were taken.
-
-#### Deactivate mTLS on gRPC cli connection when no certificates and no key provided upon the start
-`swdd~grpc-cli-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1`
-
-Status: approved
-
-When the root, the cli's certificate and the key is provided upon start of the gRPC cli connection, the gRPC cli client shall use the provided certificates and the key to activate mTLS for the gRPC communication between the involved parties.
-
-Rationale:
-
-To avoid complexity, coming with mTLS configuration e.g. certificates generation and management, during development phase, mTLS can be activated on demand.
-
-Needs:
-- impl
-- itest
-
-Assumptions:
-
-No assumptions were taken.
-
 ## Structural view
 
 ![Unit overview](drawio/unit_overview.drawio.svg)
@@ -483,6 +306,135 @@ The Ankaios Server needs to know when a new Agent is connected in order to send 
 
 Tags:
 - gRPC_Agent_Connection
+
+Needs:
+- impl
+- itest
+
+### Secure mTLS and insecure communication
+
+This chapter describes how secure and insecure communication is handled by the gRPC library.
+
+#### Support PEM file format for X509 certificates
+`swdd~grpc-supports-pem-file-format-for-X509-certificates~1`
+
+Status: approved
+
+When a PEM file is provided as certificate, the gRPC middleware shall:
+* parse the given PEM file into x509 certificate buffer format.
+* use the parsed x509 certificate to setup the TLS configuration.
+
+Rationale:
+
+The advantage of using a PEM file is due to its text-based, human-readable format, making it more versatile, as it can contain certificates, private keys, public keys and even certificate chain, compared to DER.
+
+Needs:
+- impl
+- utest
+
+#### Support PEM file format for keys
+`swdd~grpc-supports-pem-file-format-for-keys~1`
+
+Status: approved
+
+When a PEM file is provided as a key, the gRPC middleware shall:
+* parse the given PEM file into a buffer containing the key.
+* use the parsed key to setup the TLS configuration.
+
+Rationale:
+
+The advantage of using a PEM file is due to its text-based, human-readable format, making it more versatile, as it can contain certificates, private keys, public keys and even certificate chain, compared to DER.
+
+Needs:
+- impl
+- utest
+
+#### Check given PEM file for proper unix file permission
+`swdd~grpc-checks-given-PEM-file-for-proper-unix-file-permission~1`
+
+Status: approved
+
+When a PEM file is provided, the gRPC middleware shall check the given PEM file to have one of the following unix file permission:
+* 400
+* 600
+
+Rationale:
+Due to security reasons certificates and keys shall not be read- and writable by groups and others.
+
+Needs:
+- impl
+- utest
+
+#### Activate mTLS on gRPC server when certificates and key are provided upon the start
+`swdd~grpc-server-activate-mtls-when-certificates-and-key-provided-upon-start~1`
+
+Status: approved
+
+When the root certificate, the server certificate and the server key is provided upon start of the gRPC server, the gRPC server shall use the provided certificates and the key to activate mTLS for the gRPC communication between the involved parties.
+
+Needs:
+- impl
+- itest
+
+#### Deactivate mTLS on gRPC server no certificates and no key provided upon the start
+`swdd~grpc-server-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1`
+
+Status: approved
+
+When no root certificate, no server certificate and no server key are provided upon start of the gRPC server, the gRPC server shall establish a gRPC communication between the involved parties without mTLS.
+
+Rationale:
+To avoid complexity, coming with mTLS configuration e.g. certificates generation and management, during development phase, mTLS can be activated on demand.
+
+Needs:
+- impl
+- itest
+
+#### Activate mTLS on gRPC agent connection when certificates and key are provided upon the start
+`swdd~grpc-agent-activate-mtls-when-certificates-and-key-provided-upon-start~1`
+
+Status: approved
+
+When the root certificate, the agent certificate and the agent key is provided upon start of the gRPC agent connection, the gRPC agent client shall use the provided certificates and the key to activate mTLS for the gRPC communication between the involved parties.
+
+Needs:
+- impl
+- itest
+
+#### Deactivate mTLS on gRPC agent connection when no certificates and no key provided upon the start
+`swdd~grpc-agent-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1`
+
+Status: approved
+
+When no root certificate, no agent certificate and no agent key are provided upon start of the gRPC agent connection, the gRPC agent client shall establish a gRPC communication between the involved parties without mTLS.
+
+Rationale:
+To avoid complexity, coming with mTLS configuration e.g. certificates generation and management, during development phase, mTLS can be activated on demand.
+
+Needs:
+- impl
+- itest
+
+#### Activate mTLS on gRPC cli connection when certificates and key are provided upon the start
+`swdd~grpc-cli-activate-mtls-when-certificates-and-key-provided-upon-start~1`
+
+Status: approved
+
+When the root certificate, the cli certificate and the cli key is provided upon start of the gRPC cli connection, the gRPC cli client shall use the provided certificates and the key to activate mTLS for the gRPC communication between the involved parties.
+
+Needs:
+- impl
+- itest
+
+#### Deactivate mTLS on gRPC cli connection when no certificates and no key provided upon the start
+`swdd~grpc-cli-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1`
+
+Status: approved
+
+When the root certificate, the cli certificate and the cli key is provided upon start of the gRPC cli connection, the gRPC cli client shall use the provided certificates and the key to activate mTLS for the gRPC communication between the involved parties.
+
+Rationale:
+To avoid complexity, coming with mTLS configuration e.g. certificates generation and management, during development phase, mTLS can be activated on demand.
 
 Needs:
 - impl
