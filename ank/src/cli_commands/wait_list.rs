@@ -16,7 +16,7 @@ use std::{collections::HashSet, fmt::Display};
 
 use api::ank_base;
 
-use common::objects::{PendingSubstate, WorkloadInstanceName, WorkloadState, NO_MORE_RETRIES_MSG};
+use common::objects::{PendingSubstate, WorkloadInstanceName, WorkloadState};
 
 #[cfg(test)]
 use mockall::mock;
