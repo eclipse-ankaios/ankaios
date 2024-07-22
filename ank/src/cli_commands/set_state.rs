@@ -1,16 +1,29 @@
+// Copyright (c) 2024 Elektrobit Automotive GmbH
+//
+// This program and the accompanying materials are made available under the
+// terms of the Apache License, Version 2.0 which is available at
+// https://www.apache.org/licenses/LICENSE-2.0.
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
 use common::{
     objects::{CompleteState, StoredWorkloadSpec},
     state_manipulation::{Object, Path},
 };
 
 #[cfg(not(test))]
-async fn read_file_to_string(file: String) -> std::io::Result<String> {
+fn read_file_to_string(file: String) -> std::io::Result<String> {
     std::fs::read_to_string(file)
 }
+use crate::{cli_error::CliError, output_and_error, output_debug};
 #[cfg(test)]
 use tests::read_to_string_mock as read_file_to_string;
-
-use crate::{cli_error::CliError, output_debug};
 
 use super::CliCommands;
 
@@ -56,11 +69,9 @@ impl CliCommands {
         let mut complete_state = CompleteState::default();
         if let Some(state_object_file) = state_object_file {
             let state_object_data =
-                read_file_to_string(state_object_file)
-                    .await
-                    .unwrap_or_else(|error| {
-                        panic!("Could not read the state object file.\nError: {}", error)
-                    });
+                read_file_to_string(state_object_file).unwrap_or_else(|error| {
+                    output_and_error!("Could not read the state object file.\nError: {}", error)
+                });
             let value: serde_yaml::Value = serde_yaml::from_str(&state_object_data)?;
             let x = Object::try_from(&value)?;
 
@@ -108,7 +119,7 @@ impl CliCommands {
 mod tests {
     use std::io;
 
-    pub async fn read_to_string_mock(_file: String) -> io::Result<String> {
+    pub fn read_to_string_mock(_file: String) -> io::Result<String> {
         Ok("".into())
     }
 }

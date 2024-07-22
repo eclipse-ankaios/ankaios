@@ -298,10 +298,7 @@ mod tests {
         test_utils::generate_test_complete_state,
     };
 
-    use crate::{
-        ankaios_server::{delete_graph::MockDeleteGraph, server_state::UpdateStateError},
-        workload_state_db::WorkloadStateDB,
-    };
+    use crate::ankaios_server::{delete_graph::MockDeleteGraph, server_state::UpdateStateError};
 
     use super::ServerState;
     const AGENT_A: &str = "agent_A";
@@ -341,10 +338,10 @@ mod tests {
 
         let request_complete_state = CompleteStateRequest { field_mask: vec![] };
 
-        let mut workload_state_db = WorkloadStateDB::default();
-        workload_state_db.process_new_states(server_state.state.workload_states.clone());
+        let mut workload_state_db = WorkloadStatesMap::default();
+        workload_state_db.process_new_states(server_state.state.workload_states.clone().into());
 
-        let mut complete_state = server_state
+        let received_complete_state = server_state
             .get_complete_state_by_field_mask(&request_complete_state, &workload_state_db)
             .unwrap();
 
@@ -374,7 +371,7 @@ mod tests {
                 format!("desiredState.workloads.{}", WORKLOAD_NAME_1),
             ],
         };
-
+        
         let mut workload_state_map = WorkloadStatesMap::default();
         workload_state_map.process_new_states(server_state.state.workload_states.clone().into());
 

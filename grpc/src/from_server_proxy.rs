@@ -701,7 +701,7 @@ mod tests {
                 request_id,
                 response_content: Some(ank_base::response::ResponseContent::CompleteState(ank_base::CompleteState{
                     desired_state: Some(desired_state),
-                    workload_states}))
+                    workload_states: _}))
 
             })) if request_id == my_request_id
             && desired_state == test_complete_state.desired_state.unwrap()
@@ -772,7 +772,6 @@ mod tests {
 
         let my_request_id = "my_request_id".to_owned();
 
-
         let test_complete_state = ank_base::CompleteState {
             desired_state: Some(ank_base::State {
                 workloads: startup_workloads.clone(),
@@ -782,6 +781,7 @@ mod tests {
         };
 
         let proto_complete_state = ank_base::CompleteState {
+
             desired_state: test_complete_state.desired_state.clone(),
             ..Default::default()
         };

@@ -229,7 +229,6 @@ message Workload {
     optional string runtime = 5; /// The name of the runtime e.g. podman.
     optional string runtimeConfig  = 6; /// The configuration information specific to the runtime.
     ControlInterfaceAccess controlInterfaceAccess = 7;
-
 }
 
 /**

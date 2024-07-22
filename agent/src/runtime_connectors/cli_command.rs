@@ -8,6 +8,8 @@ pub use tests::MockCliCommand;
 pub struct CliCommand<'a> {
     command: Command,
     stdin: Option<&'a [u8]>,
+    program: String,
+    args: Vec<String>,
 }
 
 impl<'a> CliCommand<'a> {
@@ -20,11 +22,14 @@ impl<'a> CliCommand<'a> {
         Self {
             command,
             stdin: None,
+            program: program.to_owned(),
+            args: Vec::new(),
         }
     }
 
     pub fn args(&mut self, args: &[&str]) -> &mut Self {
         self.command.args(args);
+        self.args = args.iter().map(|s| s.to_string()).collect();
         self
     }
 
@@ -36,8 +41,8 @@ impl<'a> CliCommand<'a> {
     pub async fn exec(&mut self) -> Result<String, String> {
         let mut child = self.command.spawn().map_err(|err| {
             format!(
-                "Could not spawn command '{:?}'. Error: '{}'",
-                self.command, err
+                "Error: '{}'. Could not spawn command '{:?}'.",
+                err, self.command
             )
         })?;
 
@@ -58,12 +63,24 @@ impl<'a> CliCommand<'a> {
             let stderr = String::from_utf8(result.stderr).unwrap_or_else(|err| {
                 format!("Could not decode command's stderr as UTF8: '{}'", err)
             });
+
+            let args_with_quotes = self.get_quoted_args(); // quoted args for easy debugging of the user
+
             Err(format!(
-                "Execution of '{:?}' failed: '{}'",
-                self.command,
-                stderr.trim()
+                "{}. Execution of '{} {}'",
+                stderr.trim(),
+                self.program,
+                args_with_quotes,
             ))
         }
+    }
+
+    fn get_quoted_args(&self) -> String {
+        self.args
+            .iter()
+            .map(|arg| format!("\"{}\"", arg))
+            .collect::<Vec<String>>()
+            .join(" ")
     }
 }
 
@@ -105,7 +122,7 @@ mod tests {
     #[tokio::test]
     async fn utest_cli_command_fail_on_not_existing_command() {
         let result = CliCommand::new("non_existing_command").exec().await;
-        assert!(matches!(result, Err(x) if x.starts_with("Could not spawn command")));
+        assert!(matches!(result, Err(x) if x.contains("Could not spawn command")));
     }
 
     #[tokio::test]
@@ -135,7 +152,13 @@ mod tests {
             .exec()
             .await;
 
-        assert_eq!(result, Err("Execution of 'Command { std: \"bash\" \"-c\" \"echo output;echo error >&2; false\", kill_on_drop: false }' failed: 'error'".to_string()));
+        assert_eq!(
+            result,
+            Err(
+                "error. Execution of 'bash \"-c\" \"echo output;echo error >&2; false\"'"
+                    .to_string()
+            )
+        );
     }
 
     #[tokio::test]

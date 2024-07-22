@@ -285,8 +285,8 @@ impl Object {
 mod tests {
     use crate::{
         objects::{
-            generate_test_workload_spec, generate_test_workload_state_with_agent, CompleteState,
-            ExecutionState, State,
+            generate_test_workload_spec, generate_test_workload_states_map_from_specs,
+            CompleteState, State,
         },
         test_utils::generate_test_state_from_workloads,
     };
@@ -318,14 +318,11 @@ mod tests {
 
     #[test]
     fn utest_object_from_complete_state() {
-        let state = generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
+        let wl_spec = generate_test_workload_spec();
+        let state = generate_test_state_from_workloads(vec![wl_spec.clone()]);
         let complete_state = CompleteState {
             desired_state: state,
-            workload_states: vec![generate_test_workload_state_with_agent(
-                "workload A",
-                "agent",
-                ExecutionState::running(),
-            )],
+            workload_states: generate_test_workload_states_map_from_specs(vec![wl_spec]),
         };
 
         let expected = Object {
@@ -341,16 +338,11 @@ mod tests {
         let object = Object {
             data: object::generate_test_complete_state().into(),
         };
-
-        let expected_state =
-            generate_test_state_from_workloads(vec![generate_test_workload_spec()]);
+        let wl_spec = generate_test_workload_spec();
+        let expected_state = generate_test_state_from_workloads(vec![wl_spec.clone()]);
         let expected = CompleteState {
             desired_state: expected_state,
-            workload_states: vec![generate_test_workload_state_with_agent(
-                "workload A",
-                "agent",
-                ExecutionState::running(),
-            )],
+            workload_states: generate_test_workload_states_map_from_specs(vec![wl_spec]),
         };
         let actual: CompleteState = object.try_into().unwrap();
 
@@ -697,27 +689,27 @@ mod tests {
     mod object {
         use serde_yaml::Value;
 
+        use crate::objects::generate_test_runtime_config;
+
         pub fn generate_test_complete_state() -> Mapping {
-            let config_hash: &dyn common::objects::ConfigHash = &"config".to_string();
+            let config_hash: &dyn common::objects::ConfigHash = &generate_test_runtime_config();
             Mapping::default()
                 .entry("desiredState", generate_test_state())
                 .entry(
                     "workloadStates",
-                    vec![Mapping::default()
-                        .entry(
-                            "instanceName",
-                            Mapping::default()
-                                .entry("agentName", "agent")
-                                .entry("workloadName", "workload A")
-                                .entry("id", config_hash.hash_config()),
-                        )
-                        .entry(
-                            "executionState",
-                            Mapping::default()
-                                .entry("state", "Running")
-                                .entry("subState", "Ok")
-                                .entry("additionalInfo", ""),
-                        )],
+                    Mapping::default().entry(
+                        "agent",
+                        Mapping::default().entry(
+                            "name",
+                            Mapping::default().entry(
+                                config_hash.hash_config(),
+                                Mapping::default()
+                                    .entry("state", "Running")
+                                    .entry("subState", "Ok")
+                                    .entry("additionalInfo", ""),
+                            ),
+                        ),
+                    ),
                 )
         }
 
@@ -745,7 +737,13 @@ mod tests {
                             )
                             .entry("restartPolicy", "ALWAYS")
                             .entry("runtime", "runtime")
-                            .entry("runtimeConfig", "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"),
+                            .entry("runtimeConfig", "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n")
+                            .entry(
+                                "controlInterfaceAccess",
+                                Mapping::default()
+                                    .entry("allowRules", vec![] as Vec<Value>)
+                                    .entry("denyRules", vec![] as Vec<Value>),
+                            ),
                     ),
                 )
         }

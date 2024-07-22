@@ -40,7 +40,7 @@ def table_to_list(raw):
     while splitted and "WORKLOAD NAME" not in header:
         header = splitted.pop(0)
 
-    columns = [(x.group(0).strip(), x.start(), x.end()) for x in re.finditer(r'(([^\s]+\s?)+\s*)', header.replace('\x1b[1G\x1b[1G ', ''))]
+    columns = [(x.group(0).strip(), x.start(), x.end()) for x in re.finditer(r'(([^\s]+\s?)+\s*)', header.replace('\x1b[1G\x1b[1G', ''))]
     logger.trace("columns: {}".format(columns))
     table = []
     for row in splitted:
