@@ -12,6 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::fmt::Display;
+
 use common::{
     commands::Request,
     objects::{AccessRightsRule, ControlInterfaceAccess, ReadWriteEnum},
@@ -227,9 +229,9 @@ impl From<&str> for Path {
     }
 }
 
-impl ToString for Path {
-    fn to_string(&self) -> String {
-        self.sections.join(".")
+impl Display for Path {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.sections.join("."))
     }
 }
 
@@ -339,11 +341,11 @@ impl From<&str> for PathPatternSection {
     }
 }
 
-impl ToString for PathPatternSection {
-    fn to_string(&self) -> String {
+impl Display for PathPatternSection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PathPatternSection::Wildcard => "*".into(),
-            PathPatternSection::String(s) => s.clone(),
+            PathPatternSection::Wildcard => write!(f, "*"),
+            PathPatternSection::String(s) => write!(f, "{}", s.clone()),
         }
     }
 }
