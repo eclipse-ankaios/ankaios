@@ -11,5 +11,7 @@
 # under the License.
 #
 # SPDX-License-Identifier: Apache-2.0
+
 *** Variables ***
 ${CONFIGS_DIR}=    ${CURDIR}/configs
+${CERTS_DIR}=    ${CURDIR}/certs/

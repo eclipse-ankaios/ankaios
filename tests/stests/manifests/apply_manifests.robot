@@ -33,13 +33,14 @@ Test Ankaios apply workload specifications showing progress via spinner
     [Setup]           Run Keywords    Setup Ankaios
     ...        AND    Set Global Variable    ${simple_yaml_file}    ${CONFIGS_DIR}/simple.yaml
     ...        AND    Set Global Variable    ${manifest12_yaml_file}    ${CONFIGS_DIR}/manifest12.yaml
+    # ...        AND    Setup TLS    enabled=Get MTLS Enabled
 
     # Preconditions
     Given Podman has deleted all existing containers
     And Ankaios server is started without config
     And Ankaios agent is started with name "agent_A"
     # Actions
-    When user triggers "ank -k apply ${manifest12_yaml_file}"
+    When user triggers "ank apply ${manifest12_yaml_file}"
     # Asserts
     Then the last command shall finish with exit code "0"
     And in the last result, the workload "nginx_from_manifest1" shall have the execution state "Pending(Initial)" on agent "agent_A"
@@ -65,7 +66,7 @@ Test Ankaios apply workload specifications via Ankaios Manifest files
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
-    When user triggers "ank -k -v apply ${manifest1_yaml_file} ${manifest2_yaml_file}"
+    When user triggers "ank -v apply ${manifest1_yaml_file} ${manifest2_yaml_file}"
     # Asserts
     Then the last command shall finish with exit code "0"
     And the workload "nginx_from_manifest1" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
@@ -83,7 +84,7 @@ Test Ankaios apply workload specifications via Ankaios Manifest content through 
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
-    When user triggers "ank -k apply -" passing "${manifest1_yaml_file}" through stdin
+    When user triggers "ank apply -" passing "${manifest1_yaml_file}" through stdin
     # Asserts
     Then the last command shall finish with exit code "0"
     And the workload "nginx_from_manifest1" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
@@ -101,7 +102,7 @@ Test Ankaios apply workload specification overwriting the agent names
     And Ankaios agent is started with name "agent_B"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
-    When user triggers "ank -k apply --agent agent_B ${manifest1_yaml_file}"
+    When user triggers "ank apply --agent agent_B ${manifest1_yaml_file}"
     # Asserts
     Then the last command shall finish with exit code "0"
     And the workload "nginx_from_manifest1" shall have the execution state "Running(Ok)" on agent "agent_B" within "20" seconds
@@ -119,7 +120,7 @@ Test Ankaios apply workload specification defining the agent names
     And Ankaios agent is started with name "agent_B"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
-    When user triggers "ank -k apply --agent agent_B ${manifest_no_agent}"
+    When user triggers "ank apply --agent agent_B ${manifest_no_agent}"
     # Asserts
     Then the last command shall finish with exit code "0"
     And the workload "nginx_from_manifest_no_agent_name" shall have the execution state "Running(Ok)" on agent "agent_B" within "20" seconds
@@ -136,7 +137,7 @@ Test Ankaios apply workload specification without agent name
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
-    When user triggers "ank -k apply ${manifest_no_agent_name_yaml_file}"
+    When user triggers "ank apply ${manifest_no_agent_name_yaml_file}"
     # Asserts
     Then the last command shall finish with an error
     [Teardown]    Clean up Ankaios
@@ -153,7 +154,7 @@ Test Ankaios apply workload specifications via Ankaios Manifest files for deleti
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
-    When user triggers "ank -k apply -d ${manifest1_yaml_file} ${manifest2_yaml_file}"
+    When user triggers "ank apply -d ${manifest1_yaml_file} ${manifest2_yaml_file}"
     # Asserts
     Then the last command shall finish with exit code "0"
     And the workload "nginx_from_manifest1" shall not exist within "20" seconds
@@ -170,7 +171,7 @@ Test Ankaios apply workload specifications via Ankaios Manifest content through 
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
-    When user triggers "ank -k apply -d -" passing "${manifest1_yaml_file}" through stdin
+    When user triggers "ank apply -d -" passing "${manifest1_yaml_file}" through stdin
     # Asserts
     Then the last command shall finish with exit code "0"
     And the workload "nginx_from_manifest1" shall not exist within "20" seconds

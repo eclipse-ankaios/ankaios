@@ -32,7 +32,13 @@ ${TEST_FOLDER_NAME}    ${EMPTY}
 &{ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}
 
 *** Keywords ***
+Get MTLS Enabled
+    ${result}=    Get Environment Variable    name=MTLS_ENABLED    default=False
+    RETURN    ${result}
+
 Setup Ankaios
+    [Arguments]    ${mtls_enabled}=False
+    Setup TLS    enabled=${mtls_enabled}
     ${run_result}=    Run Process    command=mktemp -d    shell=True
     Set Environment Variable    name=ANKAIOS_TEMP    value=${run_result.stdout}
     ${TEST_FOLDER_NAME}=    Evaluate    '${TEST_NAME}'.lower().replace(' ', '_')
@@ -50,6 +56,32 @@ Clean up Podman
     Podman has deleted all existing containers
     Podman has deleted all existing pods
     Podman has deleted all existing volumes
+
+Setup TLS
+    [Arguments]    ${enabled}
+    IF  ${enabled} == True
+        ${ca_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    ca.pem
+        ${server_crt_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    server.pem
+        ${server_key_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    server-key.pem
+        ${agent_crt_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    agent.pem
+        ${agent_key_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    agent-key.pem
+        ${cli_crt_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    cli.pem
+        ${cli_key_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    cli-key.pem
+        Set Environment Variable    name=ANKSERVER_CA_PEM    value=${ca_pem}
+        Set Environment Variable    name=ANKSERVER_CRT_PEM    value=${server_crt_pem}
+        Set Environment Variable    name=ANKSERVER_KEY_PEM    value=${server_key_pem}
+        Set Environment Variable    name=ANKAGENT_CA_PEM    value=${ca_pem}
+        Set Environment Variable    name=ANKAGENT_CRT_PEM    value=${agent_crt_pem}
+        Set Environment Variable    name=ANKAGENT_KEY_PEM    value=${agent_key_pem}
+        Set Environment Variable    name=ANK_CA_PEM    value=${ca_pem}
+        Set Environment Variable    name=ANK_CRT_PEM    value=${cli_crt_pem}
+        Set Environment Variable    name=ANK_KEY_PEM    value=${cli_key_pem}
+    ELSE
+        Set Environment Variable    name=ANKSERVER_INSECURE    value=true
+        Set Environment Variable    name=ANKAGENT_INSECURE    value=true
+        Set Environment Variable    name=ANK_INSECURE    value=true
+    END
+
 
 Run in background
     [Arguments]    ${location}    ${cli_command}
@@ -99,7 +131,6 @@ Ankaios server is started with config "${config_path}"
     ...    %{ANK_BIN_DIR}${/}ank-server
     ...    --startup-config
     ...    ${config_path}
-    ...    --insecure
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
     ...    env:RUST_LOG=debug
     ...    alias=ank-server
@@ -117,7 +148,6 @@ the Ankaios server shall exit with an error code
 Ankaios server is started without config
     Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
-    ...    --insecure
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
     ...    env:RUST_LOG=debug
 
@@ -126,7 +156,6 @@ Ankaios agent is started with name "${name}"
     ...    %{ANK_BIN_DIR}${/}ank-agent
     ...    --name
     ...    ${name}
-    ...    --insecure
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
     ...    env:RUST_LOG=debug
     ...    alias=${name}
@@ -155,7 +184,7 @@ Podman has terminated all existing containers
 
 all workloads of agent "${agent_name}" have an initial execution state
     ${list_result}=    Wait For Initial Execution State
-    ...    %{ANK_BIN_DIR}${/}ank --insecure get workloads
+    ...    %{ANK_BIN_DIR}${/}ank get workloads
     ...    ${agent_name}
     ...    60
     Should Not Be Empty
@@ -192,7 +221,7 @@ the workload "${workload_name}" shall have the execution state "${expected_execu
     @{list_result}=    Create List
     IF    ${timeout} > 0
         @{list_result}=    Wait For Execution State
-        ...    %{ANK_BIN_DIR}${/}ank --insecure get workloads
+        ...    %{ANK_BIN_DIR}${/}ank get workloads
         ...    ${workload_name}
         ...    ${expected_agent_name}
         ...    ${expected_execution_state}
@@ -203,7 +232,7 @@ the workload "${workload_name}" shall have the execution state "${expected_execu
     ...    msg=Timeout: Workload '${workload_name}' on agent '${expected_agent_name}' does not have the execution state '${expected_execution_state}'!
 
 the workload "${workload_name}" shall not exist
-    ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank --insecure get workloads
+    ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get workloads
     @{list_result}=    table to list    ${command_result.stdout}
     &{workload_table}=    table to dict    ${list_result}    WORKLOAD NAME
     Dictionary Should Not Contain Key    ${workload_table}    ${workload_name}
@@ -213,7 +242,7 @@ the workload "${workload_name}" shall not exist on agent "${expected_agent_name}
     @{list_result}=    Create List
     IF    ${timeout} >= 0
         @{list_result}=    Wait For Workload Removal
-        ...    %{ANK_BIN_DIR}${/}ank --insecure get workloads
+        ...    %{ANK_BIN_DIR}${/}ank get workloads
         ...    ${workload_name}
         ...    ${expected_agent_name}
         ...    ${timeout}
@@ -227,7 +256,7 @@ the workload "${workload_name}" shall not exist within "${timeout}" seconds
     @{list_result}=    Create List
     IF    ${timeout} >= 0
         @{list_result}=    Wait For Workload Removal
-        ...    %{ANK_BIN_DIR}${/}ank --insecure get workloads
+        ...    %{ANK_BIN_DIR}${/}ank get workloads
         ...    ${workload_name}
         ...    ""
         ...    ${timeout}
@@ -446,3 +475,4 @@ the last command shall finish with an error
 
 the last command shall finish with exit code "${exit_code}"
     the last command finished with exit code "${exit_code}"
+
