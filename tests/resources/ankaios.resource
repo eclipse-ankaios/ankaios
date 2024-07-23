@@ -400,6 +400,55 @@ the pod "${pod_name}" of workload "${workload_name}" shall have a different id b
 
     Should Be True    ${id_changed}    msg='Workload ${pod_name}' has the same pod id '${pod_id}' and the same configuration on podman kube runtime!
 
+Control Interface allows to ${operation}
+    Control interface allows to ${operation} on ${EMPTY}
+
+Control Interface allows to ${operation} on ${filter_mask}
+    internal_allow_control_interface    ${operation}     ${filter_mask}
+
+Control Interface denies to ${operation}
+    Control interface denies to ${operation} on ${EMPTY}
+
+Control Interface denies to ${operation} on ${filter_mask}
+    internal_deny_control_interface    ${operation}     ${filter_mask}
+
+Control Interface Command should update state with manifest "${manifest}"
+    Control Interface Command should update state with manifest "${manifest}" and update mask: ${EMPTY}
+
+Control Interface Command should update state with manifest "${manifest}" and update mask: ${update_mask}
+    internal_add_update_state_command    ${manifest}    ${update_mask}
+    internal_append_control_interface_expected_results    ${True}
+
+Control Interface Command should fail updating state with manifest "${manifest}"
+    Control Interface Command should fail updating state with manifest "${manifest}" and update mask: ${EMPTY}
+
+Control Interface Command should fail updating state with manifest "${manifest}" and update mask: ${update_mask}
+    internal_add_update_state_command    ${manifest}    ${update_mask}
+    internal_append_control_interface_expected_results    ${False}
+
+
+Control Interface Command should get state
+    Control Interface Command should get state of fields: ${EMPTY}
+
+Control Interface Command should get state of fields: ${field_mask}
+    internal_add_get_state_command    ${field_mask}
+    internal_append_control_interface_expected_results    ${True}
+
+Control Interface Command should fail getting state
+    Control Interface Command should fail getting state of fields: ${EMPTY}
+
+Control Interface Command should fail getting state of fields: ${field_mask}
+    internal_add_get_state_command    ${field_mask}
+    internal_append_control_interface_expected_results    ${False}
+
+Execute Control Interface test
+    ${ankaios_config_folder}=    create_control_interface_config_for_test
+    # Given Ankaios server is started with config "${simple_yaml_file}"
+    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios agent is started with name "agent_A"
+    And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
+    internal_check_expected_control_interface_result    ${ankaios_config_folder.name}
+
 # ALIASES
 
 the command "${cli_command}" finished with exit code "${exit_code}"

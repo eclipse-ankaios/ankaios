@@ -1,0 +1,13 @@
+apiVersion: v0.1
+workloads:
+  controller:
+    runtime: podman
+    agent: agent_A
+    restartPolicy: NEVER
+    runtimeConfig: |
+      commandOptions: ["--mount=type=bind,source={temp_data_dir},destination=/data/"]
+      image: control_interface_tester
+      commandArgs: ["/data/commands.yaml", "/data/output.yaml"]
+    controlInterfaceAccess:
+      allowRules: {allow_rules}
+      denyRules: {deny_rules}
