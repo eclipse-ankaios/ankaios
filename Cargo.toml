@@ -7,8 +7,9 @@ members = [
     "agent",
     "server",
     "grpc",
-    "ank"
-    ]
+    "ank",
+    "tests/resources/image",
+]
 
 [workspace.package]
 version = "0.4.0-pre"
