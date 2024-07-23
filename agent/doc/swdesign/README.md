@@ -233,7 +233,7 @@ Rationale:
 The Ankaios agent uses the PEM files to establish a mutual transport layer security (mTLS) communication.
 
 Tags:
-- CommunicationMiddleware
+- AgentManager
 
 Needs:
 - impl
