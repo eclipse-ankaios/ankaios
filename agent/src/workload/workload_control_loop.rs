@@ -96,9 +96,9 @@ impl WorkloadControlLoop {
                             new_workload_state.execution_state.clone(),
                         ).await;
 
-                        // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
+                        // [impl->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
                         if Self::restart_policy_matches_execution_state(&control_loop_state.workload_spec.restart_policy, &new_workload_state.execution_state) {
-                            // [impl->swdd~workload-control-loop-handles-workload-restarts~1]
+                            // [impl->swdd~workload-control-loop-handles-workload-restarts~2]
                             control_loop_state = Self::restart_workload_on_runtime(control_loop_state).await;
                         }
                     }
@@ -2236,6 +2236,7 @@ mod tests {
     }
 
     // [utest->swdd~workload-control-loop-receives-workload-states~1]
+    // [utest->swdd~workload-control-loop-checks-workload-state-validity~1]
     // [utest->swdd~workload-control-loop-sends-workload-states~2]
     #[tokio::test]
     async fn utest_forward_received_workload_states_of_state_checker() {
@@ -2348,7 +2349,8 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
+    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
+    // [utest->swdd~workload-control-loop-handles-workload-restarts~2]
     // [utest->swdd~workload-control-loop-restarts-workloads-using-update~1]
     #[tokio::test]
     async fn utest_restart_workload() {
@@ -2429,7 +2431,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
+    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
     #[test]
     fn utest_is_restart_allowed_never() {
         let restart_policy = RestartPolicy::Never;
@@ -2454,7 +2456,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
+    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
     #[test]
     fn utest_is_restart_allowed_on_failure() {
         let restart_policy = RestartPolicy::OnFailure;
@@ -2477,7 +2479,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
+    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
     #[test]
     fn utest_restart_policy_matches_execution_state_always() {
         let restart_policy = RestartPolicy::Always;
@@ -2499,7 +2501,8 @@ mod tests {
     }
 
     // [utest->swdd~agent-sends-workload-states-of-its-workloads-to-server~2]
-    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~1]
+    // [utest->swdd~workload-control-loop-restarts-workload-with-enabled-restart-policy~2]
+    // [utest->swdd~workload-control-loop-checks-workload-state-validity~1]
     #[test]
     fn utest_is_same_workload() {
         let current_instance_name = WorkloadInstanceName::builder()

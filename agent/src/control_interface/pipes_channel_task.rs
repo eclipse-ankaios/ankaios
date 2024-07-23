@@ -12,13 +12,16 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::sync::Arc;
+
 use crate::control_interface::ToAnkaios;
 
+use super::authorizer::Authorizer;
 #[cfg_attr(test, mockall_double::double)]
 use super::ReopenFile;
 use api::control_api;
 use common::{
-    commands::Response,
+    commands::{Error, Response, ResponseContent},
     from_server_interface::{FromServer, FromServerReceiver},
     to_server_interface::{ToServer, ToServerSender},
 };
@@ -38,6 +41,7 @@ pub struct PipesChannelTask {
     input_pipe_receiver: FromServerReceiver,
     output_pipe_channel: ToServerSender,
     request_id_prefix: String,
+    authorizer: Arc<Authorizer>,
 }
 
 #[cfg_attr(test, mockall::automock)]
@@ -48,6 +52,7 @@ impl PipesChannelTask {
         input_pipe_receiver: FromServerReceiver,
         output_pipe_channel: ToServerSender,
         request_id_prefix: String,
+        authorizer: Arc<Authorizer>,
     ) -> Self {
         Self {
             output_stream,
@@ -55,6 +60,7 @@ impl PipesChannelTask {
             input_pipe_receiver,
             output_pipe_channel,
             request_id_prefix,
+            authorizer,
         }
     }
     pub async fn run(mut self) {
@@ -74,11 +80,23 @@ impl PipesChannelTask {
                     if let Ok(to_ankaios) = decode_to_server(to_ankaios_binary) {
                         match to_ankaios.try_into() {
                             Ok(ToAnkaios::Request(mut request)) => {
-                                request.prefix_request_id(&self.request_id_prefix);
-                                let _ = self.output_pipe_channel.send(ToServer::Request(request)).await;
+                                if self.authorizer.authorize(&request) {
+                                    log::debug!("Allowing request '{:?}' from authorizer '{:?}'", request, self.authorizer);
+                                    request.prefix_request_id(&self.request_id_prefix);
+                                    let _ = self.output_pipe_channel.send(ToServer::Request(request)).await;
+                                } else {
+                                    log::debug!("Denying request '{:?}' from authorizer '{:?}'", request, self.authorizer);
+                                    let error = Response {
+                                        request_id: request.request_id,
+                                        response_content: ResponseContent::Error(Error {
+                                            message: "Access denied".into(),
+                                        }),
+                                    };
+                                    let _ = self.forward_from_server(error).await;
+                                };
                             }
                             Err(error) => {
-                                log::warn!("Could not convert protobuf in internal data structure: {}", error)
+                                log::warn!("Could not convert protobuf in internal data structure: '{}'", error);
                             }
                         }
                     }
@@ -117,7 +135,7 @@ pub fn generate_test_pipes_channel_task_mock() -> __mock_MockPipesChannelTask::_
     let pipes_channel_task_mock_context = MockPipesChannelTask::new_context();
     pipes_channel_task_mock_context
         .expect()
-        .return_once(|_, _, _, _, _| {
+        .return_once(|_, _, _, _, _, _| {
             let mut pipes_channel_task_mock = MockPipesChannelTask::default();
             pipes_channel_task_mock
                 .expect_run_task()
@@ -174,6 +192,7 @@ mod tests {
             input_pipe_receiver,
             output_pipe_sender,
             request_id_prefix,
+            Arc::new(Authorizer::default()),
         );
 
         assert!(pipes_channel_task
@@ -241,6 +260,7 @@ mod tests {
             input_pipe_receiver,
             output_pipe_sender,
             request_id_prefix,
+            Arc::new(Authorizer::default()),
         );
 
         let handle = pipes_channel_task.run_task();

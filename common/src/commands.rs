@@ -290,10 +290,9 @@ mod tests {
 
     mod ank_base {
         pub use api::ank_base::{
-            execution_state::ExecutionStateEnum, request::RequestContent,
-            response::ResponseContent, CompleteState, CompleteStateRequest, Error, ExecutionState,
-            Request, Response, Running, State, UpdateStateRequest, UpdateStateSuccess, Workload,
-            WorkloadInstanceName, WorkloadState,
+            request::RequestContent, response::ResponseContent, CompleteState,
+            CompleteStateRequest, Error, Request, Response, State, UpdateStateRequest,
+            UpdateStateSuccess, Workload,
         };
     }
 
@@ -304,8 +303,8 @@ mod tests {
                 UpdateStateRequest, UpdateStateSuccess,
             },
             objects::{
-                CompleteState, ExecutionState, State, StoredWorkloadSpec, WorkloadInstanceName,
-                WorkloadState,
+                generate_test_workload_states_map_with_data, CompleteState, ExecutionState, State,
+                StoredWorkloadSpec,
             },
         };
     }
@@ -392,7 +391,7 @@ mod tests {
                         .collect(),
                 }
                 .into(),
-                workload_states: vec![workload_state!($expression)],
+                workload_states: workload_states_map!($expression),
             }
         };
     }
@@ -410,7 +409,7 @@ mod tests {
         };
     }
 
-    macro_rules! workload_state {
+    macro_rules! workload_states_map {
         (ankaios) => {{
             struct HashableString(String);
 
@@ -419,32 +418,21 @@ mod tests {
                     self.0.clone()
                 }
             }
-            ankaios::WorkloadState {
-                instance_name: ankaios::WorkloadInstanceName::builder()
-                    .workload_name(WORKLOAD_NAME_1)
-                    .config(&HashableString(HASH.into()))
-                    .agent_name(AGENT_NAME)
-                    .build(),
-                execution_state: ankaios::ExecutionState::running(),
-            }
+            ankaios::generate_test_workload_states_map_with_data(
+                AGENT_NAME,
+                WORKLOAD_NAME_1,
+                HASH,
+                ankaios::ExecutionState::running(),
+            )
         }};
         (ank_base) => {
-            ank_base::WorkloadState {
-                instance_name: ank_base::WorkloadInstanceName {
-                    workload_name: WORKLOAD_NAME_1.into(),
-                    agent_name: AGENT_NAME.into(),
-                    id: HASH.into(),
-                }
-                .into(),
-                execution_state: ank_base::ExecutionState {
-                    execution_state_enum: ank_base::ExecutionStateEnum::Running(
-                        ank_base::Running::Ok.into(),
-                    )
-                    .into(),
-                    ..Default::default()
-                }
-                .into(),
-            }
+            ankaios::generate_test_workload_states_map_with_data(
+                AGENT_NAME,
+                WORKLOAD_NAME_1,
+                HASH,
+                ankaios::ExecutionState::running(),
+            )
+            .into()
         };
     }
 

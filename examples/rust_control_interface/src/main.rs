@@ -64,6 +64,7 @@ fn create_request_to_add_new_workload() -> ToAnkaios {
             runtime_config: "image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]"
                 .to_string(),
             dependencies: HashMap::new(),
+            control_interface_access: None,
         },
     )]);
 
@@ -91,7 +92,7 @@ fn create_request_for_complete_state() -> ToAnkaios {
         to_ankaios_enum: Some(ToAnkaiosEnum::Request(Request {
             request_id: REQUEST_ID.to_string(),
             request_content: Some(RequestContent::CompleteStateRequest(CompleteStateRequest {
-                field_mask: vec![String::from("workloadStates")],
+                field_mask: vec![String::from("workloadStates.agent_A.dynamic_nginx")],
             })),
         })),
     }

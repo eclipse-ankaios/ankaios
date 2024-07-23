@@ -72,7 +72,30 @@ message UpdateStateSuccess {
 */
 message CompleteState {
     State desiredState = 1; /// The state the user wants to reach.
-    repeated WorkloadState workloadStates = 2; /// The current states of the workloads.
+    WorkloadStatesMap workloadStates = 2; /// The current execution states of the workloads.
+}
+
+/**
+* A nested map that provides the execution state of a workload in a structured way.
+* The first level allows searches by agent.
+*/
+message WorkloadStatesMap {
+    map<string, ExecutionsStatesOfWorkload> agentStateMap = 1;
+}
+
+/**
+* A map providing the execution state of a workload for a given name.
+*/
+message ExecutionsStatesOfWorkload {
+    map<string, ExecutionsStatesForId> wlNameStateMap = 1;
+}
+
+/**
+* A map providing the execution state of a specific workload for a given id.
+* This level is needed as a workload could be running more than once on one agent in different versions.
+*/
+message ExecutionsStatesForId {
+    map<string, ExecutionState> idStateMap = 1;
 }
 
 message ExecutionState {
@@ -184,6 +207,7 @@ message Workload {
     repeated Tag tags = 4; /// A list of tag names.
     string runtime = 5; /// The name of the runtime e.g. podman.
     string runtimeConfig  = 6; /// The configuration information specific to the runtime.
+    ControlInterfaceAccess controlInterfaceAccess = 7;
 }
 
 /**
@@ -205,5 +229,43 @@ enum RestartPolicy {
 
 message Error {
     string message = 1;
+}
+
+/**
+* A message containing the parts of the control interface the workload as authorized to access.
+* By default, all access is denied.
+* Only if a matching allow rule is found, and no matching deny rules is found, the access is allowed.
+*/
+message ControlInterfaceAccess {
+  repeated AccessRightsRule allowRules = 1; // Rules allow the access
+  repeated AccessRightsRule denyRules = 2; // Rules denying the access
+}
+
+/**
+* A message containing an allow or deny rule.
+**/
+message AccessRightsRule {
+  oneof AccessRightsRuleEnum {
+      StateRule stateRule = 1; // Rule for getting or setting the state
+  }
+}
+
+/**
+* Message containing a rule for getting or setting the state
+**/
+message StateRule {
+  ReadWriteEnum operation = 1; // Defines which actions are allowed
+  repeated string filterMasks = 2; // Pathes definind what can be accessed. Segements of path can be a wildcare "*".
+}
+
+
+/**
+* An enum type describing which action is allowed.
+*/
+enum ReadWriteEnum {
+  RW_NOTHING = 0; // Allow nothing
+  RW_READ = 1;  // Allow read
+  RW_WRITE = 2; // Allow write
+  RW_READ_WRITE = 5; // Allow read and write
 }
 

@@ -34,7 +34,7 @@ mod set_state;
 use common::{
     communications_error::CommunicationMiddlewareError,
     from_server_interface::FromServer,
-    objects::{CompleteState, State, WorkloadInstanceName},
+    objects::{CompleteState, State, WorkloadInstanceName, WorkloadState},
 };
 
 use wait_list_display::WaitListDisplay;
@@ -129,8 +129,7 @@ impl CliCommands {
             .get_complete_state(&Vec::new())
             .await?;
 
-        let mut workload_infos: Vec<(WorkloadInstanceName, WorkloadTableRow)> = res_complete_state
-            .workload_states
+        let mut workload_infos: Vec<(WorkloadInstanceName, WorkloadTableRow)> = Vec::<WorkloadState>::from(res_complete_state.workload_states)
             .into_iter()
             .map(|wl_state| {
                 (
@@ -206,7 +205,7 @@ impl CliCommands {
             output!("Successfully applied the manifest(s).\nWaiting for workload(s) to reach desired states (press Ctrl+C to interrupt).\n");
         }
 
-        let states_of_all_workloads = self.get_workloads().await.unwrap();
+        let states_of_all_workloads = self.get_workloads().await?;
         let states_of_changed_workloads = states_of_all_workloads
             .into_iter()
             .filter(|x| changed_workloads.contains(&x.0))

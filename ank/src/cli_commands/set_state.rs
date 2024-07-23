@@ -18,13 +18,12 @@ use common::{
 };
 
 #[cfg(not(test))]
-async fn read_file_to_string(file: String) -> std::io::Result<String> {
+fn read_file_to_string(file: String) -> std::io::Result<String> {
     std::fs::read_to_string(file)
 }
+use crate::{cli_error::CliError, output_and_error, output_debug};
 #[cfg(test)]
 use tests::read_to_string_mock as read_file_to_string;
-
-use crate::{cli_error::CliError, output_debug};
 
 use super::CliCommands;
 
@@ -70,11 +69,9 @@ impl CliCommands {
         let mut complete_state = CompleteState::default();
         if let Some(state_object_file) = state_object_file {
             let state_object_data =
-                read_file_to_string(state_object_file)
-                    .await
-                    .unwrap_or_else(|error| {
-                        panic!("Could not read the state object file.\nError: {}", error)
-                    });
+                read_file_to_string(state_object_file).unwrap_or_else(|error| {
+                    output_and_error!("Could not read the state object file.\nError: {}", error)
+                });
             let value: serde_yaml::Value = serde_yaml::from_str(&state_object_data)?;
             let x = Object::try_from(&value)?;
 
@@ -122,7 +119,7 @@ impl CliCommands {
 mod tests {
     use std::io;
 
-    pub async fn read_to_string_mock(_file: String) -> io::Result<String> {
+    pub fn read_to_string_mock(_file: String) -> io::Result<String> {
         Ok("".into())
     }
 }

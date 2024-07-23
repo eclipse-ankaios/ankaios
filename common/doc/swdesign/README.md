@@ -53,6 +53,7 @@ Tags:
 
 Needs:
 - impl
+- utest
 
 ### ToServerChannel
 
@@ -72,11 +73,16 @@ Tags:
 
 Needs:
 - impl
+- utest
 
 ### Objects
 
 Definitions of objects which are needed in all other components of Ankaios.
 These objects especially include objects which needs to be sent through for the `FromServerChannel` and `ToServerChannel`.
+
+#### WorkloadStatesMap
+
+The WorkloadStatesMap is a container that holds workload execution states and allows searching through them in an efficient way.
 
 #### Provide common object representation
 `swdd~common-object-representation~1`
@@ -144,6 +150,30 @@ This hysteresis is particularly necessary when the stopping operation is in prog
 
 Tags:
 - Objects
+
+Needs:
+- impl
+- utest
+
+#### Workload states map allows managing workload execution states
+`swdd~state-map-for-workload-execution-states~1`
+
+Status: approved
+
+The WorkloadStatesMap represents the current execution states of the managed by Ankaios workloads and allows performant management of the states by providing the following functionalities:
+* getting all workload states for an agent
+* getting all workload states except the ones for a specific agent
+* marking all states of an agent as agent disconnected
+* adding an initial state for a list of workloads
+* adding new states to the map
+* keeping the map clean by deleting the entries for removed workloads
+* removing states from the map
+
+Comment:
+The WorkloadStatesMap is actually the object exposed to the external interfaces, but provides some additional functionality.
+
+Tags:
+- WorkloadStatesMap
 
 Needs:
 - impl

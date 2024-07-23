@@ -55,7 +55,7 @@ function create_request_for_complete_state(root) {
         request: {
             requestId: REQUEST_ID,
             completeStateRequest: {
-                fieldMask: ["workloadStates"]
+                fieldMask: ["workloadStates.agent_A.dynamic_nginx"]
             }
         }
     };
