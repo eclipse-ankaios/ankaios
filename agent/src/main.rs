@@ -109,7 +109,9 @@ async fn main() {
 
     let tls_config: Result<Option<TLSConfig>, String> =
         match (args.insecure, args.ca_pem, args.crt_pem, args.key_pem) {
+            // [impl->swdd~agent-supports-insecure-communication~1]
             (true, _, _, _) => Ok(None),
+            // [impl->swdd~agent-supports-pem-file-paths-as-cli-arguments~1]
             (false, Some(path_to_ca_pem), Some(path_to_crt_pem), Some(path_to_key_pem)) => {
                 Ok(Some(TLSConfig {
                     path_to_ca_pem,
@@ -125,9 +127,11 @@ async fn main() {
             )),
         };
 
+    // [impl->swdd~agent-provides-pem-file-paths-to-communication-middleware~1]
     let grpc_communications_client = GRPCCommunicationsClient::new_agent_communication(
         args.agent_name.clone(),
         server_url,
+        // [impl->swdd~agent-exits-with-error-upon-missing-pem-file-paths-or-insecure-flag~1]
         tls_config.unwrap_or_exit("Missing certificate file"),
     );
 
