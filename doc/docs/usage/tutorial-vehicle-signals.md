@@ -57,6 +57,10 @@ Then start the workload:
 ank -k apply databroker.yaml
 ```
 
+!!! Note
+
+    The instructions assume the default installation without mutual TLS (mTLS) for communication. With `-k` the `ank` CLI will connect without mTLS. Alternatively, set the environment variable `ANK_INSECURE=true` to avoid passing the argument to each `ank` CLI command. For an Ankaios setup with mTLS, see [here](./mtls-setup.md).
+
 The Ankaios agent `agent_A` will now instruct podman to start the workload.
 The command waits until the databroker is running.
 It should finally print:

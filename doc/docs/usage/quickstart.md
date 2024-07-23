@@ -51,6 +51,10 @@ use the Ankaios CLI to check the current state:
 ank -k get state
 ```
 
+!!! Note
+
+    The instructions assume the default installation without mutual TLS (mTLS) for communication. With `-k` the `ank` CLI will connect without mTLS. Alternatively, set the environment variable `ANK_INSECURE=true` to avoid passing the argument to each `ank` CLI command. For an Ankaios setup with mTLS, see [here](./mtls-setup.md).
+
 which creates:
 
 ```yaml
