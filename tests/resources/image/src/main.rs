@@ -63,7 +63,7 @@ struct UpdateState {
 
 #[derive(Deserialize)]
 struct GetState {
-    filter_mask: Vec<String>,
+    field_mask: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -257,7 +257,7 @@ impl Connection {
             request_id: request_id.clone(),
             request_content: common::commands::RequestContent::CompleteStateRequest(
                 common::commands::CompleteStateRequest {
-                    field_mask: get_state_command.filter_mask,
+                    field_mask: get_state_command.field_mask,
                 },
             ),
         };
