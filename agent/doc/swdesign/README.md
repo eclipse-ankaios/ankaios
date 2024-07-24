@@ -247,7 +247,7 @@ Status: approved
 The Ankaios agent shall support the cli argument `--insecure` with short alias `-k`.
 
 Comment:
-The Ankaios CLI supports an insecure communication channel to the Ankaios server. Communicating over insecure channels is convenient during an evaluation or a development phase.
+The Ankaios agent supports an insecure communication channel to the Ankaios server. Communicating over insecure channels is convenient during an evaluation or a development phase.
 
 Tags:
 - AgentManager
