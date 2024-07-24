@@ -111,7 +111,7 @@ async fn main() {
         match (args.insecure, args.ca_pem, args.crt_pem, args.key_pem) {
             // [impl->swdd~agent-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
             (true, _, _, _) => Ok(None),
-            // [impl->swdd~agent-provides-pem-file-paths-to-communication-middleware~1]
+            // [impl->swdd~agent-provides-file-paths-to-communication-middleware~1]
             (false, Some(path_to_ca_pem), Some(path_to_crt_pem), Some(path_to_key_pem)) => {
                 Ok(Some(TLSConfig {
                     path_to_ca_pem,

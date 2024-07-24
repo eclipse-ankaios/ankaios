@@ -271,7 +271,7 @@ Needs:
 - impl
 
 #### Agent provides file paths for mTLS to communication middleware
-`swdd~agent-provides-pem-file-paths-to-communication-middleware~1`
+`swdd~agent-provides-file-paths-to-communication-middleware~1`
 
 Status: approved
 
