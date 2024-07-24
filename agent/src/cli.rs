@@ -25,6 +25,8 @@ const RUNFOLDER_SUFFIX: &str = "_io";
 
 // [impl->swdd~agent-supports-environment-variables~1]
 // [impl->swdd~agent-prioritizes-cli-argument-over-environment-variable~1]
+// [impl->swdd~agent-supports-cli-argument-for-insecure-communication~1]
+// [impl->swdd~agent-supports-pem-file-paths-as-cli-arguments~1]
 #[derive(Parser, Debug)]
 #[clap( author="The Ankaios team",
         version=env!("CARGO_PKG_VERSION"),

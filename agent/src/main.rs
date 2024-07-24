@@ -109,9 +109,9 @@ async fn main() {
 
     let tls_config: Result<Option<TLSConfig>, String> =
         match (args.insecure, args.ca_pem, args.crt_pem, args.key_pem) {
-            // [impl->swdd~agent-supports-insecure-communication~1]
+            // [impl->swdd~agent-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
             (true, _, _, _) => Ok(None),
-            // [impl->swdd~agent-supports-pem-file-paths-as-cli-arguments~1]
+            // [impl->swdd~agent-provides-pem-file-paths-to-communication-middleware~1]
             (false, Some(path_to_ca_pem), Some(path_to_crt_pem), Some(path_to_key_pem)) => {
                 Ok(Some(TLSConfig {
                     path_to_ca_pem,
@@ -119,6 +119,7 @@ async fn main() {
                     path_to_key_pem,
                 }))
             }
+            // [impl->swdd~agent-fails-on-missing-pem-file-paths-or-insecure-flag~1]
             (false, ca_pem, crt_pem, key_pem) => Err(format!(
                 "Provide the file via ANKAGENT_CA_PEM={} ANKAGENT_CRT_PEM={} ANKAGENT_KEY_PEM={} or deactivate mTLS with '-k' or '--insecure' option!",
                 ca_pem.unwrap_or(String::from("\"\"")),
@@ -127,11 +128,10 @@ async fn main() {
             )),
         };
 
-    // [impl->swdd~agent-provides-pem-file-paths-to-communication-middleware~1]
-    let grpc_communications_client = GRPCCommunicationsClient::new_agent_communication(
+    let communications_client = GRPCCommunicationsClient::new_agent_communication(
         args.agent_name.clone(),
         server_url,
-        // [impl->swdd~agent-exits-with-error-upon-missing-pem-file-paths-or-insecure-flag~1]
+        // [impl->swdd~agent-fails-on-missing-pem-file-paths-or-insecure-flag~1]
         tls_config.unwrap_or_exit("Missing certificate file"),
     );
 
@@ -147,7 +147,7 @@ async fn main() {
     // [impl->swdd~agent-sends-hello~1]
     // [impl->swdd~agent-default-communication-grpc~1]
     let communications_task = tokio::spawn(async move {
-        grpc_communications_client?
+        communications_client?
             .run(server_receiver, to_manager.clone())
             .await
     });

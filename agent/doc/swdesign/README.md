@@ -239,6 +239,37 @@ Needs:
 - impl
 - stest
 
+#### Agent supports cli argument for insecure communication
+`swdd~agent-supports-cli-argument-for-insecure-communication~1`
+
+Status: approved
+
+The Ankaios agent shall support the cli argument `--insecure` with short alias `-k` to establish an insecure communication channel to the Ankaios server.
+
+Comment:
+Communicating over insecure channels is convenient during an evaluation or a development phase.
+
+Tags:
+- AgentManager
+
+Needs:
+- impl
+- stest
+
+#### Agent establishes insecure connection on provided insecure cli argument
+`swdd~agent-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1`
+
+Status: approved
+
+When the user starts the Ankaios agent with the arguments `-k` or `--insecure` and the Ankaios agent initializes the communication middleware, then the Ankaios agent shall instruct the communication middleware to use an insecure communication channel.
+
+Tags:
+- AgentManager
+- CommunicationMiddleware
+
+Needs:
+- impl
+
 #### Agent provides file paths for mTLS to communication middleware
 `swdd~agent-provides-pem-file-paths-to-communication-middleware~1`
 
@@ -253,34 +284,18 @@ Rationale:
 The communication middleware is responsible for establishing a secure communication channel.
 
 Tags:
+- AgentManager
 - CommunicationMiddleware
 
 Needs:
 - impl
-
-#### Agent supports insecure communication
-`swdd~agent-supports-insecure-communication~1`
-
-Status: approved
-
-When the user starts the Ankaios agent with the arguments `-k` or `--insecure` and the Ankaios agent initializes the communication middleware, then the Ankaios agent shall instruct the communication middleware to use an insecure communication channel.
-
-Comment:
-Communicating over insecure channels is convenient during an evaluation or a development phase.
-
-Tags:
-- CommunicationMiddleware
-
-Needs:
-- impl
-- stest
 
 #### Agent fails upon missing pem file paths or insecure flag
-`swdd~agent-exits-with-error-upon-missing-pem-file-paths-or-insecure-flag~1`
+`swdd~agent-fails-on-missing-pem-file-paths-or-insecure-flag~1`
 
 Status: approved
 
-When the user starts the Ankaios agent without providing the cli arguments for the mTLS PEM file paths or the insecure mode, then the Ankaios agent shall:
+When the user starts the Ankaios agent without specifying the cli arguments for the mTLS PEM file paths and the insecure cli argument, then the Ankaios agent shall:
 * exit with a non zero exit code
 * output an error message containing the reason and a help message
 
@@ -306,7 +321,7 @@ The Ankaios agent shall support the usage of the following environment variables
 - `ANKAGENT_INSECURE`, for providing a boolean to enable/disable the insecure communication
 
 Rationale:
-This avoids passing cli arguments when starting an agent, which improves the usability of the Ankaios agent.
+This avoids passing cli arguments when starting an agent, which improves the usability.
 
 Tags:
 - AgentManager
