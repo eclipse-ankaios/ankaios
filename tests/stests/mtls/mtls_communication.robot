@@ -41,6 +41,7 @@ Test Ankaios MTLS by providing PEM files via environment variables
 
 # [stest->swdd~server-supports-pem-file-paths-as-cli-arguments~]
 # [stest->swdd~agent-supports-pem-file-paths-as-cli-arguments~1]
+# [stest->swdd~cli-supports-pem-file-paths-as-cli-arguments~1]
 Test Ankaios MTLS by providing PEM files via command line arguments
     [Setup]    Run Keyword    Setup Ankaios without MTLS Setup
     # Preconditions
@@ -62,6 +63,7 @@ Test Ankaios MTLS by providing PEM files via command line arguments
 
 # [stest->swdd~server-supports-cli-argument-for-insecure-communication~1]
 # [stest->swdd~agent-supports-cli-argument-for-insecure-communication~1]
+# [stest->swdd~cli-supports-cli-argument-for-insecure-communication~1]
 Test Ankaios insecure mode by providing --insecure command line arguments
     [Setup]    Run Keyword    Setup Ankaios without MTLS Setup
     # Preconditions
