@@ -129,21 +129,22 @@ impl CliCommands {
             .get_complete_state(&Vec::new())
             .await?;
 
-        let mut workload_infos: Vec<(WorkloadInstanceName, WorkloadTableRow)> = Vec::<WorkloadState>::from(res_complete_state.workload_states)
-            .into_iter()
-            .map(|wl_state| {
-                (
-                    wl_state.instance_name.clone(),
-                    WorkloadTableRow::new(
-                        wl_state.instance_name.workload_name(),
-                        wl_state.instance_name.agent_name(),
-                        Default::default(),
-                        &wl_state.execution_state.state.to_string(),
-                        &wl_state.execution_state.additional_info.to_string(),
-                    ),
-                )
-            })
-            .collect();
+        let mut workload_infos: Vec<(WorkloadInstanceName, WorkloadTableRow)> =
+            Vec::<WorkloadState>::from(res_complete_state.workload_states)
+                .into_iter()
+                .map(|wl_state| {
+                    (
+                        wl_state.instance_name.clone(),
+                        WorkloadTableRow::new(
+                            wl_state.instance_name.workload_name(),
+                            wl_state.instance_name.agent_name(),
+                            Default::default(),
+                            &wl_state.execution_state.state.to_string(),
+                            &wl_state.execution_state.additional_info.to_string(),
+                        ),
+                    )
+                })
+                .collect();
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
         for wi in &mut workload_infos {
