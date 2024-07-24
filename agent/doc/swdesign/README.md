@@ -328,6 +328,7 @@ Tags:
 
 Needs:
 - impl
+- stest
 
 #### Agent prioritizes cli argument over environment variable
 `swdd~agent-prioritizes-cli-argument-over-environment-variable~1`

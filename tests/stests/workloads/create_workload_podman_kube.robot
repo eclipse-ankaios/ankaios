@@ -21,9 +21,14 @@ Resource            ../../resources/ankaios.resource
 Resource            ../../resources/variables.resource
 
 
-*** Keywords ***
-Template Test Ankaios Podman create kube workload with mTLS=${mtls_enabled}
-    [Setup]    Run Keyword    Setup Ankaios    mtls_enabled=${mtls_enabled}
+*** Test Cases ***
+
+# [stest->swdd~agent-supports-podman-kube-runtime~1]
+# [stest->swdd~podman-kube-create-workload-apply-manifest~1]
+# [stest->swdd~podman-kube-create-workload-creates-config-volume~1]
+# [stest->swdd~podman-kube-create-workload-creates-pods-volume~1]
+Test Ankaios Podman create kube workload
+    [Setup]    Run Keyword    Setup Ankaios
 
     # Preconditions
     # This test assumes that all pods and volume in the podman have been created with this test -> clean it up first
@@ -38,15 +43,3 @@ Template Test Ankaios Podman create kube workload with mTLS=${mtls_enabled}
     And volumes for "hello-k8s" shall exist on "agent_A"
     [Teardown]    Clean up Ankaios
 
-
-*** Test Cases ***
-
-# [stest->swdd~agent-supports-podman-kube-runtime~1]
-# [stest->swdd~podman-kube-create-workload-apply-manifest~1]
-# [stest->swdd~podman-kube-create-workload-creates-config-volume~1]
-# [stest->swdd~podman-kube-create-workload-creates-pods-volume~1]
-Test Ankaios Podman create kube workload
-    Template Test Ankaios Podman create kube workload with mTLS=False
-
-Test Ankaios Podman create kube workload with mTLS
-    Template Test Ankaios Podman create kube workload with mTLS=True

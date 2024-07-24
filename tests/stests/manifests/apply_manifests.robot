@@ -33,7 +33,6 @@ Test Ankaios apply workload specifications showing progress via spinner
     [Setup]           Run Keywords    Setup Ankaios
     ...        AND    Set Global Variable    ${simple_yaml_file}    ${CONFIGS_DIR}/simple.yaml
     ...        AND    Set Global Variable    ${manifest12_yaml_file}    ${CONFIGS_DIR}/manifest12.yaml
-    # ...        AND    Setup TLS    enabled=Get MTLS Enabled
 
     # Preconditions
     Given Podman has deleted all existing containers
