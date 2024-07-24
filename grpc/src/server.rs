@@ -138,6 +138,8 @@ impl CommunicationsServer for GRPCCommunicationsServer {
 }
 
 impl GRPCCommunicationsServer {
+    // [impl->swdd~server-provides-file-paths-to-communication-middleware~1]
+    // [impl->swdd~server-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
     pub fn new(sender: ToServerSender, tls_config: Option<TLSConfig>) -> Self {
         GRPCCommunicationsServer {
             agent_senders: AgentSendersMap::new(),

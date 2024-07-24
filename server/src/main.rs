@@ -66,7 +66,9 @@ async fn main() {
 
     let tls_config: Result<Option<TLSConfig>, String> =
         match (args.insecure, args.ca_pem, args.crt_pem, args.key_pem) {
+            // [impl->swdd~server-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
             (true, _, _, _) => Ok(None),
+            // [impl->swdd~server-provides-file-paths-to-communication-middleware~1]
             (false, Some(path_to_ca_pem), Some(path_to_crt_pem), Some(path_to_key_pem)) => {
                 Ok(Some(TLSConfig {
                     path_to_ca_pem,
@@ -74,6 +76,7 @@ async fn main() {
                     path_to_key_pem,
                 }))
             }
+            // [impl->swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
             (_, ca_pem, crt_pem, key_pem) => Err(format!(
                 "Provide the files via ANKSERVER_CA_PEM={} ANKSERVER_CRT_PEM={} ANKSERVER_KEY_PEM={} or deactivate mTLS with '-k' or '--insecure' option!",
                 ca_pem.unwrap_or(String::from("\"\"")),
@@ -84,6 +87,7 @@ async fn main() {
 
     let mut communications_server = GRPCCommunicationsServer::new(
         to_server.clone(),
+        // [impl->swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
         tls_config.unwrap_or_exit("Missing certificates files"),
     );
     let mut server = AnkaiosServer::new(server_receiver, to_agents.clone());
