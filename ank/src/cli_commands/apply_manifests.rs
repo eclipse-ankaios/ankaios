@@ -348,6 +348,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_agent_name_provided_through_agent_flag() {
         let state = test_utils::generate_test_state_from_workloads(vec![
@@ -377,6 +378,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_one_agent_name_provided_in_workload_specs() {
         let state = test_utils::generate_test_state_from_workloads(vec![
@@ -398,6 +400,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_multiple_agent_names_provided_in_workload_specs() {
         let state = test_utils::generate_test_state_from_workloads(vec![
@@ -425,6 +428,7 @@ mod tests {
     }
 
     // [utest->swdd~cli-apply-ankaios-manifest-error-on-agent-name-absence~1]
+    // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_no_agent_name_provided_at_all() {
         let state = test_utils::generate_test_state_from_workloads(vec![
@@ -445,6 +449,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-apply-ankaios-manifest-agent-name-overwrite~1]
     #[test]
     fn utest_handle_agent_overwrite_missing_agent_name() {
         let state = test_utils::generate_test_state_from_workloads(vec![
@@ -584,6 +589,7 @@ mod tests {
     }
 
     //[utest->swdd~cli-apply-send-update-state~1]
+    // [utest->swdd~cli-watches-workloads~1]
     #[tokio::test]
     async fn utest_apply_manifests_delete_mode_ok() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -667,6 +673,7 @@ mod tests {
     }
 
     //[utest->swdd~cli-apply-send-update-state~1]
+    // [utest->swdd~cli-watches-workloads~1]
     #[tokio::test]
     async fn utest_apply_manifests_ok() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

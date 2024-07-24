@@ -16,7 +16,7 @@ use std::{collections::HashSet, fmt::Display};
 
 use common::{
     commands::UpdateStateSuccess,
-    objects::{PendingSubstate, WorkloadInstanceName, WorkloadState, NO_MORE_RETRIES_MSG},
+    objects::{PendingSubstate, WorkloadInstanceName, WorkloadState},
 };
 
 #[cfg(test)]
@@ -89,7 +89,7 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
     pub fn update(&mut self, values: impl IntoIterator<Item = WorkloadState>) {
         for workload_state in values.into_iter() {
             self.display.update(&workload_state);
-            // [impl->swdd~cli-checks-for-final-workload-state~1]
+            // [impl->swdd~cli-checks-for-final-workload-state~2]
             match workload_state.execution_state.state {
                 common::objects::ExecutionStateEnum::Running(_)
                 | common::objects::ExecutionStateEnum::Succeeded(_)
@@ -99,9 +99,7 @@ impl<T: WaitListDisplayTrait> WaitList<T> {
                         self.display.set_complete(&workload_state.instance_name)
                     }
                 }
-                common::objects::ExecutionStateEnum::Pending(PendingSubstate::StartingFailed)
-                    if workload_state.execution_state.additional_info == NO_MORE_RETRIES_MSG =>
-                {
+                common::objects::ExecutionStateEnum::Pending(PendingSubstate::StartingFailed) => {
                     if self.added_workloads.remove(&workload_state.instance_name) {
                         self.display.set_complete(&workload_state.instance_name)
                     }
@@ -194,6 +192,7 @@ mod tests {
         my_mock
     }
 
+    // [utest->swdd~cli-checks-for-final-workload-state~2]
     #[test]
     fn utest_update_wait_list_added_running() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
@@ -218,6 +217,7 @@ mod tests {
         assert!(wait_list.deleted_workloads.contains(&i_name_3));
     }
 
+    // [utest->swdd~cli-checks-for-final-workload-state~2]
     #[test]
     fn utest_update_wait_list_added_succeeded() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
@@ -242,6 +242,7 @@ mod tests {
         assert!(wait_list.deleted_workloads.contains(&i_name_3));
     }
 
+    // [utest->swdd~cli-checks-for-final-workload-state~2]
     #[test]
     fn utest_update_wait_list_added_not_scheduled() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
@@ -266,6 +267,7 @@ mod tests {
         assert!(wait_list.deleted_workloads.contains(&i_name_3));
     }
 
+    // [utest->swdd~cli-checks-for-final-workload-state~2]
     #[test]
     fn utest_update_wait_list_added_failed() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
@@ -290,13 +292,14 @@ mod tests {
         assert!(wait_list.deleted_workloads.contains(&i_name_3));
     }
 
+    // [utest->swdd~cli-checks-for-final-workload-state~2]
     #[test]
     fn utest_update_wait_list_added_starting_failed_no_more_retries() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();
 
         let workload_state = WorkloadState {
             instance_name: i_name_2.clone(),
-            execution_state: ExecutionState::retry_failed_no_retry(),
+            execution_state: ExecutionState::retry_failed_no_retry("some error"),
         };
 
         let my_mock = prepare_wait_list_display_mock(&workload_state, &i_name_2);
@@ -314,6 +317,7 @@ mod tests {
         assert!(wait_list.deleted_workloads.contains(&i_name_3));
     }
 
+    // [utest->swdd~cli-checks-for-final-workload-state~2]
     #[test]
     fn utest_update_wait_list_deleted_removed() {
         let (i_name_1, i_name_2, i_name_3) = prepare_test_instance_names();

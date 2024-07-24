@@ -422,7 +422,7 @@ When the CLI presents workloads to the user, the CLI shall display the workloads
 
 Note:
 The column runtime is not filled when the workload has been deleted.
-This can happen when the workload has been deleted from the current state and the workload state is reported as "removed".
+This can happen when the workload has been deleted from the current state and the workload state is reported as "removed". The table shall be well displayed and shall not flicker on updates.
 
 Tags:
 - CliCommands
@@ -531,16 +531,16 @@ Needs:
 - utest
 
 #### CLI checks for final state of a workload
-`swdd~cli-checks-for-final-workload-state~1`
+`swdd~cli-checks-for-final-workload-state~2`
 
 Status: approved
 
 When the CLI checks if a workload has reached its final expected workload execution state, the CLI shall regard the state for final if the state is one of:
-* running
-* succeeded
-* failed
-* removed
-* pending(starting_failed) with "No more retries"
+* Running(Ok)
+* Succeeded(Ok)
+* Failed(ExecFailed)
+* Removed
+* Pending(StartingFailed)
 
 Tags:
 - CliCommands

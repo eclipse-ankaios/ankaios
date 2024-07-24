@@ -79,11 +79,11 @@ Needs:
 - impl
 
 #### Server loads Startup State from a file
-`swdd~server-loads-startup-state-file~2`
+`swdd~server-loads-startup-state-file~3`
 
 Status: approved
 
-When the Ankaios Server starts up and a startup configuration is provided,
+When the Ankaios Server starts up and a startup configuration file in the format YAML is provided,
 Ankaios shall load the Startup State specified in the startup configuration as Current State.
 
 Note: This requirement describes only current intermediate state. The final implementation may work differently.
