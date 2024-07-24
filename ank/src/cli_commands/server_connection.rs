@@ -52,8 +52,6 @@ impl ServerConnection {
         server_url: String,
         tls_config: Option<TLSConfig>,
     ) -> Result<Self, CommunicationMiddlewareError> {
-        // [impl->swdd~cli-provides-file-paths-to-communication-middleware~1]
-        // [impl->swdd~cli-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
         let mut grpc_communications_client = GRPCCommunicationsClient::new_cli_communication(
             cli_name.to_owned(),
             server_url,

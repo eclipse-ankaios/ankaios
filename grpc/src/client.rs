@@ -90,6 +90,9 @@ impl GRPCCommunicationsClient {
             tls_config,
         })
     }
+
+    // [impl->swdd~cli-provides-file-paths-to-communication-middleware~1]
+    // [impl->swdd~cli-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
     pub fn new_cli_communication(
         name: String,
         server_address: String,
