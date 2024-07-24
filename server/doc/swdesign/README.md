@@ -330,6 +330,7 @@ Tags:
 
 Needs:
 - impl
+- stest
 
 #### Server prioritizes cli argument over environment variable
 `swdd~server-prioritizes-cli-argument-over-environment-variable~1`

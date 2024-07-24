@@ -17,6 +17,8 @@ Resource     ../../resources/ankaios.resource
 Resource    ../../resources/variables.resource
 
 *** Test Cases ***
+
+# [stest->swdd~server-supports-environment-variables~]
 # [stest->swdd~agent-supports-environment-variables~1]
 Test Ankaios MTLS by providing PEM files via environment variables
     [Setup]    Run Keyword    Setup Ankaios    mtls_enabled=True
@@ -37,6 +39,7 @@ Test Ankaios MTLS by providing PEM files via environment variables
     And the workload "hello3" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~server-supports-pem-file-paths-as-cli-arguments~]
 # [stest->swdd~agent-supports-pem-file-paths-as-cli-arguments~1]
 Test Ankaios MTLS by providing PEM files via command line arguments
     [Setup]    Run Keyword    Setup Ankaios without MTLS Setup
@@ -57,6 +60,7 @@ Test Ankaios MTLS by providing PEM files via command line arguments
     And the workload "hello3" shall have the execution state "Succeeded(Ok)" on agent "agent_B"
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~server-supports-cli-argument-for-insecure-communication~1]
 # [stest->swdd~agent-supports-cli-argument-for-insecure-communication~1]
 Test Ankaios insecure mode by providing --insecure command line arguments
     [Setup]    Run Keyword    Setup Ankaios without MTLS Setup
