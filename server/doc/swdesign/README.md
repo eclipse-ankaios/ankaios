@@ -48,10 +48,6 @@ The Communication Middleware is responsible for:
 * forwarding the FromServer messages from AnkaiosServer to the proper Ankaios Agents through the FromServerChannel.
 * forwarding the ToServer messages from connected Agents to the AnkaiosServer.
 
-### WorkloadStateDB
-
-The WorkloadStateDB is a data structure for storing the Workload States of each nodes.
-
 ### ServerState
 
 The ServerState is a data structure for maintaining the state of the Ankaios server. It prevents invariants when updating the state, by doing checks on the new state
@@ -255,7 +251,6 @@ When startup state is loaded and the ToServer message AgentHello is received fro
 
 Tags:
 - AnkaiosServer
-- WorkloadStateDB
 
 Needs:
 - impl
@@ -285,11 +280,10 @@ Needs:
 
 Status: approved
 
-When the ToServer message UpdateWorkloadState is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall store all the Workload States of that Ankaios Agent in the WorkloadStateDB.
+When the ToServer message UpdateWorkloadState is received by the Ankaios Server from an Ankaios Agent, the Ankaios Server shall store all the Workload States of that Ankaios Agent in the WorkloadStatesMap.
 
 Tags:
 - AnkaiosServer
-- WorkloadStateDB
 
 Needs:
 - impl
@@ -309,7 +303,6 @@ When the ToServer message AgentGone is received by the Ankaios server from an An
 
 Tags:
 - AnkaiosServer
-- WorkloadStateDB
 
 Needs:
 - impl
@@ -352,7 +345,6 @@ The CompleteState includes:
 Tags:
 - AnkaiosServer
 - ControlInterface
-- WorkloadStateDB
 - ServerState
 
 Needs:
