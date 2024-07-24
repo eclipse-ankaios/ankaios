@@ -229,11 +229,10 @@ pub enum ServerConnectionError {
 mod tests {
     use std::collections::HashMap;
 
+    use super::ank_base::{self, UpdateStateSuccess};
+    // use api::ank_base::CompleteState;
     use common::{
-        commands::{
-            CompleteStateRequest, Error, RequestContent, Response, ResponseContent,
-            UpdateStateRequest, UpdateStateSuccess, UpdateWorkloadState,
-        },
+        commands::{CompleteStateRequest, RequestContent, UpdateStateRequest, UpdateWorkloadState},
         from_server_interface::FromServer,
         objects::{
             CompleteState, ExecutionState, State, StoredWorkloadSpec, WorkloadInstanceName,
@@ -267,7 +266,7 @@ mod tests {
     #[derive(Clone)]
     enum CommunicationSimulatorAction {
         WillSendMessage(FromServer),
-        WillSendResponse(String, ResponseContent),
+        WillSendResponse(String, ank_base::response::ResponseContent),
         ExpectReceiveRequest(String, RequestContent),
     }
 
@@ -288,9 +287,9 @@ mod tests {
                         CommunicationSimulatorAction::WillSendResponse(request_name, response) => {
                             let request_id = request_ids.get(&request_name).unwrap();
                             from_server
-                                .send(FromServer::Response(Response {
+                                .send(FromServer::Response(ank_base::Response {
                                     request_id: request_id.to_owned(),
-                                    response_content: response,
+                                    response_content: Some(response),
                                 }))
                                 .await
                                 .unwrap();
@@ -332,7 +331,11 @@ mod tests {
                 .push(CommunicationSimulatorAction::WillSendMessage(message));
         }
 
-        pub fn will_send_response(&mut self, request_name: &str, response: ResponseContent) {
+        pub fn will_send_response(
+            &mut self,
+            request_name: &str,
+            response: ank_base::response::ResponseContent,
+        ) {
             self.actions
                 .push(CommunicationSimulatorAction::WillSendResponse(
                     request_name.to_string(),
@@ -402,7 +405,9 @@ mod tests {
         );
         sim.will_send_response(
             REQUEST,
-            ResponseContent::CompleteState(Box::new(complete_state(WORKLOAD_NAME_1))),
+            ank_base::response::ResponseContent::CompleteState(
+                complete_state(WORKLOAD_NAME_1).into(),
+            ),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -410,7 +415,10 @@ mod tests {
             .get_complete_state(&vec![FIELD_MASK.into()])
             .await;
         assert!(result.is_ok());
-        assert_eq!(*result.unwrap(), complete_state(WORKLOAD_NAME_1));
+        assert_eq!(
+            result.unwrap(),
+            (ank_base::CompleteState::from(complete_state(WORKLOAD_NAME_1)).into())
+        );
         checker.check_communication();
     }
 
@@ -468,11 +476,11 @@ mod tests {
     // [utest->swdd~cli-stores-unexpected-message~1]
     #[tokio::test]
     async fn utest_get_complete_state_other_response_in_between() {
-        let other_response = FromServer::Response(Response {
+        let other_response = FromServer::Response(ank_base::Response {
             request_id: OTHER_REQUEST.into(),
-            response_content: ResponseContent::CompleteState(Box::new(complete_state(
-                WORKLOAD_NAME_2,
-            ))),
+            response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                complete_state(WORKLOAD_NAME_2).into(),
+            )),
         });
 
         let mut sim = CommunicationSimulator::default();
@@ -485,7 +493,9 @@ mod tests {
         sim.will_send_message(other_response.clone());
         sim.will_send_response(
             REQUEST,
-            ResponseContent::CompleteState(Box::new(complete_state(WORKLOAD_NAME_1))),
+            ank_base::response::ResponseContent::CompleteState(
+                complete_state(WORKLOAD_NAME_1).into(),
+            ),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -493,7 +503,10 @@ mod tests {
             .get_complete_state(&vec![FIELD_MASK.into()])
             .await;
         assert!(result.is_ok());
-        assert_eq!(*result.unwrap(), complete_state(WORKLOAD_NAME_1));
+        assert_eq!(
+            result.unwrap(),
+            (ank_base::CompleteState::from(complete_state(WORKLOAD_NAME_1))).into()
+        );
         assert_eq!(
             server_connection.take_missed_from_server_messages(),
             vec![other_response]
@@ -518,7 +531,9 @@ mod tests {
         sim.will_send_message(other_message.clone());
         sim.will_send_response(
             REQUEST,
-            ResponseContent::CompleteState(Box::new(complete_state(WORKLOAD_NAME_1))),
+            ank_base::response::ResponseContent::CompleteState(
+                complete_state(WORKLOAD_NAME_1).into(),
+            ),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -526,7 +541,10 @@ mod tests {
             .get_complete_state(&vec![FIELD_MASK.into()])
             .await;
         assert!(result.is_ok());
-        assert_eq!(*result.unwrap(), complete_state(WORKLOAD_NAME_1));
+        assert_eq!(
+            result.unwrap(),
+            (ank_base::CompleteState::from(complete_state(WORKLOAD_NAME_1))).into()
+        );
         assert_eq!(
             server_connection.take_missed_from_server_messages(),
             vec![other_message]
@@ -551,7 +569,7 @@ mod tests {
         );
         sim.will_send_response(
             REQUEST,
-            ResponseContent::UpdateStateSuccess(update_state_success.clone()),
+            ank_base::response::ResponseContent::UpdateStateSuccess(update_state_success.clone()),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -611,7 +629,7 @@ mod tests {
         );
         sim.will_send_response(
             REQUEST,
-            ResponseContent::Error(Error { message: "".into() }),
+            ank_base::response::ResponseContent::Error(ank_base::Error { message: "".into() }),
         );
 
         let (checker, mut server_connection) = sim.create_server_connection();
@@ -654,11 +672,11 @@ mod tests {
             added_workloads: vec![WORKLOAD_NAME_1.into()],
             deleted_workloads: vec![],
         };
-        let other_response = FromServer::Response(Response {
+        let other_response = FromServer::Response(ank_base::Response {
             request_id: OTHER_REQUEST.into(),
-            response_content: ResponseContent::CompleteState(Box::new(complete_state(
-                WORKLOAD_NAME_2,
-            ))),
+            response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                complete_state(WORKLOAD_NAME_2).into(),
+            )),
         });
 
         let mut sim = CommunicationSimulator::default();
@@ -672,7 +690,7 @@ mod tests {
         sim.will_send_message(other_response.clone());
         sim.will_send_response(
             REQUEST,
-            ResponseContent::UpdateStateSuccess(update_state_success.clone()),
+            ank_base::response::ResponseContent::UpdateStateSuccess(update_state_success.clone()),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -711,7 +729,7 @@ mod tests {
         sim.will_send_message(other_message.clone());
         sim.will_send_response(
             REQUEST,
-            ResponseContent::UpdateStateSuccess(update_state_success.clone()),
+            ank_base::response::ResponseContent::UpdateStateSuccess(update_state_success.clone()),
         );
         let (checker, mut server_connection) = sim.create_server_connection();
 
@@ -753,9 +771,11 @@ mod tests {
     // [utest->swdd~cli-stores-unexpected-message~1]
     #[tokio::test]
     async fn utest_read_next_update_workload_state_other_message_in_between() {
-        let other_message = FromServer::Response(Response {
+        let other_message = FromServer::Response(ank_base::Response {
             request_id: REQUEST.into(),
-            response_content: ResponseContent::Error(Error { message: "".into() }),
+            response_content: Some(ank_base::response::ResponseContent::Error(
+                ank_base::Error { message: "".into() },
+            )),
         });
         let update_workload_state = UpdateWorkloadState {
             workload_states: vec![WorkloadState {

@@ -79,6 +79,7 @@ pub struct FilteredWorkloadSpec {
 }
 
 impl From<ank_base::CompleteState> for FilteredCompleteState {
+    // TODO: create a conversion for common::objects::CompleteState
     fn from(value: ank_base::CompleteState) -> Self {
         FilteredCompleteState {
             desired_state: value.desired_state.map(|x| x.into()),
@@ -136,3 +137,5 @@ impl From<ank_base::Workload> for FilteredWorkloadSpec {
         }
     }
 }
+
+// TODO: add helper function for generating filtered complete state

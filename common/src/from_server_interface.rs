@@ -173,9 +173,7 @@ impl FromServerInterface for FromServerSender {
 
 #[cfg(test)]
 mod tests {
-
-    use api::ank_base;
-
+    use super::ank_base;
     use crate::{
         commands,
         from_server_interface::{FromServer, FromServerInterface},
@@ -250,9 +248,11 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            FromServer::Response(commands::Response {
+            FromServer::Response(ank_base::Response {
                 request_id: REQUEST_ID.to_string(),
-                response_content: commands::ResponseContent::CompleteState(complete_state),
+                response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                    complete_state
+                )),
             })
         )
     }
@@ -276,14 +276,14 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            FromServer::Response(commands::Response {
+            FromServer::Response(ank_base::Response {
                 request_id: REQUEST_ID.to_string(),
-                response_content: commands::ResponseContent::UpdateStateSuccess(
-                    commands::UpdateStateSuccess {
+                response_content: Some(ank_base::response::ResponseContent::UpdateStateSuccess(
+                    ank_base::UpdateStateSuccess {
                         added_workloads,
                         deleted_workloads,
                     },
-                ),
+                )),
             })
         )
     }
@@ -294,19 +294,19 @@ mod tests {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
-        let error = commands::Error {
+        let error = ank_base::Error {
             message: "error".to_string(),
         };
         assert!(tx
-            .error(REQUEST_ID.to_string(), error.clone())
+            .error(REQUEST_ID.to_string(), error.message.clone())
             .await
             .is_ok());
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            FromServer::Response(commands::Response {
+            FromServer::Response(ank_base::Response {
                 request_id: REQUEST_ID.to_string(),
-                response_content: commands::ResponseContent::Error(error),
+                response_content: Some(ank_base::response::ResponseContent::Error(error)),
             })
         )
     }

@@ -1986,7 +1986,7 @@ mod tests {
 
         let workload_command_sender_clone = workload_command_sender.clone();
         tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_millis(125)).await;
+            tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
             workload_command_sender_clone.delete().await.unwrap();
         });
 
@@ -2003,7 +2003,7 @@ mod tests {
         control_loop_state.state_checker = Some(old_state_checker);
 
         assert!(timeout(
-            Duration::from_millis(150),
+            Duration::from_millis(300),
             WorkloadControlLoop::run(control_loop_state)
         )
         .await

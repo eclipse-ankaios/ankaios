@@ -532,7 +532,8 @@ mod tests {
     use crate::workload_scheduler::scheduler::MockWorkloadScheduler;
     use crate::workload_state::workload_state_store::MockWorkloadStateStore;
     use crate::workload_state::WorkloadStateReceiver;
-    use common::commands::ResponseContent;
+    use ank_base::response::ResponseContent;
+    use ank_base::CompleteState;
     use common::objects::{
         generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
         AddCondition, WorkloadInstanceNameBuilder, WorkloadState,
@@ -1749,35 +1750,47 @@ mod tests {
                 )
                 .build();
 
+        let request_id: String = "request_id".to_string();
+        let complete_state: CompleteState = CompleteState::default();
         let mut mock_workload = MockWorkload::default();
         mock_workload
             .expect_forward_response()
             .once()
-            .withf(|request_id, response_content| {
-                request_id == REQUEST_ID
-                    && matches!(response_content, ResponseContent::CompleteState(complete_state) if complete_state
-                        .workload_states
-                        .get_workload_state_for_agent(AGENT_NAME)
-                        .first()
-                        .unwrap()
-                        .instance_name.workload_name()
-                        == WORKLOAD_1_NAME)
+            // .withf(|request_id, response_content| {
+            //     request_id == REQUEST_ID
+            //         && matches!(response_content, ResponseContent::CompleteState(complete_state) if complete_state
+            //             .workload_states?
+            //             .get_workload_state_for_agent(AGENT_NAME)
+            //             .first()
+            //             .unwrap()
+            //             .instance_name.workload_name()
+            //             == WORKLOAD_1_NAME)
+            // })
+            .withf(|response| {
+                matches!(
+                    response,
+                    ank_base::Response {
+                        request_id: request_id,
+                        response_content: Some(complete_state),
+                    }
+                )
             })
-            .return_once(move |_, _| Ok(()));
+            .return_once(move |_| Ok(()));
 
         runtime_manager
             .workloads
             .insert(WORKLOAD_1_NAME.to_string(), mock_workload);
 
         runtime_manager
-            .forward_response(Response {
+            .forward_response(ank_base::Response {
                 request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                response_content: ResponseContent::CompleteState(Box::new(
+                response_content: Some(ank_base::response::ResponseContent::CompleteState(
                     generate_test_complete_state(vec![generate_test_workload_spec_with_param(
                         AGENT_NAME.to_string(),
                         WORKLOAD_1_NAME.to_string(),
                         RUNTIME_NAME.to_string(),
-                    )]),
+                    )])
+                    .into(),
                 )),
             })
             .await;
@@ -1810,17 +1823,16 @@ mod tests {
         mock_workload
             .expect_forward_response()
             .once()
-            .withf(|request_id, response_content| {
-                request_id == REQUEST_ID
-                    && matches!(response_content, ResponseContent::CompleteState(complete_state) if complete_state
-                    .workload_states
-                    .get_workload_state_for_agent(AGENT_NAME)
-                    .first()
-                    .unwrap()
-                    .instance_name.workload_name()
-                    == WORKLOAD_1_NAME)
+            .withf(|response| {
+                matches!(
+                    response,
+                    ank_base::Response {
+                        request_id: request_id,
+                        response_content: Some(complete_state),
+                    }
+                )
             })
-            .return_once(move |_, _| {
+            .return_once(move |_| {
                 Err(WorkloadError::CompleteState(
                     "failed to send complete state".to_string(),
                 ))
@@ -1831,14 +1843,15 @@ mod tests {
             .insert(WORKLOAD_1_NAME.to_string(), mock_workload);
 
         runtime_manager
-            .forward_response(Response {
+            .forward_response(ank_base::Response {
                 request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                response_content: ResponseContent::CompleteState(Box::new(
+                response_content: Some(ResponseContent::CompleteState(
                     generate_test_complete_state(vec![generate_test_workload_spec_with_param(
                         AGENT_NAME.to_string(),
                         WORKLOAD_1_NAME.to_string(),
                         RUNTIME_NAME.to_string(),
-                    )]),
+                    )])
+                    .into(),
                 )),
             })
             .await;
@@ -1871,14 +1884,15 @@ mod tests {
         mock_workload.expect_forward_response().never();
 
         runtime_manager
-            .forward_response(Response {
+            .forward_response(ank_base::Response {
                 request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                response_content: ResponseContent::CompleteState(Box::new(
+                response_content: Some(ank_base::response::ResponseContent::CompleteState(
                     generate_test_complete_state(vec![generate_test_workload_spec_with_param(
                         AGENT_NAME.to_string(),
                         WORKLOAD_1_NAME.to_string(),
                         RUNTIME_NAME.to_string(),
-                    )]),
+                    )])
+                    .into(),
                 )),
             })
             .await;

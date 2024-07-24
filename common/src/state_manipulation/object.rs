@@ -285,8 +285,8 @@ impl Object {
 mod tests {
     use crate::{
         objects::{
-            generate_test_workload_spec, generate_test_workload_states_map_from_specs,
-            CompleteState, State,
+            generate_test_workload_spec, generate_test_workload_states_map_with_data,
+            CompleteState, ExecutionState, State,
         },
         test_utils::generate_test_state_from_workloads,
     };
@@ -322,7 +322,12 @@ mod tests {
         let state = generate_test_state_from_workloads(vec![wl_spec.clone()]);
         let complete_state = CompleteState {
             desired_state: state,
-            workload_states: generate_test_workload_states_map_from_specs(vec![wl_spec]),
+            workload_states: generate_test_workload_states_map_with_data(
+                "workload A",
+                "agent",
+                "some_id",
+                ExecutionState::running(),
+            ),
         };
 
         let expected = Object {
@@ -342,7 +347,12 @@ mod tests {
         let expected_state = generate_test_state_from_workloads(vec![wl_spec.clone()]);
         let expected = CompleteState {
             desired_state: expected_state,
-            workload_states: generate_test_workload_states_map_from_specs(vec![wl_spec]),
+            workload_states: generate_test_workload_states_map_with_data(
+                "workload A",
+                "agent",
+                "some_id",
+                ExecutionState::running(),
+            ),
         };
         let actual: CompleteState = object.try_into().unwrap();
 

@@ -390,17 +390,16 @@ mod tests {
     use crate::ankaios_server::server_state::{MockServerState, UpdateStateError};
     use crate::ankaios_server::{create_from_server_channel, create_to_server_channel};
 
-    use common::commands::{
-        self, CompleteStateRequest, Response, ResponseContent, UpdateStateSuccess, UpdateWorkload,
-        UpdateWorkloadState,
-    };
+    use super::ank_base;
+    use api::ank_base::WorkloadMap;
+    use common::commands::{self, CompleteStateRequest, UpdateWorkload, UpdateWorkloadState};
     use common::from_server_interface::FromServer;
     use common::objects::{
         generate_test_stored_workload_spec, generate_test_workload_spec_with_param, CompleteState,
         DeletedWorkload, ExecutionState, ExecutionStateEnum, PendingSubstate, State,
         WorkloadInstanceName, WorkloadState,
     };
-
+    use common::test_utils::generate_test_proto_workload_with_param;
     use common::to_server_interface::ToServerInterface;
 
     const AGENT_A: &str = "agent_A";
@@ -561,9 +560,9 @@ mod tests {
 
         assert!(matches!(
             comm_middle_ware_receiver.recv().await.unwrap(),
-            FromServer::Response(Response {
+            FromServer::Response(ank_base::Response {
                 request_id,
-                response_content: ResponseContent::Error(_)
+                response_content: Some(ank_base::response::ResponseContent::Error(_))
             }) if request_id == REQUEST_ID_A
         ));
 
@@ -583,12 +582,14 @@ mod tests {
 
         assert_eq!(
             comm_middle_ware_receiver.recv().await.unwrap(),
-            FromServer::Response(Response {
+            FromServer::Response(ank_base::Response {
                 request_id: REQUEST_ID_A.into(),
-                response_content: ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
-                    added_workloads: vec![updated_workload.instance_name.to_string()],
-                    deleted_workloads: Vec::new(),
-                }),
+                response_content: Some(ank_base::response::ResponseContent::UpdateStateSuccess(
+                    ank_base::UpdateStateSuccess {
+                        added_workloads: vec![updated_workload.instance_name.to_string()],
+                        deleted_workloads: Vec::new(),
+                    }
+                )),
             })
         );
 
@@ -886,10 +887,10 @@ mod tests {
 
         let update_state_success_message = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
-            FromServer::Response(Response {
+            FromServer::Response(ank_base::Response {
                 request_id: REQUEST_ID_A.to_string(),
-                response_content: common::commands::ResponseContent::UpdateStateSuccess(
-                    UpdateStateSuccess {
+                response_content: Some(ank_base::response::ResponseContent::UpdateStateSuccess(
+                    ank_base::UpdateStateSuccess {
                         added_workloads: added_workloads
                             .into_iter()
                             .map(|x| x.instance_name.to_string())
@@ -899,7 +900,7 @@ mod tests {
                             .map(|x| x.instance_name.to_string())
                             .collect()
                     }
-                )
+                ))
             }),
             update_state_success_message
         );
@@ -954,12 +955,12 @@ mod tests {
 
         assert!(matches!(
             comm_middle_ware_receiver.recv().await.unwrap(),
-            FromServer::Response(Response {
+            FromServer::Response(ank_base::Response {
                 request_id,
-                response_content: ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
+                response_content: Some(ank_base::response::ResponseContent::UpdateStateSuccess(ank_base::UpdateStateSuccess {
                     added_workloads,
                     deleted_workloads
-                })
+                }))
             }) if request_id == REQUEST_ID_A && added_workloads.is_empty() && deleted_workloads.is_empty()
         ));
 
@@ -1019,9 +1020,9 @@ mod tests {
 
         assert!(matches!(
             comm_middle_ware_receiver.recv().await.unwrap(),
-            FromServer::Response(common::commands::Response {
+            FromServer::Response(ank_base::Response {
                 request_id,
-                response_content: common::commands::ResponseContent::Error(_)
+                response_content: Some(ank_base::response::ResponseContent::Error(_))
             }) if request_id == REQUEST_ID_A
         ));
 
@@ -1047,11 +1048,11 @@ mod tests {
         let (to_agents, mut comm_middle_ware_receiver) =
             create_from_server_channel(common::CHANNEL_CAPACITY);
 
-        let w1 = generate_test_stored_workload_spec(AGENT_A.to_owned(), RUNTIME_NAME.to_string());
+        let w1 = generate_test_proto_workload_with_param(AGENT_A, RUNTIME_NAME);
 
-        let w2 = generate_test_stored_workload_spec(AGENT_A.to_owned(), RUNTIME_NAME.to_string());
+        let w2 = generate_test_proto_workload_with_param(AGENT_A, RUNTIME_NAME);
 
-        let w3 = generate_test_stored_workload_spec(AGENT_B.to_owned(), RUNTIME_NAME.to_string());
+        let w3 = generate_test_proto_workload_with_param(AGENT_B, RUNTIME_NAME);
 
         let workloads = HashMap::from([
             (WORKLOAD_NAME_1.to_owned(), w1),
@@ -1059,11 +1060,13 @@ mod tests {
             (WORKLOAD_NAME_3.to_owned(), w3),
         ]);
 
-        let current_complete_state = CompleteState {
-            desired_state: State {
-                workloads,
+        let workload_map = WorkloadMap { workloads };
+
+        let current_complete_state = ank_base::CompleteState {
+            desired_state: Some(ank_base::State {
+                workloads: Some(workload_map),
                 ..Default::default()
-            },
+            }),
             ..Default::default()
         };
         let request_id = format!("{AGENT_A}@my_request_id");
@@ -1096,9 +1099,9 @@ mod tests {
 
         assert_eq!(
             from_server_command,
-            common::from_server_interface::FromServer::Response(common::commands::Response {
+            common::from_server_interface::FromServer::Response(ank_base::Response {
                 request_id,
-                response_content: common::commands::ResponseContent::CompleteState(Box::new(
+                response_content: Some(ank_base::response::ResponseContent::CompleteState(
                     current_complete_state
                 ))
             })
@@ -1147,15 +1150,15 @@ mod tests {
 
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
-        let expected_complete_state = CompleteState {
+        let expected_complete_state = ank_base::CompleteState {
             ..Default::default()
         };
 
         assert_eq!(
             from_server_command,
-            common::from_server_interface::FromServer::Response(common::commands::Response {
+            common::from_server_interface::FromServer::Response(ank_base::Response {
                 request_id,
-                response_content: common::commands::ResponseContent::CompleteState(Box::new(
+                response_content: Some(ank_base::response::ResponseContent::CompleteState(
                     expected_complete_state
                 ))
             })
@@ -1358,12 +1361,12 @@ mod tests {
 
         assert!(matches!(
             comm_middle_ware_receiver.recv().await.unwrap(),
-            FromServer::Response(Response {
+            FromServer::Response(ank_base::Response {
                 request_id,
-                response_content: ResponseContent::UpdateStateSuccess(UpdateStateSuccess {
+                response_content: Some(ank_base::response::ResponseContent::UpdateStateSuccess(ank_base::UpdateStateSuccess {
                     added_workloads,
                     deleted_workloads
-                })
+                }))
             }) if request_id == REQUEST_ID_A && added_workloads == vec![updated_w1.instance_name.to_string()] && deleted_workloads == vec![w1.instance_name.to_string()]
         ));
 
@@ -1439,11 +1442,13 @@ mod tests {
         );
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
-            FromServer::Response(Response {
+            FromServer::Response(ank_base::Response {
                 request_id: REQUEST_ID_A.to_string(),
-                response_content: ResponseContent::Error(commands::Error {
-                    message: error_message
-                }),
+                response_content: Some(ank_base::response::ResponseContent::Error(
+                    ank_base::Error {
+                        message: error_message
+                    }
+                )),
             }),
             from_server_command
         );
@@ -1485,11 +1490,13 @@ mod tests {
         );
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
-            FromServer::Response(Response {
+            FromServer::Response(ank_base::Response {
                 request_id: REQUEST_ID_A.to_string(),
-                response_content: ResponseContent::Error(commands::Error {
-                    message: error_message
-                }),
+                response_content: Some(ank_base::response::ResponseContent::Error(
+                    ank_base::Error {
+                        message: error_message
+                    }
+                )),
             }),
             from_server_command
         );

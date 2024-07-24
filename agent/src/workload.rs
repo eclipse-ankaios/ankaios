@@ -190,8 +190,8 @@ mod tests {
     use std::path::PathBuf;
     use std::time::Duration;
 
+    use super::ank_base::{self, response::ResponseContent, Response};
     use common::{
-        commands::{Response, ResponseContent},
         from_server_interface::FromServer,
         objects::{generate_test_workload_spec_with_param, CompleteState},
         test_utils::generate_test_complete_state,
@@ -493,10 +493,12 @@ mod tests {
             )]);
 
         test_workload
-            .forward_response(
-                format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
-                common::commands::ResponseContent::CompleteState(Box::new(complete_state.clone())),
-            )
+            .forward_response(ank_base::Response {
+                request_id: REQUEST_ID.to_owned(),
+                response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                    complete_state.clone().into(),
+                )),
+            })
             .await
             .unwrap();
 
@@ -504,8 +506,8 @@ mod tests {
 
         assert!(matches!(
             timeout(Duration::from_millis(200), to_server_rx.recv()).await,
-            Ok(Some(FromServer::Response(Response{request_id: _, response_content: ResponseContent::CompleteState(complete_state)})))
-        if expected_complete_state == *complete_state));
+            Ok(Some(FromServer::Response(Response{request_id: _, response_content: Some(ResponseContent::CompleteState(complete_state))})))
+        if ank_base::CompleteState::from(expected_complete_state) == complete_state));
     }
 
     // [utest->swdd~agent-forward-responses-to-control-interface-pipe~1]
@@ -535,10 +537,12 @@ mod tests {
 
         assert!(matches!(
             test_workload
-                .forward_response(
-                    "".to_owned(),
-                    ResponseContent::CompleteState(Box::new(complete_state))
-                )
+                .forward_response(ank_base::Response {
+                    request_id: REQUEST_ID.to_owned(),
+                    response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                        complete_state.clone().into(),
+                    )),
+                })
                 .await,
             Err(WorkloadError::CompleteState(_))
         ));
@@ -559,10 +563,12 @@ mod tests {
 
         assert!(matches!(
             test_workload
-                .forward_response(
-                    "".to_owned(),
-                    ResponseContent::CompleteState(Box::new(complete_state))
-                )
+                .forward_response(ank_base::Response {
+                    request_id: REQUEST_ID.to_owned(),
+                    response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                        complete_state.clone().into(),
+                    )),
+                })
                 .await,
             Err(WorkloadError::CompleteState(_))
         ));

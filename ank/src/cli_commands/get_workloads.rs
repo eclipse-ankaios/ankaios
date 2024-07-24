@@ -77,8 +77,12 @@ impl CliCommands {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
+    use api::ank_base;
     use common::{
-        objects::{self, generate_test_workload_spec_with_param, generate_test_workload_states_map_with_data, ExecutionState},
+        objects::{
+            self, generate_test_workload_spec_with_param,
+            generate_test_workload_states_map_with_data, ExecutionState,
+        },
         test_utils,
     };
     use mockall::predicate::eq;
@@ -94,7 +98,14 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .return_once(|_| Ok(Box::new(test_utils::generate_test_complete_state(vec![]))));
+            .return_once(|_| {
+                Ok(
+                    (ank_base::CompleteState::from(test_utils::generate_test_complete_state(
+                        vec![],
+                    )))
+                    .into(),
+                )
+            });
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
             no_wait: false,
@@ -139,7 +150,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .return_once(|_| Ok(Box::new(test_data)));
+            .return_once(|_| Ok((ank_base::CompleteState::from(test_data)).into()));
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
             no_wait: false,
@@ -185,7 +196,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .return_once(|_| Ok(Box::new(test_data)));
+            .return_once(|_| Ok((ank_base::CompleteState::from(test_data)).into()));
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
             no_wait: false,
@@ -231,7 +242,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .return_once(|_| Ok(Box::new(test_data)));
+            .return_once(|_| Ok((ank_base::CompleteState::from(test_data)).into()));
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
             no_wait: false,
@@ -277,7 +288,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .return_once(|_| Ok(Box::new(test_data)));
+            .return_once(|_| Ok((ank_base::CompleteState::from(test_data)).into()));
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
             no_wait: false,
@@ -311,7 +322,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .return_once(|_| Ok(Box::new(test_data)));
+            .return_once(|_| Ok((ank_base::CompleteState::from(test_data)).into()));
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
             no_wait: false,

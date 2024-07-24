@@ -168,21 +168,19 @@ pub struct Stop {}
 #[cfg(test)]
 mod tests {
     use crate::objects::ConfigHash;
+    use std::collections::HashMap;
 
     mod ank_base {
         pub use api::ank_base::{
             request::RequestContent, response::ResponseContent, CompleteState,
-            CompleteStateRequest, Error, Request, Response, State, UpdateStateRequest,
-            UpdateStateSuccess, Workload,
+            CompleteStateRequest, Dependencies, Error, Request, Response, State,
+            UpdateStateRequest, UpdateStateSuccess, Workload, WorkloadMap,
         };
     }
 
     mod ankaios {
         pub use crate::{
-            commands::{
-                CompleteStateRequest, Error, Request, RequestContent, Response, ResponseContent,
-                UpdateStateRequest, UpdateStateSuccess,
-            },
+            commands::{CompleteStateRequest, Request, RequestContent, UpdateStateRequest},
             objects::{
                 generate_test_workload_states_map_with_data, CompleteState, ExecutionState, State,
                 StoredWorkloadSpec,
@@ -263,23 +261,32 @@ mod tests {
     }
 
     macro_rules! complete_state {
-        ($expression:ident) => {
-            $expression::CompleteState {
-                desired_state: $expression::State {
+        (ankaios) => {
+            ankaios::CompleteState {
+                desired_state: ankaios::State {
                     api_version: "v0.1".into(),
-                    workloads: vec![("desired".into(), workload!($expression))]
-                        .into_iter()
-                        .collect(),
+                    // workloads: vec![("desired".into(), workload!(ankaios))].into_iter(),
+                    // .collect(),
+                    workloads: HashMap::from([("desired".into(), workload!(ankaios))]),
                 }
                 .into(),
-                workload_states: workload_states_map!($expression),
+                workload_states: workload_states_map!(ankaios),
+            }
+        };
+        (ank_base) => {
+            ank_base::CompleteState {
+                desired_state: Some(ank_base::State {
+                    api_version: "v0.1".into(),
+                    workloads: Some(workload!(ank_base)),
+                }),
+                workload_states: workload_states_map!(ank_base),
             }
         };
     }
 
     macro_rules! workload {
         (ank_base) => {
-            ank_base::Workload {
+            ank_base::WorkloadMap {
                 ..Default::default()
             }
         };
@@ -333,17 +340,6 @@ mod tests {
     }
 
     #[test]
-    fn utest_converts_to_proto_complete_state_request() {
-        let ankaios_request_complete_state = complete_state_request!(ankaios);
-        let proto_request_complete_state = complete_state_request!(ank_base);
-
-        assert_eq!(
-            ank_base::Request::from(ankaios_request_complete_state),
-            proto_request_complete_state
-        );
-    }
-
-    #[test]
     fn utest_converts_from_proto_complete_state_request() {
         let proto_request_complete_state = complete_state_request!(ank_base);
         let ankaios_request_complete_state = complete_state_request!(ankaios);
@@ -351,17 +347,6 @@ mod tests {
         assert_eq!(
             ankaios::Request::try_from(proto_request_complete_state).unwrap(),
             ankaios_request_complete_state
-        );
-    }
-
-    #[test]
-    fn utest_converts_to_proto_update_state_request() {
-        let ankaios_request_complete_state = update_state_request!(ankaios);
-        let proto_request_complete_state = update_state_request!(ank_base);
-
-        assert_eq!(
-            ank_base::Request::from(ankaios_request_complete_state),
-            proto_request_complete_state
         );
     }
 
@@ -467,10 +452,16 @@ mod tests {
             .as_mut()
             .unwrap()
             .workloads
+            .as_mut()
+            .unwrap()
+            .workloads
             .insert(
                 WORKLOAD_NAME_1.into(),
                 ank_base::Workload {
-                    dependencies: vec![("dependency".into(), -1)].into_iter().collect(),
+                    // dependencies: vec![("dependency".into(), -1)].into_iter().collect(),
+                    dependencies: Some(ank_base::Dependencies {
+                        dependencies: HashMap::from([("dependency".into(), -1)]),
+                    }),
                     ..Default::default()
                 },
             );
@@ -491,114 +482,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn utest_converts_to_proto_error_response() {
-        let ankaios_error_response = error_response!(ankaios);
-        let proto_error_response = error_response!(ank_base);
-
-        assert_eq!(
-            ank_base::Response::from(ankaios_error_response),
-            proto_error_response
-        );
-    }
-
-    #[test]
-    fn utest_converts_from_proto_error_response() {
-        let proto_error_response = error_response!(ank_base);
-        let ankaios_error_response = error_response!(ankaios);
-
-        assert_eq!(
-            ankaios::Response::try_from(proto_error_response).unwrap(),
-            ankaios_error_response,
-        );
-    }
-
-    #[test]
-    fn utest_converts_to_proto_complete_state_response() {
-        let ankaios_complete_state_response = complete_state_response!(ankaios);
-        let proto_complete_state_response = complete_state_response!(ank_base);
-
-        assert_eq!(
-            ank_base::Response::from(ankaios_complete_state_response),
-            proto_complete_state_response
-        );
-    }
-
-    #[test]
-    fn utest_converts_from_proto_complete_state_response() {
-        let proto_complete_state_response = complete_state_response!(ank_base);
-        let ankaios_complete_state_response = complete_state_response!(ankaios);
-
-        assert_eq!(
-            ankaios::Response::try_from(proto_complete_state_response).unwrap(),
-            ankaios_complete_state_response
-        );
-    }
-
-    #[test]
-    fn utest_converts_from_proto_complete_state_response_with_empty_states() {
-        let mut proto_complete_state_response = complete_state_response!(ank_base);
-        let mut ankaios_complete_state_response = complete_state_response!(ankaios);
-
-        let ank_base::ResponseContent::CompleteState(proto_content) = proto_complete_state_response
-            .response_content
-            .as_mut()
-            .unwrap()
-        else {
-            unreachable!()
-        };
-        proto_content.desired_state = Some(ank_base::State {
-            api_version: "v0.1".into(),
-            ..Default::default()
-        });
-
-        let ankaios::ResponseContent::CompleteState(ankaios_content) =
-            &mut ankaios_complete_state_response.response_content
-        else {
-            unreachable!()
-        };
-        ankaios_content.desired_state = Default::default();
-
-        assert_eq!(
-            ankaios::Response::try_from(proto_complete_state_response).unwrap(),
-            ankaios_complete_state_response
-        );
-    }
-
-    #[test]
-    fn utest_converts_to_proto_update_state_success_response() {
-        let ankaios_complete_state_response = update_state_success_response!(ankaios);
-        let proto_complete_state_response = update_state_success_response!(ank_base);
-
-        assert_eq!(
-            ank_base::Response::from(ankaios_complete_state_response),
-            proto_complete_state_response
-        );
-    }
-
-    #[test]
-    fn utest_converts_from_proto_update_state_success_response() {
-        let proto_complete_state_response = update_state_success_response!(ank_base);
-        let ankaios_complete_state_response = update_state_success_response!(ankaios);
-
-        assert_eq!(
-            ankaios::Response::try_from(proto_complete_state_response).unwrap(),
-            ankaios_complete_state_response
-        );
-    }
-
-    #[test]
-    fn utest_converts_from_proto_reponse_fails_empty_request_content() {
-        let proto_response = ank_base::Response {
-            request_id: REQUEST_ID.into(),
-            response_content: None,
-        };
-
-        assert_eq!(
-            ankaios::Response::try_from(proto_response).unwrap_err(),
-            "Response has no content"
-        );
-    }
     #[test]
     fn utest_request_complete_state_prefix_request_id() {
         let mut ankaios_request_complete_state = ankaios::Request {

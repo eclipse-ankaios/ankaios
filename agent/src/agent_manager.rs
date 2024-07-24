@@ -198,8 +198,9 @@ mod tests {
         workload_state_store::{mock_parameter_storage_new_returns, MockWorkloadStateStore},
         WorkloadStateSenderInterface,
     };
+    use api::ank_base;
     use common::{
-        commands::{Response, ResponseContent, UpdateWorkloadState},
+        commands::UpdateWorkloadState,
         from_server_interface::FromServerInterface,
         objects::{generate_test_workload_spec_with_param, CompleteState, ExecutionState},
         to_server_interface::ToServer,
@@ -377,9 +378,11 @@ mod tests {
         let request_id = format!("{WORKLOAD_1_NAME}@{REQUEST_ID}");
         let complete_state: CompleteState = Default::default();
 
-        let response = Response {
+        let response = ank_base::Response {
             request_id: request_id.clone(),
-            response_content: ResponseContent::CompleteState(Box::new(complete_state.clone())),
+            response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                complete_state.clone().into(),
+            )),
         };
 
         let mut mock_runtime_manager = RuntimeManager::default();
@@ -399,7 +402,9 @@ mod tests {
 
         let handle = tokio::spawn(async move { agent_manager.start().await });
 
-        let complete_state_result = to_manager.complete_state(request_id, complete_state).await;
+        let complete_state_result = to_manager
+            .complete_state(request_id, complete_state.into())
+            .await;
         assert!(complete_state_result.is_ok());
 
         // Terminate the infinite receiver loop

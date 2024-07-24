@@ -240,7 +240,7 @@ mod tests {
         UpdateWorkloadState,
     };
 
-    use api::ank_base;
+    use api::ank_base::{self, Dependencies};
     use common::{
         objects::{generate_test_workload_spec, ConfigHash},
         test_utils::generate_test_deleted_workload,
@@ -304,13 +304,15 @@ mod tests {
                         new_state: Some(ank_base::CompleteState {
                             desired_state: Some(ank_base::State {
                                 api_version: "v0.1".into(),
-                                workloads: HashMap::from([(
-                                    "test_workload".to_owned(),
-                                    ank_base::Workload {
-                                        agent: "test_agent".to_owned(),
-                                        ..Default::default()
-                                    },
-                                )]),
+                                workloads: Some(ank_base::WorkloadMap {
+                                    workloads: HashMap::from([(
+                                        "test_workload".to_owned(),
+                                        ank_base::Workload {
+                                            agent: Some("test_agent".to_owned()),
+                                            ..Default::default()
+                                        },
+                                    )]),
+                                }),
                             }),
                             ..Default::default()
                         }),
@@ -358,16 +360,20 @@ mod tests {
                         new_state: Some(ank_base::CompleteState {
                             desired_state: Some(ank_base::State {
                                 api_version: "v0.1".into(),
-                                workloads: HashMap::from([(
-                                    "test_workload".to_owned(),
-                                    ank_base::Workload {
-                                        agent: "test_agent".to_owned(),
-                                        dependencies: vec![("other_workload".into(), -1)]
-                                            .into_iter()
-                                            .collect(),
-                                        ..Default::default()
-                                    },
-                                )]),
+                                workloads: Some(ank_base::WorkloadMap {
+                                    workloads: HashMap::from([(
+                                        "test_workload".to_owned(),
+                                        ank_base::Workload {
+                                            agent: Some("test_agent".to_owned()),
+                                            dependencies: Some(Dependencies {
+                                                dependencies: vec![("other_workload".into(), -1)]
+                                                    .into_iter()
+                                                    .collect(),
+                                            }),
+                                            ..Default::default()
+                                        },
+                                    )]),
+                                }),
                             }),
                             ..Default::default()
                         }),
@@ -466,9 +472,13 @@ mod tests {
 
     #[test]
     fn utest_convert_from_server_to_proto_complete_state() {
-        let test_ex_com = ankaios::FromServer::Response(ankaios::Response {
+        let test_ex_com = ankaios::FromServer::Response(ank_base::Response {
             request_id: "req_id".to_owned(),
-            response_content: ankaios::ResponseContent::CompleteState(Box::default()),
+            response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                ank_base::CompleteState {
+                    ..Default::default()
+                },
+            )),
         });
 
         let expected_ex_com = Ok(FromServer {

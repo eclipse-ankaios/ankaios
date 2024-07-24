@@ -28,6 +28,11 @@ pub mod ank_base {
             }
         }
     }
+
+    // #[cfg(feature = "test_utils")]
+    // pub fn generate_test_complete_state(*necessary_params*) -> CompleteState {
+    //     todo!()
+    // }
 }
 
 pub mod control_api {
