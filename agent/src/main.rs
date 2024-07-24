@@ -119,7 +119,7 @@ async fn main() {
                     path_to_key_pem,
                 }))
             }
-            // [impl->swdd~agent-fails-on-missing-pem-file-paths-or-insecure-flag~1]
+            // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
             (false, ca_pem, crt_pem, key_pem) => Err(format!(
                 "Provide the file via ANKAGENT_CA_PEM={} ANKAGENT_CRT_PEM={} ANKAGENT_KEY_PEM={} or deactivate mTLS with '-k' or '--insecure' option!",
                 ca_pem.unwrap_or(String::from("\"\"")),
@@ -131,7 +131,7 @@ async fn main() {
     let communications_client = GRPCCommunicationsClient::new_agent_communication(
         args.agent_name.clone(),
         server_url,
-        // [impl->swdd~agent-fails-on-missing-pem-file-paths-or-insecure-flag~1]
+        // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
         tls_config.unwrap_or_exit("Missing certificate file"),
     );
 

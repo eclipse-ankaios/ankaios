@@ -290,8 +290,8 @@ Tags:
 Needs:
 - impl
 
-#### Agent fails upon missing pem file paths or insecure flag
-`swdd~agent-fails-on-missing-pem-file-paths-or-insecure-flag~1`
+#### Agent fails upon missing pem file paths and insecure cli arguments
+`swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1`
 
 Status: approved
 
