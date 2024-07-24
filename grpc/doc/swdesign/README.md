@@ -431,7 +431,7 @@ Needs:
 
 Status: approved
 
-When the root certificate, the cli certificate and the cli key is provided upon start of the gRPC cli connection, the gRPC cli client shall use the provided certificates and the key to activate mTLS for the gRPC communication between the involved parties.
+If no root certificate or no cli certificate or no cli key are provided upon start of the gRPC cli connection, the gRPC cli client shall deactivate mTLS for the gRPC communication between the involved parties.
 
 Rationale:
 To avoid complexity, coming with mTLS configuration e.g. certificates generation and management, during development phase, mTLS can be activated on demand.
