@@ -323,9 +323,9 @@ mod tests {
         let complete_state = CompleteState {
             desired_state: state,
             workload_states: generate_test_workload_states_map_with_data(
-                "workload A",
                 "agent",
-                "some_id",
+                "name",
+                "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed",
                 ExecutionState::running(),
             ),
         };
@@ -348,9 +348,9 @@ mod tests {
         let expected = CompleteState {
             desired_state: expected_state,
             workload_states: generate_test_workload_states_map_with_data(
-                "workload A",
                 "agent",
-                "some_id",
+                "name",
+                "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed",
                 ExecutionState::running(),
             ),
         };

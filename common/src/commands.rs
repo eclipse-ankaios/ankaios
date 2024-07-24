@@ -173,8 +173,8 @@ mod tests {
     mod ank_base {
         pub use api::ank_base::{
             request::RequestContent, response::ResponseContent, CompleteState,
-            CompleteStateRequest, Dependencies, Error, Request, Response, State,
-            UpdateStateRequest, UpdateStateSuccess, Workload, WorkloadMap,
+            CompleteStateRequest, Dependencies, Error, Request, Response, RestartPolicy, State,
+            Tag, Tags, UpdateStateRequest, UpdateStateSuccess, Workload, WorkloadMap,
         };
     }
 
@@ -182,8 +182,8 @@ mod tests {
         pub use crate::{
             commands::{CompleteStateRequest, Request, RequestContent, UpdateStateRequest},
             objects::{
-                generate_test_workload_states_map_with_data, CompleteState, ExecutionState, State,
-                StoredWorkloadSpec,
+                generate_test_workload_states_map_with_data, CompleteState, ExecutionState,
+                RestartPolicy, State, StoredWorkloadSpec, Tag,
             },
         };
     }
@@ -195,6 +195,8 @@ mod tests {
     const WORKLOAD_NAME_1: &str = "workload_name_1";
     const WORKLOAD_NAME_2: &str = "workload_name_2";
     const WORKLOAD_NAME_3: &str = "workload_name_3";
+    const RUNTIME: &str = "my_favorite_runtime";
+    const RUNTIME_CONFIG: &str = "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n";
     const HASH: &str = "hash_1";
     const ERROR_MESSAGE: &str = "error_message";
 
@@ -277,7 +279,9 @@ mod tests {
             ank_base::CompleteState {
                 desired_state: Some(ank_base::State {
                     api_version: "v0.1".into(),
-                    workloads: Some(workload!(ank_base)),
+                    workloads: Some(ank_base::WorkloadMap {
+                        workloads: HashMap::from([("desired".to_string(), workload!(ank_base))]),
+                    }),
                 }),
                 workload_states: workload_states_map!(ank_base),
             }
@@ -286,13 +290,33 @@ mod tests {
 
     macro_rules! workload {
         (ank_base) => {
-            ank_base::WorkloadMap {
-                ..Default::default()
+            ank_base::Workload {
+                agent: Some(AGENT_NAME.to_string()),
+                dependencies: None,
+                restart_policy: Some(ank_base::RestartPolicy::Always.into()),
+                runtime: Some(RUNTIME.to_string()),
+                runtime_config: Some(RUNTIME_CONFIG.to_string()),
+                tags: Some(ank_base::Tags {
+                    tags: vec![ank_base::Tag {
+                        key: "key".into(),
+                        value: "value".into(),
+                    }],
+                }),
+                control_interface_access: Default::default(),
             }
         };
         (ankaios) => {
             ankaios::StoredWorkloadSpec {
-                ..Default::default()
+                agent: AGENT_NAME.to_string(),
+                tags: vec![ankaios::Tag {
+                    key: "key".into(),
+                    value: "value".into(),
+                }],
+                dependencies: HashMap::new(),
+                restart_policy: ankaios::RestartPolicy::Always,
+                runtime: RUNTIME.to_string(),
+                runtime_config: RUNTIME_CONFIG.to_string(),
+                control_interface_access: Default::default(),
             }
         };
     }
@@ -377,7 +401,9 @@ mod tests {
         proto_request_content.new_state = Some(ank_base::CompleteState {
             desired_state: Some(ank_base::State {
                 api_version: "v0.1".into(),
-                ..Default::default()
+                workloads: Some(ank_base::WorkloadMap {
+                    workloads: HashMap::new(),
+                }),
             }),
             ..Default::default()
         });
@@ -416,7 +442,9 @@ mod tests {
             .unwrap()
             .desired_state = Some(ank_base::State {
             api_version: "v0.1".into(),
-            ..Default::default()
+            workloads: Some(ank_base::WorkloadMap {
+                workloads: HashMap::new(),
+            }),
         });
 
         let ankaios::RequestContent::UpdateStateRequest(ankaios_request_content) =

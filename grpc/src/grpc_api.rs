@@ -295,33 +295,7 @@ mod tests {
 
     #[test]
     fn utest_convert_proto_to_server_update_state() {
-        let proto_request = ToServer {
-            to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
-                request_id: "request_id".to_owned(),
-                request_content: Some(ank_base::request::RequestContent::UpdateStateRequest(
-                    ank_base::UpdateStateRequest {
-                        update_mask: vec!["test_update_mask_field".to_owned()],
-                        new_state: Some(ank_base::CompleteState {
-                            desired_state: Some(ank_base::State {
-                                api_version: "v0.1".into(),
-                                workloads: Some(ank_base::WorkloadMap {
-                                    workloads: HashMap::from([(
-                                        "test_workload".to_owned(),
-                                        ank_base::Workload {
-                                            agent: Some("test_agent".to_owned()),
-                                            ..Default::default()
-                                        },
-                                    )]),
-                                }),
-                            }),
-                            ..Default::default()
-                        }),
-                    },
-                )),
-            })),
-        };
-
-        let ankaios_command = ankaios::ToServer::Request(ankaios::Request {
+        let ankaios_request = ankaios::Request {
             request_id: "request_id".to_owned(),
             request_content: ankaios::RequestContent::UpdateStateRequest(Box::new(
                 ankaios::UpdateStateRequest {
@@ -341,7 +315,13 @@ mod tests {
                     },
                 },
             )),
-        });
+        };
+
+        let proto_request = ToServer {
+            to_server_enum: Some(ToServerEnum::Request(ankaios_request.clone().into())),
+        };
+
+        let ankaios_command = ankaios::ToServer::Request(ankaios_request);
 
         assert_eq!(
             ankaios::ToServer::try_from(proto_request),
@@ -472,31 +452,26 @@ mod tests {
 
     #[test]
     fn utest_convert_from_server_to_proto_complete_state() {
-        let test_ex_com = ankaios::FromServer::Response(ank_base::Response {
+        let proto_response = ank_base::Response {
             request_id: "req_id".to_owned(),
             response_content: Some(ank_base::response::ResponseContent::CompleteState(
                 ank_base::CompleteState {
+                    desired_state: Some(api::ank_base::State {
+                        api_version: "v0.1".into(),
+                        ..Default::default()
+                    }),
                     ..Default::default()
                 },
             )),
+        };
+
+        let ankaios_msg = ankaios::FromServer::Response(proto_response.clone());
+
+        let proto_msg = Ok(FromServer {
+            from_server_enum: Some(FromServerEnum::Response(proto_response)),
         });
 
-        let expected_ex_com = Ok(FromServer {
-            from_server_enum: Some(FromServerEnum::Response(ank_base::Response {
-                request_id: "req_id".to_owned(),
-                response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                    ank_base::CompleteState {
-                        desired_state: Some(api::ank_base::State {
-                            api_version: "v0.1".into(),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    },
-                )),
-            })),
-        });
-
-        assert_eq!(FromServer::try_from(test_ex_com), expected_ex_com);
+        assert_eq!(FromServer::try_from(ankaios_msg), proto_msg);
     }
     ///////////////////////////////////////////////////////////////////////////
     // WorkloadSpec tests
