@@ -166,35 +166,23 @@ Needs:
 
 Status: approved
 
-The Ankaios CLI shall support the usage of the following environment variables:
+The Ankaios CLI shall support the usage of the following environment variables which have lower priority compared to explicitly provided cli arguments:
 
 - `ANK_SERVER_URL`, for providing the server url
 - `ANK_CA_PEM`, for providing the file path to a certificate authority in PEM format,
 - `ANK_CRT_PEM`, for providing the file path to a certificate in PEM format,
 - `ANK_KEY_PEM`, for providing the file path to a key in PEM format,
-- `ANK_INSECURE`, for providing a boolean to enable/disable the insecure communication
+- `ANK_INSECURE`, for providing a Boolean to enable/disable the insecure communication
 
 Rationale:
-This increases usability for the Ankaios CLI when the Ankaios CLI is used in different terminal windows to connect to the same Ankaios server remotely.
+Environment variables improve the usability, but are less important than explicitly provided configurations.
 
 Tags:
-- Cli
+- CliCommands
 
 Needs:
 - impl
-
-#### CLI prioritizes cli argument over environment variable
-`swdd~cli-prioritizes-cli-argument-over-environment-variable~1`
-
-Status: approved
-
-Command line arguments provided to the the Ankaios CLI shall overwrite environment variables.
-
-Tags:
-- Cli
-
-Needs:
-- impl
+- stest
 
 #### CLI is a standalone application
 `swdd~cli-standalone-application~1`
