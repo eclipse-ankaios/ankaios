@@ -308,15 +308,15 @@ Needs:
 
 Status: approved
 
-The Ankaios agent shall support the usage of the following environment variables:
+The Ankaios agent shall support the usage of the following environment variables which have lower priority compared to explicitly provided cli arguments:
 
 - `ANKAGENT_CA_PEM`, for providing the file path to a certificate authority in PEM format,
 - `ANKAGENT_CRT_PEM`, for providing the file path to a certificate in PEM format,
 - `ANKAGENT_KEY_PEM`, for providing the file path to a key in PEM format,
-- `ANKAGENT_INSECURE`, for providing a boolean to enable/disable the insecure communication
+- `ANKAGENT_INSECURE`, for providing a Boolean to enable/disable the insecure communication
 
 Rationale:
-This avoids passing cli arguments when starting an agent, which improves the usability.
+Environment variables improve the usability, but are less important than explicitly provided configurations.
 
 Tags:
 - AgentManager
@@ -324,19 +324,6 @@ Tags:
 Needs:
 - impl
 - stest
-
-#### Agent prioritizes cli argument over environment variable
-`swdd~agent-prioritizes-cli-argument-over-environment-variable~1`
-
-Status: approved
-
-Command line arguments provided to the the Ankaios agent shall overwrite environment variables.
-
-Tags:
-- AgentManager
-
-Needs:
-- impl
 
 #### Agent uses common async communication channels
 `swdd~agent-uses-async-channels~1`
