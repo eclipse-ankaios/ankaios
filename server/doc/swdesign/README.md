@@ -310,15 +310,15 @@ Needs:
 
 Status: approved
 
-The Ankaios server shall support the usage of the following environment variables:
+The Ankaios server shall support the usage of the following environment variables which have lower priority compared to explicitly provided cli arguments:
 
 - `ANKSERVER_CA_PEM`, for providing the file path to a certificate authority in PEM format,
 - `ANKSERVER_CRT_PEM`, for providing the file path to a certificate in PEM format,
 - `ANKSERVER_KEY_PEM`, for providing the file path to a key in PEM format,
-- `ANKSERVER_INSECURE`, for providing a boolean to enable/disable the insecure communication
+- `ANKSERVER_INSECURE`, for providing a Boolean to enable/disable the insecure communication
 
 Rationale:
-This avoids passing cli arguments when starting an server, which improves the usability.
+Environment variables improve the usability, but are less important than explicitly provided configurations.
 
 Tags:
 - AnkaiosServer
@@ -326,19 +326,6 @@ Tags:
 Needs:
 - impl
 - stest
-
-#### Server prioritizes cli argument over environment variable
-`swdd~server-prioritizes-cli-argument-over-environment-variable~1`
-
-Status: approved
-
-Command line arguments provided to the the Ankaios server shall overwrite environment variables.
-
-Tags:
-- AnkaiosServer
-
-Needs:
-- impl
 
 #### AnkaiosServer sends all workloads on start
 `swdd~server-sends-all-workloads-on-start~1`
