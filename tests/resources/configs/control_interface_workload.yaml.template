@@ -11,3 +11,10 @@ workloads:
     controlInterfaceAccess:
       allowRules: {allow_rules}
       denyRules: {deny_rules}
+  simple_existing:
+    runtime: podman
+    restartPolicy: NEVER
+    agent: agent_A
+    runtimeConfig: |
+      image: alpine:latest
+      commandArgs: [ "echo", "Hello Ankaios"]
