@@ -61,6 +61,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
         let agent_senders_clone = self.agent_senders.clone();
 
         match &self.tls_config {
+            // [impl->swdd~grpc-server-activate-mtls-when-certificates-and-key-provided-upon-start~1]
             Some(tls_config) => {
                 let ca_pem = &tls_config.path_to_ca_pem;
                 let crt_pem = &tls_config.path_to_crt_pem;
@@ -104,6 +105,7 @@ impl CommunicationsServer for GRPCCommunicationsServer {
 
                 }
             }
+            // [impl->swdd~grpc-server-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~]
             None => {
                 log::warn!(
                     "!!!ANKSERVER IS STARTED IN INSECURE MODE (-k, --insecure) -> TLS is disabled!!!"

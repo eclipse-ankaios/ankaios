@@ -209,6 +209,7 @@ impl GRPCCommunicationsClient {
     ) -> Result<tonic::Streaming<grpc_api::FromServer>, GrpcMiddlewareError> {
         match self.connection_type {
             ConnectionType::Agent => match &self.tls_config {
+                // [impl->swdd~grpc-agent-activate-mtls-when-certificates-and-key-provided-upon-start~1]
                 Some(tls_config) => {
                     // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
                     let ca_pem = read_pem_file(Path::new(&tls_config.path_to_ca_pem), false)?;
@@ -242,6 +243,7 @@ impl GRPCCommunicationsClient {
                         .into_inner();
                     Ok(res)
                 }
+                // [impl->swdd~grpc-agent-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1]
                 None => {
                     let mut client =
                         AgentConnectionClient::connect(self.server_address.to_string()).await?;
@@ -254,6 +256,7 @@ impl GRPCCommunicationsClient {
                 }
             },
             ConnectionType::Cli => match &self.tls_config {
+                // [impl->swdd~grpc-cli-activate-mtls-when-certificates-and-key-provided-upon-start~1]
                 Some(tls_config) => {
                     // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
                     let ca_pem = read_pem_file(Path::new(&tls_config.path_to_ca_pem), false)?;
@@ -287,6 +290,7 @@ impl GRPCCommunicationsClient {
                         .into_inner();
                     Ok(res)
                 }
+                // [impl->swdd~grpc-cli-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1]
                 None => {
                     let mut client =
                         CliConnectionClient::connect(self.server_address.to_string()).await?;
