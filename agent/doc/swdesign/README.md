@@ -276,9 +276,6 @@ Status: approved
 
 When the file paths of the root certificate, the agent certificate and the agent key is provided upon startup, then the Ankaios agent shall provide each of these file paths to the communication middleware.
 
-Comment:
-The communication middleware parses the content of the files.
-
 Rationale:
 The communication middleware is responsible for establishing a secure communication channel.
 
