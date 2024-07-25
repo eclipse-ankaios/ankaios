@@ -20,7 +20,7 @@ use common::DEFAULT_SERVER_ADDRESS;
 
 const ANK_SERVER_URL_ENV_KEY: &str = "ANK_SERVER_URL";
 
-// [impl->swdd~cli-shall-support-environment-variables~1]
+// [impl->swdd~cli-supports-server-url-cli-argument~1]
 // [impl->swdd~cli-supports-pem-file-paths-as-cli-arguments~1]
 // [impl->swdd~cli-supports-cli-argument-for-insecure-communication~1]
 #[derive(Parser, Debug)] // requires `derive` feature

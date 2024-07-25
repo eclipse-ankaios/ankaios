@@ -221,10 +221,13 @@ Needs:
 
 Status: approved
 
-The Ankaios agent shall support the following cli arguments all of which contain a file path to a PEM file:
-* `--ca_pem`: file path to the root certificate authority
-* `--crt_pem`: file path to the certificate
-* `--key_pem`: file path to the key
+The Ankaios agent shall support the following cli arguments all of which contain a file path to a PEM file, alternatively configurable over environment variables which have lower priority compared to explicitly provided cli arguments:
+
+| Argument    | Environment variable | Description                                 |
+|-------------|----------------------|---------------------------------------------|
+| `--ca_pem`  | `ANKAGENT_CA_PEM`    | file path to the root certificate authority |
+| `--crt_pem` | `ANKAGENT_CRT_PEM`   | file path to the certificate                |
+| `--key_pem` | `ANKAGENT_KEY_PEM`   | file path to the key                        |
 
 Comment:
 The PEM file format is a text-based, human-readable format. PEM files can contain certificates, private keys, public keys and even certificate chains, making them more versatile compared to other formats.
@@ -244,7 +247,7 @@ Needs:
 
 Status: approved
 
-The Ankaios agent shall support the cli argument `--insecure` with short alias `-k`.
+The Ankaios agent shall support the cli argument `--insecure` (short alias `-k`), alternatively configurable via the environment variable `ANKAGENT_INSECURE` which has lower priority compared to explicitly provided cli arguments.
 
 Comment:
 The Ankaios agent supports an insecure communication channel to the Ankaios server. Communicating over insecure channels is convenient during an evaluation or a development phase.
@@ -261,7 +264,7 @@ Needs:
 
 Status: approved
 
-When the user starts the Ankaios agent with the arguments `-k` or `--insecure` and the Ankaios agent initializes the communication middleware, then the Ankaios agent shall instruct the communication middleware to use an insecure communication channel.
+When the user starts the Ankaios agent with enabled insecure communication and the Ankaios agent initializes the communication middleware, then the Ankaios agent shall instruct the communication middleware to use an insecure communication channel.
 
 Tags:
 - AgentManager
@@ -302,28 +305,6 @@ Tags:
 
 Needs:
 - impl
-
-#### Agent supports environment variables
-`swdd~agent-supports-environment-variables~1`
-
-Status: approved
-
-The Ankaios agent shall support the usage of the following environment variables which have lower priority compared to explicitly provided cli arguments:
-
-- `ANKAGENT_CA_PEM`, for providing the file path to a certificate authority in PEM format,
-- `ANKAGENT_CRT_PEM`, for providing the file path to a certificate in PEM format,
-- `ANKAGENT_KEY_PEM`, for providing the file path to a key in PEM format,
-- `ANKAGENT_INSECURE`, for providing a Boolean to enable/disable the insecure communication
-
-Rationale:
-Environment variables improve the usability, but are less important than explicitly provided configurations.
-
-Tags:
-- AgentManager
-
-Needs:
-- impl
-- stest
 
 #### Agent uses common async communication channels
 `swdd~agent-uses-async-channels~1`

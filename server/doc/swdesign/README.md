@@ -223,10 +223,13 @@ Needs:
 
 Status: approved
 
-The Ankaios server shall support the following cli arguments all of which contain a file path to a PEM file:
-* `--ca_pem`: file path to the root certificate authority
-* `--crt_pem`: file path to the certificate
-* `--key_pem`: file path to the key
+The Ankaios server shall support the following cli arguments all of which contain a file path to a PEM file, alternatively configurable over environment variables which have lower priority compared to explicitly provided cli arguments:
+
+| Argument    | Environment variable | Description                                 |
+|-------------|----------------------|---------------------------------------------|
+| `--ca_pem`  | `ANKSERVER_CA_PEM`    | file path to the root certificate authority |
+| `--crt_pem` | `ANKSERVER_CRT_PEM`   | file path to the certificate                |
+| `--key_pem` | `ANKSERVER_KEY_PEM`   | file path to the key                        |
 
 Comment:
 The PEM file format is a text-based, human-readable format. PEM files can contain certificates, private keys, public keys and even certificate chains, making them more versatile compared to other formats.
@@ -246,7 +249,7 @@ Needs:
 
 Status: approved
 
-The Ankaios server shall support the cli argument `--insecure` with short alias `-k`.
+The Ankaios server shall support the cli argument `--insecure` (short alias `-k`), alternatively configurable via the environment variable `ANKSERVER_INSECURE` which has lower priority compared to explicitly provided cli arguments.
 
 Comment:
 The Ankaios server supports an insecure communication channel to the Ankaios server. Communicating over insecure channels is convenient during an evaluation or a development phase.
@@ -304,28 +307,6 @@ Tags:
 
 Needs:
 - impl
-
-#### Server supports environment variables
-`swdd~server-supports-environment-variables~1`
-
-Status: approved
-
-The Ankaios server shall support the usage of the following environment variables which have lower priority compared to explicitly provided cli arguments:
-
-- `ANKSERVER_CA_PEM`, for providing the file path to a certificate authority in PEM format,
-- `ANKSERVER_CRT_PEM`, for providing the file path to a certificate in PEM format,
-- `ANKSERVER_KEY_PEM`, for providing the file path to a key in PEM format,
-- `ANKSERVER_INSECURE`, for providing a Boolean to enable/disable the insecure communication
-
-Rationale:
-Environment variables improve the usability, but are less important than explicitly provided configurations.
-
-Tags:
-- AnkaiosServer
-
-Needs:
-- impl
-- stest
 
 #### AnkaiosServer sends all workloads on start
 `swdd~server-sends-all-workloads-on-start~1`

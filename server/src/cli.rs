@@ -20,7 +20,6 @@ pub fn parse() -> Arguments {
     Arguments::parse()
 }
 
-// [impl->swdd~server-supports-environment-variables~1]
 // [impl->swdd~server-supports-pem-file-paths-as-cli-arguments~1]
 // [impl->swdd~server-supports-cli-argument-for-insecure-communication~1]
 #[derive(Parser, Debug)]
