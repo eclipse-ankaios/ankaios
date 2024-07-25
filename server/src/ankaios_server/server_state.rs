@@ -287,7 +287,7 @@ impl ServerState {
 mod tests {
     use std::collections::HashMap;
 
-    use api::ank_base;
+    use api::ank_base::{self, Dependencies, Tags};
     use common::{
         commands::CompleteStateRequest,
         objects::{
@@ -387,119 +387,134 @@ mod tests {
         assert_eq!(received_complete_state, expected_complete_state);
     }
 
+    // TODO: add in test_utils a generate function for complete state and also use the workloads one
     // [utest->swdd~server-provides-interface-get-complete-state~1]
     // [utest->swdd~server-filters-get-complete-state-result~2]
-    // #[test]
-    // fn utest_server_state_get_complete_state_by_field_mask() {
-    //     let w1 = generate_test_workload_spec_with_param(
-    //         AGENT_A.to_string(),
-    //         WORKLOAD_NAME_1.to_string(),
-    //         RUNTIME.to_string(),
-    //     );
+    #[test]
+    fn utest_server_state_get_complete_state_by_field_mask() {
+        let w1 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME.to_string(),
+        );
 
-    //     let w2 = generate_test_workload_spec_with_param(
-    //         AGENT_A.to_string(),
-    //         WORKLOAD_NAME_2.to_string(),
-    //         RUNTIME.to_string(),
-    //     );
+        let w2 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_2.to_string(),
+            RUNTIME.to_string(),
+        );
 
-    //     let w3 = generate_test_workload_spec_with_param(
-    //         AGENT_B.to_string(),
-    //         WORKLOAD_NAME_3.to_string(),
-    //         RUNTIME.to_string(),
-    //     );
+        let w3 = generate_test_workload_spec_with_param(
+            AGENT_B.to_string(),
+            WORKLOAD_NAME_3.to_string(),
+            RUNTIME.to_string(),
+        );
 
-    //     let server_state = ServerState {
-    //         state: generate_test_complete_state(vec![w1.clone(), w2.clone(), w3.clone()]),
-    //         ..Default::default()
-    //     };
+        let server_state = ServerState {
+            state: generate_test_complete_state(vec![w1.clone(), w2.clone(), w3.clone()]),
+            ..Default::default()
+        };
 
-    //     let request_complete_state = CompleteStateRequest {
-    //         field_mask: vec![
-    //             format!("desiredState.workloads.{}", WORKLOAD_NAME_1),
-    //             format!("desiredState.workloads.{}.agent", WORKLOAD_NAME_3),
-    //         ],
-    //     };
+        let request_complete_state = CompleteStateRequest {
+            field_mask: vec![
+                format!("desiredState.workloads.{}", WORKLOAD_NAME_1),
+                format!("desiredState.workloads.{}.agent", WORKLOAD_NAME_3),
+            ],
+        };
 
-    //     let mut workload_state_map = WorkloadStatesMap::default();
-    //     workload_state_map.process_new_states(server_state.state.workload_states.clone().into());
+        let mut workload_state_map = WorkloadStatesMap::default();
+        workload_state_map.process_new_states(server_state.state.workload_states.clone().into());
 
-    //     let complete_state = server_state
-    //         .get_complete_state_by_field_mask(request_complete_state, &workload_state_map)
-    //         .unwrap();
-    //     let mut expected_complete_state: ank_base::CompleteState = ank_base::CompleteState {
-    //         desired_state: Some(ank_base::State {
-    //             api_version: "v0.1".to_string(),
-    //             workloads: Some(ank_base::WorkloadMap {
-    //                 workloads: HashMap::from([(
-    //                     w1.instance_name.workload_name().to_string(),
-    //                     w1.clone().into(),
-    //                 )]),
-    //             }),
-    //         }),
-    //         workload_states: None,
-    //     };
-    //     // server_state.state.clone();
+        let complete_state = server_state
+            .get_complete_state_by_field_mask(request_complete_state, &workload_state_map)
+            .unwrap();
 
-    //     // expected_complete_state.desired_state.workloads = HashMap::from([
-    //     //     (
-    //     //         w1.instance_name.workload_name().to_owned(),
-    //     //         w1.clone().into(),
-    //     //     ),
-    //     //     (
-    //     //         w3.instance_name.workload_name().to_owned(),
-    //     //         StoredWorkloadSpec {
-    //     //             agent: AGENT_B.to_string(),
-    //     //             ..Default::default()
-    //     //         },
-    //     //     ),
-    //     // ]);
-    //     assert_eq!(
-    //         ank_base::CompleteState::from(expected_complete_state),
-    //         complete_state
-    //     );
-    // }
+        let expected_complete_state: ank_base::CompleteState = ank_base::CompleteState {
+            desired_state: Some(ank_base::State {
+                api_version: "v0.1".to_string(),
+                workloads: Some(ank_base::WorkloadMap {
+                    workloads: HashMap::from([
+                        (
+                            w3.instance_name.workload_name().to_string(),
+                            ank_base::Workload {
+                                agent: Some(w3.instance_name.agent_name().to_string()),
+                                restart_policy: None,
+                                dependencies: None,
+                                tags: None,
+                                runtime: None,
+                                runtime_config: None,
+                                control_interface_access: None,
+                            },
+                        ),
+                        (
+                            w1.instance_name.workload_name().to_string(),
+                            ank_base::Workload {
+                                agent: Some(w1.instance_name.agent_name().to_string()),
+                                restart_policy: Some(w1.restart_policy as i32),
+                                dependencies: Some(Dependencies {
+                                    dependencies: w1
+                                        .dependencies
+                                        .into_iter()
+                                        .map(|(k, v)| (k, v as i32))
+                                        .collect(),
+                                }),
+                                tags: Some(Tags {
+                                    tags: w1.tags.into_iter().map(ank_base::Tag::from).collect(),
+                                }),
+                                runtime: Some(w1.runtime.clone()),
+                                runtime_config: Some(w1.runtime_config.clone()),
+                                control_interface_access: w1.control_interface_access.into(),
+                            },
+                        ),
+                    ]),
+                }),
+            }),
+            workload_states: None,
+        };
 
-    // // [utest->swdd~agent-from-agent-field~1]
-    // #[test]
-    // fn utest_server_state_get_workloads_per_agent() {
-    //     let w1 = generate_test_workload_spec_with_param(
-    //         AGENT_A.to_string(),
-    //         WORKLOAD_NAME_1.to_string(),
-    //         RUNTIME.to_string(),
-    //     );
+        assert_eq!(expected_complete_state, complete_state);
+    }
 
-    //     let w2 = generate_test_workload_spec_with_param(
-    //         AGENT_A.to_string(),
-    //         WORKLOAD_NAME_2.to_string(),
-    //         RUNTIME.to_string(),
-    //     );
+    // [utest->swdd~agent-from-agent-field~1]
+    #[test]
+    fn utest_server_state_get_workloads_per_agent() {
+        let w1 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME.to_string(),
+        );
 
-    //     let w3 = generate_test_workload_spec_with_param(
-    //         AGENT_B.to_string(),
-    //         WORKLOAD_NAME_3.to_string(),
-    //         RUNTIME.to_string(),
-    //     );
+        let w2 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_2.to_string(),
+            RUNTIME.to_string(),
+        );
 
-    //     let server_state = ServerState {
-    //         state: generate_test_complete_state(vec![w1.clone(), w2.clone(), w3.clone()]),
-    //         ..Default::default()
-    //     };
+        let w3 = generate_test_workload_spec_with_param(
+            AGENT_B.to_string(),
+            WORKLOAD_NAME_3.to_string(),
+            RUNTIME.to_string(),
+        );
 
-    //     let mut workloads = server_state.get_workloads_for_agent(&AGENT_A.to_string());
-    //     workloads.sort_by(|left, right| {
-    //         left.instance_name
-    //             .workload_name()
-    //             .cmp(right.instance_name.workload_name())
-    //     });
-    //     assert_eq!(workloads, vec![w1, w2]);
+        let server_state = ServerState {
+            state: generate_test_complete_state(vec![w1.clone(), w2.clone(), w3.clone()]),
+            ..Default::default()
+        };
 
-    //     let workloads = server_state.get_workloads_for_agent(&AGENT_B.to_string());
-    //     assert_eq!(workloads, vec![w3]);
+        let mut workloads = server_state.get_workloads_for_agent(&AGENT_A.to_string());
+        workloads.sort_by(|left, right| {
+            left.instance_name
+                .workload_name()
+                .cmp(right.instance_name.workload_name())
+        });
+        assert_eq!(workloads, vec![w1, w2]);
 
-    //     let workloads = server_state.get_workloads_for_agent(&"unknown_agent".to_string());
-    //     assert_eq!(workloads.len(), 0);
-    // }
+        let workloads = server_state.get_workloads_for_agent(&AGENT_B.to_string());
+        assert_eq!(workloads, vec![w3]);
+
+        let workloads = server_state.get_workloads_for_agent(&"unknown_agent".to_string());
+        assert_eq!(workloads.len(), 0);
+    }
 
     // [utest->swdd~server-state-rejects-state-with-cyclic-dependencies~1]
     #[test]
