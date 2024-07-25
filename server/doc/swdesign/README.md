@@ -267,7 +267,6 @@ When the user starts the Ankaios server with the arguments `-k` or `--insecure` 
 
 Tags:
 - AnkaiosServer
-- CommunicationMiddleware
 
 Needs:
 - impl
