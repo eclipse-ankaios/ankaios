@@ -261,7 +261,7 @@ Rationale:
 The communication middleware is responsible for establishing a secure communication channel.
 
 Tags:
-- AgentManager
+- CliCommands
 
 Needs:
 - impl
