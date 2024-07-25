@@ -297,7 +297,7 @@ When the user starts the Ankaios server without specifying the cli arguments for
 * output an error message containing the reason and a help message
 
 Rationale:
-The demand for an explicit communication mode prevents a user from unintentionally creating an Ankaios setup with a mixture of communication modes.
+The demand for an explicit communication mode prevents a user from implicitly creating an Ankaios setup using insecure communication.
 
 Tags:
 - AnkaiosServer
