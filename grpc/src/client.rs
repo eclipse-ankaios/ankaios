@@ -74,8 +74,6 @@ fn verify_address_format(server_address: &String) -> Result<(), CommunicationMid
 }
 
 impl GRPCCommunicationsClient {
-    // [impl->swdd~agent-provides-file-paths-to-communication-middleware~1]
-    // [impl->swdd~agent-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
     pub fn new_agent_communication(
         name: String,
         server_address: String,
@@ -91,8 +89,6 @@ impl GRPCCommunicationsClient {
         })
     }
 
-    // [impl->swdd~cli-provides-file-paths-to-communication-middleware~1]
-    // [impl->swdd~cli-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
     pub fn new_cli_communication(
         name: String,
         server_address: String,
