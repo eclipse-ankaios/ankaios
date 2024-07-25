@@ -278,7 +278,6 @@ Communicating over insecure channels is convenient during an evaluation or a dev
 
 Tags:
 - CliCommands
-- CommunicationMiddleware
 
 Needs:
 - impl
