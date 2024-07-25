@@ -20,7 +20,6 @@ Resource    ../../resources/variables.resource
 
 # [stest->swdd~server-supports-environment-variables~]
 # [stest->swdd~agent-supports-environment-variables~1]
-# [stest->swdd~cli-shall-support-environment-variables~1]
 Test Ankaios MTLS by providing PEM files via environment variables
     [Setup]    Run Keyword    Setup Ankaios    mtls_enabled=True
     # Preconditions
