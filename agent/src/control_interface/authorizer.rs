@@ -12,13 +12,16 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+pub mod path;
+pub mod path_pattern;
+pub mod rule;
+
 use common::{
     commands::Request,
     objects::{AccessRightsRule, ControlInterfaceAccess, ReadWriteEnum},
-    PATH_SEPARATOR,
 };
-
-const WILDCARD_SYMBOL: &str = "*";
+use path_pattern::{AllowPathPattern, DenyPathPattern, PathPattern};
+use rule::Rule;
 
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct Authorizer {
@@ -34,11 +37,7 @@ impl Authorizer {
     #[cfg(test)]
     pub fn test_value(name: &str) -> Self {
         Self {
-            allow_write_state_rule: vec![Rule {
-                patterns: vec![AllowPathPattern {
-                    sections: vec![PathPatternSection::String(name.into())],
-                }],
-            }],
+            allow_write_state_rule: vec![Rule::test_value(name)],
             ..Default::default()
         }
     }
@@ -158,13 +157,13 @@ impl From<&ControlInterfaceAccess> for Authorizer {
 
             for access_rights in rule_list {
                 let AccessRightsRule::StateRule(state_rule) = access_rights;
-                let rule = Rule {
-                    patterns: state_rule
+                let rule = Rule::create(
+                    state_rule
                         .filter_mask
                         .iter()
                         .map(|x| (**x).into())
                         .collect(),
-                };
+                );
                 match state_rule.operation {
                     ReadWriteEnum::Read => res.read.push(rule),
                     ReadWriteEnum::Write => res.write.push(rule),
@@ -187,267 +186,5 @@ impl From<&ControlInterfaceAccess> for Authorizer {
             allow_read_write_state_rule: allow_rules.read_write,
             deny_read_write_state_rule: deny_rules.read_write,
         }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-struct Rule<P: PathPattern> {
-    patterns: Vec<P>,
-}
-
-impl<P: PathPattern> PathPattern for Rule<P> {
-    fn matches(&self, path: &Path) -> (bool, PathPatternMatchReason) {
-        self.patterns
-            .iter()
-            .find_map(|p| {
-                if let (true, reason) = p.matches(path) {
-                    Some((true, reason))
-                } else {
-                    None
-                }
-            })
-            .unwrap_or_else(|| (false, String::new()))
-    }
-}
-
-#[derive(Clone, Debug)]
-struct Path {
-    sections: Vec<String>,
-}
-
-impl From<&str> for Path {
-    fn from(value: &str) -> Self {
-        Self {
-            sections: if value.is_empty() {
-                Vec::new()
-            } else {
-                value.split(PATH_SEPARATOR).map(Into::into).collect()
-            },
-        }
-    }
-}
-
-impl ToString for Path {
-    fn to_string(&self) -> String {
-        self.sections.join(".")
-    }
-}
-
-type PathPatternMatchReason = String;
-trait PathPattern {
-    fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason);
-}
-
-impl<T: PathPattern + std::fmt::Debug> PathPattern for Vec<T> {
-    fn matches(&self, path: &Path) -> (bool, PathPatternMatchReason) {
-        for r in self {
-            if let (true, reason) = r.matches(path) {
-                return (true, reason);
-            }
-        }
-        (false, String::new())
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-struct AllowPathPattern {
-    sections: Vec<PathPatternSection>,
-}
-
-impl From<&str> for AllowPathPattern {
-    fn from(value: &str) -> Self {
-        Self {
-            sections: if value.is_empty() {
-                Vec::new()
-            } else {
-                value.split(PATH_SEPARATOR).map(Into::into).collect()
-            },
-        }
-    }
-}
-
-impl PathPattern for AllowPathPattern {
-    fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason) {
-        if self.sections.len() > other.sections.len() {
-            return (false, String::new());
-        }
-        for (a, b) in self.sections.iter().zip(other.sections.iter()) {
-            if !a.matches(b) {
-                return (false, String::new());
-            }
-        }
-
-        (
-            true,
-            self.sections
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-                .join("."),
-        )
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-struct DenyPathPattern {
-    sections: Vec<PathPatternSection>,
-}
-
-impl From<&str> for DenyPathPattern {
-    fn from(value: &str) -> Self {
-        Self {
-            sections: if value.is_empty() {
-                Vec::new()
-            } else {
-                value.split(PATH_SEPARATOR).map(Into::into).collect()
-            },
-        }
-    }
-}
-
-impl PathPattern for DenyPathPattern {
-    fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason) {
-        for (a, b) in self.sections.iter().zip(other.sections.iter()) {
-            if !a.matches(b) {
-                return (false, String::new());
-            }
-        }
-        (
-            true,
-            self.sections
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-                .join("."),
-        )
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-enum PathPatternSection {
-    Wildcard,
-    String(String),
-}
-
-impl From<&str> for PathPatternSection {
-    fn from(value: &str) -> Self {
-        if value == WILDCARD_SYMBOL {
-            Self::Wildcard
-        } else {
-            Self::String(value.into())
-        }
-    }
-}
-
-impl ToString for PathPatternSection {
-    fn to_string(&self) -> String {
-        match self {
-            PathPatternSection::Wildcard => "*".into(),
-            PathPatternSection::String(s) => s.clone(),
-        }
-    }
-}
-
-impl PathPatternSection {
-    pub fn matches(&self, other: &String) -> bool {
-        match self {
-            PathPatternSection::Wildcard => true,
-            PathPatternSection::String(self_string) => self_string == other,
-        }
-    }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//                 ########  #######    #########  #########                //
-//                    ##     ##        ##             ##                    //
-//                    ##     #####     #########      ##                    //
-//                    ##     ##                ##     ##                    //
-//                    ##     #######   #########      ##                    //
-//////////////////////////////////////////////////////////////////////////////
-
-#[cfg(test)]
-mod tests {
-    use crate::control_interface::authorizer::{AllowPathPattern, DenyPathPattern, PathPattern};
-
-    #[test]
-    fn utest_allow_path_pattern() {
-        let p = AllowPathPattern::from("some.pre.fix");
-
-        assert!(p.matches(&"some.pre.fix".into()).0);
-        assert!(p.matches(&"some.pre.fix.test".into()).0);
-        assert!(!p.matches(&"".into()).0);
-        assert!(!p.matches(&"some.pre".into()).0);
-        assert!(!p.matches(&"some.pre.fixtest".into()).0);
-        assert!(!p.matches(&"some.pre.test".into()).0);
-        assert!(!p.matches(&"some.pre.test.2".into()).0);
-    }
-
-    #[test]
-    fn utest_allow_path_pattern_with_wildcard() {
-        let p = AllowPathPattern::from("some.*.fix");
-
-        assert!(p.matches(&"some.pre.fix".into()).0);
-        assert!(p.matches(&"some.pre.fix.test".into()).0);
-        assert!(!p.matches(&"some.pre".into()).0);
-        assert!(!p.matches(&"some.pre.fixtest".into()).0);
-        assert!(!p.matches(&"some.pre.test".into()).0);
-        assert!(!p.matches(&"some.pre.test.2".into()).0);
-        assert!(p.matches(&"some.pre2.fix".into()).0);
-        assert!(p.matches(&"some.pre2.fix.test".into()).0);
-        assert!(!p.matches(&"some.pre2".into()).0);
-        assert!(!p.matches(&"some.pre2.fixtest".into()).0);
-        assert!(!p.matches(&"some.pre2.test".into()).0);
-        assert!(!p.matches(&"some.pre2.test.2".into()).0);
-    }
-
-    #[test]
-    fn utest_empty_allow_path_pattern() {
-        let p = AllowPathPattern::from("");
-
-        assert!(p.matches(&"".into()).0);
-        assert!(p.matches(&"some.pre".into()).0);
-    }
-
-    #[test]
-    fn utest_deny_path_pattern() {
-        let p = DenyPathPattern::from("some.pre.fix");
-
-        assert!(p.matches(&"".into()).0);
-        assert!(p.matches(&"some.pre".into()).0);
-        assert!(p.matches(&"some.pre.fix".into()).0);
-        assert!(p.matches(&"some.pre.fix.test".into()).0);
-        assert!(!p.matches(&"some2.pre".into()).0);
-        assert!(!p.matches(&"some2.pre.fix".into()).0);
-        assert!(!p.matches(&"some.pre.fix2".into()).0);
-        assert!(!p.matches(&"some.pre.fix2.test".into()).0);
-    }
-
-    #[test]
-    fn utest_deny_path_pattern_with_wildcard() {
-        let p = DenyPathPattern::from("some.*.fix");
-
-        assert!(p.matches(&"".into()).0);
-        assert!(p.matches(&"some.pre".into()).0);
-        assert!(p.matches(&"some.pre.fix".into()).0);
-        assert!(p.matches(&"some.pre.fix.test".into()).0);
-        assert!(!p.matches(&"some2.pre".into()).0);
-        assert!(!p.matches(&"some2.pre.fix".into()).0);
-        assert!(!p.matches(&"some.pre.fix2".into()).0);
-        assert!(!p.matches(&"some.pre.fix2.test".into()).0);
-        assert!(p.matches(&"some.pre2".into()).0);
-        assert!(p.matches(&"some.pre2.fix".into()).0);
-        assert!(p.matches(&"some.pre2.fix.test".into()).0);
-        assert!(!p.matches(&"some2.pre2".into()).0);
-        assert!(!p.matches(&"some2.pre2.fix".into()).0);
-        assert!(!p.matches(&"some.pre2.fix2".into()).0);
-        assert!(!p.matches(&"some.pre2.fix2.test".into()).0);
-    }
-
-    #[test]
-    fn utest_empty_deny_path_pattern() {
-        let p = DenyPathPattern::from("");
-
-        assert!(p.matches(&"".into()).0);
-        assert!(p.matches(&"some.pre".into()).0);
     }
 }
