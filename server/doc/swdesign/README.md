@@ -283,7 +283,6 @@ The communication middleware is responsible for establishing a secure communicat
 
 Tags:
 - AnkaiosServer
-- CommunicationMiddleware
 
 Needs:
 - impl
