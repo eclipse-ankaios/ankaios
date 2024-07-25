@@ -265,7 +265,6 @@ When the user starts the Ankaios agent with the arguments `-k` or `--insecure` a
 
 Tags:
 - AgentManager
-- CommunicationMiddleware
 
 Needs:
 - impl
