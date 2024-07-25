@@ -161,7 +161,7 @@ Needs:
 - impl
 - itest
 
-#### CLI supports environment variables
+#### CLI supports server url cli argument
 `swdd~cli-supports-server-url-cli-argument~1`
 
 Status: approved
