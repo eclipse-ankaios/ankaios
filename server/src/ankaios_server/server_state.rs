@@ -292,12 +292,10 @@ mod tests {
         commands::CompleteStateRequest,
         objects::{
             generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
-            CompleteState, DeletedWorkload, State, StoredWorkloadSpec, WorkloadSpec,
-            WorkloadStatesMap,
+            CompleteState, DeletedWorkload, State, WorkloadSpec, WorkloadStatesMap,
         },
         test_utils::generate_test_complete_state,
     };
-    use grpc::server;
 
     use crate::ankaios_server::{delete_graph::MockDeleteGraph, server_state::UpdateStateError};
 

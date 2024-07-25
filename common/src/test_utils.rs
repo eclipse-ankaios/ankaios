@@ -14,7 +14,7 @@
 
 use std::collections::HashMap;
 
-use api::ank_base::{self, CompleteState, Dependencies, Tags, WorkloadMap};
+use api::ank_base::{self, Dependencies, Tags, WorkloadMap};
 use serde::{Serialize, Serializer};
 
 use crate::objects::{

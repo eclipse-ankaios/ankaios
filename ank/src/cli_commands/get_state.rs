@@ -56,14 +56,10 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use api::ank_base;
-    use common::{
-        objects::generate_test_workload_spec_with_param,
-        test_utils::{self, generate_test_complete_state},
-    };
+    use common::{objects::generate_test_workload_spec_with_param, test_utils};
     use mockall::predicate::eq;
 
     use crate::{
-        cli::OutputFormat,
         cli_commands::{
             // get_state::{generate_compact_state_output, get_filtered_value, update_compact_state},
             server_connection::MockServerConnection,
@@ -73,20 +69,6 @@ mod tests {
     };
 
     const RESPONSE_TIMEOUT_MS: u64 = 3000;
-
-    const EXAMPLE_STATE_INPUT: &str = r#"{
-        "desiredState": {
-            "workloads": {
-                "nginx": {
-                    "restartPolicy": ALWAYS,
-                    "agent": "agent_A"
-                },
-                "hello1": {
-                    "agent": "agent_B"
-                }
-            }
-        }
-    }"#;
 
     // [utest -> swdd~cli-returns-desired-state-from-server~1]
     // [utest -> swdd~cli-shall-support-desired-state-yaml~1]

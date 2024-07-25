@@ -392,7 +392,7 @@ mod tests {
 
     use super::ank_base;
     use api::ank_base::WorkloadMap;
-    use common::commands::{self, CompleteStateRequest, UpdateWorkload, UpdateWorkloadState};
+    use common::commands::{CompleteStateRequest, UpdateWorkload, UpdateWorkloadState};
     use common::from_server_interface::FromServer;
     use common::objects::{
         generate_test_stored_workload_spec, generate_test_workload_spec_with_param, CompleteState,

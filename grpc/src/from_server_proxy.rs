@@ -271,7 +271,7 @@ mod tests {
     use super::{forward_from_ankaios_to_proto, forward_from_proto_to_ankaios};
     use crate::grpc_api::{self, from_server::FromServerEnum, FromServer, UpdateWorkload};
     use crate::{agent_senders_map::AgentSendersMap, from_server_proxy::GRPCStreaming};
-    use api::ank_base::{response, Dependencies, WorkloadMap};
+    use api::ank_base::{response, WorkloadMap};
     use async_trait::async_trait;
     use common::from_server_interface::FromServerInterface;
     use common::objects::{

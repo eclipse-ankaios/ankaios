@@ -172,9 +172,8 @@ mod tests {
 
     mod ank_base {
         pub use api::ank_base::{
-            request::RequestContent, response::ResponseContent, CompleteState,
-            CompleteStateRequest, Dependencies, Error, Request, Response, RestartPolicy, State,
-            Tag, Tags, UpdateStateRequest, UpdateStateSuccess, Workload, WorkloadMap,
+            request::RequestContent, CompleteState, CompleteStateRequest, Dependencies, Request,
+            RestartPolicy, State, Tag, Tags, UpdateStateRequest, Workload, WorkloadMap,
         };
     }
 
@@ -193,12 +192,9 @@ mod tests {
     const FIELD_2: &str = "field_2";
     const AGENT_NAME: &str = "agent_1";
     const WORKLOAD_NAME_1: &str = "workload_name_1";
-    const WORKLOAD_NAME_2: &str = "workload_name_2";
-    const WORKLOAD_NAME_3: &str = "workload_name_3";
     const RUNTIME: &str = "my_favorite_runtime";
     const RUNTIME_CONFIG: &str = "generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n";
     const HASH: &str = "hash_1";
-    const ERROR_MESSAGE: &str = "error_message";
 
     macro_rules! complete_state_request {
         ($expression:ident) => {{
@@ -236,30 +232,6 @@ mod tests {
                 update_mask: vec![FIELD_1.into(), FIELD_2.into()],
             }))
         };
-    }
-
-    macro_rules! error_response {
-        ($expression:ident) => {{
-            $expression::Response {
-                request_id: REQUEST_ID.into(),
-                response_content: $expression::ResponseContent::Error($expression::Error {
-                    message: ERROR_MESSAGE.into(),
-                })
-                .into(),
-            }
-        }};
-    }
-
-    macro_rules! complete_state_response {
-        ($expression:ident) => {{
-            $expression::Response {
-                request_id: REQUEST_ID.into(),
-                response_content: $expression::ResponseContent::CompleteState(
-                    complete_state!($expression).into(),
-                )
-                .into(),
-            }
-        }};
     }
 
     macro_rules! complete_state {
@@ -346,21 +318,6 @@ mod tests {
             )
             .into()
         };
-    }
-
-    macro_rules! update_state_success_response {
-        ($expression:ident) => {{
-            $expression::Response {
-                request_id: REQUEST_ID.into(),
-                response_content: $expression::ResponseContent::UpdateStateSuccess(
-                    $expression::UpdateStateSuccess {
-                        added_workloads: vec![WORKLOAD_NAME_1.into()],
-                        deleted_workloads: vec![WORKLOAD_NAME_2.into(), WORKLOAD_NAME_3.into()],
-                    },
-                )
-                .into(),
-            }
-        }};
     }
 
     #[test]
