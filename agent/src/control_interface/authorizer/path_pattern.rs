@@ -38,15 +38,6 @@ pub struct AllowPathPattern {
     sections: Vec<PathPatternSection>,
 }
 
-impl AllowPathPattern {
-    #[cfg(test)]
-    pub fn test_value(name: &str) -> Self {
-        Self {
-            sections: vec![PathPatternSection::String(name.into())],
-        }
-    }
-}
-
 impl From<&str> for AllowPathPattern {
     fn from(value: &str) -> Self {
         Self {

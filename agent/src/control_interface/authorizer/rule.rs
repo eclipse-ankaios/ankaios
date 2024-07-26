@@ -3,21 +3,9 @@ use super::{
     path_pattern::{PathPattern, PathPatternMatchReason},
 };
 
-#[cfg(test)]
-use super::path_pattern::AllowPathPattern;
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rule<P: PathPattern> {
     patterns: Vec<P>,
-}
-
-#[cfg(test)]
-impl Rule<AllowPathPattern> {
-    pub fn test_value(name: &str) -> Self {
-        Self {
-            patterns: vec![AllowPathPattern::test_value(name)],
-        }
-    }
 }
 
 impl<P: PathPattern> Rule<P> {

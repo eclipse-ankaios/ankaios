@@ -37,7 +37,7 @@ impl Authorizer {
     #[cfg(test)]
     pub fn test_value(name: &str) -> Self {
         Self {
-            allow_write_state_rule: vec![Rule::test_value(name)],
+            allow_write_state_rule: vec![Rule::create(vec![name.into()])],
             ..Default::default()
         }
     }
@@ -186,5 +186,139 @@ impl From<&ControlInterfaceAccess> for Authorizer {
             allow_read_write_state_rule: allow_rules.read_write,
             deny_read_write_state_rule: deny_rules.read_write,
         }
+    }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod test {
+    use std::marker::PhantomData;
+
+    use common::commands::{CompleteStateRequest, Request, UpdateStateRequest};
+
+    use super::{path::Path, path_pattern::PathPattern, Authorizer};
+
+    const MATCHING_PATH: &str = "matching.path";
+
+    enum RuleType {
+        AllowWrite,
+        DenyWrite,
+        AllowRead,
+        DenyRead,
+        AllowReadWrite,
+        DenyReadWrite,
+    }
+
+    #[derive(Clone, Debug, PartialEq)]
+    pub struct MockRule<T> {
+        patterns: Option<Vec<T>>,
+        phantom: PhantomData<T>,
+    }
+
+    impl<T> MockRule<T> {
+        pub fn create(patterns: Vec<T>) -> Self {
+            Self {
+                patterns: Some(patterns),
+                phantom: PhantomData,
+            }
+        }
+
+        fn default() -> Self {
+            Self {
+                patterns: None,
+                phantom: PhantomData,
+            }
+        }
+    }
+
+    impl<T> PathPattern for MockRule<T> {
+        fn matches(&self, path: &Path) -> (bool, String) {
+            if path.to_string() == MATCHING_PATH {
+                (true, "".into())
+            } else {
+                (false, "".into())
+            }
+        }
+    }
+
+    fn create_authorizer(matching_rules: &[RuleType]) -> Authorizer {
+        let mut res: Authorizer = Default::default();
+
+        for rule_to_change in matching_rules {
+            match rule_to_change {
+                RuleType::AllowWrite => res.allow_write_state_rule.push(MockRule::default()),
+                RuleType::DenyWrite => res.deny_write_state_rule.push(MockRule::default()),
+                RuleType::AllowRead => res.allow_read_state_rule.push(MockRule::default()),
+                RuleType::DenyRead => res.deny_read_state_rule.push(MockRule::default()),
+                RuleType::AllowReadWrite => {
+                    res.allow_read_write_state_rule.push(MockRule::default())
+                }
+                RuleType::DenyReadWrite => res.deny_read_write_state_rule.push(MockRule::default()),
+            }
+        }
+
+        res
+    }
+
+    #[test]
+    fn utest_read_requests() {
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::CompleteStateRequest(
+                CompleteStateRequest {
+                    field_mask: vec![MATCHING_PATH.into()],
+                },
+            ),
+        };
+
+        let authorizer = create_authorizer(&[]);
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[RuleType::AllowRead]);
+        assert!(authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[RuleType::AllowReadWrite]);
+        assert!(authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[RuleType::AllowWrite]);
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[RuleType::AllowRead, RuleType::DenyRead]);
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[RuleType::AllowRead, RuleType::DenyReadWrite]);
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[RuleType::AllowRead, RuleType::DenyWrite]);
+        assert!(authorizer.authorize(&request));
+    }
+
+    #[test]
+    fn utest_write_requests() {
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
+                UpdateStateRequest {
+                    update_mask: vec![MATCHING_PATH.into()],
+                    state: Default::default(),
+                },
+            )),
+        };
+
+        let authorizer = create_authorizer(&[]);
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[RuleType::AllowWrite]);
+        assert!(authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[RuleType::AllowReadWrite]);
+        assert!(authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[RuleType::AllowRead]);
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[RuleType::AllowWrite, RuleType::DenyWrite]);
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[RuleType::AllowWrite, RuleType::DenyReadWrite]);
+        assert!(!authorizer.authorize(&request));
+        let authorizer = create_authorizer(&[RuleType::AllowWrite, RuleType::DenyRead]);
+        assert!(authorizer.authorize(&request));
     }
 }
