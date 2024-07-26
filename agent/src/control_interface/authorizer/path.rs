@@ -12,6 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::fmt::Display;
+
 use common::PATH_SEPARATOR;
 
 #[derive(Clone, Debug)]
@@ -31,8 +33,10 @@ impl From<&str> for Path {
     }
 }
 
-impl ToString for Path {
-    fn to_string(&self) -> String {
-        self.sections.join(".")
+impl Display for Path {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.sections.join("."))
+    }
+}
     }
 }
