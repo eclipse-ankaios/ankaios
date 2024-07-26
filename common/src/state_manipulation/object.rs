@@ -665,7 +665,7 @@ mod tests {
         use crate::objects::generate_test_runtime_config;
 
         pub fn generate_test_complete_state() -> Mapping {
-            let config_hash: &dyn common::objects::ConfigHash = &generate_test_runtime_config();
+            let config_hash: &dyn crate::objects::ConfigHash = &generate_test_runtime_config();
             Mapping::default()
                 .entry("desiredState", generate_test_state())
                 .entry(
