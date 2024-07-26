@@ -82,8 +82,7 @@ MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
 
     pub struct TestPEMFilesPackage {
         // The directory and everything inside it will be automatically deleted once the returned TempDir is destroyed.
-        #[allow(dead_code)]
-        pub working_dir: TempDir,
+        pub _working_dir: TempDir,
         pub ca_pem_file_path: PathBuf,
         pub server_pem_file_path: PathBuf,
         pub server_key_pem_file_path: PathBuf,
@@ -142,7 +141,7 @@ MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
             cli_key_pem_file.sync_all()?;
 
             Ok(Self {
-                working_dir,
+                _working_dir: working_dir,
                 ca_pem_file_path,
                 server_pem_file_path,
                 server_key_pem_file_path,
