@@ -52,14 +52,6 @@ impl Display for PodmanKubeWorkloadId {
     }
 }
 
-#[allow(dead_code)]
-#[derive(Debug)]
-pub struct PlayKubeOutput {}
-
-#[allow(dead_code)]
-#[derive(Debug)]
-pub struct PlayKubeError {}
-
 impl PodmanKubeRuntime {
     async fn workload_instance_names_to_workload_states(
         &self,
