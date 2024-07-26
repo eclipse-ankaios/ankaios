@@ -57,8 +57,8 @@ fn add_default_workload_spec_per_update_mask(
 }
 
 // [impl->swdd~cli-supports-yaml-to-set-desired-state~1]
-async fn process_inputs<R: Read>(reader: R, state_object_file: &String, temp_obj: &mut Object) {
-    match state_object_file.as_str() {
+async fn process_inputs<R: Read>(reader: R, state_object_file: &str, temp_obj: &mut Object) {
+    match state_object_file {
         "-" => {
             let stdin = io::read_to_string(reader).unwrap_or_else(|error| {
                 output_and_error!("Could not read the state object file.\nError: {}", error)
@@ -71,7 +71,7 @@ async fn process_inputs<R: Read>(reader: R, state_object_file: &String, temp_obj
             });
         }
         _ => {
-            let state_object_data = read_file_to_string(state_object_file.clone())
+            let state_object_data = read_file_to_string(state_object_file.to_string())
                 .await
                 .unwrap_or_else(|error| {
                     output_and_error!("Could not read the state object file.\nError: {}", error)

@@ -1,4 +1,3 @@
-
 // Copyright (c) 2024 Elektrobit Automotive GmbH
 //
 // This program and the accompanying materials are made available under the

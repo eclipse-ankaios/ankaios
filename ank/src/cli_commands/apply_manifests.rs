@@ -661,7 +661,6 @@ mod tests {
                 "manifest.yml".to_string(),
                 Box::new(manifest_content),
             )]));
-      
         let apply_result = cmd
             .apply_manifests(ApplyArgs {
                 agent_name: None,

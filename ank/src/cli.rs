@@ -12,15 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{error::Error, io};
+use std::{error::Error, fs::File, io};
 
 use clap::{command, Parser, Subcommand};
 
 #[cfg(not(test))]
-pub fn open_manifest(
-    file_path: &str,
-) -> io::Result<(String, Box<dyn io::Read + Send + Sync + 'static>)> {
-    use std::fs::File;
+pub fn open_manifest(file_path: &str) -> io::Result<InputSourcePair> {
     match File::open(file_path) {
         Ok(open_file) => Ok((file_path.to_owned(), Box::new(open_file))),
         Err(err) => Err(err),

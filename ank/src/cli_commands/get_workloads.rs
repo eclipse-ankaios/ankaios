@@ -241,7 +241,7 @@ mod tests {
             .get_workloads_table(Some("agent_B".to_string()), None, Vec::new())
             .await;
         assert!(cmd_text.is_ok());
-      
+
         let expected_table_output = [
             "WORKLOAD NAME   AGENT     RUNTIME   EXECUTION STATE   ADDITIONAL INFO",
             "name2           agent_B   runtime   Running(Ok)                      ",
