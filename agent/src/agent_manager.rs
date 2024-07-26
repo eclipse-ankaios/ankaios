@@ -202,7 +202,7 @@ mod tests {
     use common::{
         commands::UpdateWorkloadState,
         from_server_interface::FromServerInterface,
-        objects::{generate_test_workload_spec_with_param, CompleteState, ExecutionState},
+        objects::{generate_test_workload_spec_with_param, ExecutionState},
         to_server_interface::ToServer,
     };
     use mockall::predicate::*;
@@ -376,12 +376,12 @@ mod tests {
         let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
 
         let request_id = format!("{WORKLOAD_1_NAME}@{REQUEST_ID}");
-        let complete_state: CompleteState = Default::default();
+        let complete_state: ank_base::CompleteState = Default::default();
 
         let response = ank_base::Response {
             request_id: request_id.clone(),
             response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                complete_state.clone().into(),
+                complete_state.clone(),
             )),
         };
 
@@ -402,9 +402,7 @@ mod tests {
 
         let handle = tokio::spawn(async move { agent_manager.start().await });
 
-        let complete_state_result = to_manager
-            .complete_state(request_id, complete_state.into())
-            .await;
+        let complete_state_result = to_manager.complete_state(request_id, complete_state).await;
         assert!(complete_state_result.is_ok());
 
         // Terminate the infinite receiver loop

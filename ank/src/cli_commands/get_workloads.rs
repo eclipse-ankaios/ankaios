@@ -146,11 +146,19 @@ mod tests {
             ),
         ]);
 
+        // let test_data = test_utils::generate_test_proto_complete_state(&[(
+        //     "name1",
+        //     test_utils::generate_test_proto_workload_with_param("agent_A", "runtime"),
+        // )]);
+        println!("{:?}", test_data);
+
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
             .return_once(|_| Ok((ank_base::CompleteState::from(test_data)).into()));
+        // .return_once(|_| Ok(test_data.into()));
+
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
             no_wait: false,

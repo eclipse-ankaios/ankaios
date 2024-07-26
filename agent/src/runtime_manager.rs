@@ -1752,50 +1752,11 @@ mod tests {
                 .build();
 
         let request_id: String = "request_id".to_string();
-        let complete_state: CompleteState = CompleteState {
-            desired_state: Some(ank_base::State {
-                api_version: "v0.1".to_string(),
-                workloads: Some(ank_base::WorkloadMap {
-                    workloads: HashMap::from([(
-                        "workload1".to_string(),
-                        ank_base::Workload {
-                            agent: Some("agent_x".to_string()),
-                            restart_policy: Some(ank_base::RestartPolicy::Always as i32),
-                            dependencies: Some(ank_base::Dependencies {
-                                dependencies: HashMap::from([
-                                    (
-                                        "workload A".to_string(),
-                                        AddCondition::AddCondRunning as i32,
-                                    ),
-                                    (
-                                        "workload C".to_string(),
-                                        AddCondition::AddCondSucceeded as i32,
-                                    ),
-                                ]),
-                            }),
-                            tags: Some(ank_base::Tags {
-                                tags: vec![ank_base::Tag {
-                                    key: "key".to_string(),
-                                    value: "value".to_string(),
-                                }],
-                            }),
-                            runtime: Some("runtime1".to_string()),
-                            runtime_config: Some("generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n".to_string()),
-                            control_interface_access: None,
-                        },
-                    )]),
-                }),
-            }),
-            workload_states: Some(ank_base::WorkloadStatesMap {
-                agent_state_map: HashMap::from([("agent_x".to_string(), ank_base::ExecutionsStatesOfWorkload {
-                    wl_name_state_map: HashMap::from([("workload1".to_string(), ank_base::ExecutionsStatesForId {id_state_map: HashMap::from([("404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed".to_string(), ank_base::ExecutionState {additional_info: "".to_string(), execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Running(0)),})]),})]),
-                })])
-            }),
-        };
+        let complete_state = ank_base::CompleteState::default();
         let expected_response = ank_base::Response {
             request_id,
             response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                complete_state,
+                complete_state.clone(),
             )),
         };
         let mut mock_workload = MockWorkload::default();
@@ -1813,12 +1774,7 @@ mod tests {
             .forward_response(ank_base::Response {
                 request_id: format!("{WORKLOAD_1_NAME}@{REQUEST_ID}"),
                 response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                    generate_test_complete_state(vec![generate_test_workload_spec_with_param(
-                        AGENT_NAME.to_string(),
-                        WORKLOAD_1_NAME.to_string(),
-                        RUNTIME_NAME.to_string(),
-                    )])
-                    .into(),
+                    complete_state,
                 )),
             })
             .await;

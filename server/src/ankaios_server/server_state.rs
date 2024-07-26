@@ -294,7 +294,7 @@ mod tests {
             generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
             CompleteState, DeletedWorkload, State, WorkloadSpec, WorkloadStatesMap,
         },
-        test_utils::generate_test_complete_state,
+        test_utils::{self, generate_test_complete_state},
     };
 
     use crate::ankaios_server::{delete_graph::MockDeleteGraph, server_state::UpdateStateError};
@@ -377,7 +377,6 @@ mod tests {
             .get_complete_state_by_field_mask(request_complete_state, &workload_state_map)
             .unwrap();
 
-        // let expected_complete_state = ank_base::CompleteState::from(server_state.state);
         let expected_complete_state = ank_base::CompleteState {
             desired_state: Some(server_state.state.desired_state.clone().into()),
             workload_states: None,
@@ -385,7 +384,6 @@ mod tests {
         assert_eq!(received_complete_state, expected_complete_state);
     }
 
-    // TODO: add in test_utils a generate function for complete state and also use the workloads one
     // [utest->swdd~server-provides-interface-get-complete-state~1]
     // [utest->swdd~server-filters-get-complete-state-result~2]
     #[test]
@@ -427,48 +425,83 @@ mod tests {
             .get_complete_state_by_field_mask(request_complete_state, &workload_state_map)
             .unwrap();
 
-        let expected_complete_state: ank_base::CompleteState = ank_base::CompleteState {
-            desired_state: Some(ank_base::State {
-                api_version: "v0.1".to_string(),
-                workloads: Some(ank_base::WorkloadMap {
-                    workloads: HashMap::from([
-                        (
-                            w3.instance_name.workload_name().to_string(),
-                            ank_base::Workload {
-                                agent: Some(w3.instance_name.agent_name().to_string()),
-                                restart_policy: None,
-                                dependencies: None,
-                                tags: None,
-                                runtime: None,
-                                runtime_config: None,
-                                control_interface_access: None,
-                            },
-                        ),
-                        (
-                            w1.instance_name.workload_name().to_string(),
-                            ank_base::Workload {
-                                agent: Some(w1.instance_name.agent_name().to_string()),
-                                restart_policy: Some(w1.restart_policy as i32),
-                                dependencies: Some(Dependencies {
-                                    dependencies: w1
-                                        .dependencies
-                                        .into_iter()
-                                        .map(|(k, v)| (k, v as i32))
-                                        .collect(),
-                                }),
-                                tags: Some(Tags {
-                                    tags: w1.tags.into_iter().map(ank_base::Tag::from).collect(),
-                                }),
-                                runtime: Some(w1.runtime.clone()),
-                                runtime_config: Some(w1.runtime_config.clone()),
-                                control_interface_access: w1.control_interface_access.into(),
-                            },
-                        ),
-                    ]),
-                }),
-            }),
-            workload_states: None,
-        };
+        let workloads = [
+            (
+                w3.instance_name.workload_name(),
+                ank_base::Workload {
+                    agent: Some(w3.instance_name.agent_name().to_string()),
+                    restart_policy: None,
+                    dependencies: None,
+                    tags: None,
+                    runtime: None,
+                    runtime_config: None,
+                    control_interface_access: None,
+                },
+            ),
+            (
+                w1.instance_name.workload_name(),
+                ank_base::Workload {
+                    agent: Some(w1.instance_name.agent_name().to_string()),
+                    restart_policy: Some(w1.restart_policy as i32),
+                    dependencies: Some(Dependencies {
+                        dependencies: w1
+                            .dependencies
+                            .into_iter()
+                            .map(|(k, v)| (k, v as i32))
+                            .collect(),
+                    }),
+                    tags: Some(Tags {
+                        tags: w1.tags.into_iter().map(ank_base::Tag::from).collect(),
+                    }),
+                    runtime: Some(w1.runtime.clone()),
+                    runtime_config: Some(w1.runtime_config.clone()),
+                    control_interface_access: w1.control_interface_access.into(),
+                },
+            ),
+        ];
+        let expected_complete_state = test_utils::generate_test_proto_complete_state(&workloads);
+        // let expected_complete_state: ank_base::CompleteState = ank_base::CompleteState {
+        //     desired_state: Some(ank_base::State {
+        //         api_version: "v0.1".to_string(),
+        //         workloads: Some(ank_base::WorkloadMap {
+        //             workloads: HashMap::from([
+        //                 (
+        //                     w3.instance_name.workload_name().to_string(),
+        //                     ank_base::Workload {
+        //                         agent: Some(w3.instance_name.agent_name().to_string()),
+        //                         restart_policy: None,
+        //                         dependencies: None,
+        //                         tags: None,
+        //                         runtime: None,
+        //                         runtime_config: None,
+        //                         control_interface_access: None,
+        //                     },
+        //                 ),
+        //                 (
+        //                     w1.instance_name.workload_name().to_string(),
+        // ank_base::Workload {
+        //     agent: Some(w1.instance_name.agent_name().to_string()),
+        //     restart_policy: Some(w1.restart_policy as i32),
+        //     dependencies: Some(Dependencies {
+        //         dependencies: w1
+        //             .dependencies
+        //             .into_iter()
+        //             .map(|(k, v)| (k, v as i32))
+        //             .collect(),
+        //     }),
+        //     tags: Some(Tags {
+        //         tags: w1.tags.into_iter().map(ank_base::Tag::from).collect(),
+        //     }),
+        //     runtime: Some(w1.runtime.clone()),
+        //     runtime_config: Some(w1.runtime_config.clone()),
+        //     control_interface_access: w1.control_interface_access.into(),
+        // },
+        //                 ),
+        //             ]),
+        //         }),
+        //     }),
+        //     workload_states: None,
+        // };
 
         assert_eq!(expected_complete_state, complete_state);
     }

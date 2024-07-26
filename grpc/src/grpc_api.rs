@@ -243,7 +243,7 @@ mod tests {
     use api::ank_base::{self, Dependencies};
     use common::{
         objects::{generate_test_workload_spec, ConfigHash},
-        test_utils::generate_test_deleted_workload,
+        test_utils::{self, generate_test_deleted_workload},
     };
 
     mod ankaios {
@@ -331,32 +331,23 @@ mod tests {
 
     #[test]
     fn utest_convert_proto_to_server_update_state_fails() {
+        let workloads = ank_base::Workload {
+            agent: Some("test_agent".to_owned()),
+            dependencies: Some(Dependencies {
+                dependencies: vec![("other_workload".into(), -1)].into_iter().collect(),
+            }),
+            ..Default::default()
+        };
         let proto_request = ToServer {
             to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
                 request_id: "requeset_id".to_owned(),
                 request_content: Some(ank_base::request::RequestContent::UpdateStateRequest(
                     ank_base::UpdateStateRequest {
                         update_mask: vec!["test_update_mask_field".to_owned()],
-                        new_state: Some(ank_base::CompleteState {
-                            desired_state: Some(ank_base::State {
-                                api_version: "v0.1".into(),
-                                workloads: Some(ank_base::WorkloadMap {
-                                    workloads: HashMap::from([(
-                                        "test_workload".to_owned(),
-                                        ank_base::Workload {
-                                            agent: Some("test_agent".to_owned()),
-                                            dependencies: Some(Dependencies {
-                                                dependencies: vec![("other_workload".into(), -1)]
-                                                    .into_iter()
-                                                    .collect(),
-                                            }),
-                                            ..Default::default()
-                                        },
-                                    )]),
-                                }),
-                            }),
-                            ..Default::default()
-                        }),
+                        new_state: Some(test_utils::generate_test_proto_complete_state(&[(
+                            "test_workload",
+                            workloads,
+                        )])),
                     },
                 )),
             })),

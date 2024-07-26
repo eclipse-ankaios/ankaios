@@ -239,8 +239,6 @@ mod tests {
             ankaios::CompleteState {
                 desired_state: ankaios::State {
                     api_version: "v0.1".into(),
-                    // workloads: vec![("desired".into(), workload!(ankaios))].into_iter(),
-                    // .collect(),
                     workloads: HashMap::from([("desired".into(), workload!(ankaios))]),
                 }
                 .into(),
@@ -443,7 +441,6 @@ mod tests {
             .insert(
                 WORKLOAD_NAME_1.into(),
                 ank_base::Workload {
-                    // dependencies: vec![("dependency".into(), -1)].into_iter().collect(),
                     dependencies: Some(ank_base::Dependencies {
                         dependencies: HashMap::from([("dependency".into(), -1)]),
                     }),

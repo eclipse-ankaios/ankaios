@@ -40,17 +40,22 @@ pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State
 //     todo!();
 // }
 
-// pub fn generate_test_proto_complete_state(
-//     workloads: ank_base::WorkloadMap,
-// ) -> ank_base::CompleteState {
-//     CompleteState {
-//         desired_state: Some(ank_base::State {
-//             api_version: "v0.1".to_string(),
-//             workloads: Some(workloads),
-//         }),
-//         workload_states: None,
-//     }
-// }
+pub fn generate_test_proto_complete_state(
+    workloads: &[(&str, ank_base::Workload)],
+) -> ank_base::CompleteState {
+    ank_base::CompleteState {
+        desired_state: Some(ank_base::State {
+            api_version: "v0.1".to_string(),
+            workloads: Some(ank_base::WorkloadMap {
+                workloads: workloads
+                    .iter()
+                    .map(|(x, y)| (x.to_string(), y.clone()))
+                    .collect(),
+            }),
+        }),
+        workload_states: None,
+    }
+}
 
 // TODO: switch to ank_base
 #[cfg(feature = "test_utils")]
