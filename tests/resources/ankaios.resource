@@ -32,12 +32,21 @@ ${TEST_FOLDER_NAME}    ${EMPTY}
 &{ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}
 
 *** Keywords ***
-Setup Ankaios
+Get MTLS Enabled
+    ${result}=    Get Environment Variable    name=MTLS_ENABLED    default=False
+    RETURN    ${result}
+
+Setup Ankaios without MTLS Setup
     ${run_result}=    Run Process    command=mktemp -d    shell=True
     Set Environment Variable    name=ANKAIOS_TEMP    value=${run_result.stdout}
     ${TEST_FOLDER_NAME}=    Evaluate    '${TEST_NAME}'.lower().replace(' ', '_')
     Set Global Variable    ${TEST_FOLDER_NAME}
     ${run_result}=    Run Process    command=mkdir -p "target/robot_tests_result/${TEST_FOLDER_NAME}"    shell=True
+
+Setup Ankaios
+    [Arguments]    ${mtls_enabled}=False
+    Setup MTLS    enabled=${mtls_enabled}
+    Setup Ankaios without MTLS Setup
 
 Clean up Ankaios
     Terminate All Processes    kill=True
@@ -50,6 +59,32 @@ Clean up Podman
     Podman has deleted all existing containers
     Podman has deleted all existing pods
     Podman has deleted all existing volumes
+
+Setup MTLS
+    [Arguments]    ${enabled}
+    IF  ${enabled} == True
+        ${ca_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /ca.pem
+        ${server_crt_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /server.pem
+        ${server_key_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /server-key.pem
+        ${agent_crt_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /agent.pem
+        ${agent_key_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /agent-key.pem
+        ${cli_crt_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /cli.pem
+        ${cli_key_pem}=    Catenate    SEPARATOR=    ${CERTS_DIR}    /cli-key.pem
+        Set Environment Variable    name=ANKSERVER_CA_PEM    value=${ca_pem}
+        Set Environment Variable    name=ANKSERVER_CRT_PEM    value=${server_crt_pem}
+        Set Environment Variable    name=ANKSERVER_KEY_PEM    value=${server_key_pem}
+        Set Environment Variable    name=ANKAGENT_CA_PEM    value=${ca_pem}
+        Set Environment Variable    name=ANKAGENT_CRT_PEM    value=${agent_crt_pem}
+        Set Environment Variable    name=ANKAGENT_KEY_PEM    value=${agent_key_pem}
+        Set Environment Variable    name=ANK_CA_PEM    value=${ca_pem}
+        Set Environment Variable    name=ANK_CRT_PEM    value=${cli_crt_pem}
+        Set Environment Variable    name=ANK_KEY_PEM    value=${cli_key_pem}
+    ELSE
+        Set Environment Variable    name=ANKSERVER_INSECURE    value=true
+        Set Environment Variable    name=ANKAGENT_INSECURE    value=true
+        Set Environment Variable    name=ANK_INSECURE    value=true
+    END
+
 
 Run in background
     [Arguments]    ${location}    ${cli_command}
@@ -94,6 +129,33 @@ the command "${cli_command}" finished with exit code "${exit_code}" within "${ti
         END
     END
 
+Ankaios server is started with config "${config_path}" and PEM files: "${ca_pem}" "${crt_pem}" "${key_pem}"
+    ${server_process}=    Start Process
+    ...    %{ANK_BIN_DIR}${/}ank-server
+    ...    --startup-config
+    ...    ${config_path}
+    ...    --ca_pem
+    ...    ${ca_pem}
+    ...    --crt_pem
+    ...    ${crt_pem}
+    ...    --key_pem
+    ...    ${key_pem}
+    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
+    ...    env:RUST_LOG=debug
+    ...    alias=ank-server
+    RETURN    ${server_process}
+
+Ankaios insecure server is started with config "${config_path}"
+    ${server_process}=    Start Process
+    ...    %{ANK_BIN_DIR}${/}ank-server
+    ...    --startup-config
+    ...    ${config_path}
+    ...    --insecure
+    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
+    ...    env:RUST_LOG=debug
+    ...    alias=ank-server
+    RETURN    ${server_process}
+
 Ankaios server is started with config "${config_path}"
     ${server_process}=    Start Process
     ...    %{ANK_BIN_DIR}${/}ank-server
@@ -118,6 +180,30 @@ Ankaios server is started without config
     ...    %{ANK_BIN_DIR}${/}ank-server
     ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/server_logs.txt
     ...    env:RUST_LOG=debug
+
+Ankaios agent is started with name "${name}" and PEM files: "${ca_pem}" "${crt_pem}" "${key_pem}"
+    Start Process
+    ...    %{ANK_BIN_DIR}${/}ank-agent
+    ...    --name
+    ...    ${name}
+    ...    --ca_pem
+    ...    ${ca_pem}
+    ...    --crt_pem
+    ...    ${crt_pem}
+    ...    --key_pem
+    ...    ${key_pem}
+    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
+    ...    env:RUST_LOG=debug
+    ...    alias=${name}
+Ankaios insecure agent is started with name "${name}"
+    Start Process
+    ...    %{ANK_BIN_DIR}${/}ank-agent
+    ...    --insecure
+    ...    --name
+    ...    ${name}
+    ...    stderr=target/robot_tests_result/${TEST_FOLDER_NAME}/${name}_logs.txt
+    ...    env:RUST_LOG=debug
+    ...    alias=${name}
 
 Ankaios agent is started with name "${name}"
     Start Process
@@ -443,3 +529,4 @@ the last command shall finish with an error
 
 the last command shall finish with exit code "${exit_code}"
     the last command finished with exit code "${exit_code}"
+

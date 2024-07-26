@@ -20,6 +20,8 @@ pub fn parse() -> Arguments {
     Arguments::parse()
 }
 
+// [impl->swdd~server-supports-pem-file-paths-as-cli-arguments~1]
+// [impl->swdd~server-supports-cli-argument-for-insecure-communication~1]
 #[derive(Parser, Debug)]
 #[clap( author="The Ankaios team",
         version=env!("CARGO_PKG_VERSION"),
@@ -31,6 +33,23 @@ pub struct Arguments {
     #[clap(short = 'a', long = "address", default_value_t = DEFAULT_SOCKET_ADDRESS.parse().unwrap())]
     /// The address, including the port, the server shall listen at.
     pub addr: SocketAddr,
+    #[clap(
+        short = 'k',
+        long = "insecure",
+        env = "ANKSERVER_INSECURE",
+        default_value_t = false
+    )]
+    /// Flag to disable TLS communication between Ankaios server, agent and ank CLI.
+    pub insecure: bool,
+    #[clap(long = "ca_pem", env = "ANKSERVER_CA_PEM")]
+    /// Path to server ca certificate pem file.
+    pub ca_pem: Option<String>,
+    #[clap(long = "crt_pem", env = "ANKSERVER_CRT_PEM")]
+    /// Path to server certificate pem file.
+    pub crt_pem: Option<String>,
+    #[clap(long = "key_pem", env = "ANKSERVER_KEY_PEM")]
+    /// Path to server key pem file.
+    pub key_pem: Option<String>,
 }
 // Note: this code is intentionally without unit tests.
 // There is no business logic which can be tested, here we have only a config and a call of "clap" crate.

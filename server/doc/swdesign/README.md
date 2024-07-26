@@ -214,6 +214,96 @@ Needs:
 - impl
 - utest
 
+#### Server supports PEM file paths as cli arguments for mTLS
+`swdd~server-supports-pem-file-paths-as-cli-arguments~1`
+
+Status: approved
+
+The Ankaios server shall support the following cli arguments all of which contain a file path to a PEM file, alternatively configurable over environment variables which have lower priority compared to explicitly provided cli arguments:
+
+| Argument    | Environment variable | Description                                 |
+|-------------|----------------------|---------------------------------------------|
+| `--ca_pem`  | `ANKSERVER_CA_PEM`    | file path to the root certificate authority |
+| `--crt_pem` | `ANKSERVER_CRT_PEM`   | file path to the certificate                |
+| `--key_pem` | `ANKSERVER_KEY_PEM`   | file path to the key                        |
+
+Comment:
+The PEM file format is a text-based, human-readable format. PEM files can contain certificates, private keys, public keys and even certificate chains, making them more versatile compared to other formats.
+
+Rationale:
+The Ankaios server uses the PEM files to establish a mutual transport layer security (mTLS) communication.
+
+Tags:
+- AnkaiosServer
+
+Needs:
+- impl
+- stest
+
+#### Server supports cli argument for insecure communication
+`swdd~server-supports-cli-argument-for-insecure-communication~1`
+
+Status: approved
+
+The Ankaios server shall support the cli argument `--insecure` (short alias `-k`), alternatively configurable via the environment variable `ANKSERVER_INSECURE` which has lower priority compared to explicitly provided cli arguments.
+
+Comment:
+The Ankaios server supports an insecure communication channel to the Ankaios server. Communicating over insecure channels is convenient during an evaluation or a development phase.
+
+Tags:
+- AnkaiosServer
+
+Needs:
+- impl
+- stest
+
+#### Server establishes insecure connection on provided insecure cli argument
+`swdd~server-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1`
+
+Status: approved
+
+When the user starts the Ankaios server with the arguments `-k` or `--insecure` and the Ankaios server initializes the communication middleware, then the Ankaios server shall instruct the communication middleware to use an insecure communication channel.
+
+Tags:
+- AnkaiosServer
+
+Needs:
+- impl
+
+#### Server provides file paths for mTLS to communication middleware
+`swdd~server-provides-file-paths-to-communication-middleware~1`
+
+Status: approved
+
+When the file paths of the root certificate, the server certificate and the server key is provided upon startup, then the Ankaios server shall provide each of these file paths to the communication middleware.
+
+Rationale:
+The communication middleware is responsible for establishing a secure communication channel.
+
+Tags:
+- AnkaiosServer
+
+Needs:
+- impl
+
+#### Server fails upon missing pem file paths and insecure cli arguments
+`swdd~server-fails-on-missing-file-paths-and-insecure-cli-arguments~1`
+
+Status: approved
+
+If the user starts the Ankaios server without specifying the cli arguments for the mTLS PEM file paths or the insecure cli argument, then the Ankaios server shall:
+* exit with a non zero exit code
+* output an error message containing the reason and a help message
+
+Rationale:
+The demand for an explicit communication mode prevents a user from implicitly creating an Ankaios setup using insecure communication.
+
+Tags:
+- AnkaiosServer
+
+Needs:
+- impl
+
 #### AnkaiosServer sends all workloads on start
 `swdd~server-sends-all-workloads-on-start~1`
 

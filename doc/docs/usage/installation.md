@@ -37,7 +37,7 @@ For using the `podman` runtime, Podman version 3.4.2 is sufficient but the
 
 ## Installation methods
 
-There a different ways to install Ankaios.
+There are two ways to install Ankaios, depending on your specific needs and focus. If you are new to Ankaios or TLS is not a top priority, we recommend following the setup instructions in [Setup with script](#setup-with-script) without enabling mutual transport layer security (mTLS) for communication. On the other hand, if you want to setup Ankaios in a production environment, follow the setup instructions in [Setting up Ankaios with mTLS](mtls-setup.md).
 
 ### Setup with script
 
@@ -68,8 +68,8 @@ The following table shows the optional arguments that can be passed to the scrip
 | -v <version\> | e.g. `v0.1.0`, default: latest version |
 | -i <install-path\> | File path where Ankaios will be installed, default: `/usr/local/bin` |
 | -t <install-type\> | Installation type for systemd integration: `server`, `agent`, `none` or `both` (default) |
-| -s <server-options\> | Options which will be passed to the Ankaios server. Default `--startup-config /etc/ankaios/state.yaml` |
-| -a <agent-options\> | Options which will be passed to the Ankaios agent. Default `--name agent_A` |
+| -s <server-options\> | Options which will be passed to the Ankaios server. Default `--insecure --startup-config /etc/ankaios/state.yaml` |
+| -a <agent-options\> | Options which will be passed to the Ankaios agent. Default `--insecure --name agent_A` |
 
 To install a specific version run the following command and substitute `<version>` with a specific version tag e.g. `v0.1.0`:
 

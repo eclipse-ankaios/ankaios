@@ -161,33 +161,18 @@ Needs:
 - impl
 - itest
 
-#### CLI supports environment variables
-`swdd~cli-shall-support-environment-variables~1`
+#### CLI supports server url cli argument
+`swdd~cli-supports-server-url-cli-argument~1`
 
 Status: approved
 
-The Ankaios CLI shall support the usage of the following environment variables:
+The Ankaios CLI shall support the cli argument `--server-url` (short alias `-s`) with value format `protocol://host:port`, alternatively configurable via the environment variable `ANK_SERVER_URL` which has lower priority compared to explicitly provided cli arguments.
 
-- `ANK_SERVER_URL`, for providing the server url
-
-Rationale:
-This increases usability for the Ankaios CLI when the Ankaios CLI is used in different terminal windows to connect to the same Ankaios server remotely.
+Comment:
+The `protocol` depends on the configured communication protocol. `host` means an ip address or a domain name.
 
 Tags:
-- Cli
-
-Needs:
-- impl
-
-#### CLI prioritizes cli argument over environment variable
-`swdd~cli-prioritizes-cli-argument-over-environment-variable~1`
-
-Status: approved
-
-Command line arguments provided to the the Ankaios CLI shall overwrite environment variables.
-
-Tags:
-- Cli
+- CliCommands
 
 Needs:
 - impl
@@ -205,6 +190,100 @@ Tags:
 Needs:
 - impl
 - itest
+
+#### CLI supports PEM file paths as cli arguments for mTLS
+`swdd~cli-supports-pem-file-paths-as-cli-arguments~1`
+
+Status: approved
+
+The Ankaios CLI shall support the following cli arguments all of which contain a file path to a PEM file, alternatively configurable over environment variables which have lower priority compared to explicitly provided cli arguments:
+
+| Argument    | Environment variable | Description                                 |
+|-------------|----------------------|---------------------------------------------|
+| `--ca_pem`  | `ANK_CA_PEM`         | file path to the root certificate authority |
+| `--crt_pem` | `ANK_CRT_PEM`        | file path to the certificate                |
+| `--key_pem` | `ANK_KEY_PEM`        | file path to the key                        |
+
+Comment:
+The PEM file format is a text-based, human-readable format. PEM files can contain certificates, private keys, public keys and even certificate chains, making them more versatile compared to other formats.
+
+Rationale:
+The Ankaios CLI uses the PEM files to establish a mutual transport layer security (mTLS) communication.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- stest
+
+#### CLI supports cli argument for insecure communication
+`swdd~cli-supports-cli-argument-for-insecure-communication~1`
+
+Status: approved
+
+The Ankaios CLI shall support the cli argument `--insecure` (short alias `-k`), alternatively configurable via the environment variable `ANK_INSECURE` which has lower priority compared to explicitly provided cli arguments.
+
+Comment:
+The Ankaios CLI supports an insecure communication channel to the Ankaios server. Communicating over insecure channels is convenient during an evaluation or a development phase.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- stest
+
+#### CLI provides file paths for mTLS to communication middleware
+`swdd~cli-provides-file-paths-to-communication-middleware~1`
+
+Status: approved
+
+When the file paths of the root certificate, the CLI certificate and the CLI key is provided upon startup, then the Ankaios CLI shall provide each of these file paths to the communication middleware.
+
+Rationale:
+The communication middleware is responsible for establishing a secure communication channel.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+
+#### CLI establishes insecure connection on provided insecure cli argument
+`swdd~cli-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1`
+
+Status: approved
+
+When the user runs the Ankaios CLI with enabled insecure communication and the Ankaios CLI initializes the communication middleware, then the Ankaios CLI shall instruct the communication middleware to use an insecure communication channel.
+
+Comment:
+Communicating over insecure channels is convenient during an evaluation or a development phase.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- stest
+
+#### CLI fails upon missing file paths and insecure cli arguments
+`swdd~cli-fails-on-missing-file-paths-and-insecure-cli-arguments~1`
+
+Status: approved
+
+If the user runs the Ankaios CLI without providing the cli arguments for the mTLS PEM file paths or the insecure cli argument, then the Ankaios CLI shall:
+* exit with a non zero exit code
+* output an error message containing the reason and a help message
+
+Rationale:
+The demand for an explicit communication mode prevents a user from implicitly creating an Ankaios setup using insecure communication.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
 
 ### `ank get state`
 

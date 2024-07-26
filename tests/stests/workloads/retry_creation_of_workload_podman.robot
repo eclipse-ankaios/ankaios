@@ -35,11 +35,11 @@ Test Ankaios Podman retry creation of a workload on creation failure
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
-    When user triggers "ank get state > ${new_state_yaml_file}"
-    And user triggers "ank delete workload hello1"
+    When user triggers "ank -k get state > ${new_state_yaml_file}"
+    And user triggers "ank -k delete workload hello1"
     And the workload "hello1" shall not exist on agent "agent_A" within "20" seconds
     And podman shall not have a container for workload "hello1" on agent "agent_A" within "20" seconds
-    And user triggers "ank set state -f ${new_state_yaml_file} desiredState.workloads.hello1"
+    And user triggers "ank -k set state -f ${new_state_yaml_file} desiredState.workloads.hello1"
     # Asserts
     Then the workload "hello1" shall have the execution state "Running(Ok)" from agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
@@ -58,13 +58,13 @@ Test Ankaios Podman retry creation of a workload on creation failure intercepted
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
-    When user triggers "ank get state > ${new_state_yaml_file}"
-    And user triggers "ank delete workload hello1"
+    When user triggers "ank -k get state > ${new_state_yaml_file}"
+    And user triggers "ank -k delete workload hello1"
     And the workload "hello1" shall not exist on agent "agent_A" within "20" seconds
     And podman shall not have a container for workload "hello1" on agent "agent_A" within "20" seconds
-    And user triggers "ank set state -f ${new_state_yaml_file} desiredState.workloads.hello1"
+    And user triggers "ank -k set state -f ${new_state_yaml_file} desiredState.workloads.hello1"
     And user updates the state "${new_state_yaml_file}" with "desiredState.workloads.hello1.runtimeConfig.commandArgs=['3']"
-    And user triggers "ank set state -f ${new_state_yaml_file} desiredState.workloads.hello1"
+    And user triggers "ank -k set state -f ${new_state_yaml_file} desiredState.workloads.hello1"
     # Asserts
     Then the workload "hello1" shall have the execution state "Succeeded(Ok)" from agent "agent_A" within "20" seconds
     [Teardown]    Clean up Ankaios
@@ -83,13 +83,13 @@ Test Ankaios Podman retry creation of a workload on creation failure intercepted
     And Ankaios agent is started with name "agent_A"
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
-    When user triggers "ank get state > ${new_state_yaml_file}"
-    And user triggers "ank delete workload hello1"
+    When user triggers "ank -k get state > ${new_state_yaml_file}"
+    And user triggers "ank -k delete workload hello1"
     And the workload "hello1" shall not exist on agent "agent_A" within "20" seconds
     And podman shall not have a container for workload "hello1" on agent "agent_A" within "20" seconds
-    And user triggers "ank set state -f ${new_state_yaml_file} desiredState.workloads.hello1"
+    And user triggers "ank -k set state -f ${new_state_yaml_file} desiredState.workloads.hello1"
     And the user waits "1" seconds
-    And user triggers "ank delete workload hello1"
+    And user triggers "ank -k delete workload hello1"
     # Asserts
     Then podman shall not have a container for workload "hello1" on agent "agent_A" within "20" seconds
     And the workload "hello1" shall not exist on agent "agent_A" within "20" seconds
