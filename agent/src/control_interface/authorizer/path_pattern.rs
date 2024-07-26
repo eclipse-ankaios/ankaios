@@ -160,6 +160,29 @@ impl PathPatternSection {
 
 #[cfg(test)]
 mod tests {
+    #[derive(Debug)]
+    struct MockPathPattern {
+        path_returning_true: Path,
+    }
+    use super::super::path::Path;
+
+    impl MockPathPattern {
+        fn create(path: &str) -> Self {
+            Self {
+                path_returning_true: path.into(),
+            }
+        }
+    }
+
+    impl PathPattern for MockPathPattern {
+        fn matches(&self, other: &Path) -> (bool, super::PathPatternMatchReason) {
+            (
+                other.sections == self.path_returning_true.sections,
+                String::new(),
+            )
+        }
+    }
+
     use crate::control_interface::authorizer::{AllowPathPattern, DenyPathPattern, PathPattern};
 
     #[test]
@@ -242,5 +265,34 @@ mod tests {
 
         assert!(p.matches(&"".into()).0);
         assert!(p.matches(&"some.pre".into()).0);
+    }
+
+    #[test]
+    fn utest_empty_vec_path_pattern() {
+        let p = Vec::<MockPathPattern>::new();
+
+        assert!(!p.matches(&"".into()).0);
+    }
+
+    #[test]
+    fn utest_matches_one_in_vec_path_pattern() {
+        let p = vec![
+            MockPathPattern::create("some.path.1"),
+            MockPathPattern::create("known.path"),
+            MockPathPattern::create("some.path.2"),
+        ];
+
+        assert!(p.matches(&"known.path".into()).0);
+    }
+
+    #[test]
+    fn utest_matches_none_in_vec_path_pattern() {
+        let p = vec![
+            MockPathPattern::create("some.path.1"),
+            MockPathPattern::create("some.path.2"),
+            MockPathPattern::create("some.path.3"),
+        ];
+
+        assert!(!p.matches(&"known.path".into()).0);
     }
 }
