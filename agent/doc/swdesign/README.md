@@ -293,7 +293,7 @@ Needs:
 
 Status: approved
 
-When the user starts the Ankaios agent without specifying the cli arguments for the mTLS PEM file paths or the insecure cli argument, then the Ankaios agent shall:
+If the user starts the Ankaios agent without specifying the cli arguments for the mTLS PEM file paths or the insecure cli argument, then the Ankaios agent shall:
 * exit with a non zero exit code
 * output an error message containing the reason and a help message
 
