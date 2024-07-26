@@ -1986,7 +1986,7 @@ mod tests {
 
         let workload_command_sender_clone = workload_command_sender.clone();
         tokio::spawn(async move {
-            tokio::time::sleep(tokio::time::Duration::from_millis(150)).await;
+            tokio::time::sleep(tokio::time::Duration::from_millis(125)).await;
             workload_command_sender_clone.delete().await.unwrap();
         });
 

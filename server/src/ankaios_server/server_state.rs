@@ -460,48 +460,6 @@ mod tests {
             ),
         ];
         let expected_complete_state = test_utils::generate_test_proto_complete_state(&workloads);
-        // let expected_complete_state: ank_base::CompleteState = ank_base::CompleteState {
-        //     desired_state: Some(ank_base::State {
-        //         api_version: "v0.1".to_string(),
-        //         workloads: Some(ank_base::WorkloadMap {
-        //             workloads: HashMap::from([
-        //                 (
-        //                     w3.instance_name.workload_name().to_string(),
-        //                     ank_base::Workload {
-        //                         agent: Some(w3.instance_name.agent_name().to_string()),
-        //                         restart_policy: None,
-        //                         dependencies: None,
-        //                         tags: None,
-        //                         runtime: None,
-        //                         runtime_config: None,
-        //                         control_interface_access: None,
-        //                     },
-        //                 ),
-        //                 (
-        //                     w1.instance_name.workload_name().to_string(),
-        // ank_base::Workload {
-        //     agent: Some(w1.instance_name.agent_name().to_string()),
-        //     restart_policy: Some(w1.restart_policy as i32),
-        //     dependencies: Some(Dependencies {
-        //         dependencies: w1
-        //             .dependencies
-        //             .into_iter()
-        //             .map(|(k, v)| (k, v as i32))
-        //             .collect(),
-        //     }),
-        //     tags: Some(Tags {
-        //         tags: w1.tags.into_iter().map(ank_base::Tag::from).collect(),
-        //     }),
-        //     runtime: Some(w1.runtime.clone()),
-        //     runtime_config: Some(w1.runtime_config.clone()),
-        //     control_interface_access: w1.control_interface_access.into(),
-        // },
-        //                 ),
-        //             ]),
-        //         }),
-        //     }),
-        //     workload_states: None,
-        // };
 
         assert_eq!(expected_complete_state, complete_state);
     }

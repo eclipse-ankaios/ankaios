@@ -265,7 +265,7 @@ mod tests {
     #[tokio::test]
     async fn utest_get_state_single_field_without_api_version() {
         let test_data = filtered_complete_state::FilteredCompleteState::from(
-            ank_base::CompleteState::from(test_utils::generate_test_complete_state(Vec::new())),
+            test_utils::generate_test_proto_complete_state(&[("", ank_base::Workload::default())]),
         );
 
         let mut mock_server_connection = MockServerConnection::default();

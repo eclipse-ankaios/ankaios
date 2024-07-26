@@ -533,13 +533,12 @@ mod tests {
     use crate::workload_state::workload_state_store::MockWorkloadStateStore;
     use crate::workload_state::WorkloadStateReceiver;
     use ank_base::response::ResponseContent;
-    use ank_base::CompleteState;
     use common::objects::{
         generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
         AddCondition, WorkloadInstanceNameBuilder, WorkloadState,
     };
     use common::test_utils::{
-        generate_test_complete_state, generate_test_deleted_workload,
+        self, generate_test_complete_state, generate_test_deleted_workload,
         generate_test_deleted_workload_with_dependencies,
     };
     use common::to_server_interface::ToServerReceiver;
@@ -1803,12 +1802,7 @@ mod tests {
                 )
                 .build();
         let request_id: String = "request_id".to_string();
-        let complete_state: CompleteState = CompleteState {
-                desired_state: Some(ank_base::State {
-                    api_version: "v0.1".to_string(),
-                    workloads: Some(ank_base::WorkloadMap {
-                        workloads: HashMap::from([(
-                            "workload1".to_string(),
+        let workloads = [("workload1",
                             ank_base::Workload {
                                 agent: Some("agent_x".to_string()),
                                 restart_policy: Some(ank_base::RestartPolicy::Always as i32),
@@ -1833,16 +1827,30 @@ mod tests {
                                 runtime: Some("runtime1".to_string()),
                                 runtime_config: Some("generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n".to_string()),
                                 control_interface_access: None,
-                            },
-                        )]),
-                    }),
-                }),
-                workload_states: Some(ank_base::WorkloadStatesMap {
-                    agent_state_map: HashMap::from([("agent_x".to_string(), ank_base::ExecutionsStatesOfWorkload {
-                        wl_name_state_map: HashMap::from([("workload1".to_string(), ank_base::ExecutionsStatesForId {id_state_map: HashMap::from([("404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed".to_string(), ank_base::ExecutionState {additional_info: "".to_string(), execution_state_enum: Some(ank_base::execution_state::ExecutionStateEnum::Running(0)),})]),})]),
-                    })])
-                }),
-            };
+                            })];
+        let mut complete_state = test_utils::generate_test_proto_complete_state(&workloads);
+        complete_state.workload_states = Some(ank_base::WorkloadStatesMap {
+            agent_state_map: HashMap::from([(
+                "agent_x".to_string(),
+                ank_base::ExecutionsStatesOfWorkload {
+                    wl_name_state_map: HashMap::from([(
+                        "workload1".to_string(),
+                        ank_base::ExecutionsStatesForId {
+                            id_state_map: HashMap::from([(
+                                "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed"
+                                    .to_string(),
+                                ank_base::ExecutionState {
+                                    additional_info: "".to_string(),
+                                    execution_state_enum: Some(
+                                        ank_base::execution_state::ExecutionStateEnum::Running(0),
+                                    ),
+                                },
+                            )]),
+                        },
+                    )]),
+                },
+            )]),
+        });
         let expected_response = ank_base::Response {
             request_id,
             response_content: Some(ResponseContent::CompleteState(complete_state)),
