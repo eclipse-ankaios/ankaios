@@ -38,5 +38,40 @@ impl Display for Path {
         f.write_str(&self.sections.join("."))
     }
 }
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use super::Path;
+    use common::PATH_SEPARATOR;
+
+    #[test]
+    fn utest_from_empty_str() {
+        let path = Path::from("");
+
+        assert!(path.sections.is_empty())
+    }
+
+    #[test]
+    fn utest_from_str() {
+        let path = Path::from(format!("abc{PATH_SEPARATOR}def{PATH_SEPARATOR}ghi").as_str());
+
+        assert_eq!(path.sections, ["abc", "def", "ghi"]);
+    }
+
+    #[test]
+    fn utest_to_str() {
+        let path = Path {
+            sections: vec!["abc".into(), "def".into(), "ghi".into()],
+        };
+
+        assert_eq!(path.to_string(), "abc.def.ghi");
     }
 }
