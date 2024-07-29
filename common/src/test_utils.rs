@@ -132,14 +132,14 @@ fn generate_test_delete_dependencies() -> HashMap<String, DeleteCondition> {
 }
 
 pub fn generate_test_proto_workload_with_param(
-    agent_name: &str,
-    runtime_name: &str,
+    agent_name: impl Into<String>,
+    runtime_name: impl Into<String>,
 ) -> ank_base::Workload {
     ank_base::Workload {
-        agent: Some(agent_name.to_string()),
+        agent: Some(agent_name.into()),
         dependencies: Some(generate_test_proto_dependencies()),
         restart_policy: Some(ank_base::RestartPolicy::Always.into()),
-        runtime: Some(runtime_name.to_string()),
+        runtime: Some(runtime_name.into()),
         runtime_config: Some("generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
             .to_string()),
         tags: Some(Tags{tags:vec![ank_base::Tag {

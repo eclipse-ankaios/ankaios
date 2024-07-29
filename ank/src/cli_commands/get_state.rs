@@ -56,7 +56,9 @@ impl CliCommands {
 #[cfg(test)]
 mod tests {
     use api::ank_base;
-    use common::{objects::generate_test_workload_spec_with_param, test_utils};
+    use common::test_utils::{
+        self, generate_test_proto_complete_state, generate_test_proto_workload_with_param,
+    };
     use mockall::predicate::eq;
 
     use crate::{
@@ -73,23 +75,20 @@ mod tests {
     #[tokio::test]
     async fn utest_get_state_complete_desired_state_yaml() {
         let test_data = filtered_complete_state::FilteredCompleteState::from(
-            ank_base::CompleteState::from(test_utils::generate_test_complete_state(vec![
-                generate_test_workload_spec_with_param(
-                    "agent_A".to_string(),
-                    "name1".to_string(),
-                    "runtime".to_string(),
+            generate_test_proto_complete_state(&[
+                (
+                    "name1",
+                    generate_test_proto_workload_with_param("agent_A", "runtime"),
                 ),
-                generate_test_workload_spec_with_param(
-                    "agent_B".to_string(),
-                    "name2".to_string(),
-                    "runtime".to_string(),
+                (
+                    "name2",
+                    generate_test_proto_workload_with_param("agent_B", "runtime"),
                 ),
-                generate_test_workload_spec_with_param(
-                    "agent_B".to_string(),
-                    "name3".to_string(),
-                    "runtime".to_string(),
+                (
+                    "name3",
+                    generate_test_proto_workload_with_param("agent_B", "runtime"),
                 ),
-            ])),
+            ]),
         );
 
         let mut mock_server_connection = MockServerConnection::default();
@@ -115,32 +114,28 @@ mod tests {
     // [utest -> swdd~cli-shall-support-desired-state-json~1]
     #[tokio::test]
     async fn utest_get_state_complete_desired_state_json() {
-        // TODO: replace this and all the other calls like this one
         let test_data = filtered_complete_state::FilteredCompleteState::from(
-            ank_base::CompleteState::from(test_utils::generate_test_complete_state(vec![
-                generate_test_workload_spec_with_param(
-                    "agent_A".to_string(),
-                    "name1".to_string(),
-                    "runtime".to_string(),
+            generate_test_proto_complete_state(&[
+                (
+                    "name1",
+                    generate_test_proto_workload_with_param("agent_A", "runtime"),
                 ),
-                generate_test_workload_spec_with_param(
-                    "agent_B".to_string(),
-                    "name2".to_string(),
-                    "runtime".to_string(),
+                (
+                    "name2",
+                    generate_test_proto_workload_with_param("agent_B", "runtime"),
                 ),
-                generate_test_workload_spec_with_param(
-                    "agent_B".to_string(),
-                    "name3".to_string(),
-                    "runtime".to_string(),
+                (
+                    "name3",
+                    generate_test_proto_workload_with_param("agent_B", "runtime"),
                 ),
-            ])),
+            ]),
         );
 
         let mut mock_server_connection = MockServerConnection::default();
         let cloned_test_data = test_data.clone();
         mock_server_connection
             .expect_get_complete_state()
-            .return_once(|_| Ok((cloned_test_data).into()));
+            .return_once(|_| Ok(cloned_test_data));
 
         let mut cmd = CliCommands {
             _response_timeout_ms: 0,
@@ -162,23 +157,20 @@ mod tests {
     #[tokio::test]
     async fn utest_get_state_single_field_of_desired_state() {
         let test_data = filtered_complete_state::FilteredCompleteState::from(
-            ank_base::CompleteState::from(test_utils::generate_test_complete_state(vec![
-                generate_test_workload_spec_with_param(
-                    "agent_A".to_string(),
-                    "name1".to_string(),
-                    "runtime".to_string(),
+            generate_test_proto_complete_state(&[
+                (
+                    "name1",
+                    generate_test_proto_workload_with_param("agent_A", "runtime"),
                 ),
-                generate_test_workload_spec_with_param(
-                    "agent_B".to_string(),
-                    "name2".to_string(),
-                    "runtime".to_string(),
+                (
+                    "name2",
+                    generate_test_proto_workload_with_param("agent_B", "runtime"),
                 ),
-                generate_test_workload_spec_with_param(
-                    "agent_B".to_string(),
-                    "name3".to_string(),
-                    "runtime".to_string(),
+                (
+                    "name3",
+                    generate_test_proto_workload_with_param("agent_B", "runtime"),
                 ),
-            ])),
+            ]),
         );
 
         let test_data_clone = test_data.clone();
@@ -213,23 +205,20 @@ mod tests {
     #[tokio::test]
     async fn utest_get_state_multiple_fields_of_desired_state() {
         let test_data = filtered_complete_state::FilteredCompleteState::from(
-            ank_base::CompleteState::from(test_utils::generate_test_complete_state(vec![
-                generate_test_workload_spec_with_param(
-                    "agent_A".to_string(),
-                    "name1".to_string(),
-                    "runtime".to_string(),
+            generate_test_proto_complete_state(&[
+                (
+                    "name1",
+                    generate_test_proto_workload_with_param("agent_A", "runtime"),
                 ),
-                generate_test_workload_spec_with_param(
-                    "agent_B".to_string(),
-                    "name2".to_string(),
-                    "runtime".to_string(),
+                (
+                    "name2",
+                    generate_test_proto_workload_with_param("agent_B", "runtime"),
                 ),
-                generate_test_workload_spec_with_param(
-                    "agent_B".to_string(),
-                    "name3".to_string(),
-                    "runtime".to_string(),
+                (
+                    "name3",
+                    generate_test_proto_workload_with_param("agent_B", "runtime"),
                 ),
-            ])),
+            ]),
         );
 
         let test_data_clone = test_data.clone();
