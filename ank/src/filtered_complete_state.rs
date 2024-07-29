@@ -111,7 +111,7 @@ where
 impl From<ank_base::Workload> for FilteredWorkloadSpec {
     fn from(value: ank_base::Workload) -> Self {
         FilteredWorkloadSpec {
-            agent: value.agent.map(|x| x.into()),
+            agent: value.agent,
             tags: value.tags.map(|x| map_vec(x.tags)),
             dependencies: value.dependencies.map(|x| {
                 x.dependencies
@@ -126,8 +126,8 @@ impl From<ank_base::Workload> for FilteredWorkloadSpec {
                     output_and_error!("Could not convert RestartPolicy.\nError: '{error}'. Check the Ankaios component compatibility.")
                 })
             }),
-            runtime: value.runtime.map(|x| x.into()),
-            runtime_config: value.runtime_config.map(|x| x.into()),
+            runtime: value.runtime,
+            runtime_config: value.runtime_config,
             control_interface_access: value
                 .control_interface_access
                 .map(|x| x.try_into().unwrap_or_else(|error| {

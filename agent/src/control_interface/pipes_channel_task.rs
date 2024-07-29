@@ -162,9 +162,11 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let response = commands::Response {
+        let response = ank_base::Response {
             request_id: "req_id".to_owned(),
-            response_content: commands::ResponseContent::CompleteState(Default::default()),
+            response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                Default::default(),
+            )),
         };
 
         let test_command_binary = control_api::FromAnkaios {
@@ -230,9 +232,11 @@ mod tests {
             .expect_read_protobuf_data()
             .returning(move || Ok(Box::new(x)));
 
-        let response = commands::Response {
+        let response = ank_base::Response {
             request_id: "req_id".to_owned(),
-            response_content: commands::ResponseContent::CompleteState(Default::default()),
+            response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                Default::default(),
+            )),
         };
 
         let test_input_command_binary = control_api::FromAnkaios {

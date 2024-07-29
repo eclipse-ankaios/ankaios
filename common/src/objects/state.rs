@@ -94,6 +94,8 @@ impl State {
 #[cfg(test)]
 mod tests {
 
+    use std::collections::HashMap;
+
     use api::ank_base;
 
     use crate::{
@@ -157,7 +159,10 @@ mod tests {
     #[test]
     fn utest_state_rejects_state_without_api_version() {
         let state_proto_no_version = ank_base::State {
-            ..Default::default()
+            api_version: "".into(),
+            workloads: Some(ank_base::WorkloadMap {
+                workloads: HashMap::new(),
+            }),
         };
         let state_ankaios_no_version = State::try_from(state_proto_no_version).unwrap();
 

@@ -14,7 +14,7 @@
 
 use std::collections::HashMap;
 
-use api::ank_base;
+use api::ank_base::{self, Dependencies, Tags, WorkloadMap};
 use serde::{Serialize, Serializer};
 
 use crate::objects::{
@@ -30,6 +30,23 @@ pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State
             .into_iter()
             .map(|v| (v.instance_name.workload_name().to_owned(), v.into()))
             .collect(),
+    }
+}
+
+pub fn generate_test_proto_complete_state(
+    workloads: &[(&str, ank_base::Workload)],
+) -> ank_base::CompleteState {
+    ank_base::CompleteState {
+        desired_state: Some(ank_base::State {
+            api_version: "v0.1".to_string(),
+            workloads: Some(ank_base::WorkloadMap {
+                workloads: workloads
+                    .iter()
+                    .map(|(x, y)| (x.to_string(), y.clone()))
+                    .collect(),
+            }),
+        }),
+        workload_states: None,
     }
 }
 
@@ -81,9 +98,10 @@ pub fn generate_test_proto_state() -> ank_base::State {
     let workload_name_1 = "workload_name_1".to_string();
     let workload_name_2 = "workload_name_2".to_string();
 
-    let mut proto_workloads = HashMap::new();
-    proto_workloads.insert(workload_name_1, generate_test_proto_workload());
-    proto_workloads.insert(workload_name_2, generate_test_proto_workload());
+    let mut workloads = HashMap::new();
+    workloads.insert(workload_name_1, generate_test_proto_workload());
+    workloads.insert(workload_name_2, generate_test_proto_workload());
+    let proto_workloads: Option<WorkloadMap> = Some(WorkloadMap { workloads });
 
     ank_base::State {
         api_version: "v0.1".into(),
@@ -91,17 +109,19 @@ pub fn generate_test_proto_state() -> ank_base::State {
     }
 }
 
-fn generate_test_proto_dependencies() -> HashMap<String, i32> {
-    HashMap::from([
-        (
-            String::from("workload A"),
-            ank_base::AddCondition::AddCondRunning.into(),
-        ),
-        (
-            String::from("workload C"),
-            ank_base::AddCondition::AddCondSucceeded.into(),
-        ),
-    ])
+fn generate_test_proto_dependencies() -> Dependencies {
+    Dependencies {
+        dependencies: (HashMap::from([
+            (
+                String::from("workload A"),
+                ank_base::AddCondition::AddCondRunning.into(),
+            ),
+            (
+                String::from("workload C"),
+                ank_base::AddCondition::AddCondSucceeded.into(),
+            ),
+        ])),
+    }
 }
 
 fn generate_test_delete_dependencies() -> HashMap<String, DeleteCondition> {
@@ -109,6 +129,25 @@ fn generate_test_delete_dependencies() -> HashMap<String, DeleteCondition> {
         String::from("workload A"),
         DeleteCondition::DelCondNotPendingNorRunning,
     )])
+}
+
+pub fn generate_test_proto_workload_with_param(
+    agent_name: &str,
+    runtime_name: &str,
+) -> ank_base::Workload {
+    ank_base::Workload {
+        agent: Some(agent_name.to_string()),
+        dependencies: Some(generate_test_proto_dependencies()),
+        restart_policy: Some(ank_base::RestartPolicy::Always.into()),
+        runtime: Some(runtime_name.to_string()),
+        runtime_config: Some("generalOptions: [\"--version\"]\ncommandOptions: [\"--network=host\"]\nimage: alpine:latest\ncommandArgs: [\"bash\"]\n"
+            .to_string()),
+        tags: Some(Tags{tags:vec![ank_base::Tag {
+            key: "key".into(),
+            value: "value".into(),
+        }]}),
+        control_interface_access: Default::default()
+    }
 }
 
 pub fn generate_test_proto_workload() -> ank_base::Workload {

@@ -267,18 +267,18 @@ mod tests {
     extern crate serde;
     extern crate tonic;
 
-    use std::collections::{HashMap, LinkedList};
-
+    use super::ank_base;
     use super::{forward_from_ankaios_to_proto, forward_from_proto_to_ankaios};
     use crate::grpc_api::{self, from_server::FromServerEnum, FromServer, UpdateWorkload};
     use crate::{agent_senders_map::AgentSendersMap, from_server_proxy::GRPCStreaming};
-    use api::ank_base::{self, response};
+    use api::ank_base::{response, WorkloadMap};
     use async_trait::async_trait;
     use common::from_server_interface::FromServerInterface;
     use common::objects::{
         generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
     };
     use common::test_utils::*;
+    use std::collections::{HashMap, LinkedList};
     use tokio::sync::mpsc::error::TryRecvError;
     use tokio::{
         join,
@@ -674,11 +674,12 @@ mod tests {
 
         let test_complete_state = ank_base::CompleteState {
             desired_state: Some(ank_base::State {
-                workloads: startup_workloads.clone(),
+                workloads: Some(WorkloadMap {
+                    workloads: startup_workloads.clone(),
+                }),
                 ..Default::default()
             }),
             ..Default::default()
-
         };
 
         let complete_state_result = to_manager
@@ -709,56 +710,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_handles_incorrect_complete_state(
-    ) {
-        let (to_agent, mut agent_receiver) =
-            mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
-
-        let my_request_id = "my_request_id".to_owned();
-
-        let proto_complete_state =
-            ank_base::response::ResponseContent::CompleteState(ank_base::CompleteState {
-                desired_state: Some(ank_base::State {
-                    workloads: [(
-                        "workload".into(),
-                        ank_base::Workload {
-                            dependencies: [("workload 2".into(), -1)].into(),
-                            ..Default::default()
-                        },
-                    )]
-                    .into(),
-                    ..Default::default()
-                }),
-                ..Default::default()
-            });
-
-        // simulate the reception of an update workload state grpc from server message
-        let mut mock_grpc_ex_request_streaming =
-            MockGRPCFromServerStreaming::new(LinkedList::from([
-                Some(FromServer {
-                    from_server_enum: Some(FromServerEnum::Response(ank_base::Response {
-                        request_id: my_request_id,
-                        response_content: Some(proto_complete_state),
-                    })),
-                }),
-                None,
-            ]));
-
-        // forwards from proto to ankaios
-        let forward_result = tokio::spawn(async move {
-            forward_from_proto_to_ankaios(&mut mock_grpc_ex_request_streaming, &to_agent).await
-        })
-        .await;
-        assert!(forward_result.is_ok());
-
-        // pick received from server message
-        let result = agent_receiver.recv().await;
-
-        assert_eq!(result, None);
-    }
-
-    #[tokio::test]
-    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_complete_state() {
+    async fn utest_from_server_proxy_forward_from_proto_to_ankaios_response() {
         let agent_name = "fake_agent";
         let (to_agent, mut agent_receiver) =
             mpsc::channel::<common::from_server_interface::FromServer>(common::CHANNEL_CAPACITY);
@@ -774,14 +726,15 @@ mod tests {
 
         let test_complete_state = ank_base::CompleteState {
             desired_state: Some(ank_base::State {
-                workloads: startup_workloads.clone(),
+                workloads: Some(WorkloadMap {
+                    workloads: startup_workloads.clone(),
+                }),
                 ..Default::default()
             }),
             ..Default::default()
         };
 
         let proto_complete_state = ank_base::CompleteState {
-
             desired_state: test_complete_state.desired_state.clone(),
             ..Default::default()
         };
@@ -816,11 +769,11 @@ mod tests {
 
         assert!(matches!(
             result,
-            common::from_server_interface::FromServer::Response(common::commands::Response {
+            common::from_server_interface::FromServer::Response(ank_base::Response {
                 request_id,
-                response_content: common::commands::ResponseContent::CompleteState(
+                response_content: Some(response::ResponseContent::CompleteState(
                     complete_state
-                )
+                ))
             }) if request_id == my_request_id &&
             complete_state.desired_state == expected_test_complete_state.desired_state &&
             complete_state.workload_states == expected_test_complete_state.workload_states

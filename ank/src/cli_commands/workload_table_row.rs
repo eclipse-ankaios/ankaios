@@ -160,7 +160,7 @@ mod tests {
 
         assert_eq!(
             get_workloads_table_display.additional_info,
-            "some error with, some, newlines"
+            "some error with\nsome\nnewlines"
         );
 
         let updated_additional_info_msg = "different error with\na new line";
