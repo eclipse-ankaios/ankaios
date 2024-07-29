@@ -20,8 +20,9 @@ use common::DEFAULT_SERVER_ADDRESS;
 
 const ANK_SERVER_URL_ENV_KEY: &str = "ANK_SERVER_URL";
 
-// [impl->swdd~cli-shall-support-environment-variables~1]
-// [impl->swdd~cli-prioritizes-cli-argument-over-environment-variable~1]
+// [impl->swdd~cli-supports-server-url-cli-argument~1]
+// [impl->swdd~cli-supports-pem-file-paths-as-cli-arguments~1]
+// [impl->swdd~cli-supports-cli-argument-for-insecure-communication~1]
 #[derive(Parser, Debug)] // requires `derive` feature
 #[command(name = "ank")]
 #[command(bin_name = "ank")]
@@ -45,6 +46,23 @@ pub struct AnkCli {
     #[clap(long = "no-wait")]
     /// Do not wait for workloads to be created/deleted
     pub no_wait: bool,
+    #[clap(
+        short = 'k',
+        long = "insecure",
+        env = "ANK_INSECURE",
+        default_value_t = false
+    )]
+    /// Flag to disable TLS communication between ank CLI and Ankaios server.
+    pub insecure: bool,
+    #[clap(long = "ca_pem", env = "ANK_CA_PEM")]
+    /// Path to cli ca pem file.
+    pub ca_pem: Option<String>,
+    #[clap(long = "crt_pem", env = "ANK_CRT_PEM")]
+    /// Path to cli certificate pem file.
+    pub crt_pem: Option<String>,
+    #[clap(long = "key_pem", env = "ANK_KEY_PEM")]
+    /// Path to cli key pem file.
+    pub key_pem: Option<String>,
 }
 
 /// Supported actions

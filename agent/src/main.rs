@@ -16,6 +16,7 @@ use common::communications_client::CommunicationsClient;
 use common::objects::{AgentName, WorkloadState};
 use common::to_server_interface::ToServer;
 use generic_polling_state_checker::GenericPollingStateChecker;
+use grpc::security::TLSConfig;
 use std::collections::HashMap;
 use tokio::try_join;
 
@@ -54,11 +55,15 @@ async fn main() {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
     let args = cli::parse();
+    let server_url = match args.insecure {
+        true => args.server_url.replace("http[s]", "http"),
+        false => args.server_url.replace("http[s]", "https"),
+    };
 
     log::debug!(
         "Starting the Ankaios agent with \n\tname: '{}', \n\tserver url: '{}', \n\trun directory: '{}'",
         args.agent_name,
-        args.server_url,
+        server_url,
         args.run_folder,
     );
 
@@ -102,9 +107,33 @@ async fn main() {
         workload_state_sender,
     );
 
-    let mut grpc_communications_client =
-        GRPCCommunicationsClient::new_agent_communication(args.agent_name.clone(), args.server_url)
-            .unwrap_or_exit("Cannot connect to server");
+    let tls_config: Result<Option<TLSConfig>, String> =
+        match (args.insecure, args.ca_pem, args.crt_pem, args.key_pem) {
+            // [impl->swdd~agent-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
+            (true, _, _, _) => Ok(None),
+            // [impl->swdd~agent-provides-file-paths-to-communication-middleware~1]
+            (false, Some(path_to_ca_pem), Some(path_to_crt_pem), Some(path_to_key_pem)) => {
+                Ok(Some(TLSConfig {
+                    path_to_ca_pem,
+                    path_to_crt_pem,
+                    path_to_key_pem,
+                }))
+            }
+            // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
+            (false, ca_pem, crt_pem, key_pem) => Err(format!(
+                "Provide the file via ANKAGENT_CA_PEM={} ANKAGENT_CRT_PEM={} ANKAGENT_KEY_PEM={} or deactivate mTLS with '-k' or '--insecure' option!",
+                ca_pem.unwrap_or(String::from("\"\"")),
+                crt_pem.unwrap_or(String::from("\"\"")),
+                key_pem.unwrap_or(String::from("\"\""))
+            )),
+        };
+
+    let communications_client = GRPCCommunicationsClient::new_agent_communication(
+        args.agent_name.clone(),
+        server_url,
+        // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
+        tls_config.unwrap_or_exit("Missing certificate file"),
+    );
 
     let mut agent_manager = AgentManager::new(
         args.agent_name,
@@ -118,7 +147,7 @@ async fn main() {
     // [impl->swdd~agent-sends-hello~1]
     // [impl->swdd~agent-default-communication-grpc~1]
     let communications_task = tokio::spawn(async move {
-        grpc_communications_client
+        communications_client?
             .run(server_receiver, to_manager.clone())
             .await
     });

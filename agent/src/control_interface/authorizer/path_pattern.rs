@@ -12,6 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::fmt::Display;
+
 use super::path::Path;
 use common::PATH_SEPARATOR;
 
@@ -123,11 +125,11 @@ impl From<&str> for PathPatternSection {
     }
 }
 
-impl ToString for PathPatternSection {
-    fn to_string(&self) -> String {
+impl Display for PathPatternSection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PathPatternSection::Wildcard => "*".into(),
-            PathPatternSection::String(s) => s.clone(),
+            PathPatternSection::Wildcard => write!(f, "*"),
+            PathPatternSection::String(s) => write!(f, "{}", s.clone()),
         }
     }
 }

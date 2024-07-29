@@ -12,6 +12,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use std::path::Path;
+
 use crate::from_server_proxy;
 use crate::from_server_proxy::GRPCFromServerStreaming;
 use crate::grpc_api::{
@@ -19,6 +21,7 @@ use crate::grpc_api::{
     cli_connection_client::CliConnectionClient, to_server::ToServerEnum, AgentHello,
 };
 use crate::grpc_middleware_error::GrpcMiddlewareError;
+use crate::security::{read_pem_file, TLSConfig};
 use crate::to_server_proxy;
 
 use common::communications_client::CommunicationsClient;
@@ -35,6 +38,8 @@ use tokio_stream::wrappers::ReceiverStream;
 
 use async_trait::async_trait;
 
+use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
+
 const RECONNECT_TIMEOUT_SECONDS: u64 = 1;
 
 enum ConnectionType {
@@ -46,6 +51,15 @@ pub struct GRPCCommunicationsClient {
     name: String,
     server_address: String,
     connection_type: ConnectionType,
+    tls_config: Option<TLSConfig>,
+}
+
+fn get_server_url(server_address: &str, tls_config: &Option<TLSConfig>) -> String {
+    if tls_config.is_none() {
+        server_address.replace("https:", "http:")
+    } else {
+        server_address.to_owned()
+    }
 }
 
 fn verify_address_format(server_address: &String) -> Result<(), CommunicationMiddlewareError> {
@@ -63,25 +77,30 @@ impl GRPCCommunicationsClient {
     pub fn new_agent_communication(
         name: String,
         server_address: String,
+        tls_config: Option<TLSConfig>,
     ) -> Result<Self, CommunicationMiddlewareError> {
         verify_address_format(&server_address)?;
 
         Ok(Self {
             name,
-            server_address,
+            server_address: get_server_url(&server_address, &tls_config),
             connection_type: ConnectionType::Agent,
+            tls_config,
         })
     }
+
     pub fn new_cli_communication(
         name: String,
         server_address: String,
+        tls_config: Option<TLSConfig>,
     ) -> Result<Self, CommunicationMiddlewareError> {
         verify_address_format(&server_address)?;
 
         Ok(Self {
             name,
-            server_address,
+            server_address: get_server_url(&server_address, &tls_config),
             connection_type: ConnectionType::Cli,
+            tls_config,
         })
     }
 }
@@ -189,26 +208,100 @@ impl GRPCCommunicationsClient {
         grpc_rx: Receiver<grpc_api::ToServer>,
     ) -> Result<tonic::Streaming<grpc_api::FromServer>, GrpcMiddlewareError> {
         match self.connection_type {
-            ConnectionType::Agent => {
-                let mut client =
-                    AgentConnectionClient::connect(self.server_address.to_string()).await?;
+            ConnectionType::Agent => match &self.tls_config {
+                // [impl->swdd~grpc-agent-activate-mtls-when-certificates-and-key-provided-upon-start~1]
+                Some(tls_config) => {
+                    // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
+                    let ca_pem = read_pem_file(Path::new(&tls_config.path_to_ca_pem), false)?;
+                    let ca = Certificate::from_pem(ca_pem);
+                    // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
+                    let client_cert_pem =
+                        read_pem_file(Path::new(&tls_config.path_to_crt_pem), false)?;
+                    let client_cert = Certificate::from_pem(client_cert_pem);
 
-                let res = client
-                    .connect_agent(ReceiverStream::new(grpc_rx))
-                    .await?
-                    .into_inner();
-                Ok(res)
-            }
-            ConnectionType::Cli => {
-                let mut client =
-                    CliConnectionClient::connect(self.server_address.to_string()).await?;
+                    // [impl->swdd~grpc-supports-pem-file-format-for-keys~1]
+                    let client_key_pem =
+                        read_pem_file(Path::new(&tls_config.path_to_key_pem), true)?;
+                    let client_key = Certificate::from_pem(client_key_pem);
+                    let client_identity = Identity::from_pem(client_cert, client_key);
 
-                let res = client
-                    .connect_cli(ReceiverStream::new(grpc_rx))
-                    .await?
-                    .into_inner();
-                Ok(res)
-            }
+                    let tls = ClientTlsConfig::new()
+                        .domain_name("ank-server")
+                        .ca_certificate(ca)
+                        .identity(client_identity);
+
+                    let channel = Channel::from_shared(self.server_address.to_string())
+                        .map_err(|err| GrpcMiddlewareError::TLSError(err.to_string()))?
+                        .tls_config(tls)?
+                        .connect()
+                        .await?;
+                    let mut client = AgentConnectionClient::new(channel);
+
+                    let res = client
+                        .connect_agent(ReceiverStream::new(grpc_rx))
+                        .await?
+                        .into_inner();
+                    Ok(res)
+                }
+                // [impl->swdd~grpc-agent-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1]
+                None => {
+                    let mut client =
+                        AgentConnectionClient::connect(self.server_address.to_string()).await?;
+
+                    let res = client
+                        .connect_agent(ReceiverStream::new(grpc_rx))
+                        .await?
+                        .into_inner();
+                    Ok(res)
+                }
+            },
+            ConnectionType::Cli => match &self.tls_config {
+                // [impl->swdd~grpc-cli-activate-mtls-when-certificates-and-key-provided-upon-start~1]
+                Some(tls_config) => {
+                    // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
+                    let ca_pem = read_pem_file(Path::new(&tls_config.path_to_ca_pem), false)?;
+                    let ca = Certificate::from_pem(ca_pem);
+                    // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
+                    let client_cert_pem =
+                        read_pem_file(Path::new(&tls_config.path_to_crt_pem), false)?;
+                    let client_cert = Certificate::from_pem(client_cert_pem);
+
+                    // [impl->swdd~grpc-supports-pem-file-format-for-keys~1]
+                    let client_key_pem =
+                        read_pem_file(Path::new(&tls_config.path_to_key_pem), true)?;
+                    let client_key = Certificate::from_pem(client_key_pem);
+                    let client_identity = Identity::from_pem(client_cert, client_key);
+
+                    let tls = ClientTlsConfig::new()
+                        .domain_name("ank-server")
+                        .ca_certificate(ca)
+                        .identity(client_identity);
+
+                    let channel = Channel::from_shared(self.server_address.to_string())
+                        .map_err(|err| GrpcMiddlewareError::TLSError(err.to_string()))?
+                        .tls_config(tls)?
+                        .connect()
+                        .await?;
+                    let mut client = CliConnectionClient::new(channel);
+
+                    let res = client
+                        .connect_cli(ReceiverStream::new(grpc_rx))
+                        .await?
+                        .into_inner();
+                    Ok(res)
+                }
+                // [impl->swdd~grpc-cli-deactivate-mtls-when-no-certificates-and-no-key-provided-upon-start~1]
+                None => {
+                    let mut client =
+                        CliConnectionClient::connect(self.server_address.to_string()).await?;
+
+                    let res = client
+                        .connect_cli(ReceiverStream::new(grpc_rx))
+                        .await?
+                        .into_inner();
+                    Ok(res)
+                }
+            },
         }
     }
 }

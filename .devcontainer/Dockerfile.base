@@ -43,6 +43,8 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     fuse-overlayfs \
     slirp4netns \
     podman \
+    # TLS
+    musl-tools \
     && \
     rm -rf /var/lib/apt/lists/*
 

@@ -286,7 +286,6 @@ pub struct Stop {}
 
 #[cfg(test)]
 mod tests {
-    use crate::objects::ConfigHash;
 
     mod ank_base {
         pub use api::ank_base::{
@@ -411,13 +410,6 @@ mod tests {
 
     macro_rules! workload_states_map {
         (ankaios) => {{
-            struct HashableString(String);
-
-            impl ConfigHash for HashableString {
-                fn hash_config(&self) -> String {
-                    self.0.clone()
-                }
-            }
             ankaios::generate_test_workload_states_map_with_data(
                 AGENT_NAME,
                 WORKLOAD_NAME_1,

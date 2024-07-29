@@ -1,4 +1,4 @@
-use std::{cmp::min, path::PathBuf};
+use std::{cmp::min, fmt::Display, path::PathBuf};
 
 use common::objects::{
     AgentName, ExecutionState, WorkloadInstanceName, WorkloadSpec, WorkloadState,
@@ -42,21 +42,15 @@ pub struct PodmanKubeWorkloadId {
     pub down_options: Vec<String>,
 }
 
-impl ToString for PodmanKubeWorkloadId {
-    fn to_string(&self) -> String {
+impl Display for PodmanKubeWorkloadId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(pods) = &self.pods {
-            sha256::digest(pods.join(""))
+            write!(f, "{}", sha256::digest(pods.join("")))
         } else {
-            String::new()
+            Ok(())
         }
     }
 }
-
-#[derive(Debug)]
-pub struct PlayKubeOutput {}
-
-#[derive(Debug)]
-pub struct PlayKubeError {}
 
 impl PodmanKubeRuntime {
     async fn workload_instance_names_to_workload_states(

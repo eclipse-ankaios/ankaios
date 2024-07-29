@@ -27,7 +27,7 @@ tonic = "0.9"
 async-stream = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
-clap = { version = "4.0", features = ["derive"] }
+clap = { version = "4.0", features = ["derive", "env"] }
 
 [dev-dependencies]
 common = { path = "../common", features = ["test_utils"] }

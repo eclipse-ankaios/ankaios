@@ -7,11 +7,11 @@ set -e
 RELEASE_URL_BASE="https://github.com/eclipse-ankaios/ankaios/releases"
 DEFAULT_BIN_DESTINATION="/usr/local/bin"
 BIN_DESTINATION="${DEFAULT_BIN_DESTINATION}"
-DEFAULT_AGENT_OPT="--name agent_A"
+DEFAULT_AGENT_OPT="--insecure --name agent_A"
 AGENT_OPT="$DEFAULT_AGENT_OPT"
 CONFIG_DEST="/etc/ankaios"
 FILE_STARTUP_STATE="${CONFIG_DEST}/state.yaml"
-DEFAULT_SERVER_OPT="--startup-config ${FILE_STARTUP_STATE}"
+DEFAULT_SERVER_OPT="--insecure --startup-config ${FILE_STARTUP_STATE}"
 SERVER_OPT="$DEFAULT_SERVER_OPT"
 INSTALL_TYPE="both"
 SERVICE_DEST=/etc/systemd/system
