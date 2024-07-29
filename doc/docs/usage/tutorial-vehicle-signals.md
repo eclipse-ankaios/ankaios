@@ -11,6 +11,7 @@ The central workload will be a databroker from the [Kuksa.val project](https://g
 </figure>
 
 To run this tutorial you will need a Linux platform, which can be a RaspberryPi or a Linux PC or virtual machine.
+Additionally, it's assumed that the Ankaios setup is done with mutual TLS (mTLS) disabled or using its default installation settings.
 
 ## Start the databroker
 
@@ -53,8 +54,12 @@ Store the Ankaios manifest listed above in a file `databroker.yaml`.
 Then start the workload:
 
 ```shell
-ank apply databroker.yaml
+ank -k apply databroker.yaml
 ```
+
+!!! Note
+
+    The instructions assume the default installation without mutual TLS (mTLS) for communication. With `-k` the `ank` CLI will connect without mTLS. Alternatively, set the environment variable `ANK_INSECURE=true` to avoid passing the argument to each `ank` CLI command. For an Ankaios setup with mTLS, see [here](./mtls-setup.md).
 
 The Ankaios agent `agent_A` will now instruct podman to start the workload.
 The command waits until the databroker is running.
@@ -86,7 +91,7 @@ The source code for that image is available in the [Anakios repo](https://github
 Start the workload with:
 
 ```shell
-ank apply speed-provider.yaml
+ank -k apply speed-provider.yaml
 ```
 
 The command waits until the speed-provider is running.
@@ -114,13 +119,13 @@ For this tutorial we can either use a separate Linux host or use the existing on
 Start a new agent with:
 
 ```shell
-ank-agent --name infotainment --server-url http://<SERVER_IP>:25551
+ank-agent -k --name infotainment --server-url http://<SERVER_IP>:25551
 ```
 
 If the agent is started on the same host as the existing Ankaios server and agent, then we will call it as follows:
 
 ```shell
-ank-agent --name infotainment --server-url http://127.0.0.1:25551
+ank-agent -k --name infotainment --server-url http://127.0.0.1:25551
 ```
 
 As the first agent was started by systemd, it runs as root and therefore calls podman as root.
@@ -154,7 +159,7 @@ Note that this time the image does not specify the agent.
 While we could add `agent: infotainment`, this time we pass the agent name when the workload starts:
 
 ```shell
-ank apply --agent infotainment speed-consumer.yaml
+ank -k apply --agent infotainment speed-consumer.yaml
 ```
 
 !!! note
@@ -163,14 +168,14 @@ ank apply --agent infotainment speed-consumer.yaml
     on which the Ankaios server is running, you need to add a parameter `-s <SERVER_URL>` like:
 
     ```
-    ank apply -s http://127.0.0.1:25551 --agent infotainment speed-consumer.yaml
+    ank -k apply -s http://127.0.0.1:25551 --agent infotainment speed-consumer.yaml
     ```
 
     Optionally the server URL can also be provided via environment variable:
 
     ```
     export ANK_SERVER_URL=http://127.0.0.1:25551
-    ank apply --agent infotainment speed-consumer.yaml
+    ank -k apply --agent infotainment speed-consumer.yaml
     ```
 
 The command waits until speed consumer is running.
@@ -184,7 +189,7 @@ It should print:
 We can check all running workloads with
 
 ```shell
-ank get workloads
+ank -k get workloads
 ```
 
 The output should be:
@@ -229,25 +234,25 @@ workloads:
 We apply the changes with:
 
 ```shell
-ank apply speed-provider.yaml
+ank -k apply speed-provider.yaml
 ```
 
 and recognize that we get a new speed value every 1 second.
 
 ## Ankaios state
 
-Previously we have used `ank get workloads` to a get list of running workloads.
+Previously we have used `ank -k get workloads` to a get list of running workloads.
 Ankaios also maintains a current state which can be retrieved with:
 
 ```shell
-ank get state
+ank -k get state
 ```
 
 Let's delete all workloads and check the state again:
 
 ```shell
-ank delete workload databroker speed-provider speed-consumer
-ank get state
+ank -k delete workload databroker speed-provider speed-consumer
+ank -k get state
 ```
 
 If we want to start the three workloads on startup of the Ankaios server and agents we need to create a startup manifest file.
@@ -261,7 +266,7 @@ Description=Ankaios server
 
 [Service]
 Environment="RUST_LOG=info"
-ExecStart=/usr/local/bin/ank-server --startup-config /etc/ankaios/state.yaml
+ExecStart=/usr/local/bin/ank-server --insecure --startup-config /etc/ankaios/state.yaml
 
 [Install]
 WantedBy=default.target

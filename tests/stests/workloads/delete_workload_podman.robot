@@ -37,7 +37,7 @@ Test Ankaios Podman remove workloads
     And all workloads of agent "agent_B" have an initial execution state
     And all workloads of agent "agent_A" have an initial execution state
     # Actions
-    When user triggers "ank delete workload nginx"
+    When user triggers "ank -k delete workload nginx"
     # Asserts
     Then the workload "nginx" shall not exist on agent "agent_A" within "20" seconds
     And the workload "hello1" shall have the execution state "Failed(Lost)" from agent "agent_B" within "20" seconds

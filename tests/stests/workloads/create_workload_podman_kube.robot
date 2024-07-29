@@ -28,7 +28,7 @@ Resource            ../../resources/variables.resource
 # [stest->swdd~podman-kube-create-workload-creates-config-volume~1]
 # [stest->swdd~podman-kube-create-workload-creates-pods-volume~1]
 Test Ankaios Podman create kube workload
-    [Setup]    Run Keywords    Setup Ankaios
+    [Setup]    Run Keyword    Setup Ankaios
 
     # Preconditions
     # This test assumes that all pods and volume in the podman have been created with this test -> clean it up first
@@ -42,3 +42,4 @@ Test Ankaios Podman create kube workload
     And podman shall have a container for workload "hello-pod-hello-container" with custom name "hello-pod-hello-container" on agent "agent_A"
     And volumes for "hello-k8s" shall exist on "agent_A"
     [Teardown]    Clean up Ankaios
+

@@ -15,6 +15,7 @@
 use std::{collections::HashSet, time::Duration};
 pub mod server_connection;
 mod wait_list;
+use grpc::security::TLSConfig;
 mod workload_table;
 use tokio::time::interval;
 use wait_list::WaitList;
@@ -103,11 +104,16 @@ impl CliCommands {
         cli_name: String,
         server_url: String,
         no_wait: bool,
+        tls_config: Option<TLSConfig>,
     ) -> Result<Self, CommunicationMiddlewareError> {
         Ok(Self {
             _response_timeout_ms: response_timeout_ms,
             no_wait,
-            server_connection: ServerConnection::new(cli_name.as_str(), server_url.clone())?,
+            server_connection: ServerConnection::new(
+                cli_name.as_str(),
+                server_url.clone(),
+                tls_config,
+            )?,
         })
     }
 
@@ -134,8 +140,8 @@ impl CliCommands {
                             wl_state.instance_name.workload_name(),
                             wl_state.instance_name.agent_name(),
                             String::default(),
-                            &wl_state.execution_state.state.to_string(),
-                            &wl_state.execution_state.additional_info.to_string(),
+                            wl_state.execution_state.state.to_string(),
+                            wl_state.execution_state.additional_info.to_string(),
                         ),
                     )
                 })
@@ -267,6 +273,9 @@ impl CliCommands {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
+    use common::{from_server_interface::FromServerSender, to_server_interface::ToServerReceiver};
+    use grpc::security::TLSConfig;
+
     use std::io;
 
     use super::{get_input_sources, InputSourcePair};
@@ -274,6 +283,17 @@ mod tests {
     mockall::lazy_static! {
         pub static ref FAKE_OPEN_MANIFEST_MOCK_RESULT_LIST: std::sync::Mutex<std::collections::VecDeque<io::Result<InputSourcePair>>>  =
         std::sync::Mutex::new(std::collections::VecDeque::new());
+    }
+
+    mockall::mock! {
+        pub GRPCCommunicationsClient {
+            pub fn new_cli_communication(name: String, server_address: String, tls_config: Option<TLSConfig>) -> Self;
+            pub async fn run(
+                &mut self,
+                mut server_rx: ToServerReceiver,
+                agent_tx: FromServerSender,
+            ) -> Result<(), String>;
+        }
     }
 
     pub fn open_manifest_mock(

@@ -349,7 +349,7 @@ mod tests {
         assert_eq!(workload3.instance_name.agent_name(), "agent2");
         assert_eq!(workload3.runtime, "runtime3");
 
-        assert!(workload_map.get("agent3").is_none());
+        assert!(!workload_map.contains_key("agent3"));
 
         let (agent4_added_workloads, agent4_deleted_workloads) =
             workload_map.get("agent4").unwrap();
