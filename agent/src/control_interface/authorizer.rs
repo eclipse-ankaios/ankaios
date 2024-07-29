@@ -21,7 +21,11 @@ use common::{
     objects::{AccessRightsRule, ControlInterfaceAccess, ReadWriteEnum},
 };
 use path_pattern::{AllowPathPattern, DenyPathPattern, PathPattern};
+#[cfg(not(test))]
 use rule::Rule;
+
+#[cfg(test)]
+use test::MockRule as Rule;
 
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct Authorizer {
@@ -201,7 +205,12 @@ impl From<&ControlInterfaceAccess> for Authorizer {
 mod test {
     use std::marker::PhantomData;
 
-    use common::commands::{CompleteStateRequest, Request, UpdateStateRequest};
+    use common::{
+        commands::{CompleteStateRequest, Request, UpdateStateRequest},
+        objects::{AccessRightsRule, ControlInterfaceAccess, StateRule},
+    };
+
+    use super::super::authorizer::path_pattern::{AllowPathPattern, DenyPathPattern};
 
     use super::{path::Path, path_pattern::PathPattern, Authorizer};
 
@@ -320,5 +329,93 @@ mod test {
         assert!(!authorizer.authorize(&request));
         let authorizer = create_authorizer(&[RuleType::AllowWrite, RuleType::DenyRead]);
         assert!(authorizer.authorize(&request));
+    }
+
+    #[test]
+    fn utest_authorizer_from_control_interface_access() {
+        let access_rights = ControlInterfaceAccess {
+            allow_rules: vec![
+                AccessRightsRule::StateRule(StateRule {
+                    operation: common::objects::ReadWriteEnum::Nothing,
+                    filter_mask: vec!["allow.nothing".into()],
+                }),
+                AccessRightsRule::StateRule(StateRule {
+                    operation: common::objects::ReadWriteEnum::Read,
+                    filter_mask: vec!["allow.read".into()],
+                }),
+                AccessRightsRule::StateRule(StateRule {
+                    operation: common::objects::ReadWriteEnum::Write,
+                    filter_mask: vec!["allow.write".into()],
+                }),
+                AccessRightsRule::StateRule(StateRule {
+                    operation: common::objects::ReadWriteEnum::ReadWrite,
+                    filter_mask: vec!["allow.read.write".into()],
+                }),
+            ],
+            deny_rules: vec![
+                AccessRightsRule::StateRule(StateRule {
+                    operation: common::objects::ReadWriteEnum::Nothing,
+                    filter_mask: vec!["deny.nothing".into()],
+                }),
+                AccessRightsRule::StateRule(StateRule {
+                    operation: common::objects::ReadWriteEnum::Read,
+                    filter_mask: vec!["deny.read".into()],
+                }),
+                AccessRightsRule::StateRule(StateRule {
+                    operation: common::objects::ReadWriteEnum::Write,
+                    filter_mask: vec!["deny.write".into()],
+                }),
+                AccessRightsRule::StateRule(StateRule {
+                    operation: common::objects::ReadWriteEnum::ReadWrite,
+                    filter_mask: vec!["deny.read.write".into()],
+                }),
+            ],
+        };
+
+        let authorizer = Authorizer::from(&access_rights);
+
+        assert_eq!(
+            authorizer.allow_read_state_rule,
+            vec![MockRule {
+                patterns: Some(vec![AllowPathPattern::from("allow.read")]),
+                phantom: PhantomData
+            }]
+        );
+        assert_eq!(
+            authorizer.allow_write_state_rule,
+            vec![MockRule {
+                patterns: Some(vec![AllowPathPattern::from("allow.write")]),
+                phantom: PhantomData
+            }]
+        );
+        assert_eq!(
+            authorizer.allow_read_write_state_rule,
+            vec![MockRule {
+                patterns: Some(vec![AllowPathPattern::from("allow.read.write")]),
+                phantom: PhantomData
+            }]
+        );
+
+        assert_eq!(
+            authorizer.deny_read_state_rule,
+            vec![MockRule {
+                patterns: Some(vec![DenyPathPattern::from("deny.read")]),
+                phantom: PhantomData
+            }]
+        );
+        assert_eq!(
+            authorizer.deny_write_state_rule,
+            vec![MockRule {
+                patterns: Some(vec![DenyPathPattern::from("deny.write")]),
+                phantom: PhantomData
+            }]
+        );
+        assert_eq!(
+            authorizer.deny_read_write_state_rule,
+            vec![MockRule {
+                patterns: Some(vec![DenyPathPattern::from("deny.read.write")]),
+                phantom: PhantomData
+            }]
+        );
     }
 }
