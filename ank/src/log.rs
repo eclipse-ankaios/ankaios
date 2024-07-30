@@ -55,6 +55,13 @@ macro_rules! output_debug {
     ( $ ( $ arg : tt ) + ) => { $crate::log::output_debug_fn ( format_args ! ( $ ( $ arg ) + ) ) }
 }
 
+/// This macro prints the message as a warning trace. The verbose flag has no effect on the macro.
+/// Calling this macro does not terminate the application.
+#[macro_export]
+macro_rules! output_warn {
+    ( $ ( $ arg : tt ) + ) => { $crate::log::output_warn_fn ( format_args ! ( $ ( $ arg ) + ) ) }
+}
+
 pub(crate) fn output_and_error_fn(args: fmt::Arguments<'_>) -> ! {
     eprintln!("{} {}", "error:".bold().red(), args);
     exit(1);
@@ -70,6 +77,11 @@ pub(crate) fn output_debug_fn(args: fmt::Arguments<'_>) {
         std::println!("{} {}{}", "debug:".blue(), args, cursor::SavePosition);
         *CLEANUP_STRING.lock().unwrap() = "".into();
     }
+}
+
+pub(crate) fn output_warn_fn(args: fmt::Arguments<'_>) {
+    std::println!("{} {}{}", "warn:".yellow(), args, cursor::SavePosition);
+    *CLEANUP_STRING.lock().unwrap() = "".into();
 }
 
 pub(crate) fn output_fn(args: fmt::Arguments<'_>) {
