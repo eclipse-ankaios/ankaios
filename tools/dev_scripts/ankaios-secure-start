@@ -31,7 +31,6 @@ echo 'ank --ca_pem /workspaces/ankaios/.certs/ca.pem --crt_pem /workspaces/ankai
 echo ''
 
 echo -e "${RED}or export the following variables:${NC}"
-echo unset ANK_INSECURE \
-export ANK_CA_PEM="/workspaces/ankaios/$CERTS_FOLDER_NAME/ca.pem" \
+echo export ANK_CA_PEM="/workspaces/ankaios/$CERTS_FOLDER_NAME/ca.pem" \
 export ANK_CRT_PEM="/workspaces/ankaios/$CERTS_FOLDER_NAME/cli.pem" \
 export ANK_KEY_PEM="/workspaces/ankaios/$CERTS_FOLDER_NAME/cli-key.pem"
