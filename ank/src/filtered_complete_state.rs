@@ -81,8 +81,8 @@ pub struct FilteredWorkloadSpec {
 impl From<ank_base::CompleteState> for FilteredCompleteState {
     fn from(value: ank_base::CompleteState) -> Self {
         FilteredCompleteState {
-            desired_state: value.desired_state.map(|x| x.into()),
-            workload_states: value.workload_states.map(|x| x.into()),
+            desired_state: value.desired_state.map(Into::into),
+            workload_states: value.workload_states.map(Into::into),
         }
     }
 }
@@ -105,7 +105,7 @@ fn map_vec<T, F>(vec: Vec<T>) -> Vec<F>
 where
     F: From<T>,
 {
-    vec.into_iter().map(|val| val.into()).collect()
+    vec.into_iter().map(Into::into).collect()
 }
 
 impl From<ank_base::Workload> for FilteredWorkloadSpec {

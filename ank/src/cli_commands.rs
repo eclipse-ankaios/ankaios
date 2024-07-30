@@ -157,8 +157,7 @@ impl CliCommands {
                 .iter()
                 .find(|&(wl_name, wl_spec)| {
                     *wl_name == table_row.name
-                        && wl_spec.agent.as_deref().is_some()
-                        && wl_spec.agent.as_deref().unwrap() == table_row.agent
+                        && wl_spec.agent.as_deref().map_or(false, |x| x == table_row.agent)
                         && wl_spec.runtime.as_ref().is_some()
                 })
                 // runtime is valid because the filter above has found one
