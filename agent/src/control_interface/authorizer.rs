@@ -203,8 +203,6 @@ impl From<&ControlInterfaceAccess> for Authorizer {
 
 #[cfg(test)]
 mod test {
-    use std::marker::PhantomData;
-
     use common::{
         commands::{CompleteStateRequest, Request, UpdateStateRequest},
         objects::{AccessRightsRule, ControlInterfaceAccess, StateRule},
@@ -228,22 +226,17 @@ mod test {
     #[derive(Clone, Debug, PartialEq)]
     pub struct MockRule<T> {
         patterns: Option<Vec<T>>,
-        phantom: PhantomData<T>,
     }
 
     impl<T> MockRule<T> {
         pub fn create(patterns: Vec<T>) -> Self {
             Self {
                 patterns: Some(patterns),
-                phantom: PhantomData,
             }
         }
 
         fn default() -> Self {
-            Self {
-                patterns: None,
-                phantom: PhantomData,
-            }
+            Self { patterns: None }
         }
     }
 
@@ -378,21 +371,18 @@ mod test {
             authorizer.allow_read_state_rule,
             vec![MockRule {
                 patterns: Some(vec![AllowPathPattern::from("allow.read")]),
-                phantom: PhantomData
             }]
         );
         assert_eq!(
             authorizer.allow_write_state_rule,
             vec![MockRule {
                 patterns: Some(vec![AllowPathPattern::from("allow.write")]),
-                phantom: PhantomData
             }]
         );
         assert_eq!(
             authorizer.allow_read_write_state_rule,
             vec![MockRule {
                 patterns: Some(vec![AllowPathPattern::from("allow.read.write")]),
-                phantom: PhantomData
             }]
         );
 
@@ -400,21 +390,18 @@ mod test {
             authorizer.deny_read_state_rule,
             vec![MockRule {
                 patterns: Some(vec![DenyPathPattern::from("deny.read")]),
-                phantom: PhantomData
             }]
         );
         assert_eq!(
             authorizer.deny_write_state_rule,
             vec![MockRule {
                 patterns: Some(vec![DenyPathPattern::from("deny.write")]),
-                phantom: PhantomData
             }]
         );
         assert_eq!(
             authorizer.deny_read_write_state_rule,
             vec![MockRule {
                 patterns: Some(vec![DenyPathPattern::from("deny.read.write")]),
-                phantom: PhantomData
             }]
         );
     }
