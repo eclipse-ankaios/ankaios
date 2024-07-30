@@ -20,12 +20,12 @@ run_ankaios() {
 
   # Start the Ankaios server
   echo "Starting Ankaios server located in '${ANK_BIN_DIR}'."
-  RUST_LOG=debug ${ANK_BIN_DIR}/ank-server --startup-config ${SCRIPT_DIR}/config/startupState.yaml --address ${ANKAIOS_SERVER_SOCKET} > ${ANKAIOS_LOG_DIR}/ankaios-server.log 2>&1 &
+  RUST_LOG=debug ${ANK_BIN_DIR}/ank-server --insecure --startup-config ${SCRIPT_DIR}/config/startupState.yaml --address ${ANKAIOS_SERVER_SOCKET} > ${ANKAIOS_LOG_DIR}/ankaios-server.log 2>&1 &
 
   sleep 2
   # Start an Ankaios agent
   echo "Starting Ankaios agent agent_A located in '${ANK_BIN_DIR}'."
-  RUST_LOG=debug ${ANK_BIN_DIR}/ank-agent --name agent_A --server-url ${ANKAIOS_SERVER_URL} > ${ANKAIOS_LOG_DIR}/ankaios-agent_A.log 2>&1 &
+  RUST_LOG=debug ${ANK_BIN_DIR}/ank-agent --insecure --name agent_A --server-url ${ANKAIOS_SERVER_URL} > ${ANKAIOS_LOG_DIR}/ankaios-agent_A.log 2>&1 &
 
   # Wait for any process to exit
   wait -n
