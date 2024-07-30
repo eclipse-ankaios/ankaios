@@ -425,7 +425,7 @@ mod tests {
             .get_complete_state_by_field_mask(request_complete_state, &workload_state_map)
             .unwrap();
 
-        let workloads = [
+        let expected_workloads = [
             (
                 w3.instance_name.workload_name(),
                 ank_base::Workload {
@@ -459,7 +459,7 @@ mod tests {
                 },
             ),
         ];
-        let expected_complete_state = test_utils::generate_test_proto_complete_state(&workloads);
+        let expected_complete_state = test_utils::generate_test_proto_complete_state(&expected_workloads);
 
         assert_eq!(expected_complete_state, complete_state);
     }

@@ -1750,7 +1750,7 @@ mod tests {
                 )
                 .build();
 
-        let request_id: String = "request_id".to_string();
+        let request_id: String = REQUEST_ID.to_string();
         let complete_state = ank_base::CompleteState::default();
         let expected_response = ank_base::Response {
             request_id,
@@ -1801,10 +1801,10 @@ mod tests {
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
-        let request_id: String = "request_id".to_string();
-        let workloads = [("workload1",
+        let request_id: String = REQUEST_ID.to_string();
+        let workloads = [(WORKLOAD_1_NAME,
                             ank_base::Workload {
-                                agent: Some("agent_x".to_string()),
+                                agent: Some(AGENT_NAME.to_string()),
                                 restart_policy: Some(ank_base::RestartPolicy::Always as i32),
                                 dependencies: Some(ank_base::Dependencies {
                                     dependencies: HashMap::from([
@@ -1831,10 +1831,10 @@ mod tests {
         let mut complete_state = test_utils::generate_test_proto_complete_state(&workloads);
         complete_state.workload_states = Some(ank_base::WorkloadStatesMap {
             agent_state_map: HashMap::from([(
-                "agent_x".to_string(),
+                AGENT_NAME.to_string(),
                 ank_base::ExecutionsStatesOfWorkload {
                     wl_name_state_map: HashMap::from([(
-                        "workload1".to_string(),
+                        WORKLOAD_1_NAME.to_string(),
                         ank_base::ExecutionsStatesForId {
                             id_state_map: HashMap::from([(
                                 "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed"

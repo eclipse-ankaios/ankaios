@@ -98,16 +98,16 @@ impl WorkloadTableRow {
             agent: agent.into(),
             runtime: runtime.into(),
             execution_state: execution_state.into(),
-            additional_info: additional_info.into(),
+            additional_info: trim_and_replace_newlines(additional_info.into()),
         }
     }
 
     pub fn set_additional_info(&mut self, new_additional_info: &str) {
-        self.additional_info = trim_and_replace_newlines(new_additional_info);
+        self.additional_info = trim_and_replace_newlines(new_additional_info.into());
     }
 }
 
-fn trim_and_replace_newlines(text: &str) -> String {
+fn trim_and_replace_newlines(text: String) -> String {
     text.trim().replace('\n', ", ")
 }
 
@@ -160,7 +160,7 @@ mod tests {
 
         assert_eq!(
             get_workloads_table_display.additional_info,
-            "some error with\nsome\nnewlines"
+            "some error with, some, newlines"
         );
 
         let updated_additional_info_msg = "different error with\na new line";
