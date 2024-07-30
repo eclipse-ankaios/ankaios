@@ -2,6 +2,12 @@
 
  Mutual TLS (mTLS) is a security protocol that verifies both the client and server identities before establishing a connection. In Ankaios mTLS can be used to secure communication between the server, agent and ank CLI.
 
+## Prerequisites
+
+- OpenSSL 3.0 or newer
+
+## Set up directories
+
 To set up mTLS with OpenSSL, perform the following actions:
 
 First we need to create a folder to keep certificates and keys for `ank-server` and `ank-agent`:
