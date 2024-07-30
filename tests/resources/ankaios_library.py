@@ -240,14 +240,12 @@ def build_control_interface_test_image():
 def prepare_test_control_interface_workload():
     global control_interface_workload_config
     global manifest_files_location
-    global control_interface_expected_results
     global next_manifest_number
     global control_interface_allow_rules
     global control_interface_deny_rules
 
     control_interface_workload_config = []
     manifest_files_location = []
-    control_interface_expected_results = []
     next_manifest_number = 0
     control_interface_allow_rules = []
     control_interface_deny_rules = []
@@ -313,9 +311,6 @@ def internal_add_get_state_command(field_mask):
         }
     })
 
-def internal_append_control_interface_expected_results(expected_result):
-    global control_interface_expected_results
-    control_interface_expected_results.append(expected_result)
 
 def create_control_interface_config_for_test():
     tmp = TemporaryDirectory()
@@ -334,12 +329,19 @@ def create_control_interface_config_for_test():
         startup_config.write(content)
     return tmp
 
-def internal_check_expected_control_interface_result(tmp_folder):
-    def bool_to_result(b):
-        return "succeeded" if b else "failed"
-
+def internal_check_all_control_interface_requests_succeeded(tmp_folder):
     output = read_yaml(path.join(tmp_folder, "output.yaml"))
-    for test_number,(test_result, expected_result) in enumerate(zip(output,control_interface_expected_results)):
+    for test_number,test_result in enumerate(output):
         test_result = test_result["result"]["value"]["type"] == "Ok"
-        assert test_result == expected_result, \
-            f"Expected  test {test_number + 1} to be {bool_to_result(expected_result)}, but it {bool_to_result(test_result)}"
+        assert test_result, \
+            f"Expected request {test_number + 1} to succeed, but it failed"
+
+def internal_check_all_control_interface_requests_failed(tmp_folder):
+    output = read_yaml(path.join(tmp_folder, "output.yaml"))
+    for test_number,test_result in enumerate(output):
+        test_result = test_result["result"]["value"]["type"] != "Ok"
+        assert test_result, \
+            f"Expected request {test_number + 1} to fail, but it succeeded"
+
+def empty_keyword():
+    pass

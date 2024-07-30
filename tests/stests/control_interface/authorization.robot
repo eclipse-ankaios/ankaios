@@ -20,6 +20,9 @@ Documentation       Tests the authorization of the Control Interface access from
 Resource            ../../resources/ankaios.resource
 Resource            ../../resources/variables.resource
 
+Test Setup       Setup Ankaios for Control Interface test
+Test Teardown    Clean up Ankaios
+
 *** Variables ***
 ${simple_yaml_file}      ${EMPTY}
 ${manifest12_yaml_file}  ${EMPTY}
@@ -30,114 +33,112 @@ ${manifest_no_agent_name_yaml_file}    ${EMPTY}
 *** Test Cases ***
 
 No rules
-    [Setup]    Setup Ankaios
+    Given the controller workload has no access rights
 
-    Prepare Test Control Interface Workload
+    When the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
+    And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple_existing.tags
+    And the controller workload gets the state
+    And the controller workload gets the state of fields desiredState.workloads.simple_existing
+    And the controller workload gets the state of fields desiredState.workloads.simple_existing.tags
+    And the controller workload gets the state of fields desiredState.workloads.controller
 
-    Control Interface Command should fail updating state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask: desiredState.workloads.simple
-    Control Interface Command should fail updating state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask: desiredState.workloads.simple_existing.tags
-    Control Interface Command should fail getting state
-    Control Interface Command should fail getting state of fields: desiredState.workloads.simple_existing
-    Control Interface Command should fail getting state of fields: desiredState.workloads.simple_existing.tags
-    Control Interface Command should fail getting state of fields: desiredState.workloads.controller
+    Then the controller workload requests shall all fail
 
-    Execute Control Interface test
+Allow write rule with empty string allows all writes
+    Given the controller workload is allowed to write on ${EMPTY}
 
-    [Teardown]    Clean up Ankaios
+    When the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
+    And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple_existing.tags
 
-Allow write rule with empty string
-    [Setup]    Setup Ankaios
+    Then the controller workload requests shall all succeed
 
-    Prepare Test Control Interface Workload
-    Control Interface allows to write on ${EMPTY}
+Allow write rule with empty string denies all reads
+    Given the controller workload is allowed to write on ${EMPTY}
 
-    Control Interface Command should update state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask: desiredState.workloads.simple
-    Control Interface Command should update state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask: desiredState.workloads.simple_existing.tags
-    Control Interface Command should fail getting state
-    Control Interface Command should fail getting state of fields: desiredState.workloads.simple_existing
-    Control Interface Command should fail getting state of fields: desiredState.workloads.simple_existing.tags
+    When the controller workload gets the state
+    And the controller workload gets the state of fields desiredState.workloads.simple_existing
+    And the controller workload gets the state of fields desiredState.workloads.simple_existing.tags
 
-    Execute Control Interface test
+    Then the controller workload requests shall all fail
 
-    [Teardown]    Clean up Ankaios
+Allow read rule with empty string denies all writes
+    Given the controller workload is allowed to read on ${EMPTY}
 
-Allow read rule with empty string
-    [Setup]    Setup Ankaios
+    When the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
+    And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple_existing.tags
 
-    Prepare Test Control Interface Workload
-    Control Interface allows to read on ${EMPTY}
+    Then the controller workload requests shall all fail
 
-    Control Interface Command should fail updating state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask: desiredState.workloads.simple
-    Control Interface Command should fail updating state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask: desiredState.workloads.simple_existing.tags
-    Control Interface Command should get state
-    Control Interface Command should get state of fields: desiredState.workloads.simple_existing
-    Control Interface Command should get state of fields: desiredState.workloads.simple_existing.tags
+Allow read rule with empty string allows all reads
+    Given the controller workload is allowed to read on ${EMPTY}
 
-    Execute Control Interface test
+    When the controller workload gets the state
+    And the controller workload gets the state of fields desiredState.workloads.simple_existing
+    And the controller workload gets the state of fields desiredState.workloads.simple_existing.tags
 
-    [Teardown]    Clean up Ankaios
+    Then the controller workload requests shall all succeed
 
-Allow read write rule with empty string
-    [Setup]    Setup Ankaios
+Allow read write rule with empty string allows allow read and writes
+    Given the controller workload is allowed to read and write on ${EMPTY}
 
-    Prepare Test Control Interface Workload
-    Control Interface allows to read and write on ${EMPTY}
+    When the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
+    And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple_existing.tags
+    And the controller workload gets the state
+    And the controller workload gets the state of fields desiredState.workloads.simple_existing
+    And the controller workload gets the state of fields desiredState.workloads.simple_existing.tags
 
-    Control Interface Command should update state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask: desiredState.workloads.simple
-    Control Interface Command should update state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask: desiredState.workloads.simple_existing.tags
-    Control Interface Command should get state
-    Control Interface Command should get state of fields: desiredState.workloads.simple_existing
-    Control Interface Command should get state of fields: desiredState.workloads.simple_existing.tags
+    Then the controller workload requests shall all succeed
 
-    Execute Control Interface test
+Allow write rule for only tags allows write to tags
+    Given the controller workload is allowed to write on desiredState.workloads.*.tags
 
-    [Teardown]    Clean up Ankaios
+    When the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple_existing.tags
 
-Allow write rule for only tags
-    [Setup]    Setup Ankaios
+    Then the controller workload requests shall all succeed
 
-    Prepare Test Control Interface Workload
-    Control Interface allows to write on desiredState.workloads.*.tags
+Allow write rule for only tags denies everythings execept write to tags
+    Given the controller workload is allowed to write on desiredState.workloads.*.tags
 
-    Control Interface Command should fail updating state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask: desiredState.workloads.simple
-    Control Interface Command should update state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask: desiredState.workloads.simple_existing.tags
-    Control Interface Command should fail getting state
-    Control Interface Command should fail getting state of fields: desiredState.workloads.simple_existing
-    Control Interface Command should fail getting state of fields: desiredState.workloads.simple_existing.tags
+    When the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
+    And the controller workload gets the state
+    And the controller workload gets the state of fields desiredState.workloads.simple_existing
+    And the controller workload gets the state of fields desiredState.workloads.simple_existing.tags
 
-    Execute Control Interface test
+    Then the controller workload requests shall all fail
 
-    [Teardown]    Clean up Ankaios
+Allow read rule for only tags allows read from tags
+    Given the controller workload is allowed to read on desiredState.workloads.*.tags
 
-Allow read rule for only tags
-    [Setup]    Setup Ankaios
+    When the controller workload gets the state of fields desiredState.workloads.simple_existing.tags
 
-    Prepare Test Control Interface Workload
-    Control Interface allows to read on desiredState.workloads.*.tags
+    Then the controller workload requests shall all succeed
 
-    Control Interface Command should fail updating state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask: desiredState.workloads.simple
-    Control Interface Command should fail updating state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask: desiredState.workloads.simple_existing.tags
-    Control Interface Command should fail getting state
-    Control Interface Command should fail getting state of fields: desiredState.workloads.simple_existing
-    Control Interface Command should get state of fields: desiredState.workloads.simple_existing.tags
+Allow read rule for only tags denies everythings execept read from tags
+    Given the controller workload is allowed to read on desiredState.workloads.*.tags
 
-    Execute Control Interface test
+    When the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
+    And the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple_existing.tags
+    And the controller workload gets the state
+    And the controller workload gets the state of fields desiredState.workloads.simple_existing
 
-    [Teardown]    Clean up Ankaios
+    Then the controller workload requests shall all fail
 
-Allow read write rule for workloads except write to simple_existing
-    [Setup]    Setup Ankaios
 
-    Prepare Test Control Interface Workload
-    Control Interface allows to read and write on desiredState.workloads
-    Control Interface denies to write on desiredState.workloads.simple_existing
+Allow read write rule for workloads except write to simple_existing allows all read and write on workloads execept write to simple_existing
+    Given the controller workload is allowed to read and write on desiredState.workloads
+    Given the controller workload is forbidden to to write on desiredState.workloads.simple_existing
 
-    Control Interface Command should update state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask: desiredState.workloads.simple
-    Control Interface Command should fail updating state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask: desiredState.workloads.simple_existing.tags
-    Control Interface Command should fail getting state
-    Control Interface Command should get state of fields: desiredState.workloads.simple_existing
-    Control Interface Command should get state of fields: desiredState.workloads.simple_existing.tags
+    When the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
+    And the controller workload gets the state of fields desiredState.workloads.simple_existing
+    And the controller workload gets the state of fields desiredState.workloads.simple_existing.tags
 
-    Execute Control Interface test
+    Then the controller workload requests shall all succeed
 
-    [Teardown]    Clean up Ankaios
+Allow read write rule for workloads except write to simple_existing forbids writing to simple_existing and reading whole state
+    Given the controller workload is allowed to read and write on desiredState.workloads
+    Given the controller workload is forbidden to to write on desiredState.workloads.simple_existing
+
+    When the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple_existing.tags
+    And the controller workload gets the state
+
+    Then the controller workload requests shall all fail
