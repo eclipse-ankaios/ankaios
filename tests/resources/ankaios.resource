@@ -42,6 +42,9 @@ Setup Ankaios without MTLS Setup
     ${TEST_FOLDER_NAME}=    Evaluate    '${TEST_NAME}'.lower().replace(' ', '_')
     Set Global Variable    ${TEST_FOLDER_NAME}
     ${run_result}=    Run Process    command=mkdir -p "target/robot_tests_result/${TEST_FOLDER_NAME}"    shell=True
+    Set Environment Variable    name=ANKSERVER_INSECURE    value=true
+    Set Environment Variable    name=ANKAGENT_INSECURE    value=true
+    Set Environment Variable    name=ANK_INSECURE    value=true
 
 Setup Ankaios
     [Arguments]    ${mtls_enabled}=False
@@ -53,6 +56,18 @@ Clean up Ankaios
     Clean up Podman
     Run Command    rm -rf %{ANKAIOS_TEMP}    timeout=20
     Set Variable    ${ANKAIOS_INSTANCE_NAME_TO_PODMAN_ID_MAPPING}    {}
+    Remove Environment Variable    ANKSERVER_CA_PEM
+    Remove Environment Variable    ANKSERVER_CRT_PEM
+    Remove Environment Variable    ANKSERVER_KEY_PEM
+    Remove Environment Variable    ANKAGENT_CA_PEM
+    Remove Environment Variable    ANKAGENT_CRT_PEM
+    Remove Environment Variable    ANKAGENT_KEY_PEM
+    Remove Environment Variable    ANK_CA_PEM
+    Remove Environment Variable    ANK_CRT_PEM
+    Remove Environment Variable    ANK_KEY_PEM
+    Remove Environment Variable    ANKSERVER_INSECURE
+    Remove Environment Variable    ANKAGENT_INSECURE
+    Remove Environment Variable    ANK_INSECURE
 
 Clean up Podman
     Log    Clean up Podman
