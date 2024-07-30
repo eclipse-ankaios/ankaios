@@ -47,10 +47,10 @@ check_executable $ANK_SERVER
 check_executable $ANK_AGENT
 
 echo Remove old certificates and keys for stests...
-rm -rf $tests_dir/resources/.certs
+rm -rf /tmp/.certs
 echo done.
 echo Generate certificates and keys for stests...
-$tools_dir/certs/create_certs.sh $tests_dir/resources/.certs
+$tools_dir/certs/create_certs.sh /tmp/.certs
 echo done.
 
 ANK_BIN_DIR=$ANK_BIN_DIR robot --pythonpath tests --loglevel=TRACE:TRACE -d ${target_dir} "$@"
