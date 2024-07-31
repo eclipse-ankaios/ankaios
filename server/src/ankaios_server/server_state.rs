@@ -12,10 +12,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use api::ank_base;
+
 use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
 use common::objects::{WorkloadInstanceName, WorkloadState, WorkloadStatesMap};
+use common::std_extensions::IllegalStateResult;
 use common::{
     commands::CompleteStateRequest,
     objects::{CompleteState, DeletedWorkload, State, WorkloadSpec},
@@ -150,21 +153,54 @@ pub type AddedDeletedWorkloads = Option<(Vec<WorkloadSpec>, Vec<DeletedWorkload>
 
 #[cfg_attr(test, automock)]
 impl ServerState {
+    const API_VERSION_FILTER_MASK: &'static str = "desiredState.apiVersion";
+    const DESIRED_STATE_FIELD_MASK_PART: &'static str = "desiredState";
+
     // [impl->swdd~server-provides-interface-get-complete-state~1]
     // [impl->swdd~server-filters-get-complete-state-result~2]
     pub fn get_complete_state_by_field_mask(
         &self,
-        _request_complete_state: &CompleteStateRequest,
+        request_complete_state: CompleteStateRequest,
         workload_states_map: &WorkloadStatesMap,
-    ) -> Result<CompleteState, String> {
-        let current_complete_state = CompleteState {
+    ) -> Result<ank_base::CompleteState, String> {
+        let current_complete_state: ank_base::CompleteState = CompleteState {
             desired_state: self.state.desired_state.clone(),
             workload_states: workload_states_map.clone(),
-        };
+        }
+        .into();
 
-        // TODO: filtering is missing here
+        if !request_complete_state.field_mask.is_empty() {
+            let mut filters = request_complete_state.field_mask;
+            if filters
+                .iter()
+                .any(|field| field.starts_with(Self::DESIRED_STATE_FIELD_MASK_PART))
+            {
+                filters.push(Self::API_VERSION_FILTER_MASK.to_owned());
+            }
 
-        Ok(current_complete_state)
+            let current_complete_state: Object =
+                current_complete_state.try_into().unwrap_or_illegal_state();
+            let mut return_state = Object::default();
+            for field in &filters {
+                if let Some(value) = current_complete_state.get(&field.into()) {
+                    return_state.set(&field.into(), value.to_owned())?;
+                } else {
+                    log::debug!(
+                        concat!(
+                        "Result for CompleteState incomplete, as requested field does not exist:\n",
+                        "   field: {}"),
+                        field
+                    );
+                    continue;
+                };
+            }
+
+            return_state.try_into().map_err(|err: serde_yaml::Error| {
+                format!("The result for CompleteState is invalid: '{}'", err)
+            })
+        } else {
+            Ok(current_complete_state)
+        }
     }
 
     // [impl->swdd~agent-from-agent-field~1]
@@ -251,13 +287,14 @@ impl ServerState {
 mod tests {
     use std::collections::HashMap;
 
+    use api::ank_base::{self, Dependencies, Tags};
     use common::{
         commands::CompleteStateRequest,
         objects::{
             generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
             CompleteState, DeletedWorkload, State, WorkloadSpec, WorkloadStatesMap,
         },
-        test_utils::generate_test_complete_state,
+        test_utils::{self, generate_test_complete_state},
     };
 
     use crate::ankaios_server::{delete_graph::MockDeleteGraph, server_state::UpdateStateError};
@@ -304,11 +341,10 @@ mod tests {
         workload_state_db.process_new_states(server_state.state.workload_states.clone().into());
 
         let received_complete_state = server_state
-            .get_complete_state_by_field_mask(&request_complete_state, &workload_state_db)
+            .get_complete_state_by_field_mask(request_complete_state, &workload_state_db)
             .unwrap();
 
-        // TODO: the test currently expects the entire state to be returned as the filtering is missing
-        let expected_complete_state = server_state.state;
+        let expected_complete_state = ank_base::CompleteState::from(server_state.state);
         assert_eq!(received_complete_state, expected_complete_state);
     }
 
@@ -334,16 +370,98 @@ mod tests {
             ],
         };
 
-        let mut workload_state_db = WorkloadStatesMap::default();
-        workload_state_db.process_new_states(server_state.state.workload_states.clone().into());
+        let mut workload_state_map = WorkloadStatesMap::default();
+        workload_state_map.process_new_states(server_state.state.workload_states.clone().into());
 
         let received_complete_state = server_state
-            .get_complete_state_by_field_mask(&request_complete_state, &workload_state_db)
+            .get_complete_state_by_field_mask(request_complete_state, &workload_state_map)
             .unwrap();
 
-        // TODO: the test currently expects the entire state to be returned as the filtering is missing
-        let expected_complete_state = server_state.state;
+        let expected_complete_state = ank_base::CompleteState {
+            desired_state: Some(server_state.state.desired_state.clone().into()),
+            workload_states: None,
+        };
         assert_eq!(received_complete_state, expected_complete_state);
+    }
+
+    // [utest->swdd~server-provides-interface-get-complete-state~1]
+    // [utest->swdd~server-filters-get-complete-state-result~2]
+    #[test]
+    fn utest_server_state_get_complete_state_by_field_mask() {
+        let w1 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_1.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let w2 = generate_test_workload_spec_with_param(
+            AGENT_A.to_string(),
+            WORKLOAD_NAME_2.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let w3 = generate_test_workload_spec_with_param(
+            AGENT_B.to_string(),
+            WORKLOAD_NAME_3.to_string(),
+            RUNTIME.to_string(),
+        );
+
+        let server_state = ServerState {
+            state: generate_test_complete_state(vec![w1.clone(), w2.clone(), w3.clone()]),
+            ..Default::default()
+        };
+
+        let request_complete_state = CompleteStateRequest {
+            field_mask: vec![
+                format!("desiredState.workloads.{}", WORKLOAD_NAME_1),
+                format!("desiredState.workloads.{}.agent", WORKLOAD_NAME_3),
+            ],
+        };
+
+        let mut workload_state_map = WorkloadStatesMap::default();
+        workload_state_map.process_new_states(server_state.state.workload_states.clone().into());
+
+        let complete_state = server_state
+            .get_complete_state_by_field_mask(request_complete_state, &workload_state_map)
+            .unwrap();
+
+        let expected_workloads = [
+            (
+                w3.instance_name.workload_name(),
+                ank_base::Workload {
+                    agent: Some(w3.instance_name.agent_name().to_string()),
+                    restart_policy: None,
+                    dependencies: None,
+                    tags: None,
+                    runtime: None,
+                    runtime_config: None,
+                    control_interface_access: None,
+                },
+            ),
+            (
+                w1.instance_name.workload_name(),
+                ank_base::Workload {
+                    agent: Some(w1.instance_name.agent_name().to_string()),
+                    restart_policy: Some(w1.restart_policy as i32),
+                    dependencies: Some(Dependencies {
+                        dependencies: w1
+                            .dependencies
+                            .into_iter()
+                            .map(|(k, v)| (k, v as i32))
+                            .collect(),
+                    }),
+                    tags: Some(Tags {
+                        tags: w1.tags.into_iter().map(ank_base::Tag::from).collect(),
+                    }),
+                    runtime: Some(w1.runtime.clone()),
+                    runtime_config: Some(w1.runtime_config.clone()),
+                    control_interface_access: w1.control_interface_access.into(),
+                },
+            ),
+        ];
+        let expected_complete_state = test_utils::generate_test_proto_complete_state(&expected_workloads);
+
+        assert_eq!(expected_complete_state, complete_state);
     }
 
     // [utest->swdd~agent-from-agent-field~1]

@@ -16,6 +16,18 @@ pub mod ank_base {
 
     // [impl->swdd~ank-base-provides-object-definitions~1]
     tonic::include_proto!("ank_base"); // The string specified here must match the proto package name
+
+    impl Response {
+        pub fn access_denied(request_id: String) -> Response {
+            Response {
+                request_id,
+                response_content: response::ResponseContent::Error(Error {
+                    message: "Access denied".into(),
+                })
+                .into(),
+            }
+        }
+    }
 }
 
 pub mod control_api {

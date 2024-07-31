@@ -19,6 +19,7 @@ assets = [
 ]
 
 [dependencies]
+api = { path = "../api" }
 common = { path = "../common" }
 grpc = { path = "../grpc" }
 clap = { version = "4.0", features = ["derive", "env"] }

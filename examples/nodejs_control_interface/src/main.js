@@ -23,11 +23,13 @@ function create_request_to_add_new_workload(root) {
                     desiredState: {
                         apiVersion: "v0.1",
                         workloads: {
-                            dynamic_nginx: {
-                                agent: "agent_A",
-                                runtime: "podman",
-                                restartPolicy: RestartEnum.NEVER,
-                                runtimeConfig: "image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]"
+                                workloads: {
+                                dynamic_nginx: {
+                                    agent: "agent_A",
+                                    runtime: "podman",
+                                    restartPolicy: RestartEnum.NEVER,
+                                    runtimeConfig: "image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]"
+                                }
                             }
                         }
                     },
@@ -129,5 +131,3 @@ async function main() {
 }
 
 main();
-
-

@@ -2737,6 +2737,24 @@ Needs:
 - impl
 - utest
 
+#### Agent converts from Control Interface proto request to internal object
+`swdd~agent-converts-control-interface-message-to-ankaios-object~1`
+
+Status: approved
+
+When the Ankaios agent receives a request from the output pipe of a workload in the protobuf format, then the Ankaios agent shall convert the received request into an internal `ToAnkaios` structure.
+
+Rationale:
+The conversion is required due to the separation between the communication via the control interface and the communication middleware the request is forwarded afterwards.
+In addition, the conversion ensures that certain fields are set to valid values.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
+
 #### Agent forwards Control Interface request fom the pipe to the server
 `swdd~agent-forward-request-from-control-interface-pipe-to-server~1`
 
