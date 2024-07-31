@@ -1527,7 +1527,7 @@ See the <a href="https://eclipse-ankaios.github.io/ankaios/latest/reference/star
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>The instructions assume the default installation without mutual TLS (mTLS) for communication. With <code>-k</code> the <code>ank</code> CLI will connect without mTLS. Alternatively, set the environment variable <code>ANK_INSECURE=true</code> to avoid passing the argument to each <code>ank</code> CLI command. For an Ankaios setup with mTLS, see <a href="../mtls-setup/">here</a>.</p>
+<p>The instructions assume the default installation without mutual TLS (mTLS) for communication. With <code>-k</code> or <code>--insecure</code> the <code>ank</code> CLI will connect without mTLS. Alternatively, set the environment variable <code>ANK_INSECURE=true</code> to avoid passing the argument to each <code>ank</code> CLI command. For an Ankaios setup with mTLS, see <a href="../mtls-setup/">here</a>.</p>
 </div>
 <p>The Ankaios agent <code>agent_A</code> will now instruct podman to start the workload.
 The command waits until the databroker is running.

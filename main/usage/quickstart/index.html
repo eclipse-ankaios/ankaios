@@ -1356,7 +1356,7 @@ use the Ankaios CLI to check the current state:</p>
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>The instructions assume the default installation without mutual TLS (mTLS) for communication. With <code>-k</code> the <code>ank</code> CLI will connect without mTLS. Alternatively, set the environment variable <code>ANK_INSECURE=true</code> to avoid passing the argument to each <code>ank</code> CLI command. For an Ankaios setup with mTLS, see <a href="../mtls-setup/">here</a>.</p>
+<p>The instructions assume the default installation without mutual TLS (mTLS) for communication. With <code>-k</code> or <code>--insecure</code> the <code>ank</code> CLI will connect without mTLS. Alternatively, set the environment variable <code>ANK_INSECURE=true</code> to avoid passing the argument to each <code>ank</code> CLI command. For an Ankaios setup with mTLS, see <a href="../mtls-setup/">here</a>.</p>
 </div>
 <p>which creates:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">desiredState</span><span class="p">:</span>
@@ -1400,7 +1400,7 @@ To add another workload call:</p>
 <a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="s1">commandOptions: [ &quot;-e&quot;, &quot;MESSAGE=Hello World&quot;]</span>
 <a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="s1">commandArgs: [ &quot;sh&quot;, &quot;-c&quot;, &quot;echo $MESSAGE&quot;]&#39;</span>
 </code></pre></div>
-<p>We can check the state again with <code>ank get state</code> and see, that the workload
+<p>We can check the state again with <code>ank -k get state</code> and see, that the workload
 <code>helloworld</code> has been added to <code>desiredState.workloads</code> and the execution
 state is available in <code>workloadStates</code>.</p>
 <p>As the workload had a one time job its state is <code>Succeeded(Ok)</code> and we can

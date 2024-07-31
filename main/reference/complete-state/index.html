@@ -1393,7 +1393,11 @@
 <h1 id="working-with-completestate">Working with CompleteState<a class="headerlink" href="#working-with-completestate" title="Permanent link">&para;</a></h1>
 <h2 id="completestate">CompleteState<a class="headerlink" href="#completestate" title="Permanent link">&para;</a></h2>
 <p>The complete state data structure <a href="../_ankaios.proto/#completestate">CompleteState</a> is used for building a request to Ankaios server to change or receive the state of the Ankaios system. It contains the <code>desiredState</code> which describes the state of the Ankaios system the user wants to have and the <code>workloadStates</code> which gives the information about the execution state of all the workloads. By using of <a href="../_ankaios.proto/#completestate">CompleteState</a> in conjunction with the object field mask specific parts of the Ankaios state could be retrieved or updated.</p>
-<p>Example: <code>ank get state</code> returns the complete state of Ankaios system:</p>
+<p>Example: <code>ank -k get state</code> returns the complete state of Ankaios system:</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The instructions assume the default installation without mutual TLS (mTLS) for communication. With <code>-k</code> or <code>--insecure</code> the <code>ank</code> CLI will connect without mTLS. Alternatively, set the environment variable <code>ANK_INSECURE=true</code> to avoid passing the argument to each <code>ank</code> CLI command. For an Ankaios setup with mTLS, see <a href="./mtls-setup.md">here</a>.</p>
+</div>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>desiredState:
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span>apiVersion:<span class="w"> </span>v0.1
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span>workloads:
@@ -1472,7 +1476,7 @@ The object field mask can be constructed using the field names of the <a href=".
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>&lt;top level field name&gt;.&lt;second level field name&gt;.&lt;third level field name&gt;.&lt;...&gt;
 </code></pre></div>
 <ol>
-<li>Example: <code>ank get state desiredState.workloads.nginx</code> returns only the information about nginx workload:</li>
+<li>Example: <code>ank -k get state desiredState.workloads.nginx</code> returns only the information about nginx workload:</li>
 </ol>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="w"> </span><span class="nt">desiredState</span><span class="p">:</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">   </span><span class="nt">workloads</span><span class="p">:</span>
@@ -1489,7 +1493,7 @@ The object field mask can be constructed using the field names of the <a href=".
 <a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">         </span><span class="no">commandOptions: [&quot;-p&quot;, &quot;8081:80&quot;]</span>
 </code></pre></div>
 <ol>
-<li>Example <code>ank get state desiredState.workloads.nginx.runtimeConfig</code> returns only the runtime configuration of nginx workload:</li>
+<li>Example <code>ank -k get state desiredState.workloads.nginx.runtimeConfig</code> returns only the runtime configuration of nginx workload:</li>
 </ol>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">desiredState</span><span class="p">:</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">workloads</span><span class="p">:</span>
@@ -1499,7 +1503,7 @@ The object field mask can be constructed using the field names of the <a href=".
 <a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span><span class="no">commandOptions: [&quot;-p&quot;, &quot;8081:80&quot;]</span>
 </code></pre></div>
 <ol>
-<li>Example <code>ank set state -f new-state.yaml desiredState.workloads.nginx.restartPolicy</code> changes the restart behavior of nginx workload to <code>NEVER</code>:</li>
+<li>Example <code>ank -k set state -f new-state.yaml desiredState.workloads.nginx.restartPolicy</code> changes the restart behavior of nginx workload to <code>NEVER</code>:</li>
 </ol>
 <div class="highlight"><span class="filename">new-state.yaml</span><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">desiredState</span><span class="p">:</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">workloads</span><span class="p">:</span>
