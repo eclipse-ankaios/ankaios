@@ -14,4 +14,4 @@
 
 *** Variables ***
 ${CONFIGS_DIR}=    ${CURDIR}/configs
-${CERTS_DIR}=    ${CURDIR}/certs
+${CERTS_DIR}=    /tmp/.certs

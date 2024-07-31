@@ -107,26 +107,14 @@ async fn main() {
         workload_state_sender,
     );
 
-    let tls_config: Result<Option<TLSConfig>, String> =
-        match (args.insecure, args.ca_pem, args.crt_pem, args.key_pem) {
-            // [impl->swdd~agent-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
-            (true, _, _, _) => Ok(None),
-            // [impl->swdd~agent-provides-file-paths-to-communication-middleware~1]
-            (false, Some(path_to_ca_pem), Some(path_to_crt_pem), Some(path_to_key_pem)) => {
-                Ok(Some(TLSConfig {
-                    path_to_ca_pem,
-                    path_to_crt_pem,
-                    path_to_key_pem,
-                }))
-            }
-            // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-            (false, ca_pem, crt_pem, key_pem) => Err(format!(
-                "Provide the file via ANKAGENT_CA_PEM={} ANKAGENT_CRT_PEM={} ANKAGENT_KEY_PEM={} or deactivate mTLS with '-k' or '--insecure' option!",
-                ca_pem.unwrap_or(String::from("\"\"")),
-                crt_pem.unwrap_or(String::from("\"\"")),
-                key_pem.unwrap_or(String::from("\"\""))
-            )),
-        };
+    if let Err(err_message) = TLSConfig::is_config_conflicting(args.insecure, &args.ca_pem, &args.crt_pem, &args.key_pem) {
+        log::warn!("{}", err_message);
+    }
+
+    // [impl->swdd~agent-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
+    // [impl->swdd~agent-provides-file-paths-to-communication-middleware~1]
+    // [impl->swdd~agent-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
+    let tls_config = TLSConfig::new(args.insecure, args.ca_pem, args.crt_pem, args.key_pem);
 
     let communications_client = GRPCCommunicationsClient::new_agent_communication(
         args.agent_name.clone(),

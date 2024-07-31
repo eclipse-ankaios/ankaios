@@ -36,6 +36,48 @@ pub mod security {
         pub path_to_key_pem: String,
     }
 
+    impl TLSConfig {
+        pub fn is_config_conflicting(
+            insecure: bool,
+            ca_pem: &Option<String>,
+            crt_pem: &Option<String>,
+            key_pem: &Option<String>,
+        ) -> Result<(), String> {
+            if insecure && (ca_pem.is_some() || crt_pem.is_some() || key_pem.is_some()) {
+                return Err("Insecure and secure flags specified at the same time. Defaulting to secure communication.".to_string());
+            }
+            Ok(())
+        }
+
+        pub fn new(
+            insecure: bool,
+            ca_pem: Option<String>,
+            crt_pem: Option<String>,
+            key_pem: Option<String>,
+        ) -> Result<Option<TLSConfig>, String> {
+            match (insecure, ca_pem, crt_pem, key_pem) {
+                // [impl->swdd~cli-provides-file-paths-to-communication-middleware~1]
+                (_, Some(path_to_ca_pem), Some(path_to_crt_pem), Some(path_to_key_pem)) => {
+
+                    Ok(Some(TLSConfig {
+                        path_to_ca_pem,
+                        path_to_crt_pem,
+                        path_to_key_pem,
+                    }))
+                }
+                // [impl->swdd~cli-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
+                (true, None, None, None) => Ok(None),
+                // [impl->swdd~cli-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
+                (_, ca_pem, crt_pem, key_pem) => Err(format!(
+                    "Either provide mTLS config via the '--ca_pem {}', '--crt_pem {}' and '--key_pem {}' options or deactivate mTLS with the '--insecure' option!",
+                    ca_pem.unwrap_or(String::from("\"\"")),
+                    crt_pem.unwrap_or(String::from("\"\"")),
+                    key_pem.unwrap_or(String::from("\"\""))
+                )),
+            }
+        }
+    }
+
     // [impl->swdd~grpc-supports-pem-file-format-for-X509-certificates~1]
     pub fn read_pem_file(
         path_of_pem_file: &Path,
