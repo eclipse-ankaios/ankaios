@@ -15,7 +15,8 @@
 use std::collections::HashSet;
 
 use super::Path;
-use crate::objects::{CompleteState, State};
+use crate::objects as ankaios;
+use api::ank_base as proto;
 use serde_yaml::{
     from_value,
     mapping::{Entry::Occupied, Entry::Vacant},
@@ -45,56 +46,82 @@ impl TryFrom<&serde_yaml::Value> for Object {
     }
 }
 
-impl TryFrom<&State> for Object {
+impl TryFrom<&ankaios::State> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_from(value: &State) -> Result<Self, Self::Error> {
+    fn try_from(value: &ankaios::State) -> Result<Self, Self::Error> {
         Ok(Object {
             data: to_value(value)?,
         })
     }
 }
 
-impl TryFrom<State> for Object {
+impl TryFrom<ankaios::State> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_from(value: State) -> Result<Self, Self::Error> {
+    fn try_from(value: ankaios::State) -> Result<Self, Self::Error> {
         (&value).try_into()
     }
 }
 
-impl TryFrom<CompleteState> for Object {
+impl TryFrom<ankaios::CompleteState> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_from(value: CompleteState) -> Result<Self, Self::Error> {
+    fn try_from(value: ankaios::CompleteState) -> Result<Self, Self::Error> {
         Ok(Object {
             data: to_value(value)?,
         })
     }
 }
 
-impl TryFrom<&CompleteState> for Object {
+impl TryFrom<proto::CompleteState> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_from(value: &CompleteState) -> Result<Self, Self::Error> {
+    fn try_from(value: proto::CompleteState) -> Result<Self, Self::Error> {
         Ok(Object {
             data: to_value(value)?,
         })
     }
 }
 
-impl TryInto<State> for Object {
+impl TryFrom<&ankaios::CompleteState> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_into(self) -> Result<State, Self::Error> {
+    fn try_from(value: &ankaios::CompleteState) -> Result<Self, Self::Error> {
+        Ok(Object {
+            data: to_value(value)?,
+        })
+    }
+}
+
+impl TryInto<ankaios::State> for Object {
+    type Error = serde_yaml::Error;
+
+    fn try_into(self) -> Result<ankaios::State, Self::Error> {
         from_value(self.data)
     }
 }
 
-impl TryInto<CompleteState> for Object {
+impl TryInto<ankaios::CompleteState> for Object {
     type Error = serde_yaml::Error;
 
-    fn try_into(self) -> Result<CompleteState, Self::Error> {
+    fn try_into(self) -> Result<ankaios::CompleteState, Self::Error> {
+        from_value(self.data)
+    }
+}
+
+impl TryInto<proto::State> for Object {
+    type Error = serde_yaml::Error;
+
+    fn try_into(self) -> Result<proto::State, Self::Error> {
+        from_value(self.data)
+    }
+}
+
+impl TryInto<proto::CompleteState> for Object {
+    type Error = serde_yaml::Error;
+
+    fn try_into(self) -> Result<proto::CompleteState, Self::Error> {
         from_value(self.data)
     }
 }
@@ -258,8 +285,8 @@ impl Object {
 mod tests {
     use crate::{
         objects::{
-            generate_test_workload_spec, generate_test_workload_states_map_from_specs,
-            CompleteState, State,
+            generate_test_workload_spec, generate_test_workload_states_map_with_data,
+            CompleteState, ExecutionState, State,
         },
         test_utils::generate_test_state_from_workloads,
     };
@@ -295,7 +322,12 @@ mod tests {
         let state = generate_test_state_from_workloads(vec![wl_spec.clone()]);
         let complete_state = CompleteState {
             desired_state: state,
-            workload_states: generate_test_workload_states_map_from_specs(vec![wl_spec]),
+            workload_states: generate_test_workload_states_map_with_data(
+                "agent",
+                "name",
+                "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed",
+                ExecutionState::running(),
+            ),
         };
 
         let expected = Object {
@@ -315,7 +347,12 @@ mod tests {
         let expected_state = generate_test_state_from_workloads(vec![wl_spec.clone()]);
         let expected = CompleteState {
             desired_state: expected_state,
-            workload_states: generate_test_workload_states_map_from_specs(vec![wl_spec]),
+            workload_states: generate_test_workload_states_map_with_data(
+                "agent",
+                "name",
+                "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed",
+                ExecutionState::running(),
+            ),
         };
         let actual: CompleteState = object.try_into().unwrap();
 

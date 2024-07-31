@@ -45,16 +45,24 @@ impl TryFrom<ank_base::Workload> for StoredWorkloadSpec {
 
     fn try_from(value: ank_base::Workload) -> Result<Self, String> {
         Ok(StoredWorkloadSpec {
-            agent: value.agent,
-            tags: value.tags.into_iter().map(|x| x.into()).collect(),
+            agent: value.agent.ok_or("Missing field agent")?,
+            tags: value
+                .tags
+                .unwrap_or_default()
+                .tags
+                .into_iter()
+                .map(|x| x.into())
+                .collect(),
             dependencies: value
+                .dependencies
+                .unwrap_or_default()
                 .dependencies
                 .into_iter()
                 .map(|(k, v)| Ok((k, v.try_into()?)))
                 .collect::<Result<HashMap<String, AddCondition>, String>>()?,
-            restart_policy: value.restart_policy.try_into()?,
-            runtime: value.runtime,
-            runtime_config: value.runtime_config,
+            restart_policy: value.restart_policy.unwrap_or_default().try_into()?,
+            runtime: value.runtime.ok_or("Missing field runtime")?,
+            runtime_config: value.runtime_config.ok_or("Missing field runtimeConfig")?,
             control_interface_access: value
                 .control_interface_access
                 .unwrap_or_default()
@@ -66,16 +74,20 @@ impl TryFrom<ank_base::Workload> for StoredWorkloadSpec {
 impl From<StoredWorkloadSpec> for ank_base::Workload {
     fn from(workload: StoredWorkloadSpec) -> Self {
         ank_base::Workload {
-            agent: workload.agent,
-            dependencies: workload
-                .dependencies
-                .into_iter()
-                .map(|(k, v)| (k, v as i32))
-                .collect(),
-            restart_policy: workload.restart_policy as i32,
-            runtime: workload.runtime,
-            runtime_config: workload.runtime_config,
-            tags: workload.tags.into_iter().map(|x| x.into()).collect(),
+            agent: workload.agent.into(),
+            dependencies: Some(ank_base::Dependencies {
+                dependencies: workload
+                    .dependencies
+                    .into_iter()
+                    .map(|(k, v)| (k, v as i32))
+                    .collect(),
+            }),
+            restart_policy: (workload.restart_policy as i32).into(),
+            runtime: workload.runtime.into(),
+            runtime_config: workload.runtime_config.into(),
+            tags: Some(ank_base::Tags {
+                tags: workload.tags.into_iter().map(|x| x.into()).collect(),
+            }),
             control_interface_access: workload.control_interface_access.into(),
         }
     }

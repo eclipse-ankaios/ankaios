@@ -46,11 +46,13 @@ impl From<State> for ank_base::State {
     fn from(item: State) -> Self {
         ank_base::State {
             api_version: item.api_version,
-            workloads: item
-                .workloads
-                .into_iter()
-                .map(|(k, v)| (k, v.into()))
-                .collect(),
+            workloads: Some(ank_base::WorkloadMap {
+                workloads: item
+                    .workloads
+                    .into_iter()
+                    .map(|(k, v)| (k, v.into()))
+                    .collect(),
+            }),
         }
     }
 }
@@ -62,6 +64,8 @@ impl TryFrom<ank_base::State> for State {
         Ok(State {
             api_version: item.api_version,
             workloads: item
+                .workloads
+                .ok_or("Missing workloads map")?
                 .workloads
                 .into_iter()
                 .map(|(k, v)| Ok((k.to_owned(), v.try_into()?)))
@@ -89,6 +93,8 @@ impl State {
 // [utest->swdd~common-object-serialization~1]
 #[cfg(test)]
 mod tests {
+
+    use std::collections::HashMap;
 
     use api::ank_base;
 
@@ -153,7 +159,10 @@ mod tests {
     #[test]
     fn utest_state_rejects_state_without_api_version() {
         let state_proto_no_version = ank_base::State {
-            ..Default::default()
+            api_version: "".into(),
+            workloads: Some(ank_base::WorkloadMap {
+                workloads: HashMap::new(),
+            }),
         };
         let state_ankaios_no_version = State::try_from(state_proto_no_version).unwrap();
 

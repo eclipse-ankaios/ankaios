@@ -13,7 +13,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands;
-use crate::objects::{CompleteState, DeletedWorkload, WorkloadSpec, WorkloadState};
+use crate::objects::{DeletedWorkload, WorkloadSpec, WorkloadState};
+use api::ank_base;
 use async_trait::async_trait;
 use std::fmt;
 use tokio::sync::mpsc::error::SendError;
@@ -32,11 +33,11 @@ impl From<SendError<FromServer>> for FromServerInterfaceError {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum FromServer {
     UpdateWorkload(commands::UpdateWorkload),
     UpdateWorkloadState(commands::UpdateWorkloadState),
-    Response(commands::Response),
+    Response(ank_base::Response),
     Stop(commands::Stop),
 }
 
@@ -52,11 +53,11 @@ pub trait FromServerInterface {
         &self,
         workload_running: Vec<WorkloadState>,
     ) -> Result<(), FromServerInterfaceError>;
-    async fn response(&self, response: commands::Response) -> Result<(), FromServerInterfaceError>;
+    async fn response(&self, response: ank_base::Response) -> Result<(), FromServerInterfaceError>;
     async fn complete_state(
         &self,
         request_id: String,
-        complete_state: CompleteState,
+        complete_state: ank_base::CompleteState,
     ) -> Result<(), FromServerInterfaceError>;
     async fn update_state_success(
         &self,
@@ -67,7 +68,7 @@ pub trait FromServerInterface {
     async fn error(
         &self,
         request_id: String,
-        error: commands::Error,
+        message: String,
     ) -> Result<(), FromServerInterfaceError>;
     async fn stop(&self) -> Result<(), FromServerInterfaceError>;
 }
@@ -101,21 +102,22 @@ impl FromServerInterface for FromServerSender {
             .await?)
     }
 
-    async fn response(&self, response: commands::Response) -> Result<(), FromServerInterfaceError> {
+    async fn response(&self, response: ank_base::Response) -> Result<(), FromServerInterfaceError> {
         Ok(self.send(FromServer::Response(response)).await?)
     }
 
     async fn complete_state(
         &self,
         request_id: String,
-        complete_state: CompleteState,
+        complete_state: api::ank_base::CompleteState,
     ) -> Result<(), FromServerInterfaceError> {
         Ok(self
-            .send(FromServer::Response(commands::Response {
+            .send(FromServer::Response(ank_base::Response {
                 request_id,
-                response_content: commands::ResponseContent::CompleteState(Box::new(
+                response_content: ank_base::response::ResponseContent::CompleteState(
                     complete_state,
-                )),
+                )
+                .into(),
             }))
             .await?)
     }
@@ -127,14 +129,15 @@ impl FromServerInterface for FromServerSender {
         deleted_workloads: Vec<String>,
     ) -> Result<(), FromServerInterfaceError> {
         Ok(self
-            .send(FromServer::Response(commands::Response {
+            .send(FromServer::Response(ank_base::Response {
                 request_id,
-                response_content: commands::ResponseContent::UpdateStateSuccess(
-                    commands::UpdateStateSuccess {
+                response_content: ank_base::response::ResponseContent::UpdateStateSuccess(
+                    ank_base::UpdateStateSuccess {
                         added_workloads,
                         deleted_workloads,
                     },
-                ),
+                )
+                .into(),
             }))
             .await?)
     }
@@ -142,12 +145,15 @@ impl FromServerInterface for FromServerSender {
     async fn error(
         &self,
         request_id: String,
-        error: commands::Error,
+        message: String,
     ) -> Result<(), FromServerInterfaceError> {
         Ok(self
-            .send(FromServer::Response(commands::Response {
+            .send(FromServer::Response(ank_base::Response {
                 request_id,
-                response_content: commands::ResponseContent::Error(error),
+                response_content: ank_base::response::ResponseContent::Error(ank_base::Error {
+                    message,
+                })
+                .into(),
             }))
             .await?)
     }
@@ -167,7 +173,7 @@ impl FromServerInterface for FromServerSender {
 
 #[cfg(test)]
 mod tests {
-
+    use super::ank_base;
     use crate::{
         commands,
         from_server_interface::{FromServer, FromServerInterface},
@@ -233,7 +239,8 @@ mod tests {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
-        let complete_state = generate_test_complete_state(vec![generate_test_workload_spec()]);
+        let complete_state: ank_base::CompleteState =
+            generate_test_complete_state(vec![generate_test_workload_spec()]).into();
         assert!(tx
             .complete_state(REQUEST_ID.to_string(), complete_state.clone())
             .await
@@ -241,10 +248,10 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            FromServer::Response(commands::Response {
+            FromServer::Response(ank_base::Response {
                 request_id: REQUEST_ID.to_string(),
-                response_content: commands::ResponseContent::CompleteState(Box::new(
-                    complete_state,
+                response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                    complete_state
                 )),
             })
         )
@@ -269,14 +276,14 @@ mod tests {
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            FromServer::Response(commands::Response {
+            FromServer::Response(ank_base::Response {
                 request_id: REQUEST_ID.to_string(),
-                response_content: commands::ResponseContent::UpdateStateSuccess(
-                    commands::UpdateStateSuccess {
+                response_content: Some(ank_base::response::ResponseContent::UpdateStateSuccess(
+                    ank_base::UpdateStateSuccess {
                         added_workloads,
                         deleted_workloads,
                     },
-                ),
+                )),
             })
         )
     }
@@ -287,19 +294,19 @@ mod tests {
         let (tx, mut rx): (FromServerSender, FromServerReceiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_CAPA);
 
-        let error = commands::Error {
+        let error = ank_base::Error {
             message: "error".to_string(),
         };
         assert!(tx
-            .error(REQUEST_ID.to_string(), error.clone())
+            .error(REQUEST_ID.to_string(), error.message.clone())
             .await
             .is_ok());
 
         assert_eq!(
             rx.recv().await.unwrap(),
-            FromServer::Response(commands::Response {
+            FromServer::Response(ank_base::Response {
                 request_id: REQUEST_ID.to_string(),
-                response_content: commands::ResponseContent::Error(error),
+                response_content: Some(ank_base::response::ResponseContent::Error(error)),
             })
         )
     }

@@ -193,10 +193,11 @@ mod tests {
     use std::io;
     use std::io::Read;
 
+    use api::ank_base::{self, UpdateStateSuccess};
     use mockall::predicate::eq;
 
     use common::{
-        commands::{Response, UpdateStateSuccess, UpdateWorkloadState},
+        commands::UpdateWorkloadState,
         from_server_interface::FromServer,
         objects::{
             self, generate_test_workload_spec_with_param, CompleteState, ExecutionState,
@@ -630,7 +631,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .return_once(|_| Ok(Box::new(updated_state_clone)));
+            .return_once(|_| Ok((ank_base::CompleteState::from(updated_state_clone)).into()));
         mock_server_connection
             .expect_take_missed_from_server_messages()
             .return_once(std::vec::Vec::new);
@@ -714,20 +715,21 @@ mod tests {
             .expect_get_complete_state()
             .with(eq(vec![]))
             .return_once(|_| {
-                Ok(Box::new(CompleteState {
+                Ok((ank_base::CompleteState::from(CompleteState {
                     desired_state: updated_state.desired_state,
                     ..Default::default()
                 }))
+                .into())
             });
         mock_server_connection
             .expect_take_missed_from_server_messages()
             .return_once(|| {
                 vec![
-                    FromServer::Response(Response {
+                    FromServer::Response(ank_base::Response {
                         request_id: OTHER_REQUEST_ID.into(),
-                        response_content: common::commands::ResponseContent::Error(
+                        response_content: Some(ank_base::response::ResponseContent::Error(
                             Default::default(),
-                        ),
+                        )),
                     }),
                     FromServer::UpdateWorkloadState(UpdateWorkloadState {
                         workload_states: vec![WorkloadState {

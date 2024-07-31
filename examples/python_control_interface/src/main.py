@@ -35,13 +35,13 @@ def create_request_to_add_new_workload():
                 newState=ank_base.CompleteState(
                     desiredState=ank_base.State(
                         apiVersion="v0.1",
-                        workloads={
+                        workloads=ank_base.WorkloadMap(workloads={
                             "dynamic_nginx": ank_base.Workload(
                                 agent="agent_A",
                                 runtime="podman",
                                 restartPolicy=ank_base.NEVER,
                                 runtimeConfig="image: docker.io/library/nginx\ncommandOptions: [\"-p\", \"8080:80\"]")
-                        }
+                        })
                     )
                 ),
                 updateMask=["desiredState.workloads.dynamic_nginx"]

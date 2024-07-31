@@ -13,9 +13,8 @@ workloads:
   hello1:
     runtime: podman
     agent: agent_B
-    tags:
-      - key: owner
-        value: Ankaios team
+    dependencies:
+      filesystem_init: ADD_COND_SUCCEEDED
     runtimeConfig: |
       image: alpine:latest
       commandOptions: [ "--rm"]
