@@ -126,7 +126,7 @@ Allow read rule for only tags denies everythings execept read from tags
 
 Allow read write rule for workloads except write to simple_existing allows all read and write on workloads execept write to simple_existing
     Given the controller workload is allowed to read and write on desiredState.workloads
-    Given the controller workload is forbidden to to write on desiredState.workloads.simple_existing
+    And the controller workload is forbidden to to write on desiredState.workloads.simple_existing
 
     When the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple
     And the controller workload gets the state of fields desiredState.workloads.simple_existing
