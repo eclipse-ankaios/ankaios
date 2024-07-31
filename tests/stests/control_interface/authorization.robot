@@ -136,7 +136,7 @@ Allow read write rule for workloads except write to simple_existing allows all r
 
 Allow read write rule for workloads except write to simple_existing forbids writing to simple_existing and reading whole state
     Given the controller workload is allowed to read and write on desiredState.workloads
-    Given the controller workload is forbidden to to write on desiredState.workloads.simple_existing
+    And the controller workload is forbidden to to write on desiredState.workloads.simple_existing
 
     When the controller workload updates the state with manifest "${CONFIGS_DIR}/simple_state.yaml" and update mask desiredState.workloads.simple_existing.tags
     And the controller workload gets the state
