@@ -10,4 +10,4 @@ RUN curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/download/${VER
 
 COPY state.yaml /etc/ankaios/state.yaml
 
-CMD ["/usr/local/bin/ank-server", "--address", "0.0.0.0:25551", "--startup-config", "/etc/ankaios/state.yaml"]
+CMD ["/usr/local/bin/ank-server", "--insecure", "--address", "0.0.0.0:25551", "--startup-config", "/etc/ankaios/state.yaml"]

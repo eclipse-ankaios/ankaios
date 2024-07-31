@@ -20,6 +20,7 @@ use cli_commands::CliCommands;
 use common::std_extensions::GracefulExitResult;
 use grpc::security::TLSConfig;
 mod cli_error;
+mod filtered_complete_state;
 mod log;
 
 #[cfg(test)]
@@ -45,26 +46,16 @@ async fn main() {
         false => args.server_url.replace("http[s]", "https"),
     };
 
-    let tls_config: Result<Option<TLSConfig>, String> =
-        match (args.insecure, args.ca_pem, args.crt_pem, args.key_pem) {
-            // [impl->swdd~cli-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
-            (true, _, _, _) => Ok(None),
-            // [impl->swdd~cli-provides-file-paths-to-communication-middleware~1]
-            (false, Some(path_to_ca_pem), Some(path_to_crt_pem), Some(path_to_key_pem)) => {
-                Ok(Some(TLSConfig {
-                    path_to_ca_pem,
-                    path_to_crt_pem,
-                    path_to_key_pem,
-                }))
-            }
-            // [impl->swdd~cli-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
-            (false, ca_pem, crt_pem, key_pem) => Err(format!(
-                "ANK_CA_PEM={} ANK_CRT_PEM={} ANK_KEY_PEM={}",
-                ca_pem.unwrap_or(String::from("\"\"")),
-                crt_pem.unwrap_or(String::from("\"\"")),
-                key_pem.unwrap_or(String::from("\"\""))
-            )),
-        };
+    if let Err(err_message) =
+        TLSConfig::is_config_conflicting(args.insecure, &args.ca_pem, &args.crt_pem, &args.key_pem)
+    {
+        output_warn!("{}", err_message);
+    }
+
+    // [impl->swdd~cli-provides-file-paths-to-communication-middleware~1]
+    // [impl->swdd~cli-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]
+    // [impl->swdd~cli-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
+    let tls_config = TLSConfig::new(args.insecure, args.ca_pem, args.crt_pem, args.key_pem);
 
     let mut cmd = CliCommands::init(
         args.response_timeout_ms,
@@ -73,7 +64,7 @@ async fn main() {
         args.no_wait,
         // [impl->swdd~cli-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
         tls_config.unwrap_or_exit_func(
-            |err| output_and_error!("Missing certificate files: Provide the files via {} or deactivate mTLS with '-k' or '--insecure' option!", err),
+            |err| output_and_error!("Missing certificate files: {}", err),
             -1,
         ),
     )

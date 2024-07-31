@@ -9,6 +9,7 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
+api ={ path = "../api" }
 common = { path = "../common" }
 grpc = { path = "../grpc" }
 log = "0.4"

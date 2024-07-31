@@ -50,8 +50,9 @@ impl CliCommands {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
+    use api::ank_base::{self, UpdateStateSuccess};
     use common::{
-        commands::{UpdateStateSuccess, UpdateWorkloadState},
+        commands::UpdateWorkloadState,
         from_server_interface::FromServer,
         objects::{self, CompleteState, ExecutionState, WorkloadState},
     };
@@ -94,7 +95,7 @@ mod tests {
         mock_server_connection
             .expect_get_complete_state()
             .with(eq(vec![]))
-            .return_once(|_| Ok(Box::new(complete_state_update)));
+            .return_once(|_| Ok((ank_base::CompleteState::from(complete_state_update)).into()));
 
         mock_server_connection
             .expect_take_missed_from_server_messages()

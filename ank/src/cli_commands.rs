@@ -129,8 +129,9 @@ impl CliCommands {
             .get_complete_state(&Vec::new())
             .await?;
 
+        let wl_states = res_complete_state.workload_states.unwrap_or_default();
         let mut workload_infos: Vec<(WorkloadInstanceName, WorkloadTableRow)> =
-            Vec::<WorkloadState>::from(res_complete_state.workload_states)
+            Vec::<WorkloadState>::from(wl_states)
                 .into_iter()
                 .map(|wl_state| {
                     (
@@ -138,23 +139,32 @@ impl CliCommands {
                         WorkloadTableRow::new(
                             wl_state.instance_name.workload_name(),
                             wl_state.instance_name.agent_name(),
-                            Default::default(),
-                            &wl_state.execution_state.state.to_string(),
-                            &wl_state.execution_state.additional_info.to_string(),
+                            String::default(),
+                            wl_state.execution_state.state.to_string(),
+                            wl_state.execution_state.additional_info.to_string(),
                         ),
                     )
                 })
                 .collect();
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
-        for wi in &mut workload_infos {
-            if let Some((_found_wl_name, found_wl_spec)) = res_complete_state
-                .desired_state
-                .workloads
+        let desired_state_workloads = res_complete_state
+            .desired_state
+            .and_then(|desired_state| desired_state.workloads)
+            .unwrap_or_default();
+        for (_, table_row) in &mut workload_infos {
+            let runtime_name = desired_state_workloads
                 .iter()
-                .find(|&(wl_name, wl_spec)| *wl_name == wi.1.name && wl_spec.agent == wi.1.agent)
-            {
-                wi.1.runtime.clone_from(&found_wl_spec.runtime);
+                .find(|&(wl_name, wl_spec)| {
+                    *wl_name == table_row.name
+                        && wl_spec.agent.as_deref().map_or(false, |x| x == table_row.agent)
+                        && wl_spec.runtime.as_ref().is_some()
+                })
+                // runtime is valid because the filter above has found one
+                .map(|(_, found_wl_spec)| found_wl_spec.runtime.as_ref().unwrap());
+
+            if let Some(runtime) = runtime_name {
+                table_row.runtime.clone_from(runtime);
             }
         }
 
