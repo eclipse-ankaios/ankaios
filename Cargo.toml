@@ -11,7 +11,7 @@ members = [
     ]
 
 [workspace.package]
-version = "0.4.0-pre"
+version = "0.4.0-rc1"
 edition = "2021"
 license = "Apache-2.0"
 description = "Eclipse Ankaios provides workload and container orchestration for automotive High Performance Computing Software (HPCs)."
