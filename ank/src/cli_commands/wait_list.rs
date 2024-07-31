@@ -14,10 +14,9 @@
 
 use std::{collections::HashSet, fmt::Display};
 
-use common::{
-    commands::UpdateStateSuccess,
-    objects::{PendingSubstate, WorkloadInstanceName, WorkloadState},
-};
+use api::ank_base;
+
+use common::objects::{PendingSubstate, WorkloadInstanceName, WorkloadState};
 
 #[cfg(test)]
 use mockall::mock;
@@ -29,10 +28,10 @@ pub struct ParsedUpdateStateSuccess {
     pub deleted_workloads: Vec<WorkloadInstanceName>,
 }
 
-impl TryFrom<UpdateStateSuccess> for ParsedUpdateStateSuccess {
+impl TryFrom<ank_base::UpdateStateSuccess> for ParsedUpdateStateSuccess {
     type Error = String;
 
-    fn try_from(value: UpdateStateSuccess) -> Result<Self, Self::Error> {
+    fn try_from(value: ank_base::UpdateStateSuccess) -> Result<Self, Self::Error> {
         Ok(Self {
             added_workloads: value
                 .added_workloads

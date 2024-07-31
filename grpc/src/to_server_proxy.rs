@@ -15,10 +15,10 @@
 use crate::ankaios_streaming::GRPCStreaming;
 use crate::grpc_middleware_error::GrpcMiddlewareError;
 
+use crate::grpc_api::{self, to_server::ToServerEnum};
 use api::ank_base::{
     self, request::RequestContent, CompleteStateRequest, Request, UpdateStateRequest,
 };
-use crate::grpc_api::{self, to_server::ToServerEnum};
 
 use common::request_id_prepending::prepend_request_id;
 use common::to_server_interface::{ToServer, ToServerInterface, ToServerReceiver, ToServerSender};
@@ -210,8 +210,8 @@ mod tests {
     };
     use tokio::sync::mpsc;
 
-    use api::ank_base::{self, UpdateStateRequest};
     use crate::grpc_api::{self, to_server::ToServerEnum};
+    use api::ank_base::{self, UpdateStateRequest};
 
     #[derive(Default, Clone)]
     struct MockGRPCToServerStreaming {
@@ -386,7 +386,13 @@ mod tests {
             .as_mut()
             .unwrap()
             .workloads
+            .as_mut()
+            .unwrap()
+            .workloads
             .get_mut("name")
+            .unwrap()
+            .dependencies
+            .as_mut()
             .unwrap()
             .dependencies
             .get_mut(&String::from("workload A"))

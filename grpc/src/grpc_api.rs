@@ -77,13 +77,8 @@ impl TryFrom<from_server_interface::FromServer> for FromServer {
                     },
                 )),
             }),
-            from_server_interface::FromServer::Response(ankaios) => Ok(FromServer {
-                from_server_enum: Some(from_server::FromServerEnum::Response(
-                    super::ank_base::Response {
-                        request_id: ankaios.request_id,
-                        response_content: Some(ankaios.response_content.into()),
-                    },
-                )),
+            from_server_interface::FromServer::Response(response) => Ok(FromServer {
+                from_server_enum: Some(from_server::FromServerEnum::Response(response)),
             }),
             from_server_interface::FromServer::Stop(_) => {
                 Err("Stop command not implemented in proto")
@@ -245,10 +240,10 @@ mod tests {
         UpdateWorkloadState,
     };
 
-    use api::ank_base;
+    use api::ank_base::{self, Dependencies};
     use common::{
         objects::{generate_test_workload_spec, ConfigHash},
-        test_utils::generate_test_deleted_workload,
+        test_utils::{self, generate_test_deleted_workload},
     };
 
     mod ankaios {
@@ -300,31 +295,7 @@ mod tests {
 
     #[test]
     fn utest_convert_proto_to_server_update_state() {
-        let proto_request = ToServer {
-            to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
-                request_id: "request_id".to_owned(),
-                request_content: Some(ank_base::request::RequestContent::UpdateStateRequest(
-                    ank_base::UpdateStateRequest {
-                        update_mask: vec!["test_update_mask_field".to_owned()],
-                        new_state: Some(ank_base::CompleteState {
-                            desired_state: Some(ank_base::State {
-                                api_version: "v0.1".into(),
-                                workloads: HashMap::from([(
-                                    "test_workload".to_owned(),
-                                    ank_base::Workload {
-                                        agent: "test_agent".to_owned(),
-                                        ..Default::default()
-                                    },
-                                )]),
-                            }),
-                            ..Default::default()
-                        }),
-                    },
-                )),
-            })),
-        };
-
-        let ankaios_command = ankaios::ToServer::Request(ankaios::Request {
+        let ankaios_request = ankaios::Request {
             request_id: "request_id".to_owned(),
             request_content: ankaios::RequestContent::UpdateStateRequest(Box::new(
                 ankaios::UpdateStateRequest {
@@ -344,7 +315,13 @@ mod tests {
                     },
                 },
             )),
-        });
+        };
+
+        let proto_request = ToServer {
+            to_server_enum: Some(ToServerEnum::Request(ankaios_request.clone().into())),
+        };
+
+        let ankaios_command = ankaios::ToServer::Request(ankaios_request);
 
         assert_eq!(
             ankaios::ToServer::try_from(proto_request),
@@ -354,28 +331,23 @@ mod tests {
 
     #[test]
     fn utest_convert_proto_to_server_update_state_fails() {
+        let workloads = ank_base::Workload {
+            agent: Some("test_agent".to_owned()),
+            dependencies: Some(Dependencies {
+                dependencies: vec![("other_workload".into(), -1)].into_iter().collect(),
+            }),
+            ..Default::default()
+        };
         let proto_request = ToServer {
             to_server_enum: Some(ToServerEnum::Request(ank_base::Request {
                 request_id: "requeset_id".to_owned(),
                 request_content: Some(ank_base::request::RequestContent::UpdateStateRequest(
                     ank_base::UpdateStateRequest {
                         update_mask: vec!["test_update_mask_field".to_owned()],
-                        new_state: Some(ank_base::CompleteState {
-                            desired_state: Some(ank_base::State {
-                                api_version: "v0.1".into(),
-                                workloads: HashMap::from([(
-                                    "test_workload".to_owned(),
-                                    ank_base::Workload {
-                                        agent: "test_agent".to_owned(),
-                                        dependencies: vec![("other_workload".into(), -1)]
-                                            .into_iter()
-                                            .collect(),
-                                        ..Default::default()
-                                    },
-                                )]),
-                            }),
-                            ..Default::default()
-                        }),
+                        new_state: Some(test_utils::generate_test_proto_complete_state(&[(
+                            "test_workload",
+                            workloads,
+                        )])),
                     },
                 )),
             })),
@@ -471,27 +443,26 @@ mod tests {
 
     #[test]
     fn utest_convert_from_server_to_proto_complete_state() {
-        let test_ex_com = ankaios::FromServer::Response(ankaios::Response {
+        let proto_response = ank_base::Response {
             request_id: "req_id".to_owned(),
-            response_content: ankaios::ResponseContent::CompleteState(Box::default()),
-        });
-
-        let expected_ex_com = Ok(FromServer {
-            from_server_enum: Some(FromServerEnum::Response(ank_base::Response {
-                request_id: "req_id".to_owned(),
-                response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                    ank_base::CompleteState {
-                        desired_state: Some(api::ank_base::State {
-                            api_version: "v0.1".into(),
-                            ..Default::default()
-                        }),
+            response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                ank_base::CompleteState {
+                    desired_state: Some(api::ank_base::State {
+                        api_version: "v0.1".into(),
                         ..Default::default()
-                    },
-                )),
-            })),
+                    }),
+                    ..Default::default()
+                },
+            )),
+        };
+
+        let ankaios_msg = ankaios::FromServer::Response(proto_response.clone());
+
+        let proto_msg = Ok(FromServer {
+            from_server_enum: Some(FromServerEnum::Response(proto_response)),
         });
 
-        assert_eq!(FromServer::try_from(test_ex_com), expected_ex_com);
+        assert_eq!(FromServer::try_from(ankaios_msg), proto_msg);
     }
     ///////////////////////////////////////////////////////////////////////////
     // WorkloadSpec tests

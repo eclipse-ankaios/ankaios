@@ -198,10 +198,11 @@ mod tests {
         workload_state_store::{mock_parameter_storage_new_returns, MockWorkloadStateStore},
         WorkloadStateSenderInterface,
     };
+    use api::ank_base;
     use common::{
-        commands::{Response, ResponseContent, UpdateWorkloadState},
+        commands::UpdateWorkloadState,
         from_server_interface::FromServerInterface,
-        objects::{generate_test_workload_spec_with_param, CompleteState, ExecutionState},
+        objects::{generate_test_workload_spec_with_param, ExecutionState},
         to_server_interface::ToServer,
     };
     use mockall::predicate::*;
@@ -375,11 +376,13 @@ mod tests {
         let (_workload_state_sender, workload_state_receiver) = channel(BUFFER_SIZE);
 
         let request_id = format!("{WORKLOAD_1_NAME}@{REQUEST_ID}");
-        let complete_state: CompleteState = Default::default();
+        let complete_state: ank_base::CompleteState = Default::default();
 
-        let response = Response {
+        let response = ank_base::Response {
             request_id: request_id.clone(),
-            response_content: ResponseContent::CompleteState(Box::new(complete_state.clone())),
+            response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                complete_state.clone(),
+            )),
         };
 
         let mut mock_runtime_manager = RuntimeManager::default();

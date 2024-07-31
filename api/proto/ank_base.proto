@@ -17,14 +17,21 @@
 syntax = "proto3";
 package ank_base;
 
+/**
+* A message containing a request to the Ankaios server to update the state or to request the complete state of the Ankaios system.
+*/
 message Request {
     string requestId = 1;
     oneof RequestContent {
-        UpdateStateRequest updateStateRequest = 2; /// A message to Ankaios server to update the State of one or more agent(s).
+        UpdateStateRequest updateStateRequest = 2; /// A message to Ankaios server to update the state of one or more agent(s).
         CompleteStateRequest completeStateRequest = 3; /// A message to Ankaios server to request the complete state by the given request id and the optional field mask.
     }
 }
 
+/**
+* A message containing a response from the Ankaios server to a particular request.
+* The response content depends on the request content previously sent to the Ankaios server.
+*/
 message Response {
     string requestId = 1;
     oneof ResponseContent {
@@ -61,6 +68,10 @@ message UpdateStateRequest {
     CompleteState newState = 1; /// The new state of the Ankaios system.
     repeated string updateMask = 2; /// A list of symbolic field paths within the state message structure e.g. 'desiredState.workloads.nginx' to specify what to be updated.
 }
+
+/**
+* A message from the server containing the ids of the workloads that have been started and stopped in response to a previously sent UpdateStateRequest.
+*/
 message UpdateStateSuccess {
     repeated string addedWorkloads = 1; /// Workload istance names of workloads which will be started
     repeated string deletedWorkloads = 2; /// Workload instance names of workloads which will be stopped
@@ -98,6 +109,9 @@ message ExecutionsStatesForId {
     map<string, ExecutionState> idStateMap = 1;
 }
 
+/**
+* A message containing information about the detailed state of a workload in the Ankaios system.
+*/
 message ExecutionState {
     string additionalInfo = 1; /// The additional info contains more detailed information from the runtime regarding the execution state.
     oneof ExecutionStateEnum {
@@ -194,20 +208,41 @@ message WorkloadInstanceName {
 */
 message State {
     string apiVersion = 1; /// The current version of the API.
-    map<string, Workload> workloads = 2; /// A mapping from workload names to workload configurations.
+    WorkloadMap workloads = 2; /// A mapping from workload names to workload configurations.
+}
+
+/**
+* This is a workaround for proto not supporing optional maps
+*/
+message WorkloadMap {
+    map<string, Workload> workloads = 1;
 }
 
 /**
 * A message containing the configuration of a workload.
 */
 message Workload {
-    string agent = 1; /// The name of the owning Agent.
-    RestartPolicy restartPolicy = 2; /// An enum value that defines the condition under which a workload is restarted.
-    map<string, AddCondition> dependencies = 3; /// A map of workload names and expected states to enable a synchronized start of the workload.
-    repeated Tag tags = 4; /// A list of tag names.
-    string runtime = 5; /// The name of the runtime e.g. podman.
-    string runtimeConfig  = 6; /// The configuration information specific to the runtime.
+    optional string agent = 1; /// The name of the owning Agent.
+    optional RestartPolicy restartPolicy = 2; /// An enum value that defines the condition under which a workload is restarted.
+    Dependencies dependencies = 3; /// A map of workload names and expected states to enable a synchronized start of the workload.
+    Tags tags = 4; /// A list of tag names.
+    optional string runtime = 5; /// The name of the runtime e.g. podman.
+    optional string runtimeConfig  = 6; /// The configuration information specific to the runtime.
     ControlInterfaceAccess controlInterfaceAccess = 7;
+}
+
+/**
+* This is a workaround for proto not supporing optional repeated values
+*/
+message Tags {
+    repeated Tag tags = 1;
+}
+
+/**
+* This is a workaround for proto not supporing optional maps
+*/
+message Dependencies {
+    map<string, AddCondition> dependencies = 1;
 }
 
 /**

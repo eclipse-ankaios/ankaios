@@ -45,6 +45,7 @@ dependencies = [
 name = "ank"
 version = "0.4.0-pre"
 dependencies = [
+ "api",
  "clap",
  "common",
  "crossterm",
@@ -97,6 +98,7 @@ dependencies = [
 name = "ank-server"
 version = "0.4.0-pre"
 dependencies = [
+ "api",
  "async-stream",
  "async-trait",
  "clap",
@@ -176,6 +178,7 @@ name = "api"
 version = "0.4.0-pre"
 dependencies = [
  "prost",
+ "serde",
  "tonic",
  "tonic-build",
 ]

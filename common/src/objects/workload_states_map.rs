@@ -145,12 +145,10 @@ impl From<WorkloadStatesMap> for Vec<WorkloadState> {
         value
             .into_iter()
             .flat_map(|(agent_name, name_state_map)| {
-                // let agent_name = agent_name.clone();
                 name_state_map
                     .into_iter()
                     .flat_map(move |(wl_name, id_state_map)| {
                         let agent_name = agent_name.clone();
-                        // let wl_name = wl_name.clone();
                         id_state_map
                             .into_iter()
                             .map(move |(wl_id, exec_state)| WorkloadState {

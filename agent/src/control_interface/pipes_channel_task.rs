@@ -19,9 +19,8 @@ use crate::control_interface::ToAnkaios;
 use super::authorizer::Authorizer;
 #[cfg_attr(test, mockall_double::double)]
 use super::ReopenFile;
-use api::control_api;
+use api::{ank_base, control_api};
 use common::{
-    commands::{Error, Response, ResponseContent},
     from_server_interface::{FromServer, FromServerReceiver},
     to_server_interface::{ToServer, ToServerSender},
 };
@@ -78,6 +77,7 @@ impl PipesChannelTask {
                 // [impl->swdd~agent-forward-request-from-control-interface-pipe-to-server~1]
                 to_ankaios_binary = self.input_stream.read_protobuf_data() => {
                     if let Ok(to_ankaios) = decode_to_server(to_ankaios_binary) {
+                        // [impl->swdd~agent-converts-control-interface-message-to-ankaios-object~1]
                         match to_ankaios.try_into() {
                             Ok(ToAnkaios::Request(mut request)) => {
                                 if self.authorizer.authorize(&request) {
@@ -86,11 +86,11 @@ impl PipesChannelTask {
                                     let _ = self.output_pipe_channel.send(ToServer::Request(request)).await;
                                 } else {
                                     log::debug!("Denying request '{:?}' from authorizer '{:?}'", request, self.authorizer);
-                                    let error = Response {
+                                    let error = ank_base::Response {
                                         request_id: request.request_id,
-                                        response_content: ResponseContent::Error(Error {
+                                        response_content: Some(ank_base::response::ResponseContent::Error(ank_base::Error {
                                             message: "Access denied".into(),
-                                        }),
+                                        })),
                                     };
                                     let _ = self.forward_from_server(error).await;
                                 };
@@ -108,10 +108,10 @@ impl PipesChannelTask {
         tokio::spawn(self.run())
     }
 
-    async fn forward_from_server(&mut self, response: Response) -> io::Result<()> {
+    async fn forward_from_server(&mut self, response: ank_base::Response) -> io::Result<()> {
         use control_api::from_ankaios::FromAnkaiosEnum;
         let message = control_api::FromAnkaios {
-            from_ankaios_enum: Some(FromAnkaiosEnum::Response(response.into())),
+            from_ankaios_enum: Some(FromAnkaiosEnum::Response(response)),
         };
 
         // [impl->swdd~agent-uses-length-delimited-protobuf-for-pipes~1]
@@ -162,14 +162,16 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let response = commands::Response {
+        let response = ank_base::Response {
             request_id: "req_id".to_owned(),
-            response_content: commands::ResponseContent::CompleteState(Default::default()),
+            response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                Default::default(),
+            )),
         };
 
         let test_command_binary = control_api::FromAnkaios {
             from_ankaios_enum: Some(control_api::from_ankaios::FromAnkaiosEnum::Response(
-                response.clone().into(),
+                response.clone(),
             )),
         }
         .encode_length_delimited_to_vec();
@@ -230,14 +232,16 @@ mod tests {
             .expect_read_protobuf_data()
             .returning(move || Ok(Box::new(x)));
 
-        let response = commands::Response {
+        let response = ank_base::Response {
             request_id: "req_id".to_owned(),
-            response_content: commands::ResponseContent::CompleteState(Default::default()),
+            response_content: Some(ank_base::response::ResponseContent::CompleteState(
+                Default::default(),
+            )),
         };
 
         let test_input_command_binary = control_api::FromAnkaios {
             from_ankaios_enum: Some(control_api::from_ankaios::FromAnkaiosEnum::Response(
-                response.clone().into(),
+                response.clone(),
             )),
         }
         .encode_length_delimited_to_vec();

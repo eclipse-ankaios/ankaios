@@ -30,9 +30,8 @@ const PODS_VOLUME_SUFFIX: &str = ".pods";
 #[derive(Debug, Clone)]
 pub struct PodmanKubeRuntime {}
 
-#[derive(Clone, Debug)]
-
 // [impl->swdd~podman-kube-workload-id]
+#[derive(Clone, Debug)]
 pub struct PodmanKubeWorkloadId {
     // Podman currently does not provide an Id for a created manifest
     // and one needs the complete manifest to tear down the deployed resources.

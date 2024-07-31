@@ -15,10 +15,19 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     tonic_build::configure()
         .build_server(true)
-        .compile(
-            &["proto/control_api.proto"],
-            &["proto"],
+        .type_attribute(".", "#[derive(serde::Deserialize, serde::Serialize)]")
+        .type_attribute(".", "#[serde(rename_all = \"camelCase\")]")
+        .field_attribute("Workload.tags", "#[serde(flatten)]")
+        .field_attribute("Workload.dependencies", "#[serde(flatten)]")
+        .field_attribute("WorkloadStatesMap.agentStateMap", "#[serde(flatten)]")
+        .field_attribute(
+            "ExecutionsStatesOfWorkload.wlNameStateMap",
+            "#[serde(flatten)]",
         )
+        .field_attribute("ExecutionState.ExecutionStateEnum", "#[serde(flatten)]")
+        .field_attribute("ExecutionsStatesForId.idStateMap", "#[serde(flatten)]")
+        .field_attribute("WorkloadMap.workloads", "#[serde(flatten)]")
+        .compile(&["proto/control_api.proto"], &["proto"])
         .unwrap();
     Ok(())
 }
