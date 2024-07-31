@@ -2,162 +2,162 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/architecture/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/support/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/development/build/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/development/ci-cd-release/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/development/ci-cd/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/development/documentation-guidelines/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/development/extending-dev-container/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/development/requirement-template/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/development/requirement-tracing/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/development/run-unit-tests/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/development/rust-coding-guidelines/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/development/self-service/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/development/system-tests/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/development/test-coverage/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/development/unit-verification/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/reference/_ankaios.proto/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/reference/complete-state/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/reference/control-interface/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/reference/glossary/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/reference/inter-workload-dependencies/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/reference/interacting-with-ankaios/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/reference/resource-usage/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/reference/restart-policy/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/reference/startup-configuration/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/usage/awesome-ankaios/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/usage/installation/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/usage/mtls-setup/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/usage/quickstart/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/usage/tutorial-vehicle-signals/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/usage/upgrading/v0_2_to_v0_3/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://eclipse-ankaios.github.io/ankaios/main/usage/upgrading/v0_3_to_v0_4/</loc>
-         <lastmod>2024-07-26</lastmod>
+         <lastmod>2024-07-31</lastmod>
          <changefreq>daily</changefreq>
     </url>
 </urlset>

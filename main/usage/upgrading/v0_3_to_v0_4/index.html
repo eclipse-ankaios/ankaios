@@ -711,9 +711,18 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#control-interface" class="md-nav__link">
+  <a href="#optional-attributes-of-the-complete-state" class="md-nav__link">
     <span class="md-ellipsis">
-      Control interface
+      Optional attributes of the Complete State
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#new-control-interface-messages" class="md-nav__link">
+    <span class="md-ellipsis">
+      New Control Interface messages
     </span>
   </a>
   
@@ -1364,9 +1373,18 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#control-interface" class="md-nav__link">
+  <a href="#optional-attributes-of-the-complete-state" class="md-nav__link">
     <span class="md-ellipsis">
-      Control interface
+      Optional attributes of the Complete State
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#new-control-interface-messages" class="md-nav__link">
+    <span class="md-ellipsis">
+      New Control Interface messages
     </span>
   </a>
   
@@ -1414,17 +1432,49 @@
 
 
 <h1 id="upgrading-v03-to-v04">Upgrading v0.3 to v0.4<a class="headerlink" href="#upgrading-v03-to-v04" title="Permanent link">&para;</a></h1>
-<p>When upgrading from v0.3 to v0.4, the installation script simply needs to be run again. However, due to some breaking changes, some manual adjustments are required for existing workloads using the control interface and applications directly using the gRPC API of the Ankaios server.</p>
-<h2 id="control-interface">Control interface<a class="headerlink" href="#control-interface" title="Permanent link">&para;</a></h2>
-<p>The control interface has been decoupled from the API for server-agent communication, now exclusively handling essential messages with newly named identifiers for clarity.</p>
-<p>To upgrade to the new version v0.4, use the new <code>control_api.proto</code> file and two new messages:</p>
+<p>When upgrading from v0.3 to v0.4, the installation script simply needs to be ran again. However, due to some breaking changes, some manual adjustments are required for existing workloads using the control interface and applications directly using the gRPC API of the Ankaios server.</p>
+<h2 id="optional-attributes-of-the-complete-state">Optional attributes of the Complete State<a class="headerlink" href="#optional-attributes-of-the-complete-state" title="Permanent link">&para;</a></h2>
+<p>Ankaios allows filtering the Complete State at request level and setting only certain fields of the Complete State while updating the desired state of the cluster. To make this process more transparent and remove the need of returning or requiring default values for fields not targeted by the filter masks, Ankaios now explicitly handles all fields (beside versions) of the Complete State as optional. This allows returning only portions of the Complete State, e.g., when filtering with <code>desiredState.workloads.nginx.tags</code> the response from the server will be:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">desiredState</span><span class="p">:</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">workloads</span><span class="p">:</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="nt">nginx</span><span class="p">:</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">      </span><span class="nt">tags</span><span class="p">:</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">owner</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">        </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Ankaios team</span>
+</code></pre></div>
+<p>The changes requires also some additional handling when pushing data over the Control Interface, as some fields must now be enclosed into wrapper objects, e.g., the Rust code for creating a workload object now looks as follows:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">Workload</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span><span class="n">runtime</span><span class="p">:</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="s">&quot;podman&quot;</span><span class="p">.</span><span class="n">to_string</span><span class="p">()),</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="n">agent</span><span class="p">:</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="s">&quot;agent_A&quot;</span><span class="p">.</span><span class="n">to_string</span><span class="p">()),</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="n">restart_policy</span><span class="p">:</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">RestartPolicy</span><span class="p">::</span><span class="n">Never</span><span class="p">.</span><span class="n">into</span><span class="p">()),</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="n">tags</span><span class="p">:</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">Tags</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">        </span><span class="n">tags</span><span class="p">:</span><span class="w"> </span><span class="nc">vec</span><span class="o">!</span><span class="p">[</span><span class="n">Tag</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">            </span><span class="n">key</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;owner&quot;</span><span class="p">.</span><span class="n">to_string</span><span class="p">(),</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">            </span><span class="n">value</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Ankaios team&quot;</span><span class="p">.</span><span class="n">to_string</span><span class="p">(),</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">        </span><span class="p">}],</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="p">}),</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="n">runtime_config</span><span class="p">:</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">        </span><span class="s">&quot;image: docker.io/library/nginx</span><span class="se">\n</span><span class="s">commandOptions: [</span><span class="se">\&quot;</span><span class="s">-p</span><span class="se">\&quot;</span><span class="s">, </span><span class="se">\&quot;</span><span class="s">8080:80</span><span class="se">\&quot;</span><span class="s">]&quot;</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">            </span><span class="p">.</span><span class="n">to_string</span><span class="p">(),</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">    </span><span class="p">),</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">    </span><span class="n">dependencies</span><span class="p">:</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">Dependencies</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">        </span><span class="n">dependencies</span><span class="p">:</span><span class="w"> </span><span class="nc">HashMap</span><span class="p">::</span><span class="n">new</span><span class="p">(),</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">    </span><span class="p">}),</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">    </span><span class="n">control_interface_access</span><span class="p">:</span><span class="w"> </span><span class="nb">None</span><span class="p">,</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="p">}</span>
+</code></pre></div>
+<p>Please review the examples from <a href="https://github.com/eclipse-ankaios/ankaios">the Ankaios repository</a> for more information on the topic.</p>
+<h2 id="new-control-interface-messages">New Control Interface messages<a class="headerlink" href="#new-control-interface-messages" title="Permanent link">&para;</a></h2>
+<p>The Control Interface has been decoupled from the API for server-agent communication, now exclusively handling essential messages with newly named identifiers for clarity.</p>
+<p>To upgrade to the new version v0.4, use the new <code>control_api.proto</code> file and the two new messages:</p>
 <ul>
 <li><code>ToAnkaios</code></li>
 <li><code>FromAnkaios</code></li>
 </ul>
 <p>The new messages currently support requests and responses to and from Ankaios and will later support other functionality. The <code>Request</code> and <code>Response</code> messages and their content remain the same, but are now located in the <code>ank_base.proto</code> file.</p>
 <p>A sample how the new definition of the Control Interface is used can be found in the examples from <a href="https://github.com/eclipse-ankaios/ankaios">the Ankaios repository</a>.</p>
-<p>The reason for splitting some messages into the dedicated file <code>ank_base.proto</code>, is that they are also used for the gRPC API of the Ankaios server. This API is mainly used by the Ankaios agents and CLI, but could also be used by third party applications to directly communicate with the Ankaios server. The following chapter details the changes needed to upgrade to v0.4 in case you are using this API.</p>
+<p>The reason for splitting some messages into the dedicated file <code>ank_base.proto</code>, is that they are also used for the gRPC API of the Ankaios server. This API is mainly used by the Ankaios agents and the <code>ank</code> CLI, but could also be used by third party applications to directly communicate with the Ankaios server. The following chapter details the changes needed to upgrade to v0.4 in case you are using this API.</p>
 <h2 id="grpc-api-of-the-ankaios-server">gRPC API of the Ankaios server<a class="headerlink" href="#grpc-api-of-the-ankaios-server" title="Permanent link">&para;</a></h2>
 <p>Ankaios facilitates server-agent-CLI communication through an interchangeable middleware, currently implemented using gRPC. By segregating the gRPC API into a distinct <code>grpc_api.proto</code> file, we clearly show the target and purpose of this interface.</p>
 <p>If you are using the gRPC API of the Ankaios server directly (and not the CLI), you would need to cope with the splitting of the messaged into <code>grpc_api.proto</code> and <code>ank_base.proto</code>. Apart from that, the API itself is exactly the same.</p>
@@ -1433,10 +1483,10 @@
 The default installation script will install Ankaios without mTLS.
 When using the <code>ank</code> CLI with such an installation, the arguments <code>--insecure</code> or <code>-k</code> have to be passed.</p>
 <p>So</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>ank<span class="w"> </span>get<span class="w"> </span>workloads
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>ank<span class="w"> </span>get<span class="w"> </span>workloads
 </code></pre></div>
 <p>will have to be changed to</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>workloads
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>workloads
 </code></pre></div>
 <p>Alternatively, set the environment variable <code>ANK_INSECURE=true</code> to avoid passing the <code>-k</code> argument to each <code>ank</code> CLI command.</p>
 
