@@ -42,8 +42,11 @@ pub mod security {
             ca_pem: &Option<String>,
             crt_pem: &Option<String>,
             key_pem: &Option<String>,
-        ) -> bool {
-            insecure && (ca_pem.is_some() || crt_pem.is_some() || key_pem.is_some())
+        ) -> Result<(), String> {
+            if insecure && (ca_pem.is_some() || crt_pem.is_some() || key_pem.is_some()) {
+                return Err("Insecure and secure flags specified at the same time. Defaulting to secure communication.".to_string());
+            }
+            Ok(())
         }
 
         pub fn new(
@@ -66,7 +69,7 @@ pub mod security {
                 (true, None, None, None) => Ok(None),
                 // [impl->swdd~cli-fails-on-missing-file-paths-and-insecure-cli-arguments~1]
                 (_, ca_pem, crt_pem, key_pem) => Err(format!(
-                    "Provide mTLS config via ANKAGENT_CA_PEM={} ANKAGENT_CRT_PEM={} ANKAGENT_KEY_PEM={} or deactivate mTLS with '-k' or '--insecure' option only!",
+                    "Either provide mTLS config via the '--ca_pem {}', '--crt_pem {}' and '--key_pem {}' options or deactivate mTLS with the '--insecure' option!",
                     ca_pem.unwrap_or(String::from("\"\"")),
                     crt_pem.unwrap_or(String::from("\"\"")),
                     key_pem.unwrap_or(String::from("\"\""))

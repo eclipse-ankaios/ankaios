@@ -107,8 +107,8 @@ async fn main() {
         workload_state_sender,
     );
 
-    if TLSConfig::is_config_conflicting(args.insecure, &args.ca_pem, &args.crt_pem, &args.key_pem) {
-        log::warn!("Insecure and secure flags specified at the same time. Defaulting to secure communication.");
+    if let Err(err_message) = TLSConfig::is_config_conflicting(args.insecure, &args.ca_pem, &args.crt_pem, &args.key_pem) {
+        log::warn!("{}", err_message);
     }
 
     // [impl->swdd~agent-establishes-insecure-communication-based-on-provided-insecure-cli-argument~1]

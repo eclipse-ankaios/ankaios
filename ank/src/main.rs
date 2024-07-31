@@ -46,8 +46,10 @@ async fn main() {
         false => args.server_url.replace("http[s]", "https"),
     };
 
-    if TLSConfig::is_config_conflicting(args.insecure, &args.ca_pem, &args.crt_pem, &args.key_pem) {
-        output_warn!("Insecure and secure flags specified at the same time. Defaulting to secure communication.");
+    if let Err(err_message) =
+        TLSConfig::is_config_conflicting(args.insecure, &args.ca_pem, &args.crt_pem, &args.key_pem)
+    {
+        output_warn!("{}", err_message);
     }
 
     // [impl->swdd~cli-provides-file-paths-to-communication-middleware~1]
