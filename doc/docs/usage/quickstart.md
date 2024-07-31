@@ -100,7 +100,7 @@ Ankaios also supports adding and removing workloads dynamically.
 To add another workload call:
 
 ```shell
-ank run workload \
+ank -k run workload \
 helloworld \
 --runtime podman \
 --agent agent_A \
