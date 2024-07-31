@@ -12,11 +12,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use api::ank_base::response::ResponseContent;
 use api::ank_base::{State, UpdateStateRequest};
 
 use api::control_api::{from_ankaios::FromAnkaiosEnum, FromAnkaios};
 
-use common::commands::ResponseContent;
 use common::from_server_interface::FromServer;
 use prost::Message;
 use serde::de::DeserializeOwned;
@@ -75,7 +75,7 @@ struct TestResult {
 #[serde(tag = "type", content = "value")]
 enum TestResultEnum {
     UpdateStateResult(TagSerializedResult<UpdateStateResult>),
-    GetStateResult(TagSerializedResult<common::objects::State>),
+    GetStateResult(TagSerializedResult<Option<State>>),
 }
 
 #[derive(Serialize)]
@@ -138,7 +138,7 @@ fn main() {
                 logging::log(&format!("Could not open output file: '{}'", err));
                 exit(1);
             });
-            serde_yaml::to_writer(output_file, &result).unwrap_or_else(|err| {
+            serde_json::to_writer(output_file, &result).unwrap_or_else(|err| {
                 logging::log(&format!("Could write to open output file: '{}'", err));
                 exit(1);
             });
@@ -196,9 +196,7 @@ impl Connection {
                     )
                 }
                 CommandEnum::GetState(get_state_command) => TestResultEnum::GetStateResult(
-                    self.handle_get_state_command(get_state_command)
-                        .map(|state| state.try_into().unwrap())
-                        .into(),
+                    self.handle_get_state_command(get_state_command).into(),
                 ),
             },
         })
@@ -250,7 +248,7 @@ impl Connection {
     pub fn handle_get_state_command(
         &mut self,
         get_state_command: GetState,
-    ) -> Result<State, String> {
+    ) -> Result<Option<State>, String> {
         let request_id = self.get_next_id();
 
         let request = common::commands::Request {
@@ -280,7 +278,7 @@ impl Connection {
                 response
             ));
         };
-        Ok(response.desired_state.into())
+        Ok(response.desired_state)
     }
 
     fn wait_for_response(&mut self, request_id: String) -> Result<ResponseContent, String> {
@@ -291,7 +289,13 @@ impl Connection {
                 continue;
             };
             if response.request_id == request_id {
-                return Ok(response.response_content);
+                let Some(response_content) = response.response_content else {
+                    return Err(format!(
+                        "Received Response with correct request_id, but without content: '{:?}'",
+                        response
+                    ));
+                };
+                return Ok(response_content);
             } else {
                 logging::log(&format!(
                     "Received unexpected response for request {:}",
@@ -311,11 +315,7 @@ impl Connection {
             .ok_or_else(|| "The field FromAnkaiosEnum not set".to_string())?;
         Ok(match from_ankaios {
             FromAnkaiosEnum::Response(response) => {
-                common::from_server_interface::FromServer::Response(
-                    response.try_into().map_err(|err| {
-                        format!("Could not convert response from server: '{}'", err)
-                    })?,
-                )
+                common::from_server_interface::FromServer::Response(response)
             }
         })
     }

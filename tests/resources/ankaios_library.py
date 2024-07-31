@@ -304,6 +304,8 @@ def internal_add_get_state_command(field_mask):
     global control_interface_workload_config
 
     field_mask = field_mask.replace(" and ", ", ").split(", ")
+    if field_mask == [""]:
+        field_mask = []
     control_interface_workload_config.append({
         "command": {
             "type": "GetState",

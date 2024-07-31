@@ -5,7 +5,7 @@ workloads:
     agent: agent_A
     restartPolicy: NEVER
     runtimeConfig: |
-      commandOptions: ["--mount=type=bind,source={temp_data_dir},destination=/data/"]
+      commandOptions: ["--mount=type=bind,source={temp_data_dir},destination=/data/", "--restart=no"]
       image: control_interface_tester
       commandArgs: ["/data/commands.yaml", "/data/output.yaml"]
     controlInterfaceAccess:
