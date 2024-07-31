@@ -49,7 +49,12 @@ impl Authorizer {
     pub fn authorize(&self, request: &Request) -> bool {
         match &request.request_content {
             common::commands::RequestContent::CompleteStateRequest(r) => {
-                r.field_mask.iter().all(|path_string| {
+                let field_mask = if r.field_mask.is_empty() {
+                    &vec!["".into()]
+                } else {
+                    &r.field_mask
+                };
+                field_mask.iter().all(|path_string| {
                     let path = path_string.as_str().into();
                     let allow_reason = if let (true, reason) =
                         self.allow_read_state_rule.matches(&path)
@@ -93,7 +98,12 @@ impl Authorizer {
                 })
             }
             common::commands::RequestContent::UpdateStateRequest(r) => {
-                r.update_mask.iter().all(|path_string| {
+                let update_mask: &Vec<_> = if r.update_mask.is_empty() {
+                    &vec!["".into()]
+                } else {
+                    &r.update_mask
+                };
+                update_mask.iter().all(|path_string| {
                     let path = path_string.as_str().into();
                     let allow_reason = if let (true, reason) =
                         self.allow_write_state_rule.matches(&path)
@@ -242,7 +252,7 @@ mod test {
 
     impl<T> PathPattern for MockRule<T> {
         fn matches(&self, path: &Path) -> (bool, String) {
-            if path.to_string() == MATCHING_PATH {
+            if path.to_string() == MATCHING_PATH || path.sections.is_empty() {
                 (true, "".into())
             } else {
                 (false, "".into())
@@ -267,6 +277,52 @@ mod test {
         }
 
         res
+    }
+
+    #[test]
+    fn utest_denies_empty_request() {
+        let authorizer = create_authorizer(&[]);
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::CompleteStateRequest(
+                CompleteStateRequest { field_mask: vec![] },
+            ),
+        };
+        assert!(!authorizer.authorize(&request));
+
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
+                UpdateStateRequest {
+                    state: Default::default(),
+                    update_mask: vec![],
+                },
+            )),
+        };
+        assert!(!authorizer.authorize(&request));
+    }
+
+    #[test]
+    fn utest_allow_empty_request() {
+        let authorizer = create_authorizer(&[RuleType::AllowReadWrite]);
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::CompleteStateRequest(
+                CompleteStateRequest { field_mask: vec![] },
+            ),
+        };
+        assert!(authorizer.authorize(&request));
+
+        let request = Request {
+            request_id: "".into(),
+            request_content: common::commands::RequestContent::UpdateStateRequest(Box::new(
+                UpdateStateRequest {
+                    state: Default::default(),
+                    update_mask: vec![],
+                },
+            )),
+        };
+        assert!(authorizer.authorize(&request));
     }
 
     #[test]
