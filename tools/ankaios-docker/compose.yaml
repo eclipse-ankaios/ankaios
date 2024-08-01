@@ -3,7 +3,7 @@ services:
     build:
       context: ./server
       args:
-        - VERSION=vv0.4.0-rc1
+        - VERSION=v0.4.0-rc1
     ports:
       - "25551:25551"
 
@@ -11,7 +11,7 @@ services:
     build:
       context: ./agent
       args:
-        - VERSION=vv0.4.0-rc1
+        - VERSION=v0.4.0-rc1
     privileged: true
 
 
