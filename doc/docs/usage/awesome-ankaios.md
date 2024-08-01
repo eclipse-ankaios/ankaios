@@ -7,6 +7,7 @@ If you have some missing resources, please feel free to open a [pull request](ht
 ## Extensions for Ankaios
 
 * The [Ankaios dashboard](https://github.com/FelixMoelders/ankaios-dashboard) provides an interactive web-based UI for Ankaios.
+* [meta-ankaios](https://github.com/mrogonna/meta-ankaios) provides a Yocto metalayer for Ankaios.
 
 ## Projects using Ankaios
 
