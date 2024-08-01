@@ -147,7 +147,6 @@ pub fn generate_test_pipes_channel_task_mock() -> __mock_MockPipesChannelTask::_
 
 #[cfg(test)]
 mod tests {
-    use common::commands;
     use mockall::predicate;
     use tokio::sync::mpsc;
 
@@ -204,10 +203,9 @@ mod tests {
     }
 
     // [utest->swdd~agent-listens-for-requests-from-pipe~1]
-    // [utest->swdd~agent-forward-request-from-control-interface-pipe-to-server~1]
     // [utest->swdd~agent-ensures-control-interface-output-pipe-read~1]
     #[tokio::test]
-    async fn utest_pipes_channel_task_run_task() {
+    async fn utest_pipes_channel_task_run_task_access_denied() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
@@ -230,31 +228,33 @@ mod tests {
         x.clone_from_slice(&test_output_request_binary[..]);
         input_stream_mock
             .expect_read_protobuf_data()
+            .once()
             .returning(move || Ok(Box::new(x)));
 
-        let response = ank_base::Response {
+        let error = ank_base::Response {
             request_id: "req_id".to_owned(),
-            response_content: Some(ank_base::response::ResponseContent::CompleteState(
-                Default::default(),
+            response_content: Some(ank_base::response::ResponseContent::Error(
+                ank_base::Error {
+                    message: "Access denied".into(),
+                },
             )),
         };
 
         let test_input_command_binary = control_api::FromAnkaios {
             from_ankaios_enum: Some(control_api::from_ankaios::FromAnkaiosEnum::Response(
-                response.clone(),
+                error.clone(),
             )),
         }
         .encode_length_delimited_to_vec();
-
-        let test_input_command = FromServer::Response(response);
 
         let mut output_stream_mock = MockReopenFile::default();
         output_stream_mock
             .expect_write_all()
             .with(predicate::eq(test_input_command_binary.clone()))
-            .return_once(|_| Ok(()));
+            .once()
+            .returning(|_| Ok(()));
 
-        let (input_pipe_sender, input_pipe_receiver) = mpsc::channel(1);
+        let (_input_pipe_sender, input_pipe_receiver) = mpsc::channel(1);
         let (output_pipe_sender, mut output_pipe_receiver) = mpsc::channel(1);
         let request_id_prefix = String::from("prefix@");
 
@@ -268,17 +268,7 @@ mod tests {
         );
 
         let handle = pipes_channel_task.run_task();
-
-        assert!(input_pipe_sender.send(test_input_command).await.is_ok());
-        assert_eq!(
-            Some(ToServer::Request(commands::Request {
-                request_id: "prefix@req_id".to_owned(),
-                request_content: commands::RequestContent::CompleteStateRequest(
-                    commands::CompleteStateRequest { field_mask: vec![] }
-                )
-            })),
-            output_pipe_receiver.recv().await
-        );
+        assert!(output_pipe_receiver.recv().await.is_none());
 
         handle.abort();
     }
