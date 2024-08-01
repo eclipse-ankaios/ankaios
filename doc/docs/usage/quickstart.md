@@ -53,7 +53,7 @@ ank -k get state
 
 !!! Note
 
-    The instructions assume the default installation without mutual TLS (mTLS) for communication. With `-k` the `ank` CLI will connect without mTLS. Alternatively, set the environment variable `ANK_INSECURE=true` to avoid passing the argument to each `ank` CLI command. For an Ankaios setup with mTLS, see [here](./mtls-setup.md).
+    The instructions assume the default installation without mutual TLS (mTLS) for communication. With `-k` or `--insecure` the `ank` CLI will connect without mTLS. Alternatively, set the environment variable `ANK_INSECURE=true` to avoid passing the argument to each `ank` CLI command. For an Ankaios setup with mTLS, see [here](./mtls-setup.md).
 
 which creates:
 
@@ -100,7 +100,7 @@ Ankaios also supports adding and removing workloads dynamically.
 To add another workload call:
 
 ```shell
-ank run workload \
+ank -k run workload \
 helloworld \
 --runtime podman \
 --agent agent_A \
@@ -109,7 +109,7 @@ commandOptions: [ "-e", "MESSAGE=Hello World"]
 commandArgs: [ "sh", "-c", "echo $MESSAGE"]'
 ```
 
-We can check the state again with `ank get state` and see, that the workload
+We can check the state again with `ank -k get state` and see, that the workload
 `helloworld` has been added to `desiredState.workloads` and the execution
 state is available in `workloadStates`.
 

@@ -18,6 +18,8 @@ set -e
 
 script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 base_dir="$script_dir/.."
+tools_dir="$base_dir/tools"
+tests_dir="$base_dir/tests"
 target_dir="$base_dir/target/robot_tests_result"
 default_executable_dir="$base_dir/target/x86_64-unknown-linux-musl/debug"
 
@@ -43,5 +45,12 @@ ANK_AGENT=$ANK_BIN_DIR/ank-agent
 check_executable $ANK
 check_executable $ANK_SERVER
 check_executable $ANK_AGENT
+
+echo Remove old certificates and keys for stests...
+rm -rf /tmp/.certs
+echo done.
+echo Generate certificates and keys for stests...
+$tools_dir/certs/create_certs.sh /tmp/.certs
+echo done.
 
 ANK_BIN_DIR=$ANK_BIN_DIR robot --pythonpath tests --loglevel=TRACE:TRACE -d ${target_dir} "$@"

@@ -3,42 +3,11 @@ set -e
 
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 LOG_DIR="$(readlink -f "$SCRIPT_DIR/../../logs")"
-CERTS_DIR="$SCRIPT_DIR/../../.certs"
 
 mkdir -p "$LOG_DIR"
 
-start_with_tls_enabled() {
-    "$SCRIPT_DIR/../certs/create_certs.sh"
+echo "Staring up Ankaios server with TLS disabled"
+RUST_LOG=debug /workspaces/ankaios/target/x86_64-unknown-linux-musl/debug/ank-server --insecure 2> "$LOG_DIR/ank-server" &
 
-    echo "Staring up Ankaios server with TLS enabled"
-    ANKSERVER_CA_PEM="$CERTS_DIR/ca.pem" \
-    ANKSERVER_CRT_PEM="$CERTS_DIR/server.pem" \
-    ANKSERVER_KEY_PEM="$CERTS_DIR/server-key.pem" \
-    RUST_LOG=debug /workspaces/ankaios/target/x86_64-unknown-linux-musl/debug/ank-server 2> "$LOG_DIR/ank-server" &
-
-    echo "Staring up Ankaios agent with TLS enabled"
-    ANKAGENT_CA_PEM="$CERTS_DIR/ca.pem" \
-    ANKAGENT_CRT_PEM="$CERTS_DIR/agent.pem" \
-    ANKAGENT_KEY_PEM="$CERTS_DIR/agent-key.pem" \
-    RUST_LOG=debug /workspaces/ankaios/target/x86_64-unknown-linux-musl/debug/ank-agent --name agent_A 2> "$LOG_DIR/ank-agent" &
-}
-
-start_with_tls_disabled() {
-    echo "Staring up Ankaios server with TLS disabled"
-    RUST_LOG=debug /workspaces/ankaios/target/x86_64-unknown-linux-musl/debug/ank-server --insecure 2> "$LOG_DIR/ank-server" &
-
-    echo "Staring up Ankaios agent with TLS disabled"
-    RUST_LOG=debug /workspaces/ankaios/target/x86_64-unknown-linux-musl/debug/ank-agent --insecure --name agent_A 2> "$LOG_DIR/ank-agent" &
-}
-
-if [ -z "$1" ] || [ "$1" != "--insecure" ]; then
-    start_with_tls_enabled
-
-    echo Set certificates for ank cli:
-    export ANK_CA_PEM="$CERTS_DIR/ca.pem"
-    export ANK_CRT_PEM="$CERTS_DIR/cli.pem"
-    export ANK_KEY_PEM="$CERTS_DIR/cli-key.pem"
-    printenv | grep ANK_
-else
-    start_with_tls_disabled
-fi
+echo "Staring up Ankaios agent with TLS disabled"
+RUST_LOG=debug /workspaces/ankaios/target/x86_64-unknown-linux-musl/debug/ank-agent --insecure --name agent_A 2> "$LOG_DIR/ank-agent" &
