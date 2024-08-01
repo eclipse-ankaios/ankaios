@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use crate::control_interface::ToAnkaios;
 
+#[cfg_attr(test, mockall_double::double)]
 use super::authorizer::Authorizer;
 #[cfg_attr(test, mockall_double::double)]
 use super::ReopenFile;

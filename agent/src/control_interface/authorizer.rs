@@ -25,6 +25,8 @@ use path_pattern::{AllowPathPattern, DenyPathPattern, PathPattern};
 use rule::Rule;
 
 #[cfg(test)]
+use mockall::mock;
+#[cfg(test)]
 use test::MockRule as Rule;
 
 #[derive(Clone, Default, Debug, PartialEq)]
@@ -35,6 +37,22 @@ pub struct Authorizer {
     deny_read_state_rule: Vec<Rule<DenyPathPattern>>,
     allow_read_write_state_rule: Vec<Rule<AllowPathPattern>>,
     deny_read_write_state_rule: Vec<Rule<DenyPathPattern>>,
+}
+
+#[cfg(test)]
+mock! {
+    #[derive(Debug)]
+    pub Authorizer {
+        pub fn authorize(&self, request: &Request) -> bool;
+    }
+
+    impl PartialEq for Authorizer {
+        fn eq(&self, other: &Self) -> bool;
+    }
+
+    impl From<&ControlInterfaceAccess> for Authorizer {
+        fn from(value: &ControlInterfaceAccess) -> Self;
+    }
 }
 
 impl Authorizer {
