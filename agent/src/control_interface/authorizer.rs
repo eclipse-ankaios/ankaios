@@ -56,14 +56,6 @@ mock! {
 }
 
 impl Authorizer {
-    #[cfg(test)]
-    pub fn test_value(name: &str) -> Self {
-        Self {
-            allow_write_state_rule: vec![Rule::create(vec![name.into()])],
-            ..Default::default()
-        }
-    }
-
     pub fn authorize(&self, request: &Request) -> bool {
         match &request.request_content {
             common::commands::RequestContent::CompleteStateRequest(r) => {

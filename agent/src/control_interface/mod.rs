@@ -27,7 +27,6 @@ mod pipes_channel_task;
 mod reopen_file;
 mod to_ankaios;
 
-pub use authorizer::Authorizer;
 #[cfg(test)]
 pub use authorizer::MockAuthorizer;
 pub use directory::*;

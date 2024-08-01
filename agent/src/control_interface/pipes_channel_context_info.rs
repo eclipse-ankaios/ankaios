@@ -95,7 +95,6 @@ mod tests {
     use crate::control_interface::MockPipesChannelContext;
     use crate::control_interface::PipesChannelContextError;
     use common::to_server_interface::ToServer;
-    use mockall::predicate::eq;
 
     const WORKLOAD_1_NAME: &str = "workload1";
     const PIPES_LOCATION: &str = "/some/path";
