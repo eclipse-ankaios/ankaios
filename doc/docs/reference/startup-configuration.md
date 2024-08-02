@@ -17,6 +17,7 @@ A workload specification must contain the following information:
 * `restartPolicy`, specify how the workload should be restarted upon exiting (not implemented yet).
 * `tags`, specify a list of `key` `value`  pairs.
 * `runtimeConfig`, specify as a _string_ the configuration for the [runtime](./glossary.md#runtime) whose configuration structure is specific for each runtime, e.g., for `podman` runtime the [PodmanRuntimeConfig](#podmanruntimeconfig) is used.
+* `controlInterfaceAccess`, specify the access rights of the workload for the control interface.
 
 Example `startup-config.yaml` file:
 
@@ -33,6 +34,12 @@ workloads:
     runtimeConfig: |
       image: docker.io/nginx:latest
       commandOptions: ["-p", "8081:80"]
+    controlInterfaceAccess:
+      allowRules:
+      - type: StateRule
+        operation: READ
+        FilterMask:
+        - workloadStates
 ```
 
 ### PodmanRuntimeConfig
