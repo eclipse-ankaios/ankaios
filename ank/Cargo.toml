@@ -1,12 +1,12 @@
 [package]
 name = "ank"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-description.workspace = true
-documentation.workspace = true
-authors.workspace = true
-repository.workspace = true
+version = "0.4.0-rc1"
+edition = "2021"
+license = "Apache-2.0"
+description = "The CLI of Eclipse Ankaios"
+documentation = "https://eclipse-ankaios.github.io/ankaios"
+authors = ["Elektrobit Automotive GmbH and Ankaios contributors"]
+repository = "https://github.com/eclipse-ankaios/ankaios"
 
 [package.metadata.deb]
 name = "ankaios"
