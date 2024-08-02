@@ -30,7 +30,7 @@ The [control interface](./control-interface.md) enables a [workload](glossary.md
 
 Ankaios checks for each request from a workload to the control interface, if the workload is authorized.
 The authorization is configured for each workload using `controlInterfaceAccess`.
-A workload without `controlInterfaceAccess` configuration are denied all actions on the control interface.
+A workload without `controlInterfaceAccess` configuration is denied all actions on the control interface.
 The authorization configuration consists of allow and deny rules.
 Each rule defines the operation (e.g. read) the workload is allowed to execute
 and with which filter masks it is allowed to execute this operation.
@@ -40,10 +40,10 @@ The segments of the path are divided by the '.' symbol.
 Segments can also be the wildcard character '*', indicating this segment shall match every possible field.
 E.g. `desiredState.workloads.*.tag` allows access to the tags of all workloads.
 
-In an allow rule the path gives access to the exact path and also all sub objects.
+In an allow rule the path gives access to the exact path and also all subfields.
 E.g. an allow rule with `desiredState.workloads.example` would also give access to `desiredState.workload.example.tags`.
-In a deny rule the path prohibits access to the exact path and also all parent objects.
-E.g. a deny rule with `desiredState.workloads.example` would also forbid access to `desiredState.workloads`,
+In a deny rule the path prohibits access to the exact path and also all parent fields.
+E.g. a deny rule with `desiredState.workloads.example` would also deny access to `desiredState.workloads`,
 but has no effect on `desiredState.workloads.other_example`.
 
 Every request not allowed by a rule in `controlInterfaceAccess` is prohibited.
