@@ -98,13 +98,22 @@ impl PipesChannelTask {
                             }
                             Err(error) => {
                                 log::warn!("Could not convert protobuf in internal data structure: '{}'", error);
+
                             }
                         }
+                    } else {
+                        log::warn!("Could not decode to Ankaios data.");
+                        // Beware! There be dragons! This part is needed to test the workloop of the control interface.
+                        // There is no other (proper) possibility to get out of the loop as mockall does not work properly with tasks.
+                        #[cfg(test)]
+                        return;
                     }
                 }
             }
         }
     }
+
+    #[cfg_attr(test, allow(dead_code))]
     pub fn run_task(self) -> JoinHandle<()> {
         tokio::spawn(self.run())
     }
@@ -148,13 +157,19 @@ pub fn generate_test_pipes_channel_task_mock() -> __mock_MockPipesChannelTask::_
 
 #[cfg(test)]
 mod tests {
-    use mockall::predicate;
+    use std::{io::Error, sync::Arc};
+
+    use common::{
+        commands::{self, CompleteStateRequest},
+        to_server_interface::ToServer,
+    };
+    use mockall::{predicate, Sequence};
     use tokio::sync::mpsc;
 
-    use super::*;
     use api::{ank_base, control_api};
+    use prost::Message;
 
-    use crate::control_interface::MockReopenFile;
+    use crate::control_interface::{MockAuthorizer, MockReopenFile, PipesChannelTask};
 
     #[tokio::test]
     async fn utest_pipes_channel_task_forward_from_server() {
@@ -194,7 +209,7 @@ mod tests {
             input_pipe_receiver,
             output_pipe_sender,
             request_id_prefix,
-            Arc::new(Authorizer::default()),
+            Arc::new(MockAuthorizer::default()),
         );
 
         assert!(pipes_channel_task
@@ -224,13 +239,22 @@ mod tests {
 
         let test_output_request_binary = test_output_request.encode_to_vec();
 
+        let mut mockall_seq = Sequence::new();
+
         let mut input_stream_mock = MockReopenFile::default();
         let mut x = [0; 12];
         x.clone_from_slice(&test_output_request_binary[..]);
         input_stream_mock
             .expect_read_protobuf_data()
             .once()
+            .in_sequence(&mut mockall_seq)
             .returning(move || Ok(Box::new(x)));
+
+        input_stream_mock
+            .expect_read_protobuf_data()
+            .once()
+            .in_sequence(&mut mockall_seq)
+            .returning(move || Err(Error::new(std::io::ErrorKind::Other, "error")));
 
         let error = ank_base::Response {
             request_id: "req_id".to_owned(),
@@ -259,18 +283,92 @@ mod tests {
         let (output_pipe_sender, mut output_pipe_receiver) = mpsc::channel(1);
         let request_id_prefix = String::from("prefix@");
 
+        let mut authorizer = MockAuthorizer::default();
+        authorizer.expect_authorize().once().return_const(false);
+
         let pipes_channel_task = PipesChannelTask::new(
             output_stream_mock,
             input_stream_mock,
             input_pipe_receiver,
             output_pipe_sender,
             request_id_prefix,
-            Arc::new(Authorizer::default()),
+            Arc::new(authorizer),
         );
 
-        let handle = pipes_channel_task.run_task();
+        pipes_channel_task.run().await;
         assert!(output_pipe_receiver.recv().await.is_none());
+    }
 
-        handle.abort();
+    // [utest->swdd~agent-listens-for-requests-from-pipe~1]
+    // [utest->swdd~agent-ensures-control-interface-output-pipe-read~1]
+    #[tokio::test]
+    async fn utest_pipes_channel_task_run_task_access_allowed() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let request_id = "req_id";
+        let ank_request = ank_base::Request {
+            request_id: request_id.to_owned(),
+            request_content: Some(ank_base::request::RequestContent::CompleteStateRequest(
+                ank_base::CompleteStateRequest {
+                    field_mask: vec!["desiredState.workloads.nginx".to_string()],
+                },
+            )),
+        };
+        let test_output_request = control_api::ToAnkaios {
+            to_ankaios_enum: Some(control_api::to_ankaios::ToAnkaiosEnum::Request(ank_request)),
+        };
+
+        let test_output_request_binary = test_output_request.encode_to_vec();
+
+        let mut mockall_seq = Sequence::new();
+
+        let mut input_stream_mock = MockReopenFile::default();
+        let mut x = [0; 42];
+        x.clone_from_slice(&test_output_request_binary[..]);
+        input_stream_mock
+            .expect_read_protobuf_data()
+            .once()
+            .in_sequence(&mut mockall_seq)
+            .returning(move || Ok(Box::new(x)));
+
+        input_stream_mock
+            .expect_read_protobuf_data()
+            .once()
+            .in_sequence(&mut mockall_seq)
+            .returning(move || Err(Error::new(std::io::ErrorKind::Other, "error")));
+
+        let output_stream_mock = MockReopenFile::default();
+
+        let (_input_pipe_sender, input_pipe_receiver) = mpsc::channel(1);
+        let (output_pipe_sender, mut output_pipe_receiver) = mpsc::channel(1);
+        let request_id_prefix = "prefix@";
+
+        let mut authorizer = MockAuthorizer::default();
+        authorizer.expect_authorize().once().return_const(true);
+
+        let pipes_channel_task = PipesChannelTask::new(
+            output_stream_mock,
+            input_stream_mock,
+            input_pipe_receiver,
+            output_pipe_sender,
+            request_id_prefix.to_owned(),
+            Arc::new(authorizer),
+        );
+
+        pipes_channel_task.run().await;
+
+        let mut expected_request = commands::Request {
+            request_id: request_id.to_owned(),
+            request_content: commands::RequestContent::CompleteStateRequest(CompleteStateRequest {
+                field_mask: vec!["desiredState.workloads.nginx".to_string()],
+            }),
+        };
+        expected_request.prefix_request_id(request_id_prefix);
+        assert_eq!(
+            output_pipe_receiver.recv().await,
+            Some(ToServer::Request(expected_request))
+        );
     }
 }
