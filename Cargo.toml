@@ -7,5 +7,6 @@ members = [
     "agent",
     "server",
     "grpc",
-    "ank"
-    ]
+    "ank",
+    "tests/resources/image",
+]

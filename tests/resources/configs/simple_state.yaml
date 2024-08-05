@@ -1,0 +1,10 @@
+desiredState:
+  apiVersion: v0.1
+  workloads:
+    simple:
+      runtime: podman
+      restartPolicy: NEVER
+      agent: agent_A
+      runtimeConfig: |
+        image: alpine:latest
+        commandArgs: [ "echo", "Hello Ankaios"]

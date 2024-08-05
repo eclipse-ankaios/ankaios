@@ -19,6 +19,7 @@ use common::{objects::WorkloadInstanceName, to_server_interface::ToServerSender}
 #[cfg(test)]
 use mockall::automock;
 
+#[cfg_attr(test, mockall_double::double)]
 use super::authorizer::Authorizer;
 #[cfg_attr(test, mockall_double::double)]
 use super::PipesChannelContext;
@@ -143,8 +144,9 @@ mod tests {
             .workload_name(WORKLOAD_1_NAME)
             .build();
         let pipes_folder = workload_instance_name.pipes_folder_name(run_folder);
-        let context_info_authorizer = Authorizer::test_value("same");
-        let other_context_authorizer = Authorizer::test_value("same");
+        let mut context_info_authorizer = Authorizer::default();
+        let other_context_authorizer = Authorizer::default();
+        context_info_authorizer.expect_eq().return_const(true);
 
         let context_info = PipesChannelContextInfo::new(
             run_folder,
@@ -196,8 +198,9 @@ mod tests {
             .workload_name(WORKLOAD_1_NAME)
             .build();
         let pipes_folder = workload_instance_name.pipes_folder_name(run_folder);
-        let context_info_authorizer = Authorizer::test_value("context_info_authorizer");
-        let other_context_authorizer = Authorizer::test_value("other_context_authorizer");
+        let mut context_info_authorizer = Authorizer::default();
+        let other_context_authorizer = Authorizer::default();
+        context_info_authorizer.expect_eq().return_const(false);
 
         let context_info = PipesChannelContextInfo::new(
             run_folder,

@@ -12,7 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(not(test))]
 mod authorizer;
+#[cfg(test)]
+pub mod authorizer;
 mod directory;
 mod fifo;
 mod filesystem;
@@ -24,7 +27,10 @@ mod pipes_channel_task;
 mod reopen_file;
 mod to_ankaios;
 
+#[cfg(not(test))]
 pub use authorizer::Authorizer;
+#[cfg(test)]
+pub use authorizer::MockAuthorizer;
 pub use directory::*;
 pub use fifo::*;
 pub use filesystem::*;
