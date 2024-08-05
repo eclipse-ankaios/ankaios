@@ -6,7 +6,7 @@ workloads:
     restartPolicy: NEVER
     runtimeConfig: |
       commandOptions: ["--mount=type=bind,source={temp_data_dir},destination=/data/", "--restart=no"]
-      image: control_interface_tester
+      image: ghcr.io/eclipse-ankaios/control_interface_tester:{control_interface_tester_tag}
       commandArgs: ["/data/commands.yaml", "/data/output.yaml"]
     controlInterfaceAccess:
       allowRules: {allow_rules}

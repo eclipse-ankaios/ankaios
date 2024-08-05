@@ -234,8 +234,9 @@ def json_to_dict(raw):
     json_data = json.loads(raw)
     return json_data
 
-def build_control_interface_test_image():
-    logger.trace(run_command("""podman build --build-arg SRC_HASH="$(find tests/resources/image/ -type f -print0 | sort -z | xargs -0 sha1sum | sha1sum  | sed "s/ -$//")" -t control_interface_tester  -f tests/resources/image/Dockerfile .""", timeout=600).stdout)
+def find_control_interface_test_tag():
+    global control_interface_tester_tag
+    control_interface_tester_tag = "manual-build-1"
 
 def prepare_test_control_interface_workload():
     global control_interface_workload_config
@@ -327,7 +328,8 @@ def create_control_interface_config_for_test():
         template_content = startup_config_template.read()
         content = template_content.format(temp_data_dir=tmp.name,
                                           allow_rules=json.dumps(control_interface_allow_rules),
-                                          deny_rules=json.dumps(control_interface_deny_rules))
+                                          deny_rules=json.dumps(control_interface_deny_rules),
+                                          control_interface_tester_tag=control_interface_tester_tag)
         startup_config.write(content)
     return tmp
 
