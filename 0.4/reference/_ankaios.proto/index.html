@@ -1,0 +1,3636 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://eclipse-ankaios.github.io/ankaios/0.4/reference/_ankaios.proto/">
+      
+      
+        <link rel="prev" href="../glossary/">
+      
+      
+        <link rel="next" href="../../development/build/">
+      
+      
+      <link rel="icon" href="../../assets/favicon128x128.png">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.30">
+    
+    
+      
+        <title>Protobuf data structures - Eclipse Ankaios</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.3cba04c6.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+      
+        <meta  property="og:type"  content="website" >
+      
+        <meta  property="og:title"  content="Protobuf data structures - Eclipse Ankaios" >
+      
+        <meta  property="og:description"  content="None" >
+      
+        <meta  property="og:image"  content="https://eclipse-ankaios.github.io/ankaios/0.4/assets/images/social/reference/_ankaios.proto.png" >
+      
+        <meta  property="og:image:type"  content="image/png" >
+      
+        <meta  property="og:image:width"  content="1200" >
+      
+        <meta  property="og:image:height"  content="630" >
+      
+        <meta  property="og:url"  content="https://eclipse-ankaios.github.io/ankaios/0.4/reference/_ankaios.proto/" >
+      
+        <meta  name="twitter:card"  content="summary_large_image" >
+      
+        <meta  name="twitter:title"  content="Protobuf data structures - Eclipse Ankaios" >
+      
+        <meta  name="twitter:description"  content="None" >
+      
+        <meta  name="twitter:image"  content="https://eclipse-ankaios.github.io/ankaios/0.4/assets/images/social/reference/_ankaios.proto.png" >
+      
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#protocol-documentation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+          <aside class="md-banner md-banner--warning">
+            <div class="md-banner__inner md-grid md-typeset">
+              
+  You're not viewing the latest release.
+  <a href="../../..">
+    <strong>Click here to go to the latest release.</strong>
+  </a>
+
+            </div>
+            <script>var el=document.querySelector("[data-md-component=outdated]"),outdated=__md_get("__outdated",sessionStorage);!0===outdated&&el&&(el.hidden=!1)</script>
+          </aside>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Eclipse Ankaios" class="md-header__button md-logo" aria-label="Eclipse Ankaios" data-md-component="logo">
+      
+  <img src="../../assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Eclipse Ankaios
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Protobuf data structures
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12c0-2.42-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/eclipse-ankaios/ankaios" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    eclipse-ankaios/ankaios
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  Welcome
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../architecture/" class="md-tabs__link">
+        
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../usage/installation/" class="md-tabs__link">
+          
+  
+  Usage
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../startup-configuration/" class="md-tabs__link">
+          
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../development/build/" class="md-tabs__link">
+          
+  
+  Contributing
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../support/" class="md-tabs__link">
+        
+  
+    
+  
+  Support
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Eclipse Ankaios" class="md-nav__button md-logo" aria-label="Eclipse Ankaios" data-md-component="logo">
+      
+  <img src="../../assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="logo">
+
+    </a>
+    Eclipse Ankaios
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/eclipse-ankaios/ankaios" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    eclipse-ankaios/ankaios
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Welcome
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Usage
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Usage
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/installation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/quickstart/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Quickstart
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/tutorial-vehicle-signals/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tutorial: Sending and receiving vehicle signals
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/awesome-ankaios/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Awesome Ankaios
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/mtls-setup/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Setting up Ankaios with mTLS
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Upgrading
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            Upgrading
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/upgrading/v0_2_to_v0_3/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Upgrading v0.2 to v0.3
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/upgrading/v0_3_to_v0_4/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Upgrading v0.3 to v0.4
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Reference
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../startup-configuration/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Startup configuration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../interacting-with-ankaios/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Interacting with Ankaios
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../complete-state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Working with CompleteState
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../control-interface/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Control interface
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../inter-workload-dependencies/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Inter-workload dependencies
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../restart-policy/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Restart Policy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../resource-usage/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Resource usage
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Glossary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Protobuf data structures
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Protobuf data structures
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      Table of Contents
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#control_apiproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      control_api.proto
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="control_api.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fromankaios" class="md-nav__link">
+    <span class="md-ellipsis">
+      FromAnkaios
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#toankaios" class="md-nav__link">
+    <span class="md-ellipsis">
+      ToAnkaios
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ank_baseproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      ank_base.proto
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ank_base.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#accessrightsrule" class="md-nav__link">
+    <span class="md-ellipsis">
+      AccessRightsRule
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#completestate" class="md-nav__link">
+    <span class="md-ellipsis">
+      CompleteState
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#completestaterequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      CompleteStateRequest
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#controlinterfaceaccess" class="md-nav__link">
+    <span class="md-ellipsis">
+      ControlInterfaceAccess
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dependencies
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dependenciesdependenciesentry" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dependencies.DependenciesEntry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#error" class="md-nav__link">
+    <span class="md-ellipsis">
+      Error
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#executionstate" class="md-nav__link">
+    <span class="md-ellipsis">
+      ExecutionState
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#executionsstatesforid" class="md-nav__link">
+    <span class="md-ellipsis">
+      ExecutionsStatesForId
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#executionsstatesforididstatemapentry" class="md-nav__link">
+    <span class="md-ellipsis">
+      ExecutionsStatesForId.IdStateMapEntry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#executionsstatesofworkload" class="md-nav__link">
+    <span class="md-ellipsis">
+      ExecutionsStatesOfWorkload
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#executionsstatesofworkloadwlnamestatemapentry" class="md-nav__link">
+    <span class="md-ellipsis">
+      ExecutionsStatesOfWorkload.WlNameStateMapEntry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#request" class="md-nav__link">
+    <span class="md-ellipsis">
+      Request
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#response" class="md-nav__link">
+    <span class="md-ellipsis">
+      Response
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#state" class="md-nav__link">
+    <span class="md-ellipsis">
+      State
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#staterule" class="md-nav__link">
+    <span class="md-ellipsis">
+      StateRule
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tag" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tag
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tags" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tags
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#updatestaterequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      UpdateStateRequest
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#updatestatesuccess" class="md-nav__link">
+    <span class="md-ellipsis">
+      UpdateStateSuccess
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workload" class="md-nav__link">
+    <span class="md-ellipsis">
+      Workload
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workloadinstancename" class="md-nav__link">
+    <span class="md-ellipsis">
+      WorkloadInstanceName
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workloadmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      WorkloadMap
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workloadmapworkloadsentry" class="md-nav__link">
+    <span class="md-ellipsis">
+      WorkloadMap.WorkloadsEntry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workloadstate" class="md-nav__link">
+    <span class="md-ellipsis">
+      WorkloadState
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workloadstatesmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      WorkloadStatesMap
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workloadstatesmapagentstatemapentry" class="md-nav__link">
+    <span class="md-ellipsis">
+      WorkloadStatesMap.AgentStateMapEntry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#addcondition" class="md-nav__link">
+    <span class="md-ellipsis">
+      AddCondition
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agentdisconnected" class="md-nav__link">
+    <span class="md-ellipsis">
+      AgentDisconnected
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#failed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Failed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notscheduled" class="md-nav__link">
+    <span class="md-ellipsis">
+      NotScheduled
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pending" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pending
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#readwriteenum" class="md-nav__link">
+    <span class="md-ellipsis">
+      ReadWriteEnum
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Removed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#restartpolicy" class="md-nav__link">
+    <span class="md-ellipsis">
+      RestartPolicy
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stopping" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stopping
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#succeeded" class="md-nav__link">
+    <span class="md-ellipsis">
+      Succeeded
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scalar-value-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scalar Value Types
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Contributing
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Contributing
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/build/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Build
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/rust-coding-guidelines/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rust coding guidelines
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/unit-verification/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Unit verification
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/run-unit-tests/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Unit tests with cargo-nextest
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/test-coverage/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Test coverage
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/system-tests/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    System tests
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/requirement-tracing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Requirement tracing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/requirement-template/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Requirement description template
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/extending-dev-container/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Extending the dev container
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/ci-cd/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CI/CD
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/ci-cd-release/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CI/CD - Release
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/self-service/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Eclipse self-service
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/documentation-guidelines/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Documentation guidelines
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../support/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Support
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      Table of Contents
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#control_apiproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      control_api.proto
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="control_api.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fromankaios" class="md-nav__link">
+    <span class="md-ellipsis">
+      FromAnkaios
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#toankaios" class="md-nav__link">
+    <span class="md-ellipsis">
+      ToAnkaios
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ank_baseproto" class="md-nav__link">
+    <span class="md-ellipsis">
+      ank_base.proto
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ank_base.proto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#accessrightsrule" class="md-nav__link">
+    <span class="md-ellipsis">
+      AccessRightsRule
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#completestate" class="md-nav__link">
+    <span class="md-ellipsis">
+      CompleteState
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#completestaterequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      CompleteStateRequest
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#controlinterfaceaccess" class="md-nav__link">
+    <span class="md-ellipsis">
+      ControlInterfaceAccess
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dependencies
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dependenciesdependenciesentry" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dependencies.DependenciesEntry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#error" class="md-nav__link">
+    <span class="md-ellipsis">
+      Error
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#executionstate" class="md-nav__link">
+    <span class="md-ellipsis">
+      ExecutionState
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#executionsstatesforid" class="md-nav__link">
+    <span class="md-ellipsis">
+      ExecutionsStatesForId
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#executionsstatesforididstatemapentry" class="md-nav__link">
+    <span class="md-ellipsis">
+      ExecutionsStatesForId.IdStateMapEntry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#executionsstatesofworkload" class="md-nav__link">
+    <span class="md-ellipsis">
+      ExecutionsStatesOfWorkload
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#executionsstatesofworkloadwlnamestatemapentry" class="md-nav__link">
+    <span class="md-ellipsis">
+      ExecutionsStatesOfWorkload.WlNameStateMapEntry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#request" class="md-nav__link">
+    <span class="md-ellipsis">
+      Request
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#response" class="md-nav__link">
+    <span class="md-ellipsis">
+      Response
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#state" class="md-nav__link">
+    <span class="md-ellipsis">
+      State
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#staterule" class="md-nav__link">
+    <span class="md-ellipsis">
+      StateRule
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tag" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tag
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tags" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tags
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#updatestaterequest" class="md-nav__link">
+    <span class="md-ellipsis">
+      UpdateStateRequest
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#updatestatesuccess" class="md-nav__link">
+    <span class="md-ellipsis">
+      UpdateStateSuccess
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workload" class="md-nav__link">
+    <span class="md-ellipsis">
+      Workload
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workloadinstancename" class="md-nav__link">
+    <span class="md-ellipsis">
+      WorkloadInstanceName
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workloadmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      WorkloadMap
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workloadmapworkloadsentry" class="md-nav__link">
+    <span class="md-ellipsis">
+      WorkloadMap.WorkloadsEntry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workloadstate" class="md-nav__link">
+    <span class="md-ellipsis">
+      WorkloadState
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workloadstatesmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      WorkloadStatesMap
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workloadstatesmapagentstatemapentry" class="md-nav__link">
+    <span class="md-ellipsis">
+      WorkloadStatesMap.AgentStateMapEntry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#addcondition" class="md-nav__link">
+    <span class="md-ellipsis">
+      AddCondition
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agentdisconnected" class="md-nav__link">
+    <span class="md-ellipsis">
+      AgentDisconnected
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#failed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Failed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notscheduled" class="md-nav__link">
+    <span class="md-ellipsis">
+      NotScheduled
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pending" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pending
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#readwriteenum" class="md-nav__link">
+    <span class="md-ellipsis">
+      ReadWriteEnum
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#removed" class="md-nav__link">
+    <span class="md-ellipsis">
+      Removed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#restartpolicy" class="md-nav__link">
+    <span class="md-ellipsis">
+      RestartPolicy
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running" class="md-nav__link">
+    <span class="md-ellipsis">
+      Running
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#stopping" class="md-nav__link">
+    <span class="md-ellipsis">
+      Stopping
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#succeeded" class="md-nav__link">
+    <span class="md-ellipsis">
+      Succeeded
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scalar-value-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scalar Value Types
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/eclipse-ankaios/ankaios/edit/main/doc/docs/reference/_ankaios.proto.md" title="Edit this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4v-2m10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1 2.1 2.1Z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="protocol-documentation">Protocol Documentation<a class="headerlink" href="#protocol-documentation" title="Permanent link">&para;</a></h1>
+<p><a name="top"></a></p>
+<h2 id="table-of-contents">Table of Contents<a class="headerlink" href="#table-of-contents" title="Permanent link">&para;</a></h2>
+<ul>
+<li>
+<p><a href="#control_api-proto">control_api.proto</a></p>
+<ul>
+<li><a href="#control_api-FromAnkaios">FromAnkaios</a></li>
+<li><a href="#control_api-ToAnkaios">ToAnkaios</a></li>
+</ul>
+</li>
+<li>
+<p><a href="#ank_base-proto">ank_base.proto</a></p>
+<ul>
+<li><a href="#ank_base-AccessRightsRule">AccessRightsRule</a></li>
+<li><a href="#ank_base-CompleteState">CompleteState</a></li>
+<li><a href="#ank_base-CompleteStateRequest">CompleteStateRequest</a></li>
+<li><a href="#ank_base-ControlInterfaceAccess">ControlInterfaceAccess</a></li>
+<li><a href="#ank_base-Dependencies">Dependencies</a></li>
+<li><a href="#ank_base-Dependencies-DependenciesEntry">Dependencies.DependenciesEntry</a></li>
+<li><a href="#ank_base-Error">Error</a></li>
+<li><a href="#ank_base-ExecutionState">ExecutionState</a></li>
+<li><a href="#ank_base-ExecutionsStatesForId">ExecutionsStatesForId</a></li>
+<li><a href="#ank_base-ExecutionsStatesForId-IdStateMapEntry">ExecutionsStatesForId.IdStateMapEntry</a></li>
+<li><a href="#ank_base-ExecutionsStatesOfWorkload">ExecutionsStatesOfWorkload</a></li>
+<li><a href="#ank_base-ExecutionsStatesOfWorkload-WlNameStateMapEntry">ExecutionsStatesOfWorkload.WlNameStateMapEntry</a></li>
+<li><a href="#ank_base-Request">Request</a></li>
+<li><a href="#ank_base-Response">Response</a></li>
+<li><a href="#ank_base-State">State</a></li>
+<li><a href="#ank_base-StateRule">StateRule</a></li>
+<li><a href="#ank_base-Tag">Tag</a></li>
+<li><a href="#ank_base-Tags">Tags</a></li>
+<li><a href="#ank_base-UpdateStateRequest">UpdateStateRequest</a></li>
+<li><a href="#ank_base-UpdateStateSuccess">UpdateStateSuccess</a></li>
+<li><a href="#ank_base-Workload">Workload</a></li>
+<li><a href="#ank_base-WorkloadInstanceName">WorkloadInstanceName</a></li>
+<li><a href="#ank_base-WorkloadMap">WorkloadMap</a></li>
+<li><a href="#ank_base-WorkloadMap-WorkloadsEntry">WorkloadMap.WorkloadsEntry</a></li>
+<li><a href="#ank_base-WorkloadState">WorkloadState</a></li>
+<li><a href="#ank_base-WorkloadStatesMap">WorkloadStatesMap</a></li>
+<li>
+<p><a href="#ank_base-WorkloadStatesMap-AgentStateMapEntry">WorkloadStatesMap.AgentStateMapEntry</a></p>
+</li>
+<li>
+<p><a href="#ank_base-AddCondition">AddCondition</a></p>
+</li>
+<li><a href="#ank_base-AgentDisconnected">AgentDisconnected</a></li>
+<li><a href="#ank_base-Failed">Failed</a></li>
+<li><a href="#ank_base-NotScheduled">NotScheduled</a></li>
+<li><a href="#ank_base-Pending">Pending</a></li>
+<li><a href="#ank_base-ReadWriteEnum">ReadWriteEnum</a></li>
+<li><a href="#ank_base-Removed">Removed</a></li>
+<li><a href="#ank_base-RestartPolicy">RestartPolicy</a></li>
+<li><a href="#ank_base-Running">Running</a></li>
+<li><a href="#ank_base-Stopping">Stopping</a></li>
+<li><a href="#ank_base-Succeeded">Succeeded</a></li>
+</ul>
+</li>
+<li>
+<p><a href="#scalar-value-types">Scalar Value Types</a></p>
+</li>
+</ul>
+<p><a name="control_api-proto"></a></p>
+<p align="right"><a href="#top">Top</a></p>
+
+<h2 id="control_apiproto">control_api.proto<a class="headerlink" href="#control_apiproto" title="Permanent link">&para;</a></h2>
+<p>The Ankaios Control Interface is used in the communcation between a workload and Ankaios</p>
+<p>The protocol consists of the following top-level message types:</p>
+<ol>
+<li>
+<p><a href="#toankaios">ToAnkaios</a>: workload -&gt; ankaios</p>
+</li>
+<li>
+<p><a href="#fromankaios">FromAnkaios</a>: ankaios -&gt; workload</p>
+</li>
+</ol>
+<p><a name="control_api-FromAnkaios"></a></p>
+<h3 id="fromankaios">FromAnkaios<a class="headerlink" href="#fromankaios" title="Permanent link">&para;</a></h3>
+<p>Messages from the Ankaios server to e.g. the Ankaios agent.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>response</td>
+<td><a href="#ank_base-Response">ank_base.Response</a></td>
+<td></td>
+<td>A message containing a response to a previous request.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="control_api-ToAnkaios"></a></p>
+<h3 id="toankaios">ToAnkaios<a class="headerlink" href="#toankaios" title="Permanent link">&para;</a></h3>
+<p>Messages to the Ankaios server.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>request</td>
+<td><a href="#ank_base-Request">ank_base.Request</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-proto"></a></p>
+<p align="right"><a href="#top">Top</a></p>
+
+<h2 id="ank_baseproto">ank_base.proto<a class="headerlink" href="#ank_baseproto" title="Permanent link">&para;</a></h2>
+<p><a name="ank_base-AccessRightsRule"></a></p>
+<h3 id="accessrightsrule">AccessRightsRule<a class="headerlink" href="#accessrightsrule" title="Permanent link">&para;</a></h3>
+<p>A message containing an allow or deny rule.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>stateRule</td>
+<td><a href="#ank_base-StateRule">StateRule</a></td>
+<td></td>
+<td>Rule for getting or setting the state</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-CompleteState"></a></p>
+<h3 id="completestate">CompleteState<a class="headerlink" href="#completestate" title="Permanent link">&para;</a></h3>
+<p>A message containing the complete state of the Ankaios system.
+This is a response to the <a href="#completestaterequest">CompleteStateRequest</a> message.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>desiredState</td>
+<td><a href="#ank_base-State">State</a></td>
+<td></td>
+<td>The state the user wants to reach.</td>
+</tr>
+<tr>
+<td>workloadStates</td>
+<td><a href="#ank_base-WorkloadStatesMap">WorkloadStatesMap</a></td>
+<td></td>
+<td>The current execution states of the workloads.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-CompleteStateRequest"></a></p>
+<h3 id="completestaterequest">CompleteStateRequest<a class="headerlink" href="#completestaterequest" title="Permanent link">&para;</a></h3>
+<p>A message containing a request for the complete/partial state of the Ankaios system.
+This is usually answered with a <a href="#completestate">CompleteState</a> message.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>fieldMask</td>
+<td><a href="#string">string</a></td>
+<td>repeated</td>
+<td>A list of symbolic field paths within the State message structure e.g. &#39;desiredState.workloads.nginx&#39;.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-ControlInterfaceAccess"></a></p>
+<h3 id="controlinterfaceaccess">ControlInterfaceAccess<a class="headerlink" href="#controlinterfaceaccess" title="Permanent link">&para;</a></h3>
+<p>A message containing the parts of the control interface the workload as authorized to access.
+By default, all access is denied.
+Only if a matching allow rule is found, and no matching deny rules is found, the access is allowed.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>allowRules</td>
+<td><a href="#ank_base-AccessRightsRule">AccessRightsRule</a></td>
+<td>repeated</td>
+<td>Rules allow the access</td>
+</tr>
+<tr>
+<td>denyRules</td>
+<td><a href="#ank_base-AccessRightsRule">AccessRightsRule</a></td>
+<td>repeated</td>
+<td>Rules denying the access</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-Dependencies"></a></p>
+<h3 id="dependencies">Dependencies<a class="headerlink" href="#dependencies" title="Permanent link">&para;</a></h3>
+<p>This is a workaround for proto not supporing optional maps</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>dependencies</td>
+<td><a href="#ank_base-Dependencies-DependenciesEntry">Dependencies.DependenciesEntry</a></td>
+<td>repeated</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-Dependencies-DependenciesEntry"></a></p>
+<h3 id="dependenciesdependenciesentry">Dependencies.DependenciesEntry<a class="headerlink" href="#dependenciesdependenciesentry" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>key</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>value</td>
+<td><a href="#ank_base-AddCondition">AddCondition</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-Error"></a></p>
+<h3 id="error">Error<a class="headerlink" href="#error" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>message</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-ExecutionState"></a></p>
+<h3 id="executionstate">ExecutionState<a class="headerlink" href="#executionstate" title="Permanent link">&para;</a></h3>
+<p>A message containing information about the detailed state of a workload in the Ankaios system.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>additionalInfo</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>The additional info contains more detailed information from the runtime regarding the execution state.</td>
+</tr>
+<tr>
+<td>agentDisconnected</td>
+<td><a href="#ank_base-AgentDisconnected">AgentDisconnected</a></td>
+<td></td>
+<td>The exact state of the workload cannot be determined, e.g., because of a broken connection to the responsible agent.</td>
+</tr>
+<tr>
+<td>pending</td>
+<td><a href="#ank_base-Pending">Pending</a></td>
+<td></td>
+<td>The workload is going to be started eventually.</td>
+</tr>
+<tr>
+<td>running</td>
+<td><a href="#ank_base-Running">Running</a></td>
+<td></td>
+<td>The workload is operational.</td>
+</tr>
+<tr>
+<td>stopping</td>
+<td><a href="#ank_base-Stopping">Stopping</a></td>
+<td></td>
+<td>The workload is scheduled for stopping.</td>
+</tr>
+<tr>
+<td>succeeded</td>
+<td><a href="#ank_base-Succeeded">Succeeded</a></td>
+<td></td>
+<td>The workload has successfully finished its operation.</td>
+</tr>
+<tr>
+<td>failed</td>
+<td><a href="#ank_base-Failed">Failed</a></td>
+<td></td>
+<td>The workload has failed or is in a degraded state.</td>
+</tr>
+<tr>
+<td>notScheduled</td>
+<td><a href="#ank_base-NotScheduled">NotScheduled</a></td>
+<td></td>
+<td>The workload is not scheduled to run at any agent. This is signalized with an empty agent in the workload specification.</td>
+</tr>
+<tr>
+<td>removed</td>
+<td><a href="#ank_base-Removed">Removed</a></td>
+<td></td>
+<td>The workload was removed from Ankaios. This state is used only internally in Ankaios. The outside world removed states are just not there.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-ExecutionsStatesForId"></a></p>
+<h3 id="executionsstatesforid">ExecutionsStatesForId<a class="headerlink" href="#executionsstatesforid" title="Permanent link">&para;</a></h3>
+<p>A map providing the execution state of a specific workload for a given id.
+This level is needed as a workload could be running more than once on one agent in different versions.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>idStateMap</td>
+<td><a href="#ank_base-ExecutionsStatesForId-IdStateMapEntry">ExecutionsStatesForId.IdStateMapEntry</a></td>
+<td>repeated</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-ExecutionsStatesForId-IdStateMapEntry"></a></p>
+<h3 id="executionsstatesforididstatemapentry">ExecutionsStatesForId.IdStateMapEntry<a class="headerlink" href="#executionsstatesforididstatemapentry" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>key</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>value</td>
+<td><a href="#ank_base-ExecutionState">ExecutionState</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-ExecutionsStatesOfWorkload"></a></p>
+<h3 id="executionsstatesofworkload">ExecutionsStatesOfWorkload<a class="headerlink" href="#executionsstatesofworkload" title="Permanent link">&para;</a></h3>
+<p>A map providing the execution state of a workload for a given name.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>wlNameStateMap</td>
+<td><a href="#ank_base-ExecutionsStatesOfWorkload-WlNameStateMapEntry">ExecutionsStatesOfWorkload.WlNameStateMapEntry</a></td>
+<td>repeated</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-ExecutionsStatesOfWorkload-WlNameStateMapEntry"></a></p>
+<h3 id="executionsstatesofworkloadwlnamestatemapentry">ExecutionsStatesOfWorkload.WlNameStateMapEntry<a class="headerlink" href="#executionsstatesofworkloadwlnamestatemapentry" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>key</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>value</td>
+<td><a href="#ank_base-ExecutionsStatesForId">ExecutionsStatesForId</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-Request"></a></p>
+<h3 id="request">Request<a class="headerlink" href="#request" title="Permanent link">&para;</a></h3>
+<p>A message containing a request to the Ankaios server to update the state or to request the complete state of the Ankaios system.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>requestId</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>updateStateRequest</td>
+<td><a href="#ank_base-UpdateStateRequest">UpdateStateRequest</a></td>
+<td></td>
+<td>A message to Ankaios server to update the state of one or more agent(s).</td>
+</tr>
+<tr>
+<td>completeStateRequest</td>
+<td><a href="#ank_base-CompleteStateRequest">CompleteStateRequest</a></td>
+<td></td>
+<td>A message to Ankaios server to request the complete state by the given request id and the optional field mask.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-Response"></a></p>
+<h3 id="response">Response<a class="headerlink" href="#response" title="Permanent link">&para;</a></h3>
+<p>A message containing a response from the Ankaios server to a particular request.
+The response content depends on the request content previously sent to the Ankaios server.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>requestId</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>error</td>
+<td><a href="#ank_base-Error">Error</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>completeState</td>
+<td><a href="#ank_base-CompleteState">CompleteState</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>UpdateStateSuccess</td>
+<td><a href="#ank_base-UpdateStateSuccess">UpdateStateSuccess</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-State"></a></p>
+<h3 id="state">State<a class="headerlink" href="#state" title="Permanent link">&para;</a></h3>
+<p>A message containing the state information.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>apiVersion</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>The current version of the API.</td>
+</tr>
+<tr>
+<td>workloads</td>
+<td><a href="#ank_base-WorkloadMap">WorkloadMap</a></td>
+<td></td>
+<td>A mapping from workload names to workload configurations.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-StateRule"></a></p>
+<h3 id="staterule">StateRule<a class="headerlink" href="#staterule" title="Permanent link">&para;</a></h3>
+<p>Message containing a rule for getting or setting the state</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>operation</td>
+<td><a href="#ank_base-ReadWriteEnum">ReadWriteEnum</a></td>
+<td></td>
+<td>Defines which actions are allowed</td>
+</tr>
+<tr>
+<td>filterMasks</td>
+<td><a href="#string">string</a></td>
+<td>repeated</td>
+<td>Pathes definind what can be accessed. Segements of path can be a wildcare &#34;*&#34;.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-Tag"></a></p>
+<h3 id="tag">Tag<a class="headerlink" href="#tag" title="Permanent link">&para;</a></h3>
+<p>A message to store a tag.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>key</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>The key of the tag.</td>
+</tr>
+<tr>
+<td>value</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>The value of the tag.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-Tags"></a></p>
+<h3 id="tags">Tags<a class="headerlink" href="#tags" title="Permanent link">&para;</a></h3>
+<p>This is a workaround for proto not supporing optional repeated values</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>tags</td>
+<td><a href="#ank_base-Tag">Tag</a></td>
+<td>repeated</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-UpdateStateRequest"></a></p>
+<h3 id="updatestaterequest">UpdateStateRequest<a class="headerlink" href="#updatestaterequest" title="Permanent link">&para;</a></h3>
+<p>A message containing a request to update the state of the Ankaios system.
+The new state is provided as state object.
+To specify which part(s) of the new state object should be updated
+a list of update mask (same as field mask) paths needs to be provided.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>newState</td>
+<td><a href="#ank_base-CompleteState">CompleteState</a></td>
+<td></td>
+<td>The new state of the Ankaios system.</td>
+</tr>
+<tr>
+<td>updateMask</td>
+<td><a href="#string">string</a></td>
+<td>repeated</td>
+<td>A list of symbolic field paths within the state message structure e.g. &#39;desiredState.workloads.nginx&#39; to specify what to be updated.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-UpdateStateSuccess"></a></p>
+<h3 id="updatestatesuccess">UpdateStateSuccess<a class="headerlink" href="#updatestatesuccess" title="Permanent link">&para;</a></h3>
+<p>A message from the server containing the ids of the workloads that have been started and stopped in response to a previously sent UpdateStateRequest.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>addedWorkloads</td>
+<td><a href="#string">string</a></td>
+<td>repeated</td>
+<td>Workload istance names of workloads which will be started</td>
+</tr>
+<tr>
+<td>deletedWorkloads</td>
+<td><a href="#string">string</a></td>
+<td>repeated</td>
+<td>Workload instance names of workloads which will be stopped</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-Workload"></a></p>
+<h3 id="workload">Workload<a class="headerlink" href="#workload" title="Permanent link">&para;</a></h3>
+<p>A message containing the configuration of a workload.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>agent</td>
+<td><a href="#string">string</a></td>
+<td>optional</td>
+<td>The name of the owning Agent.</td>
+</tr>
+<tr>
+<td>restartPolicy</td>
+<td><a href="#ank_base-RestartPolicy">RestartPolicy</a></td>
+<td>optional</td>
+<td>An enum value that defines the condition under which a workload is restarted.</td>
+</tr>
+<tr>
+<td>dependencies</td>
+<td><a href="#ank_base-Dependencies">Dependencies</a></td>
+<td></td>
+<td>A map of workload names and expected states to enable a synchronized start of the workload.</td>
+</tr>
+<tr>
+<td>tags</td>
+<td><a href="#ank_base-Tags">Tags</a></td>
+<td></td>
+<td>A list of tag names.</td>
+</tr>
+<tr>
+<td>runtime</td>
+<td><a href="#string">string</a></td>
+<td>optional</td>
+<td>The name of the runtime e.g. podman.</td>
+</tr>
+<tr>
+<td>runtimeConfig</td>
+<td><a href="#string">string</a></td>
+<td>optional</td>
+<td>The configuration information specific to the runtime.</td>
+</tr>
+<tr>
+<td>controlInterfaceAccess</td>
+<td><a href="#ank_base-ControlInterfaceAccess">ControlInterfaceAccess</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-WorkloadInstanceName"></a></p>
+<h3 id="workloadinstancename">WorkloadInstanceName<a class="headerlink" href="#workloadinstancename" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>workloadName</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>The name of the workload.</td>
+</tr>
+<tr>
+<td>agentName</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>The name of the owning Agent.</td>
+</tr>
+<tr>
+<td>id</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td>A unique identifier of the workload.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-WorkloadMap"></a></p>
+<h3 id="workloadmap">WorkloadMap<a class="headerlink" href="#workloadmap" title="Permanent link">&para;</a></h3>
+<p>This is a workaround for proto not supporing optional maps</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>workloads</td>
+<td><a href="#ank_base-WorkloadMap-WorkloadsEntry">WorkloadMap.WorkloadsEntry</a></td>
+<td>repeated</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-WorkloadMap-WorkloadsEntry"></a></p>
+<h3 id="workloadmapworkloadsentry">WorkloadMap.WorkloadsEntry<a class="headerlink" href="#workloadmapworkloadsentry" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>key</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>value</td>
+<td><a href="#ank_base-Workload">Workload</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-WorkloadState"></a></p>
+<h3 id="workloadstate">WorkloadState<a class="headerlink" href="#workloadstate" title="Permanent link">&para;</a></h3>
+<p>A message containing the information about the workload state.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>instanceName</td>
+<td><a href="#ank_base-WorkloadInstanceName">WorkloadInstanceName</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>executionState</td>
+<td><a href="#ank_base-ExecutionState">ExecutionState</a></td>
+<td></td>
+<td>The workload execution state.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-WorkloadStatesMap"></a></p>
+<h3 id="workloadstatesmap">WorkloadStatesMap<a class="headerlink" href="#workloadstatesmap" title="Permanent link">&para;</a></h3>
+<p>A nested map that provides the execution state of a workload in a structured way.
+The first level allows searches by agent.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>agentStateMap</td>
+<td><a href="#ank_base-WorkloadStatesMap-AgentStateMapEntry">WorkloadStatesMap.AgentStateMapEntry</a></td>
+<td>repeated</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-WorkloadStatesMap-AgentStateMapEntry"></a></p>
+<h3 id="workloadstatesmapagentstatemapentry">WorkloadStatesMap.AgentStateMapEntry<a class="headerlink" href="#workloadstatesmapagentstatemapentry" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>key</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>value</td>
+<td><a href="#ank_base-ExecutionsStatesOfWorkload">ExecutionsStatesOfWorkload</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-AddCondition"></a></p>
+<h3 id="addcondition">AddCondition<a class="headerlink" href="#addcondition" title="Permanent link">&para;</a></h3>
+<p>An enum type describing the expected workload state. Used for dependency management.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ADD_COND_RUNNING</td>
+<td>0</td>
+<td>The workload is operational.</td>
+</tr>
+<tr>
+<td>ADD_COND_SUCCEEDED</td>
+<td>1</td>
+<td>The workload has successfully exited.</td>
+</tr>
+<tr>
+<td>ADD_COND_FAILED</td>
+<td>2</td>
+<td>The workload has exited with an error or could not be started.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-AgentDisconnected"></a></p>
+<h3 id="agentdisconnected">AgentDisconnected<a class="headerlink" href="#agentdisconnected" title="Permanent link">&para;</a></h3>
+<p>The exact state of the workload cannot be determined, e.g., because of a broken connection to the responsible agent.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AGENT_DISCONNECTED</td>
+<td>0</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-Failed"></a></p>
+<h3 id="failed">Failed<a class="headerlink" href="#failed" title="Permanent link">&para;</a></h3>
+<p>The workload has failed or is in a degraded state.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FAILED_EXEC_FAILED</td>
+<td>0</td>
+<td>The workload has failed during operation</td>
+</tr>
+<tr>
+<td>FAILED_UNKNOWN</td>
+<td>1</td>
+<td>The workload is in an unsupported by Ankaios runtime state. The workload was possibly altered outside of Ankaios.</td>
+</tr>
+<tr>
+<td>FAILED_LOST</td>
+<td>2</td>
+<td>The workload cannot be found anymore. The workload was possibly altered outside of Ankaios or was auto-removed by the runtime.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-NotScheduled"></a></p>
+<h3 id="notscheduled">NotScheduled<a class="headerlink" href="#notscheduled" title="Permanent link">&para;</a></h3>
+<p>The workload is not scheduled to run at any agent. This is signalized with an empty agent in the workload specification.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NOT_SCHEDULED</td>
+<td>0</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-Pending"></a></p>
+<h3 id="pending">Pending<a class="headerlink" href="#pending" title="Permanent link">&para;</a></h3>
+<p>The workload is going to be started eventually.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PENDING_INITIAL</td>
+<td>0</td>
+<td>The workload specification has not yet being scheduled</td>
+</tr>
+<tr>
+<td>PENDING_WAITING_TO_START</td>
+<td>1</td>
+<td>The start of the workload will be triggered once all its dependencies are met.</td>
+</tr>
+<tr>
+<td>PENDING_STARTING</td>
+<td>2</td>
+<td>Starting the workload was scheduled at the corresponding runtime.</td>
+</tr>
+<tr>
+<td>PENDING_STARTING_FAILED</td>
+<td>8</td>
+<td>The starting of the workload by the runtime failed.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-ReadWriteEnum"></a></p>
+<h3 id="readwriteenum">ReadWriteEnum<a class="headerlink" href="#readwriteenum" title="Permanent link">&para;</a></h3>
+<p>An enum type describing which action is allowed.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RW_NOTHING</td>
+<td>0</td>
+<td>Allow nothing</td>
+</tr>
+<tr>
+<td>RW_READ</td>
+<td>1</td>
+<td>Allow read</td>
+</tr>
+<tr>
+<td>RW_WRITE</td>
+<td>2</td>
+<td>Allow write</td>
+</tr>
+<tr>
+<td>RW_READ_WRITE</td>
+<td>5</td>
+<td>Allow read and write</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-Removed"></a></p>
+<h3 id="removed">Removed<a class="headerlink" href="#removed" title="Permanent link">&para;</a></h3>
+<p>The workload was removed from Ankaios. This state is used only internally in Ankaios. The outside world removed states are just not there.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>REMOVED</td>
+<td>0</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-RestartPolicy"></a></p>
+<h3 id="restartpolicy">RestartPolicy<a class="headerlink" href="#restartpolicy" title="Permanent link">&para;</a></h3>
+<p>An enum type describing the restart behavior of a workload.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NEVER</td>
+<td>0</td>
+<td>The workload is never restarted. Once the workload exits, it remains in the exited state.</td>
+</tr>
+<tr>
+<td>ON_FAILURE</td>
+<td>1</td>
+<td>If the workload exits with a non-zero exit code, it will be restarted.</td>
+</tr>
+<tr>
+<td>ALWAYS</td>
+<td>2</td>
+<td>The workload is restarted upon termination, regardless of the exit code.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-Running"></a></p>
+<h3 id="running">Running<a class="headerlink" href="#running" title="Permanent link">&para;</a></h3>
+<p>The workload is operational.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RUNNING_OK</td>
+<td>0</td>
+<td>The workload is operational.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-Stopping"></a></p>
+<h3 id="stopping">Stopping<a class="headerlink" href="#stopping" title="Permanent link">&para;</a></h3>
+<p>The workload is scheduled for stopping.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>STOPPING</td>
+<td>0</td>
+<td>The workload is being stopped.</td>
+</tr>
+<tr>
+<td>STOPPING_WAITING_TO_STOP</td>
+<td>1</td>
+<td>The deletion of the workload will be triggered once neither &#39;pending&#39; nor &#39;running&#39; workload depending on it exists.</td>
+</tr>
+<tr>
+<td>STOPPING_REQUESTED_AT_RUNTIME</td>
+<td>2</td>
+<td>This is an Ankaios generated state returned when the stopping was explicitly trigged by the user and the request was sent to the runtime.</td>
+</tr>
+<tr>
+<td>STOPPING_DELETE_FAILED</td>
+<td>8</td>
+<td>The deletion of the workload by the runtime failed.</td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-Succeeded"></a></p>
+<h3 id="succeeded">Succeeded<a class="headerlink" href="#succeeded" title="Permanent link">&para;</a></h3>
+<p>The workload has successfully finished operation.</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Number</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SUCCEEDED_OK</td>
+<td>0</td>
+<td>The workload has successfully finished operation.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="scalar-value-types">Scalar Value Types<a class="headerlink" href="#scalar-value-types" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>.proto Type</th>
+<th>Notes</th>
+<th>C++</th>
+<th>Java</th>
+<th>Python</th>
+<th>Go</th>
+<th>C#</th>
+<th>PHP</th>
+<th>Ruby</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a name="double" /> double</td>
+<td></td>
+<td>double</td>
+<td>double</td>
+<td>float</td>
+<td>float64</td>
+<td>double</td>
+<td>float</td>
+<td>Float</td>
+</tr>
+<tr>
+<td><a name="float" /> float</td>
+<td></td>
+<td>float</td>
+<td>float</td>
+<td>float</td>
+<td>float32</td>
+<td>float</td>
+<td>float</td>
+<td>Float</td>
+</tr>
+<tr>
+<td><a name="int32" /> int32</td>
+<td>Uses variable-length encoding. Inefficient for encoding negative numbers – if your field is likely to have negative values, use sint32 instead.</td>
+<td>int32</td>
+<td>int</td>
+<td>int</td>
+<td>int32</td>
+<td>int</td>
+<td>integer</td>
+<td>Bignum or Fixnum (as required)</td>
+</tr>
+<tr>
+<td><a name="int64" /> int64</td>
+<td>Uses variable-length encoding. Inefficient for encoding negative numbers – if your field is likely to have negative values, use sint64 instead.</td>
+<td>int64</td>
+<td>long</td>
+<td>int/long</td>
+<td>int64</td>
+<td>long</td>
+<td>integer/string</td>
+<td>Bignum</td>
+</tr>
+<tr>
+<td><a name="uint32" /> uint32</td>
+<td>Uses variable-length encoding.</td>
+<td>uint32</td>
+<td>int</td>
+<td>int/long</td>
+<td>uint32</td>
+<td>uint</td>
+<td>integer</td>
+<td>Bignum or Fixnum (as required)</td>
+</tr>
+<tr>
+<td><a name="uint64" /> uint64</td>
+<td>Uses variable-length encoding.</td>
+<td>uint64</td>
+<td>long</td>
+<td>int/long</td>
+<td>uint64</td>
+<td>ulong</td>
+<td>integer/string</td>
+<td>Bignum or Fixnum (as required)</td>
+</tr>
+<tr>
+<td><a name="sint32" /> sint32</td>
+<td>Uses variable-length encoding. Signed int value. These more efficiently encode negative numbers than regular int32s.</td>
+<td>int32</td>
+<td>int</td>
+<td>int</td>
+<td>int32</td>
+<td>int</td>
+<td>integer</td>
+<td>Bignum or Fixnum (as required)</td>
+</tr>
+<tr>
+<td><a name="sint64" /> sint64</td>
+<td>Uses variable-length encoding. Signed int value. These more efficiently encode negative numbers than regular int64s.</td>
+<td>int64</td>
+<td>long</td>
+<td>int/long</td>
+<td>int64</td>
+<td>long</td>
+<td>integer/string</td>
+<td>Bignum</td>
+</tr>
+<tr>
+<td><a name="fixed32" /> fixed32</td>
+<td>Always four bytes. More efficient than uint32 if values are often greater than 2^28.</td>
+<td>uint32</td>
+<td>int</td>
+<td>int</td>
+<td>uint32</td>
+<td>uint</td>
+<td>integer</td>
+<td>Bignum or Fixnum (as required)</td>
+</tr>
+<tr>
+<td><a name="fixed64" /> fixed64</td>
+<td>Always eight bytes. More efficient than uint64 if values are often greater than 2^56.</td>
+<td>uint64</td>
+<td>long</td>
+<td>int/long</td>
+<td>uint64</td>
+<td>ulong</td>
+<td>integer/string</td>
+<td>Bignum</td>
+</tr>
+<tr>
+<td><a name="sfixed32" /> sfixed32</td>
+<td>Always four bytes.</td>
+<td>int32</td>
+<td>int</td>
+<td>int</td>
+<td>int32</td>
+<td>int</td>
+<td>integer</td>
+<td>Bignum or Fixnum (as required)</td>
+</tr>
+<tr>
+<td><a name="sfixed64" /> sfixed64</td>
+<td>Always eight bytes.</td>
+<td>int64</td>
+<td>long</td>
+<td>int/long</td>
+<td>int64</td>
+<td>long</td>
+<td>integer/string</td>
+<td>Bignum</td>
+</tr>
+<tr>
+<td><a name="bool" /> bool</td>
+<td></td>
+<td>bool</td>
+<td>boolean</td>
+<td>boolean</td>
+<td>bool</td>
+<td>bool</td>
+<td>boolean</td>
+<td>TrueClass/FalseClass</td>
+</tr>
+<tr>
+<td><a name="string" /> string</td>
+<td>A string must always contain UTF-8 encoded or 7-bit ASCII text.</td>
+<td>string</td>
+<td>String</td>
+<td>str/unicode</td>
+<td>string</td>
+<td>string</td>
+<td>string</td>
+<td>String (UTF-8)</td>
+</tr>
+<tr>
+<td><a name="bytes" /> bytes</td>
+<td>May contain any arbitrary sequence of bytes.</td>
+<td>string</td>
+<td>ByteString</td>
+<td>str</td>
+<td>[]byte</td>
+<td>ByteString</td>
+<td>string</td>
+<td>String (ASCII-8BIT)</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../glossary/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Glossary">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Glossary
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../../development/build/" class="md-footer__link md-footer__link--next" aria-label="Next: Build">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Build
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2023 Elektrobit Automotive GmbH
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.tabs", "content.code.copy", "content.code.annotate", "content.action.edit", "navigation.footer"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.fe8b6f2b.min.js"></script>
+      
+    
+  </body>
+</html>

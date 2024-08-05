@@ -1,0 +1,1906 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://eclipse-ankaios.github.io/ankaios/0.4/development/system-tests/">
+      
+      
+        <link rel="prev" href="../test-coverage/">
+      
+      
+        <link rel="next" href="../requirement-tracing/">
+      
+      
+      <link rel="icon" href="../../assets/favicon128x128.png">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.30">
+    
+    
+      
+        <title>System tests - Eclipse Ankaios</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.3cba04c6.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+      
+        <meta  property="og:type"  content="website" >
+      
+        <meta  property="og:title"  content="System tests - Eclipse Ankaios" >
+      
+        <meta  property="og:description"  content="None" >
+      
+        <meta  property="og:image"  content="https://eclipse-ankaios.github.io/ankaios/0.4/assets/images/social/development/system-tests.png" >
+      
+        <meta  property="og:image:type"  content="image/png" >
+      
+        <meta  property="og:image:width"  content="1200" >
+      
+        <meta  property="og:image:height"  content="630" >
+      
+        <meta  property="og:url"  content="https://eclipse-ankaios.github.io/ankaios/0.4/development/system-tests/" >
+      
+        <meta  name="twitter:card"  content="summary_large_image" >
+      
+        <meta  name="twitter:title"  content="System tests - Eclipse Ankaios" >
+      
+        <meta  name="twitter:description"  content="None" >
+      
+        <meta  name="twitter:image"  content="https://eclipse-ankaios.github.io/ankaios/0.4/assets/images/social/development/system-tests.png" >
+      
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#system-tests" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+          <aside class="md-banner md-banner--warning">
+            <div class="md-banner__inner md-grid md-typeset">
+              
+  You're not viewing the latest release.
+  <a href="../../..">
+    <strong>Click here to go to the latest release.</strong>
+  </a>
+
+            </div>
+            <script>var el=document.querySelector("[data-md-component=outdated]"),outdated=__md_get("__outdated",sessionStorage);!0===outdated&&el&&(el.hidden=!1)</script>
+          </aside>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Eclipse Ankaios" class="md-header__button md-logo" aria-label="Eclipse Ankaios" data-md-component="logo">
+      
+  <img src="../../assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Eclipse Ankaios
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              System tests
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12c0-2.42-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/eclipse-ankaios/ankaios" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    eclipse-ankaios/ankaios
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  Welcome
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../architecture/" class="md-tabs__link">
+        
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../usage/installation/" class="md-tabs__link">
+          
+  
+  Usage
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/startup-configuration/" class="md-tabs__link">
+          
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../build/" class="md-tabs__link">
+          
+  
+  Contributing
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../support/" class="md-tabs__link">
+        
+  
+    
+  
+  Support
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Eclipse Ankaios" class="md-nav__button md-logo" aria-label="Eclipse Ankaios" data-md-component="logo">
+      
+  <img src="../../assets/Ankaios__logo_for_dark_bgrd_clipped.png" alt="logo">
+
+    </a>
+    Eclipse Ankaios
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/eclipse-ankaios/ankaios" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    eclipse-ankaios/ankaios
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Welcome
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Usage
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Usage
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/installation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/quickstart/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Quickstart
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/tutorial-vehicle-signals/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tutorial: Sending and receiving vehicle signals
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/awesome-ankaios/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Awesome Ankaios
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/mtls-setup/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Setting up Ankaios with mTLS
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Upgrading
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            Upgrading
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/upgrading/v0_2_to_v0_3/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Upgrading v0.2 to v0.3
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../usage/upgrading/v0_3_to_v0_4/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Upgrading v0.3 to v0.4
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Reference
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/startup-configuration/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Startup configuration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/interacting-with-ankaios/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Interacting with Ankaios
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/complete-state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Working with CompleteState
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/control-interface/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Control interface
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/inter-workload-dependencies/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Inter-workload dependencies
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/restart-policy/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Restart Policy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/resource-usage/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Resource usage
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/glossary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Glossary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/_ankaios.proto/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Protobuf data structures
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Contributing
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Contributing
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../build/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Build
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rust-coding-guidelines/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rust coding guidelines
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../unit-verification/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Unit verification
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run-unit-tests/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Unit tests with cargo-nextest
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../test-coverage/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Test coverage
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    System tests
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    System tests
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#general-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      General overview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#robot-test-framework-for-system-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      Robot test framework for system tests
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-tests-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      System tests structure
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-test-creation" class="md-nav__link">
+    <span class="md-ellipsis">
+      System test creation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="System test creation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-generic-ankaios-system-test-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      A generic Ankaios system test structure
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#behavior-driven-system-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      Behavior-driven system test
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-long-runtime-system-tests-upon-merge-into-main" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run long-runtime system tests upon merge into main
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-test-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      System test execution
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="System test execution">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#run-in-dev-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run in dev container
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Run in dev container">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-run-all-tests-under-the-folder-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example: Run all tests under the folder tests
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-run-a-single-test-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example: Run a single test file
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-in-github-workflows" class="md-nav__link">
+    <span class="md-ellipsis">
+      Integration in GitHub workflows
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../requirement-tracing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Requirement tracing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../requirement-template/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Requirement description template
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../extending-dev-container/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Extending the dev container
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ci-cd/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CI/CD
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ci-cd-release/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CI/CD - Release
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../self-service/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Eclipse self-service
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../documentation-guidelines/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Documentation guidelines
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../support/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Support
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#general-overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      General overview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#robot-test-framework-for-system-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      Robot test framework for system tests
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-tests-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      System tests structure
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-test-creation" class="md-nav__link">
+    <span class="md-ellipsis">
+      System test creation
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="System test creation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-generic-ankaios-system-test-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      A generic Ankaios system test structure
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#behavior-driven-system-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      Behavior-driven system test
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#run-long-runtime-system-tests-upon-merge-into-main" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run long-runtime system tests upon merge into main
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#system-test-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      System test execution
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="System test execution">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#run-in-dev-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      Run in dev container
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Run in dev container">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-run-all-tests-under-the-folder-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example: Run all tests under the folder tests
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-run-a-single-test-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      Example: Run a single test file
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-in-github-workflows" class="md-nav__link">
+    <span class="md-ellipsis">
+      Integration in GitHub workflows
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/eclipse-ankaios/ankaios/edit/main/doc/docs/development/system-tests.md" title="Edit this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4v-2m10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1 2.1 2.1Z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="system-tests">System tests<a class="headerlink" href="#system-tests" title="Permanent link">&para;</a></h1>
+<h2 id="general-overview">General overview<a class="headerlink" href="#general-overview" title="Permanent link">&para;</a></h2>
+<p>System tests are a critical phase of software testing, aimed at evaluating the entire software system as a whole to ensure that it meets its specified requirements and functions correctly in its intended environment. These tests are conducted after unit and integration testing and serve as a comprehensive validation of the software's readiness for deployment.</p>
+<p>Here are key aspects of system tests:</p>
+<ol>
+<li>
+<p><strong>End-to-End Evaluation:</strong> System tests assess the software's performance, functionality, and reliability in a real-world scenario, simulating the complete user journey. They cover all aspects of the system, from the user interface to the backend processes.</p>
+</li>
+<li>
+<p><strong>Functional and Non-Functional Testing:</strong> These tests not only verify that the software's features work as intended (functional testing) but also assess non-functional attributes like performance, scalability, security, and usability.</p>
+</li>
+<li>
+<p><strong>Scenario-Based Testing:</strong> Test scenarios are designed to replicate various user interactions, use cases, and business workflows. This includes testing different paths, inputs, and error conditions to ensure the system handles them correctly.</p>
+</li>
+<li>
+<p><strong>Interoperability Testing:</strong> In cases where the software interacts with external systems or components, system tests evaluate its compatibility and ability to communicate effectively with these external entities.</p>
+</li>
+<li>
+<p><strong>Data Integrity and Security:</strong> Ensuring the protection of sensitive data and the integrity of information is a critical part of system testing. This includes checking for vulnerabilities and ensuring compliance with security standards.</p>
+</li>
+<li>
+<p><strong>Performance Testing:</strong> Assessing the system's response times, resource utilization, and scalability under various load conditions to ensure it can handle expected levels of usage.</p>
+</li>
+<li>
+<p><strong>Regression Testing:</strong> System tests often include regression testing to ensure that new features or changes do not introduce new defects or disrupt existing functionality.</p>
+</li>
+</ol>
+<h2 id="robot-test-framework-for-system-tests">Robot test framework for system tests<a class="headerlink" href="#robot-test-framework-for-system-tests" title="Permanent link">&para;</a></h2>
+<p>The <a href="https://robotframework.org/">Robot test framework</a>, often referred to as just "Robot Framework," is a popular open-source test automation framework used for automating test cases in various software applications. It is designed to be easy to use, highly readable, and adaptable for both beginners and experienced testers. It employs a keyword-driven approach, which means that test cases are written using a combination of keywords that represent actions, objects, and verifications. These keywords can be custom-defined by using Python programming language or come from libraries specific to the application under test. One of the standout features of Robot Framework is its human-readable syntax. Test cases are written in plain text composed with defined keywords, making it accessible to non-programmers and allowing stakeholders to understand and contribute to test case creation. Because of the ability to create custom keywords, a pool of domain specific and generic keywords could be defined to form an Ankaios project specific language for writing test cases.This makes it possible to directly use the test specifications written in natural language or the same wording of it to write automated test cases. This is the main reason why we use this test framework for system tests in Ankaios.</p>
+<h2 id="system-tests-structure">System tests structure<a class="headerlink" href="#system-tests-structure" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>ankaios<span class="w">                              </span><span class="c1"># Ankaios root</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="p">|</span>--tests<span class="w">                           </span><span class="c1"># Location for system tests and their resources</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span>--resources<span class="w">                    </span><span class="c1"># Location for test resources</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span>--configs<span class="w">                   </span><span class="c1"># Location for test case specific start-up configuration files</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span>--default.yaml<span class="w">           </span><span class="c1"># A start-up configuration file</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span>--...<span class="w"> </span>&lt;----------------<span class="w">  </span><span class="c1"># Add more configuration files here!</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span>--ankaios_library.py<span class="w">        </span><span class="c1"># Ankaios keywords implementations</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span>--ankaios.resource<span class="w">          </span><span class="c1"># Ankaios keywords</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span>--variables.resource<span class="w">        </span><span class="c1"># Ankaios variables</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span>--...<span class="w"> </span>&lt;-------------------<span class="w">  </span><span class="c1"># Add more keywords and keywords implementation resources here!</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span>--stests<span class="w">                       </span><span class="c1"># Location for system tests</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span>--workloads<span class="w">                 </span><span class="c1"># Location for tests with specific test subject focus e.g. &quot;workloads&quot; for tests related &quot;workloads&quot;</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span>--list_workloads.robot<span class="w">   </span><span class="c1"># A test suite testing &quot;list workloads&quot;</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span>--...<span class="w"> </span>&lt;----------------<span class="w">  </span><span class="c1"># Add more tests related to &quot;workloads&quot; here!</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span><span class="w">  </span><span class="p">|</span>...<span class="w"> </span>&lt;---------------------<span class="w">  </span><span class="c1"># Add test subject focus here!</span>
+</code></pre></div>
+<h2 id="system-test-creation">System test creation<a class="headerlink" href="#system-test-creation" title="Permanent link">&para;</a></h2>
+<h3 id="a-generic-ankaios-system-test-structure">A generic Ankaios system test structure<a class="headerlink" href="#a-generic-ankaios-system-test-structure" title="Permanent link">&para;</a></h3>
+<p>The most common approach to create a robot test is using the space separated format where pieces of the data, such as keywords and their arguments, are separated from each others with two or more spaces.
+A basic Ankaios system test consists of the following sections:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a># ./tests/stests/workloads/my_workload_stest.robot
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>*** Settings ***
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>Documentation    Add test suit documentation here.      # Test suite documentation
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>Resource     ../../resources/ankaios.resource           # Ankaios specific keywords that forms the Ankaios domain language
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>Resource    ../../resources/variables.resource          # Ankaios variables e.g. CONFIGS_DIR
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>*** Test Cases ***
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>[Setup]        Setup Ankaios
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a># ADD YOUR SYSTEM TEST HERE!
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>[Teardown]    Clean up Ankaios
+</code></pre></div>
+<p>For more best practices about writing tests with Robot framework see <a href="https://github.com/robotframework/HowToWriteGoodTestCases/blob/master/HowToWriteGoodTestCases.rst">here</a>.</p>
+<h3 id="behavior-driven-system-test">Behavior-driven system test<a class="headerlink" href="#behavior-driven-system-test" title="Permanent link">&para;</a></h3>
+<p>Behavior-driven tests (BDT) use natural language specifications to describe expected system behavior, fostering collaboration between teams and facilitating both manual and automated testing. It's particularly valuable for user-centric and acceptance testing, ensuring that software aligns with user expectations. The Robot test framework supports BDT, and this approach shall be preferred for writing system tests in Ankaios the project.</p>
+<p>Generic structure of BDT:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>*** Test Cases ***
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>[Setup]        Setup Ankaios
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>Given  &lt;preconditions&gt;
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>When   &lt;actions&gt;
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>Then   &lt;asserts&gt;
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>[Teardown]    Clean up Ankaios
+</code></pre></div>
+<p>Example: System test testing listing of workloads.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>*** Settings ***
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>Documentation    Tests to verify that ank cli lists workloads correctly.
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>Resource     ../../resources/ankaios.resource
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>Resource    ../../resources/variables.resource
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>*** Test Cases ***
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>Test Ankaios CLI get workloads
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    [Setup]        Setup Ankaios
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    # Preconditions
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    Given Ankaios server is started with &quot;ank-server --startup-config ${CONFIGS_DIR}/default.yaml&quot;
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>    And Ankaios agent is started with &quot;ank-agent --name agent_B&quot;
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>    And all workloads of agent &quot;agent_B&quot; have an initial execution state
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>    And Ankaios agent is started with &quot;ank-agent --name agent_A&quot;
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>    And all workloads of agent &quot;agent_A&quot; have an initial execution state
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>    # Actions
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>    When user triggers &quot;ank -k get workloads&quot;
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>    # Asserts
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>    Then the workload &quot;nginx&quot; shall have the execution state &quot;Running&quot; on agent &quot;agent_A&quot;
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>    And the workload &quot;hello1&quot; shall have the execution state &quot;Removed&quot; from agent &quot;agent_B&quot;
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>    And the workload &quot;hello2&quot; shall have the execution state &quot;Succeeded&quot; on agent &quot;agent_B&quot;
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>    And the workload &quot;hello3&quot; shall have the execution state &quot;Succeeded&quot; on agent &quot;agent_B&quot;
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>    [Teardown]    Clean up Ankaios
+</code></pre></div>
+<h3 id="run-long-runtime-system-tests-upon-merge-into-main">Run long-runtime system tests upon merge into main<a class="headerlink" href="#run-long-runtime-system-tests-upon-merge-into-main" title="Permanent link">&para;</a></h3>
+<p>To keep the pull request status check runtime short, system tests with a longer runtime (&gt; 30-40 seconds) shall be excluded from the pull request CI/CD verification by assigning the tag "non_execution_during_pull_request_verification" directly to the test case. When the pull request is merged into the main branch, the system test is executed. A contributor shall check the test results of those system tests afterwards.</p>
+<p>Example system test that runs only on merge into main:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>...
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>*** Test Cases ***
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>...
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>Test Ankaios Podman stops retries after reaching the retry attempt limit
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="hll">    [Tags]    non_execution_during_pull_request_verification
+</span><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    [Setup]    Run Keywords    Setup Ankaios
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>...
+</code></pre></div>
+<h2 id="system-test-execution">System test execution<a class="headerlink" href="#system-test-execution" title="Permanent link">&para;</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>The system tests will delete all Podman containers, pods and volume.
+We recomment to only execute the system tests in the dev container.</p>
+</div>
+<p>A shell script is provided for the easy execution of the system tests. The script does the following:</p>
+<ol>
+<li>It checks if the required Ankaios executables (<code>ank</code>, <code>ank-server</code> and <code>ank-agent</code>) are available at specified path.</li>
+<li>It prints out the version number executables.</li>
+<li>It starts all the tests under specified folder or a specific robot test file.</li>
+<li>It stores the test result in the folder <code>{Ankaios root folder}/target/robot_tests_result</code>.</li>
+</ol>
+<h3 id="run-in-dev-container">Run in dev container<a class="headerlink" href="#run-in-dev-container" title="Permanent link">&para;</a></h3>
+<p>Generic syntax:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>/workspaces/ankaios$<span class="w"> </span><span class="o">[</span><span class="nv">ANK_BIN_DIR</span><span class="o">=</span>path_to_ankaios_executables<span class="o">]</span><span class="w"> </span>tools/run_robot_tests<span class="w"> </span>&lt;options&gt;<span class="w"> </span>&lt;directory<span class="w"> </span>or<span class="w"> </span>robot<span class="w"> </span>file&gt;
+</code></pre></div>
+<p>If <em>ANK_BIN_DIR</em> is not provided the script looks in the path <code>{Ankaios root folder}/target/x86_64-unknown-linux-musl/debug</code> for the Ankaios executables.
+The supported options are the same as of <code>robot</code> cli, so for more detailed description about it see <a href="https://robotframework.org/robotframework/latest/RobotFrameworkUserGuide.html#using-command-line-options">here</a>.</p>
+<p><em>Note: In order to be able to start <code>podman</code> runtime in the dev container properly, the dev container needs to be run in <code>privilege</code> mode.</em></p>
+<h4 id="example-run-all-tests-under-the-folder-tests">Example: Run all tests under the folder tests<a class="headerlink" href="#example-run-all-tests-under-the-folder-tests" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>/workspaces/ankaios$<span class="w"> </span>tools/run_robot_tests.sh<span class="w"> </span>tests
+</code></pre></div>
+<p>Example output:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>Use default executable directory: /workspaces/ankaios/tools/../target/x86_64-unknown-linux-musl/debug
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>Found ank 0.1.0
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>Found ank-server 0.1.0
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>Found ank-agent 0.1.0
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>==============================================================================
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>Tests
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>==============================================================================
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>Tests.Stests
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>==============================================================================
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>Tests.Stests.Workloads
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>==============================================================================
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>Tests.Stests.Workloads.List Workloads :: List workloads test cases.
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>==============================================================================
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>Test Ankaios CLI get workloads                                        | PASS |
+<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>------------------------------------------------------------------------------
+<a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>Tests.Stests.Workloads.List Workloads :: List workloads test cases.   | PASS |
+<a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>1 test, 1 passed, 0 failed
+<a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>==============================================================================
+<a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a>Tests.Stests.Workloads.Update Workload :: Update workload test cases.
+<a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a>==============================================================================
+<a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a>Test Ankaios CLI update workload                                      | PASS |
+<a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a>------------------------------------------------------------------------------
+<a id="__codelineno-7-23" name="__codelineno-7-23" href="#__codelineno-7-23"></a>Tests.Stests.Workloads.Update Workload :: Update workload test cases. | PASS |
+<a id="__codelineno-7-24" name="__codelineno-7-24" href="#__codelineno-7-24"></a>1 test, 1 passed, 0 failed
+<a id="__codelineno-7-25" name="__codelineno-7-25" href="#__codelineno-7-25"></a>==============================================================================
+<a id="__codelineno-7-26" name="__codelineno-7-26" href="#__codelineno-7-26"></a>Tests.Stests.Workloads                                                | PASS |
+<a id="__codelineno-7-27" name="__codelineno-7-27" href="#__codelineno-7-27"></a>2 tests, 2 passed, 0 failed
+<a id="__codelineno-7-28" name="__codelineno-7-28" href="#__codelineno-7-28"></a>==============================================================================
+<a id="__codelineno-7-29" name="__codelineno-7-29" href="#__codelineno-7-29"></a>Tests.Stests                                                          | PASS |
+<a id="__codelineno-7-30" name="__codelineno-7-30" href="#__codelineno-7-30"></a>2 tests, 2 passed, 0 failed
+<a id="__codelineno-7-31" name="__codelineno-7-31" href="#__codelineno-7-31"></a>==============================================================================
+<a id="__codelineno-7-32" name="__codelineno-7-32" href="#__codelineno-7-32"></a>Tests                                                                 | PASS |
+<a id="__codelineno-7-33" name="__codelineno-7-33" href="#__codelineno-7-33"></a>2 tests, 2 passed, 0 failed
+<a id="__codelineno-7-34" name="__codelineno-7-34" href="#__codelineno-7-34"></a>==============================================================================
+<a id="__codelineno-7-35" name="__codelineno-7-35" href="#__codelineno-7-35"></a>Output:  /workspaces/ankaios/target/robot_tests_result/output.xml
+<a id="__codelineno-7-36" name="__codelineno-7-36" href="#__codelineno-7-36"></a>Log:     /workspaces/ankaios/target/robot_tests_result/log.html
+<a id="__codelineno-7-37" name="__codelineno-7-37" href="#__codelineno-7-37"></a>Report:  /workspaces/ankaios/target/robot_tests_result/report.html
+</code></pre></div>
+<h4 id="example-run-a-single-test-file">Example: Run a single test file<a class="headerlink" href="#example-run-a-single-test-file" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>/workspaces/ankaios$<span class="w"> </span>tools/run_robot_tests.sh<span class="w"> </span>tests/stests/workloads/list_workloads.robot
+</code></pre></div>
+<p>Example output:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>Use default executable directory: /workspaces/ankaios/tools/../target/x86_64-unknown-linux-musl/debug
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>Found ank 0.1.0
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>Found ank-server 0.1.0
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>Found ank-agent 0.1.0
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>==============================================================================
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>List Workloads :: List workloads test cases.
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>==============================================================================
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>Test Ankaios CLI get workloads                                        | PASS |
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>------------------------------------------------------------------------------
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>List Workloads :: List workloads test cases.                          | PASS |
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>1 test, 1 passed, 0 failed
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>==============================================================================
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>Output:  /workspaces/ankaios/target/robot_tests_result/output.xml
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>Log:     /workspaces/ankaios/target/robot_tests_result/log.html
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>Report:  /workspaces/ankaios/target/robot_tests_result/report.html
+</code></pre></div>
+<h2 id="integration-in-github-workflows">Integration in GitHub workflows<a class="headerlink" href="#integration-in-github-workflows" title="Permanent link">&para;</a></h2>
+<p>The execution of the system tests is integrated in the GitHub workflow build step and will be triggered on each commit on a pull request.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../test-coverage/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Test coverage">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Test coverage
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../requirement-tracing/" class="md-footer__link md-footer__link--next" aria-label="Next: Requirement tracing">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Requirement tracing
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11H4Z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2023 Elektrobit Automotive GmbH
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.instant", "navigation.sections", "navigation.tabs", "content.code.copy", "content.code.annotate", "content.action.edit", "navigation.footer"], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.fe8b6f2b.min.js"></script>
+      
+    
+  </body>
+</html>
