@@ -1435,6 +1435,7 @@ A workload specification must contain the following information:</p>
 <li><code>restartPolicy</code>, specify how the workload should be restarted upon exiting (not implemented yet).</li>
 <li><code>tags</code>, specify a list of <code>key</code> <code>value</code>  pairs.</li>
 <li><code>runtimeConfig</code>, specify as a <em>string</em> the configuration for the <a href="../glossary/#runtime">runtime</a> whose configuration structure is specific for each runtime, e.g., for <code>podman</code> runtime the <a href="#podmanruntimeconfig">PodmanRuntimeConfig</a> is used.</li>
+<li><code>controlInterfaceAccess</code>, specify the access rights of the workload for the control interface.</li>
 </ul>
 <p>Example <code>startup-config.yaml</code> file:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
@@ -1449,6 +1450,12 @@ A workload specification must contain the following information:</p>
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">      </span><span class="no">image: docker.io/nginx:latest</span>
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">      </span><span class="no">commandOptions: [&quot;-p&quot;, &quot;8081:80&quot;]</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span><span class="nt">controlInterfaceAccess</span><span class="p">:</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">      </span><span class="nt">allowRules</span><span class="p">:</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">StateRule</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">        </span><span class="nt">operation</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">READ</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">        </span><span class="nt">FilterMask</span><span class="p">:</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">workloadStates</span>
 </code></pre></div>
 <h3 id="podmanruntimeconfig">PodmanRuntimeConfig<a class="headerlink" href="#podmanruntimeconfig" title="Permanent link">&para;</a></h3>
 <p>The runtime configuration for the <code>podman</code> runtime is specified as follows:</p>

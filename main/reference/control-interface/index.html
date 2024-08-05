@@ -854,6 +854,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#authorization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Authorization
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#fifo-mount-point" class="md-nav__link">
     <span class="md-ellipsis">
       FIFO mount point
@@ -1410,6 +1419,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#authorization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Authorization
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#fifo-mount-point" class="md-nav__link">
     <span class="md-ellipsis">
       FIFO mount point
@@ -1513,6 +1531,26 @@
     s &lt;--&gt; a1 &lt;--&gt;|Control Interface| w1 &amp; w2
     s &lt;--&gt; a2 &lt;--&gt;|Control Interface| w3 &amp; w4</code></pre>
 <p>The <a href="./">control interface</a> enables a <a href="../glossary/#workload">workload</a> to communicate with the Ankaios system by interacting with the Ankaios server through writing/reading communication data to/from the provided FIFO files in the <a href="#fifo-mount-point">FIFO mount point</a>.</p>
+<h2 id="authorization">Authorization<a class="headerlink" href="#authorization" title="Permanent link">&para;</a></h2>
+<p>Ankaios checks for each request from a workload to the control interface, if the workload is authorized.
+The authorization is configured for each workload using <code>controlInterfaceAccess</code>.
+A workload without <code>controlInterfaceAccess</code> configuration is denied all actions on the control interface.
+The authorization configuration consists of allow and deny rules.
+Each rule defines the operation (e.g. read) the workload is allowed to execute
+and with which filter masks it is allowed to execute this operation.</p>
+<p>A filter mask describes a path in the CompleteState object.
+The segments of the path are divided by the '.' symbol.
+Segments can also be the wildcard character '*', indicating this segment shall match every possible field.
+E.g. <code>desiredState.workloads.*.tag</code> allows access to the tags of all workloads.</p>
+<p>In an allow rule the path gives access to the exact path and also all subfields.
+E.g. an allow rule with <code>desiredState.workloads.example</code> would also give access to <code>desiredState.workload.example.tags</code>.
+In a deny rule the path prohibits access to the exact path and also all parent fields.
+E.g. a deny rule with <code>desiredState.workloads.example</code> would also deny access to <code>desiredState.workloads</code>,
+but has no effect on <code>desiredState.workloads.other_example</code>.</p>
+<p>Every request not allowed by a rule in <code>controlInterfaceAccess</code> is prohibited.
+Every request allowed by a rule, but denied by another rule is also prohibited.
+E.g. with an allow rule for path <code>desiredState.workloads.*.agent</code> and a deny rule for <code>desiredState.workloads.controller</code>,
+a workload would be allowed to change the agent of each workload, except for the <code>controller</code> workload.</p>
 <h2 id="fifo-mount-point">FIFO mount point<a class="headerlink" href="#fifo-mount-point" title="Permanent link">&para;</a></h2>
 <pre class="mermaid"><code>flowchart TD
     a1(Ankaios Agent 1)
