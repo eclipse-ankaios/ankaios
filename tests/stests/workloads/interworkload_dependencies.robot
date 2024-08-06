@@ -87,7 +87,7 @@ Test Ankaios CLI update workload with pending delete
     # Actions
     When user triggers "ank -k get state > ${new_state_yaml_file}"
     And user updates the state "${new_state_yaml_file}" with "desiredState.workloads.backend.runtimeConfig.commandOptions=['-p', '8084:80']"
-    And user triggers "ank -k --no-wait set state -f ${new_state_yaml_file} desiredState.workloads.backend"
+    And user triggers "ank -k --no-wait set state ${new_state_yaml_file} desiredState.workloads.backend"
     And the workload "backend" shall have the execution state "Stopping(WaitingToStop)" on agent "agent_A" within "20" seconds
     And user triggers "ank -k delete workload frontend"
     # Asserts
@@ -110,9 +110,9 @@ Test Ankaios CLI update workload with pending create
     And Ankaios agent is started with name "agent_A"
     And the workload "after_backend" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
     # Actions
-    When user triggers "ank -k --no-wait set state -f ${new_state_yaml_file} desiredState.workloads.after_backend"
+    When user triggers "ank -k --no-wait set state ${new_state_yaml_file} desiredState.workloads.after_backend"
     And the workload "after_backend" shall have the execution state "Pending(WaitingToStart)" on agent "agent_A" within "3" seconds
-    And user triggers "ank -k set state -f ${new_state_yaml_file} desiredState.workloads.backend"
+    And user triggers "ank -k set state ${new_state_yaml_file} desiredState.workloads.backend"
     # Asserts
     Then the workload "backend" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "5" seconds
     And the workload "after_backend" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "5" seconds
