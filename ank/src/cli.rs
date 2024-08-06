@@ -19,19 +19,6 @@ use clap::{command, Parser, Subcommand};
 
 use common::DEFAULT_SERVER_ADDRESS;
 
-#[cfg(not(test))]
-// pub fn open_manifest(file_path: &str) -> io::Result<InputSourcePair> {
-//     match File::open(file_path) {
-//         Ok(open_file) => Ok((file_path.to_owned(), Box::new(open_file))),
-//         Err(err) => Err(err),
-//     }
-// }
-#[cfg(test)]
-use self::tests::open_manifest_mock as open_manifest;
-
-// pub type InputSourcePair = (String, Box<dyn io::Read + Send + Sync + 'static>);
-// pub type InputSources = Result<Vec<InputSourcePair>, String>;
-
 const ANK_SERVER_URL_ENV_KEY: &str = "ANK_SERVER_URL";
 
 // [impl->swdd~cli-supports-server-url-cli-argument~1]
