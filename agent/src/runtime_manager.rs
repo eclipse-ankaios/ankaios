@@ -17,6 +17,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::Authorizer;
 
 use api::ank_base;
@@ -526,7 +527,9 @@ impl RuntimeManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::control_interface::{MockPipesChannelContext, MockPipesChannelContextInfo};
+    use crate::control_interface::{
+        MockAuthorizer, MockPipesChannelContext, MockPipesChannelContextInfo,
+    };
     use crate::runtime_connectors::{MockRuntimeFacade, RuntimeError};
     use crate::workload::{MockWorkload, WorkloadError};
     use crate::workload_scheduler::scheduler::MockWorkloadScheduler;
@@ -543,6 +546,7 @@ mod tests {
     };
     use common::to_server_interface::ToServerReceiver;
     use mockall::{predicate, Sequence};
+    use std::any::Any;
     use std::collections::HashMap;
     use tokio::sync::mpsc::channel;
 
@@ -593,6 +597,7 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+        let _from_authorizer_context = setup_from_authorizer();
 
         let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
         pipes_channel_info_context_mock
@@ -678,6 +683,7 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+        let _from_authorizer_context = setup_from_authorizer();
 
         let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
         pipes_channel_info_context_mock
@@ -735,6 +741,7 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+        let _from_authorizer_context = setup_from_authorizer();
 
         let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
         pipes_channel_info_context_mock
@@ -809,6 +816,7 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+        let _from_authorizer_context = setup_from_authorizer();
 
         let pipes_channel_mock = MockPipesChannelContext::new_context();
         pipes_channel_mock
@@ -1176,6 +1184,7 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+        let _from_authorizer_context = setup_from_authorizer();
 
         let new_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1265,6 +1274,7 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+        let _from_authorizer_context = setup_from_authorizer();
 
         let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
         pipes_channel_info_context_mock
@@ -1354,6 +1364,7 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+        let _from_authorizer_context = setup_from_authorizer();
 
         let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
         pipes_channel_info_context_mock
@@ -1417,6 +1428,7 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+        let _from_authorizer_context = setup_from_authorizer();
 
         let new_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1498,6 +1510,7 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+        let _from_authorizer_context = setup_from_authorizer();
 
         let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
         pipes_channel_info_context_mock
@@ -1932,6 +1945,7 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+        let _from_authorizer_context = setup_from_authorizer();
 
         let pipes_channel_mock = MockPipesChannelContextInfo::new_context();
         pipes_channel_mock
@@ -2247,6 +2261,7 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+        let _from_authorizer_context = setup_from_authorizer();
 
         let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
         mock_workload_scheduler_context
@@ -2360,6 +2375,7 @@ mod tests {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
+        let _from_authorizer_context = setup_from_authorizer();
 
         let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
         mock_workload_scheduler_context
@@ -2399,5 +2415,13 @@ mod tests {
         runtime_manager
             .execute_workload_operations(workload_operations)
             .await;
+    }
+
+    fn setup_from_authorizer() -> Box<dyn Any> {
+        let authorizer_from_context_mock = MockAuthorizer::from_context();
+        authorizer_from_context_mock
+            .expect()
+            .returning(|_| MockAuthorizer::new());
+        Box::new(authorizer_from_context_mock)
     }
 }

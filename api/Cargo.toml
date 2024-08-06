@@ -1,8 +1,6 @@
 [package]
 name = "api"
-# Note: Workspace values cannot be referenced from here as the api defintion is used also in
-#       the example workloads which are built in a container.
-version = "0.4.0-rc1"
+version = "0.4.0"
 edition = "2021"
 license = "Apache-2.0"
 description = "API definition for Eclipse Ankaios"

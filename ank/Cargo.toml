@@ -1,6 +1,6 @@
 [package]
 name = "ank"
-version = "0.4.0-rc1"
+version = "0.4.0"
 edition = "2021"
 license = "Apache-2.0"
 description = "The CLI of Eclipse Ankaios"
@@ -22,7 +22,7 @@ assets = [
 api = { path = "../api" }
 common = { path = "../common" }
 grpc = { path = "../grpc" }
-clap = { version = "4.0", features = ["derive", "env"] }
+clap = { version = "4.5", features = ["derive", "env"] }
 tokio = { version = "1.28", features = [
     "macros",
     "rt-multi-thread",

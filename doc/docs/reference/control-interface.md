@@ -26,6 +26,31 @@ flowchart TD
 
 The [control interface](./control-interface.md) enables a [workload](glossary.md#workload) to communicate with the Ankaios system by interacting with the Ankaios server through writing/reading communication data to/from the provided FIFO files in the [FIFO mount point](#fifo-mount-point).
 
+## Authorization
+
+Ankaios checks for each request from a workload to the control interface, if the workload is authorized.
+The authorization is configured for each workload using `controlInterfaceAccess`.
+A workload without `controlInterfaceAccess` configuration is denied all actions on the control interface.
+The authorization configuration consists of allow and deny rules.
+Each rule defines the operation (e.g. read) the workload is allowed to execute
+and with which filter masks it is allowed to execute this operation.
+
+A filter mask describes a path in the CompleteState object.
+The segments of the path are divided by the '.' symbol.
+Segments can also be the wildcard character '*', indicating this segment shall match every possible field.
+E.g. `desiredState.workloads.*.tag` allows access to the tags of all workloads.
+
+In an allow rule the path gives access to the exact path and also all subfields.
+E.g. an allow rule with `desiredState.workloads.example` would also give access to `desiredState.workload.example.tags`.
+In a deny rule the path prohibits access to the exact path and also all parent fields.
+E.g. a deny rule with `desiredState.workloads.example` would also deny access to `desiredState.workloads`,
+but has no effect on `desiredState.workloads.other_example`.
+
+Every request not allowed by a rule in `controlInterfaceAccess` is prohibited.
+Every request allowed by a rule, but denied by another rule is also prohibited.
+E.g. with an allow rule for path `desiredState.workloads.*.agent` and a deny rule for `desiredState.workloads.controller`,
+a workload would be allowed to change the agent of each workload, except for the `controller` workload.
+
 ## FIFO mount point
 
 ```mermaid

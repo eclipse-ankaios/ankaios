@@ -48,6 +48,11 @@ To install the latest release version of Ankaios, please run the following comma
 curl -sfL https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh | bash -
 ```
 
+!!! note
+
+    Please note that installing the latest version of Ankaios in an automated workflow is discouraged.
+    If you want to install Ankaios during an automated workflow, please install a specific version as described below.
+
 The installation process automatically detects the platform and downloads the appropriate binaries.
 The default installation path for the binaries is `/usr/local/bin` but can be changed.
 The installation also creates systemd unit files and an uninstall script.

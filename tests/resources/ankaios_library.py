@@ -18,6 +18,10 @@ import yaml
 import json
 import re
 from robot.api import logger
+from robot.libraries.BuiltIn import BuiltIn
+from tempfile import TemporaryDirectory
+from os import path
+import shutil
 
 import re
 list_pattern = re.compile("^[\"|\']*\[.*\][\"|\']*$")
@@ -216,11 +220,132 @@ def replace_config(data, filter_path, new_value):
 
     return data
 
-def write_yaml(new_yaml: dict, path):
+def write_yaml(new_yaml, path):
     with open(path,"w+") as file:
         replace_key(new_yaml, "runtimeConfig", yaml.dump)
         yaml.dump(new_yaml, file)
 
+def read_yaml(file_path):
+    with open(file_path) as file:
+        content = file.read()
+        return yaml.safe_load(content)
+
 def json_to_dict(raw):
     json_data = json.loads(raw)
     return json_data
+
+def find_control_interface_test_tag():
+    global control_interface_tester_tag
+    control_interface_tester_tag = "manual-build-1"
+
+def prepare_test_control_interface_workload():
+    global control_interface_workload_config
+    global manifest_files_location
+    global next_manifest_number
+    global control_interface_allow_rules
+    global control_interface_deny_rules
+
+    control_interface_workload_config = []
+    manifest_files_location = []
+    next_manifest_number = 0
+    control_interface_allow_rules = []
+    control_interface_deny_rules = []
+
+def internal_allow_control_interface(operation, filter_mask):
+    filter_mask = filter_mask.replace(" and ", ", ").split(", ")
+    control_interface_allow_rules.append({
+        "type": "StateRule",
+        "operation": internal_control_interface_convert_operation(operation),
+        "filterMask": filter_mask
+    })
+
+def internal_deny_control_interface(operation, filter_mask):
+    filter_mask = filter_mask.replace(" and ", ", ").split(", ")
+    control_interface_deny_rules.append({
+        "type": "StateRule",
+        "operation": internal_control_interface_convert_operation(operation),
+        "filterMask": filter_mask
+    })
+
+def internal_control_interface_convert_operation(operation):
+    operation_lower = operation.lower()
+    res = ""
+    if "read" in operation_lower:
+        res = "Read"
+    if "write" in operation_lower:
+        res += "Write"
+
+    assert res != "", f"The operation(s) '{operation}' is/are unknown"
+    return res
+
+def internal_add_update_state_command(manifest, update_mask):
+    global control_interface_workload_config
+
+    update_mask = update_mask.replace(" and ", ", ").split(", ")
+    internal_manifest_name = internal_add_to_manifest_list(manifest)
+    control_interface_workload_config.append({
+        "command": {
+            "type": "UpdateState",
+            "manifest_file": path.join("/data", internal_manifest_name),
+            "update_mask": update_mask
+        }
+    })
+
+def internal_add_to_manifest_list(manifest_file):
+    global next_manifest_number
+    global manifest_files_location
+
+    internal_name = "manifest_{}.yaml".format(next_manifest_number)
+    manifest_files_location.append({"file_path": manifest_file, "internal_name": internal_name})
+    next_manifest_number += 1
+
+    return internal_name
+
+def internal_add_get_state_command(field_mask):
+    global control_interface_workload_config
+
+    field_mask = field_mask.replace(" and ", ", ").split(", ")
+    if field_mask == [""]:
+        field_mask = []
+    control_interface_workload_config.append({
+        "command": {
+            "type": "GetState",
+            "field_mask": field_mask
+        }
+    })
+
+
+def create_control_interface_config_for_test():
+    tmp = TemporaryDirectory()
+    write_yaml(new_yaml=control_interface_workload_config, path=path.join(tmp.name, "commands.yaml"))
+
+    for manifest in manifest_files_location:
+        shutil.copy(manifest["file_path"], path.join(tmp.name, manifest["internal_name"]))
+
+    configs_dir = BuiltIn().get_variable_value("${CONFIGS_DIR}")
+
+    with open(path.join(configs_dir, "control_interface_workload.yaml.template")) as startup_config_template, open(path.join(tmp.name, "startup_config.yaml"), "w") as startup_config:
+        template_content = startup_config_template.read()
+        content = template_content.format(temp_data_dir=tmp.name,
+                                          allow_rules=json.dumps(control_interface_allow_rules),
+                                          deny_rules=json.dumps(control_interface_deny_rules),
+                                          control_interface_tester_tag=control_interface_tester_tag)
+        startup_config.write(content)
+    return tmp
+
+def internal_check_all_control_interface_requests_succeeded(tmp_folder):
+    output = read_yaml(path.join(tmp_folder, "output.yaml"))
+    for test_number,test_result in enumerate(output):
+        test_result = test_result["result"]["value"]["type"] == "Ok"
+        assert test_result, \
+            f"Expected request {test_number + 1} to succeed, but it failed"
+
+def internal_check_all_control_interface_requests_failed(tmp_folder):
+    output = read_yaml(path.join(tmp_folder, "output.yaml"))
+    for test_number,test_result in enumerate(output):
+        test_result = test_result["result"]["value"]["type"] != "Ok"
+        assert test_result, \
+            f"Expected request {test_number + 1} to fail, but it succeeded"
+
+def empty_keyword():
+    pass

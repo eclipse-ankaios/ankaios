@@ -3,16 +3,12 @@ services:
     build:
       context: ./server
       args:
-        - VERSION=v0.4.0-rc1
+        - VERSION=v0.4.0
     ports:
       - "25551:25551"
-
   ank-agent:
     build:
       context: ./agent
       args:
-        - VERSION=v0.4.0-rc1
+        - VERSION=v0.4.0
     privileged: true
-
-
-
