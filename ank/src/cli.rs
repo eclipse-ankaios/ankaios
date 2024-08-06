@@ -12,7 +12,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// use std::{error::Error, fs::File, io};
 use std::error::Error;
 
 use clap::{command, Parser, Subcommand};
