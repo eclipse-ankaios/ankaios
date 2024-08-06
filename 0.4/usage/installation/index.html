@@ -1545,6 +1545,11 @@ The following workaround disables AppArmor for Podman. Run the following steps a
 To install the latest release version of Ankaios, please run the following command:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>curl<span class="w"> </span>-sfL<span class="w"> </span>https://github.com/eclipse-ankaios/ankaios/releases/latest/download/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>bash<span class="w"> </span>-
 </code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Please note that installing the latest version of Ankaios in an automated workflow is discouraged.
+If you want to install Ankaios during an automated workflow, please install a specific version as described below.</p>
+</div>
 <p>The installation process automatically detects the platform and downloads the appropriate binaries.
 The default installation path for the binaries is <code>/usr/local/bin</code> but can be changed.
 The installation also creates systemd unit files and an uninstall script.</p>

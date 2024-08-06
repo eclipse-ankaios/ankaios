@@ -1477,7 +1477,7 @@
 <p>The reason for splitting some messages into the dedicated file <code>ank_base.proto</code>, is that they are also used for the gRPC API of the Ankaios server. This API is mainly used by the Ankaios agents and the <code>ank</code> CLI, but could also be used by third party applications to directly communicate with the Ankaios server. The following chapter details the changes needed to upgrade to v0.4 in case you are using this API.</p>
 <h2 id="grpc-api-of-the-ankaios-server">gRPC API of the Ankaios server<a class="headerlink" href="#grpc-api-of-the-ankaios-server" title="Permanent link">&para;</a></h2>
 <p>Ankaios facilitates server-agent-CLI communication through an interchangeable middleware, currently implemented using gRPC. By segregating the gRPC API into a distinct <code>grpc_api.proto</code> file, we clearly show the target and purpose of this interface.</p>
-<p>If you are using the gRPC API of the Ankaios server directly (and not the CLI), you would need to cope with the splitting of the messaged into <code>grpc_api.proto</code> and <code>ank_base.proto</code>. Apart from that, the API itself is exactly the same.</p>
+<p>If you are using the gRPC API of the Ankaios server directly (and not the CLI), you would need to cope with the splitting of the messages into <code>grpc_api.proto</code> and <code>ank_base.proto</code>. Apart from that, the API itself is exactly the same.</p>
 <h2 id="authentication-and-encryption">Authentication and encryption<a class="headerlink" href="#authentication-and-encryption" title="Permanent link">&para;</a></h2>
 <p>Starting from v0.4.0 Ankaios supports mutual TLS (mTLS) for communication between server, agent and <code>ank</code> CLI.
 The default installation script will install Ankaios without mTLS.
