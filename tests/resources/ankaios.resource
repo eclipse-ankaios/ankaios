@@ -501,7 +501,7 @@ the pod "${pod_name}" of workload "${workload_name}" shall have a different id b
 
     Should Be True    ${id_changed}    msg='Workload ${pod_name}' has the same pod id '${pod_id}' and the same configuration on podman kube runtime!
 
-in the last result, the Ankaios cli shall list the connected agent "${agent_name}"
+the last command shall list the connected agent "${agent_name}"
     ${table_as_list}=    Table To List    ${CURRENT_RESULT.stdout}
     ${table_as_dict}=    Table To Dict    ${table_as_list}    AGENT
     Dictionary Should Contain Key    ${table_as_dict}    ${agent_name}

@@ -32,12 +32,12 @@ Test Ankaios CLI lists connected agents
     # The agent_A is started and connected
     And all workloads of agent "agent_A" have an initial execution state
     # The agent_B is not started and thus not connected
-    And the workload "hello1" shall have the execution state "Pending(Initial)" from agent "agent_B"
+    And the workload "hello1" shall have the execution state "Pending(Initial)" on agent "agent_B"
     And the workload "hello2" shall have the execution state "Pending(Initial)" on agent "agent_B"
     And the workload "hello3" shall have the execution state "Pending(Initial)" on agent "agent_B"
     # Actions
     When user triggers "ank -k list agents"
     # Asserts
-    Then in the last result, the Ankaios cli shall list the connected agent "agent_A"
+    Then the last command shall list the connected agent "agent_A"
 
     [Teardown]    Clean up Ankaios
