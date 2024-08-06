@@ -166,6 +166,7 @@ impl ServerState {
         let current_complete_state: ank_base::CompleteState = CompleteState {
             desired_state: self.state.desired_state.clone(),
             workload_states: workload_states_map.clone(),
+            agents: self.state.agents.clone(),
         }
         .into();
 
@@ -459,7 +460,8 @@ mod tests {
                 },
             ),
         ];
-        let expected_complete_state = test_utils::generate_test_proto_complete_state(&expected_workloads);
+        let expected_complete_state =
+            test_utils::generate_test_proto_complete_state(&expected_workloads);
 
         assert_eq!(expected_complete_state, complete_state);
     }

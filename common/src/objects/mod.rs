@@ -22,6 +22,9 @@ pub use state::State;
 mod complete_state;
 pub use complete_state::CompleteState;
 
+mod agent_map;
+pub use agent_map::AgentMap;
+
 mod workload_states_map;
 pub use workload_states_map::WorkloadStatesMap;
 #[cfg(any(feature = "test_utils", test))]

@@ -84,6 +84,7 @@ message UpdateStateSuccess {
 message CompleteState {
     State desiredState = 1; /// The state the user wants to reach.
     WorkloadStatesMap workloadStates = 2; /// The current execution states of the workloads.
+    AgentMap agents = 3; /// The current connected Ankaios agents.
 }
 
 /**
@@ -187,6 +188,21 @@ enum Failed {
     FAILED_EXEC_FAILED = 0; /// The workload has failed during operation
     FAILED_UNKNOWN = 1; /// The workload is in an unsupported by Ankaios runtime state. The workload was possibly altered outside of Ankaios.
     FAILED_LOST = 2; /// The workload cannot be found anymore. The workload was possibly altered outside of Ankaios or was auto-removed by the runtime.
+}
+
+/**
+* A nested map that provides the names of the connected agents and their optional attributes.
+* The first level allows searches by agent name.
+*/
+message AgentMap {
+    map<string, AgentAttributes> agents = 1;
+}
+
+/**
+* A map providing the attributes of an agent.
+*/
+message AgentAttributes {
+    map<string, string> AgentAttributes = 1;
 }
 
 /**
