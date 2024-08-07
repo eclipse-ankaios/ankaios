@@ -20,7 +20,8 @@ use api::ank_base;
 use common::commands::{Request, UpdateWorkload};
 use common::from_server_interface::{FromServerReceiver, FromServerSender};
 use common::objects::{
-    CompleteState, DeletedWorkload, ExecutionState, State, WorkloadState, WorkloadStatesMap,
+    AgentName, CompleteState, DeletedWorkload, ExecutionState, State, WorkloadState,
+    WorkloadStatesMap,
 };
 
 use common::std_extensions::IllegalStateResult;
@@ -142,15 +143,17 @@ impl AnkaiosServer {
                 ToServer::AgentHello(method_obj) => {
                     log::info!("Received AgentHello from '{}'", method_obj.agent_name);
 
+                    let agent_name = AgentName::from(method_obj.agent_name);
+
                     // [impl->swdd~server-informs-a-newly-connected-agent-workload-states~1]
                     let workload_states = self
                         .workload_states_map
-                        .get_workload_state_excluding_agent(&method_obj.agent_name);
+                        .get_workload_state_excluding_agent(agent_name.get());
 
                     if !workload_states.is_empty() {
                         log::debug!(
                             "Sending initial UpdateWorkloadState to agent '{}' with workload states: '{:?}'",
-                            method_obj.agent_name,
+                            agent_name.get(),
                             workload_states,
                         );
 
@@ -164,13 +167,12 @@ impl AnkaiosServer {
 
                     // Send this agent all workloads in the current state which are assigned to him
                     // [impl->swdd~agent-from-agent-field~1]
-                    let added_workloads = self
-                        .server_state
-                        .get_workloads_for_agent(&method_obj.agent_name);
+                    let added_workloads =
+                        self.server_state.get_workloads_for_agent(agent_name.get());
 
                     log::debug!(
                         "Sending initial UpdateWorkload to agent '{}' with added workloads: '{:?}'",
-                        method_obj.agent_name,
+                        agent_name.get(),
                         added_workloads,
                     );
 
@@ -183,19 +185,27 @@ impl AnkaiosServer {
                         )
                         .await
                         .unwrap_or_illegal_state();
+
+                    // [impl->swdd~swdd-server-stores-newly-connected-agent~1]
+                    self.server_state.add_agent(agent_name);
                 }
                 ToServer::AgentGone(method_obj) => {
                     log::debug!("Received AgentGone from '{}'", method_obj.agent_name);
+                    let agent_name = AgentName::from(method_obj.agent_name);
+
+                    // [impl->swdd~server-removes-disconnected-agents-from-state~1]
+                    self.server_state.remove_agent(&agent_name);
+
                     // [impl->swdd~server-set-workload-state-on-disconnect~1]
                     self.workload_states_map
-                        .agent_disconnected(&method_obj.agent_name);
+                        .agent_disconnected(agent_name.get());
 
                     // communicate the workload execution states to other agents
                     // [impl->swdd~server-distribute-workload-state-on-disconnect~1]
                     self.to_agents
                         .update_workload_state(
                             self.workload_states_map
-                                .get_workload_state_for_agent(&method_obj.agent_name),
+                                .get_workload_state_for_agent(agent_name.get()),
                         )
                         .await
                         .unwrap_or_illegal_state();

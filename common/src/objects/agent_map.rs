@@ -31,6 +31,10 @@ impl AgentMap {
     pub fn entry(&mut self, key: AgentName) -> Entry<'_, AgentName, AgentAttributes> {
         self.0.entry(key)
     }
+
+    pub fn remove(&mut self, key: &AgentName) {
+        self.0.remove(key);
+    }
 }
 
 impl From<AgentMap> for Option<ank_base::AgentMap> {
