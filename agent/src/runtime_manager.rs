@@ -35,7 +35,7 @@ use common::{
 use crate::control_interface::ControlInterface;
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::ControlInterfaceInfo;
+use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_scheduler::scheduler::WorkloadScheduler;
@@ -526,7 +526,10 @@ impl RuntimeManager {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{
+        ank_base, ControlInterfaceInfo, DeletedWorkload, ExecutionState, Path, RuntimeFacade,
+        RuntimeManager, WorkloadInstanceName, WorkloadOperation, WorkloadSpec,
+    };
     use crate::control_interface::{
         authorizer::MockAuthorizer, MockControlInterface, MockControlInterfaceInfo,
     };

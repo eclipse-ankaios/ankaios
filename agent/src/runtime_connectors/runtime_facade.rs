@@ -7,9 +7,9 @@ use common::{
 use mockall::automock;
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::ControlInterface;
+use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::ControlInterfaceInfo;
+use crate::control_interface::ControlInterface;
 
 use crate::{
     runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker},
@@ -396,13 +396,13 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let mut pipes_channel_info_mock = MockControlInterfaceInfo::default();
+        let mut control_interface_info_mock = MockControlInterfaceInfo::default();
 
-        pipes_channel_info_mock
+        control_interface_info_mock
             .expect_get_run_folder()
             .once()
             .return_const(PIPES_LOCATION.into());
-        pipes_channel_info_mock
+        control_interface_info_mock
             .expect_create_control_interface()
             .once()
             .return_once(|| Some(control_interface_context));
@@ -434,7 +434,7 @@ mod tests {
 
         let (task_handle, _workload) = test_runtime_facade.create_workload_non_blocking(
             workload_spec.clone(),
-            Some(pipes_channel_info_mock),
+            Some(control_interface_info_mock),
             &wl_state_sender,
         );
 

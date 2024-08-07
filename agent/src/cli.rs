@@ -16,7 +16,7 @@ use std::path::Path;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::directory::Directory;
-use crate::control_interface::FileSystemError;
+use crate::control_interface::filesystem::FileSystemError;
 use clap::Parser;
 use common::DEFAULT_SERVER_ADDRESS;
 
@@ -89,7 +89,7 @@ pub fn parse() -> Arguments {
 mod tests {
     use common::DEFAULT_SERVER_ADDRESS;
 
-    use super::*;
+    use super::{Arguments, FileSystemError, Path, DEFAULT_RUN_FOLDER};
     use crate::control_interface::generate_test_directory_mock;
 
     #[test]

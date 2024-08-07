@@ -17,29 +17,31 @@ pub mod control_interface_info;
 mod control_interface_task;
 pub mod directory;
 mod fifo;
-mod filesystem;
+pub mod filesystem;
 mod from_server_channels;
 mod input_output;
 mod reopen_file;
 mod to_ankaios;
 
-pub use control_interface_info::*;
-pub use fifo::*;
-pub use filesystem::*;
 pub use to_ankaios::ToAnkaios;
 
 #[cfg(test)]
+pub use control_interface_info::MockControlInterfaceInfo;
+#[cfg(test)]
 pub use directory::generate_test_directory_mock;
+#[cfg(test)]
+pub use fifo::MockFifo;
+#[cfg(test)]
+pub use filesystem::MockFileSystem;
 
 use common::objects::WorkloadInstanceName;
+use common::{from_server_interface::FromServerSender, to_server_interface::ToServerSender};
 
 #[cfg(test)]
 use mockall::automock;
 
 #[cfg_attr(test, mockall_double::double)]
 use authorizer::Authorizer;
-
-use common::{from_server_interface::FromServerSender, to_server_interface::ToServerSender};
 #[cfg_attr(test, mockall_double::double)]
 use control_interface_task::ControlInterfaceTask;
 #[cfg_attr(test, mockall_double::double)]
@@ -131,14 +133,14 @@ impl ControlInterface {
         self.input_pipe_sender.clone()
     }
 
-    pub fn abort_pipes_channel_task(&self) {
+    pub fn abort_control_interface_task(&self) {
         self.task_handle.abort();
     }
 }
 
 impl Drop for ControlInterface {
     fn drop(&mut self) {
-        self.abort_pipes_channel_task()
+        self.abort_control_interface_task()
     }
 }
 
@@ -279,6 +281,6 @@ mod tests {
             receiver.recv().await
         );
 
-        control_interface.abort_pipes_channel_task();
+        control_interface.abort_control_interface_task();
     }
 }

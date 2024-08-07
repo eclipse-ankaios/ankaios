@@ -107,7 +107,9 @@ async fn main() {
         workload_state_sender,
     );
 
-    if let Err(err_message) = TLSConfig::is_config_conflicting(args.insecure, &args.ca_pem, &args.crt_pem, &args.key_pem) {
+    if let Err(err_message) =
+        TLSConfig::is_config_conflicting(args.insecure, &args.ca_pem, &args.crt_pem, &args.key_pem)
+    {
         log::warn!("{}", err_message);
     }
 

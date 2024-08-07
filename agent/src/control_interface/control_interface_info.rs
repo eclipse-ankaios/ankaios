@@ -90,7 +90,9 @@ impl ControlInterfaceInfo {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{
+        Authorizer, ControlInterface, ControlInterfaceInfo, Path, PathBuf, WorkloadInstanceName,
+    };
 
     use crate::control_interface::ControlInterfaceError;
     use crate::control_interface::MockControlInterface;
@@ -237,8 +239,8 @@ mod tests {
             Authorizer::default(),
         );
 
-        let pipes_channel_context_mock = MockControlInterface::new_context();
-        pipes_channel_context_mock
+        let control_interface_mock = MockControlInterface::new_context();
+        control_interface_mock
             .expect()
             .once()
             .return_once(|_, _, _, _| Ok(MockControlInterface::default()));
@@ -261,8 +263,8 @@ mod tests {
             Authorizer::default(),
         );
 
-        let pipes_channel_context_mock = MockControlInterface::new_context();
-        pipes_channel_context_mock
+        let control_interface_mock = MockControlInterface::new_context();
+        control_interface_mock
             .expect()
             .once()
             .return_once(|_, _, _, _| {

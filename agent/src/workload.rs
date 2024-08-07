@@ -26,9 +26,9 @@ pub use workload_control_loop::MockWorkloadControlLoop;
 use std::{fmt::Display, path::PathBuf};
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::ControlInterface;
+use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::ControlInterfaceInfo;
+use crate::control_interface::ControlInterface;
 
 use api::ank_base;
 
@@ -90,7 +90,7 @@ impl Workload {
     // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
     fn exchange_control_interface(&mut self, control_interface_info: Option<ControlInterfaceInfo>) {
         if let Some(control_interface) = self.control_interface.take() {
-            control_interface.abort_pipes_channel_task()
+            control_interface.abort_control_interface_task()
         }
         self.control_interface = match control_interface_info {
             Some(info) => info.create_control_interface(),
@@ -143,7 +143,7 @@ impl Workload {
         log::info!("Deleting workload '{}'.", self.name);
 
         if let Some(control_interface) = self.control_interface {
-            control_interface.abort_pipes_channel_task()
+            control_interface.abort_control_interface_task()
         }
 
         self.channel
@@ -221,7 +221,7 @@ mod tests {
 
         let mut old_control_interface_mock = MockControlInterface::default();
         old_control_interface_mock
-            .expect_abort_pipes_channel_task()
+            .expect_abort_control_interface_task()
             .once()
             .return_const(());
 
@@ -326,7 +326,7 @@ mod tests {
 
         let mut old_control_interface_mock = MockControlInterface::default();
         old_control_interface_mock
-            .expect_abort_pipes_channel_task()
+            .expect_abort_control_interface_task()
             .once()
             .return_const(());
 
@@ -392,7 +392,7 @@ mod tests {
 
         let mut old_control_interface_mock = MockControlInterface::default();
         old_control_interface_mock
-            .expect_abort_pipes_channel_task()
+            .expect_abort_control_interface_task()
             .once()
             .return_const(());
 
@@ -440,7 +440,7 @@ mod tests {
 
         let mut old_control_interface_mock = MockControlInterface::default();
         old_control_interface_mock
-            .expect_abort_pipes_channel_task()
+            .expect_abort_control_interface_task()
             .once()
             .return_const(());
 
