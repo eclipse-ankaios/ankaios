@@ -181,7 +181,7 @@ mod tests {
 
     use mockall::lazy_static;
 
-    use super::*;
+    use super::{FileSystem, FileSystemError, Mode};
 
     #[allow(non_camel_case_types)]
     pub enum FakeCall {

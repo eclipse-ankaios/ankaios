@@ -15,4 +15,4 @@
 #[cfg(test)]
 mod mockall_context_sync;
 #[cfg(test)]
-pub use mockall_context_sync::*;
+pub use mockall_context_sync::MOCKALL_CONTEXT_SYNC;

@@ -81,7 +81,7 @@ impl WorkloadCommandSender {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{PathBuf, WorkloadCommand, WorkloadCommandSender, WorkloadSpec};
     use common::objects::generate_test_workload_spec;
     const PIPES_LOCATION: &str = "/some/path";
 

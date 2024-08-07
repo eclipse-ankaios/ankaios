@@ -15,8 +15,8 @@
 use std::path::PathBuf;
 
 #[cfg_attr(test, mockall_double::double)]
-use super::FileSystem;
-use super::FileSystemError;
+use super::filesystem::FileSystem;
+use super::filesystem::FileSystemError;
 
 #[derive(Debug, PartialEq)]
 pub struct Directory {
@@ -103,7 +103,7 @@ mod tests {
         sync::{Arc, Mutex},
     };
 
-    use crate::control_interface::{FileSystemError, MockFileSystem};
+    use crate::control_interface::{filesystem::FileSystemError, MockFileSystem};
     use mockall::predicate;
 
     use super::Directory;

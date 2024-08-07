@@ -44,7 +44,7 @@ impl FromServerChannels {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::FromServerChannels;
 
     #[tokio::test]
     async fn utest_from_server_channels_new() {

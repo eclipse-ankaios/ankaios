@@ -14,9 +14,9 @@
 
 use std::path::PathBuf;
 
-use super::FileSystemError;
+use super::filesystem::FileSystemError;
 #[cfg_attr(test, mockall_double::double)]
-use super::{Directory, Fifo};
+use super::{directory::Directory, fifo::Fifo};
 
 pub struct InputOutput {
     input: Fifo,
@@ -61,6 +61,7 @@ impl InputOutput {
 
 #[cfg(test)]
 pub fn generate_test_input_output_mock() -> __mock_MockInputOutput::__new::Context {
+    use super::fifo::MockFifo;
     use std::path::Path;
 
     let input_output_mock = MockInputOutput::new_context();
@@ -68,7 +69,7 @@ pub fn generate_test_input_output_mock() -> __mock_MockInputOutput::__new::Conte
     input_output_mock.expect().return_once(|path| {
         let mut mock = MockInputOutput::default();
         mock.expect_get_output().return_const({
-            let mut output_fifo_mock = super::MockFifo::default();
+            let mut output_fifo_mock = MockFifo::default();
             output_fifo_mock
                 .expect_get_path()
                 .return_const(Path::new("output").to_path_buf());
@@ -76,7 +77,7 @@ pub fn generate_test_input_output_mock() -> __mock_MockInputOutput::__new::Conte
             output_fifo_mock
         });
         mock.expect_get_input().return_const({
-            let mut input_fifo_mock = super::MockFifo::default();
+            let mut input_fifo_mock = MockFifo::default();
             input_fifo_mock
                 .expect_get_path()
                 .return_const(Path::new("input").to_path_buf());
@@ -93,11 +94,11 @@ pub fn generate_test_input_output_mock() -> __mock_MockInputOutput::__new::Conte
 
 #[cfg(test)]
 mod tests {
+    use super::InputOutput;
+    use mockall::predicate;
     use std::path::Path;
 
-    use mockall::predicate;
-
-    use crate::control_interface::{generate_test_directory_mock, InputOutput, MockFifo};
+    use crate::control_interface::{generate_test_directory_mock, MockFifo};
 
     // [utest->swdd~agent-control-interface-creates-two-pipes-per-workload~1]
     #[test]

@@ -192,7 +192,7 @@ impl AgentManager {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::RuntimeManager;
     use crate::agent_manager::AgentManager;
     use crate::workload_state::{
         workload_state_store::{mock_parameter_storage_new_returns, MockWorkloadStateStore},
@@ -205,7 +205,7 @@ mod tests {
         objects::{generate_test_workload_spec_with_param, ExecutionState},
         to_server_interface::ToServer,
     };
-    use mockall::predicate::*;
+    use mockall::predicate::eq;
     use tokio::{join, sync::mpsc::channel};
 
     const BUFFER_SIZE: usize = 20;
