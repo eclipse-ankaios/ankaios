@@ -59,8 +59,9 @@ impl Authorizer {
     pub fn authorize(&self, request: &Request) -> bool {
         match &request.request_content {
             common::commands::RequestContent::CompleteStateRequest(r) => {
+                let default_mask = vec!["".into()];
                 let field_mask = if r.field_mask.is_empty() {
-                    &vec!["".into()]
+                    &default_mask
                 } else {
                     &r.field_mask
                 };
@@ -108,8 +109,9 @@ impl Authorizer {
                 })
             }
             common::commands::RequestContent::UpdateStateRequest(r) => {
+                let default_mask = vec!["".into()];
                 let update_mask: &Vec<_> = if r.update_mask.is_empty() {
-                    &vec!["".into()]
+                    &default_mask
                 } else {
                     &r.update_mask
                 };

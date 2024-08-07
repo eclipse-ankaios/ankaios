@@ -22,10 +22,10 @@ use mockall::automock;
 #[cfg_attr(test, mockall_double::double)]
 use super::authorizer::Authorizer;
 #[cfg_attr(test, mockall_double::double)]
-use super::PipesChannelContext;
+use super::ControlInterface;
 
 #[derive(Debug)]
-pub struct PipesChannelContextInfo {
+pub struct ControlInterfaceInfo {
     run_folder: PathBuf,
     workload_instance_name: WorkloadInstanceName,
     control_interface_to_server_sender: ToServerSender,
@@ -33,7 +33,7 @@ pub struct PipesChannelContextInfo {
 }
 
 #[cfg_attr(test, automock)]
-impl PipesChannelContextInfo {
+impl ControlInterfaceInfo {
     pub fn new(
         run_folder: &Path,
         control_interface_to_server_sender: ToServerSender,
@@ -52,7 +52,7 @@ impl PipesChannelContextInfo {
         &self.run_folder
     }
 
-    pub fn has_same_configuration(&self, other: &PipesChannelContext) -> bool {
+    pub fn has_same_configuration(&self, other: &ControlInterface) -> bool {
         let self_location = self
             .workload_instance_name
             .pipes_folder_name(&self.run_folder);
@@ -67,8 +67,8 @@ impl PipesChannelContextInfo {
         self_authorizer == other_authorizer
     }
 
-    pub fn create_control_interface(self) -> Option<PipesChannelContext> {
-        match PipesChannelContext::new(
+    pub fn create_control_interface(self) -> Option<ControlInterface> {
+        match ControlInterface::new(
             &self.run_folder,
             &self.workload_instance_name,
             self.control_interface_to_server_sender.clone(),
@@ -92,8 +92,8 @@ impl PipesChannelContextInfo {
 mod tests {
     use super::*;
 
-    use crate::control_interface::MockPipesChannelContext;
-    use crate::control_interface::PipesChannelContextError;
+    use crate::control_interface::ControlInterfaceError;
+    use crate::control_interface::MockControlInterface;
     use common::to_server_interface::ToServer;
 
     const WORKLOAD_1_NAME: &str = "workload1";
@@ -105,7 +105,7 @@ mod tests {
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
-        let new_context_info = PipesChannelContextInfo::new(
+        let new_context_info = ControlInterfaceInfo::new(
             Path::new(PIPES_LOCATION),
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &workload_instance_name,
@@ -125,7 +125,7 @@ mod tests {
     #[test]
     fn utest_get_run_folder() {
         let path = &Path::new(PIPES_LOCATION);
-        let new_context_info = PipesChannelContextInfo::new(
+        let new_context_info = ControlInterfaceInfo::new(
             path,
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &WorkloadInstanceName::builder()
@@ -148,14 +148,14 @@ mod tests {
         let other_context_authorizer = Authorizer::default();
         context_info_authorizer.expect_eq().return_const(true);
 
-        let context_info = PipesChannelContextInfo::new(
+        let context_info = ControlInterfaceInfo::new(
             run_folder,
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &workload_instance_name,
             context_info_authorizer,
         );
 
-        let mut other_context = PipesChannelContext::default();
+        let mut other_context = ControlInterface::default();
         other_context
             .expect_get_api_location()
             .once()
@@ -175,14 +175,14 @@ mod tests {
             .workload_name(WORKLOAD_1_NAME)
             .build();
 
-        let context_info = PipesChannelContextInfo::new(
+        let context_info = ControlInterfaceInfo::new(
             run_folder,
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &workload_instance_name,
             Authorizer::default(),
         );
 
-        let mut other_context = PipesChannelContext::default();
+        let mut other_context = ControlInterface::default();
         other_context
             .expect_get_api_location()
             .once()
@@ -202,14 +202,14 @@ mod tests {
         let other_context_authorizer = Authorizer::default();
         context_info_authorizer.expect_eq().return_const(false);
 
-        let context_info = PipesChannelContextInfo::new(
+        let context_info = ControlInterfaceInfo::new(
             run_folder,
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &workload_instance_name,
             context_info_authorizer,
         );
 
-        let mut other_context = PipesChannelContext::default();
+        let mut other_context = ControlInterface::default();
         other_context
             .expect_get_api_location()
             .once()
@@ -228,7 +228,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let new_context_info = PipesChannelContextInfo::new(
+        let new_context_info = ControlInterfaceInfo::new(
             Path::new(PIPES_LOCATION),
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &WorkloadInstanceName::builder()
@@ -237,11 +237,11 @@ mod tests {
             Authorizer::default(),
         );
 
-        let pipes_channel_context_mock = MockPipesChannelContext::new_context();
+        let pipes_channel_context_mock = MockControlInterface::new_context();
         pipes_channel_context_mock
             .expect()
             .once()
-            .return_once(|_, _, _, _| Ok(MockPipesChannelContext::default()));
+            .return_once(|_, _, _, _| Ok(MockControlInterface::default()));
 
         assert!(new_context_info.create_control_interface().is_some());
     }
@@ -252,7 +252,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let new_context_info = PipesChannelContextInfo::new(
+        let new_context_info = ControlInterfaceInfo::new(
             Path::new(PIPES_LOCATION),
             tokio::sync::mpsc::channel::<ToServer>(1).0,
             &WorkloadInstanceName::builder()
@@ -261,12 +261,12 @@ mod tests {
             Authorizer::default(),
         );
 
-        let pipes_channel_context_mock = MockPipesChannelContext::new_context();
+        let pipes_channel_context_mock = MockControlInterface::new_context();
         pipes_channel_context_mock
             .expect()
             .once()
             .return_once(|_, _, _, _| {
-                Err(PipesChannelContextError::CouldNotCreateFifo(String::from(
+                Err(ControlInterfaceError::CouldNotCreateFifo(String::from(
                     "error",
                 )))
             });

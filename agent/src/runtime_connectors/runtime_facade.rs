@@ -7,9 +7,9 @@ use common::{
 use mockall::automock;
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::PipesChannelContext;
+use crate::control_interface::ControlInterface;
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::PipesChannelContextInfo;
+use crate::control_interface::ControlInterfaceInfo;
 
 use crate::{
     runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker},
@@ -36,14 +36,14 @@ pub trait RuntimeFacade: Send + Sync + 'static {
     fn create_workload(
         &self,
         runtime_workload: WorkloadSpec,
-        control_interface_info: Option<PipesChannelContextInfo>,
+        control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload;
 
     fn resume_workload(
         &self,
         runtime_workload: WorkloadSpec,
-        control_interface: Option<PipesChannelContext>,
+        control_interface: Option<ControlInterface>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload;
 
@@ -95,7 +95,7 @@ impl<
     fn create_workload(
         &self,
         workload_spec: WorkloadSpec,
-        control_interface_info: Option<PipesChannelContextInfo>,
+        control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload {
         let (_task_handle, workload) = Self::create_workload_non_blocking(
@@ -111,7 +111,7 @@ impl<
     fn resume_workload(
         &self,
         workload_spec: WorkloadSpec,
-        control_interface: Option<PipesChannelContext>,
+        control_interface: Option<ControlInterface>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload {
         let (_task_handle, workload) = Self::resume_workload_non_blocking(
@@ -149,7 +149,7 @@ impl<
     fn create_workload_non_blocking(
         &self,
         workload_spec: WorkloadSpec,
-        control_interface_info: Option<PipesChannelContextInfo>,
+        control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> (JoinHandle<()>, Workload) {
         let runtime = self.runtime.to_owned();
@@ -207,7 +207,7 @@ impl<
     fn resume_workload_non_blocking(
         &self,
         workload_spec: WorkloadSpec,
-        control_interface: Option<PipesChannelContext>,
+        control_interface: Option<ControlInterface>,
         update_state_tx: &WorkloadStateSender,
     ) -> (JoinHandle<()>, Workload) {
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
@@ -320,8 +320,8 @@ mod tests {
     };
 
     use crate::{
-        control_interface::MockPipesChannelContext,
-        control_interface::MockPipesChannelContextInfo,
+        control_interface::MockControlInterface,
+        control_interface::MockControlInterfaceInfo,
         runtime_connectors::{
             runtime_connector::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
             GenericRuntimeFacade, OwnableRuntime, RuntimeFacade,
@@ -389,14 +389,14 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let control_interface_context = MockPipesChannelContext::default();
+        let control_interface_context = MockControlInterface::default();
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
 
-        let mut pipes_channel_info_mock = MockPipesChannelContextInfo::default();
+        let mut pipes_channel_info_mock = MockControlInterfaceInfo::default();
 
         pipes_channel_info_mock
             .expect_get_run_folder()
@@ -451,7 +451,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let control_interface_mock = MockPipesChannelContext::default();
+        let control_interface_mock = MockControlInterface::default();
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),

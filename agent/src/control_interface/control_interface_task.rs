@@ -19,7 +19,7 @@ use crate::control_interface::ToAnkaios;
 #[cfg_attr(test, mockall_double::double)]
 use super::authorizer::Authorizer;
 #[cfg_attr(test, mockall_double::double)]
-use super::ReopenFile;
+use super::reopen_file::ReopenFile;
 use api::{ank_base, control_api};
 use common::{
     from_server_interface::{FromServer, FromServerReceiver},
@@ -35,7 +35,7 @@ fn decode_to_server(protobuf_data: io::Result<Box<[u8]>>) -> io::Result<control_
     ))?)
 }
 
-pub struct PipesChannelTask {
+pub struct ControlInterfaceTask {
     output_stream: ReopenFile,
     input_stream: ReopenFile,
     input_pipe_receiver: FromServerReceiver,
@@ -45,7 +45,7 @@ pub struct PipesChannelTask {
 }
 
 #[cfg_attr(test, mockall::automock)]
-impl PipesChannelTask {
+impl ControlInterfaceTask {
     pub fn new(
         output_stream: ReopenFile,
         input_stream: ReopenFile,
@@ -141,18 +141,19 @@ impl PipesChannelTask {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(test)]
-pub fn generate_test_pipes_channel_task_mock() -> __mock_MockPipesChannelTask::__new::Context {
-    let pipes_channel_task_mock_context = MockPipesChannelTask::new_context();
-    pipes_channel_task_mock_context
+pub fn generate_test_control_interface_task_mock() -> __mock_MockControlInterfaceTask::__new::Context
+{
+    let control_interface_task_mock = MockControlInterfaceTask::new_context();
+    control_interface_task_mock
         .expect()
         .return_once(|_, _, _, _, _, _| {
-            let mut pipes_channel_task_mock = MockPipesChannelTask::default();
+            let mut pipes_channel_task_mock = MockControlInterfaceTask::default();
             pipes_channel_task_mock
                 .expect_run_task()
                 .return_once(|| tokio::spawn(async {}));
             pipes_channel_task_mock
         });
-    pipes_channel_task_mock_context
+    control_interface_task_mock
 }
 
 #[cfg(test)]
@@ -169,7 +170,7 @@ mod tests {
     use api::{ank_base, control_api};
     use prost::Message;
 
-    use crate::control_interface::{MockAuthorizer, MockReopenFile, PipesChannelTask};
+    use crate::control_interface::{ControlInterfaceTask, MockAuthorizer, MockReopenFile};
 
     #[tokio::test]
     async fn utest_pipes_channel_task_forward_from_server() {
@@ -203,7 +204,7 @@ mod tests {
         let (output_pipe_sender, _) = mpsc::channel(1);
         let request_id_prefix = String::from("prefix@");
 
-        let mut pipes_channel_task = PipesChannelTask::new(
+        let mut pipes_channel_task = ControlInterfaceTask::new(
             output_stream_mock,
             input_stream_mock,
             input_pipe_receiver,
@@ -286,7 +287,7 @@ mod tests {
         let mut authorizer = MockAuthorizer::default();
         authorizer.expect_authorize().once().return_const(false);
 
-        let pipes_channel_task = PipesChannelTask::new(
+        let pipes_channel_task = ControlInterfaceTask::new(
             output_stream_mock,
             input_stream_mock,
             input_pipe_receiver,
@@ -348,7 +349,7 @@ mod tests {
         let mut authorizer = MockAuthorizer::default();
         authorizer.expect_authorize().once().return_const(true);
 
-        let pipes_channel_task = PipesChannelTask::new(
+        let pipes_channel_task = ControlInterfaceTask::new(
             output_stream_mock,
             input_stream_mock,
             input_pipe_receiver,
