@@ -2755,17 +2755,68 @@ Needs:
 - impl
 - utest
 
-#### Agent forwards Control Interface request fom the pipe to the server
-`swdd~agent-forward-request-from-control-interface-pipe-to-server~1`
+#### Agent checks Control Interface request for authorization
+`swdd~agent-checks-request-for-authorization~1`
 
 Status: approved
 
-When the Ankaios Agents receives a Control Interface request from a Workload, the Ankaios Agent shall forward this request to the Ankaios Server.
+When the Ankaios Agents receives a Control Interface request from a Workload, the Ankaios Agent shall check if this Workload is allowed to make this request.
 
 Tags:
 - AgentManager
 - ControlInterface
+- Authorization
 
+Needs:
+- impl
+- utest
+- stest
+
+#### Agent returns error on denied Control Interface request
+`swdd~agent-responses-to-denied-request-from-control-interface~1`
+
+Status: approved
+
+If the Ankaios Agents receives a Control Interface request from a Workload and the request is denied, the Ankaios Agent shall send an error response the corresponding Workloads input pipe.
+
+Tags:
+- AgentManager
+- ControlInterface
+- Authorization
+
+Needs:
+- impl
+- utest
+
+#### Error returned on denied Control Interface request contains requst ID
+`swdd~agent-responses-to-denied-request-from-control-interface-contains-request-id~1`
+
+Status: approved
+
+When the Ankaios Agents sends a denied request error response to workload,
+the response shall contain the same request_id as the denied request.
+
+Tags:
+- AgentManager
+- ControlInterface
+- Authorization
+
+Needs:
+- impl
+- utest
+
+#### Agent forwards Control Interface request from the pipe to the server
+`swdd~agent-forward-request-from-control-interface-pipe-to-server~2`
+
+Status: approved
+
+When the Ankaios Agents receives a Control Interface request from a Workload and the request is allowed, the Ankaios Agent shall forward this request to the Ankaios Server.
+
+Tags:
+- AgentManager
+- ControlInterface
+- Authorization
+-
 Needs:
 - impl
 - utest
@@ -2870,6 +2921,144 @@ Tags:
 - AgentManager
 - ControlInterface
 
+Needs:
+- impl
+- utest
+
+### Authorizing access to the Control Interface
+
+#### Request operations
+`swdd~agent-authorizing-request-operations~1`
+
+Status: approved
+
+When the Ankaios Agent checks if a Workload is allowed to make a request,
+the Ankaios Agent shall use:
+
+- "read" and "write_read" rules for a CompleteStateRequest.
+- "write" and "write_read" rules for a UpdateStateRequest.
+
+Tags:
+- AgentManager
+- ControlInterface
+- Authorization
+-
+Needs:
+- impl
+- utest
+
+#### Request without filter mask
+`swdd~agent-authorizing-request-without-filter-mask~1`
+
+Status: approved
+
+When the Ankaios Agent checks if a Workload is allowed to make a request,
+a UpdateStateRequest with an empty update mask or a CompleteStateRequest with an empty field mask is only allowed if all of the following is true:
+
+- there is at least one allow rule having an empty String in the filter mask
+- there is no deny rule with a non empty filter mask
+
+Tags:
+- AgentManager
+- ControlInterface
+- Authorization
+-
+Needs:
+- impl
+- utest
+
+#### Request allowed if all elements of filter mask are allowed
+`swdd~agent-authorizing-all-elements-of-filter-mask-allowed~1`
+
+Status: approved
+
+When the Ankaios Agent checks if a Workload is allowed to make a request
+and all entries of the update/field mask are allowed,
+the Ankaios Agent shall allow the request.
+
+Tags:
+- AgentManager
+- ControlInterface
+- Authorization
+-
+Needs:
+- impl
+- utest
+
+#### Conditions for element of filter mask being allowed
+`swdd~agent-authorizing-condition-element-filter-mask-allowed~1`
+
+Status: approved
+
+When the Ankaios Agent checks an individual entry of the update/field mask of an request,
+the Ankaios Agent shall allow this element if all of the following is true:
+
+- there is at least one allow rule with a filter mask entry matching the update/field mask entry
+- there is no deny rule with a filter mask entry matching the update/field mask entry
+
+Tags:
+- AgentManager
+- ControlInterface
+- Authorization
+
+Needs:
+- impl
+- utest
+
+#### Matching of allow rules
+`swdd~agent-authorizing-matching-allow-rules~1`
+
+Status: approved
+
+When the Ankaios Agent checks if an individual entry of the update/field mask of an request matches an individual entry of the filter mask of an allow rule, the Ankaios Agent shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
+
+Comment:
+An allow rule matches, if it is the same or a prefix of the request's update/field mask.
+
+Tags:
+- AgentManager
+- ControlInterface
+- Authorization
+-
+Needs:
+- impl
+- utest
+
+#### Matching of deny rules
+`swdd~agent-authorizing-matching-deny-rules~1`
+
+Status: approved
+
+When the Ankaios Agent checks if an individual entry of the update/field mask of an request matches an individual entry of the filter mask of an deny rule, the Ankaios Agent shall consider them matching if all segments of the allow rule's filter mask match the corresponding segments of the request's update/field mask.
+
+Comment:
+A deny rule matches, if the request's update/field mask is the same or a prefix of the rule.
+
+Tags:
+- AgentManager
+- ControlInterface
+- Authorization
+
+Needs:
+- impl
+- utest
+
+#### Matching of rule elements
+`swdd~agent-authorizing-matching-rules-elements~1`
+
+Status: approved
+
+When the Ankaios Agent checks if one segment of an individual entry of the update/field mask of an request matches on segment an individual entry of the filter mask of an deny rule,
+it shall consider them matching if one of the following is true:
+
+- both segments are the same
+- the segment of the rule entry is the wildcards symbol "*"
+
+Tags:
+- AgentManager
+- ControlInterface
+- Authorization
+-
 Needs:
 - impl
 - utest
