@@ -172,7 +172,7 @@ mod tests {
 
     use super::ControlInterfaceTask;
 
-    use crate::control_interface::{reopen_file::MockReopenFile, MockAuthorizer};
+    use crate::control_interface::{authorizer::MockAuthorizer, reopen_file::MockReopenFile};
 
     #[tokio::test]
     async fn utest_pipes_channel_task_forward_from_server() {

@@ -528,7 +528,7 @@ impl RuntimeManager {
 mod tests {
     use super::*;
     use crate::control_interface::{
-        MockAuthorizer, MockControlInterface, MockControlInterfaceInfo,
+        authorizer::MockAuthorizer, MockControlInterface, MockControlInterfaceInfo,
     };
     use crate::runtime_connectors::{MockRuntimeFacade, RuntimeError};
     use crate::workload::{MockWorkload, WorkloadError};

@@ -93,10 +93,9 @@ pub fn generate_test_input_output_mock() -> __mock_MockInputOutput::__new::Conte
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
     use super::InputOutput;
     use mockall::predicate;
+    use std::path::Path;
 
     use crate::control_interface::{generate_test_directory_mock, MockFifo};
 

@@ -23,15 +23,9 @@ mod input_output;
 mod reopen_file;
 mod to_ankaios;
 
-#[cfg(test)]
-pub use authorizer::MockAuthorizer;
 pub use control_interface_info::*;
-// #[cfg(test)]
-// pub use control_interface_task::*;
 pub use fifo::*;
 pub use filesystem::*;
-#[cfg(test)]
-pub use input_output::*;
 pub use to_ankaios::ToAnkaios;
 
 #[cfg(test)]
@@ -44,6 +38,7 @@ use mockall::automock;
 
 #[cfg_attr(test, mockall_double::double)]
 use authorizer::Authorizer;
+
 use common::{from_server_interface::FromServerSender, to_server_interface::ToServerSender};
 #[cfg_attr(test, mockall_double::double)]
 use control_interface_task::ControlInterfaceTask;
@@ -165,9 +160,11 @@ mod tests {
     const CONFIG: &str = "config";
 
     use crate::control_interface::{
+        authorizer::MockAuthorizer,
         control_interface_task::generate_test_control_interface_task_mock,
-        from_server_channels::MockFromServerChannels, generate_test_input_output_mock,
-        reopen_file::MockReopenFile, ControlInterface, MockAuthorizer,
+        from_server_channels::MockFromServerChannels,
+        input_output::generate_test_input_output_mock, reopen_file::MockReopenFile,
+        ControlInterface,
     };
     use common::objects::WorkloadInstanceName;
 
