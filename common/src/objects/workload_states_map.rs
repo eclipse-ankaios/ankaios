@@ -34,7 +34,7 @@ impl WorkloadStatesMap {
         WorkloadStatesMap(HashMap::new())
     }
 
-    pub fn entry(
+    fn entry(
         &mut self,
         key: String,
     ) -> Entry<'_, String, HashMap<String, HashMap<String, ExecutionState>>> {
