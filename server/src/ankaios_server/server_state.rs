@@ -381,6 +381,7 @@ mod tests {
         let expected_complete_state = ank_base::CompleteState {
             desired_state: Some(server_state.state.desired_state.clone().into()),
             workload_states: None,
+            agents: None,
         };
         assert_eq!(received_complete_state, expected_complete_state);
     }

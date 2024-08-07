@@ -328,6 +328,7 @@ mod tests {
                 "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed",
                 ExecutionState::running(),
             ),
+            ..Default::default()
         };
 
         let expected = Object {
@@ -353,6 +354,7 @@ mod tests {
                 "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed",
                 ExecutionState::running(),
             ),
+            ..Default::default()
         };
         let actual: CompleteState = object.try_into().unwrap();
 
@@ -721,6 +723,7 @@ mod tests {
                         ),
                     ),
                 )
+                .entry("agents", Mapping::default())
         }
 
         pub fn generate_test_state() -> Mapping {

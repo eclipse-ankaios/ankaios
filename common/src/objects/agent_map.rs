@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{hash_map::Entry, HashMap};
 
 use super::AgentName;
 use api::ank_base;
@@ -22,6 +22,16 @@ pub type AgentAttributes = HashMap<String, String>;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 pub struct AgentMap(HashMap<AgentName, AgentAttributes>);
+
+impl AgentMap {
+    pub fn new() -> Self {
+        Self(HashMap::new())
+    }
+
+    pub fn entry(&mut self, key: AgentName) -> Entry<'_, AgentName, AgentAttributes> {
+        self.0.entry(key)
+    }
+}
 
 impl From<AgentMap> for Option<ank_base::AgentMap> {
     fn from(item: AgentMap) -> Option<ank_base::AgentMap> {
@@ -58,4 +68,32 @@ impl From<ank_base::AgentMap> for AgentMap {
                 .collect(),
         )
     }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_agent_map(agent_name: impl Into<String>) -> AgentMap {
+    let mut agent_map = AgentMap::new();
+    agent_map
+        .entry(AgentName::from(agent_name.into()))
+        .or_default();
+    agent_map
+}
+
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_agent_map_from_specs(workloads: &[crate::objects::WorkloadSpec]) -> AgentMap {
+    workloads
+        .iter()
+        .fold(AgentMap::new(), |mut agent_map, spec| {
+            let agent_name = spec.instance_name.agent_name();
+            agent_map.entry(AgentName::from(agent_name)).or_default();
+            agent_map
+        })
 }
