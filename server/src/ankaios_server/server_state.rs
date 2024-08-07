@@ -17,7 +17,7 @@ use api::ank_base;
 use super::cycle_check;
 #[cfg_attr(test, mockall_double::double)]
 use super::delete_graph::DeleteGraph;
-use common::objects::{AgentName, WorkloadInstanceName, WorkloadState, WorkloadStatesMap};
+use common::objects::{WorkloadInstanceName, WorkloadState, WorkloadStatesMap};
 use common::std_extensions::IllegalStateResult;
 use common::{
     commands::CompleteStateRequest,
@@ -270,12 +270,12 @@ impl ServerState {
     }
 
     // [impl->swdd~swdd-server-state-stores-agent-in-complete-state~1]
-    pub fn add_agent(&mut self, agent_name: AgentName) {
+    pub fn add_agent(&mut self, agent_name: String) {
         self.state.agents.entry(agent_name).or_default();
     }
 
     // [impl->swdd~server-state-removes-agent-from-complete-state~1]
-    pub fn remove_agent(&mut self, agent_name: &AgentName) {
+    pub fn remove_agent(&mut self, agent_name: &str) {
         self.state.agents.remove(agent_name);
     }
 

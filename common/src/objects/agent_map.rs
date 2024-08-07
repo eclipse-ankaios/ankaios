@@ -12,13 +12,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use api::ank_base;
 use serde::{Deserialize, Serialize};
 use std::collections::{hash_map::Entry, HashMap};
 
-use super::AgentName;
-use api::ank_base;
-
-pub type AgentAttributes = HashMap<String, String>;
+type AgentName = String;
+type AgentAttributes = HashMap<String, String>;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 pub struct AgentMap(HashMap<AgentName, AgentAttributes>);
@@ -28,11 +27,11 @@ impl AgentMap {
         Self(HashMap::new())
     }
 
-    pub fn entry(&mut self, key: AgentName) -> Entry<'_, AgentName, AgentAttributes> {
+    pub fn entry(&mut self, key: String) -> Entry<'_, String, AgentAttributes> {
         self.0.entry(key)
     }
 
-    pub fn remove(&mut self, key: &AgentName) {
+    pub fn remove(&mut self, key: &str) {
         self.0.remove(key);
     }
 }
@@ -49,7 +48,7 @@ impl From<AgentMap> for Option<ank_base::AgentMap> {
                 .into_iter()
                 .map(|(agent_name, agent_attributes)| {
                     (
-                        agent_name.get().to_owned(),
+                        agent_name.to_owned(),
                         ank_base::AgentAttributes { agent_attributes },
                     )
                 })
@@ -64,10 +63,7 @@ impl From<ank_base::AgentMap> for AgentMap {
             item.agents
                 .into_iter()
                 .map(|(agent_name, agent_attributes)| {
-                    (
-                        AgentName::from(agent_name),
-                        agent_attributes.agent_attributes,
-                    )
+                    (agent_name, agent_attributes.agent_attributes)
                 })
                 .collect(),
         )
@@ -100,4 +96,31 @@ pub fn generate_test_agent_map_from_specs(workloads: &[crate::objects::WorkloadS
             agent_map.entry(AgentName::from(agent_name)).or_default();
             agent_map
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AgentMap;
+
+    const AGENT_A: &str = "agent_A";
+    const AGENT_B: &str = "agent_B";
+
+    #[test]
+    fn utest_add_agent() {
+        let mut agent_map = AgentMap::new();
+        agent_map.entry(AGENT_A.to_string()).or_default();
+        agent_map.entry(AGENT_B.to_string()).or_default();
+        assert!(agent_map.0.contains_key(AGENT_A));
+        assert!(agent_map.0.contains_key(AGENT_B));
+    }
+
+    #[test]
+    fn utest_remove_agent() {
+        let mut agent_map = AgentMap::new();
+        agent_map.0.entry(AGENT_A.to_string()).or_default();
+        agent_map.0.entry(AGENT_B.to_string()).or_default();
+
+        agent_map.remove(AGENT_A);
+        assert!(!agent_map.0.contains_key(AGENT_A));
+    }
 }
