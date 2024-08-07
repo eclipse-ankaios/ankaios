@@ -16,7 +16,7 @@ use std::path::PathBuf;
 
 use super::FileSystemError;
 #[cfg_attr(test, mockall_double::double)]
-use super::{Directory, Fifo};
+use super::{directory::Directory, Fifo};
 
 pub struct InputOutput {
     input: Fifo,
@@ -95,9 +95,10 @@ pub fn generate_test_input_output_mock() -> __mock_MockInputOutput::__new::Conte
 mod tests {
     use std::path::Path;
 
+    use super::InputOutput;
     use mockall::predicate;
 
-    use crate::control_interface::{generate_test_directory_mock, InputOutput, MockFifo};
+    use crate::control_interface::{generate_test_directory_mock, MockFifo};
 
     // [utest->swdd~agent-control-interface-creates-two-pipes-per-workload~1]
     #[test]

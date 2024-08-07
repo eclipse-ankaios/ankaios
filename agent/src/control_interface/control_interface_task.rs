@@ -170,7 +170,9 @@ mod tests {
     use api::{ank_base, control_api};
     use prost::Message;
 
-    use crate::control_interface::{ControlInterfaceTask, MockAuthorizer, MockReopenFile};
+    use super::ControlInterfaceTask;
+
+    use crate::control_interface::{reopen_file::MockReopenFile, MockAuthorizer};
 
     #[tokio::test]
     async fn utest_pipes_channel_task_forward_from_server() {

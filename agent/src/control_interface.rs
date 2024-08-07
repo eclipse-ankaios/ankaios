@@ -12,13 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(not(test))]
 pub mod authorizer;
-#[cfg(test)]
-pub mod authorizer;
-mod control_interface_info;
+pub mod control_interface_info;
 mod control_interface_task;
-mod directory;
+pub mod directory;
 mod fifo;
 mod filesystem;
 mod from_server_channels;
@@ -26,24 +23,19 @@ mod input_output;
 mod reopen_file;
 mod to_ankaios;
 
-// #[cfg(not(test))]
-// pub use authorizer::Authorizer;
 #[cfg(test)]
 pub use authorizer::MockAuthorizer;
 pub use control_interface_info::*;
-#[cfg(test)]
-pub use control_interface_task::*;
-pub use directory::Directory;
+// #[cfg(test)]
+// pub use control_interface_task::*;
 pub use fifo::*;
 pub use filesystem::*;
-pub use from_server_channels::*;
 #[cfg(test)]
 pub use input_output::*;
-pub use reopen_file::*;
 pub use to_ankaios::ToAnkaios;
 
 #[cfg(test)]
-pub use directory::{generate_test_directory_mock, MockDirectory};
+pub use directory::generate_test_directory_mock;
 
 use common::objects::WorkloadInstanceName;
 
@@ -173,8 +165,9 @@ mod tests {
     const CONFIG: &str = "config";
 
     use crate::control_interface::{
-        generate_test_control_interface_task_mock, generate_test_input_output_mock,
-        ControlInterface, MockAuthorizer, MockFromServerChannels, MockReopenFile,
+        control_interface_task::generate_test_control_interface_task_mock,
+        from_server_channels::MockFromServerChannels, generate_test_input_output_mock,
+        reopen_file::MockReopenFile, ControlInterface, MockAuthorizer,
     };
     use common::objects::WorkloadInstanceName;
 
