@@ -30,6 +30,7 @@ ${manifest1_yaml_file}   ${EMPTY}
 ${manifest2_yaml_file}   ${EMPTY}
 ${manifest_no_agent_name_yaml_file}    ${EMPTY}
 
+# [stest->swdd~agent-checks-request-for-authorization~1]
 *** Test Cases ***
 
 No rules

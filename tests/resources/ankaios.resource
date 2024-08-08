@@ -508,14 +508,8 @@ Setup Ankaios for Control Interface test
 The controller workload has no access rights
     empty_keyword
 
-The controller workload is allowed to ${operation}
-    Control interface allows to ${operation} on ${EMPTY}
-
 The controller workload is allowed to ${operation} on ${filter_mask}
     internal_allow_control_interface    ${operation}     ${filter_mask}
-
-The controller workload is forbidden to ${operation}
-    Control interface denies to ${operation} on ${EMPTY}
 
 The controller workload is forbidden to ${operation} on ${filter_mask}
     internal_deny_control_interface    ${operation}     ${filter_mask}

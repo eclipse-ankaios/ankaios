@@ -53,6 +53,7 @@ impl From<&str> for AllowPathPattern {
 }
 
 impl PathPattern for AllowPathPattern {
+    // [impl->swdd~agent-authorizing-matching-allow-rules~1]
     fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason) {
         if self.sections.len() > other.sections.len() {
             return (false, String::new());
@@ -92,6 +93,7 @@ impl From<&str> for DenyPathPattern {
 }
 
 impl PathPattern for DenyPathPattern {
+    // [impl->swdd~agent-authorizing-matching-deny-rules~1]
     fn matches(&self, other: &Path) -> (bool, PathPatternMatchReason) {
         for (a, b) in self.sections.iter().zip(other.sections.iter()) {
             if !a.matches(b) {
@@ -135,6 +137,7 @@ impl Display for PathPatternSection {
 }
 
 impl PathPatternSection {
+    // [impl->swdd~agent-authorizing-matching-rules-elements~1]
     pub fn matches(&self, other: &String) -> bool {
         match self {
             PathPatternSection::Wildcard => true,
@@ -178,6 +181,7 @@ mod tests {
 
     use crate::control_interface::authorizer::{AllowPathPattern, DenyPathPattern, PathPattern};
 
+    // [utest->swdd~agent-authorizing-matching-allow-rules~1]
     #[test]
     fn utest_allow_path_pattern() {
         let p = AllowPathPattern::from("some.pre.fix");
@@ -191,6 +195,8 @@ mod tests {
         assert!(!p.matches(&"some.pre.test.2".into()).0);
     }
 
+    // [utest->swdd~agent-authorizing-matching-allow-rules~1]
+    // [utest->swdd~agent-authorizing-matching-rules-elements~1]
     #[test]
     fn utest_allow_path_pattern_with_wildcard() {
         let p = AllowPathPattern::from("some.*.fix");
@@ -209,6 +215,7 @@ mod tests {
         assert!(!p.matches(&"some.pre2.test.2".into()).0);
     }
 
+    // [utest->swdd~agent-authorizing-matching-allow-rules~1]
     #[test]
     fn utest_empty_allow_path_pattern() {
         let p = AllowPathPattern::from("");
@@ -217,6 +224,7 @@ mod tests {
         assert!(p.matches(&"some.pre".into()).0);
     }
 
+    // [utest->swdd~agent-authorizing-matching-deny-rules~1]
     #[test]
     fn utest_deny_path_pattern() {
         let p = DenyPathPattern::from("some.pre.fix");
@@ -231,6 +239,8 @@ mod tests {
         assert!(!p.matches(&"some.pre.fix2.test".into()).0);
     }
 
+    // [utest->swdd~agent-authorizing-matching-deny-rules~1]
+    // [utest->swdd~agent-authorizing-matching-rules-elements~1]
     #[test]
     fn utest_deny_path_pattern_with_wildcard() {
         let p = DenyPathPattern::from("some.*.fix");
@@ -252,6 +262,7 @@ mod tests {
         assert!(!p.matches(&"some.pre2.fix2.test".into()).0);
     }
 
+    // [utest->swdd~agent-authorizing-matching-deny-rules~1]
     #[test]
     fn utest_empty_deny_path_pattern() {
         let p = DenyPathPattern::from("");
