@@ -17,9 +17,7 @@ use std::collections::HashMap;
 use api::ank_base;
 use common::{
     helpers::serialize_to_ordered_map,
-    objects::{
-        AddCondition, AgentMap, ControlInterfaceAccess, RestartPolicy, Tag, WorkloadStatesMap,
-    },
+    objects::{AddCondition, ControlInterfaceAccess, RestartPolicy, Tag, WorkloadStatesMap},
 };
 use serde::{Deserialize, Serialize, Serializer};
 
@@ -50,7 +48,7 @@ pub struct FilteredCompleteState {
     pub workload_states: Option<WorkloadStatesMap>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
-    pub agents: Option<AgentMap>,
+    pub agents: Option<FilteredAgentMap>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -62,6 +60,18 @@ pub struct FilteredState {
     #[serde(default, serialize_with = "serialize_option_to_ordered_map")]
     pub workloads: Option<HashMap<String, FilteredWorkloadSpec>>,
 }
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FilteredAgentMap {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, serialize_with = "serialize_option_to_ordered_map")]
+    pub agents: Option<HashMap<String, FilteredAgentAttributes>>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FilteredAgentAttributes {} // empty for now, but used for future expansion
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -139,6 +149,20 @@ impl From<ank_base::Workload> for FilteredWorkloadSpec {
                 .map(|x| x.try_into().unwrap_or_else(|error| {
                     output_and_error!("Could not convert the ControlInterfaceAccess.\nError: '{error}'. Check the Ankaios component compatibility.")
                 })),
+        }
+    }
+}
+
+impl From<ank_base::AgentMap> for FilteredAgentMap {
+    fn from(value: ank_base::AgentMap) -> Self {
+        FilteredAgentMap {
+            agents: Some(
+                value
+                    .agents
+                    .into_iter()
+                    .map(|(agent_name, _)| (agent_name, FilteredAgentAttributes {}))
+                    .collect(),
+            ),
         }
     }
 }

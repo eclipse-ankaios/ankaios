@@ -88,7 +88,7 @@ impl ServerConnection {
 
     pub async fn get_complete_state(
         &mut self,
-        object_field_mask: &Vec<String>,
+        object_field_mask: &[String],
     ) -> Result<FilteredCompleteState, ServerConnectionError> {
         output_debug!(
             "get_complete_state: object_field_mask={:?} ",
@@ -101,7 +101,7 @@ impl ServerConnection {
             .request_complete_state(
                 request_id.to_owned(),
                 CompleteStateRequest {
-                    field_mask: object_field_mask.clone(),
+                    field_mask: object_field_mask.to_vec(),
                 },
             )
             .await
