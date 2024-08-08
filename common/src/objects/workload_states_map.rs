@@ -165,12 +165,6 @@ impl From<WorkloadStatesMap> for Vec<WorkloadState> {
     }
 }
 
-// impl From<HashMap<String, HashMap<String, HashMap<String, ExecutionState>>>> for WorkloadStatesMap {
-//     fn from(value: HashMap<String, HashMap<String, HashMap<String, ExecutionState>>>) -> Self {
-//         WorkloadStatesMap(value)
-//     }
-// }
-
 impl IntoIterator for WorkloadStatesMap {
     type Item =
         <HashMap<String, HashMap<String, HashMap<String, ExecutionState>>> as IntoIterator>::Item;
