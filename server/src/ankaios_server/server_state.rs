@@ -504,7 +504,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut workloads = server_state.get_workloads_for_agent(&AGENT_A.to_string());
+        let mut workloads = server_state.get_workloads_for_agent(AGENT_A);
         workloads.sort_by(|left, right| {
             left.instance_name
                 .workload_name()
@@ -512,10 +512,10 @@ mod tests {
         });
         assert_eq!(workloads, vec![w1, w2]);
 
-        let workloads = server_state.get_workloads_for_agent(&AGENT_B.to_string());
+        let workloads = server_state.get_workloads_for_agent(AGENT_B);
         assert_eq!(workloads, vec![w3]);
 
-        let workloads = server_state.get_workloads_for_agent(&"unknown_agent".to_string());
+        let workloads = server_state.get_workloads_for_agent("unknown_agent");
         assert_eq!(workloads.len(), 0);
     }
 
