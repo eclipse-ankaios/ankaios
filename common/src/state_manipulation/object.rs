@@ -285,8 +285,8 @@ impl Object {
 mod tests {
     use crate::{
         objects::{
-            generate_test_workload_spec, generate_test_workload_states_map_with_data,
-            CompleteState, ExecutionState, State,
+            generate_test_agent_map_from_specs, generate_test_workload_spec,
+            generate_test_workload_states_map_with_data, CompleteState, ExecutionState, State,
         },
         test_utils::generate_test_state_from_workloads,
     };
@@ -319,7 +319,10 @@ mod tests {
     #[test]
     fn utest_object_from_complete_state() {
         let wl_spec = generate_test_workload_spec();
-        let state = generate_test_state_from_workloads(vec![wl_spec.clone()]);
+        let specs = vec![wl_spec];
+        let agent_map = generate_test_agent_map_from_specs(&specs);
+        let state = generate_test_state_from_workloads(specs);
+
         let complete_state = CompleteState {
             desired_state: state,
             workload_states: generate_test_workload_states_map_with_data(
@@ -328,7 +331,7 @@ mod tests {
                 "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed",
                 ExecutionState::running(),
             ),
-            ..Default::default()
+            agents: agent_map,
         };
 
         let expected = Object {
@@ -345,7 +348,10 @@ mod tests {
             data: object::generate_test_complete_state().into(),
         };
         let wl_spec = generate_test_workload_spec();
-        let expected_state = generate_test_state_from_workloads(vec![wl_spec.clone()]);
+        let specs = vec![wl_spec];
+        let agent_map = generate_test_agent_map_from_specs(&specs);
+
+        let expected_state = generate_test_state_from_workloads(specs);
         let expected = CompleteState {
             desired_state: expected_state,
             workload_states: generate_test_workload_states_map_with_data(
@@ -354,7 +360,7 @@ mod tests {
                 "404e2079115f592befb2c97fc2666aefc59a7309214828b18ff9f20f47a6ebed",
                 ExecutionState::running(),
             ),
-            ..Default::default()
+            agents: agent_map,
         };
         let actual: CompleteState = object.try_into().unwrap();
 
@@ -704,13 +710,14 @@ mod tests {
         use crate::objects::generate_test_runtime_config;
 
         pub fn generate_test_complete_state() -> Mapping {
+            let agent_name = "agent";
             let config_hash: &dyn crate::objects::ConfigHash = &generate_test_runtime_config();
             Mapping::default()
                 .entry("desiredState", generate_test_state())
                 .entry(
                     "workloadStates",
                     Mapping::default().entry(
-                        "agent",
+                        agent_name,
                         Mapping::default().entry(
                             "name",
                             Mapping::default().entry(
@@ -723,7 +730,10 @@ mod tests {
                         ),
                     ),
                 )
-                .entry("agents", Mapping::default())
+                .entry(
+                    "agents",
+                    Mapping::default().entry(agent_name, Mapping::default()),
+                )
         }
 
         pub fn generate_test_state() -> Mapping {
