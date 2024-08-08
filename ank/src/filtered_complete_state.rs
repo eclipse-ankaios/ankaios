@@ -17,7 +17,9 @@ use std::collections::HashMap;
 use api::ank_base;
 use common::{
     helpers::serialize_to_ordered_map,
-    objects::{AddCondition, ControlInterfaceAccess, RestartPolicy, Tag, WorkloadStatesMap},
+    objects::{
+        AddCondition, AgentMap, ControlInterfaceAccess, RestartPolicy, Tag, WorkloadStatesMap,
+    },
 };
 use serde::{Deserialize, Serialize, Serializer};
 
@@ -46,6 +48,9 @@ pub struct FilteredCompleteState {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub workload_states: Option<WorkloadStatesMap>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub agents: Option<AgentMap>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -83,6 +88,7 @@ impl From<ank_base::CompleteState> for FilteredCompleteState {
         FilteredCompleteState {
             desired_state: value.desired_state.map(Into::into),
             workload_states: value.workload_states.map(Into::into),
+            agents: value.agents.map(Into::into),
         }
     }
 }
