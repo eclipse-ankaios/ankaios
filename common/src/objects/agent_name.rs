@@ -1,9 +1,10 @@
-use crate::objects::workload_instance_name::INSTANCE_NAME_SEPARATOR;
-use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 
+use crate::objects::workload_instance_name::INSTANCE_NAME_SEPARATOR;
+
 // [impl->swdd~common-object-representation~1]
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
+
+#[derive(Debug, Eq, PartialEq)]
 pub struct AgentName(String);
 
 impl AgentName {
