@@ -369,7 +369,7 @@ Needs:
 
 Status: approved
 
-When the ServerState is triggered to store the agent, the ServerState shall store the agent in its `CompleteState` within the `agents` field.
+When the ServerState is triggered to store the agent, the ServerState shall create an entry of the agent in the `agents` field part of the `CompleteState`.
 
 Tags:
 - ServerState
@@ -860,7 +860,7 @@ Needs:
 
 Status: approved
 
-When the ServerState is triggered to remove the agent from its state, the ServerState shall remove the agent from the `CompleteState` of the `agents` field.
+When the ServerState is triggered to remove the agent from its state, the ServerState shall remove the entry of the agent in the `agents` field part of the `CompleteState`.
 
 Tags:
 - ServerState
