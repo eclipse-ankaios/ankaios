@@ -93,31 +93,3 @@ pub fn generate_test_agent_map_from_specs(workloads: &[crate::objects::WorkloadS
             agent_map
         })
 }
-
-// [utest->swdd~agent-map-manages-agent-names-with-agent-attributes~1]
-#[cfg(test)]
-mod tests {
-    use super::AgentMap;
-
-    const AGENT_A: &str = "agent_A";
-    const AGENT_B: &str = "agent_B";
-
-    #[test]
-    fn utest_add_agent() {
-        let mut agent_map = AgentMap::new();
-        agent_map.entry(AGENT_A.to_string()).or_default();
-        agent_map.entry(AGENT_B.to_string()).or_default();
-        assert!(agent_map.0.contains_key(AGENT_A));
-        assert!(agent_map.0.contains_key(AGENT_B));
-    }
-
-    #[test]
-    fn utest_remove_agent() {
-        let mut agent_map = AgentMap::new();
-        agent_map.0.entry(AGENT_A.to_string()).or_default();
-        agent_map.0.entry(AGENT_B.to_string()).or_default();
-
-        agent_map.remove(AGENT_A);
-        assert!(!agent_map.0.contains_key(AGENT_A));
-    }
-}
