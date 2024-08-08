@@ -1197,7 +1197,7 @@ mod tests {
     // [utest->swdd~server-set-workload-state-on-disconnect~1]
     // [utest->swdd~server-distribute-workload-state-on-disconnect~1]
     // [utest->swdd~server-starts-without-startup-config~1]
-    // [utest->server-removes-disconnected-agents-from-state~1]
+    // [utest->swdd~server-removes-disconnected-agents-from-state~1]
     #[tokio::test]
     async fn utest_server_start_distributes_workload_states_after_agent_disconnect() {
         let _ = env_logger::builder().is_test(true).try_init();
