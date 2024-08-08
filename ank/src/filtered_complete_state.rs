@@ -159,8 +159,8 @@ impl From<ank_base::AgentMap> for FilteredAgentMap {
             agents: Some(
                 value
                     .agents
-                    .into_iter()
-                    .map(|(agent_name, _)| (agent_name, FilteredAgentAttributes {}))
+                    .into_keys()
+                    .map(|agent_name| (agent_name, FilteredAgentAttributes {}))
                     .collect(),
             ),
         }
