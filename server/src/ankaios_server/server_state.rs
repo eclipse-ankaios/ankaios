@@ -302,8 +302,9 @@ mod tests {
     use common::{
         commands::CompleteStateRequest,
         objects::{
-            generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
-            CompleteState, DeletedWorkload, State, WorkloadSpec, WorkloadStatesMap,
+            generate_test_agent_map, generate_test_stored_workload_spec,
+            generate_test_workload_spec_with_param, AgentMap, CompleteState, DeletedWorkload,
+            State, WorkloadSpec, WorkloadStatesMap,
         },
         test_utils::{self, generate_test_complete_state},
     };
@@ -1050,6 +1051,34 @@ mod tests {
         let workload_states = vec![];
 
         server_state.cleanup_state(&workload_states);
+    }
+
+    // [utest->swdd~swdd-server-state-stores-agent-in-complete-state~1]
+    #[test]
+    fn utest_add_agent() {
+        let mut server_state = ServerState::default();
+        server_state.add_agent(AGENT_A.to_string());
+
+        let expected_agent_map = generate_test_agent_map(AGENT_A);
+
+        assert_eq!(server_state.state.agents, expected_agent_map);
+    }
+
+    // [utest->swdd~server-state-removes-agent-from-complete-state~1]
+    #[test]
+    fn utest_remove_agent() {
+        let mut server_state = ServerState {
+            state: CompleteState {
+                agents: generate_test_agent_map(AGENT_A),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        server_state.remove_agent(AGENT_A);
+
+        let expected_agent_map = AgentMap::default();
+        assert_eq!(server_state.state.agents, expected_agent_map);
     }
 
     fn generate_test_old_state() -> CompleteState {
