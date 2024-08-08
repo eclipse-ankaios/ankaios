@@ -199,11 +199,9 @@ message AgentMap {
 }
 
 /**
-* A map providing the attributes of an agent.
+* A message that has not yet been implemented but will contain attributes of the agent in the future.
 */
-message AgentAttributes {
-    map<string, string> AgentAttributes = 1;
-}
+message AgentAttributes {}
 
 /**
 * A message containing the information about the workload state.

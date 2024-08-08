@@ -17,7 +17,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::{hash_map::Entry, HashMap};
 
 type AgentName = String;
-type AgentAttributes = HashMap<String, String>;
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
+pub struct AgentAttributes {} // used for future extension
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 pub struct AgentMap(HashMap<AgentName, AgentAttributes>);
@@ -45,13 +47,8 @@ impl From<AgentMap> for Option<ank_base::AgentMap> {
         Some(ank_base::AgentMap {
             agents: item
                 .0
-                .into_iter()
-                .map(|(agent_name, agent_attributes)| {
-                    (
-                        agent_name.to_owned(),
-                        ank_base::AgentAttributes { agent_attributes },
-                    )
-                })
+                .into_keys()
+                .map(|agent_name| (agent_name, ank_base::AgentAttributes {}))
                 .collect(),
         })
     }
@@ -61,10 +58,8 @@ impl From<ank_base::AgentMap> for AgentMap {
     fn from(item: ank_base::AgentMap) -> Self {
         AgentMap(
             item.agents
-                .into_iter()
-                .map(|(agent_name, agent_attributes)| {
-                    (agent_name, agent_attributes.agent_attributes)
-                })
+                .into_keys()
+                .map(|agent_name| (agent_name, AgentAttributes {}))
                 .collect(),
         )
     }
