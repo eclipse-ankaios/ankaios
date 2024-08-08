@@ -84,6 +84,10 @@ These objects especially include objects which needs to be sent through for the 
 
 The WorkloadStatesMap is a container that holds workload execution states and allows searching through them in an efficient way.
 
+#### AgentMap
+
+The AgentMap is an associative data structure that stores the names of the agents connected to the server as keys and the corresponding agent attributes as values.
+
 #### Provide common object representation
 `swdd~common-object-representation~1`
 
@@ -213,6 +217,25 @@ The workload id is additionally needed for identification to support restarts of
 
 Tags:
 - Objects
+
+Needs:
+- impl
+- utest
+
+#### AgentMap manages agent names along with agent attributes
+`swdd~agent-map-manages-agent-names-with-agent-attributes~1`
+
+Status: approved
+
+The AgentMap provides the following functionalities:
+* inserting an agent name with empty attributes
+* removing an agent name
+
+Comment:
+The AgentMap is actually the object exposed to the external interfaces, but provides some additional functionality.
+
+Tags:
+- AgentMap
 
 Needs:
 - impl

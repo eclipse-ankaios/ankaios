@@ -19,11 +19,12 @@ use std::collections::{hash_map::Entry, HashMap};
 type AgentName = String;
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
-pub struct AgentAttributes {} // used for future extension
+pub struct AgentAttributes {} // empty for now, but used for future expansion
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, PartialEq, Eq)]
 pub struct AgentMap(HashMap<AgentName, AgentAttributes>);
 
+// [impl->swdd~agent-map-manages-agent-names-with-agent-attributes~1]
 impl AgentMap {
     pub fn new() -> Self {
         Self(HashMap::new())
@@ -93,6 +94,7 @@ pub fn generate_test_agent_map_from_specs(workloads: &[crate::objects::WorkloadS
         })
 }
 
+// [utest->swdd~agent-map-manages-agent-names-with-agent-attributes~1]
 #[cfg(test)]
 mod tests {
     use super::AgentMap;
