@@ -47,7 +47,7 @@ pub struct FilteredCompleteState {
     #[serde(default)]
     pub workload_states: Option<WorkloadStatesMap>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(default)]
+    #[serde(default, flatten)]
     pub agents: Option<FilteredAgentMap>,
 }
 
