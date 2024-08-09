@@ -118,6 +118,10 @@ pub enum GetCommands {
         /// Select which workload(s) shall be returned [default: empty = all workloads]
         workload_name: Vec<String>,
     },
+    /// Information about the Ankaios agents connected to the Ankaios server
+    /// For automation use "ank get state -o json" and process the agents
+    #[clap(visible_alias("agents"), verbatim_doc_comment)]
+    Agent {},
 }
 
 /// Update the state of Ankaios system

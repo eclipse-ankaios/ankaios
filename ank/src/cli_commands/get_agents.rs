@@ -14,12 +14,13 @@ use std::collections::HashMap;
 //
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
-    cli_commands::agent_table_row::AgentTableRow, cli_error::CliError,
-    filtered_complete_state::FilteredWorkloadSpec, output_debug,
+    cli_commands::{agent_table_row::AgentTableRow, table_builder::TableBuilder},
+    cli_error::CliError,
+    filtered_complete_state::FilteredWorkloadSpec,
+    output_debug,
 };
 
 use super::CliCommands;
-const CONNECTED_AGENT_FIELD_MASK: &str = "agents";
 const DEFAULT_WORKLOAD_COUNT: u32 = 0;
 
 impl CliCommands {
@@ -50,7 +51,12 @@ impl CliCommands {
 
         output_debug!("Got agents of complete state: {:?}", agent_table_rows);
 
-        todo!("Implement table display for 'get agents'");
+        let table = TableBuilder::new(agent_table_rows)
+            .style_blank()
+            .disable_surrounding_padding()
+            .build();
+
+        Ok(table)
     }
 
     fn count_workloads_per_agent(
@@ -83,6 +89,7 @@ impl CliCommands {
             })
             .collect();
 
+        // sort to ensure consistent output
         agent_table_rows.sort_by(|a, b| a.agent_name.cmp(&b.agent_name));
         agent_table_rows
     }

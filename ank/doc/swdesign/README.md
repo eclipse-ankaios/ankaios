@@ -428,6 +428,24 @@ Needs:
 - impl
 - utest
 
+### `ank get agents`
+
+#### CLI provides the list of connected agents
+`swdd~cli-provides-list-of-agents~1`
+
+Status: approved
+
+The Ankaios CLI shall provide a function to get the list of Ankaios agents connected to the Ankaios server.
+
+Tags:
+- Cli
+- CliCommands
+
+Needs:
+- impl
+- utest
+- stest
+
 #### CLI blocks until the Ankaios Server responds to the request to get the list of workloads
 `swdd~cli-blocks-until-ankaios-server-responds-list-workloads~1`
 
