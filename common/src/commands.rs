@@ -180,8 +180,8 @@ mod tests {
         pub use crate::{
             commands::{CompleteStateRequest, Request, RequestContent, UpdateStateRequest},
             objects::{
-                generate_test_workload_states_map_with_data, CompleteState, ExecutionState,
-                RestartPolicy, State, StoredWorkloadSpec, Tag,
+                generate_test_agent_map, generate_test_workload_states_map_with_data,
+                CompleteState, ExecutionState, RestartPolicy, State, StoredWorkloadSpec, Tag,
             },
         };
     }
@@ -242,6 +242,7 @@ mod tests {
                 }
                 .into(),
                 workload_states: workload_states_map!(ankaios),
+                agents: agent_map!(ankaios),
             }
         };
         (ank_base) => {
@@ -253,6 +254,7 @@ mod tests {
                     }),
                 }),
                 workload_states: workload_states_map!(ank_base),
+                agents: agent_map!(ank_base),
             }
         };
     }
@@ -307,6 +309,15 @@ mod tests {
                 ankaios::ExecutionState::running(),
             )
             .into()
+        };
+    }
+
+    macro_rules! agent_map {
+        (ankaios) => {{
+            ankaios::generate_test_agent_map(AGENT_NAME)
+        }};
+        (ank_base) => {
+            ankaios::generate_test_agent_map(AGENT_NAME).into()
         };
     }
 
