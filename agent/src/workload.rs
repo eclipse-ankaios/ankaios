@@ -87,15 +87,20 @@ impl Workload {
             control_interface,
         }
     }
+
     // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
     fn exchange_control_interface(&mut self, control_interface_info: Option<ControlInterfaceInfo>) {
         if let Some(control_interface) = self.control_interface.take() {
             control_interface.abort_control_interface_task()
         }
-        self.control_interface = match control_interface_info {
-            Some(info) => info.create_control_interface(),
-            None => None,
-        };
+        self.control_interface =
+            control_interface_info.and_then(|info| match ControlInterface::try_from(info) {
+                Ok(control_interface) => Some(control_interface),
+                Err(err) => {
+                    log::error!("Could not exchange control interface. Error: '{}'", err);
+                    None
+                }
+            });
     }
 
     fn is_control_interface_changed(
@@ -104,15 +109,8 @@ impl Workload {
     ) -> bool {
         match (&self.control_interface, control_interface_info) {
             (None, None) => false,
-            (Some(_current), None) => true,
-            (None, Some(_new)) => true,
             (Some(current), Some(new_context)) => !new_context.has_same_configuration(current),
-        }
-    }
-
-    fn update_control_interface(&mut self, control_interface_info: Option<ControlInterfaceInfo>) {
-        if self.is_control_interface_changed(&control_interface_info) {
-            self.exchange_control_interface(control_interface_info);
+            _ => true,
         }
     }
 
@@ -124,7 +122,9 @@ impl Workload {
     ) -> Result<(), WorkloadError> {
         log::info!("Updating workload '{}'.", self.name);
 
-        self.update_control_interface(control_interface_info);
+        if self.is_control_interface_changed(&control_interface_info) {
+            self.exchange_control_interface(control_interface_info);
+        }
 
         let control_interface_path = self
             .control_interface
@@ -342,15 +342,17 @@ mod tests {
             .once()
             .return_const(PIPES_LOCATION);
 
+        let new_control_interface_context = MockControlInterface::try_from_context();
+        new_control_interface_context
+            .expect()
+            .once()
+            .return_once(|_| Ok(new_control_interface_mock));
+
         let mut new_control_interface_info_mock = MockControlInterfaceInfo::default();
         new_control_interface_info_mock
             .expect_has_same_configuration()
             .once()
             .return_const(false);
-        new_control_interface_info_mock
-            .expect_create_control_interface()
-            .once()
-            .return_once(|| Some(new_control_interface_mock));
 
         let mut test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
@@ -396,21 +398,29 @@ mod tests {
             .once()
             .return_const(());
 
+        let mut new_control_interface_mock = MockControlInterface::default();
+        new_control_interface_mock
+            .expect_get_api_location()
+            .once()
+            .return_const(PIPES_LOCATION);
+
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
 
-        let mut new_control_interface_mock = MockControlInterfaceInfo::default();
-        new_control_interface_mock
+        let mut new_control_interface_info_mock = MockControlInterfaceInfo::default();
+        new_control_interface_info_mock
             .expect_has_same_configuration()
             .once()
             .return_const(false);
-        new_control_interface_mock
-            .expect_create_control_interface()
+
+        let control_interface_try_from_context = MockControlInterface::try_from_context();
+        control_interface_try_from_context
+            .expect()
             .once()
-            .return_once(|| None);
+            .return_once(|_| Ok(new_control_interface_mock));
 
         let mut test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
@@ -422,7 +432,7 @@ mod tests {
             test_workload
                 .update(
                     Some(workload_spec.clone()),
-                    Some(new_control_interface_mock)
+                    Some(new_control_interface_info_mock)
                 )
                 .await,
             Err(WorkloadError::Communication(_))

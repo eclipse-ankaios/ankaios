@@ -12,10 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, path::PathBuf};
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::authorizer::Authorizer;
@@ -228,12 +225,16 @@ impl RuntimeManager {
                             // [impl->swdd~agent-existing-workloads-resume-existing~2]
                             if Self::is_resumable_workload(&workload_state, &new_instance_name) {
                                 // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-                                let control_interface = Self::create_control_interface(
-                                    &self.run_folder,
-                                    self.control_interface_tx.clone(),
-                                    &new_workload_spec.instance_name,
-                                    Authorizer::from(&new_workload_spec.control_interface_access),
-                                );
+                                let control_interface =
+                                    ControlInterface::try_from(ControlInterfaceInfo::new(
+                                        &self.run_folder,
+                                        self.control_interface_tx.clone(),
+                                        &new_workload_spec.instance_name,
+                                        Authorizer::from(
+                                            &new_workload_spec.control_interface_access,
+                                        ),
+                                    ))
+                                    .ok();
 
                                 log::info!(
                                     "Resuming workload '{}'",
@@ -485,35 +486,6 @@ impl RuntimeManager {
             }
         }
     }
-
-    // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-    fn create_control_interface(
-        run_folder: &Path,
-        control_interface_tx: ToServerSender,
-        workload_instance_name: &WorkloadInstanceName,
-        authorizer: Authorizer,
-    ) -> Option<ControlInterface> {
-        log::debug!(
-            "Creating control interface pipes for '{:?}'",
-            workload_instance_name
-        );
-
-        match ControlInterface::new(
-            run_folder,
-            workload_instance_name,
-            control_interface_tx,
-            authorizer,
-        ) {
-            Ok(control_interface) => Some(control_interface),
-            Err(err) => {
-                log::warn!(
-                    "Could not create control interface pipes channel for workload '{}'. Error: '{err}'",
-                    workload_instance_name
-                );
-                None
-            }
-        }
-    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -527,7 +499,7 @@ impl RuntimeManager {
 #[cfg(test)]
 mod tests {
     use super::{
-        ank_base, ControlInterfaceInfo, DeletedWorkload, ExecutionState, Path, RuntimeFacade,
+        ank_base, ControlInterfaceInfo, DeletedWorkload, ExecutionState, RuntimeFacade,
         RuntimeManager, WorkloadInstanceName, WorkloadOperation, WorkloadSpec,
     };
     use crate::control_interface::{
@@ -549,8 +521,8 @@ mod tests {
     };
     use common::to_server_interface::ToServerReceiver;
     use mockall::{predicate, Sequence};
-    use std::any::Any;
     use std::collections::HashMap;
+    use std::{any::Any, path::Path};
     use tokio::sync::mpsc::channel;
 
     const BUFFER_SIZE: usize = 20;
@@ -821,11 +793,17 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let control_interface_mock = MockControlInterface::new_context();
-        control_interface_mock
+        let control_interface_try_from_context = MockControlInterface::try_from_context();
+        control_interface_try_from_context
             .expect()
             .once()
-            .returning(move |_, _, _, _| Ok(MockControlInterface::default()));
+            .returning(move |_| Ok(MockControlInterface::default()));
+
+        let control_interface_info_new_context = MockControlInterfaceInfo::new_context();
+        control_interface_info_new_context
+            .expect()
+            .once()
+            .returning(move |_, _, _, _| MockControlInterfaceInfo::default());
 
         let workload_operations = vec![];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();

@@ -163,7 +163,7 @@ impl<
                         .instance_name
                         .pipes_folder_name(info.get_run_folder()),
                 ),
-                info.create_control_interface(),
+                ControlInterface::try_from(info).ok(),
             ),
             None => (None, None),
         };
@@ -389,12 +389,18 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let control_interface_context = MockControlInterface::default();
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
+
+        let control_interface_mock = MockControlInterface::default();
+        let control_interface_try_from_context = MockControlInterface::try_from_context();
+        control_interface_try_from_context
+            .expect()
+            .once()
+            .return_once(|_| Ok(control_interface_mock));
 
         let mut control_interface_info_mock = MockControlInterfaceInfo::default();
 
@@ -402,10 +408,6 @@ mod tests {
             .expect_get_run_folder()
             .once()
             .return_const(PIPES_LOCATION.into());
-        control_interface_info_mock
-            .expect_create_control_interface()
-            .once()
-            .return_once(|| Some(control_interface_context));
 
         let (wl_state_sender, _wl_state_receiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);

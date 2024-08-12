@@ -23,6 +23,7 @@ mod input_output;
 mod reopen_file;
 mod to_ankaios;
 
+use control_interface_info::ControlInterfaceInfo;
 pub use to_ankaios::ToAnkaios;
 
 #[cfg(test)]
@@ -33,12 +34,11 @@ pub use directory::generate_test_directory_mock;
 pub use fifo::MockFifo;
 #[cfg(test)]
 pub use filesystem::MockFileSystem;
+#[cfg(test)]
+use mockall::mock;
 
 use common::objects::WorkloadInstanceName;
 use common::{from_server_interface::FromServerSender, to_server_interface::ToServerSender};
-
-#[cfg(test)]
-use mockall::automock;
 
 #[cfg_attr(test, mockall_double::double)]
 use authorizer::Authorizer;
@@ -81,7 +81,6 @@ pub struct ControlInterface {
     authorizer: Arc<Authorizer>,
 }
 
-#[cfg_attr(test, automock)]
 impl ControlInterface {
     pub fn new(
         run_directory: &Path,
@@ -141,6 +140,39 @@ impl ControlInterface {
 impl Drop for ControlInterface {
     fn drop(&mut self) {
         self.abort_control_interface_task()
+    }
+}
+
+impl TryFrom<ControlInterfaceInfo> for ControlInterface {
+    type Error = ControlInterfaceError;
+
+    fn try_from(info: ControlInterfaceInfo) -> Result<Self, ControlInterfaceError> {
+        ControlInterface::new(
+            info.get_run_folder(),
+            &info.workload_instance_name,
+            info.control_interface_to_server_sender.clone(),
+            info.authorizer.clone(),
+        )
+    }
+}
+
+#[cfg(test)]
+mock! {
+    pub ControlInterface {
+        pub fn new(
+            run_directory: &Path,
+            execution_instance_name: &WorkloadInstanceName,
+            output_pipe_channel: ToServerSender,
+            authorizer: Authorizer) -> Result<Self, ControlInterfaceError>;
+        pub fn get_authorizer(&self) -> &Authorizer;
+        pub fn get_api_location(&self) -> PathBuf;
+        pub fn get_input_pipe_sender(&self) -> FromServerSender;
+        pub fn abort_control_interface_task(&self);
+    }
+
+    impl TryFrom<MockControlInterfaceInfo> for ControlInterface{
+        type Error = ControlInterfaceError;
+        fn try_from(info: MockControlInterfaceInfo) -> Result<Self, ControlInterfaceError>;
     }
 }
 

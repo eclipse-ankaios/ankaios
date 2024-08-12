@@ -27,9 +27,9 @@ use super::ControlInterface;
 #[derive(Debug)]
 pub struct ControlInterfaceInfo {
     run_folder: PathBuf,
-    workload_instance_name: WorkloadInstanceName,
-    control_interface_to_server_sender: ToServerSender,
-    authorizer: Authorizer,
+    pub workload_instance_name: WorkloadInstanceName,
+    pub control_interface_to_server_sender: ToServerSender,
+    pub authorizer: Authorizer,
 }
 
 #[cfg_attr(test, automock)]
@@ -66,18 +66,6 @@ impl ControlInterfaceInfo {
 
         self_authorizer == other_authorizer
     }
-
-    pub fn create_control_interface(self) -> Option<ControlInterface> {
-        match ControlInterface::new(
-            &self.run_folder,
-            &self.workload_instance_name,
-            self.control_interface_to_server_sender.clone(),
-            self.authorizer,
-        ) {
-            Ok(res) => Some(res),
-            _ => None,
-        }
-    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -94,8 +82,6 @@ mod tests {
         Authorizer, ControlInterface, ControlInterfaceInfo, Path, PathBuf, WorkloadInstanceName,
     };
 
-    use crate::control_interface::ControlInterfaceError;
-    use crate::control_interface::MockControlInterface;
     use common::to_server_interface::ToServer;
 
     const WORKLOAD_1_NAME: &str = "workload1";
@@ -222,57 +208,5 @@ mod tests {
             .return_const(other_context_authorizer);
 
         assert!(!context_info.has_same_configuration(&other_context));
-    }
-
-    #[tokio::test]
-    async fn utest_create_control_interface_ok() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let new_context_info = ControlInterfaceInfo::new(
-            Path::new(PIPES_LOCATION),
-            tokio::sync::mpsc::channel::<ToServer>(1).0,
-            &WorkloadInstanceName::builder()
-                .workload_name(WORKLOAD_1_NAME)
-                .build(),
-            Authorizer::default(),
-        );
-
-        let control_interface_mock = MockControlInterface::new_context();
-        control_interface_mock
-            .expect()
-            .once()
-            .return_once(|_, _, _, _| Ok(MockControlInterface::default()));
-
-        assert!(new_context_info.create_control_interface().is_some());
-    }
-
-    #[tokio::test]
-    async fn utest_create_control_interface_failed() {
-        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
-            .get_lock_async()
-            .await;
-
-        let new_context_info = ControlInterfaceInfo::new(
-            Path::new(PIPES_LOCATION),
-            tokio::sync::mpsc::channel::<ToServer>(1).0,
-            &WorkloadInstanceName::builder()
-                .workload_name(WORKLOAD_1_NAME)
-                .build(),
-            Authorizer::default(),
-        );
-
-        let control_interface_mock = MockControlInterface::new_context();
-        control_interface_mock
-            .expect()
-            .once()
-            .return_once(|_, _, _, _| {
-                Err(ControlInterfaceError::CouldNotCreateFifo(String::from(
-                    "error",
-                )))
-            });
-
-        assert!(new_context_info.create_control_interface().is_none());
     }
 }
