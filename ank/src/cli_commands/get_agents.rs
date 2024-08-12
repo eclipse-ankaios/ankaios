@@ -64,7 +64,7 @@ impl CliCommands {
         workload_specs: impl Iterator<Item = FilteredWorkloadSpec>,
     ) -> HashMap<String, u32> {
         workload_specs.fold(HashMap::new(), |mut init, workload| {
-            if let Some(agent) = workload.agent.clone() {
+            if let Some(agent) = workload.agent {
                 let count = init.entry(agent).or_insert(DEFAULT_WORKLOAD_COUNT);
                 *count += 1;
             }
