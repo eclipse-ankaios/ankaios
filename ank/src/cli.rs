@@ -16,7 +16,7 @@ use std::error::Error;
 
 use clap::{command, Parser, Subcommand, ValueHint};
 
-use clap_complete::Shell;
+use clap_complete::dynamic::CompleteArgs;
 use common::DEFAULT_SERVER_ADDRESS;
 
 const ANK_SERVER_URL_ENV_KEY: &str = "ANK_SERVER_URL";
@@ -80,7 +80,7 @@ pub enum Commands {
     #[command(arg_required_else_help = true)]
     Apply(ApplyArgs),
     #[command(arg_required_else_help = true)]
-    Completion(CompletionArgs),
+    Complete(CompleteArgs),
 }
 
 /// Retrieve information about the current Ankaios system
@@ -211,14 +211,6 @@ pub struct ApplyArgs {
     /// Delete mode activated
     #[arg(short)]
     pub delete_mode: bool,
-}
-
-/// Generate shell completion
-#[derive(clap::Args, Debug)]
-pub struct CompletionArgs {
-    /// If provided, outputs the completion file for given shell
-    #[arg(required = true, value_enum)]
-    pub generator: Option<Shell>,
 }
 
 fn parse_key_val<K, V>(s: &str) -> Result<(K, V), Box<dyn Error + Send + Sync + 'static>>

@@ -6,9 +6,9 @@ Ankaios supports command completion for the `ank` CLI in various shells.
 
 Add the following lines to your `~/.bashrc`:
 
-```shell
+```bash
 if command -v ank &> /dev/null; then
-    source <(ank completion bash)
+    source <(ank complete --shell bash --register -)
 fi
 ```
 
@@ -16,9 +16,9 @@ fi
 
 Add the following lines to your `~/.zshrc`:
 
-```shell
+```zsh
 if command -v ank &> /dev/null; then
-    source <(ank completion zsh)
+    source <(ank complete --shell zsh --register -)
 fi
 ```
 
@@ -26,8 +26,20 @@ fi
 
 Add the following lines to your `~/.config/fish/config.fish`:
 
-```shell
+```fish
 if type -q ank
-    ank completion fish | source
+    source (ank complete --shell fish --register - | psub)
 end
+```
+
+## Elvish
+
+```elvish
+echo "eval (ank complete --shell elvish --register -)" >> ~/.elvish/rc.elv
+```
+
+## Powershell
+
+```powershell
+echo "ank complete --shell powershell --register - | Invoke-Expression" >> $PROFILE
 ```

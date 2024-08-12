@@ -12,25 +12,20 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{env, io};
+use std::env;
 
 mod cli;
 mod cli_commands;
-use clap::{Command, CommandFactory};
+use clap::CommandFactory;
 use cli_commands::CliCommands;
 use common::std_extensions::GracefulExitResult;
 use grpc::security::TLSConfig;
 mod cli_error;
 mod filtered_complete_state;
 mod log;
-use clap_complete::{generate, Generator};
 
 #[cfg(test)]
 pub mod test_helper;
-
-fn print_completions<G: Generator>(gen: G, cmd: &mut Command) {
-    generate(gen, cmd, cmd.get_name().to_string(), &mut io::stdout());
-}
 
 // [impl->swdd~cli-standalone-application~1]
 #[tokio::main]
@@ -47,11 +42,9 @@ async fn main() {
         args
     );
 
-    if let cli::Commands::Completion(completion_args) = args.command {
-        if let Some(generator) = completion_args.generator {
-            let mut cmd = cli::AnkCli::command();
-            print_completions(generator, &mut cmd);
-        }
+    if let cli::Commands::Complete(completions) = args.command {
+        let mut cmd = cli::AnkCli::command();
+        completions.complete(&mut cmd);
     } else {
         let server_url = match args.insecure {
             true => args.server_url.replace("http[s]", "http"),
@@ -195,7 +188,7 @@ async fn main() {
                     output_and_error!("{}", err);
                 }
             }
-            cli::Commands::Completion(_) => {
+            cli::Commands::Complete(_) => {
                 // This has been handled already before
             }
         }
