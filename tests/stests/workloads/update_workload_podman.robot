@@ -43,7 +43,7 @@ Test Ankaios CLI update workload
     # Actions
     When user triggers "ank -k get state > ${new_state_yaml_file}"
     And user updates the state "${new_state_yaml_file}" with "desiredState.workloads.nginx.runtimeConfig.commandOptions=['-p', '8082:80']"
-    And user triggers "ank -k set state -f ${new_state_yaml_file} desiredState.workloads.nginx"
+    And user triggers "ank -k set state desiredState.workloads.nginx -f ${new_state_yaml_file}"
     # Asserts
     Then the workload "nginx" shall have the execution state "Running(Ok)" on agent "agent_A" within "20" seconds
     And the command "curl localhost:8082" shall finish with exit code "0" within "10" seconds
