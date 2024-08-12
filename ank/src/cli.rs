@@ -14,7 +14,7 @@
 
 use std::error::Error;
 
-use clap::{command, Parser, Subcommand};
+use clap::{command, Parser, Subcommand, ValueHint};
 
 use clap_complete::Shell;
 use common::DEFAULT_SERVER_ADDRESS;
@@ -140,7 +140,7 @@ pub enum SetCommands {
         #[arg(required = true)]
         object_field_mask: Vec<String>,
         /// A file containing the new State Object Description in yaml format
-        #[arg(short = 'f', long = "file")]
+        #[arg(short = 'f', long = "file", value_hint = ValueHint::FilePath)]
         state_object_file: Option<String>,
     },
 }
@@ -202,7 +202,7 @@ pub enum RunCommands {
 /// Apply Ankaios manifest content or file(s)
 #[derive(clap::Args, Debug)]
 pub struct ApplyArgs {
-    #[arg(value_name = "Ankaios manifest file(s) or '-' for stdin")]
+    #[arg(value_name = "Ankaios manifest file(s) or '-' for stdin", value_hint = ValueHint::FilePath)]
     pub manifest_files: Vec<String>,
     /// Specify on which agent to apply the Ankaios manifests.
     /// If not specified, the agent(s) must be specified in the Ankaios manifest(s)
