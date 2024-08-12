@@ -19,10 +19,7 @@ use std::{
 
 use common::objects::WorkloadInstanceName;
 
-use crate::{
-    cli_commands::workload_table_row::{ColumnPosition, WorkloadTableRowWithSpinner},
-    output_debug,
-};
+use crate::cli_commands::workload_table_row::{ColumnPosition, WorkloadTableRowWithSpinner};
 
 use super::table_builder::TableBuilder;
 use super::{wait_list::WaitListDisplayTrait, workload_table_row::WorkloadTableRow};

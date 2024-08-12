@@ -53,8 +53,6 @@ where
     }
 
     pub fn disable_surrounding_padding(mut self) -> Self {
-        /* Set the left padding of the first and the right padding of the last column to zero
-        to align the table content to the full terminal width for better output quality. */
         const FIRST_COLUMN_POS: usize = 0;
         const ZERO_PADDING: usize = 0;
 
@@ -71,6 +69,8 @@ where
             .get_config()
             .get_padding(tabled::grid::config::Entity::Column(last_column_pos));
 
+        /* Set the left padding of the first and the right padding of the last column to zero
+        to align the table content to the full terminal width for better output quality. */
         self.table
             .with(Modify::new(Columns::first()).with(Padding::new(
                 ZERO_PADDING,
