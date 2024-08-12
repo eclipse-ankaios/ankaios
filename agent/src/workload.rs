@@ -26,9 +26,9 @@ pub use workload_control_loop::MockWorkloadControlLoop;
 use std::{fmt::Display, path::PathBuf};
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::control_interface_info::ControlInterfaceInfo;
-#[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::ControlInterface;
+#[cfg_attr(test, mockall_double::double)]
+use crate::control_interface::ControlInterfaceInfo;
 
 use api::ank_base;
 

@@ -23,7 +23,7 @@ mod input_output;
 mod reopen_file;
 mod to_ankaios;
 
-use control_interface_info::ControlInterfaceInfo;
+pub use control_interface_info::ControlInterfaceInfo;
 pub use to_ankaios::ToAnkaios;
 
 #[cfg(test)]
@@ -149,9 +149,9 @@ impl TryFrom<ControlInterfaceInfo> for ControlInterface {
     fn try_from(info: ControlInterfaceInfo) -> Result<Self, ControlInterfaceError> {
         ControlInterface::new(
             info.get_run_folder(),
-            &info.workload_instance_name,
-            info.control_interface_to_server_sender.clone(),
-            info.authorizer.clone(),
+            info.get_workload_instance_name(),
+            info.get_control_interface_to_server_sender(),
+            info.get_authorizer(),
         )
     }
 }

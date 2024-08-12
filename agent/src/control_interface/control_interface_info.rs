@@ -27,9 +27,9 @@ use super::ControlInterface;
 #[derive(Debug)]
 pub struct ControlInterfaceInfo {
     run_folder: PathBuf,
-    pub workload_instance_name: WorkloadInstanceName,
-    pub control_interface_to_server_sender: ToServerSender,
-    pub authorizer: Authorizer,
+    workload_instance_name: WorkloadInstanceName,
+    control_interface_to_server_sender: ToServerSender,
+    authorizer: Authorizer,
 }
 
 #[cfg_attr(test, automock)]
@@ -50,6 +50,18 @@ impl ControlInterfaceInfo {
 
     pub fn get_run_folder(&self) -> &PathBuf {
         &self.run_folder
+    }
+
+    pub fn get_workload_instance_name(&self) -> &WorkloadInstanceName {
+        &self.workload_instance_name
+    }
+
+    pub fn get_control_interface_to_server_sender(&self) -> ToServerSender {
+        self.control_interface_to_server_sender.clone()
+    }
+
+    pub fn get_authorizer(&self) -> Authorizer {
+        self.authorizer.clone()
     }
 
     pub fn has_same_configuration(&self, other: &ControlInterface) -> bool {
