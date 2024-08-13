@@ -32,7 +32,7 @@ use common::{
 use crate::control_interface::ControlInterface;
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::ControlInterfaceInfo;
+use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_scheduler::scheduler::WorkloadScheduler;
@@ -503,7 +503,8 @@ mod tests {
         RuntimeManager, WorkloadInstanceName, WorkloadOperation, WorkloadSpec,
     };
     use crate::control_interface::{
-        authorizer::MockAuthorizer, MockControlInterface, MockControlInterfaceInfo,
+        authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
+        MockControlInterface,
     };
     use crate::runtime_connectors::{MockRuntimeFacade, RuntimeError};
     use crate::workload::{MockWorkload, WorkloadError};

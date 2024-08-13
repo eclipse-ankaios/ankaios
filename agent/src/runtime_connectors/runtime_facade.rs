@@ -7,9 +7,9 @@ use common::{
 use mockall::automock;
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::ControlInterface;
+use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::ControlInterfaceInfo;
+use crate::control_interface::ControlInterface;
 
 use crate::{
     runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker},
@@ -320,8 +320,8 @@ mod tests {
     };
 
     use crate::{
+        control_interface::control_interface_info::MockControlInterfaceInfo,
         control_interface::MockControlInterface,
-        control_interface::MockControlInterfaceInfo,
         runtime_connectors::{
             runtime_connector::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
             GenericRuntimeFacade, OwnableRuntime, RuntimeFacade,

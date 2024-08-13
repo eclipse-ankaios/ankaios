@@ -15,21 +15,23 @@
 pub mod authorizer;
 pub mod control_interface_info;
 mod control_interface_task;
-pub mod directory;
+mod directory;
 mod fifo;
-pub mod filesystem;
+mod filesystem;
 mod from_server_channels;
 mod input_output;
 mod reopen_file;
 mod to_ankaios;
 
-pub use control_interface_info::ControlInterfaceInfo;
 pub use to_ankaios::ToAnkaios;
 
+#[cfg(not(test))]
+pub use directory::Directory;
+
+pub use filesystem::FileSystemError;
+
 #[cfg(test)]
-pub use control_interface_info::MockControlInterfaceInfo;
-#[cfg(test)]
-pub use directory::generate_test_directory_mock;
+pub use directory::{generate_test_directory_mock, MockDirectory};
 #[cfg(test)]
 pub use fifo::MockFifo;
 #[cfg(test)]
@@ -42,6 +44,8 @@ use common::{from_server_interface::FromServerSender, to_server_interface::ToSer
 
 #[cfg_attr(test, mockall_double::double)]
 use authorizer::Authorizer;
+#[cfg_attr(test, mockall_double::double)]
+use control_interface_info::ControlInterfaceInfo;
 #[cfg_attr(test, mockall_double::double)]
 use control_interface_task::ControlInterfaceTask;
 #[cfg_attr(test, mockall_double::double)]
@@ -170,9 +174,9 @@ mock! {
         pub fn abort_control_interface_task(&self);
     }
 
-    impl TryFrom<MockControlInterfaceInfo> for ControlInterface{
+    impl TryFrom<ControlInterfaceInfo> for ControlInterface{
         type Error = ControlInterfaceError;
-        fn try_from(info: MockControlInterfaceInfo) -> Result<Self, ControlInterfaceError>;
+        fn try_from(info: ControlInterfaceInfo) -> Result<Self, ControlInterfaceError>;
     }
 }
 

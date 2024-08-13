@@ -26,9 +26,9 @@ pub use workload_control_loop::MockWorkloadControlLoop;
 use std::{fmt::Display, path::PathBuf};
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::ControlInterface;
+use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::ControlInterfaceInfo;
+use crate::control_interface::ControlInterface;
 
 use api::ank_base;
 
@@ -193,8 +193,8 @@ mod tests {
     use tokio::{sync::mpsc, time::timeout};
 
     use crate::{
+        control_interface::control_interface_info::MockControlInterfaceInfo,
         control_interface::MockControlInterface,
-        control_interface::MockControlInterfaceInfo,
         workload::{Workload, WorkloadCommand, WorkloadCommandSender, WorkloadError},
     };
 

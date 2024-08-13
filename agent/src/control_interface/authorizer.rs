@@ -12,9 +12,9 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-pub mod path;
-pub mod path_pattern;
-pub mod rule;
+mod path;
+mod path_pattern;
+mod rule;
 
 use common::{
     commands::Request,

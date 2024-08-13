@@ -15,8 +15,8 @@
 use std::path::Path;
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::directory::Directory;
-use crate::control_interface::filesystem::FileSystemError;
+use crate::control_interface::Directory;
+use crate::control_interface::FileSystemError;
 use clap::Parser;
 use common::DEFAULT_SERVER_ADDRESS;
 
