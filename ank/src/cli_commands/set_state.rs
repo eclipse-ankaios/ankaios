@@ -56,40 +56,51 @@ fn add_default_workload_spec_per_update_mask(
 }
 
 // [impl->swdd~cli-supports-yaml-to-set-desired-state~1]
-async fn process_inputs<R: Read>(reader: R, state_object_file: &str, temp_obj: &mut Object) {
+async fn process_inputs<R: Read>(reader: R, state_object_file: &str) -> Result<Object, CliError> {
     match state_object_file {
         "-" => {
-            let stdin = io::read_to_string(reader).unwrap_or_else(|error| {
-                output_and_error!("Could not read the state object file.\nError: {}", error)
-            });
-            let value: serde_yaml::Value = serde_yaml::from_str(&stdin).unwrap_or_else(|error| {
-                output_and_error!("Could not convert to yaml Value.\nError: {}", error)
-            });
-            *temp_obj = Object::try_from(&value).unwrap_or_else(|error| {
-                output_and_error!("Could not convert object.\n Error: {}", error)
-            });
+            let stdin = io::read_to_string(reader).map_err(|error| {
+                CliError::ExecutionError(format!(
+                    "Could not read the state object file.\nError: {}",
+                    error
+                ))
+            })?;
+            let value: serde_yaml::Value = serde_yaml::from_str(&stdin).map_err(|error| {
+                CliError::YamlSerialization(format!(
+                    "Could not convert to yaml Value.\nError: {}",
+                    error
+                ))
+            })?;
+            let temp_obj = Object::try_from(&value)?;
+            Ok(temp_obj)
         }
         _ => {
-            let state_object_data = read_file_to_string(state_object_file.to_string())
-                .unwrap_or_else(|error| {
-                    output_and_error!("Could not read the state object file.\nError: {}", error)
-                });
+            let state_object_data =
+                read_file_to_string(state_object_file.to_string()).map_err(|error| {
+                    CliError::ExecutionError(format!(
+                        "Could not read the state object file.\nError: {}",
+                        error
+                    ))
+                })?;
             let value: serde_yaml::Value =
-                serde_yaml::from_str(&state_object_data).unwrap_or_else(|error| {
-                    output_and_error!("Could not convert to yaml Value.\nError: {}", error)
-                });
-            *temp_obj = Object::try_from(&value).unwrap_or_else(|error| {
-                output_and_error!("Could not convert object.\n Error: {}", error)
-            });
+                serde_yaml::from_str(&state_object_data).map_err(|error| {
+                    CliError::YamlSerialization(format!(
+                        "Could not convert to yaml Value.\nError: {}",
+                        error
+                    ))
+                })?;
+            let temp_obj = Object::try_from(&value)?;
+            Ok(temp_obj)
         }
     }
 }
 
+// [impl->swdd~cli-supports-yaml-to-set-desired-state~1]
 fn overwrite_using_field_mask(
-    complete_state_object: &mut Object,
+    mut complete_state_object: Object,
     object_field_mask: &Vec<String>,
     temp_obj: &Object,
-) {
+) -> Result<Object, CliError> {
     for field_mask in object_field_mask {
         let path: Path = field_mask.into();
 
@@ -109,21 +120,17 @@ fn overwrite_using_field_mask(
                     })
                     .clone(),
             )
-            .map_err(|err| CliError::ExecutionError(err.to_string()))
-            .unwrap_or_else(|error| {
-                output_and_error!(
-                    "Encountered error while overwritting using field mask. Error: {}",
-                    error
-                )
-            });
+            .map_err(|err| CliError::ExecutionError(err.to_string()))?;
     }
+
+    Ok(complete_state_object)
 }
 
 impl CliCommands {
     pub async fn set_state(
         &mut self,
         object_field_mask: Vec<String>,
-        state_object_file: Option<String>,
+        state_object_file: String,
     ) -> Result<(), CliError> {
         output_debug!(
             "Got: object_field_mask={:?} state_object_file={:?}",
@@ -132,17 +139,15 @@ impl CliCommands {
         );
 
         let mut complete_state = CompleteState::default();
-        let mut temp_obj: Object = Object::default();
 
-        if let Some(state_object_file) = state_object_file {
-            process_inputs(io::stdin(), &state_object_file, &mut temp_obj).await;
-            add_default_workload_spec_per_update_mask(&object_field_mask, &mut complete_state);
+        let temp_obj = process_inputs(io::stdin(), &state_object_file).await?;
+        add_default_workload_spec_per_update_mask(&object_field_mask, &mut complete_state);
 
-            // now overwrite with the values from the field mask
-            let mut complete_state_object: Object = complete_state.try_into()?;
-            overwrite_using_field_mask(&mut complete_state_object, &object_field_mask, &temp_obj);
-            complete_state = complete_state_object.try_into()?;
-        }
+        // now overwrite with the values from the field mask
+        let mut complete_state_object: Object = complete_state.try_into()?;
+        complete_state_object =
+            overwrite_using_field_mask(complete_state_object, &object_field_mask, &temp_obj)?;
+        complete_state = complete_state_object.try_into()?;
 
         output_debug!(
             "Send UpdateState request with the CompleteState {:?}",
@@ -196,6 +201,7 @@ mod tests {
               image: docker.io/nginx:latest
               commandOptions: ["-p", "8081:80"]"#;
 
+    // [utest->swdd~cli-provides-set-desired-state~1]
     #[test]
     fn utest_add_default_workload_spec_empty_update_mask() {
         let update_mask = vec![];
@@ -206,6 +212,7 @@ mod tests {
         assert!(complete_state.desired_state.workloads.is_empty());
     }
 
+    // [utest->swdd~cli-provides-set-desired-state~1]
     #[test]
     fn utest_add_default_workload_spec_with_update_mask() {
         let update_mask = vec![
@@ -228,6 +235,7 @@ mod tests {
             .contains_key("nginx3"));
     }
 
+    // [utest->swdd~cli-provides-set-desired-state~1]
     #[test]
     fn utest_add_default_workload_spec_invalid_path() {
         let update_mask = vec!["invalid.path".to_string()];
@@ -238,6 +246,7 @@ mod tests {
         assert!(complete_state.desired_state.workloads.is_empty());
     }
 
+    // [utest->swdd~cli-provides-set-desired-state~1]
     #[test]
     fn utest_overwrite_using_field_mask() {
         let workload_spec = StoredWorkloadSpec::default();
@@ -253,7 +262,8 @@ mod tests {
         let temp_object = Object::try_from(&value).unwrap();
         let update_mask = vec!["desiredState.workloads.nginx".to_string()];
 
-        overwrite_using_field_mask(&mut complete_state_object, &update_mask, &temp_object);
+        complete_state_object =
+            overwrite_using_field_mask(complete_state_object, &update_mask, &temp_object).unwrap();
 
         complete_state = complete_state_object.try_into().unwrap();
 
@@ -275,9 +285,8 @@ mod tests {
         let input = SAMPLE_CONFIG;
         let reader = Cursor::new(input);
         let state_object_file = "-".to_string();
-        let mut temp_obj = Object::default();
 
-        process_inputs(reader, &state_object_file, &mut temp_obj).await;
+        let temp_obj = process_inputs(reader, &state_object_file).await.unwrap();
 
         let value: Value = serde_yaml::from_str(SAMPLE_CONFIG).unwrap();
         let expected_obj = Object::try_from(&value).unwrap();
@@ -289,10 +298,11 @@ mod tests {
     #[tokio::test]
     async fn utest_process_inputs_file() {
         let state_object_file = SAMPLE_CONFIG.to_owned();
-        let mut temp_obj = Object::default();
         println!("{:?}", state_object_file);
 
-        process_inputs(io::empty(), &state_object_file, &mut temp_obj).await;
+        let temp_obj = process_inputs(io::empty(), &state_object_file)
+            .await
+            .unwrap();
         println!("{:?}", temp_obj);
 
         let value: Value = serde_yaml::from_str(SAMPLE_CONFIG).unwrap();
@@ -308,16 +318,17 @@ mod tests {
         let input = "invalid yaml";
         let reader = Cursor::new(input);
         let state_object_file = "-".to_string();
-        let mut temp_obj = Object::default();
 
-        process_inputs(reader, &state_object_file, &mut temp_obj).await;
+        let temp_obj = process_inputs(reader, &state_object_file).await;
+
+        assert!(temp_obj.is_ok());
     }
 
     // [utest->swdd~cli-provides-set-desired-state~1]
     #[tokio::test]
     async fn utest_set_state_ok() {
         let update_mask = vec!["desiredState.workloads.nginx.restartPolicy".to_string()];
-        let state_object_file = Some(SAMPLE_CONFIG.to_owned());
+        let state_object_file = SAMPLE_CONFIG.to_owned();
 
         let workload_spec = StoredWorkloadSpec {
             restart_policy: RestartPolicy::Always,

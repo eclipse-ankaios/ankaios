@@ -138,7 +138,7 @@ pub enum SetCommands {
         object_field_mask: Vec<String>,
         /// A file containing the new State Object Description in yaml format
         #[arg(required = true)]
-        state_object_file: Option<String>,
+        state_object_file: String,
     },
 }
 
