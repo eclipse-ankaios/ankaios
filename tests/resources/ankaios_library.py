@@ -349,3 +349,21 @@ def internal_check_all_control_interface_requests_failed(tmp_folder):
 
 def empty_keyword():
     pass
+
+def check_if_files_have_been_generated(directory: str) -> None:
+    """
+    Function used to check if input and output files have been generated inside the directory
+
+    Args:
+        directory (str): where to check for the creation of the files
+
+    Returns:
+        None
+    """
+
+    input_file_path = path.join(directory, "")
+    output_file_path = path.join(directory, "")
+
+    assert path.isfile(input_file_path) and path.isfile(output_file_path)
+
+
