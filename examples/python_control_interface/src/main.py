@@ -57,7 +57,7 @@ def create_request_for_complete_state():
     return control_api.ToAnkaios(
         request=ank_base.Request(
             completeStateRequest=ank_base.CompleteStateRequest(
-                fieldMask=["workloadStates.agent_A.dynamic_nginx"]
+                fieldMask=["desiredState", "workloadStates"]
             ),
             requestId=REQUEST_ID,
         )

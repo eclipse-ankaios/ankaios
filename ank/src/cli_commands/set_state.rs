@@ -72,7 +72,7 @@ impl CliCommands {
                 read_file_to_string(state_object_file).unwrap_or_else(|error| {
                     output_and_error!("Could not read the state object file.\nError: {}", error)
                 });
-            let value: serde_yaml::Value = serde_yaml::from_str(&state_object_data)?;
+            let value: serde_json::Value = serde_json::from_str(&state_object_data)?;
             let x = Object::try_from(&value)?;
 
             // This here is a workaround for the default workload specs

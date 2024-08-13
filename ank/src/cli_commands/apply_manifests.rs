@@ -28,7 +28,7 @@ use super::get_input_sources;
 
 // [impl->swdd~cli-apply-supports-ankaios-manifest~1]
 pub fn parse_manifest(manifest: &mut InputSourcePair) -> Result<(Object, Vec<Path>), String> {
-    let state_obj_parsing_check: serde_yaml::Value = serde_yaml::from_reader(&mut manifest.1)
+    let state_obj_parsing_check: serde_json::Value = serde_json::from_reader(&mut manifest.1)
         .map_err(|err| format!("Invalid manifest data provided: {}", err))?;
     match Object::try_from(&state_obj_parsing_check) {
         Err(err) => Err(format!(
@@ -75,7 +75,7 @@ pub fn handle_agent_overwrite(
             if state_obj
                 .set(
                     &path.into(),
-                    serde_yaml::Value::String(desired_agent_name.to_owned()),
+                    serde_json::Value::String(desired_agent_name.to_owned()),
                 )
                 .is_err()
             {

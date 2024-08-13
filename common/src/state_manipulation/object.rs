@@ -17,10 +17,10 @@ use std::collections::HashSet;
 use super::Path;
 use crate::objects as ankaios;
 use api::ank_base as proto;
-use serde_yaml::{
+use serde_json::{
     from_value,
-    mapping::{Entry::Occupied, Entry::Vacant},
-    to_value, Mapping, Value,
+    map::{Entry::Occupied, Entry::Vacant},
+    to_value, Value,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -31,15 +31,15 @@ pub struct Object {
 impl Default for Object {
     fn default() -> Self {
         Self {
-            data: Value::Mapping(Default::default()),
+            data: Value::Object(Default::default()),
         }
     }
 }
 
-impl TryFrom<&serde_yaml::Value> for Object {
-    type Error = serde_yaml::Error;
+impl TryFrom<&serde_json::Value> for Object {
+    type Error = serde_json::Error;
 
-    fn try_from(value: &serde_yaml::Value) -> Result<Self, Self::Error> {
+    fn try_from(value: &serde_json::Value) -> Result<Self, Self::Error> {
         Ok(Object {
             data: value.to_owned(),
         })
@@ -47,7 +47,7 @@ impl TryFrom<&serde_yaml::Value> for Object {
 }
 
 impl TryFrom<&ankaios::State> for Object {
-    type Error = serde_yaml::Error;
+    type Error = serde_json::Error;
 
     fn try_from(value: &ankaios::State) -> Result<Self, Self::Error> {
         Ok(Object {
@@ -57,7 +57,7 @@ impl TryFrom<&ankaios::State> for Object {
 }
 
 impl TryFrom<ankaios::State> for Object {
-    type Error = serde_yaml::Error;
+    type Error = serde_json::Error;
 
     fn try_from(value: ankaios::State) -> Result<Self, Self::Error> {
         (&value).try_into()
@@ -65,7 +65,7 @@ impl TryFrom<ankaios::State> for Object {
 }
 
 impl TryFrom<ankaios::CompleteState> for Object {
-    type Error = serde_yaml::Error;
+    type Error = serde_json::Error;
 
     fn try_from(value: ankaios::CompleteState) -> Result<Self, Self::Error> {
         Ok(Object {
@@ -75,7 +75,7 @@ impl TryFrom<ankaios::CompleteState> for Object {
 }
 
 impl TryFrom<proto::CompleteState> for Object {
-    type Error = serde_yaml::Error;
+    type Error = serde_json::Error;
 
     fn try_from(value: proto::CompleteState) -> Result<Self, Self::Error> {
         Ok(Object {
@@ -85,7 +85,7 @@ impl TryFrom<proto::CompleteState> for Object {
 }
 
 impl TryFrom<&ankaios::CompleteState> for Object {
-    type Error = serde_yaml::Error;
+    type Error = serde_json::Error;
 
     fn try_from(value: &ankaios::CompleteState) -> Result<Self, Self::Error> {
         Ok(Object {
@@ -95,7 +95,7 @@ impl TryFrom<&ankaios::CompleteState> for Object {
 }
 
 impl TryInto<ankaios::State> for Object {
-    type Error = serde_yaml::Error;
+    type Error = serde_json::Error;
 
     fn try_into(self) -> Result<ankaios::State, Self::Error> {
         from_value(self.data)
@@ -103,7 +103,7 @@ impl TryInto<ankaios::State> for Object {
 }
 
 impl TryInto<ankaios::CompleteState> for Object {
-    type Error = serde_yaml::Error;
+    type Error = serde_json::Error;
 
     fn try_into(self) -> Result<ankaios::CompleteState, Self::Error> {
         from_value(self.data)
@@ -111,7 +111,7 @@ impl TryInto<ankaios::CompleteState> for Object {
 }
 
 impl TryInto<proto::State> for Object {
-    type Error = serde_yaml::Error;
+    type Error = serde_json::Error;
 
     fn try_into(self) -> Result<proto::State, Self::Error> {
         from_value(self.data)
@@ -119,7 +119,7 @@ impl TryInto<proto::State> for Object {
 }
 
 impl TryInto<proto::CompleteState> for Object {
-    type Error = serde_yaml::Error;
+    type Error = serde_json::Error;
 
     fn try_into(self) -> Result<proto::CompleteState, Self::Error> {
         from_value(self.data)
@@ -133,12 +133,12 @@ fn generate_paths_from_yaml_node(
     includes_mappings_and_sequences: bool,
 ) {
     match node {
-        Value::Mapping(mapping) => {
+        Value::Object(mapping) => {
             for (key, value) in mapping {
-                let key_str = match key {
+                let key_str = match value {
                     Value::String(key_str) => key_str.to_owned(),
                     Value::Number(key_number) if key_number.is_i64() || key_number.is_u64() => {
-                        serde_yaml::to_string(key_number)
+                        serde_json::to_string(key_number)
                             .unwrap()
                             .strip_suffix('\n')
                             .unwrap()
@@ -163,7 +163,7 @@ fn generate_paths_from_yaml_node(
                 );
             }
         }
-        Value::Sequence(sequence) => {
+        Value::Array(sequence) => {
             for (index, value) in sequence.iter().enumerate() {
                 let new_path = format!("{}.{}", start_path, index);
                 if includes_mappings_and_sequences {
@@ -207,33 +207,33 @@ impl Object {
         let (path_head, path_last) = path.split_last()?;
         let mut current = self
             .data
-            .as_mapping_mut()
+            .as_object_mut()
             .ok_or("The root of the object is not a mapping")?;
 
         for path_part in path_head.parts() {
-            let next = match current.entry(path_part.to_owned().into()) {
+            let next = match current.entry(path_part.to_owned()) {
                 Occupied(value) => &mut *value.into_mut(),
-                Vacant(value) => &mut *value.insert(Value::Mapping(Mapping::default())),
+                Vacant(value) => &mut *value.insert(Value::Object(Default::default())),
             };
 
-            current = next.as_mapping_mut().ok_or("object is not a mapping")?;
+            current = next.as_object_mut().ok_or("object is not a mapping")?;
         }
 
-        current.insert(path_last.into(), value);
+        current.insert(path_last, value);
         Ok(())
     }
 
     pub fn remove(&mut self, path: &Path) -> Result<(), String> {
         let (path_head, path_last) = path.split_last()?;
 
-        self.get_as_mapping(&path_head)
+        self.get_as_object(&path_head)
             .ok_or_else(|| format!("{:?} is not mapping", path_head))?
-            .remove(Value::String(path_last));
+            .remove(&path_last);
         Ok(())
     }
 
-    fn get_as_mapping(&mut self, path: &Path) -> Option<&mut Mapping> {
-        if let Value::Mapping(mapping) = self.get_mut(path)? {
+    fn get_as_object(&mut self, path: &Path) -> Option<&mut serde_json::map::Map<String, Value>> {
+        if let Value::Object(mapping) = self.get_mut(path)? {
             Some(mapping)
         } else {
             None
@@ -244,10 +244,8 @@ impl Object {
         let mut current_obj = &self.data;
         for p in path.parts() {
             match current_obj {
-                Value::Mapping(as_mapping) => {
-                    current_obj = as_mapping.get(Value::String(p.to_owned()))?
-                }
-                Value::Sequence(as_sequence) => {
+                Value::Object(as_mapping) => current_obj = as_mapping.get(p)?,
+                Value::Array(as_sequence) => {
                     if let Ok(index) = p.parse::<usize>() {
                         current_obj = as_sequence.get(index)?
                     } else {
@@ -263,8 +261,8 @@ impl Object {
     fn get_mut(&mut self, path: &Path) -> Option<&mut Value> {
         let mut current_obj = &mut self.data;
         for p in path.parts() {
-            if let Value::Mapping(as_mapping) = current_obj {
-                current_obj = as_mapping.get_mut(Value::String(p.to_owned()))?
+            if let Value::Object(as_mapping) = current_obj {
+                current_obj = as_mapping.get_mut(p)?
             } else {
                 return None;
             }
@@ -290,7 +288,7 @@ mod tests {
         },
         test_utils::generate_test_state_from_workloads,
     };
-    use serde_yaml::Value;
+    use serde_json::Value;
 
     use super::Object;
     #[test]
@@ -593,7 +591,7 @@ mod tests {
         let res = data.get(&"workloads.name.restartPolicy".into());
 
         assert!(res.is_some());
-        assert_eq!(res.expect(""), &serde_yaml::Value::from("ALWAYS"));
+        assert_eq!(res.expect(""), &serde_json::Value::from("ALWAYS"));
     }
 
     #[test]
@@ -697,7 +695,7 @@ mod tests {
     }
 
     mod object {
-        use serde_yaml::Value;
+        use serde_json::Value;
 
         use crate::objects::generate_test_runtime_config;
 
@@ -759,7 +757,7 @@ mod tests {
         }
 
         pub fn generate_test_value_object() -> Value {
-            serde_yaml::from_str(
+            serde_json::from_str(
                 r#"
                 A:
                  AA: aaa

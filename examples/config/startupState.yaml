@@ -18,6 +18,6 @@ workloads:
           operation: Read
           filterMask:
             # workload is allowed to read the workload state of the workload dynamic_nginx
-            - "workloadStates.agent_A.dynamic_nginx"
+            - "*"
     runtimeConfig: |
       image: control_interface_prod:0.1
