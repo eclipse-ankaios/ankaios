@@ -82,7 +82,7 @@ pub struct ControlInterface {
 }
 
 impl ControlInterface {
-    pub fn new(
+    fn new(
         run_directory: &Path,
         execution_instance_name: &WorkloadInstanceName,
         output_pipe_channel: ToServerSender,
