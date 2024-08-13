@@ -45,8 +45,6 @@ use common::{from_server_interface::FromServerSender, to_server_interface::ToSer
 #[cfg_attr(test, mockall_double::double)]
 use authorizer::Authorizer;
 #[cfg_attr(test, mockall_double::double)]
-use control_interface_info::ControlInterfaceInfo;
-#[cfg_attr(test, mockall_double::double)]
 use control_interface_task::ControlInterfaceTask;
 #[cfg_attr(test, mockall_double::double)]
 use from_server_channels::FromServerChannels;
@@ -55,7 +53,8 @@ use input_output::InputOutput;
 #[cfg_attr(test, mockall_double::double)]
 use reopen_file::ReopenFile;
 use std::{
-    fmt::{self, Display},
+    fmt,
+    fmt::Display,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -147,15 +146,19 @@ impl Drop for ControlInterface {
     }
 }
 
-impl TryFrom<ControlInterfaceInfo> for ControlInterface {
+impl TryFrom<control_interface_info::ControlInterfaceInfo> for ControlInterface {
     type Error = ControlInterfaceError;
 
-    fn try_from(info: ControlInterfaceInfo) -> Result<Self, ControlInterfaceError> {
+    fn try_from(
+        info: control_interface_info::ControlInterfaceInfo,
+    ) -> Result<Self, ControlInterfaceError> {
+        let run_directory = info.get_run_folder().clone();
+        let authorizer = info.authorizer;
         ControlInterface::new(
-            info.get_run_folder(),
-            info.get_workload_instance_name(),
-            info.get_control_interface_to_server_sender(),
-            info.get_authorizer(),
+            &run_directory,
+            &info.workload_instance_name,
+            info.control_interface_to_server_sender.clone(),
+            authorizer,
         )
     }
 }
@@ -174,9 +177,9 @@ mock! {
         pub fn abort_control_interface_task(&self);
     }
 
-    impl TryFrom<ControlInterfaceInfo> for ControlInterface{
+    impl TryFrom<control_interface_info::MockControlInterfaceInfo> for ControlInterface {
         type Error = ControlInterfaceError;
-        fn try_from(info: ControlInterfaceInfo) -> Result<Self, ControlInterfaceError>;
+        fn try_from(info: control_interface_info::MockControlInterfaceInfo) -> Result<Self, ControlInterfaceError>;
     }
 }
 
