@@ -83,7 +83,7 @@ pub struct ControlInterface {
     authorizer: Arc<Authorizer>,
 }
 
-// [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
+// [impl->swdd~agent-create-control-interface-pipes-per-workload~2]
 #[cfg_attr(test, automock)]
 impl ControlInterface {
     pub fn new(
@@ -173,7 +173,7 @@ mod tests {
     };
     use common::objects::WorkloadInstanceName;
 
-    // [utest->swdd~agent-create-control-interface-pipes-per-workload~1]
+    // [utest->swdd~agent-create-control-interface-pipes-per-workload~2]
     // [utest->swdd~agent-control-interface-pipes-path-naming~1]
     #[tokio::test]
     async fn utest_control_interface_get_api_location_returns_valid_location() {
@@ -223,7 +223,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-create-control-interface-pipes-per-workload~1]
+    // [utest->swdd~agent-create-control-interface-pipes-per-workload~2]
     #[tokio::test]
     async fn utest_get_input_pipe_sender_returns_valid_sender() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

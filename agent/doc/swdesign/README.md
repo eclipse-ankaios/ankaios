@@ -489,7 +489,7 @@ Needs:
 - utest
 
 #### Agent creates a ControlInterface instance for a workload
-`swdd~agent-create-control-interface-pipes-per-workload~1`
+`swdd~agent-create-control-interface-pipes-per-workload~2`
 
 Status: approved
 
@@ -652,7 +652,7 @@ Needs:
 - utest
 
 ##### RuntimeFacade creates workload
-`swdd~agent-create-workload~1`
+`swdd~agent-create-workload~2`
 
 Status: approved
 
@@ -678,9 +678,7 @@ Needs:
 
 Status: approved
 
-When handling existing workloads, for each found existing workload which is requested to be started and has unchanged configuration and the workload is running, the RuntimeManager shall:
-* create a new ControlInterface instance
-* request the corresponding RuntimeFacade to resume the workload by providing the new ControlInterface instance to the RuntimeFacade
+When handling existing workloads, for each found existing workload which is requested to be started and has unchanged configuration and the workload is running, the RuntimeManager shall request the corresponding RuntimeFacade to resume the workload using a new control interface instance.
 
 Tags:
 - RuntimeManager
@@ -861,7 +859,7 @@ Needs:
 - utest
 
 ##### Workload handles update command
-`swdd~agent-workload-obj-update-command~1`
+`swdd~agent-workload-obj-update-command~2`
 
 Status: approved
 

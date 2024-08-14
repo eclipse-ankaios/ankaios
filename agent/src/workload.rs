@@ -121,7 +121,7 @@ impl Workload {
         }
     }
 
-    // [impl->swdd~agent-workload-obj-update-command~1]
+    // [impl->swdd~agent-workload-obj-update-command~2]
     pub async fn update(
         &mut self,
         spec: Option<WorkloadSpec>,
@@ -329,7 +329,7 @@ mod tests {
             .is_control_interface_changed(&Some(control_interface_info_mock)));
     }
 
-    // [utest->swdd~agent-workload-obj-update-command~1]
+    // [utest->swdd~agent-workload-obj-update-command~2]
     #[tokio::test]
     async fn utest_workload_obj_update_success() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -413,7 +413,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-workload-obj-update-command~1]
+    // [utest->swdd~agent-workload-obj-update-command~2]
     #[tokio::test]
     async fn utest_workload_obj_update_error() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
