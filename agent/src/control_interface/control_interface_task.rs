@@ -304,6 +304,7 @@ mod tests {
 
     // [utest->swdd~agent-listens-for-requests-from-pipe~1]
     // [utest->swdd~agent-ensures-control-interface-output-pipe-read~1]
+    // [utest->swdd~agent-forward-request-from-control-interface-pipe-to-server~1]
     #[tokio::test]
     async fn utest_control_interface_task_run_task_access_allowed() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

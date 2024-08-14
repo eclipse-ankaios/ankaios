@@ -224,7 +224,6 @@ impl RuntimeManager {
 
                             // [impl->swdd~agent-existing-workloads-resume-existing~2]
                             if Self::is_resumable_workload(&workload_state, &new_instance_name) {
-                                // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
                                 let control_interface = match ControlInterface::new(
                                     &self.run_folder,
                                     &new_workload_spec.instance_name,

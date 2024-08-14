@@ -156,7 +156,6 @@ impl<
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
 
-        // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
         let (control_interface_path, control_interface) = if let Some(info) = control_interface_info
         {
             let run_folder = info.get_run_folder().clone();

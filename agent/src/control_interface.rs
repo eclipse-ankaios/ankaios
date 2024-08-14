@@ -76,7 +76,6 @@ impl Display for ControlInterfaceError {
     }
 }
 
-// [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
 pub struct ControlInterface {
     pipes: InputOutput,
     input_pipe_sender: FromServerSender,
@@ -84,6 +83,7 @@ pub struct ControlInterface {
     authorizer: Arc<Authorizer>,
 }
 
+// [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
 #[cfg_attr(test, automock)]
 impl ControlInterface {
     pub fn new(
