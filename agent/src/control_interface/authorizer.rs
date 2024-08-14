@@ -53,10 +53,6 @@ mock! {
     impl From<&ControlInterfaceAccess> for Authorizer {
         fn from(value: &ControlInterfaceAccess) -> Self;
     }
-
-    impl Clone for Authorizer {
-        fn clone(&self) -> Self;
-    }
 }
 
 impl Authorizer {

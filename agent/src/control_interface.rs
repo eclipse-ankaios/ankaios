@@ -27,7 +27,6 @@ pub use to_ankaios::ToAnkaios;
 
 #[cfg(not(test))]
 pub use directory::Directory;
-
 pub use filesystem::FileSystemError;
 
 #[cfg(test)]
@@ -36,8 +35,9 @@ pub use directory::{generate_test_directory_mock, MockDirectory};
 pub use fifo::MockFifo;
 #[cfg(test)]
 pub use filesystem::MockFileSystem;
+
 #[cfg(test)]
-use mockall::mock;
+use mockall::automock;
 
 use common::objects::WorkloadInstanceName;
 use common::{from_server_interface::FromServerSender, to_server_interface::ToServerSender};
@@ -84,8 +84,9 @@ pub struct ControlInterface {
     authorizer: Arc<Authorizer>,
 }
 
+#[cfg_attr(test, automock)]
 impl ControlInterface {
-    fn new(
+    pub fn new(
         run_directory: &Path,
         execution_instance_name: &WorkloadInstanceName,
         output_pipe_channel: ToServerSender,
@@ -146,43 +147,6 @@ impl Drop for ControlInterface {
     }
 }
 
-impl TryFrom<control_interface_info::ControlInterfaceInfo> for ControlInterface {
-    type Error = ControlInterfaceError;
-
-    fn try_from(
-        info: control_interface_info::ControlInterfaceInfo,
-    ) -> Result<Self, ControlInterfaceError> {
-        let run_directory = info.get_run_folder().clone();
-        let authorizer = info.authorizer;
-        ControlInterface::new(
-            &run_directory,
-            &info.workload_instance_name,
-            info.control_interface_to_server_sender.clone(),
-            authorizer,
-        )
-    }
-}
-
-#[cfg(test)]
-mock! {
-    pub ControlInterface {
-        pub fn new(
-            run_directory: &Path,
-            execution_instance_name: &WorkloadInstanceName,
-            output_pipe_channel: ToServerSender,
-            authorizer: Authorizer) -> Result<Self, ControlInterfaceError>;
-        pub fn get_authorizer(&self) -> &Authorizer;
-        pub fn get_api_location(&self) -> PathBuf;
-        pub fn get_input_pipe_sender(&self) -> FromServerSender;
-        pub fn abort_control_interface_task(&self);
-    }
-
-    impl TryFrom<control_interface_info::MockControlInterfaceInfo> for ControlInterface {
-        type Error = ControlInterfaceError;
-        fn try_from(info: control_interface_info::MockControlInterfaceInfo) -> Result<Self, ControlInterfaceError>;
-    }
-}
-
 //////////////////////////////////////////////////////////////////////////////
 //                 ########  #######    #########  #########                //
 //                    ##     ##        ##             ##                    //
@@ -193,6 +157,7 @@ mock! {
 
 #[cfg(test)]
 mod tests {
+    use super::ControlInterface;
     use std::path::Path;
 
     use common::from_server_interface::FromServer;
@@ -205,7 +170,6 @@ mod tests {
         control_interface_task::generate_test_control_interface_task_mock,
         from_server_channels::MockFromServerChannels,
         input_output::generate_test_input_output_mock, reopen_file::MockReopenFile,
-        ControlInterface,
     };
     use common::objects::WorkloadInstanceName;
 

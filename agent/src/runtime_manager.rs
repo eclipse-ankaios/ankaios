@@ -225,16 +225,22 @@ impl RuntimeManager {
                             // [impl->swdd~agent-existing-workloads-resume-existing~2]
                             if Self::is_resumable_workload(&workload_state, &new_instance_name) {
                                 // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-                                let control_interface =
-                                    ControlInterface::try_from(ControlInterfaceInfo::new(
-                                        &self.run_folder,
-                                        self.control_interface_tx.clone(),
-                                        &new_workload_spec.instance_name,
-                                        Authorizer::from(
-                                            &new_workload_spec.control_interface_access,
-                                        ),
-                                    ))
-                                    .ok();
+                                let control_interface = match ControlInterface::new(
+                                    &self.run_folder,
+                                    &new_workload_spec.instance_name,
+                                    self.control_interface_tx.clone(),
+                                    Authorizer::from(&new_workload_spec.control_interface_access),
+                                ) {
+                                    Ok(control_interface) => Some(control_interface),
+                                    Err(err) => {
+                                        log::warn!(
+                                            "Could not reuse or create control interface when resuming workload '{}': '{}'",
+                                            new_workload_spec.instance_name,
+                                            err
+                                        );
+                                        None
+                                    }
+                                };
 
                                 log::info!(
                                     "Resuming workload '{}'",
@@ -794,17 +800,11 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let control_interface_try_from_context = MockControlInterface::try_from_context();
-        control_interface_try_from_context
+        let control_interface_new_context = MockControlInterface::new_context();
+        control_interface_new_context
             .expect()
             .once()
-            .returning(move |_| Ok(MockControlInterface::default()));
-
-        let control_interface_info_new_context = MockControlInterfaceInfo::new_context();
-        control_interface_info_new_context
-            .expect()
-            .once()
-            .returning(move |_, _, _, _| MockControlInterfaceInfo::default());
+            .returning(move |_, _, _, _| Ok(MockControlInterface::default()));
 
         let workload_operations = vec![];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();

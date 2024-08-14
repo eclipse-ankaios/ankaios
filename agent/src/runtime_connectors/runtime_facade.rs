@@ -7,9 +7,10 @@ use common::{
 use mockall::automock;
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::control_interface_info::ControlInterfaceInfo;
-#[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::ControlInterface;
+
+#[cfg_attr(test, mockall_double::double)]
+use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 
 use crate::{
     runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker},
@@ -156,16 +157,35 @@ impl<
         let update_state_tx = update_state_tx.clone();
 
         // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-        let (control_interface_path, control_interface) = match control_interface_info {
-            Some(info) => (
-                Some(
-                    workload_spec
-                        .instance_name
-                        .pipes_folder_name(info.get_run_folder()),
-                ),
-                ControlInterface::try_from(info).ok(),
-            ),
-            None => (None, None),
+        let (control_interface_path, control_interface) = if let Some(info) = control_interface_info
+        {
+            let run_folder = info.get_run_folder().clone();
+            let output_pipe_sender = info.get_to_server_sender();
+            let instance_name = info.get_instance_name().clone();
+            let authorizer = info.move_authorizer();
+            let control_interface = match ControlInterface::new(
+                &run_folder,
+                &instance_name,
+                output_pipe_sender,
+                authorizer,
+            ) {
+                Ok(control_interface) => Some(control_interface),
+                Err(err) => {
+                    log::warn!(
+                        "Could not create control interface when creating workload '{}': '{}'",
+                        instance_name,
+                        err
+                    );
+                    None
+                }
+            };
+
+            (
+                Some(workload_spec.instance_name.pipes_folder_name(&run_folder)),
+                control_interface,
+            )
+        } else {
+            (None, None)
         };
 
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
@@ -320,15 +340,15 @@ mod tests {
     };
 
     use crate::{
-        control_interface::control_interface_info::MockControlInterfaceInfo,
-        control_interface::MockControlInterface,
+        control_interface::{
+            authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
+            MockControlInterface,
+        },
         runtime_connectors::{
             runtime_connector::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
             GenericRuntimeFacade, OwnableRuntime, RuntimeFacade,
         },
-        workload::ControlLoopState,
-        workload::MockWorkload,
-        workload::MockWorkloadControlLoop,
+        workload::{ControlLoopState, MockWorkload, MockWorkloadControlLoop},
         workload_state::assert_execution_state_sequence,
     };
 
@@ -396,18 +416,32 @@ mod tests {
         );
 
         let control_interface_mock = MockControlInterface::default();
-        let control_interface_try_from_context = MockControlInterface::try_from_context();
-        control_interface_try_from_context
+        let control_interface_new_context = MockControlInterface::new_context();
+        control_interface_new_context
             .expect()
             .once()
-            .return_once(|_| Ok(control_interface_mock));
+            .return_once(|_, _, _, _| Ok(control_interface_mock));
 
         let mut control_interface_info_mock = MockControlInterfaceInfo::default();
-
         control_interface_info_mock
             .expect_get_run_folder()
             .once()
             .return_const(PIPES_LOCATION.into());
+
+        control_interface_info_mock
+            .expect_get_to_server_sender()
+            .once()
+            .return_const(tokio::sync::mpsc::channel::<common::to_server_interface::ToServer>(1).0);
+
+        control_interface_info_mock
+            .expect_get_instance_name()
+            .once()
+            .return_const(workload_spec.instance_name.clone());
+
+        control_interface_info_mock
+            .expect_move_authorizer()
+            .once()
+            .return_once(MockAuthorizer::default);
 
         let (wl_state_sender, _wl_state_receiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);

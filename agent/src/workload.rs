@@ -93,14 +93,21 @@ impl Workload {
         if let Some(control_interface) = self.control_interface.take() {
             control_interface.abort_control_interface_task()
         }
-        self.control_interface =
-            control_interface_info.and_then(|info| match ControlInterface::try_from(info) {
+
+        self.control_interface = control_interface_info.and_then(|info| {
+            let run_folder = info.get_run_folder().clone();
+            let output_pipe_sender = info.get_to_server_sender();
+            let instance_name = info.get_instance_name().clone();
+            let authorizer = info.move_authorizer();
+            match ControlInterface::new(&run_folder, &instance_name, output_pipe_sender, authorizer)
+            {
                 Ok(control_interface) => Some(control_interface),
                 Err(err) => {
-                    log::error!("Could not exchange control interface. Error: '{}'", err);
+                    log::warn!("Could not exchange control interface. Error: '{}'", err);
                     None
                 }
-            });
+            }
+        });
     }
 
     fn is_control_interface_changed(
@@ -193,8 +200,10 @@ mod tests {
     use tokio::{sync::mpsc, time::timeout};
 
     use crate::{
-        control_interface::control_interface_info::MockControlInterfaceInfo,
-        control_interface::MockControlInterface,
+        control_interface::{
+            authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
+            MockControlInterface,
+        },
         workload::{Workload, WorkloadCommand, WorkloadCommandSender, WorkloadError},
     };
 
@@ -342,13 +351,32 @@ mod tests {
             .once()
             .return_const(PIPES_LOCATION);
 
-        let new_control_interface_context = MockControlInterface::try_from_context();
+        let new_control_interface_context = MockControlInterface::new_context();
         new_control_interface_context
             .expect()
             .once()
-            .return_once(|_| Ok(new_control_interface_mock));
+            .return_once(|_, _, _, _| Ok(new_control_interface_mock));
 
         let mut new_control_interface_info_mock = MockControlInterfaceInfo::default();
+        new_control_interface_info_mock
+            .expect_get_run_folder()
+            .once()
+            .return_const("different_path".into());
+
+        new_control_interface_info_mock
+            .expect_get_to_server_sender()
+            .once()
+            .return_const(tokio::sync::mpsc::channel::<common::to_server_interface::ToServer>(1).0);
+
+        new_control_interface_info_mock
+            .expect_get_instance_name()
+            .once()
+            .return_const(workload_spec.instance_name.clone());
+
+        new_control_interface_info_mock
+            .expect_move_authorizer()
+            .once()
+            .return_once(MockAuthorizer::default);
         new_control_interface_info_mock
             .expect_has_same_configuration()
             .once()
@@ -412,15 +440,35 @@ mod tests {
 
         let mut new_control_interface_info_mock = MockControlInterfaceInfo::default();
         new_control_interface_info_mock
+            .expect_get_run_folder()
+            .once()
+            .return_const(PIPES_LOCATION.into());
+
+        new_control_interface_info_mock
+            .expect_get_to_server_sender()
+            .once()
+            .return_const(tokio::sync::mpsc::channel::<common::to_server_interface::ToServer>(1).0);
+
+        new_control_interface_info_mock
+            .expect_get_instance_name()
+            .once()
+            .return_const(workload_spec.instance_name.clone());
+
+        new_control_interface_info_mock
+            .expect_move_authorizer()
+            .once()
+            .return_once(MockAuthorizer::default);
+
+        new_control_interface_info_mock
             .expect_has_same_configuration()
             .once()
             .return_const(false);
 
-        let control_interface_try_from_context = MockControlInterface::try_from_context();
-        control_interface_try_from_context
+        let control_interface_new_context = MockControlInterface::new_context();
+        control_interface_new_context
             .expect()
             .once()
-            .return_once(|_| Ok(new_control_interface_mock));
+            .return_once(|_, _, _, _| Ok(new_control_interface_mock));
 
         let mut test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
