@@ -7,9 +7,10 @@ use common::{
 use mockall::automock;
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::PipesChannelContext;
+use crate::control_interface::ControlInterface;
+
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::PipesChannelContextInfo;
+use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 
 use crate::{
     runtime_connectors::{OwnableRuntime, RuntimeError, StateChecker},
@@ -36,14 +37,14 @@ pub trait RuntimeFacade: Send + Sync + 'static {
     fn create_workload(
         &self,
         runtime_workload: WorkloadSpec,
-        control_interface_info: Option<PipesChannelContextInfo>,
+        control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload;
 
     fn resume_workload(
         &self,
         runtime_workload: WorkloadSpec,
-        control_interface: Option<PipesChannelContext>,
+        control_interface: Option<ControlInterface>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload;
 
@@ -91,11 +92,11 @@ impl<
         self.runtime.get_reusable_workloads(agent_name).await
     }
 
-    // [impl->swdd~agent-create-workload~1]
+    // [impl->swdd~agent-create-workload~2]
     fn create_workload(
         &self,
         workload_spec: WorkloadSpec,
-        control_interface_info: Option<PipesChannelContextInfo>,
+        control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload {
         let (_task_handle, workload) = Self::create_workload_non_blocking(
@@ -111,7 +112,7 @@ impl<
     fn resume_workload(
         &self,
         workload_spec: WorkloadSpec,
-        control_interface: Option<PipesChannelContext>,
+        control_interface: Option<ControlInterface>,
         update_state_tx: &WorkloadStateSender,
     ) -> Workload {
         let (_task_handle, workload) = Self::resume_workload_non_blocking(
@@ -145,27 +146,45 @@ impl<
         StChecker: StateChecker<WorkloadId> + Send + Sync + 'static,
     > GenericRuntimeFacade<WorkloadId, StChecker>
 {
-    // [impl->swdd~agent-create-workload~1]
+    // [impl->swdd~agent-create-workload~2]
     fn create_workload_non_blocking(
         &self,
         workload_spec: WorkloadSpec,
-        control_interface_info: Option<PipesChannelContextInfo>,
+        control_interface_info: Option<ControlInterfaceInfo>,
         update_state_tx: &WorkloadStateSender,
     ) -> (JoinHandle<()>, Workload) {
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
 
-        // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-        let (control_interface_path, control_interface) = match control_interface_info {
-            Some(info) => (
-                Some(
-                    workload_spec
-                        .instance_name
-                        .pipes_folder_name(info.get_run_folder()),
-                ),
-                info.create_control_interface(),
-            ),
-            None => (None, None),
+        let (control_interface_path, control_interface) = if let Some(info) = control_interface_info
+        {
+            let run_folder = info.get_run_folder().clone();
+            let output_pipe_sender = info.get_to_server_sender();
+            let instance_name = info.get_instance_name().clone();
+            let authorizer = info.move_authorizer();
+            let control_interface = match ControlInterface::new(
+                &run_folder,
+                &instance_name,
+                output_pipe_sender,
+                authorizer,
+            ) {
+                Ok(control_interface) => Some(control_interface),
+                Err(err) => {
+                    log::warn!(
+                        "Could not create control interface when creating workload '{}': '{}'",
+                        instance_name,
+                        err
+                    );
+                    None
+                }
+            };
+
+            (
+                Some(workload_spec.instance_name.pipes_folder_name(&run_folder)),
+                control_interface,
+            )
+        } else {
+            (None, None)
         };
 
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
@@ -207,7 +226,7 @@ impl<
     fn resume_workload_non_blocking(
         &self,
         workload_spec: WorkloadSpec,
-        control_interface: Option<PipesChannelContext>,
+        control_interface: Option<ControlInterface>,
         update_state_tx: &WorkloadStateSender,
     ) -> (JoinHandle<()>, Workload) {
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
@@ -320,15 +339,15 @@ mod tests {
     };
 
     use crate::{
-        control_interface::MockPipesChannelContext,
-        control_interface::MockPipesChannelContextInfo,
+        control_interface::{
+            authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
+            MockControlInterface,
+        },
         runtime_connectors::{
             runtime_connector::test::{MockRuntimeConnector, RuntimeCall, StubStateChecker},
             GenericRuntimeFacade, OwnableRuntime, RuntimeFacade,
         },
-        workload::ControlLoopState,
-        workload::MockWorkload,
-        workload::MockWorkloadControlLoop,
+        workload::{ControlLoopState, MockWorkload, MockWorkloadControlLoop},
         workload_state::assert_execution_state_sequence,
     };
 
@@ -380,7 +399,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-create-workload~1]
+    // [utest->swdd~agent-create-workload~2]
     #[tokio::test]
     async fn utest_runtime_facade_create_workload() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -389,23 +408,39 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let control_interface_context = MockPipesChannelContext::default();
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
 
-        let mut pipes_channel_info_mock = MockPipesChannelContextInfo::default();
+        let control_interface_mock = MockControlInterface::default();
+        let control_interface_new_context = MockControlInterface::new_context();
+        control_interface_new_context
+            .expect()
+            .once()
+            .return_once(|_, _, _, _| Ok(control_interface_mock));
 
-        pipes_channel_info_mock
+        let mut control_interface_info_mock = MockControlInterfaceInfo::default();
+        control_interface_info_mock
             .expect_get_run_folder()
             .once()
             .return_const(PIPES_LOCATION.into());
-        pipes_channel_info_mock
-            .expect_create_control_interface()
+
+        control_interface_info_mock
+            .expect_get_to_server_sender()
             .once()
-            .return_once(|| Some(control_interface_context));
+            .return_const(tokio::sync::mpsc::channel::<common::to_server_interface::ToServer>(1).0);
+
+        control_interface_info_mock
+            .expect_get_instance_name()
+            .once()
+            .return_const(workload_spec.instance_name.clone());
+
+        control_interface_info_mock
+            .expect_move_authorizer()
+            .once()
+            .return_once(MockAuthorizer::default);
 
         let (wl_state_sender, _wl_state_receiver) =
             tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
@@ -434,7 +469,7 @@ mod tests {
 
         let (task_handle, _workload) = test_runtime_facade.create_workload_non_blocking(
             workload_spec.clone(),
-            Some(pipes_channel_info_mock),
+            Some(control_interface_info_mock),
             &wl_state_sender,
         );
 
@@ -451,7 +486,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let control_interface_mock = MockPipesChannelContext::default();
+        let control_interface_mock = MockControlInterface::default();
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
