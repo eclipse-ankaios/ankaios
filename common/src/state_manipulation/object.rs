@@ -20,7 +20,9 @@ use api::ank_base as proto;
 use serde_yaml::{
     from_value,
     mapping::{Entry::Occupied, Entry::Vacant},
-    to_value, Mapping, Value,
+    to_value,
+    with::singleton_map_recursive,
+    Mapping, Serializer, Value,
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -78,8 +80,10 @@ impl TryFrom<proto::CompleteState> for Object {
     type Error = serde_yaml::Error;
 
     fn try_from(value: proto::CompleteState) -> Result<Self, Self::Error> {
+        let mut buf = Vec::new();
+        singleton_map_recursive::serialize(&value, &mut Serializer::new(&mut buf))?;
         Ok(Object {
-            data: to_value(value)?,
+            data: serde_yaml::from_slice(&buf)?,
         })
     }
 }
@@ -228,7 +232,7 @@ impl Object {
 
         self.get_as_mapping(&path_head)
             .ok_or_else(|| format!("{:?} is not mapping", path_head))?
-            .remove(Value::String(path_last));
+            .remove(&Value::String(path_last));
         Ok(())
     }
 
@@ -245,7 +249,7 @@ impl Object {
         for p in path.parts() {
             match current_obj {
                 Value::Mapping(as_mapping) => {
-                    current_obj = as_mapping.get(Value::String(p.to_owned()))?
+                    current_obj = as_mapping.get(&Value::String(p.to_owned()))?
                 }
                 Value::Sequence(as_sequence) => {
                     if let Ok(index) = p.parse::<usize>() {
@@ -264,7 +268,7 @@ impl Object {
         let mut current_obj = &mut self.data;
         for p in path.parts() {
             if let Value::Mapping(as_mapping) = current_obj {
-                current_obj = as_mapping.get_mut(Value::String(p.to_owned()))?
+                current_obj = as_mapping.get_mut(&Value::String(p.to_owned()))?
             } else {
                 return None;
             }

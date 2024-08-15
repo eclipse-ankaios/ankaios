@@ -169,6 +169,8 @@ impl ServerState {
         }
         .into();
 
+        // log::debug!("Current CompleteState: {:?}", current_complete_state);
+
         if !request_complete_state.field_mask.is_empty() {
             let mut filters = request_complete_state.field_mask;
             if filters
@@ -180,6 +182,7 @@ impl ServerState {
 
             let current_complete_state: Object =
                 current_complete_state.try_into().unwrap_or_illegal_state();
+            log::debug!("CompleteState as Object: {:?}", current_complete_state);
             let mut return_state = Object::default();
             for field in &filters {
                 if let Some(value) = current_complete_state.get(&field.into()) {
@@ -194,6 +197,8 @@ impl ServerState {
                     continue;
                 };
             }
+
+            log::debug!("Filtered CompleteState: {:?}", return_state);
 
             return_state.try_into().map_err(|err: serde_yaml::Error| {
                 format!("The result for CompleteState is invalid: '{}'", err)
@@ -459,7 +464,8 @@ mod tests {
                 },
             ),
         ];
-        let expected_complete_state = test_utils::generate_test_proto_complete_state(&expected_workloads);
+        let expected_complete_state =
+            test_utils::generate_test_proto_complete_state(&expected_workloads);
 
         assert_eq!(expected_complete_state, complete_state);
     }
