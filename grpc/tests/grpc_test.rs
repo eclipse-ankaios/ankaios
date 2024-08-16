@@ -493,7 +493,7 @@ MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
         )
         .await;
 
-        let result = timeout(Duration::from_millis(10000), server_receiver.recv()).await;
+        let result = timeout(Duration::from_secs(10), server_receiver.recv()).await;
 
         assert_eq!(
             result,
