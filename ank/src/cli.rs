@@ -16,7 +16,7 @@ use std::error::Error;
 
 use clap::{command, Parser, Subcommand, ValueHint};
 
-use clap_complete::dynamic::CompleteArgs;
+use clap_complete::dynamic::{ArgValueCompleter, CompleteArgs, CompletionCandidate};
 use common::DEFAULT_SERVER_ADDRESS;
 
 const ANK_SERVER_URL_ENV_KEY: &str = "ANK_SERVER_URL";
@@ -159,7 +159,17 @@ pub enum DeleteCommands {
     #[clap(visible_alias("workloads"))]
     Workload {
         /// One or more workload(s) to be deleted
-        #[arg(required = true)]
+        #[arg(required = true, add = ArgValueCompleter::new(|| {
+            let output = std::process::Command::new("sh")
+                .arg("-c")
+                .arg("ank get state -o json desiredState.workloads | jq -r '.desiredState.workloads | keys[]'")
+                .output()
+                .expect("failed to execute process");
+
+            let result :Vec<CompletionCandidate> = String::from_utf8(output.stdout).unwrap()
+                .split("\n").filter(|s| !s.is_empty()).map(|s| CompletionCandidate::new(s)).collect();
+            result
+        }))]
         workload_name: Vec<String>,
     },
 }
