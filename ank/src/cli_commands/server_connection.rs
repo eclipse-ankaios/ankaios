@@ -424,7 +424,7 @@ mod tests {
                             dependencies: HashMap::new(),
                         }),
                         restart_policy: Some(ank_base::RestartPolicy::Never as i32),
-                        runtime_config: Some("".to_string()),
+                        runtime_config: Some(String::default()),
                         control_interface_access: None,
                     },
                 )]),
@@ -433,7 +433,7 @@ mod tests {
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .get_complete_state(&vec![FIELD_MASK.into()])
+            .get_complete_state(&[FIELD_MASK.into()])
             .await;
         assert!(result.is_ok());
         assert_eq!(
@@ -466,7 +466,7 @@ mod tests {
         server_connection.to_server = to_server;
 
         let result = server_connection
-            .get_complete_state(&vec![FIELD_MASK.into()])
+            .get_complete_state(&[FIELD_MASK.into()])
             .await;
         assert!(result.is_err());
     }
@@ -483,7 +483,7 @@ mod tests {
         let (_checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .get_complete_state(&vec![FIELD_MASK.into()])
+            .get_complete_state(&[FIELD_MASK.into()])
             .await;
         assert!(result.is_err());
     }
@@ -502,7 +502,7 @@ mod tests {
         server_connection.from_server = from_server;
 
         let result = server_connection
-            .get_complete_state(&vec![FIELD_MASK.into()])
+            .get_complete_state(&[FIELD_MASK.into()])
             .await;
         assert!(result.is_err());
         checker.check_communication();
@@ -561,7 +561,7 @@ mod tests {
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .get_complete_state(&vec![FIELD_MASK.into()])
+            .get_complete_state(&[FIELD_MASK.into()])
             .await;
         assert!(result.is_ok());
         assert_eq!(
@@ -626,7 +626,7 @@ mod tests {
         let (checker, mut server_connection) = sim.create_server_connection();
 
         let result = server_connection
-            .get_complete_state(&vec![FIELD_MASK.into()])
+            .get_complete_state(&[FIELD_MASK.into()])
             .await;
         assert!(result.is_ok());
         assert_eq!(
