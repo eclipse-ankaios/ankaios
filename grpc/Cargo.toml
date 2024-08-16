@@ -34,6 +34,7 @@ mockall = "0.11"
 mockall_double = "0.3"
 futures-util = "0.3"
 tempfile = "3.10"
+env_logger = "0.10"
 
 [build-dependencies]
 tonic-build = "0.9"

@@ -27,57 +27,63 @@ mod grpc_tests {
     use tempfile::TempDir;
     use tokio::time::timeout;
 
+    /* 10 years validity issued at 08/16/2024 check validity if tests are failing */
     static TEST_CA_PEM_CONTENT: &str = r#"-----BEGIN CERTIFICATE-----
-MIHkMIGXAhR1zkvNFbDRYcMkCksHtdg+rJKhiDAFBgMrZXAwFTETMBEGA1UEAwwK
-YW5rYWlvcy1jYTAeFw0yNDA3MTYxMjI3MTlaFw0yNDA4MTUxMjI3MTlaMBUxEzAR
-BgNVBAMMCmFua2Fpb3MtY2EwKjAFBgMrZXADIQCp/t2l56QoKjkNshjF/V/RGOuw
-WrUnN97zRglDPLo1/zAFBgMrZXADQQABjHOWypeg/IqsAKfrrzeMgKbnIrah19of
-uP/v/vU+YcQKX+D6RhuSQ8j16/+EAOjvtaOK5dhYOr586A9RkRkG
+MIHkMIGXAhRMeqnC4+qqaKLagAUS/RggNDVchjAFBgMrZXAwFTETMBEGA1UEAwwK
+YW5rYWlvcy1jYTAeFw0yNDA4MTYwNjU4MjdaFw0zNDA4MTQwNjU4MjdaMBUxEzAR
+BgNVBAMMCmFua2Fpb3MtY2EwKjAFBgMrZXADIQA3fV1T+TmFk8gbfzqZhB0eBG/3
+Eq61KW+IicNqPzKryTAFBgMrZXADQQARo03ctiN0L/Yf/E5JyPfYKEJmHp68oTCE
+OOFEltK0W1ELLbj1gWLXPl4Mvk4kzW11U6MbhZkC+rlyPLeCwEsI
 -----END CERTIFICATE-----"#;
 
+    /* 10 years validity issued at 08/16/2024 check validity if tests are failing */
     static TEST_SERVER_CRT_PEM_CONTENT: &str = r#"-----BEGIN CERTIFICATE-----
-MIIBdzCCASmgAwIBAgIULY8Ctn8ms/ZG14b2gY3dD/YlBOgwBQYDK2VwMBUxEzAR
-BgNVBAMMCmFua2Fpb3MtY2EwHhcNMjQwNzE2MTIyNzE5WhcNMjQwODE1MTIyNzE5
-WjAVMRMwEQYDVQQDDAphbmstc2VydmVyMCowBQYDK2VwAyEAQsBvTo+Aguw/1V3v
-PdRIPBLOX/5LehxynZCF9RYO342jgYowgYcwFQYDVR0RBA4wDIIKYW5rLXNlcnZl
-cjATBgNVHSUEDDAKBggrBgEFBQcDATAdBgNVHQ4EFgQUFDnQo+PrhS1/bBBDuyj2
-szOg76IwOgYDVR0jBDMwMaEZpBcwFTETMBEGA1UEAwwKYW5rYWlvcy1jYYIUdc5L
-zRWw0WHDJApLB7XYPqySoYgwBQYDK2VwA0EAJw/NudyP/OURnqrswsQFOmsa0k2K
-XgPaaa8TMfsTlvYpqryUgBh4ExU3BkjMCAQ9IELhlHSY0EVm9tup4NfBCw==
+MIIBdzCCASmgAwIBAgIUS+SXK6U3lZzi/QfnpB3DpqKCOe0wBQYDK2VwMBUxEzAR
+BgNVBAMMCmFua2Fpb3MtY2EwHhcNMjQwODE2MDY1OTAyWhcNMzQwODE0MDY1OTAy
+WjAVMRMwEQYDVQQDDAphbmstc2VydmVyMCowBQYDK2VwAyEA4akE5WnPNIdvSMaD
+tnJuvdsYPgLy3Rc6ctMakxKyWhajgYowgYcwFQYDVR0RBA4wDIIKYW5rLXNlcnZl
+cjATBgNVHSUEDDAKBggrBgEFBQcDATAdBgNVHQ4EFgQUzT3ANfgJIwcHXA2MZ0QO
+1tKIJYMwOgYDVR0jBDMwMaEZpBcwFTETMBEGA1UEAwwKYW5rYWlvcy1jYYIUTHqp
+wuPqqmii2oAFEv0YIDQ1XIYwBQYDK2VwA0EACN07XiHoLRER4lYiiVg10ivZFvOz
+NCiOdne3Z1bt8u8qOM8sxlHe83iJ1KqvtXs3VbF+tPSxa4Z0r+UQABMsBA==
 -----END CERTIFICATE-----"#;
 
     static TEST_SERVER_KEY_PEM_CONTENT: &str = r#"-----BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEIIRQaWZdo6rAdOazCEQqjyvf3HtJqXOs4NMofTh6SAzx
+MC4CAQAwBQYDK2VwBCIEIKuTRWL66qD94qMHXiMyFAephAYmzW/VfqJLbz1b6H9r
 -----END PRIVATE KEY-----"#;
 
+    /* 10 years validity issued at 08/16/2024 check validity if tests are failing
+    make sure to create the cert with DNS.1 = * as alt_name otherwise failing tests
+    because of various choosen agent names inside tests */
     static TEST_AGENT_CRT_PEM_CONTENT: &str = r#"-----BEGIN CERTIFICATE-----
-MIIBajCCARygAwIBAgIUL44KMvvhoo5ZrSaokgW5bKEJLrQwBQYDK2VwMBUxEzAR
-BgNVBAMMCmFua2Fpb3MtY2EwHhcNMjQwNzE2MTIyNzE5WhcNMjQwODE1MTIyNzE5
-WjASMRAwDgYDVQQDDAdhZ2VudF9BMCowBQYDK2VwAyEAmKIygp9agnovfVFfPkPH
-yeSr4HesbiXCEVPCeY+2y4qjgYAwfjAMBgNVHREEBTADggEqMBMGA1UdJQQMMAoG
-CCsGAQUFBwMCMB0GA1UdDgQWBBR08ZG+pI5lJ81sEAjT0ikK+iSIvjA6BgNVHSME
-MzAxoRmkFzAVMRMwEQYDVQQDDAphbmthaW9zLWNhghR1zkvNFbDRYcMkCksHtdg+
-rJKhiDAFBgMrZXADQQC5kORmC3HMaTdjMFHE8EnqDBsBK+SVXZ8IM/Gd4yc7OaoV
-/7JPXB5vLd7jCMRb3cprrjdmJbwCdqCkZVVAcw4D
+MIIBbDCCAR6gAwIBAgIUFkWTHz6ubW5z5nfte9/Wa1222EkwBQYDK2VwMBUxEzAR
+BgNVBAMMCmFua2Fpb3MtY2EwHhcNMjQwODE2MDcyNzU3WhcNMzQwODE0MDcyNzU3
+WjAUMRIwEAYDVQQDDAlhbmstYWdlbnQwKjAFBgMrZXADIQCvkIQ4B65816VA3j4M
+CnzOZC0kOWMctkcZMPVm1uUegKOBgDB+MAwGA1UdEQQFMAOCASowEwYDVR0lBAww
+CgYIKwYBBQUHAwIwHQYDVR0OBBYEFEH5jfzXk7NMt0f+xqp5E9RqFfVzMDoGA1Ud
+IwQzMDGhGaQXMBUxEzARBgNVBAMMCmFua2Fpb3MtY2GCFEx6qcLj6qpootqABRL9
+GCA0NVyGMAUGAytlcANBACicGC31XThTDVmilA6TCKSj+u01trwKh5kvUCgTR34V
+T86DBxLPqUn6wC4klFU9vFQBNvEBcGgrRJlmrSEb4gY=
 -----END CERTIFICATE-----"#;
 
     static TEST_AGENT_KEY_PEM_CONTENT: &str = r#"-----BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEIB3zzTRSmz4iMoa1uYyOfiY8g0p33CP73eVKXqfsy6V4
+MC4CAQAwBQYDK2VwBCIEIEh9h5xlFPq+jw5UWhWD1y4rz51jg28qquc05UskC2PV
 -----END PRIVATE KEY-----"#;
 
+    /* 10 years validity issued at 08/16/2024 check validity if tests are failing */
     static TEST_CLI_CRT_PEM_CONTENT: &str = r#"-----BEGIN CERTIFICATE-----
-MIIBaTCCARugAwIBAgIUTRcuJFpGqhGd9pc3fZsT9Upi1X0wBQYDK2VwMBUxEzAR
-BgNVBAMMCmFua2Fpb3MtY2EwHhcNMjQwNzE2MTIyNzE5WhcNMjQwODE1MTIyNzE5
-WjAOMQwwCgYDVQQDDANjbGkwKjAFBgMrZXADIQCT88OAtJh0C3ItFseYeIRCmxfH
-gNLfvojEcjEo70uZEaOBgzCBgDAOBgNVHREEBzAFggNjbGkwEwYDVR0lBAwwCgYI
-KwYBBQUHAwIwHQYDVR0OBBYEFNuw0WHOTueZYpyV9Xt8ROld52W8MDoGA1UdIwQz
-MDGhGaQXMBUxEzARBgNVBAMMCmFua2Fpb3MtY2GCFHXOS80VsNFhwyQKSwe12D6s
-kqGIMAUGAytlcANBAP+3ZZ8micEqh8q+3PjGwF16bUZf3UmakLu40nu0LcUglCBq
-7+PtdepuCUHArbPswCgUebanY8zvH1mVkv1FPAw=
+MIIBaTCCARugAwIBAgIUPVofRMnPbUO+G3SKGvzWuBJcK+YwBQYDK2VwMBUxEzAR
+BgNVBAMMCmFua2Fpb3MtY2EwHhcNMjQwODE2MDY1OTU2WhcNMzQwODE0MDY1OTU2
+WjAOMQwwCgYDVQQDDANhbmswKjAFBgMrZXADIQCeIh2/waLl3MQJoTq8n9zFIi58
+o0acX5ByX9IRDHBzG6OBgzCBgDAOBgNVHREEBzAFggNhbmswEwYDVR0lBAwwCgYI
+KwYBBQUHAwIwHQYDVR0OBBYEFNSsV4GwsSWTxecmQ5wvY99Ei5y+MDoGA1UdIwQz
+MDGhGaQXMBUxEzARBgNVBAMMCmFua2Fpb3MtY2GCFEx6qcLj6qpootqABRL9GCA0
+NVyGMAUGAytlcANBAHK4j36evJ3NVIz7K/AdUyz9ZYXwYecjV3BtZqwFF4dqJWqW
+yfe14kBC0Dk6J90fbktfPs9VT7VdJ3u4xhcddAQ=
 -----END CERTIFICATE-----"#;
 
     static TEST_CLI_KEY_PEM_CONTENT: &str = r#"-----BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
+MC4CAQAwBQYDK2VwBCIEILwDB7W+KEw+UkzfOQA9ghy70Em4ubdS42DLkDmdmYyb
 -----END PRIVATE KEY-----"#;
 
     pub struct TestPEMFilesPackage {
@@ -111,7 +117,7 @@ MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
             server_key_pem_file.write_all(TEST_SERVER_KEY_PEM_CONTENT.as_bytes())?;
             let mut server_key_permissions = server_key_pem_file.metadata()?.permissions();
             server_key_permissions.set_mode(0o600);
-            let _ = server_key_pem_file.set_permissions(server_key_permissions);
+            server_key_pem_file.set_permissions(server_key_permissions)?;
             server_key_pem_file.sync_all()?;
 
             let agent_pem_file_path = working_dir.path().join("agent.pem");
@@ -124,7 +130,7 @@ MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
             agent_key_pem_file.write_all(TEST_AGENT_KEY_PEM_CONTENT.as_bytes())?;
             let mut agent_key_permissions = agent_key_pem_file.metadata()?.permissions();
             agent_key_permissions.set_mode(0o600);
-            let _ = agent_key_pem_file.set_permissions(agent_key_permissions);
+            agent_key_pem_file.set_permissions(agent_key_permissions)?;
             agent_key_pem_file.sync_all()?;
 
             let cli_pem_file_path = working_dir.path().join("cli.pem");
@@ -137,7 +143,7 @@ MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
             cli_key_pem_file.write_all(TEST_CLI_KEY_PEM_CONTENT.as_bytes())?;
             let mut cli_key_permissions = cli_key_pem_file.metadata()?.permissions();
             cli_key_permissions.set_mode(0o600);
-            let _ = cli_key_pem_file.set_permissions(cli_key_permissions);
+            cli_key_pem_file.set_permissions(cli_key_permissions)?;
             cli_key_pem_file.sync_all()?;
 
             Ok(Self {
@@ -331,16 +337,18 @@ MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)] // set worker_threads = 1 to solve the failing of the test on woodpecker
     async fn itest_grpc_communication_client_cli_connection_grpc_server_received_request_complete_state_with_tls(
     ) {
+        let _ = env_logger::builder().is_test(true).try_init();
         let test_request_id = "test_request_id";
         let test_pem_files_package = TestPEMFilesPackage::new().unwrap();
 
-        let (to_grpc_client, mut server_receiver, _, _) = generate_test_grpc_communication_setup(
-            25551,
-            CommunicationType::Cli,
-            test_request_id,
-            Some(&test_pem_files_package),
-        )
-        .await;
+        let (to_grpc_client, mut server_receiver, _grpc_server_task, _grpc_client_task) =
+            generate_test_grpc_communication_setup(
+                50050,
+                CommunicationType::Cli,
+                test_request_id,
+                Some(&test_pem_files_package),
+            )
+            .await;
 
         // send request to grpc client
         let request_complete_state_result = to_grpc_client
@@ -353,7 +361,7 @@ MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
         assert!(request_complete_state_result.is_ok());
 
         // read request forwarded by grpc communication server
-        let result = timeout(Duration::from_millis(3000), server_receiver.recv()).await;
+        let result = timeout(Duration::from_secs(10), server_receiver.recv()).await;
 
         println!("result: {:?}", result);
 
@@ -379,7 +387,7 @@ MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
     ) {
         let test_request_id = "test_request_id";
         let (to_grpc_client, mut server_receiver, _, _) = generate_test_grpc_communication_setup(
-            25551,
+            50051,
             CommunicationType::Cli,
             test_request_id,
             None,
@@ -459,23 +467,26 @@ MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
         )
         .await;
 
-        let result = timeout(Duration::from_millis(10000), server_receiver.recv()).await;
+        let result = timeout(Duration::from_secs(10), server_receiver.recv()).await;
 
-        assert!(matches!(
+        assert_eq!(
             result,
-            Ok(Some(ToServer::AgentHello(commands::AgentHello { agent_name }))) if agent_name == test_agent_name
-        ));
+            Ok(Some(ToServer::AgentHello(commands::AgentHello {
+                agent_name: test_agent_name.to_owned(),
+            })))
+        );
     }
 
     // [itest->swdd~grpc-agent-activate-mtls-when-certificates-and-key-provided-upon-start~1]
     #[tokio::test(flavor = "multi_thread", worker_threads = 1)] // set worker_threads = 1 to solve the failing of the test on woodpecker
     async fn itest_grpc_communication_client_agent_connection_grpc_server_received_agent_hello_with_tls(
     ) {
+        let _ = env_logger::builder().is_test(true).try_init();
         let test_agent_name = "test_agent_name";
         let test_pem_files_package = TestPEMFilesPackage::new().unwrap();
 
         let (_, mut server_receiver, _, _) = generate_test_grpc_communication_setup(
-            50053,
+            50054,
             CommunicationType::Agent,
             test_agent_name,
             Some(&test_pem_files_package),
@@ -484,9 +495,11 @@ MC4CAQAwBQYDK2VwBCIEIKjThmghW/8MJ64v7FooHHKdx5chlf4d7Rtff/YHQWDX
 
         let result = timeout(Duration::from_millis(10000), server_receiver.recv()).await;
 
-        assert!(matches!(
+        assert_eq!(
             result,
-            Ok(Some(ToServer::AgentHello(commands::AgentHello { agent_name }))) if agent_name == test_agent_name
-        ));
+            Ok(Some(ToServer::AgentHello(commands::AgentHello {
+                agent_name: test_agent_name.to_owned()
+            })))
+        );
     }
 }
