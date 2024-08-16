@@ -24,45 +24,89 @@ use tabled::{
     settings::{object::Columns, Modify, Padding, Style, Width},
     Table, Tabled,
 };
-pub struct TableBuilder<RowType> {
-    rows: Vec<RowType>,
-    table: Table,
-    fallback_to_default: bool,
-    error: bool,
+
+use std::fmt;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct TableBuilderError(String);
+
+impl fmt::Display for TableBuilderError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Could not create table: {}", self.0)
+    }
 }
 
-impl<RowType> TableBuilder<RowType>
+pub struct TableBuilder<'a, RowType> {
+    rows: &'a [RowType],
+    table: Table,
+}
+
+impl<'a, RowType> TableBuilder<'a, RowType>
 where
     RowType: Tabled,
 {
     const TRUNCATED_COLUMN_SUFFIX: &'static str = "...";
+    const FIRST_COLUMN_POS: usize = 0;
+    const ZERO_PADDING: usize = 0;
 
-    pub fn new(rows: Vec<RowType>) -> Self {
-        let table = Table::new(&rows);
-        Self {
-            rows,
-            table,
-            fallback_to_default: false,
-            error: false,
-        }
+    pub fn new(rows: &'a [RowType]) -> Self {
+        let table = Table::new(rows);
+        Self { rows, table }
     }
 
-    pub fn style_blank(mut self) -> Self {
+    pub fn create_default_table(mut self) -> String {
+        self.table = Table::new(self.rows);
+        self.style_blank();
+        self.disable_surrounding_padding();
+        self.table.to_string()
+    }
+
+    pub fn table_with_wrapped_column_to_remaining_terminal_width(
+        mut self,
+        column_position: usize,
+    ) -> Result<String, TableBuilderError> {
+        self.style_blank();
+        self.disable_surrounding_padding();
+        let total_table_width: usize = self.table.total_width();
+        let available_column_width =
+            self.terminal_width_for_column(column_position, total_table_width)?;
+
+        self.table.with(
+            Modify::new(Columns::single(column_position)).with(Width::wrap(available_column_width)),
+        );
+        Ok(self.table.to_string())
+    }
+
+    pub fn table_with_truncated_column_to_remaining_terminal_width(
+        mut self,
+        column_position: usize,
+    ) -> Result<String, TableBuilderError> {
+        self.style_blank();
+        self.disable_surrounding_padding();
+
+        let total_table_width: usize = self.table.total_width();
+        let available_column_width =
+            self.terminal_width_for_column(column_position, total_table_width)?;
+        self.table.with(
+            Modify::new(Columns::single(column_position)).with(
+                Width::truncate(available_column_width).suffix(Self::TRUNCATED_COLUMN_SUFFIX),
+            ),
+        );
+        Ok(self.table.to_string())
+    }
+
+    fn style_blank(&mut self) {
         self.table.with(Style::blank());
-        self
     }
 
-    pub fn disable_surrounding_padding(mut self) -> Self {
-        const FIRST_COLUMN_POS: usize = 0;
-        const ZERO_PADDING: usize = 0;
-
+    fn disable_surrounding_padding(&mut self) {
         let column_count = self.table.count_columns();
         let last_column_pos = column_count - 1;
 
         let first_column_default_padding = self
             .table
             .get_config()
-            .get_padding(tabled::grid::config::Entity::Column(FIRST_COLUMN_POS));
+            .get_padding(tabled::grid::config::Entity::Column(Self::FIRST_COLUMN_POS));
 
         let last_column_default_padding = self
             .table
@@ -73,97 +117,67 @@ where
         to align the table content to the full terminal width for better output quality. */
         self.table
             .with(Modify::new(Columns::first()).with(Padding::new(
-                ZERO_PADDING,
+                Self::ZERO_PADDING,
                 first_column_default_padding.right.size,
                 first_column_default_padding.top.size,
                 first_column_default_padding.bottom.size,
             )))
             .with(Modify::new(Columns::last()).with(Padding::new(
                 last_column_default_padding.left.size,
-                ZERO_PADDING,
+                Self::ZERO_PADDING,
                 last_column_default_padding.top.size,
                 last_column_default_padding.bottom.size,
             )));
-        self
-    }
-
-    pub fn wrap_column_to_remaining_terminal_width(mut self, column_position: usize) -> Self {
-        let total_table_width: usize = self.table.total_width();
-        if let Some(available_column_width) =
-            self.terminal_width_for_column(column_position, total_table_width)
-        {
-            self.table.with(
-                Modify::new(Columns::single(column_position))
-                    .with(Width::wrap(available_column_width)),
-            );
-        } else {
-            self.error = true;
-        }
-        self
-    }
-
-    pub fn truncate_column_to_remaining_terminal_width(mut self, column_position: usize) -> Self {
-        let total_table_width: usize = self.table.total_width();
-        if let Some(available_column_width) =
-            self.terminal_width_for_column(column_position, total_table_width)
-        {
-            self.table
-                .with(Modify::new(Columns::single(column_position)).with(
-                    Width::truncate(available_column_width).suffix(Self::TRUNCATED_COLUMN_SUFFIX),
-                ));
-        } else {
-            self.error = true;
-        }
-        self
-    }
-
-    pub fn fallback_to_default_table(mut self) -> Self {
-        self.fallback_to_default = true;
-        self
-    }
-
-    pub fn create_default_table(mut self) -> String {
-        self.table = Table::new(&self.rows);
-        self.table.with(Style::blank());
-        self = self.disable_surrounding_padding();
-        self.table.to_string()
-    }
-
-    pub fn build(self) -> String {
-        if self.error && self.fallback_to_default {
-            self.create_default_table()
-        } else {
-            self.table.to_string()
-        }
     }
 
     fn terminal_width_for_column(
         &self,
         column_position: usize,
         total_table_width: usize,
-    ) -> Option<usize> {
+    ) -> Result<usize, TableBuilderError> {
+        const DEFAULT_CONTENT_SIZE: usize = 0;
         let terminal_width = terminal_width();
         let column_name_length = RowType::headers()[column_position].len();
 
-        let max_content_size = self
+        let max_content_length = self
             .rows
             .iter()
             .max_by_key(|row| RowType::fields(row)[column_position].len())
             .map(|row| RowType::fields(row)[column_position].len())
-            .unwrap_or(0);
+            .unwrap_or(DEFAULT_CONTENT_SIZE);
 
         // the min length shall be the header column name length
-        let column_width = max_content_size.max(column_name_length);
+        let column_width = max_content_length.max(column_name_length);
 
-        let table_width_except_last_column = total_table_width.checked_sub(column_width)?;
+        let table_width_other_columns =
+            total_table_width.checked_sub(column_width).ok_or_else(|| {
+                TableBuilderError(
+                    "overflow when calculating table width for other columns.".to_string(),
+                )
+            })?;
 
-        let is_reasonable_terminal_width =
-            terminal_width.checked_sub(column_name_length)? >= table_width_except_last_column;
+        let is_reasonable_terminal_width = terminal_width
+            .checked_sub(column_name_length)
+            .ok_or_else(|| {
+                TableBuilderError(
+                    "overflow when calculating reasonable terminal width.".to_string(),
+                )
+            })?
+            >= table_width_other_columns;
 
         if is_reasonable_terminal_width {
-            terminal_width.checked_sub(table_width_except_last_column)
+            terminal_width
+                .checked_sub(table_width_other_columns)
+                .ok_or_else(|| {
+                    TableBuilderError(
+                        "overflow when calculating remaining terminal width.".to_string(),
+                    )
+                })
         } else {
-            None // no reasonable terminal width left, avoid breaking the column header name formatting
+            // no reasonable terminal width left, avoid breaking the column header name formatting
+            Err(TableBuilderError(
+                "no reasonable terminal width available".to_string(),
+            ))
         }
     }
 }
@@ -179,23 +193,21 @@ where
 #[cfg(test)]
 mod tests {
     use super::TableBuilder;
-    use crate::cli_commands::WorkloadTableRow;
+    use crate::cli_commands::workload_table_row::WorkloadTableRow;
     use common::objects::ExecutionState;
 
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_create_default_table() {
-        let row: WorkloadTableRow = WorkloadTableRow {
+        let table_rows = [WorkloadTableRow {
             name: "workload1".to_string(),
             agent: "agent1".to_string(),
             runtime: "podman".to_string(),
             execution_state: ExecutionState::running().to_string(),
             additional_info: "some long long additional info message".to_string(),
-        };
+        }];
 
-        let table_rows = vec![row];
-
-        let table = TableBuilder::new(table_rows);
+        let table = TableBuilder::new(&table_rows);
         let table_output = table.create_default_table();
         let expected_table_output_newlines = 1;
         assert_eq!(
@@ -207,18 +219,20 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_create_truncated_table_additional_info() {
-        let row = WorkloadTableRow {
+        let table_rows = [WorkloadTableRow {
             name: "workload1".to_string(),
             agent: "agent1".to_string(),
             runtime: "podman".to_string(),
             execution_state: ExecutionState::running().to_string(),
             additional_info: "some long long additional info message".to_string(),
-        };
+        }];
 
-        let table_rows = vec![row];
-
-        let table = TableBuilder::new(table_rows);
-        let table_output = table.create_table_truncated_additional_info().unwrap();
+        let table = TableBuilder::new(&table_rows);
+        let table_output = table
+            .table_with_truncated_column_to_remaining_terminal_width(
+                WorkloadTableRow::ADDITIONAL_INFO_POS,
+            )
+            .unwrap();
         let expected_table_output_newlines = 1; // truncated additional info column with suffix '...'
         assert_eq!(
             table_output.matches('\n').count(),
@@ -237,19 +251,19 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_create_wrapped_table_additional_info() {
-        let row = WorkloadTableRow {
+        let table_rows = [WorkloadTableRow {
             name: "workload1".to_string(),
             agent: "agent1".to_string(),
             runtime: "podman".to_string(),
             execution_state: ExecutionState::running().to_string(),
             additional_info: "some long long additional info message".to_string(),
-        };
+        }];
 
-        let table_rows = vec![row];
-
-        let table = TableBuilder::new(table_rows);
+        let table = TableBuilder::new(&table_rows);
         let table_output = table
-            .create_table_wrapped_additional_info()
+            .table_with_wrapped_column_to_remaining_terminal_width(
+                WorkloadTableRow::ADDITIONAL_INFO_POS,
+            )
             .unwrap_or_default();
         let expected_table_output_newlines = 2; // because of wrapping the additional info column
         assert_eq!(
@@ -261,12 +275,13 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_terminal_width_for_additional_info_no_table_entries() {
-        let empty_table: Vec<WorkloadTableRow> = Vec::new();
-        let table = TableBuilder::new(empty_table);
+        let empty_rows: [WorkloadTableRow; 0] = [];
+        let table = TableBuilder::new(&empty_rows);
         let table_width: usize = 70; // empty table but all header column names + paddings
-        let expected_terminal_width = Some(25); // 80 (terminal width) - (70 - 15 (column name 'ADDITIONAL INFO')) = 25
+        let column_position = WorkloadTableRow::ADDITIONAL_INFO_POS;
+        let expected_terminal_width = Ok(25); // 80 (terminal width) - (70 - 15 (column name 'ADDITIONAL INFO')) = 25
         assert_eq!(
-            table.terminal_width_for_column(table_width),
+            table.terminal_width_for_column(column_position, table_width),
             expected_terminal_width
         );
     }
@@ -274,21 +289,19 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_terminal_width_for_additional_info_column_name_bigger_than_info_msg() {
-        let row = WorkloadTableRow {
+        let table_rows = [WorkloadTableRow {
             name: "workload1".to_string(),
             agent: "agent1".to_string(),
             runtime: "podman".to_string(),
             execution_state: ExecutionState::running().to_string(),
             additional_info: "short".to_string(),
-        };
+        }];
 
-        let table_rows = vec![row];
-
-        let table = TableBuilder::new(table_rows);
+        let table = TableBuilder::new(&table_rows);
         let table_width: usize = 70;
-        let expected_terminal_width = Some(25); // 80 (terminal width) - (70 - 15 (column name 'ADDITIONAL INFO')) = 25
+        let expected_terminal_width = Ok(25); // 80 (terminal width) - (70 - 15 (column name 'ADDITIONAL INFO')) = 25
         assert_eq!(
-            table.terminal_width_for_column(table_width),
+            table.terminal_width_for_column(WorkloadTableRow::ADDITIONAL_INFO_POS, table_width),
             expected_terminal_width
         );
     }
@@ -296,18 +309,18 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_terminal_width_for_additional_info_no_reasonable_terminal_width_left() {
-        let row = WorkloadTableRow {
+        let table_rows = [WorkloadTableRow {
             name: "workload1".to_string(),
             agent: "agent1".to_string(),
             runtime: "podman".to_string(),
             execution_state: ExecutionState::running().to_string(),
             additional_info: "medium length message".to_string(),
-        };
+        }];
 
-        let table_rows = vec![row];
-
-        let table = TableBuilder::new(table_rows);
+        let table = TableBuilder::new(&table_rows);
         let table_width: usize = 100; // table bigger than terminal width
-        assert!(table.terminal_width_for_column(table_width).is_none());
+        assert!(table
+            .terminal_width_for_column(WorkloadTableRow::ADDITIONAL_INFO_POS, table_width)
+            .is_err());
     }
 }

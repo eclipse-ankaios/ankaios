@@ -11,8 +11,7 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-
-use crate::cli_commands::workload_table_row::ColumnPosition;
+use crate::output_warn;
 use crate::{cli_error::CliError, output_debug};
 
 use super::table_builder::TableBuilder;
@@ -56,14 +55,17 @@ impl CliCommands {
         let table_rows: Vec<WorkloadTableRow> = workload_infos.into_iter().map(|x| x.1).collect();
 
         // [impl->swdd~cli-shall-present-workloads-as-table~1]
-        let table = TableBuilder::new(table_rows)
-            .style_blank()
-            .disable_surrounding_padding()
-            .wrap_column_to_remaining_terminal_width(WorkloadTableRow::ADDITIONAL_INFO_POS)
-            .fallback_to_default_table()
-            .build();
-
-        Ok(table)
+        Ok(TableBuilder::new(&table_rows)
+            .table_with_wrapped_column_to_remaining_terminal_width(
+                WorkloadTableRow::ADDITIONAL_INFO_POS,
+            )
+            .unwrap_or_else(|err| {
+                output_warn!(
+                    "Could not create wrapped table: '{}'. Continue with default table.",
+                    err
+                );
+                TableBuilder::new(&table_rows).create_default_table()
+            }))
     }
 }
 

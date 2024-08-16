@@ -51,12 +51,7 @@ impl CliCommands {
 
         output_debug!("Got agents of complete state: {:?}", agent_table_rows);
 
-        let table = TableBuilder::new(agent_table_rows)
-            .style_blank()
-            .disable_surrounding_padding()
-            .build();
-
-        Ok(table)
+        Ok(TableBuilder::new(&agent_table_rows).create_default_table())
     }
 
     fn count_workloads_per_agent(
