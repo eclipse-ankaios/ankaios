@@ -26,9 +26,9 @@ pub use workload_control_loop::MockWorkloadControlLoop;
 use std::{fmt::Display, path::PathBuf};
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::PipesChannelContext;
+use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::PipesChannelContextInfo;
+use crate::control_interface::ControlInterface;
 
 use api::ank_base;
 
@@ -71,7 +71,7 @@ pub enum WorkloadCommand {
 pub struct Workload {
     name: String,
     channel: WorkloadCommandSender,
-    control_interface: Option<PipesChannelContext>,
+    control_interface: Option<ControlInterface>,
 }
 
 #[cfg_attr(test, automock)]
@@ -79,7 +79,7 @@ impl Workload {
     pub fn new(
         name: String,
         channel: WorkloadCommandSender,
-        control_interface: Option<PipesChannelContext>,
+        control_interface: Option<ControlInterface>,
     ) -> Self {
         Workload {
             name,
@@ -87,50 +87,51 @@ impl Workload {
             control_interface,
         }
     }
-    // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-    fn exchange_control_interface(
-        &mut self,
-        pipes_channel_context_info: Option<PipesChannelContextInfo>,
-    ) {
+
+    fn exchange_control_interface(&mut self, control_interface_info: Option<ControlInterfaceInfo>) {
         if let Some(control_interface) = self.control_interface.take() {
-            control_interface.abort_pipes_channel_task()
+            control_interface.abort_control_interface_task()
         }
-        self.control_interface = match pipes_channel_context_info {
-            Some(info) => info.create_control_interface(),
-            None => None,
-        };
+
+        self.control_interface = control_interface_info.and_then(|info| {
+            let run_folder = info.get_run_folder().clone();
+            let output_pipe_sender = info.get_to_server_sender();
+            let instance_name = info.get_instance_name().clone();
+            let authorizer = info.move_authorizer();
+            match ControlInterface::new(&run_folder, &instance_name, output_pipe_sender, authorizer)
+            {
+                Ok(control_interface) => Some(control_interface),
+                Err(err) => {
+                    log::warn!("Could not exchange control interface. Error: '{}'", err);
+                    None
+                }
+            }
+        });
     }
 
+    // [impl->swdd~agent-compares-control-interface-metadata~1]
     fn is_control_interface_changed(
         &self,
-        pipes_channel_context_info: &Option<PipesChannelContextInfo>,
+        control_interface_info: &Option<ControlInterfaceInfo>,
     ) -> bool {
-        match (&self.control_interface, pipes_channel_context_info) {
+        match (&self.control_interface, control_interface_info) {
             (None, None) => false,
-            (Some(_current), None) => true,
-            (None, Some(_new)) => true,
             (Some(current), Some(new_context)) => !new_context.has_same_configuration(current),
+            _ => true,
         }
     }
 
-    fn update_control_interface(
-        &mut self,
-        pipes_channel_context_info: Option<PipesChannelContextInfo>,
-    ) {
-        if self.is_control_interface_changed(&pipes_channel_context_info) {
-            self.exchange_control_interface(pipes_channel_context_info);
-        }
-    }
-
-    // [impl->swdd~agent-workload-obj-update-command~1]
+    // [impl->swdd~agent-workload-obj-update-command~2]
     pub async fn update(
         &mut self,
         spec: Option<WorkloadSpec>,
-        pipes_channel_context_info: Option<PipesChannelContextInfo>,
+        control_interface_info: Option<ControlInterfaceInfo>,
     ) -> Result<(), WorkloadError> {
         log::info!("Updating workload '{}'.", self.name);
 
-        self.update_control_interface(pipes_channel_context_info);
+        if self.is_control_interface_changed(&control_interface_info) {
+            self.exchange_control_interface(control_interface_info);
+        }
 
         let control_interface_path = self
             .control_interface
@@ -149,7 +150,7 @@ impl Workload {
         log::info!("Deleting workload '{}'.", self.name);
 
         if let Some(control_interface) = self.control_interface {
-            control_interface.abort_pipes_channel_task()
+            control_interface.abort_control_interface_task()
         }
 
         self.channel
@@ -199,8 +200,10 @@ mod tests {
     use tokio::{sync::mpsc, time::timeout};
 
     use crate::{
-        control_interface::MockPipesChannelContext,
-        control_interface::MockPipesChannelContextInfo,
+        control_interface::{
+            authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
+            MockControlInterface,
+        },
         workload::{Workload, WorkloadCommand, WorkloadCommandSender, WorkloadError},
     };
 
@@ -225,9 +228,9 @@ mod tests {
         // drop the receiver so that the send command fails
         drop(workload_command_receiver);
 
-        let mut old_control_interface_mock = MockPipesChannelContext::default();
+        let mut old_control_interface_mock = MockControlInterface::default();
         old_control_interface_mock
-            .expect_abort_pipes_channel_task()
+            .expect_abort_control_interface_task()
             .once()
             .return_const(());
 
@@ -243,6 +246,7 @@ mod tests {
         ));
     }
 
+    // [utest->swdd~agent-compares-control-interface-metadata~1]
     #[test]
     fn utest_is_control_interface_changed_set_from_none_to_new_returns_true() {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
@@ -252,9 +256,10 @@ mod tests {
             None,
         );
         assert!(test_workload_with_control_interface
-            .is_control_interface_changed(&Some(MockPipesChannelContextInfo::default())));
+            .is_control_interface_changed(&Some(MockControlInterfaceInfo::default())));
     }
 
+    // [utest->swdd~agent-compares-control-interface-metadata~1]
     #[test]
     fn utest_is_control_interface_changed_set_from_existing_to_none_returns_true() {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
@@ -262,12 +267,13 @@ mod tests {
         let test_workload_with_control_interface = Workload::new(
             WORKLOAD_1_NAME.to_string(),
             workload_command_sender.clone(),
-            Some(MockPipesChannelContext::default()),
+            Some(MockControlInterface::default()),
         );
 
         assert!(test_workload_with_control_interface.is_control_interface_changed(&None));
     }
 
+    // [utest->swdd~agent-compares-control-interface-metadata~1]
     #[test]
     fn utest_is_control_interface_changed_set_from_none_to_none_returns_false() {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
@@ -281,12 +287,13 @@ mod tests {
         assert!(!test_workload_with_control_interface.is_control_interface_changed(&None));
     }
 
+    // [utest->swdd~agent-compares-control-interface-metadata~1]
     #[test]
     fn utest_is_control_interface_changed_returns_true() {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
 
-        let mut pipes_channel_context_info_mock = MockPipesChannelContextInfo::default();
-        pipes_channel_context_info_mock
+        let mut control_interface_info_mock = MockControlInterfaceInfo::default();
+        control_interface_info_mock
             .expect_has_same_configuration()
             .once()
             .return_const(false);
@@ -294,19 +301,20 @@ mod tests {
         let test_workload_with_control_interface = Workload::new(
             WORKLOAD_1_NAME.to_string(),
             workload_command_sender.clone(),
-            Some(MockPipesChannelContext::default()),
+            Some(MockControlInterface::default()),
         );
 
         assert!(test_workload_with_control_interface
-            .is_control_interface_changed(&Some(pipes_channel_context_info_mock)));
+            .is_control_interface_changed(&Some(control_interface_info_mock)));
     }
 
+    // [utest->swdd~agent-compares-control-interface-metadata~1]
     #[test]
     fn utest_is_control_interface_changed_returns_false() {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
 
-        let mut pipes_channel_context_info_mock = MockPipesChannelContextInfo::default();
-        pipes_channel_context_info_mock
+        let mut control_interface_info_mock = MockControlInterfaceInfo::default();
+        control_interface_info_mock
             .expect_has_same_configuration()
             .once()
             .return_const(true);
@@ -314,14 +322,14 @@ mod tests {
         let test_workload_with_control_interface = Workload::new(
             WORKLOAD_1_NAME.to_string(),
             workload_command_sender.clone(),
-            Some(MockPipesChannelContext::default()),
+            Some(MockControlInterface::default()),
         );
 
         assert!(!test_workload_with_control_interface
-            .is_control_interface_changed(&Some(pipes_channel_context_info_mock)));
+            .is_control_interface_changed(&Some(control_interface_info_mock)));
     }
 
-    // [utest->swdd~agent-workload-obj-update-command~1]
+    // [utest->swdd~agent-workload-obj-update-command~2]
     #[tokio::test]
     async fn utest_workload_obj_update_success() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -330,9 +338,9 @@ mod tests {
 
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
-        let mut old_control_interface_mock = MockPipesChannelContext::default();
+        let mut old_control_interface_mock = MockControlInterface::default();
         old_control_interface_mock
-            .expect_abort_pipes_channel_task()
+            .expect_abort_control_interface_task()
             .once()
             .return_const(());
 
@@ -342,21 +350,42 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let mut new_control_interface_mock = MockPipesChannelContext::default();
+        let mut new_control_interface_mock = MockControlInterface::default();
         new_control_interface_mock
             .expect_get_api_location()
             .once()
             .return_const(PIPES_LOCATION);
 
-        let mut new_control_interface_info_mock = MockPipesChannelContextInfo::default();
+        let new_control_interface_context = MockControlInterface::new_context();
+        new_control_interface_context
+            .expect()
+            .once()
+            .return_once(|_, _, _, _| Ok(new_control_interface_mock));
+
+        let mut new_control_interface_info_mock = MockControlInterfaceInfo::default();
+        new_control_interface_info_mock
+            .expect_get_run_folder()
+            .once()
+            .return_const("different_path".into());
+
+        new_control_interface_info_mock
+            .expect_get_to_server_sender()
+            .once()
+            .return_const(tokio::sync::mpsc::channel::<common::to_server_interface::ToServer>(1).0);
+
+        new_control_interface_info_mock
+            .expect_get_instance_name()
+            .once()
+            .return_const(workload_spec.instance_name.clone());
+
+        new_control_interface_info_mock
+            .expect_move_authorizer()
+            .once()
+            .return_once(MockAuthorizer::default);
         new_control_interface_info_mock
             .expect_has_same_configuration()
             .once()
             .return_const(false);
-        new_control_interface_info_mock
-            .expect_create_control_interface()
-            .once()
-            .return_once(|| Some(new_control_interface_mock));
 
         let mut test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
@@ -384,7 +413,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd~agent-workload-obj-update-command~1]
+    // [utest->swdd~agent-workload-obj-update-command~2]
     #[tokio::test]
     async fn utest_workload_obj_update_error() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -396,11 +425,17 @@ mod tests {
         // drop the receiver so that the send command fails
         drop(workload_command_receiver);
 
-        let mut old_control_interface_mock = MockPipesChannelContext::default();
+        let mut old_control_interface_mock = MockControlInterface::default();
         old_control_interface_mock
-            .expect_abort_pipes_channel_task()
+            .expect_abort_control_interface_task()
             .once()
             .return_const(());
+
+        let mut new_control_interface_mock = MockControlInterface::default();
+        new_control_interface_mock
+            .expect_get_api_location()
+            .once()
+            .return_const(PIPES_LOCATION);
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -408,15 +443,37 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let mut new_control_interface_mock = MockPipesChannelContextInfo::default();
-        new_control_interface_mock
+        let mut new_control_interface_info_mock = MockControlInterfaceInfo::default();
+        new_control_interface_info_mock
+            .expect_get_run_folder()
+            .once()
+            .return_const(PIPES_LOCATION.into());
+
+        new_control_interface_info_mock
+            .expect_get_to_server_sender()
+            .once()
+            .return_const(tokio::sync::mpsc::channel::<common::to_server_interface::ToServer>(1).0);
+
+        new_control_interface_info_mock
+            .expect_get_instance_name()
+            .once()
+            .return_const(workload_spec.instance_name.clone());
+
+        new_control_interface_info_mock
+            .expect_move_authorizer()
+            .once()
+            .return_once(MockAuthorizer::default);
+
+        new_control_interface_info_mock
             .expect_has_same_configuration()
             .once()
             .return_const(false);
-        new_control_interface_mock
-            .expect_create_control_interface()
+
+        let control_interface_new_context = MockControlInterface::new_context();
+        control_interface_new_context
+            .expect()
             .once()
-            .return_once(|| None);
+            .return_once(|_, _, _, _| Ok(new_control_interface_mock));
 
         let mut test_workload = Workload::new(
             WORKLOAD_1_NAME.to_string(),
@@ -428,7 +485,7 @@ mod tests {
             test_workload
                 .update(
                     Some(workload_spec.clone()),
-                    Some(new_control_interface_mock)
+                    Some(new_control_interface_info_mock)
                 )
                 .await,
             Err(WorkloadError::Communication(_))
@@ -444,9 +501,9 @@ mod tests {
 
         let (workload_command_sender, mut workload_command_receiver) = WorkloadCommandSender::new();
 
-        let mut old_control_interface_mock = MockPipesChannelContext::default();
+        let mut old_control_interface_mock = MockControlInterface::default();
         old_control_interface_mock
-            .expect_abort_pipes_channel_task()
+            .expect_abort_control_interface_task()
             .once()
             .return_const(());
 
@@ -474,7 +531,7 @@ mod tests {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
         let (to_server_tx, mut to_server_rx) = mpsc::channel(TEST_EXEC_COMMAND_BUFFER_SIZE);
 
-        let mut control_interface_mock = MockPipesChannelContext::default();
+        let mut control_interface_mock = MockControlInterface::default();
         control_interface_mock
             .expect_get_input_pipe_sender()
             .once()
@@ -522,7 +579,7 @@ mod tests {
 
         drop(to_server_rx);
 
-        let mut control_interface_mock = MockPipesChannelContext::default();
+        let mut control_interface_mock = MockControlInterface::default();
         control_interface_mock
             .expect_get_input_pipe_sender()
             .once()

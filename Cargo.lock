@@ -752,6 +752,7 @@ dependencies = [
  "api",
  "async-trait",
  "common",
+ "env_logger",
  "futures-util",
  "log",
  "mockall",
