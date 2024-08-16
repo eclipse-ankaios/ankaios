@@ -24,6 +24,8 @@ use super::CliCommands;
 const DEFAULT_WORKLOAD_COUNT: u32 = 0;
 
 impl CliCommands {
+    // [impl->swdd~cli-provides-list-of-agents~1]
+    // [impl->swdd~cli-processes-complete-state-to-provide-connected-agents~1]
     pub async fn get_agents(&mut self) -> Result<String, CliError> {
         let empty_filter_mask = [];
 
@@ -51,6 +53,7 @@ impl CliCommands {
 
         output_debug!("Got agents of complete state: {:?}", agent_table_rows);
 
+        // [impl->swdd~cli-shall-present-connected-agents-as-table~1]
         Ok(AnkTable::new(&agent_table_rows).create_default_table())
     }
 

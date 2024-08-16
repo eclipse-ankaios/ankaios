@@ -428,24 +428,6 @@ Needs:
 - impl
 - utest
 
-### `ank get agents`
-
-#### CLI provides the list of connected agents
-`swdd~cli-provides-list-of-agents~1`
-
-Status: approved
-
-The Ankaios CLI shall provide a function to get the list of Ankaios agents connected to the Ankaios server.
-
-Tags:
-- Cli
-- CliCommands
-
-Needs:
-- impl
-- utest
-- stest
-
 #### CLI blocks until the Ankaios Server responds to the request to get the list of workloads
 `swdd~cli-blocks-until-ankaios-server-responds-list-workloads~1`
 
@@ -888,6 +870,59 @@ Needs:
 - impl
 - utest
 - stest
+
+### `ank get agents`
+
+#### CLI provides the list of connected agents
+`swdd~cli-provides-list-of-agents~1`
+
+Status: approved
+
+The Ankaios CLI shall provide a function to get the list of Ankaios agents connected to the Ankaios server.
+
+Tags:
+- Cli
+- CliCommands
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI shall present connected agents as table
+`swdd~cli-shall-present-connected-agents-as-table~1`
+
+Status: approved
+
+When the Ankaios CLI presents connected Ankaios agents to the user, the Ankaios CLI shall present the connected Ankaios agents as table containing each agent in a row with the following data:
+
+|          NAME            |            WORKLOADS             |
+| ------------------------ | -------------------------------- |
+| `<agent_name>` as string | `<assigned_workloads>` as number |
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
+#### CLI processes CompleteState to provide connected Ankaios agents
+`swdd~cli-processes-complete-state-to-provide-connected-agents~1`
+
+Status: approved
+
+When the user invokes the CLI with a request to provide the list of connected Ankaios agents, the Ankaios CLI shall:
+* request the whole CompleteState of Ankaios server
+* count the workloads assigned to each Ankaios agent inside the CompleteState
+* create a table row for each connected Ankaios agent listed inside the CompleteState's `agents` field with the agent name and the amount of assigned workloads
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
 
 ### Handling other message while waiting for response
 
