@@ -503,7 +503,7 @@ the pod "${pod_name}" of workload "${workload_name}" shall have a different id b
 
 the last command shall list the connected agent "${agent_name}"
     ${table_as_list}=    Table To List    ${CURRENT_RESULT.stdout}
-    ${table_as_dict}=    Table To Dict    ${table_as_list}    AGENT
+    ${table_as_dict}=    Table To Dict    ${table_as_list}    NAME
     Dictionary Should Contain Key    ${table_as_dict}    ${agent_name}
 
 Setup Ankaios for Control Interface test

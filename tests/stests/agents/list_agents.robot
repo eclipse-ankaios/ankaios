@@ -36,7 +36,7 @@ Test Ankaios CLI lists connected agents
     And the workload "hello2" shall have the execution state "Pending(Initial)" on agent "agent_B"
     And the workload "hello3" shall have the execution state "Pending(Initial)" on agent "agent_B"
     # Actions
-    When user triggers "ank -k list agents"
+    When user triggers "ank -k get agents"
     # Asserts
     Then the last command shall list the connected agent "agent_A"
 
