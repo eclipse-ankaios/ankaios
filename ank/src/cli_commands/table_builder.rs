@@ -28,20 +28,20 @@ use tabled::{
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct TableBuilderError(String);
+pub struct AnkTableError(String);
 
-impl fmt::Display for TableBuilderError {
+impl fmt::Display for AnkTableError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Could not create table: {}", self.0)
     }
 }
 
-pub struct TableBuilder<'a, RowType> {
+pub struct AnkTable<'a, RowType> {
     rows: &'a [RowType],
     table: Table,
 }
 
-impl<'a, RowType> TableBuilder<'a, RowType>
+impl<'a, RowType> AnkTable<'a, RowType>
 where
     RowType: Tabled,
 {
@@ -64,7 +64,7 @@ where
     pub fn table_with_wrapped_column_to_remaining_terminal_width(
         mut self,
         column_position: usize,
-    ) -> Result<String, TableBuilderError> {
+    ) -> Result<String, AnkTableError> {
         self.style_blank();
         self.disable_surrounding_padding();
         let total_table_width: usize = self.table.total_width();
@@ -80,7 +80,7 @@ where
     pub fn table_with_truncated_column_to_remaining_terminal_width(
         mut self,
         column_position: usize,
-    ) -> Result<String, TableBuilderError> {
+    ) -> Result<String, AnkTableError> {
         self.style_blank();
         self.disable_surrounding_padding();
 
@@ -134,7 +134,7 @@ where
         &self,
         column_position: usize,
         total_table_width: usize,
-    ) -> Result<usize, TableBuilderError> {
+    ) -> Result<usize, AnkTableError> {
         const DEFAULT_CONTENT_LENGTH: usize = 0;
         let terminal_width = terminal_width();
         let column_name_length = RowType::headers()[column_position].len();
@@ -151,7 +151,7 @@ where
 
         let table_width_other_columns =
             total_table_width.checked_sub(column_width).ok_or_else(|| {
-                TableBuilderError(
+                AnkTableError(
                     "overflow when calculating table width for other columns.".to_string(),
                 )
             })?;
@@ -159,9 +159,7 @@ where
         let is_reasonable_terminal_width = terminal_width
             .checked_sub(column_name_length)
             .ok_or_else(|| {
-                TableBuilderError(
-                    "overflow when calculating reasonable terminal width.".to_string(),
-                )
+                AnkTableError("overflow when calculating reasonable terminal width.".to_string())
             })?
             >= table_width_other_columns;
 
@@ -169,13 +167,11 @@ where
             terminal_width
                 .checked_sub(table_width_other_columns)
                 .ok_or_else(|| {
-                    TableBuilderError(
-                        "overflow when calculating remaining terminal width.".to_string(),
-                    )
+                    AnkTableError("overflow when calculating remaining terminal width.".to_string())
                 })
         } else {
             // no reasonable terminal width left, avoid breaking the column header name formatting
-            Err(TableBuilderError(
+            Err(AnkTableError(
                 "no reasonable terminal width available".to_string(),
             ))
         }
@@ -192,7 +188,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::TableBuilder;
+    use super::AnkTable;
     use crate::cli_commands::workload_table_row::WorkloadTableRow;
     use common::objects::ExecutionState;
 
@@ -207,7 +203,7 @@ mod tests {
             additional_info: "some long long additional info message".to_string(),
         }];
 
-        let table = TableBuilder::new(&table_rows);
+        let table = AnkTable::new(&table_rows);
         let table_output = table.create_default_table();
         let expected_table_output_newlines = 1;
         assert_eq!(
@@ -227,7 +223,7 @@ mod tests {
             additional_info: "some long long additional info message".to_string(),
         }];
 
-        let table = TableBuilder::new(&table_rows);
+        let table = AnkTable::new(&table_rows);
         let table_output = table
             .table_with_truncated_column_to_remaining_terminal_width(
                 WorkloadTableRow::ADDITIONAL_INFO_POS,
@@ -259,7 +255,7 @@ mod tests {
             additional_info: "some long long additional info message".to_string(),
         }];
 
-        let table = TableBuilder::new(&table_rows);
+        let table = AnkTable::new(&table_rows);
         let table_output = table
             .table_with_wrapped_column_to_remaining_terminal_width(
                 WorkloadTableRow::ADDITIONAL_INFO_POS,
@@ -276,7 +272,7 @@ mod tests {
     #[test]
     fn utest_terminal_width_for_additional_info_no_table_entries() {
         let empty_rows: [WorkloadTableRow; 0] = [];
-        let table = TableBuilder::new(&empty_rows);
+        let table = AnkTable::new(&empty_rows);
         let table_width: usize = 70; // empty table but all header column names + paddings
         let column_position = WorkloadTableRow::ADDITIONAL_INFO_POS;
         let expected_terminal_width = Ok(25); // 80 (terminal width) - (70 - 15 (column name 'ADDITIONAL INFO')) = 25
@@ -297,7 +293,7 @@ mod tests {
             additional_info: "short".to_string(),
         }];
 
-        let table = TableBuilder::new(&table_rows);
+        let table = AnkTable::new(&table_rows);
         let table_width: usize = 70;
         let expected_terminal_width = Ok(25); // 80 (terminal width) - (70 - 15 (column name 'ADDITIONAL INFO')) = 25
         assert_eq!(
@@ -317,7 +313,7 @@ mod tests {
             additional_info: "medium length message".to_string(),
         }];
 
-        let table = TableBuilder::new(&table_rows);
+        let table = AnkTable::new(&table_rows);
         let table_width: usize = 100; // table bigger than terminal width
         assert!(table
             .terminal_width_for_column(WorkloadTableRow::ADDITIONAL_INFO_POS, table_width)

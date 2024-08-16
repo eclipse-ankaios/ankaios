@@ -14,7 +14,7 @@
 use crate::output_warn;
 use crate::{cli_error::CliError, output_debug};
 
-use super::table_builder::TableBuilder;
+use super::table_builder::AnkTable;
 use super::workload_table_row::WorkloadTableRow;
 use super::CliCommands;
 
@@ -55,7 +55,7 @@ impl CliCommands {
         let table_rows: Vec<WorkloadTableRow> = workload_infos.into_iter().map(|x| x.1).collect();
 
         // [impl->swdd~cli-shall-present-workloads-as-table~1]
-        Ok(TableBuilder::new(&table_rows)
+        Ok(AnkTable::new(&table_rows)
             .table_with_wrapped_column_to_remaining_terminal_width(
                 WorkloadTableRow::ADDITIONAL_INFO_POS,
             )
@@ -64,7 +64,7 @@ impl CliCommands {
                     "Could not create wrapped table: '{}'. Continue with default table.",
                     err
                 );
-                TableBuilder::new(&table_rows).create_default_table()
+                AnkTable::new(&table_rows).create_default_table()
             }))
     }
 }

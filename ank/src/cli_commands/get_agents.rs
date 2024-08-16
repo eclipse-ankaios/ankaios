@@ -14,7 +14,7 @@ use std::collections::HashMap;
 //
 // SPDX-License-Identifier: Apache-2.0
 use crate::{
-    cli_commands::{agent_table_row::AgentTableRow, table_builder::TableBuilder},
+    cli_commands::{agent_table_row::AgentTableRow, table_builder::AnkTable},
     cli_error::CliError,
     filtered_complete_state::FilteredWorkloadSpec,
     output_debug,
@@ -51,7 +51,7 @@ impl CliCommands {
 
         output_debug!("Got agents of complete state: {:?}", agent_table_rows);
 
-        Ok(TableBuilder::new(&agent_table_rows).create_default_table())
+        Ok(AnkTable::new(&agent_table_rows).create_default_table())
     }
 
     fn count_workloads_per_agent(
