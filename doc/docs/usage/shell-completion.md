@@ -2,6 +2,12 @@
 
 Ankaios supports command completion for the `ank` CLI in various shells.
 
+!!! note
+
+    For dynamic completion (workloads etc.) to work, the `ank` CLI must be configured via environment variables.
+    To use a non-default server URL, provide `ANK_SERVER_URL`.
+    Also provide either `ANK_INSECURE=true` or `ANK_CA_PEM`, `ANK_CRT_PEM` and `ANK_KEY_PEM`.
+
 ## Bash
 
 Add the following lines to your `~/.bashrc`:
