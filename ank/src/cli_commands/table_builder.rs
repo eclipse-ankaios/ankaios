@@ -135,7 +135,7 @@ where
         column_position: usize,
         total_table_width: usize,
     ) -> Result<usize, TableBuilderError> {
-        const DEFAULT_CONTENT_SIZE: usize = 0;
+        const DEFAULT_CONTENT_LENGTH: usize = 0;
         let terminal_width = terminal_width();
         let column_name_length = RowType::headers()[column_position].len();
 
@@ -144,7 +144,7 @@ where
             .iter()
             .max_by_key(|row| RowType::fields(row)[column_position].len())
             .map(|row| RowType::fields(row)[column_position].len())
-            .unwrap_or(DEFAULT_CONTENT_SIZE);
+            .unwrap_or(DEFAULT_CONTENT_LENGTH);
 
         // the min length shall be the header column name length
         let column_width = max_content_length.max(column_name_length);
