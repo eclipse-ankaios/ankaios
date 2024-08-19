@@ -30,18 +30,22 @@ use super::CliCommands;
 
 fn create_state_with_default_workload_specs(update_mask: &[String]) -> CompleteState {
     let mut complete_state = CompleteState::default();
+    const WORKLOAD_ATTRIBUTE_LEVEL: usize = 4;
+    let workload_level_mask_parts = ["desiredState".to_string(), "workloads".to_string()];
+    const WORKLOAD_NAME_POSITION: usize = 2;
 
     for field_mask in update_mask {
         let path: Path = field_mask.into();
 
         // if we want to set an attribute of a workload create a default object for the workload
-        if path.parts().len() >= 4 && field_mask.starts_with("desiredState.workloads.") {
-            let stored_workload = StoredWorkloadSpec::default();
-
-            complete_state
-                .desired_state
-                .workloads
-                .insert(path.parts()[2].to_string(), stored_workload);
+        let mask_parts = path.parts();
+        if mask_parts.len() >= WORKLOAD_ATTRIBUTE_LEVEL
+            && mask_parts.starts_with(&workload_level_mask_parts)
+        {
+            complete_state.desired_state.workloads.insert(
+                path.parts()[WORKLOAD_NAME_POSITION].to_string(),
+                StoredWorkloadSpec::default(),
+            );
         }
     }
 
@@ -124,21 +128,21 @@ impl CliCommands {
         );
 
         let temp_obj = process_inputs(io::stdin(), &state_object_file).await?;
-        let mut complete_state = create_state_with_default_workload_specs(&object_field_mask);
+        let default_complete_state = create_state_with_default_workload_specs(&object_field_mask);
 
         // now overwrite with the values from the field mask
-        let mut complete_state_object: Object = complete_state.try_into()?;
+        let mut complete_state_object: Object = default_complete_state.try_into()?;
         complete_state_object =
             overwrite_using_field_mask(complete_state_object, &object_field_mask, &temp_obj)?;
-        complete_state = complete_state_object.try_into()?;
+        let new_complete_state = complete_state_object.try_into()?;
 
         output_debug!(
             "Send UpdateState request with the CompleteState {:?}",
-            complete_state
+            new_complete_state
         );
 
         // [impl->swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~2]
-        self.update_state_and_wait_for_complete(complete_state, object_field_mask)
+        self.update_state_and_wait_for_complete(new_complete_state, object_field_mask)
             .await
     }
 }
@@ -340,5 +344,42 @@ mod tests {
 
         let set_state_result = cmd.set_state(update_mask, state_object_file).await;
         assert!(set_state_result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn utest_set_state_failed() {
+        let wrong_update_mask = vec!["desiredState.workloads.nginx.restartPolicies".to_string()];
+        let state_object_file = SAMPLE_CONFIG.to_owned();
+
+        let workload_spec = StoredWorkloadSpec {
+            restart_policy: RestartPolicy::Always,
+            ..Default::default()
+        };
+        let updated_state = CompleteState {
+            desired_state: State {
+                workloads: HashMap::from([("nginx".to_string(), workload_spec)]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_update_state()
+            .with(eq(updated_state), eq(wrong_update_mask.clone()))
+            .return_once(|_, _| {
+                Ok(UpdateStateSuccess {
+                    added_workloads: vec![],
+                    deleted_workloads: vec![],
+                })
+            });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: true,
+            server_connection: mock_server_connection,
+        };
+
+        let set_state_result = cmd.set_state(wrong_update_mask, state_object_file).await;
+        assert!(set_state_result.is_err());
     }
 }
