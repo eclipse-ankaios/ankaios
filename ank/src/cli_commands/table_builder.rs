@@ -188,19 +188,25 @@ where
 
 #[cfg(test)]
 mod tests {
-    use super::AnkTable;
-    use crate::cli_commands::workload_table_row::WorkloadTableRow;
-    use common::objects::ExecutionState;
+    use super::{AnkTable, Tabled};
+
+    #[derive(Debug, Tabled, Clone)]
+    #[tabled(rename_all = "UPPERCASE")]
+    pub struct TestRow {
+        #[tabled(rename = "COLUMN 1")]
+        pub col1: String,
+        pub col2: String,
+        #[tabled(rename = "ANOTHER COLUMN3")]
+        pub col3: String,
+    }
 
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_create_default_table() {
-        let table_rows = [WorkloadTableRow {
-            name: "workload1".to_string(),
-            agent: "agent1".to_string(),
-            runtime: "podman".to_string(),
-            execution_state: ExecutionState::running().to_string(),
-            additional_info: "some long long additional info message".to_string(),
+        let table_rows = [TestRow {
+            col1: "some name1".to_string(),
+            col2: "text2".to_string(),
+            col3: "some long long additional info message".to_string(),
         }];
 
         let table = AnkTable::new(&table_rows);
@@ -215,19 +221,17 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_create_truncated_table_additional_info() {
-        let table_rows = [WorkloadTableRow {
-            name: "workload1".to_string(),
-            agent: "agent1".to_string(),
-            runtime: "podman".to_string(),
-            execution_state: ExecutionState::running().to_string(),
-            additional_info: "some long long additional info message".to_string(),
+        let table_rows = [TestRow {
+            col1: "some unwrapped name".to_string(),
+            col2: "another unwrapped content".to_string(),
+            col3: "some long info message that shall be truncated".to_string(),
         }];
+
+        let truncated_column_position = 2;
 
         let table = AnkTable::new(&table_rows);
         let table_output = table
-            .table_with_truncated_column_to_remaining_terminal_width(
-                WorkloadTableRow::ADDITIONAL_INFO_POS,
-            )
+            .table_with_truncated_column_to_remaining_terminal_width(truncated_column_position)
             .unwrap();
         let expected_table_output_newlines = 1; // truncated additional info column with suffix '...'
         assert_eq!(
@@ -247,21 +251,20 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_create_wrapped_table_additional_info() {
-        let table_rows = [WorkloadTableRow {
-            name: "workload1".to_string(),
-            agent: "agent1".to_string(),
-            runtime: "podman".to_string(),
-            execution_state: ExecutionState::running().to_string(),
-            additional_info: "some long long additional info message".to_string(),
+        let table_rows = [TestRow {
+            col1: "some unwrapped name".to_string(),
+            col2: "another unwrapped content".to_string(),
+            col3: "some long info message that shall be wrapped".to_string(),
         }];
+
+        let wrapped_column_position = 2;
 
         let table = AnkTable::new(&table_rows);
         let table_output = table
-            .table_with_wrapped_column_to_remaining_terminal_width(
-                WorkloadTableRow::ADDITIONAL_INFO_POS,
-            )
+            .table_with_wrapped_column_to_remaining_terminal_width(wrapped_column_position)
             .unwrap_or_default();
-        let expected_table_output_newlines = 2; // because of wrapping the additional info column
+        println!("{}", table_output);
+        let expected_table_output_newlines = 2; // because of wrapping the ANOTHER COLUMN3 column
         assert_eq!(
             table_output.matches('\n').count(),
             expected_table_output_newlines
@@ -271,11 +274,11 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_terminal_width_for_additional_info_no_table_entries() {
-        let empty_rows: [WorkloadTableRow; 0] = [];
+        let empty_rows: [TestRow; 0] = [];
         let table = AnkTable::new(&empty_rows);
-        let table_width: usize = 70; // empty table but all header column names + paddings
-        let column_position = WorkloadTableRow::ADDITIONAL_INFO_POS;
-        let expected_terminal_width = Ok(25); // 80 (terminal width) - (70 - 15 (column name 'ADDITIONAL INFO')) = 25
+        let table_width: usize = 70; // empty table but all header column names
+        let column_position = 2;
+        let expected_terminal_width = Ok(25); // 80 (terminal width) - (70 - 15 (column name 'ANOTHER COLUMN3')) = 25
         assert_eq!(
             table.terminal_width_for_column(column_position, table_width),
             expected_terminal_width
@@ -284,20 +287,19 @@ mod tests {
 
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
-    fn utest_terminal_width_for_additional_info_column_name_bigger_than_info_msg() {
-        let table_rows = [WorkloadTableRow {
-            name: "workload1".to_string(),
-            agent: "agent1".to_string(),
-            runtime: "podman".to_string(),
-            execution_state: ExecutionState::running().to_string(),
-            additional_info: "short".to_string(),
+    fn utest_terminal_width_for_column_column_name_bigger_than_info_msg() {
+        let table_rows = [TestRow {
+            col1: "some name1".to_string(),
+            col2: "text2".to_string(),
+            col3: "short".to_string(),
         }];
 
         let table = AnkTable::new(&table_rows);
+        let column_position = 2;
         let table_width: usize = 70;
-        let expected_terminal_width = Ok(25); // 80 (terminal width) - (70 - 15 (column name 'ADDITIONAL INFO')) = 25
+        let expected_terminal_width = Ok(25); // 80 (terminal width) - (70 - 15 (column name 'ANOTHER COLUMN3')) = 25
         assert_eq!(
-            table.terminal_width_for_column(WorkloadTableRow::ADDITIONAL_INFO_POS, table_width),
+            table.terminal_width_for_column(column_position, table_width),
             expected_terminal_width
         );
     }
@@ -305,18 +307,17 @@ mod tests {
     // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_terminal_width_for_additional_info_no_reasonable_terminal_width_left() {
-        let table_rows = [WorkloadTableRow {
-            name: "workload1".to_string(),
-            agent: "agent1".to_string(),
-            runtime: "podman".to_string(),
-            execution_state: ExecutionState::running().to_string(),
-            additional_info: "medium length message".to_string(),
+        let table_rows = [TestRow {
+            col1: "some name1".to_string(),
+            col2: "text2".to_string(),
+            col3: "medium length message".to_string(),
         }];
 
         let table = AnkTable::new(&table_rows);
+        let column_position = 2;
         let table_width: usize = 100; // table bigger than terminal width
         assert!(table
-            .terminal_width_for_column(WorkloadTableRow::ADDITIONAL_INFO_POS, table_width)
+            .terminal_width_for_column(column_position, table_width)
             .is_err());
     }
 }
