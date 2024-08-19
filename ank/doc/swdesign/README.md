@@ -894,7 +894,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios CLI presents connected Ankaios agents to the user, the Ankaios CLI shall present the connected Ankaios agents as table containing each agent in a row with the following data:
+When the Ankaios CLI presents connected Ankaios agents to the user, the Ankaios CLI shall present the agents as table containing each agent in a row with the following data:
 
 | NAME                     | WORKLOADS                        |
 | ------------------------ | -------------------------------- |
