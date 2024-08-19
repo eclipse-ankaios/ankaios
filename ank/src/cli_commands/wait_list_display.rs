@@ -21,7 +21,7 @@ use common::objects::WorkloadInstanceName;
 
 use crate::{cli_commands::workload_table_row::WorkloadTableRowWithSpinner, output_warn};
 
-use super::table_builder::AnkTable;
+use super::ank_table::AnkTable;
 use super::{wait_list::WaitListDisplayTrait, workload_table_row::WorkloadTableRow};
 
 pub(crate) const COMPLETED_SYMBOL: &str = " ";

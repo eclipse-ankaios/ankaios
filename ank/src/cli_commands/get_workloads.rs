@@ -14,7 +14,7 @@
 use crate::output_warn;
 use crate::{cli_error::CliError, output_debug};
 
-use super::table_builder::AnkTable;
+use super::ank_table::AnkTable;
 use super::workload_table_row::WorkloadTableRow;
 use super::CliCommands;
 

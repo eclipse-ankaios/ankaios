@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use super::CliCommands;
 use crate::{
-    cli_commands::{agent_table_row::AgentTableRow, table_builder::AnkTable},
+    cli_commands::{agent_table_row::AgentTableRow, ank_table::AnkTable},
     cli_error::CliError,
     filtered_complete_state::FilteredWorkloadSpec,
     output_debug,
@@ -121,6 +121,8 @@ mod tests {
     const WORKLOAD_NAME_2: &str = "workload_2";
     const RUNTIME_NAME: &str = "runtime";
 
+    // [utest->swdd~cli-provides-list-of-agents~1]
+    // [utest->swdd~cli-processes-complete-state-to-provide-connected-agents~1]
     #[tokio::test]
     async fn test_get_agents() {
         let mut mock_server_connection = MockServerConnection::default();
@@ -163,6 +165,7 @@ mod tests {
         assert_eq!(Ok(expected_table_output), table_output_result);
     }
 
+    // [utest->swdd~cli-processes-complete-state-to-provide-connected-agents~1]
     #[tokio::test]
     async fn test_get_agents_agent_not_inside_complete_state_not_listed() {
         let mut mock_server_connection = MockServerConnection::default();
@@ -195,6 +198,7 @@ mod tests {
         assert_eq!(Ok(expected_table_output), table_output_result);
     }
 
+    // [utest->swdd~cli-processes-complete-state-to-provide-connected-agents~1]
     #[tokio::test]
     async fn test_get_agents_empty_workloads_in_complete_state() {
         let mut mock_server_connection = MockServerConnection::default();
@@ -221,6 +225,7 @@ mod tests {
         assert_eq!(Ok(expected_table_output), table_output_result);
     }
 
+    // [utest->swdd~cli-processes-complete-state-to-provide-connected-agents~1]
     #[tokio::test]
     async fn test_get_agents_failed_to_get_complete_state() {
         let mut mock_server_connection = MockServerConnection::default();
