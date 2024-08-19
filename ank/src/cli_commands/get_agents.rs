@@ -92,3 +92,155 @@ impl CliCommands {
         agent_table_rows
     }
 }
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests {
+    use crate::cli_commands::{
+        server_connection::{MockServerConnection, ServerConnectionError},
+        CliCommands,
+    };
+    use api::ank_base;
+    use common::{
+        objects::{generate_test_agent_map, generate_test_workload_spec_with_param, AgentMap},
+        test_utils,
+    };
+    use mockall::predicate::eq;
+
+    const RESPONSE_TIMEOUT_MS: u64 = 3000;
+    const AGENT_A_NAME: &str = "agent_A";
+    const AGENT_B_NAME: &str = "agent_B";
+    const AGENT_UNCONNECTED_NAME: &str = "agent_not_connected";
+    const WORKLOAD_NAME_1: &str = "workload_1";
+    const WORKLOAD_NAME_2: &str = "workload_2";
+    const RUNTIME_NAME: &str = "runtime";
+
+    #[tokio::test]
+    async fn test_get_agents() {
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| {
+                Ok(
+                    ank_base::CompleteState::from(test_utils::generate_test_complete_state(vec![
+                        generate_test_workload_spec_with_param(
+                            AGENT_A_NAME.to_string(),
+                            WORKLOAD_NAME_1.to_string(),
+                            RUNTIME_NAME.to_string(),
+                        ),
+                        generate_test_workload_spec_with_param(
+                            AGENT_B_NAME.to_string(),
+                            WORKLOAD_NAME_2.to_string(),
+                            RUNTIME_NAME.to_string(),
+                        ),
+                    ]))
+                    .into(),
+                )
+            });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let table_output_result = cmd.get_agents().await;
+
+        let expected_table_output = [
+            "NAME      WORKLOADS",
+            "agent_A   1        ",
+            "agent_B   1        ",
+        ]
+        .join("\n");
+
+        assert_eq!(Ok(expected_table_output), table_output_result);
+    }
+
+    #[tokio::test]
+    async fn test_get_agents_agent_not_inside_complete_state_not_listed() {
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| {
+                let mut complete_state = test_utils::generate_test_complete_state(vec![
+                    generate_test_workload_spec_with_param(
+                        AGENT_UNCONNECTED_NAME.to_string(),
+                        WORKLOAD_NAME_2.to_string(),
+                        RUNTIME_NAME.to_string(),
+                    ),
+                ]);
+
+                complete_state.agents = AgentMap::default();
+                Ok(ank_base::CompleteState::from(complete_state).into())
+            });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let table_output_result = cmd.get_agents().await;
+
+        let expected_table_output = "NAME   WORKLOADS".to_string();
+
+        assert_eq!(Ok(expected_table_output), table_output_result);
+    }
+
+    #[tokio::test]
+    async fn test_get_agents_empty_workloads_in_complete_state() {
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| {
+                let mut complete_state = test_utils::generate_test_complete_state(vec![]);
+
+                complete_state.agents = generate_test_agent_map(AGENT_A_NAME);
+                Ok(ank_base::CompleteState::from(complete_state).into())
+            });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let table_output_result = cmd.get_agents().await;
+
+        let expected_table_output = ["NAME      WORKLOADS", "agent_A   0        "].join("\n");
+
+        assert_eq!(Ok(expected_table_output), table_output_result);
+    }
+
+    #[tokio::test]
+    async fn test_get_agents_failed_to_get_complete_state() {
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| {
+                Err(ServerConnectionError::ExecutionError(
+                    "connection error".to_string(),
+                ))
+            });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let table_output_result = cmd.get_agents().await;
+        assert!(table_output_result.is_err());
+    }
+}
