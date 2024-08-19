@@ -117,7 +117,7 @@ The procedure uses the filters for pull request labels configured inside `.githu
 The following steps shall be done before the actual release build is triggered.
 
 1. Create an isssue containing tasks for getting the main branch ready:
-    1. Update the versions in the project packages (Cargo.toml files) to the new version.
+    1. Update the versions in the project packages (Cargo.toml files) to the new version (use `tools/update_version.sh --release <new version>`).
     2. Execute tests on the supported targets.
     3. Make sure there are no security warnings of Github dependabot.
 2. Finish all tasks inside the issue.
