@@ -1556,7 +1556,7 @@ Reports and shared artifacts are placed into the <code>dist</code> folder direct
 <p>The following steps shall be done before the actual release build is triggered.</p>
 <ol>
 <li>Create an isssue containing tasks for getting the main branch ready:<ol>
-<li>Update the versions in the project packages (Cargo.toml files) to the new version.</li>
+<li>Update the versions in the project packages (Cargo.toml files) to the new version (use <code>tools/update_version.sh --release &lt;new version&gt;</code>).</li>
 <li>Execute tests on the supported targets.</li>
 <li>Make sure there are no security warnings of Github dependabot.</li>
 </ol>
