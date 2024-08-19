@@ -12,13 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashMap, path::PathBuf};
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::Authorizer;
+use crate::control_interface::authorizer::Authorizer;
 
 use api::ank_base;
 
@@ -32,10 +29,10 @@ use common::{
 };
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::PipesChannelContext;
+use crate::control_interface::ControlInterface;
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::PipesChannelContextInfo;
+use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 
 #[cfg_attr(test, mockall_double::double)]
 use crate::workload_scheduler::scheduler::WorkloadScheduler;
@@ -227,13 +224,22 @@ impl RuntimeManager {
 
                             // [impl->swdd~agent-existing-workloads-resume-existing~2]
                             if Self::is_resumable_workload(&workload_state, &new_instance_name) {
-                                // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-                                let control_interface = Self::create_control_interface(
+                                let control_interface = match ControlInterface::new(
                                     &self.run_folder,
-                                    self.control_interface_tx.clone(),
                                     &new_workload_spec.instance_name,
+                                    self.control_interface_tx.clone(),
                                     Authorizer::from(&new_workload_spec.control_interface_access),
-                                );
+                                ) {
+                                    Ok(control_interface) => Some(control_interface),
+                                    Err(err) => {
+                                        log::warn!(
+                                            "Could not reuse or create control interface when resuming workload '{}': '{}'",
+                                            new_workload_spec.instance_name,
+                                            err
+                                        );
+                                        None
+                                    }
+                                };
 
                                 log::info!(
                                     "Resuming workload '{}'",
@@ -391,7 +397,7 @@ impl RuntimeManager {
 
     async fn add_workload(&mut self, workload_spec: WorkloadSpec) {
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
-        let control_interface_info = PipesChannelContextInfo::new(
+        let control_interface_info = ControlInterfaceInfo::new(
             &self.run_folder,
             self.control_interface_tx.clone(),
             &workload_spec.instance_name,
@@ -453,7 +459,7 @@ impl RuntimeManager {
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
 
         if let Some(workload) = self.workloads.get_mut(&workload_name) {
-            let pipes_channel_context_info = PipesChannelContextInfo::new(
+            let control_interface_info = ControlInterfaceInfo::new(
                 &self.run_folder,
                 self.control_interface_tx.clone(),
                 &workload_spec.instance_name,
@@ -461,7 +467,7 @@ impl RuntimeManager {
             );
             // [impl->swdd~agent-executes-update-workload-operation~1]
             if let Err(err) = workload
-                .update(Some(workload_spec), Some(pipes_channel_context_info))
+                .update(Some(workload_spec), Some(control_interface_info))
                 .await
             {
                 log::error!("Failed to update workload '{}': '{}'", workload_name, err);
@@ -485,35 +491,6 @@ impl RuntimeManager {
             }
         }
     }
-
-    // [impl->swdd~agent-create-control-interface-pipes-per-workload~1]
-    fn create_control_interface(
-        run_folder: &Path,
-        control_interface_tx: ToServerSender,
-        workload_instance_name: &WorkloadInstanceName,
-        authorizer: Authorizer,
-    ) -> Option<PipesChannelContext> {
-        log::debug!(
-            "Creating control interface pipes for '{:?}'",
-            workload_instance_name
-        );
-
-        match PipesChannelContext::new(
-            run_folder,
-            workload_instance_name,
-            control_interface_tx,
-            authorizer,
-        ) {
-            Ok(pipes_channel_context) => Some(pipes_channel_context),
-            Err(err) => {
-                log::warn!(
-                    "Could not create pipes channel context for workload '{}'. Error: '{err}'",
-                    workload_instance_name
-                );
-                None
-            }
-        }
-    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -526,9 +503,13 @@ impl RuntimeManager {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{
+        ank_base, ControlInterfaceInfo, DeletedWorkload, ExecutionState, RuntimeFacade,
+        RuntimeManager, WorkloadInstanceName, WorkloadOperation, WorkloadSpec,
+    };
     use crate::control_interface::{
-        MockAuthorizer, MockPipesChannelContext, MockPipesChannelContextInfo,
+        authorizer::MockAuthorizer, control_interface_info::MockControlInterfaceInfo,
+        MockControlInterface,
     };
     use crate::runtime_connectors::{MockRuntimeFacade, RuntimeError};
     use crate::workload::{MockWorkload, WorkloadError};
@@ -546,8 +527,8 @@ mod tests {
     };
     use common::to_server_interface::ToServerReceiver;
     use mockall::{predicate, Sequence};
-    use std::any::Any;
     use std::collections::HashMap;
+    use std::{any::Any, path::Path};
     use tokio::sync::mpsc::channel;
 
     const BUFFER_SIZE: usize = 20;
@@ -599,11 +580,11 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
-        pipes_channel_info_context_mock
+        let control_interface_info_mock = MockControlInterfaceInfo::new_context();
+        control_interface_info_mock
             .expect()
             .times(2)
-            .returning(|_, _, _, _| MockPipesChannelContextInfo::default());
+            .returning(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let new_workload_1 = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -685,11 +666,11 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
-        pipes_channel_info_context_mock
+        let control_interface_info_mock = MockControlInterfaceInfo::new_context();
+        control_interface_info_mock
             .expect()
             .once()
-            .return_once(|_, _, _, _| MockPipesChannelContextInfo::default());
+            .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let workload_with_unknown_runtime = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -743,11 +724,11 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
-        pipes_channel_info_context_mock
+        let control_interface_info_mock = MockControlInterfaceInfo::new_context();
+        control_interface_info_mock
             .expect()
             .once()
-            .return_once(|_, _, _, _| MockPipesChannelContextInfo::default());
+            .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -818,11 +799,11 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock
+        let control_interface_new_context = MockControlInterface::new_context();
+        control_interface_new_context
             .expect()
             .once()
-            .returning(move |_, _, _, _| Ok(MockPipesChannelContext::default()));
+            .returning(move |_, _, _, _| Ok(MockControlInterface::default()));
 
         let workload_operations = vec![];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
@@ -1111,8 +1092,8 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let pipes_channel_mock = MockPipesChannelContext::new_context();
-        pipes_channel_mock.expect().never();
+        let control_interface_mock = MockControlInterface::new_context();
+        control_interface_mock.expect().never();
 
         let workload_operations = vec![];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
@@ -1192,11 +1173,11 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
-        pipes_channel_info_context_mock
+        let control_interface_info_mock = MockControlInterfaceInfo::new_context();
+        control_interface_info_mock
             .expect()
             .once()
-            .return_once(|_, _, _, _| MockPipesChannelContextInfo::default());
+            .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let old_workload =
             generate_test_deleted_workload(AGENT_NAME.to_string(), WORKLOAD_1_NAME.to_string());
@@ -1243,7 +1224,7 @@ mod tests {
                             .workload_name()
                             == WORKLOAD_1_NAME
                 }),
-                predicate::function(|control_interface: &Option<PipesChannelContextInfo>| {
+                predicate::function(|control_interface: &Option<ControlInterfaceInfo>| {
                     control_interface.is_some()
                 }),
             )
@@ -1276,11 +1257,11 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
-        pipes_channel_info_context_mock
+        let control_interface_info_mock = MockControlInterfaceInfo::new_context();
+        control_interface_info_mock
             .expect()
             .once()
-            .return_once(|_, _, _, _| MockPipesChannelContextInfo::default());
+            .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let new_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1366,11 +1347,11 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
-        pipes_channel_info_context_mock
+        let control_interface_info_mock = MockControlInterfaceInfo::new_context();
+        control_interface_info_mock
             .expect()
             .once()
-            .return_once(|_, _, _, _| MockPipesChannelContextInfo::default());
+            .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let new_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1436,11 +1417,11 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
-        pipes_channel_info_context_mock
+        let control_interface_info_mock = MockControlInterfaceInfo::new_context();
+        control_interface_info_mock
             .expect()
             .once()
-            .return_once(|_, _, _, _| MockPipesChannelContextInfo::default());
+            .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let old_workload = generate_test_deleted_workload_with_dependencies(
             AGENT_NAME.to_owned(),
@@ -1512,11 +1493,11 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
-        pipes_channel_info_context_mock
+        let control_interface_info_mock = MockControlInterfaceInfo::new_context();
+        control_interface_info_mock
             .expect()
             .once()
-            .return_once(|_, _, _, _| MockPipesChannelContextInfo::default());
+            .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let new_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
@@ -1662,7 +1643,7 @@ mod tests {
             .once()
             .with(
                 predicate::eq(None), // in case of update delete only there is no new workload spec
-                predicate::function(|control_interface: &Option<PipesChannelContextInfo>| {
+                predicate::function(|control_interface: &Option<ControlInterfaceInfo>| {
                     control_interface.is_none()
                 }),
             )
@@ -1947,11 +1928,11 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let pipes_channel_mock = MockPipesChannelContextInfo::new_context();
-        pipes_channel_mock
+        let control_interface_mock = MockControlInterfaceInfo::new_context();
+        control_interface_mock
             .expect()
             .once()
-            .return_once(|_, _, _, _| MockPipesChannelContextInfo::default());
+            .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let next_workload_operations = vec![WorkloadOperation::Create(
             generate_test_workload_spec_with_dependencies(
@@ -2269,11 +2250,11 @@ mod tests {
             .once()
             .return_once(|_| MockWorkloadScheduler::default());
 
-        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
-        pipes_channel_info_context_mock
+        let control_interface_info_mock = MockControlInterfaceInfo::new_context();
+        control_interface_info_mock
             .expect()
             .once()
-            .return_once(|_, _, _, _| MockPipesChannelContextInfo::default());
+            .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let mut runtime_facade_mock = MockRuntimeFacade::new();
         runtime_facade_mock
@@ -2392,11 +2373,11 @@ mod tests {
             RUNTIME_NAME.to_owned(),
         );
 
-        let pipes_channel_info_context_mock = MockPipesChannelContextInfo::new_context();
-        pipes_channel_info_context_mock
+        let control_interface_info_mock = MockControlInterfaceInfo::new_context();
+        control_interface_info_mock
             .expect()
             .once()
-            .return_once(|_, _, _, _| MockPipesChannelContextInfo::default());
+            .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let mut workload_mock = MockWorkload::default();
         workload_mock
