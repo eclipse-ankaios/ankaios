@@ -39,7 +39,7 @@ impl CliCommands {
             .unwrap_or_default()
             .into_values();
 
-        let workload_count_per_agent = self.count_workloads_per_agent(workloads);
+        let workload_count_per_agent = count_workloads_per_agent(workloads);
 
         let connected_agents = filtered_complete_state
             .agents
@@ -48,48 +48,46 @@ impl CliCommands {
             .into_keys();
 
         let agent_table_rows =
-            self.transform_into_table_rows(connected_agents, workload_count_per_agent);
+            transform_into_table_rows(connected_agents, workload_count_per_agent);
 
         output_debug!("Got agents of complete state: {:?}", agent_table_rows);
 
         // [impl->swdd~cli-presents-connected-agents-as-table~1]
         Ok(AnkTable::new(&agent_table_rows).create_default_table())
     }
+}
 
-    fn count_workloads_per_agent(
-        &self,
-        workload_specs: impl Iterator<Item = FilteredWorkloadSpec>,
-    ) -> HashMap<String, u32> {
-        workload_specs.fold(HashMap::new(), |mut init, workload| {
-            if let Some(agent) = workload.agent {
-                let count = init.entry(agent).or_insert(DEFAULT_WORKLOAD_COUNT);
-                *count += 1;
+fn count_workloads_per_agent(
+    workload_specs: impl Iterator<Item = FilteredWorkloadSpec>,
+) -> HashMap<String, u32> {
+    workload_specs.fold(HashMap::new(), |mut init, workload| {
+        if let Some(agent) = workload.agent {
+            let count = init.entry(agent).or_insert(DEFAULT_WORKLOAD_COUNT);
+            *count += 1;
+        }
+        init
+    })
+}
+
+fn transform_into_table_rows(
+    agents_map: impl Iterator<Item = String>,
+    mut workload_count_per_agent: HashMap<String, u32>,
+) -> Vec<AgentTableRow> {
+    let mut agent_table_rows: Vec<AgentTableRow> = agents_map
+        .map(|agent_name| {
+            let workload_count = workload_count_per_agent
+                .remove(&agent_name)
+                .unwrap_or(DEFAULT_WORKLOAD_COUNT);
+            AgentTableRow {
+                agent_name,
+                workloads: workload_count,
             }
-            init
         })
-    }
+        .collect();
 
-    fn transform_into_table_rows(
-        &self,
-        agents_map: impl Iterator<Item = String>,
-        mut workload_count_per_agent: HashMap<String, u32>,
-    ) -> Vec<AgentTableRow> {
-        let mut agent_table_rows: Vec<AgentTableRow> = agents_map
-            .map(|agent_name| {
-                let workload_count = workload_count_per_agent
-                    .remove(&agent_name)
-                    .unwrap_or(DEFAULT_WORKLOAD_COUNT);
-                AgentTableRow {
-                    agent_name,
-                    workloads: workload_count,
-                }
-            })
-            .collect();
-
-        // sort to ensure consistent output
-        agent_table_rows.sort_by(|a, b| a.agent_name.cmp(&b.agent_name));
-        agent_table_rows
-    }
+    // sort to ensure consistent output
+    agent_table_rows.sort_by(|a, b| a.agent_name.cmp(&b.agent_name));
+    agent_table_rows
 }
 
 //////////////////////////////////////////////////////////////////////////////
