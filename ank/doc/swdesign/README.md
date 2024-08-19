@@ -898,7 +898,7 @@ When the Ankaios CLI presents connected Ankaios agents to the user, the Ankaios 
 
 | NAME                     | WORKLOADS                        |
 | ------------------------ | -------------------------------- |
-| `<agent_name>` as text | `<assigned_workloads>` as number |
+| `<agent_name>` as text   | `<assigned_workloads>` as number |
 
 Tags:
 - CliCommands
