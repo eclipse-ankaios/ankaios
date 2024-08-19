@@ -200,7 +200,6 @@ mod tests {
         pub col3: String,
     }
 
-    // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_create_default_table() {
         let table_rows = [TestRow {
@@ -218,9 +217,8 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
-    fn utest_create_truncated_table_additional_info() {
+    fn utest_table_with_truncated_column_to_remaining_terminal_width() {
         let table_rows = [TestRow {
             col1: "some unwrapped name".to_string(),
             col2: "another unwrapped content".to_string(),
@@ -248,9 +246,8 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
-    fn utest_create_wrapped_table_additional_info() {
+    fn utest_table_with_wrapped_column_to_remaining_terminal_width() {
         let table_rows = [TestRow {
             col1: "some unwrapped name".to_string(),
             col2: "another unwrapped content".to_string(),
@@ -271,9 +268,8 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
-    fn utest_terminal_width_for_additional_info_no_table_entries() {
+    fn utest_terminal_width_for_column_no_table_entries() {
         let empty_rows: [TestRow; 0] = [];
         let table = AnkTable::new(&empty_rows);
         let table_width: usize = 70; // empty table but all header column names
@@ -285,7 +281,6 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
     fn utest_terminal_width_for_column_column_name_bigger_than_info_msg() {
         let table_rows = [TestRow {
@@ -304,9 +299,8 @@ mod tests {
         );
     }
 
-    // [utest->swdd~cli-shall-present-workloads-as-table~1]
     #[test]
-    fn utest_terminal_width_for_additional_info_no_reasonable_terminal_width_left() {
+    fn utest_terminal_width_for_column_no_reasonable_terminal_width_left() {
         let table_rows = [TestRow {
             col1: "some name1".to_string(),
             col2: "text2".to_string(),
