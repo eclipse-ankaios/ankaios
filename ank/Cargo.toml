@@ -38,7 +38,7 @@ serde_yaml = "0.9"
 tabled = "0.12"
 uuid = { version = "1.7.0", features = ["v4"] }
 crossterm = "0.27.0"
-clap_complete = { version = "4.5.14", features = ["unstable-dynamic"] }
+clap_complete = { version = "4.5.18", features = ["unstable-dynamic", "unstable-command"] }
 
 [dev-dependencies]
 mockall = "0.11"

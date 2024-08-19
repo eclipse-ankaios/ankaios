@@ -16,10 +16,83 @@ use std::error::Error;
 
 use clap::{command, Parser, Subcommand, ValueHint};
 
-use clap_complete::dynamic::{ArgValueCompleter, CompleteArgs, CompletionCandidate};
+use clap_complete::{
+    dynamic::{ArgValueCompleter, CompletionCandidate},
+    CompleteArgs,
+};
 use common::DEFAULT_SERVER_ADDRESS;
+use serde_json::Value;
 
 const ANK_SERVER_URL_ENV_KEY: &str = "ANK_SERVER_URL";
+
+const DESIRED_STATE: &str = "desiredState";
+const WORKLOADS: &str = "workloads";
+const WORKLOAD_STATES: &str = "workloadStates";
+
+fn get_completions_workloads() -> Vec<CompletionCandidate> {
+    let mut result = Vec::new();
+
+    let output = std::process::Command::new("sh")
+        .arg("-c")
+        .arg("ank get state -o json desiredState.workloads")
+        .output()
+        .expect("failed to execute process");
+
+    let v: Value = serde_json::from_slice(&output.stdout).unwrap();
+
+    if let Value::Object(workloads) = &v[DESIRED_STATE][WORKLOADS] {
+        for workload_name in workloads.keys() {
+            result.push(CompletionCandidate::new(workload_name));
+        }
+    }
+
+    result
+}
+
+fn get_completions_object_field_mask() -> Vec<CompletionCandidate> {
+    let mut result = Vec::new();
+
+    let output = std::process::Command::new("sh")
+        .arg("-c")
+        .arg("ank get state -o json")
+        .output()
+        .expect("failed to execute process");
+
+    let v: Value = serde_json::from_slice(&output.stdout).unwrap();
+
+    if let Value::Object(workloads) = &v[DESIRED_STATE][WORKLOADS] {
+        result.push(CompletionCandidate::new(format!(
+            "{}.{}",
+            DESIRED_STATE, WORKLOADS
+        )));
+        for workload in workloads.keys() {
+            result.push(CompletionCandidate::new(format!(
+                "desiredState.workloads.{}",
+                workload
+            )));
+        }
+    }
+
+    if let Value::Object(workload_states) = &v[WORKLOAD_STATES] {
+        result.push(CompletionCandidate::new(WORKLOAD_STATES));
+        for agent in workload_states.keys() {
+            result.push(CompletionCandidate::new(format!(
+                "{}.{}",
+                WORKLOAD_STATES, agent
+            )));
+            if let Value::Object(workloads) = &v[WORKLOAD_STATES][agent] {
+                for workload in workloads.keys() {
+                    result.push(CompletionCandidate::new(format!(
+                        "{}.{}.{}",
+                        WORKLOAD_STATES, agent, workload
+                    )));
+                }
+            }
+        }
+    }
+
+    result
+}
 
 // [impl->swdd~cli-supports-server-url-cli-argument~1]
 // [impl->swdd~cli-supports-pem-file-paths-as-cli-arguments~1]
@@ -106,6 +179,7 @@ pub enum GetCommands {
         #[arg(short = 'o', value_enum, default_value_t = OutputFormat::Yaml)]
         output_format: OutputFormat,
         /// Select which parts of the state object shall be output e.g. 'desiredState.workloads.nginx' [default: empty = the complete state]
+        #[arg(add = ArgValueCompleter::new(|| get_completions_object_field_mask()))]
         object_field_mask: Vec<String>,
     },
     /// Information about workloads of the Ankaios system
@@ -119,6 +193,7 @@ pub enum GetCommands {
         #[arg(short = 's', long = "state", required = false)]
         state: Option<String>,
         /// Select which workload(s) shall be returned [default: empty = all workloads]
+        #[arg(add = ArgValueCompleter::new(|| get_completions_workloads() ))]
         workload_name: Vec<String>,
     },
 }
@@ -137,7 +212,7 @@ pub enum SetCommands {
     /// State information of Ankaios system
     State {
         /// Select which parts of the state object shall be updated e.g. 'desiredState.workloads.nginx'
-        #[arg(required = true)]
+        #[arg(required = true, add = ArgValueCompleter::new(|| get_completions_object_field_mask()))]
         object_field_mask: Vec<String>,
         /// A file containing the new State Object Description in yaml format
         #[arg(short = 'f', long = "file", value_hint = ValueHint::FilePath)]
@@ -159,17 +234,7 @@ pub enum DeleteCommands {
     #[clap(visible_alias("workloads"))]
     Workload {
         /// One or more workload(s) to be deleted
-        #[arg(required = true, add = ArgValueCompleter::new(|| {
-            let output = std::process::Command::new("sh")
-                .arg("-c")
-                .arg("ank get state -o json desiredState.workloads | jq -r '.desiredState.workloads | keys[]'")
-                .output()
-                .expect("failed to execute process");
-
-            let result :Vec<CompletionCandidate> = String::from_utf8(output.stdout).unwrap()
-                .split("\n").filter(|s| !s.is_empty()).map(|s| CompletionCandidate::new(s)).collect();
-            result
-        }))]
+        #[arg(required = true, add = ArgValueCompleter::new(|| get_completions_workloads()))]
         workload_name: Vec<String>,
     },
 }
