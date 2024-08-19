@@ -890,7 +890,7 @@ Needs:
 - stest
 
 #### CLI shall present connected agents as table
-`swdd~cli-shall-present-connected-agents-as-table~1`
+`swdd~cli-presents-connected-agents-as-table~1`
 
 Status: approved
 

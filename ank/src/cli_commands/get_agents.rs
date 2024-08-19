@@ -52,7 +52,7 @@ impl CliCommands {
 
         output_debug!("Got agents of complete state: {:?}", agent_table_rows);
 
-        // [impl->swdd~cli-shall-present-connected-agents-as-table~1]
+        // [impl->swdd~cli-presents-connected-agents-as-table~1]
         Ok(AnkTable::new(&agent_table_rows).create_default_table())
     }
 
