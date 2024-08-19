@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 // Copyright (c) 2024 Elektrobit Automotive GmbH
 //
 // This program and the accompanying materials are made available under the
@@ -13,14 +11,15 @@ use std::collections::HashMap;
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
+use super::CliCommands;
 use crate::{
     cli_commands::{agent_table_row::AgentTableRow, table_builder::AnkTable},
     cli_error::CliError,
     filtered_complete_state::FilteredWorkloadSpec,
     output_debug,
 };
+use std::collections::HashMap;
 
-use super::CliCommands;
 const DEFAULT_WORKLOAD_COUNT: u32 = 0;
 
 impl CliCommands {
