@@ -22,30 +22,21 @@ use std::io::{self, Read};
 fn read_file_to_string(file: String) -> std::io::Result<String> {
     std::fs::read_to_string(file)
 }
-use crate::{cli_error::CliError, output_and_error, output_debug};
+use crate::{cli_error::CliError, output_debug};
 #[cfg(test)]
 use tests::read_to_string_mock as read_file_to_string;
 
 use super::CliCommands;
 
-fn add_default_workload_spec_per_update_mask(
-    update_mask: &Vec<String>,
-    complete_state: &mut CompleteState,
-) {
+fn create_state_with_default_workload_specs(update_mask: &[String]) -> CompleteState {
+    let mut complete_state = CompleteState::default();
+
     for field_mask in update_mask {
         let path: Path = field_mask.into();
 
         // if we want to set an attribute of a workload create a default object for the workload
-        if path.parts().len() >= 4
-            && path.parts()[0] == "desiredState"
-            && path.parts()[1] == "workloads"
-        {
-            let stored_workload = StoredWorkloadSpec {
-                agent: "".to_string(),
-                runtime: "".to_string(),
-                runtime_config: "".to_string(),
-                ..Default::default()
-            };
+        if path.parts().len() >= 4 && field_mask.starts_with("desiredState.workloads.") {
+            let stored_workload = StoredWorkloadSpec::default();
 
             complete_state
                 .desired_state
@@ -53,6 +44,8 @@ fn add_default_workload_spec_per_update_mask(
                 .insert(path.parts()[2].to_string(), stored_workload);
         }
     }
+
+    complete_state
 }
 
 // [impl->swdd~cli-supports-yaml-to-set-desired-state~1]
@@ -61,36 +54,34 @@ async fn process_inputs<R: Read>(reader: R, state_object_file: &str) -> Result<O
         "-" => {
             let stdin = io::read_to_string(reader).map_err(|error| {
                 CliError::ExecutionError(format!(
-                    "Could not read the state object file.\nError: {}",
+                    "Could not read the state object from stdin.\nError: '{}'",
                     error
                 ))
             })?;
             let value: serde_yaml::Value = serde_yaml::from_str(&stdin).map_err(|error| {
                 CliError::YamlSerialization(format!(
-                    "Could not convert to yaml Value.\nError: {}",
+                    "Could not convert stdin input to yaml.\nError: '{}'",
                     error
                 ))
             })?;
-            let temp_obj = Object::try_from(&value)?;
-            Ok(temp_obj)
+            Ok(Object::try_from(&value)?)
         }
         _ => {
             let state_object_data =
                 read_file_to_string(state_object_file.to_string()).map_err(|error| {
                     CliError::ExecutionError(format!(
-                        "Could not read the state object file.\nError: {}",
+                        "Could not read the state object file.\nError: '{}'",
                         error
                     ))
                 })?;
             let value: serde_yaml::Value =
                 serde_yaml::from_str(&state_object_data).map_err(|error| {
                     CliError::YamlSerialization(format!(
-                        "Could not convert to yaml Value.\nError: {}",
+                        "Could not convert state object file to yaml Value.\nError: '{}'",
                         error
                     ))
                 })?;
-            let temp_obj = Object::try_from(&value)?;
-            Ok(temp_obj)
+            Ok(Object::try_from(&value)?)
         }
     }
 }
@@ -111,13 +102,7 @@ fn overwrite_using_field_mask(
                     .get(&path)
                     .ok_or(CliError::ExecutionError(format!(
                         "Specified update mask '{field_mask}' not found in the input config.",
-                    )))
-                    .unwrap_or_else(|error| {
-                        output_and_error!(
-                            "Encountered error while overwritting using field mask. Error: {}",
-                            error
-                        )
-                    })
+                    )))?
                     .clone(),
             )
             .map_err(|err| CliError::ExecutionError(err.to_string()))?;
@@ -138,10 +123,8 @@ impl CliCommands {
             state_object_file
         );
 
-        let mut complete_state = CompleteState::default();
-
         let temp_obj = process_inputs(io::stdin(), &state_object_file).await?;
-        add_default_workload_spec_per_update_mask(&object_field_mask, &mut complete_state);
+        let mut complete_state = create_state_with_default_workload_specs(&object_field_mask);
 
         // now overwrite with the values from the field mask
         let mut complete_state_object: Object = complete_state.try_into()?;
@@ -205,9 +188,8 @@ mod tests {
     #[test]
     fn utest_add_default_workload_spec_empty_update_mask() {
         let update_mask = vec![];
-        let mut complete_state = CompleteState::default();
 
-        add_default_workload_spec_per_update_mask(&update_mask, &mut complete_state);
+        let complete_state = create_state_with_default_workload_specs(&update_mask);
 
         assert!(complete_state.desired_state.workloads.is_empty());
     }
@@ -220,9 +202,8 @@ mod tests {
             "desiredState.workloads.nginx2.restartPolicy".to_string(),
             "desiredState.workloads.nginx3".to_string(),
         ];
-        let mut complete_state = CompleteState::default();
 
-        add_default_workload_spec_per_update_mask(&update_mask, &mut complete_state);
+        let complete_state = create_state_with_default_workload_specs(&update_mask);
 
         assert!(complete_state.desired_state.workloads.contains_key("nginx"));
         assert!(complete_state
@@ -239,9 +220,8 @@ mod tests {
     #[test]
     fn utest_add_default_workload_spec_invalid_path() {
         let update_mask = vec!["invalid.path".to_string()];
-        let mut complete_state = CompleteState::default();
 
-        add_default_workload_spec_per_update_mask(&update_mask, &mut complete_state);
+        let complete_state = create_state_with_default_workload_specs(&update_mask);
 
         assert!(complete_state.desired_state.workloads.is_empty());
     }
