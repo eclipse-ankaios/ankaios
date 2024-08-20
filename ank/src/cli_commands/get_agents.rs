@@ -21,16 +21,15 @@ use crate::{
 use std::collections::HashMap;
 
 const DEFAULT_WORKLOAD_COUNT: u32 = 0;
+const EMPTY_FILTER_MASK: [String; 0] = [];
 
 impl CliCommands {
     // [impl->swdd~cli-provides-list-of-agents~1]
     // [impl->swdd~cli-processes-complete-state-to-provide-connected-agents~1]
     pub async fn get_agents(&mut self) -> Result<String, CliError> {
-        let empty_filter_mask = [];
-
         let filtered_complete_state = self
             .server_connection
-            .get_complete_state(&empty_filter_mask)
+            .get_complete_state(&EMPTY_FILTER_MASK)
             .await?;
 
         let workloads = filtered_complete_state
@@ -106,7 +105,10 @@ mod tests {
     };
     use api::ank_base;
     use common::{
-        objects::{generate_test_agent_map, generate_test_workload_spec_with_param, AgentMap},
+        objects::{
+            generate_test_agent_map, generate_test_agent_map_from_specs,
+            generate_test_workload_spec_with_param, AgentMap,
+        },
         test_utils,
     };
     use mockall::predicate::eq;
@@ -244,5 +246,44 @@ mod tests {
 
         let table_output_result = cmd.get_agents().await;
         assert!(table_output_result.is_err());
+    }
+
+    // [utest->swdd~cli-processes-complete-state-to-provide-connected-agents~1]
+    #[tokio::test]
+    async fn test_get_agents_no_output_of_empty_agents() {
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| {
+                let workload1 = generate_test_workload_spec_with_param(
+                    AGENT_A_NAME.to_string(),
+                    WORKLOAD_NAME_2.to_string(),
+                    RUNTIME_NAME.to_string(),
+                );
+                let mut complete_state = test_utils::generate_test_complete_state(vec![
+                    workload1.clone(),
+                    generate_test_workload_spec_with_param(
+                        String::default(),
+                        WORKLOAD_NAME_1.to_string(),
+                        RUNTIME_NAME.to_string(),
+                    ),
+                ]);
+
+                complete_state.agents = generate_test_agent_map_from_specs(&[workload1]);
+                Ok(ank_base::CompleteState::from(complete_state).into())
+            });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let table_output_result = cmd.get_agents().await;
+
+        let expected_table_output = ["NAME      WORKLOADS", "agent_A   1        "].join("\n");
+
+        assert_eq!(Ok(expected_table_output), table_output_result);
     }
 }

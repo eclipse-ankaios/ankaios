@@ -89,7 +89,7 @@ pub fn generate_test_agent_map_from_specs(workloads: &[crate::objects::WorkloadS
         .iter()
         .fold(AgentMap::new(), |mut agent_map, spec| {
             let agent_name = spec.instance_name.agent_name();
-            agent_map.entry(AgentName::from(agent_name)).or_default();
+            agent_map.entry(agent_name.to_owned()).or_default();
             agent_map
         })
 }
