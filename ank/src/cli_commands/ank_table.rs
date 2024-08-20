@@ -20,6 +20,7 @@ fn terminal_width() -> usize {
     80
 }
 
+use common::std_extensions::UnreachableOption;
 use tabled::{
     settings::{object::Columns, Modify, Padding, Style, Width},
     Table, Tabled,
@@ -137,13 +138,26 @@ where
     ) -> Result<usize, AnkTableError> {
         const DEFAULT_CONTENT_LENGTH: usize = 0;
         let terminal_width = terminal_width();
-        let column_name_length = RowType::headers()[column_position].len();
+        let column_name_length = RowType::headers()
+            .get(column_position)
+            .unwrap_or_unreachable()
+            .len();
 
         let max_content_length = self
             .rows
             .iter()
-            .max_by_key(|row| RowType::fields(row)[column_position].len())
-            .map(|row| RowType::fields(row)[column_position].len())
+            .max_by_key(|row| {
+                RowType::fields(row)
+                    .get(column_position)
+                    .unwrap_or_unreachable()
+                    .len()
+            })
+            .map(|row| {
+                RowType::fields(row)
+                    .get(column_position)
+                    .unwrap_or_unreachable()
+                    .len()
+            })
             .unwrap_or(DEFAULT_CONTENT_LENGTH);
 
         // the min length shall be the header column name length
