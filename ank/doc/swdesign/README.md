@@ -873,6 +873,8 @@ Needs:
 
 ### `ank get agents`
 
+![Get agents](plantuml/seq_get_agent.svg)
+
 #### CLI provides the list of connected agents
 `swdd~cli-provides-list-of-agents~1`
 
