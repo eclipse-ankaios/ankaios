@@ -74,14 +74,14 @@ async fn process_inputs<R: Read>(reader: R, state_object_file: &str) -> Result<O
             let state_object_data =
                 read_file_to_string(state_object_file.to_string()).map_err(|error| {
                     CliError::ExecutionError(format!(
-                        "Could not read the state object file.\nError: '{}'",
-                        error
+                        "Could not read the state object file '{}'.\nError: '{}'",
+                        state_object_file, error
                     ))
                 })?;
             let value: serde_yaml::Value =
                 serde_yaml::from_str(&state_object_data).map_err(|error| {
                     CliError::YamlSerialization(format!(
-                        "Could not convert state object file to yaml Value.\nError: '{}'",
+                        "Could not convert state object file to yaml.\nError: '{}'",
                         error
                     ))
                 })?;
