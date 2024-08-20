@@ -28,7 +28,6 @@ use tests::read_to_string_mock as read_file_to_string;
 
 use super::CliCommands;
 
-// [impl->swdd~cli-supports-yaml-to-set-desired-state~1]
 fn create_state_with_default_workload_specs(update_mask: &[String]) -> CompleteState {
     let mut complete_state = CompleteState::default();
     const WORKLOAD_ATTRIBUTE_LEVEL: usize = 4;
@@ -91,7 +90,6 @@ async fn process_inputs<R: Read>(reader: R, state_object_file: &str) -> Result<O
     }
 }
 
-// [impl->swdd~cli-supports-yaml-to-set-desired-state~1]
 fn overwrite_using_field_mask(
     mut complete_state_object: Object,
     object_field_mask: &Vec<String>,
@@ -117,7 +115,7 @@ fn overwrite_using_field_mask(
 }
 
 impl CliCommands {
-    // [impl->swdd-cli-supports-yaml-to-set-desired-state~1]
+    // [impl->swdd~cli-provides-set-desired-state~1]
     pub async fn set_state(
         &mut self,
         object_field_mask: Vec<String>,
