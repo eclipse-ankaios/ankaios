@@ -14,20 +14,18 @@
 
 FROM mcr.microsoft.com/vscode/devcontainers/base:1-debian-12 AS src
 
-FROM debian:12
+FROM ubuntu:24.04
 
 ARG TARGETARCH
 ARG USERNAME=vscode
 
 # All the packages we need
-RUN export DEBIAN_FRONTEND=noninteractive; \
+RUN export DEBIAN_FRONTEND=noninteractive \
+    && apt update && \
     if [ "$TARGETARCH" = "amd64" ]; then \
-        dpkg --add-architecture arm64 && \
-        apt update && \
-        apt install -y gcc-aarch64-linux-gnu musl-tools libc6-dev:arm64; \
+        apt install -y gcc-aarch64-linux-gnu; \
     elif [ "$TARGETARCH" = "arm64" ]; then \
-        apt update && \
-        apt install -y gcc-x86-64-linux-gnu musl-tools; \
+        apt install -y gcc-x86-64-linux-gnu; \
     fi \
     && apt -y install \
     # Basics
@@ -65,7 +63,8 @@ RUN export DEBIAN_FRONTEND=noninteractive; \
 
 # User management
 COPY --from=src /home/vscode/.bashrc /etc/skel/
-RUN groupadd rustlang \
+RUN (userdel -r ubuntu || true) \
+    && groupadd rustlang \
     && useradd -s /bin/bash -d /home/${USERNAME} -m -G rustlang ${USERNAME} \
     && echo "${USERNAME} ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME}
 
@@ -85,7 +84,7 @@ RUN mkdir -p -m 2777 $RUSTUP_HOME \
     && mkdir -p -m 2777 $CARGO_HOME \
     && chgrp rustlang $CARGO_HOME \
     && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-       sh -s -- -y --default-toolchain 1.80.1 --target x86_64-unknown-linux-musl aarch64-linux-gnu-gcc --no-modify-path \
+       sh -s -- -y --default-toolchain 1.80.1 --target x86_64-unknown-linux-musl aarch64-unknown-linux-musl --no-modify-path \
     && chmod -R ag+w $RUSTUP_HOME $CARGO_HOME
 
 VOLUME /var/lib/containers
@@ -129,9 +128,5 @@ RUN cargo install cargo-llvm-cov --locked; \
     cargo install cargo-nextest --locked; \
     cargo install cargo-deny --locked; \
     cargo install cargo-about --locked
-
-# Install required cargo targets and toolchains
-RUN rustup target add x86_64-unknown-linux-musl \
-    && rustup target add aarch64-unknown-linux-musl
 
 USER root
