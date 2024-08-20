@@ -21,7 +21,7 @@ Resource            ../../resources/variables.resource
 
 *** Test Cases ***
 
-# [stest->]
+# [stest->swdd~cli-provides-list-of-agents~1]
 Test Ankaios CLI lists connected agents
     [Setup]        Setup Ankaios
     # Preconditions
