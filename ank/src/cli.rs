@@ -16,10 +16,7 @@ use std::error::Error;
 
 use clap::{command, Parser, Subcommand, ValueHint};
 
-use clap_complete::{
-    dynamic::{ArgValueCompleter, CompletionCandidate},
-    CompleteArgs,
-};
+use clap_complete::{ArgValueCompleter, CompletionCandidate};
 use common::DEFAULT_SERVER_ADDRESS;
 use serde_json::Value;
 
@@ -152,8 +149,6 @@ pub enum Commands {
     Run(RunArgs),
     #[command(arg_required_else_help = true)]
     Apply(ApplyArgs),
-    #[command(arg_required_else_help = true)]
-    Complete(CompleteArgs),
 }
 
 /// Retrieve information about the current Ankaios system

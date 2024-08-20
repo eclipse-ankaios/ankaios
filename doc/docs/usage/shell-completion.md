@@ -14,7 +14,7 @@ Add the following lines to your `~/.bashrc`:
 
 ```bash
 if command -v ank &> /dev/null; then
-    source <(ank complete --shell bash --register -)
+    source <(COMPLETE=bash ank)
 fi
 ```
 
@@ -24,7 +24,7 @@ Add the following lines to your `~/.zshrc`:
 
 ```zsh
 if command -v ank &> /dev/null; then
-    source <(ank complete --shell zsh --register -)
+    source <(COMPLETE=zsh ank)
 fi
 ```
 
@@ -34,18 +34,18 @@ Add the following lines to your `~/.config/fish/config.fish`:
 
 ```fish
 if type -q ank
-    source (ank complete --shell fish --register - | psub)
+    source (COMPLETE=fish ank | psub)
 end
 ```
 
 ## Elvish
 
 ```elvish
-echo "eval (ank complete --shell elvish --register -)" >> ~/.elvish/rc.elv
+echo "eval (COMPLETE=elvish ank)" >> ~/.elvish/rc.elv
 ```
 
 ## Powershell
 
 ```powershell
-echo "ank complete --shell powershell --register - | Invoke-Expression" >> $PROFILE
+echo "COMPLETE=powershell ank | Invoke-Expression" >> $PROFILE
 ```
