@@ -12,13 +12,30 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-FROM mcr.microsoft.com/devcontainers/rust:1-1-bookworm
+FROM mcr.microsoft.com/vscode/devcontainers/base:1-debian-12 AS src
 
-ARG USERNAME=vscode
+FROM debian:12
+
 ARG TARGETARCH
+ARG USERNAME=vscode
 
-RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install \
+# All the packages we need
+RUN export DEBIAN_FRONTEND=noninteractive; \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        dpkg --add-architecture arm64 && \
+        apt update && \
+        apt install -y gcc-aarch64-linux-gnu musl-tools libc6-dev:arm64; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+        apt update && \
+        apt install -y gcc-x86-64-linux-gnu musl-tools; \
+    fi \
+    && apt -y install \
+    # Basics
+    git \
+    zsh \
+    curl \
+    iputils-ping \
+    sudo \
     # java for plantuml
     default-jre \
     graphviz \
@@ -35,7 +52,6 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     # Others
     protobuf-compiler \
     protobuf-compiler-grpc \
-    gcc-aarch64-linux-gnu \
     tmux \
     vim \
     uidmap \
@@ -45,8 +61,32 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
     podman \
     # TLS
     musl-tools \
-    && \
-    rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
+
+# User management
+COPY --from=src /home/vscode/.bashrc /etc/skel/
+RUN groupadd rustlang \
+    && useradd -s /bin/bash -d /home/${USERNAME} -m -G rustlang ${USERNAME} \
+    && echo "${USERNAME} ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME}
+
+# Install oh-my-zsh
+USER ${USERNAME}
+RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended \
+    && sed -i 's/ZSH_THEME="[^"]*"/ZSH_THEME="devcontainers"/' /home/${USERNAME}/.zshrc
+COPY --from=src /home/vscode/.oh-my-zsh/custom/themes/devcontainers.zsh-theme /home/${USERNAME}/.oh-my-zsh/custom/themes/
+USER root
+
+# Rust
+ENV RUSTUP_HOME=/usr/local/rustup
+ENV CARGO_HOME=/usr/local/cargo
+ENV PATH=/usr/local/cargo/bin:$PATH
+RUN mkdir -p -m 2777 $RUSTUP_HOME \
+    && chgrp rustlang $RUSTUP_HOME \
+    && mkdir -p -m 2777 $CARGO_HOME \
+    && chgrp rustlang $CARGO_HOME \
+    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+       sh -s -- -y --default-toolchain 1.80.1 --target x86_64-unknown-linux-musl aarch64-linux-gnu-gcc --no-modify-path \
+    && chmod -R ag+w $RUSTUP_HOME $CARGO_HOME
 
 VOLUME /var/lib/containers
 
