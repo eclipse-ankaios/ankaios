@@ -77,9 +77,7 @@ impl From<ank_base::AgentMap> for AgentMap {
 #[cfg(any(feature = "test_utils", test))]
 pub fn generate_test_agent_map(agent_name: impl Into<String>) -> AgentMap {
     let mut agent_map = AgentMap::new();
-    agent_map
-        .entry(AgentName::from(agent_name.into()))
-        .or_default();
+    agent_map.entry(agent_name.into()).or_default();
     agent_map
 }
 
