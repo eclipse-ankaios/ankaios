@@ -125,7 +125,7 @@ The object field mask can be constructed using the field names of the [CompleteS
            commandOptions: ["-p", "8081:80"]
    ```
 
-3. Example `ank set state desiredState.workloads.nginx.restartPolicy new-state.yaml` changes the restart behavior of nginx workload to `NEVER`:
+3. Example `ank -k set state desiredState.workloads.nginx.restartPolicy new-state.yaml` changes the restart behavior of nginx workload to `NEVER`:
 
    ```yaml title="new-state.yaml"
    desiredState:
