@@ -203,18 +203,19 @@ mod tests {
     #[test]
     fn utest_create_default_table() {
         let table_rows = [TestRow {
-            col1: "some name1".to_string(),
-            col2: "text2".to_string(),
-            col3: "some long long additional info message".to_string(),
+            col1: "some default name".to_string(),
+            col2: "another content".to_string(),
+            col3: "some long info message that shall never be truncated or unwrapped".to_string(),
         }];
 
         let table = AnkTable::new(&table_rows);
         let table_output = table.create_default_table();
-        let expected_table_output_newlines = 1;
-        assert_eq!(
-            table_output.matches('\n').count(),
-            expected_table_output_newlines
-        );
+        let expected_table_output = [
+            "COLUMN 1            COL2              ANOTHER COLUMN3                                                  ",
+            "some default name   another content   some long info message that shall never be truncated or unwrapped",
+        ].join("\n");
+
+        assert_eq!(table_output, expected_table_output);
     }
 
     #[test]
@@ -231,7 +232,7 @@ mod tests {
         let table_output = table
             .table_with_truncated_column_to_remaining_terminal_width(truncated_column_position)
             .unwrap();
-        let expected_table_output_newlines = 1; // truncated additional info column with suffix '...'
+        let expected_table_output_newlines = 1; // truncated column with suffix '...'
         assert_eq!(
             table_output.matches('\n').count(),
             expected_table_output_newlines
