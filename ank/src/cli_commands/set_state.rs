@@ -43,7 +43,7 @@ fn create_state_with_default_workload_specs(update_mask: &[String]) -> CompleteS
             && mask_parts.starts_with(&workload_level_mask_parts)
         {
             complete_state.desired_state.workloads.insert(
-                path.parts()[WORKLOAD_NAME_POSITION].to_string(),
+                mask_parts[WORKLOAD_NAME_POSITION].to_string(),
                 StoredWorkloadSpec::default(),
             );
         }
@@ -116,6 +116,7 @@ fn overwrite_using_field_mask(
 }
 
 impl CliCommands {
+    // [impl->swdd-cli-supports-yaml-to-set-desired-state~1]
     pub async fn set_state(
         &mut self,
         object_field_mask: Vec<String>,
@@ -156,11 +157,13 @@ impl CliCommands {
 //////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{
+        create_state_with_default_workload_specs, io, overwrite_using_field_mask, process_inputs,
+        CliCommands, StoredWorkloadSpec,
+    };
     use crate::cli_commands::server_connection::MockServerConnection;
     use api::ank_base::UpdateStateSuccess;
     use common::{
-        // commands::UpdateStateSuccess,
         objects::{CompleteState, RestartPolicy, State},
         state_manipulation::Object,
     };
@@ -190,7 +193,7 @@ mod tests {
 
     // [utest->swdd~cli-provides-set-desired-state~1]
     #[test]
-    fn utest_add_default_workload_spec_empty_update_mask() {
+    fn utest_create_state_with_default_workload_specs_empty_update_mask() {
         let update_mask = vec![];
 
         let complete_state = create_state_with_default_workload_specs(&update_mask);
@@ -200,7 +203,7 @@ mod tests {
 
     // [utest->swdd~cli-provides-set-desired-state~1]
     #[test]
-    fn utest_add_default_workload_spec_with_update_mask() {
+    fn utest_create_state_with_default_workload_specs_with_update_mask() {
         let update_mask = vec![
             "desiredState.workloads.nginx.restartPolicy".to_string(),
             "desiredState.workloads.nginx2.restartPolicy".to_string(),
@@ -222,7 +225,7 @@ mod tests {
 
     // [utest->swdd~cli-provides-set-desired-state~1]
     #[test]
-    fn utest_add_default_workload_spec_invalid_path() {
+    fn utest_create_state_with_default_workload_specs_invalid_path() {
         let update_mask = vec!["invalid.path".to_string()];
 
         let complete_state = create_state_with_default_workload_specs(&update_mask);
@@ -282,16 +285,13 @@ mod tests {
     #[tokio::test]
     async fn utest_process_inputs_file() {
         let state_object_file = SAMPLE_CONFIG.to_owned();
-        println!("{:?}", state_object_file);
 
         let temp_obj = process_inputs(io::empty(), &state_object_file)
             .await
             .unwrap();
-        println!("{:?}", temp_obj);
 
         let value: Value = serde_yaml::from_str(SAMPLE_CONFIG).unwrap();
         let expected_obj = Object::try_from(&value).unwrap();
-        println!("{:?}", expected_obj);
 
         assert_eq!(temp_obj, expected_obj);
     }
@@ -329,12 +329,7 @@ mod tests {
         mock_server_connection
             .expect_update_state()
             .with(eq(updated_state), eq(update_mask.clone()))
-            .return_once(|_, _| {
-                Ok(UpdateStateSuccess {
-                    added_workloads: vec![],
-                    deleted_workloads: vec![],
-                })
-            });
+            .return_once(|_, _| Ok(UpdateStateSuccess::default()));
 
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
@@ -346,32 +341,15 @@ mod tests {
         assert!(set_state_result.is_ok());
     }
 
+    // [utest->swdd~cli-provides-set-desired-state~1]
     #[tokio::test]
     async fn utest_set_state_failed() {
-        let wrong_update_mask = vec!["desiredState.workloads.nginx.restartPolicies".to_string()];
+        let wrong_update_mask = vec!["desiredState.workloads.notExistingWorkload".to_string()];
         let state_object_file = SAMPLE_CONFIG.to_owned();
-
-        let workload_spec = StoredWorkloadSpec {
-            restart_policy: RestartPolicy::Always,
-            ..Default::default()
-        };
-        let updated_state = CompleteState {
-            desired_state: State {
-                workloads: HashMap::from([("nginx".to_string(), workload_spec)]),
-                ..Default::default()
-            },
-            ..Default::default()
-        };
         let mut mock_server_connection = MockServerConnection::default();
         mock_server_connection
             .expect_update_state()
-            .with(eq(updated_state), eq(wrong_update_mask.clone()))
-            .return_once(|_, _| {
-                Ok(UpdateStateSuccess {
-                    added_workloads: vec![],
-                    deleted_workloads: vec![],
-                })
-            });
+            .return_once(|_, _| Ok(UpdateStateSuccess::default()));
 
         let mut cmd = CliCommands {
             _response_timeout_ms: RESPONSE_TIMEOUT_MS,
