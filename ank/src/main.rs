@@ -125,6 +125,7 @@ async fn main() {
                     state_object_file
                 );
 
+                // [impl->swdd~cli-blocks-until-ankaios-server-responds-set-desired-state~2]
                 if let Err(err) = cmd.set_state(object_field_mask, state_object_file).await {
                     output_and_error!("Failed to set state: '{}'", err)
                 }
