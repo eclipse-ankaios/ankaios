@@ -12,8 +12,6 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-FROM mcr.microsoft.com/vscode/devcontainers/base:1-debian-12 AS src
-
 FROM ubuntu:24.04
 
 ARG TARGETARCH
@@ -59,20 +57,23 @@ RUN export DEBIAN_FRONTEND=noninteractive \
     podman \
     # TLS
     musl-tools \
+    # Cleanup
     && rm -rf /var/lib/apt/lists/*
 
 # User management
-COPY --from=src /home/vscode/.bashrc /etc/skel/
 RUN (userdel -r ubuntu || true) \
     && groupadd rustlang \
     && useradd -s /bin/bash -d /home/${USERNAME} -m -G rustlang ${USERNAME} \
     && echo "${USERNAME} ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME}
 
-# Install oh-my-zsh
+# Prepare shells
 USER ${USERNAME}
-RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended \
-    && sed -i 's/ZSH_THEME="[^"]*"/ZSH_THEME="devcontainers"/' /home/${USERNAME}/.zshrc
-COPY --from=src /home/vscode/.oh-my-zsh/custom/themes/devcontainers.zsh-theme /home/${USERNAME}/.oh-my-zsh/custom/themes/
+COPY --chown=${USERNAME}:${USERNAME} dot_bashrc /home/${USERNAME}/.bashrc
+COPY --chown=${USERNAME}:${USERNAME} dot_zshrc /home/${USERNAME}/.zshrc
+RUN curl -sS https://starship.rs/install.sh | sh -s -- -y \
+    && echo 'eval "$(starship init bash)"' >> /home/${USERNAME}/.bashrc \
+    && echo 'eval "$(starship init zsh)"' >> /home/${USERNAME}/.zshrc
+COPY --chown=${USERNAME}:${USERNAME} starship.toml /home/${USERNAME}/.config/
 USER root
 
 # Rust
