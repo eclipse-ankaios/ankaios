@@ -211,11 +211,15 @@ mod tests {
 
         let complete_state = create_state_with_default_workload_specs(&update_mask);
 
-        assert!(complete_state.desired_state.workloads.contains_key("nginx"));
-        assert!(complete_state
-            .desired_state
-            .workloads
-            .contains_key("nginx2"));
+        assert_eq!(
+            complete_state.desired_state.workloads.get("nginx"),
+            Some(&StoredWorkloadSpec::default())
+        );
+
+        assert_eq!(
+            complete_state.desired_state.workloads.get("nginx2"),
+            Some(&StoredWorkloadSpec::default())
+        );
         assert!(!complete_state
             .desired_state
             .workloads
