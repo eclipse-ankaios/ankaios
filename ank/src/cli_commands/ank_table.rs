@@ -55,6 +55,7 @@ where
         Self { rows, table }
     }
 
+    // [impl->swdd~cli-ank-table-provides-default-table-output~1]
     pub fn create_default_table(mut self) -> String {
         self.table = Table::new(self.rows);
         self.style_blank();
@@ -62,6 +63,7 @@ where
         self.table.to_string()
     }
 
+    // [impl->swdd~cli-ank-table-provides-table-output-with-wrapped-column~1]
     pub fn table_with_wrapped_column_to_remaining_terminal_width(
         mut self,
         column_position: usize,
@@ -78,6 +80,7 @@ where
         Ok(self.table.to_string())
     }
 
+    // [impl->swdd~cli-ank-table-provides-table-output-with-truncated-column~1]
     pub fn table_with_truncated_column_to_remaining_terminal_width(
         mut self,
         column_position: usize,
@@ -131,13 +134,13 @@ where
             )));
     }
 
+    // [impl->swdd~cli-ank-table-wrapped-truncated-column-width-depends-on-terminal-width~1]
     fn terminal_width_for_column(
         &self,
         column_position: usize,
         total_table_width: usize,
     ) -> Result<usize, AnkTableError> {
         const DEFAULT_CONTENT_LENGTH: usize = 0;
-        let terminal_width = terminal_width();
         let column_name_length = RowType::headers()
             .get(column_position)
             .unwrap_or_unreachable()
@@ -169,6 +172,8 @@ where
                     "overflow when calculating table width for other columns.".to_string(),
                 )
             })?;
+
+        let terminal_width = terminal_width();
 
         let is_reasonable_terminal_width = terminal_width
             .checked_sub(column_name_length)
@@ -214,6 +219,7 @@ mod tests {
         pub col3: String,
     }
 
+    // [utest->swdd~cli-ank-table-provides-default-table-output~1]
     #[test]
     fn utest_create_default_table() {
         let table_rows = [TestRow {
@@ -232,6 +238,7 @@ mod tests {
         assert_eq!(table_output, expected_table_output);
     }
 
+    // [utest->swdd~cli-ank-table-provides-table-output-with-truncated-column~1]
     #[test]
     fn utest_table_with_truncated_column_to_remaining_terminal_width() {
         let table_rows = [TestRow {
@@ -261,6 +268,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-ank-table-provides-table-output-with-wrapped-column~1]
     #[test]
     fn utest_table_with_wrapped_column_to_remaining_terminal_width() {
         let table_rows = [TestRow {
@@ -283,6 +291,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-ank-table-wrapped-truncated-column-width-depends-on-terminal-width~1]
     #[test]
     fn utest_terminal_width_for_column_no_table_entries() {
         let empty_rows: [TestRow; 0] = [];
@@ -296,6 +305,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-ank-table-wrapped-truncated-column-width-depends-on-terminal-width~1]
     #[test]
     fn utest_terminal_width_for_column_column_name_bigger_than_info_msg() {
         let table_rows = [TestRow {
@@ -314,6 +324,7 @@ mod tests {
         );
     }
 
+    // [utest->swdd~cli-ank-table-wrapped-truncated-column-width-depends-on-terminal-width~1]
     #[test]
     fn utest_terminal_width_for_column_no_reasonable_terminal_width_left() {
         let table_rows = [TestRow {
@@ -325,8 +336,14 @@ mod tests {
         let table = AnkTable::new(&table_rows);
         let column_position = 2;
         let table_width: usize = 100; // table bigger than terminal width
-        assert!(table
-            .terminal_width_for_column(column_position, table_width)
-            .is_err());
+
+        let table_output_result = table.terminal_width_for_column(column_position, table_width);
+
+        assert!(table_output_result.is_err());
+
+        assert!(table_output_result
+            .unwrap_err()
+            .0
+            .contains("no reasonable terminal width"));
     }
 }
