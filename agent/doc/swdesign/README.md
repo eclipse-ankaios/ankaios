@@ -488,15 +488,19 @@ Needs:
 - impl
 - utest
 
-#### RuntimeManager creates Control Interface Instance for each workload
-`swdd~agent-create-control-interface-pipes-per-workload~1`
+#### Agent creates a ControlInterface instance for a workload
+`swdd~agent-create-control-interface-pipes-per-workload~2`
 
 Status: approved
 
-When the RuntimeManager receives a call to handle an `UpdateWorkload` message, for each added Workload with a runtime that is known, the RuntimeManager shall create a Control Interface Instance for this Workload.
+When a new ControlInterface instance for an workload is created, the ControlInterface shall:
+* trigger the creation of the control interface FIFO files
+* create a background task to handle incoming and outgoing requests to the ControlInterface
+
+Rationale:
+The creation of the new ControlInterface instance shall be a non-blocking operation.
 
 Tags:
-- RuntimeManager
 - ControlInterface
 
 Needs:
@@ -508,7 +512,7 @@ Needs:
 
 Status: approved
 
-Each new ControlInterface instance shall create two FIFO files :
+Each new ControlInterface instance shall create two FIFO files:
 
 - a FIFO file for the workload to send requests to the Control Interface (called output pipe in the following)
 - a FIFO file for the workload to request responses to the Control Interface (called input pipe in the following)
@@ -648,12 +652,13 @@ Needs:
 - utest
 
 ##### RuntimeFacade creates workload
-`swdd~agent-create-workload~1`
+`swdd~agent-create-workload~2`
 
 Status: approved
 
 When the RuntimeFacade gets a requests to create a workload, the RuntimeFacade shall:
 * start the WorkloadControlLoop waiting for WorkloadCommands
+* create a new ControlInterface instance for the new workload
 * request the create of the workload by sending a create command to the WorkloadControlLoop
 * return a new workload object containing a WorkloadCommandSender to communicate with the WorkloadControlLoop
 
@@ -662,6 +667,7 @@ The task handling stop and update commands is needed to ensure maintaining the o
 
 Tags:
 - RuntimeFacade
+- ControlInterface
 
 Needs:
 - impl
@@ -676,6 +682,7 @@ When handling existing workloads, for each found existing workload which is requ
 
 Tags:
 - RuntimeManager
+- ControlInterface
 
 Needs:
 - impl
@@ -852,17 +859,34 @@ Needs:
 - utest
 
 ##### Workload handles update command
-`swdd~agent-workload-obj-update-command~1`
+`swdd~agent-workload-obj-update-command~2`
 
 Status: approved
 
 When the WorkloadObject receives a trigger to update the workload, it:
-* stops the old control interface
-* stores the new control interface
+* triggers a comparison of the existing and new control interface metadata
+* stops the old control interface if the comparison returns that the metadata has changed
+* creates a new ControlInterface instance if the comparison returns that the metadata has changed
+* stores the new ControlInterface instance after the creation
 * sends a command via the WorkloadCommandSender to the WorkloadControlLoop to update the workload
 
 Tags:
 - WorkloadObject
+- ControlInterface
+
+Needs:
+- impl
+- utest
+
+##### Workload compares control interface metadata
+`swdd~agent-compares-control-interface-metadata~1`
+
+Status: approved
+
+When the WorkloadObject is triggered to compare its existing control interface metadata with the updated metadata, the Workload shall compare the existing file path with the new file path of the control interface.
+
+Tags:
+- Workload
 
 Needs:
 - impl
