@@ -1503,7 +1503,7 @@ The object field mask can be constructed using the field names of the <a href=".
 <a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span><span class="no">commandOptions: [&quot;-p&quot;, &quot;8081:80&quot;]</span>
 </code></pre></div>
 <ol>
-<li>Example <code>ank -k set state -f new-state.yaml desiredState.workloads.nginx.restartPolicy</code> changes the restart behavior of nginx workload to <code>NEVER</code>:</li>
+<li>Example <code>ank -k set state desiredState.workloads.nginx.restartPolicy new-state.yaml</code> changes the restart behavior of nginx workload to <code>NEVER</code>:</li>
 </ol>
 <div class="highlight"><span class="filename">new-state.yaml</span><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">desiredState</span><span class="p">:</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">workloads</span><span class="p">:</span>
