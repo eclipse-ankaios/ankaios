@@ -27,6 +27,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .field_attribute("ExecutionState.ExecutionStateEnum", "#[serde(flatten)]")
         .field_attribute("ExecutionsStatesForId.idStateMap", "#[serde(flatten)]")
         .field_attribute("WorkloadMap.workloads", "#[serde(flatten)]")
+        .field_attribute("AgentMap.agents", "#[serde(flatten)]")
         .compile(&["proto/control_api.proto"], &["proto"])
         .unwrap();
     Ok(())
