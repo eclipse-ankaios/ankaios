@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - release-**
   pull_request:
   workflow_dispatch:
   workflow_call:
@@ -61,8 +62,8 @@ jobs:
             DOCVER=$(expr match ${{ github.ref_name }} 'v\([0-9]\+\.[0-9]\+\)\.')
             tools/generate_docs.sh deploy-release "$DOCVER"
 
-      - name: Generate documentation (for pull requests)
-        if: ${{ github.event_name == 'pull_request' }}
+      - name: Generate documentation (for pull requests and release branches)
+        if: ${{ github.event_name == 'pull_request' || startsWith(github.ref_name, 'release-') }}
         run: |
             tools/generate_docs.sh build
   lint:
