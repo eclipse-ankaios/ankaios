@@ -210,8 +210,8 @@ pub enum SetCommands {
         #[arg(required = true, add = ArgValueCompleter::new(|| get_completions_object_field_mask()))]
         object_field_mask: Vec<String>,
         /// A file containing the new State Object Description in yaml format
-        #[arg(short = 'f', long = "file", value_hint = ValueHint::FilePath)]
-        state_object_file: Option<String>,
+        #[arg(required = true, value_hint = ValueHint::FilePath)]
+        state_object_file: String,
     },
 }
 
