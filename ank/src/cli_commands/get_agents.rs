@@ -13,7 +13,7 @@
 // SPDX-License-Identifier: Apache-2.0
 use super::CliCommands;
 use crate::{
-    cli_commands::{agent_table_row::AgentTableRow, ank_table::AnkTable},
+    cli_commands::{agent_table_row::AgentTableRow, cli_table::CliTable},
     cli_error::CliError,
     filtered_complete_state::FilteredWorkloadSpec,
     output_debug,
@@ -52,7 +52,7 @@ impl CliCommands {
         output_debug!("Got agents of complete state: {:?}", agent_table_rows);
 
         // [impl->swdd~cli-presents-connected-agents-as-table~1]
-        Ok(AnkTable::new(&agent_table_rows).create_default_table())
+        Ok(CliTable::new(&agent_table_rows).create_default_table())
     }
 }
 

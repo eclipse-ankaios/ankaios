@@ -21,7 +21,7 @@ use common::objects::WorkloadInstanceName;
 
 use crate::{cli_commands::workload_table_row::WorkloadTableRowWithSpinner, output_warn};
 
-use super::ank_table::AnkTable;
+use super::cli_table::CliTable;
 use super::{wait_list::WaitListDisplayTrait, workload_table_row::WorkloadTableRow};
 
 pub(crate) const COMPLETED_SYMBOL: &str = " ";
@@ -54,7 +54,7 @@ impl Display for WaitListDisplay {
         table_rows_with_spinner.sort_by_key(|x| &x.data.name);
 
         // [impl->swdd~cli-shall-present-workloads-as-table~1]
-        let table = AnkTable::new(&table_rows_with_spinner)
+        let table = CliTable::new(&table_rows_with_spinner)
             .table_with_truncated_column_to_remaining_terminal_width(
                 WorkloadTableRowWithSpinner::ADDITIONAL_INFO_POS,
             )
@@ -63,7 +63,7 @@ impl Display for WaitListDisplay {
                     "Could not create truncated table: '{}'. Continue with default table.",
                     err
                 );
-                AnkTable::new(&table_rows_with_spinner).create_default_table()
+                CliTable::new(&table_rows_with_spinner).create_default_table()
             });
 
         write!(f, "{}", table)

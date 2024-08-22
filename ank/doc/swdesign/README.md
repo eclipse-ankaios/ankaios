@@ -105,9 +105,9 @@ This also includes error handling when the user enters unsupported command or fo
 The CliCommands implements the commands.
 It uses FromServer Channel and ToServer Channel to interact with the server.
 
-### AnkTable
+### CliTable
 
-The AnkTable provides an interface for creating different table output formats.
+The CliTable provides an interface for creating different table output formats.
 It unifies the creation of table layouts in different places in the Ankaios CLI by abstracting the table row types through generalization.
 
 ### External Libraries
@@ -953,63 +953,63 @@ Needs:
 - impl
 - utest
 
-### AnkTable allows creation of different table output formats
+### CliTable allows creation of different table output formats
 
-#### AnkTable provides default table output
-`swdd~cli-ank-table-provides-default-table-output~1`
+#### CliTable provides default table output
+`swdd~cli-table-provides-default-table-output~1`
 
 Status: approved
 
-The AnkTable shall provide a function to create a table output with the following table layout:
+The CliTable shall provide a function to create a table output with the following table layout:
 * table style blank
 * no padding on the left and right side of the table
 
 Tags:
-- AnkTable
+- CliTable
 
 Needs:
 - impl
 - utest
 
-#### AnkTable provides table output with a wrapped column
-`swdd~cli-ank-table-provides-table-output-with-wrapped-column~1`
+#### CliTable provides table output with a wrapped column
+`swdd~cli-table-provides-table-output-with-wrapped-column~1`
 
 Status: approved
 
-The AnkTable shall provide a function to create a table output with wrapping a specific column to the remaining terminal width with the following table layout:
+The CliTable shall provide a function to create a table output with wrapping a specific column to the remaining terminal width with the following table layout:
 * table style blank
 * no padding on the left and right side of the table
 
 Tags:
-- AnkTable
+- CliTable
 
 Needs:
 - impl
 - utest
 
-#### AnkTable provides table output with a truncated column
-`swdd~cli-ank-table-provides-table-output-with-truncated-column~1`
+#### CliTable provides table output with a truncated column
+`swdd~cli-table-provides-table-output-with-truncated-column~1`
 
 Status: approved
 
-The AnkTable shall provide a function to create a table output with truncating a specific column to the remaining terminal width with the following table layout:
+The CliTable shall provide a function to create a table output with truncating a specific column to the remaining terminal width with the following table layout:
 * table style blank
 * no padding on the left and right side of the table
 * truncated column content suffixed by `...`
 
 Tags:
-- AnkTable
+- CliTable
 
 Needs:
 - impl
 - utest
 
-#### AnkTable calculates wrapped/truncated column width according to terminal width
-`swdd~cli-ank-table-wrapped-truncated-column-width-depends-on-terminal-width~1`
+#### CliTable calculates wrapped/truncated column width according to terminal width
+`swdd~cli-table-wrapped-truncated-column-width-depends-on-terminal-width~1`
 
 Status: approved
 
-When the AnkTable is requested to create a table with a wrapped or truncated column, the AnkTable shall:
+When the CliTable is requested to create a table with a wrapped or truncated column, the CliTable shall:
 * determine the column name length of this column
 * determine the length of the longest content of this column otherwise zero as the longest length if the whole column is empty
 * calculate the maximum between the longest content length and the column name length
@@ -1018,7 +1018,7 @@ When the AnkTable is requested to create a table with a wrapped or truncated col
 * return the available column width by subtracting the total table width of all other columns from the terminal width if the terminal width is reasonable otherwise an error
 
 Tags:
-- AnkTable
+- CliTable
 
 Needs:
 - impl

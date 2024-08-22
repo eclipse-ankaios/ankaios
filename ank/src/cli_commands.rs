@@ -16,7 +16,7 @@ use std::{collections::HashSet, time::Duration};
 pub mod server_connection;
 mod wait_list;
 use grpc::security::TLSConfig;
-mod ank_table;
+mod cli_table;
 use tokio::time::interval;
 use wait_list::WaitList;
 mod workload_table_row;
