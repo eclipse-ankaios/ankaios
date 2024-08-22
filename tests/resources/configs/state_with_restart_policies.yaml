@@ -45,5 +45,5 @@ workloads:
           restartPolicy: Never
           containers:
           - name: failing_container
-            image: docker.io/alpine:latest
+            image: ghcr.io/eclipse-ankaios/tests/alpine:latest
             command: ["/bin/sh", "-c", 'echo "kube container always restarted."; sleep 2; exit 1']

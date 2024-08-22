@@ -5,5 +5,5 @@ workloads:
     restartPolicy: NEVER
     agent: agent_A
     runtimeConfig: |
-      image: docker.io/nginx:latest
+      image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
       commandOptions: ["-p", "8082:80"]
