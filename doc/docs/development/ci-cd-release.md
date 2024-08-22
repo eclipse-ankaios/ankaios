@@ -3,6 +3,16 @@
 A release shall be built directly using the CI/CD environment GitHub Actions.
 The release build creates and uploads all necessary artifacts that are required for a release.
 
+## Release branches
+
+In order to stabilize an upcoming release or to create a patch release, a release branch can be created. The naming convention for such a branch is:
+
+```text
+release-<major>.<minor>
+```
+
+For example `release-0.4`.
+
 ## Release workflow
 
 For building a release a separate workflow exists inside `.github/workflows/release.yml`.
