@@ -283,7 +283,7 @@ mod tests {
         let table_output = table
             .table_with_wrapped_column_to_remaining_terminal_width(wrapped_column_position)
             .unwrap_or_default();
-        println!("{}", table_output);
+
         let expected_table_output_newlines = 2; // because of wrapping the ANOTHER COLUMN3 column
         assert_eq!(
             table_output.matches('\n').count(),
