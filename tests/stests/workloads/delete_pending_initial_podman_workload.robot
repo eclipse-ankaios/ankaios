@@ -22,7 +22,7 @@ Resource            ../../resources/variables.resource
 *** Test Cases ***
 
 Test Ankaios deletes pending initial podman workloads properly
-    [Documentation]    Delete workload properly that is Pending(Initial) and its agen has never connected to the server
+    [Documentation]    Delete workload properly that is Pending(Initial) and its agent has never connected to the server
     [Setup]    Run Keywords    Setup Ankaios
     # Preconditions
     # This test assumes that all containers in the podman have been created with this test -> clean it up first
