@@ -26,18 +26,21 @@ const DESIRED_STATE: &str = "desiredState";
 const WORKLOADS: &str = "workloads";
 const WORKLOAD_STATES: &str = "workloadStates";
 
-fn get_completions_workloads() -> Vec<CompletionCandidate> {
+fn get_state_from_command(object_field_mask: &str) -> Vec<u8> {
+    std::process::Command::new("sh")
+        .arg("-c")
+        .arg(format!("ank get state -o json {}", object_field_mask))
+        .output()
+        .expect("failed to execute process")
+        .stdout
+}
+
+fn get_completions_workloads(state: Vec<u8>) -> Vec<CompletionCandidate> {
     let mut result = Vec::new();
 
-    let output = std::process::Command::new("sh")
-        .arg("-c")
-        .arg("ank get state -o json desiredState.workloads")
-        .output()
-        .expect("failed to execute process");
+    let state: Value = serde_json::from_slice(&state).unwrap();
 
-    let v: Value = serde_json::from_slice(&output.stdout).unwrap();
-
-    if let Value::Object(workloads) = &v[DESIRED_STATE][WORKLOADS] {
+    if let Value::Object(workloads) = &state[DESIRED_STATE][WORKLOADS] {
         for workload_name in workloads.keys() {
             result.push(CompletionCandidate::new(workload_name));
         }
@@ -46,38 +49,33 @@ fn get_completions_workloads() -> Vec<CompletionCandidate> {
     result
 }
 
-fn get_completions_object_field_mask() -> Vec<CompletionCandidate> {
+fn get_completions_object_field_mask(state: Vec<u8>) -> Vec<CompletionCandidate> {
     let mut result = Vec::new();
 
-    let output = std::process::Command::new("sh")
-        .arg("-c")
-        .arg("ank get state -o json")
-        .output()
-        .expect("failed to execute process");
+    let state: Value = serde_json::from_slice(&state).unwrap();
 
-    let v: Value = serde_json::from_slice(&output.stdout).unwrap();
-
-    if let Value::Object(workloads) = &v[DESIRED_STATE][WORKLOADS] {
+    if let Value::Object(workloads) = &state[DESIRED_STATE][WORKLOADS] {
+        result.push(CompletionCandidate::new(DESIRED_STATE));
         result.push(CompletionCandidate::new(format!(
             "{}.{}",
             DESIRED_STATE, WORKLOADS
         )));
         for workload in workloads.keys() {
             result.push(CompletionCandidate::new(format!(
-                "desiredState.workloads.{}",
-                workload
+                "{}.{}.{}",
+                DESIRED_STATE, WORKLOADS, workload
             )));
         }
     }
 
-    if let Value::Object(workload_states) = &v[WORKLOAD_STATES] {
+    if let Value::Object(workload_states) = &state[WORKLOAD_STATES] {
         result.push(CompletionCandidate::new(WORKLOAD_STATES));
         for agent in workload_states.keys() {
             result.push(CompletionCandidate::new(format!(
                 "{}.{}",
                 WORKLOAD_STATES, agent
             )));
-            if let Value::Object(workloads) = &v[WORKLOAD_STATES][agent] {
+            if let Value::Object(workloads) = &state[WORKLOAD_STATES][agent] {
                 for workload in workloads.keys() {
                     result.push(CompletionCandidate::new(format!(
                         "{}.{}.{}",
@@ -174,7 +172,7 @@ pub enum GetCommands {
         #[arg(short = 'o', value_enum, default_value_t = OutputFormat::Yaml)]
         output_format: OutputFormat,
         /// Select which parts of the state object shall be output e.g. 'desiredState.workloads.nginx' [default: empty = the complete state]
-        #[arg(add = ArgValueCompleter::new(|| get_completions_object_field_mask()))]
+        #[arg(add = ArgValueCompleter::new(|| get_completions_object_field_mask(get_state_from_command(""))))]
         object_field_mask: Vec<String>,
     },
     /// Information about workloads of the Ankaios system
@@ -188,7 +186,7 @@ pub enum GetCommands {
         #[arg(short = 's', long = "state", required = false)]
         state: Option<String>,
         /// Select which workload(s) shall be returned [default: empty = all workloads]
-        #[arg(add = ArgValueCompleter::new(|| get_completions_workloads() ))]
+        #[arg(add = ArgValueCompleter::new(|| get_completions_workloads(get_state_from_command("desiredState.workloads")) ))]
         workload_name: Vec<String>,
     },
 }
@@ -207,7 +205,7 @@ pub enum SetCommands {
     /// State information of Ankaios system
     State {
         /// Select which parts of the state object shall be updated e.g. 'desiredState.workloads.nginx'
-        #[arg(required = true, add = ArgValueCompleter::new(|| get_completions_object_field_mask()))]
+        #[arg(required = true, add = ArgValueCompleter::new(|| get_completions_object_field_mask(get_state_from_command("")) ))]
         object_field_mask: Vec<String>,
         /// A file containing the new State Object Description in yaml format
         #[arg(required = true, value_hint = ValueHint::FilePath)]
@@ -229,7 +227,7 @@ pub enum DeleteCommands {
     #[clap(visible_alias("workloads"))]
     Workload {
         /// One or more workload(s) to be deleted
-        #[arg(required = true, add = ArgValueCompleter::new(|| get_completions_workloads()))]
+        #[arg(required = true, add = ArgValueCompleter::new(|| get_completions_workloads(get_state_from_command("desiredState.workloads")) ))]
         workload_name: Vec<String>,
     },
 }
@@ -298,4 +296,121 @@ where
 
 pub fn parse() -> AnkCli {
     AnkCli::parse()
+}
+
+/////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+#[cfg(test)]
+mod tests {
+
+    use clap_complete::CompletionCandidate;
+
+    use super::{get_completions_object_field_mask, get_completions_workloads};
+
+    #[test]
+    fn utest_get_completions_workloads() {
+        let state = r#"
+            {
+              "desiredState": {
+                "apiVersion": "v0.1",
+                "workloads": {
+                  "databroker": {
+                    "agent": "agent_A",
+                    "tags": [],
+                    "dependencies": {},
+                    "restartPolicy": "ALWAYS",
+                    "runtime": "podman",
+                    "runtimeConfig": "image: ghcr.io/eclipse/kuksa.val/databroker:0.4.1\ncommandArgs: [\"--insecure\"]\ncommandOptions: [\"--net=host\"]\n"
+                  },
+                  "speed-provider": {
+                      "agent": "agent_A",
+                      "tags": [],
+                      "dependencies": {
+                      "databroker": "ADD_COND_RUNNING"
+                      },
+                      "restartPolicy": "ALWAYS",
+                      "runtime": "podman",
+                      "runtimeConfig": "image: ghcr.io/eclipse-ankaios/speed-provider:0.1.1\ncommandOptions:\n  - \"--net=host\"\n  - \"-e\"\n  - \"SPEED_PROVIDER_MODE=auto\"\n"
+                  }
+                }
+              }
+            }
+        "#.as_bytes();
+        assert_eq!(
+            get_completions_workloads(state.to_vec()),
+            vec![
+                CompletionCandidate::new("databroker"),
+                CompletionCandidate::new("speed-provider")
+            ],
+            "Completions do not match"
+        );
+    }
+
+    #[test]
+    fn utest_get_completions_object_field_mask() {
+        let state = r#"
+            {
+              "desiredState": {
+                "apiVersion": "v0.1",
+                "workloads": {
+                  "databroker": {
+                    "agent": "agent_A",
+                    "tags": [],
+                    "dependencies": {},
+                    "restartPolicy": "ALWAYS",
+                    "runtime": "podman",
+                    "runtimeConfig": "image: ghcr.io/eclipse/kuksa.val/databroker:0.4.1\ncommandArgs: [\"--insecure\"]\ncommandOptions: [\"--net=host\"]\n"
+                  },
+                  "speed-provider": {
+                    "agent": "agent_A",
+                    "tags": [],
+                    "dependencies": {
+                      "databroker": "ADD_COND_RUNNING"
+                    },
+                    "restartPolicy": "ALWAYS",
+                    "runtime": "podman",
+                    "runtimeConfig": "image: ghcr.io/eclipse-ankaios/speed-provider:0.1.1\ncommandOptions:\n  - \"--net=host\"\n  - \"-e\"\n  - \"SPEED_PROVIDER_MODE=auto\"\n"
+                  }
+                }
+              },
+              "workloadStates": {
+                "agent_A": {
+                  "databroker": {
+                    "211c1e7c1170508711b76bb9be19ad73af7a2b11e3c2a4fb895d0ce5f4894eaa": {
+                      "state": "Running",
+                      "subState": "Ok",
+                      "additionalInfo": ""
+                    }
+                  },
+                  "speed-provider": {
+                    "4bc1b2047e6a67b60b7a6c3b07955a2f29040ab7a2b6bc7d1bee78efc81a48d9": {
+                      "state": "Running",
+                      "subState": "Ok",
+                      "additionalInfo": ""
+                    }
+                  }
+                }
+              }
+            }
+        "#.as_bytes();
+        assert_eq!(
+            get_completions_object_field_mask(state.to_vec()),
+            vec![
+                CompletionCandidate::new("desiredState"),
+                CompletionCandidate::new("desiredState.workloads"),
+                CompletionCandidate::new("desiredState.workloads.databroker"),
+                CompletionCandidate::new("desiredState.workloads.speed-provider"),
+                CompletionCandidate::new("workloadStates"),
+                CompletionCandidate::new("workloadStates.agent_A"),
+                CompletionCandidate::new("workloadStates.agent_A.databroker"),
+                CompletionCandidate::new("workloadStates.agent_A.speed-provider"),
+            ],
+            "Completions do not match"
+        );
+    }
 }
