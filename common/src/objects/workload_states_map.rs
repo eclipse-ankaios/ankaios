@@ -82,6 +82,15 @@ impl WorkloadStatesMap {
             .collect()
     }
 
+    pub fn workload_is_pending_initial(&self, instance_name: &WorkloadInstanceName) -> bool {
+        self.0
+            .get(instance_name.agent_name())
+            .and_then(|name_map| name_map.get(instance_name.workload_name()))
+            .and_then(|id_map| id_map.get(instance_name.id()))
+            .map(|exec_state| exec_state.is_pending_initial())
+            .unwrap_or(false)
+    }
+
     pub fn agent_disconnected(&mut self, agent_name: &str) {
         if let Some(agent_states) = self.0.get_mut(agent_name) {
             agent_states.iter_mut().for_each(|(_, name_map)| {
