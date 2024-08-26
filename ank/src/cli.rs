@@ -12,7 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::error::Error;
+use std::{error::Error, ffi::OsStr};
 
 use clap::{command, Parser, Subcommand, ValueHint};
 
@@ -23,7 +23,7 @@ use crate::filtered_complete_state::FilteredCompleteState;
 
 const ANK_SERVER_URL_ENV_KEY: &str = "ANK_SERVER_URL";
 
-fn get_state_from_command(object_field_mask: &str) -> Vec<u8> {
+fn state_from_command(object_field_mask: &str) -> Vec<u8> {
     std::process::Command::new("sh")
         .arg("-c")
         .arg(format!("ank get state -o json {}", object_field_mask))
@@ -32,7 +32,7 @@ fn get_state_from_command(object_field_mask: &str) -> Vec<u8> {
         .stdout
 }
 
-fn get_completions_workloads(state: Vec<u8>) -> Vec<CompletionCandidate> {
+fn completions_workloads(state: Vec<u8>) -> Vec<CompletionCandidate> {
     let mut result = Vec::new();
 
     let state: FilteredCompleteState = serde_json::from_slice(&state).unwrap();
@@ -48,7 +48,11 @@ fn get_completions_workloads(state: Vec<u8>) -> Vec<CompletionCandidate> {
     result
 }
 
-fn get_completions_object_field_mask(state: Vec<u8>) -> Vec<CompletionCandidate> {
+fn workload_completer(_: &OsStr) -> Vec<CompletionCandidate> {
+    completions_workloads(state_from_command("desiredState.workloads"))
+}
+
+fn completions_object_field_mask(state: Vec<u8>) -> Vec<CompletionCandidate> {
     const DESIRED_STATE: &str = "desiredState";
     const WORKLOADS: &str = "workloads";
     const WORKLOAD_STATES: &str = "workloadStates";
@@ -90,6 +94,10 @@ fn get_completions_object_field_mask(state: Vec<u8>) -> Vec<CompletionCandidate>
     }
 
     result
+}
+
+fn object_field_mask_completer(_: &OsStr) -> Vec<CompletionCandidate> {
+    completions_object_field_mask(state_from_command(""))
 }
 
 // [impl->swdd~cli-supports-server-url-cli-argument~1]
@@ -175,7 +183,7 @@ pub enum GetCommands {
         #[arg(short = 'o', value_enum, default_value_t = OutputFormat::Yaml)]
         output_format: OutputFormat,
         /// Select which parts of the state object shall be output e.g. 'desiredState.workloads.nginx' [default: empty = the complete state]
-        #[arg(add = ArgValueCompleter::new(|| get_completions_object_field_mask(get_state_from_command(""))))]
+        #[arg(add = ArgValueCompleter::new(object_field_mask_completer))]
         object_field_mask: Vec<String>,
     },
     /// Information about workloads of the Ankaios system
@@ -189,7 +197,7 @@ pub enum GetCommands {
         #[arg(short = 's', long = "state", required = false)]
         state: Option<String>,
         /// Select which workload(s) shall be returned [default: empty = all workloads]
-        #[arg(add = ArgValueCompleter::new(|| get_completions_workloads(get_state_from_command("desiredState.workloads")) ))]
+        #[arg(add = ArgValueCompleter::new(workload_completer))]
         workload_name: Vec<String>,
     },
 }
@@ -208,7 +216,7 @@ pub enum SetCommands {
     /// State information of Ankaios system
     State {
         /// Select which parts of the state object shall be updated e.g. 'desiredState.workloads.nginx'
-        #[arg(required = true, add = ArgValueCompleter::new(|| get_completions_object_field_mask(get_state_from_command("")) ))]
+        #[arg(required = true, add = ArgValueCompleter::new(object_field_mask_completer))]
         object_field_mask: Vec<String>,
         /// A file containing the new State Object Description in yaml format
         #[arg(required = true, value_hint = ValueHint::FilePath)]
@@ -230,7 +238,7 @@ pub enum DeleteCommands {
     #[clap(visible_alias("workloads"))]
     Workload {
         /// One or more workload(s) to be deleted
-        #[arg(required = true, add = ArgValueCompleter::new(|| get_completions_workloads(get_state_from_command("desiredState.workloads")) ))]
+        #[arg(required = true, add = ArgValueCompleter::new(workload_completer))]
         workload_name: Vec<String>,
     },
 }
@@ -313,10 +321,10 @@ mod tests {
 
     use clap_complete::CompletionCandidate;
 
-    use super::{get_completions_object_field_mask, get_completions_workloads};
+    use super::{completions_object_field_mask, completions_workloads};
 
     #[test]
-    fn utest_get_completions_workloads() {
+    fn utest_completions_workloads() {
         let state = r#"
             {
               "desiredState": {
@@ -344,7 +352,7 @@ mod tests {
               }
             }
         "#.as_bytes();
-        let mut completions = get_completions_workloads(state.to_vec());
+        let mut completions = completions_workloads(state.to_vec());
         completions.sort();
         assert_eq!(
             completions,
@@ -357,7 +365,7 @@ mod tests {
     }
 
     #[test]
-    fn utest_get_completions_object_field_mask() {
+    fn utest_completions_object_field_mask() {
         let state = r#"
             {
               "desiredState": {
@@ -403,7 +411,7 @@ mod tests {
               }
             }
         "#.as_bytes();
-        let mut completions = get_completions_object_field_mask(state.to_vec());
+        let mut completions = completions_object_field_mask(state.to_vec());
         completions.sort();
         assert_eq!(
             completions,
