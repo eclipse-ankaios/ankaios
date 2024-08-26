@@ -54,12 +54,13 @@ fn transform_into_table_rows(
 ) -> Vec<AgentTableRow> {
     let mut agent_table_rows: Vec<AgentTableRow> = agents_map
         .map(|agent_name| {
-            let workload_count = workload_states_map
+            let workload_states_count = workload_states_map
                 .get_workload_state_for_agent(&agent_name)
                 .len() as u32;
+
             AgentTableRow {
                 agent_name,
-                workloads: workload_count,
+                workloads: workload_states_count,
             }
         })
         .collect();
