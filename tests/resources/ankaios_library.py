@@ -20,7 +20,7 @@ import re
 from robot.api import logger
 from robot.libraries.BuiltIn import BuiltIn
 from tempfile import TemporaryDirectory
-from os import path
+from os import path, popen
 import shutil
 
 import re
@@ -350,20 +350,35 @@ def internal_check_all_control_interface_requests_failed(tmp_folder):
 def empty_keyword():
     pass
 
-def check_if_files_have_been_generated(directory: str) -> None:
+def check_if_files_have_been_generated_for(agent_name: str) -> None:
     """
-    Function used to check if input and output files have been generated inside the directory
+    Function used to check if input and output files have not been generated inside the directory
 
     Args:
-        directory (str): where to check for the creation of the files
+        agent_name: str
 
     Returns:
         None
     """
 
-    input_file_path = path.join(directory, "")
-    output_file_path = path.join(directory, "")
+    agent_name = agent_name[2:-2]
 
-    assert path.isfile(input_file_path) and path.isfile(output_file_path)
+    TMP_DIRECTORY = f"../../../../tmp/ankaios/{agent_name}_io"
+    assert path.exists("../../../../tmp/ankaios/")
+    WORKLOAD_STATES_LEVEL = "workloadStates"
+
+    result = popen("target/x86_64-unknown-linux-musl/debug/ank -k get state -o json").read()
+    json_result = json.loads(result)
+
+    workloads_list = list(json_result[WORKLOAD_STATES_LEVEL][agent_name])
+    state_sha_encoding = list(json_result[WORKLOAD_STATES_LEVEL][agent_name][workloads_list[0]].keys())[0]
+    control_interface_name = f"{workloads_list[0]}.{state_sha_encoding}"
+
+    control_interface_path = path.join(TMP_DIRECTORY, control_interface_name)
+    input_file_path = path.join(control_interface_path, "input")
+    output_file_path = path.join(control_interface_path, "output")
+
+    assert not path.exists(input_file_path) and not path.exists(output_file_path)
+
 
 

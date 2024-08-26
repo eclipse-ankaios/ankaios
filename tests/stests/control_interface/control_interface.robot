@@ -21,32 +21,35 @@ Resource            ../../resources/variables.resource
 
 *** Variables ***
 ${simple_yaml_file}      ${EMPTY}
+${config_path}           ${EMPTY}
+${agent_name}            "agent_A"
+${workload_name}         "nginx"
+${directory}             ${EMPTY}
+${manifest_yaml_file}    ${CONFIGS_DIR}/default.yaml
 
 *** Test Cases ***
 
-Test Ankaios workload restart after update with a Control Interface access
+Test Ankaios workload restart after update without a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
 
     # Preconditions
-    # It is supposed that ankaios server and agent are already up and running
-    # Actions
-    When user triggers "ank -v apply ${manifest_yaml_file}"
-    # Asserts
-    Then the workload "${workload_name}" shall not exist
-    And Ankaios agent is started with name "${name}"
+    Given Ankaios server is started with config "${CONFIGS_DIR}/startConfig.yaml"
+    And Ankaios agent is started with name "${agent_name}"
     And all workloads of agent "{agent_name}" have an initial execution state
-    And he input and output files have been generated while using the control interface in "${directory}"
+    # Actions
+    When user triggers "ank -k apply ${manifest_yaml_file}"
+    # Asserts
+    Then the input and output files have not been generated for "${agent_name}"
     [Teardown]    Clean up Ankaios
 
-Test Ankaios workload successful start-up with a Control Interface access
+Test Ankaios workload successful start-up without a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
 
     # Preconditions
-    Given Ankaios server is started with config "${config_path}"
-    And Ankaios agent is started with name "${name}"
+    Given Ankaios server is started with config "${CONFIGS_DIR}/default.yaml"
+    And Ankaios agent is started with name "${agent_name}"
     And all workloads of agent "{agent_name}" have an initial execution state
     # Actions
     # Asserts
-    Then the workload "${workload_name}" shall have the execution state "Running(Ok)" on agent "${agent_name}"
-    And he input and output files have been generated while using the control interface in "${directory}"
+    Then the input and output files have not been generated for "${agent_name}"
     [Teardown]    Clean up Ankaios

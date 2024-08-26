@@ -591,6 +591,5 @@ the last command shall finish with an error
 the last command shall finish with exit code "${exit_code}"
     the last command finished with exit code "${exit_code}"
 
-the input and output files have been generated while using the control interface in "${directory}"
-    # ${pod_id}=    Get Pod Id By Pod Name From Podman    ${pod_name}
-    Check If Files Have Been Generated    ${directory}
+the input and output files have not been generated for "${agent_name}"
+    check_if_files_have_been_generated_for    "${agent_name}"
