@@ -893,6 +893,26 @@ Needs:
 - impl
 - utest
 
+### Shell completion
+`swdd-cli-shell-completion~1`
+
+Status: approved
+
+When typing a CLI command, the shell shall provide completions for arguments including static completions and dynamic completions for workloads, object field masks and agents.
+
+Rationale:
+A users productivity is increased when command completions are provided which reduces lookups.
+
+Comment:
+Completions shall be provided at least for zsh and bash.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
 ## Data view
 
 ![Data view](plantuml/class_data-structures.svg)
