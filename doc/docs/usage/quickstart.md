@@ -81,6 +81,8 @@ workloadStates:
     state: Running
     subState: Ok
     additionalInfo: ''
+agents:
+  agent_A: {}
 ```
 
 or
