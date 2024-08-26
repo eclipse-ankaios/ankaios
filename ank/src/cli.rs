@@ -18,13 +18,10 @@ use clap::{command, Parser, Subcommand, ValueHint};
 
 use clap_complete::{ArgValueCompleter, CompletionCandidate};
 use common::DEFAULT_SERVER_ADDRESS;
-use serde_json::Value;
+
+use crate::filtered_complete_state::FilteredCompleteState;
 
 const ANK_SERVER_URL_ENV_KEY: &str = "ANK_SERVER_URL";
-
-const DESIRED_STATE: &str = "desiredState";
-const WORKLOADS: &str = "workloads";
-const WORKLOAD_STATES: &str = "workloadStates";
 
 fn get_state_from_command(object_field_mask: &str) -> Vec<u8> {
     std::process::Command::new("sh")
@@ -38,11 +35,13 @@ fn get_state_from_command(object_field_mask: &str) -> Vec<u8> {
 fn get_completions_workloads(state: Vec<u8>) -> Vec<CompletionCandidate> {
     let mut result = Vec::new();
 
-    let state: Value = serde_json::from_slice(&state).unwrap();
+    let state: FilteredCompleteState = serde_json::from_slice(&state).unwrap();
 
-    if let Value::Object(workloads) = &state[DESIRED_STATE][WORKLOADS] {
-        for workload_name in workloads.keys() {
-            result.push(CompletionCandidate::new(workload_name));
+    if let Some(desired_state) = state.desired_state {
+        if let Some(workloads) = desired_state.workloads {
+            for workload_name in workloads.keys() {
+                result.push(CompletionCandidate::new(workload_name));
+            }
         }
     }
 
@@ -50,38 +49,42 @@ fn get_completions_workloads(state: Vec<u8>) -> Vec<CompletionCandidate> {
 }
 
 fn get_completions_object_field_mask(state: Vec<u8>) -> Vec<CompletionCandidate> {
+    const DESIRED_STATE: &str = "desiredState";
+    const WORKLOADS: &str = "workloads";
+    const WORKLOAD_STATES: &str = "workloadStates";
+
     let mut result = Vec::new();
 
-    let state: Value = serde_json::from_slice(&state).unwrap();
+    let state: FilteredCompleteState = serde_json::from_slice(&state).unwrap();
 
-    if let Value::Object(workloads) = &state[DESIRED_STATE][WORKLOADS] {
+    if let Some(desired_state) = state.desired_state {
         result.push(CompletionCandidate::new(DESIRED_STATE));
-        result.push(CompletionCandidate::new(format!(
-            "{}.{}",
-            DESIRED_STATE, WORKLOADS
-        )));
-        for workload in workloads.keys() {
+        if let Some(workloads) = desired_state.workloads {
             result.push(CompletionCandidate::new(format!(
-                "{}.{}.{}",
-                DESIRED_STATE, WORKLOADS, workload
+                "{}.{}",
+                DESIRED_STATE, WORKLOADS
             )));
+            for workload_name in workloads.keys() {
+                result.push(CompletionCandidate::new(format!(
+                    "{}.{}.{}",
+                    DESIRED_STATE, WORKLOADS, workload_name
+                )));
+            }
         }
     }
 
-    if let Value::Object(workload_states) = &state[WORKLOAD_STATES] {
+    if let Some(workload_states) = state.workload_states {
         result.push(CompletionCandidate::new(WORKLOAD_STATES));
-        for agent in workload_states.keys() {
+        for (agent, workloads) in workload_states.into_iter() {
             result.push(CompletionCandidate::new(format!(
                 "{}.{}",
                 WORKLOAD_STATES, agent
             )));
-            if let Value::Object(workloads) = &state[WORKLOAD_STATES][agent] {
-                for workload in workloads.keys() {
-                    result.push(CompletionCandidate::new(format!(
-                        "{}.{}.{}",
-                        WORKLOAD_STATES, agent, workload
-                    )));
-                }
+            for workload_name in workloads.keys() {
+                result.push(CompletionCandidate::new(format!(
+                    "{}.{}.{}",
+                    WORKLOAD_STATES, agent, workload_name
+                )));
             }
         }
     }
@@ -341,8 +344,10 @@ mod tests {
               }
             }
         "#.as_bytes();
+        let mut completions = get_completions_workloads(state.to_vec());
+        completions.sort();
         assert_eq!(
-            get_completions_workloads(state.to_vec()),
+            completions,
             vec![
                 CompletionCandidate::new("databroker"),
                 CompletionCandidate::new("speed-provider")
@@ -398,8 +403,10 @@ mod tests {
               }
             }
         "#.as_bytes();
+        let mut completions = get_completions_object_field_mask(state.to_vec());
+        completions.sort();
         assert_eq!(
-            get_completions_object_field_mask(state.to_vec()),
+            completions,
             vec![
                 CompletionCandidate::new("desiredState"),
                 CompletionCandidate::new("desiredState.workloads"),
