@@ -11,6 +11,7 @@
         "protobuf",
         "Substate",
         "swdd",
+        "utest",
         "VecDeque"
     ],
     "markdown-preview-github-styles.colorTheme": "light",
