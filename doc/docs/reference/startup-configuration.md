@@ -37,9 +37,9 @@ workloads:
     controlInterfaceAccess:
       allowRules:
       - type: StateRule
-        operation: READ
-        FilterMask:
-        - workloadStates
+        operation: Read
+        filterMask:
+        - "workloadStates"
 ```
 
 ### PodmanRuntimeConfig
