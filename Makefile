@@ -22,7 +22,7 @@ all: check-test-images check-licenses
 check-licenses:
 	cargo deny check licenses
 
-# Prevent docker.io images to be used in test due to rate limit problem
+# Prevent non ghcr.io images to be used in test due to rate limit problem
 check-test-images:
-	test -z "$(shell find tests/resources/configs -type f -exec grep -H 'image: docker.io/' {} \;)"
+	test -z "$(shell find tests/resources/configs -type f -exec grep -H -P 'image: (?!ghcr\.io/|image_typo:latest)' {} \;)"
 

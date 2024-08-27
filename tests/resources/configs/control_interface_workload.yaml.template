@@ -16,5 +16,5 @@ workloads:
     restartPolicy: NEVER
     agent: agent_A
     runtimeConfig: |
-      image: alpine:latest
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandArgs: [ "echo", "Hello Ankaios"]

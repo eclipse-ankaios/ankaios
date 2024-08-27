@@ -18,7 +18,7 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: alpine:latest
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandOptions: [ "--rm"]
       commandArgs: [ "echo", "Hello Ankaios"]
   hello2:
@@ -29,7 +29,7 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: alpine:latest
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandArgs: [ "echo", "Hello Ankaios"]
   hello3:
     runtime: podman
@@ -39,5 +39,5 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: alpine:latest
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandArgs: [ "echo", "Hello Ankaios"]

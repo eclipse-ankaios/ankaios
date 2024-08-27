@@ -8,6 +8,6 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: alpine:latest
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sleep", "--stop-signal=SIGKILL"]
       commandArgs: [ "2000" ]
