@@ -159,20 +159,26 @@ impl<
         let (control_interface_path, control_interface) = if let Some(info) = control_interface_info
         {
             let run_folder = info.get_run_folder().clone();
-            let output_pipe_sender = info.get_to_server_sender();
-            let instance_name = info.get_instance_name().clone();
-            let authorizer = info.move_authorizer();
-            let control_interface = match ControlInterface::new(
-                &run_folder,
-                &instance_name,
-                output_pipe_sender,
-                authorizer,
-            ) {
-                Ok(control_interface) => Some(control_interface),
+            let control_interface_result = (!workload_spec.access_is_empty())
+                .then(|| {
+                    let output_pipe_sender = info.get_to_server_sender();
+                    let instance_name = info.get_instance_name().clone();
+                    let authorizer = info.move_authorizer();
+                    ControlInterface::new(
+                        &run_folder,
+                        &instance_name,
+                        output_pipe_sender,
+                        authorizer,
+                    )
+                })
+                .transpose();
+
+            let control_interface = match control_interface_result {
+                Ok(result) => result,
                 Err(err) => {
                     log::warn!(
                         "Could not create control interface when creating workload '{}': '{}'",
-                        instance_name,
+                        workload_spec.instance_name,
                         err
                     );
                     None
@@ -335,7 +341,8 @@ impl<
 #[cfg(test)]
 mod tests {
     use common::objects::{
-        generate_test_workload_spec_with_param, ExecutionState, WorkloadInstanceName, WorkloadState,
+        generate_test_control_interface_access, generate_test_workload_spec_with_param,
+        ExecutionState, WorkloadInstanceName, WorkloadState,
     };
 
     use crate::{
@@ -408,11 +415,13 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let mut workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
+
+        workload_spec.control_interface_access = generate_test_control_interface_access();
 
         let control_interface_mock = MockControlInterface::default();
         let control_interface_new_context = MockControlInterface::new_context();

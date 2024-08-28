@@ -224,13 +224,22 @@ impl RuntimeManager {
 
                             // [impl->swdd~agent-existing-workloads-resume-existing~2]
                             if Self::is_resumable_workload(&workload_state, &new_instance_name) {
-                                let control_interface = match ControlInterface::new(
-                                    &self.run_folder,
-                                    &new_workload_spec.instance_name,
-                                    self.control_interface_tx.clone(),
-                                    Authorizer::from(&new_workload_spec.control_interface_access),
-                                ) {
-                                    Ok(control_interface) => Some(control_interface),
+                                let control_interface_result = (!new_workload_spec
+                                    .access_is_empty())
+                                .then(|| {
+                                    ControlInterface::new(
+                                        &self.run_folder,
+                                        &new_workload_spec.instance_name,
+                                        self.control_interface_tx.clone(),
+                                        Authorizer::from(
+                                            &new_workload_spec.control_interface_access,
+                                        ),
+                                    )
+                                })
+                                .transpose();
+
+                                let control_interface = match control_interface_result {
+                                    Ok(result) => result,
                                     Err(err) => {
                                         log::warn!(
                                             "Could not reuse or create control interface when resuming workload '{}': '{}'",
@@ -518,8 +527,9 @@ mod tests {
     use crate::workload_state::WorkloadStateReceiver;
     use ank_base::response::ResponseContent;
     use common::objects::{
-        generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
-        AddCondition, WorkloadInstanceNameBuilder, WorkloadState,
+        generate_test_control_interface_access, generate_test_workload_spec_with_dependencies,
+        generate_test_workload_spec_with_param, AddCondition, WorkloadInstanceNameBuilder,
+        WorkloadState,
     };
     use common::test_utils::{
         self, generate_test_complete_state, generate_test_deleted_workload,
@@ -818,11 +828,13 @@ mod tests {
             .once()
             .return_once(|_| mock_workload_scheduler);
 
-        let existing_workload = generate_test_workload_spec_with_param(
+        let mut existing_workload = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
+
+        existing_workload.control_interface_access = generate_test_control_interface_access();
 
         let existing_workload_instance_name = existing_workload.instance_name.clone();
         let workload_state_running = WorkloadState {

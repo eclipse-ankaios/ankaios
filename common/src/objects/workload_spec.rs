@@ -46,6 +46,13 @@ pub struct WorkloadSpec {
     pub control_interface_access: ControlInterfaceAccess,
 }
 
+impl WorkloadSpec {
+    pub fn access_is_empty(&self) -> bool {
+        self.control_interface_access.allow_rules.is_empty()
+            && self.control_interface_access.deny_rules.is_empty()
+    }
+}
+
 pub type AgentWorkloadMap = HashMap<String, (WorkloadCollection, DeletedWorkloadCollection)>;
 
 pub fn get_workloads_per_agent(
