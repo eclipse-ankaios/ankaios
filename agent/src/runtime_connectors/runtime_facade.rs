@@ -155,45 +155,37 @@ impl<
     ) -> (JoinHandle<()>, Workload) {
         let runtime = self.runtime.to_owned();
         let update_state_tx = update_state_tx.clone();
+        let workload_name = workload_spec.instance_name.workload_name().to_owned();
 
         let (control_interface_path, control_interface) = if let Some(info) = control_interface_info
         {
             let run_folder = info.get_run_folder().clone();
-            let control_interface_result = (!workload_spec.access_is_empty())
-                .then(|| {
-                    let output_pipe_sender = info.get_to_server_sender();
-                    let instance_name = info.get_instance_name().clone();
-                    let authorizer = info.move_authorizer();
-                    ControlInterface::new(
-                        &run_folder,
-                        &instance_name,
-                        output_pipe_sender,
-                        authorizer,
-                    )
-                })
-                .transpose();
-
-            let control_interface = match control_interface_result {
-                Ok(result) => result,
+            let output_pipe_sender = info.get_to_server_sender();
+            let instance_name = info.get_instance_name().clone();
+            let authorizer = info.move_authorizer();
+            match ControlInterface::new(&run_folder, &instance_name, output_pipe_sender, authorizer)
+            {
+                Ok(result) => (
+                    Some(workload_spec.instance_name.pipes_folder_name(&run_folder)),
+                    Some(result),
+                ),
                 Err(err) => {
                     log::warn!(
                         "Could not create control interface when creating workload '{}': '{}'",
-                        workload_spec.instance_name,
+                        workload_name,
                         err
                     );
-                    None
+                    (None, None)
                 }
-            };
-
-            (
-                Some(workload_spec.instance_name.pipes_folder_name(&run_folder)),
-                control_interface,
-            )
+            }
         } else {
+            log::info!(
+                "Skipping creation of control interface for workload '{}'.",
+                workload_name
+            );
             (None, None)
         };
 
-        let workload_name = workload_spec.instance_name.workload_name().to_owned();
         log::debug!(
             "Creating '{}' workload '{}'.",
             runtime.name(),

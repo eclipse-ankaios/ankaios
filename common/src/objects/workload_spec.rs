@@ -47,9 +47,9 @@ pub struct WorkloadSpec {
 }
 
 impl WorkloadSpec {
-    pub fn access_is_empty(&self) -> bool {
-        self.control_interface_access.allow_rules.is_empty()
-            && self.control_interface_access.deny_rules.is_empty()
+    pub fn has_access(&self) -> bool {
+        !(self.control_interface_access.allow_rules.is_empty()
+            && self.control_interface_access.deny_rules.is_empty())
     }
 }
 

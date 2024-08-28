@@ -141,7 +141,7 @@ impl Workload {
         if self.is_control_interface_changed(&control_interface_info) {
             self.exchange_control_interface(
                 control_interface_info,
-                spec.clone().map_or(false, |spec| spec.access_is_empty()),
+                spec.clone().map_or(false, |spec| !spec.has_access()),
             );
         }
 
@@ -357,7 +357,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        test_workload.exchange_control_interface(None, workload_spec.access_is_empty());
+        test_workload.exchange_control_interface(None, workload_spec.has_access());
 
         assert!(test_workload.control_interface.is_none());
     }

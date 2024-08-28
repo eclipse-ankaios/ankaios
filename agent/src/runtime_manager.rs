@@ -224,30 +224,31 @@ impl RuntimeManager {
 
                             // [impl->swdd~agent-existing-workloads-resume-existing~2]
                             if Self::is_resumable_workload(&workload_state, &new_instance_name) {
-                                let control_interface_result = (!new_workload_spec
-                                    .access_is_empty())
-                                .then(|| {
-                                    ControlInterface::new(
+                                let control_interface = if new_workload_spec.has_access() {
+                                    match ControlInterface::new(
                                         &self.run_folder,
                                         &new_workload_spec.instance_name,
                                         self.control_interface_tx.clone(),
                                         Authorizer::from(
                                             &new_workload_spec.control_interface_access,
                                         ),
-                                    )
-                                })
-                                .transpose();
-
-                                let control_interface = match control_interface_result {
-                                    Ok(result) => result,
-                                    Err(err) => {
-                                        log::warn!(
-                                            "Could not reuse or create control interface when resuming workload '{}': '{}'",
-                                            new_workload_spec.instance_name,
-                                            err
-                                        );
-                                        None
+                                    ) {
+                                        Ok(result) => Some(result),
+                                        Err(err) => {
+                                            log::warn!(
+                                                        "Could not reuse or create control interface when resuming workload '{}': '{}'",
+                                                        new_workload_spec.instance_name,
+                                                        err
+                                                    );
+                                            None
+                                        }
                                     }
+                                } else {
+                                    log::info!(
+                                            "No control interface access rights specified for workload '{}'. Skipping creation of control interface.",
+                                            new_instance_name.workload_name()
+                                        );
+                                    None
                                 };
 
                                 log::info!(
@@ -406,12 +407,20 @@ impl RuntimeManager {
 
     async fn add_workload(&mut self, workload_spec: WorkloadSpec) {
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
-        let control_interface_info = ControlInterfaceInfo::new(
-            &self.run_folder,
-            self.control_interface_tx.clone(),
-            &workload_spec.instance_name,
-            Authorizer::from(&workload_spec.control_interface_access),
-        );
+        let control_interface_info = if workload_spec.has_access() {
+            Some(ControlInterfaceInfo::new(
+                &self.run_folder,
+                self.control_interface_tx.clone(),
+                &workload_spec.instance_name,
+                Authorizer::from(&workload_spec.control_interface_access),
+            ))
+        } else {
+            log::info!(
+                "No control interface access specified for workload '{}'",
+                workload_name
+            );
+            None
+        };
 
         // [impl->swdd~agent-uses-specified-runtime~1]
         // [impl->swdd~agent-skips-unknown-runtime~1]
@@ -419,7 +428,7 @@ impl RuntimeManager {
             // [impl->swdd~agent-executes-create-workload-operation~1]
             let workload = runtime.create_workload(
                 workload_spec,
-                Some(control_interface_info),
+                control_interface_info,
                 &self.update_state_tx,
             );
             // [impl->swdd~agent-stores-running-workload~1]
@@ -468,15 +477,23 @@ impl RuntimeManager {
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
 
         if let Some(workload) = self.workloads.get_mut(&workload_name) {
-            let control_interface_info = ControlInterfaceInfo::new(
-                &self.run_folder,
-                self.control_interface_tx.clone(),
-                &workload_spec.instance_name,
-                Authorizer::from(&workload_spec.control_interface_access),
-            );
+            let control_interface_info = if workload_spec.has_access() {
+                Some(ControlInterfaceInfo::new(
+                    &self.run_folder,
+                    self.control_interface_tx.clone(),
+                    &workload_spec.instance_name,
+                    Authorizer::from(&workload_spec.control_interface_access),
+                ))
+            } else {
+                log::info!(
+                    "No control interface access specified for updated workload '{}'",
+                    workload_name
+                );
+                None
+            };
             // [impl->swdd~agent-executes-update-workload-operation~1]
             if let Err(err) = workload
-                .update(Some(workload_spec), Some(control_interface_info))
+                .update(Some(workload_spec), control_interface_info)
                 .await
             {
                 log::error!("Failed to update workload '{}': '{}'", workload_name, err);
