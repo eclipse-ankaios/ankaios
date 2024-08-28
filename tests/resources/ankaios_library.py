@@ -362,9 +362,7 @@ def check_if_files_have_been_generated_for(agent_name: str) -> None:
     """
 
     agent_name = agent_name[2:-2]
-
-    TMP_DIRECTORY = f"../../../../tmp/ankaios/{agent_name}_io"
-    assert path.exists("../../../../tmp/ankaios/")
+    TMP_DIRECTORY = path.join(path.sep, f"tmp/ankaios/{agent_name}_io")
     WORKLOAD_STATES_LEVEL = "workloadStates"
 
     result = popen("target/x86_64-unknown-linux-musl/debug/ank -k get state -o json").read()
@@ -375,10 +373,10 @@ def check_if_files_have_been_generated_for(agent_name: str) -> None:
     control_interface_name = f"{workloads_list[0]}.{state_sha_encoding}"
 
     control_interface_path = path.join(TMP_DIRECTORY, control_interface_name)
-    input_file_path = path.join(control_interface_path, "input")
-    output_file_path = path.join(control_interface_path, "output")
 
-    assert not path.exists(input_file_path) and not path.exists(output_file_path)
+    assert not path.exists(control_interface_path), "the mount point has been generated"
 
 
 
+if __name__ == '__main__':
+    check_if_files_have_been_generated_for('""agent_A""')
