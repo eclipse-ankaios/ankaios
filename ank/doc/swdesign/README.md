@@ -921,8 +921,10 @@ Status: approved
 
 When the user invokes the CLI with a request to provide the list of connected Ankaios agents, the Ankaios CLI shall:
 * request the whole CompleteState of Ankaios server
-* count the workloads assigned to each Ankaios agent inside the CompleteState
-* create a table row for each connected Ankaios agent listed inside the CompleteState's `agents` field with the agent name and the amount of assigned workloads
+* create a table row for each Ankaios agent listed inside the CompleteState's `agents` field with the agent name and the amount of workload states of its managed workloads
+
+Rationale:
+Counting the workload states rather than the assigned workloads in the desired state for each agent ensures the correct number of workloads, even if a workload has been deleted from the desired state but the actual deletion has not yet been scheduled.
 
 Tags:
 - CliCommands

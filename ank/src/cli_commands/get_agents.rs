@@ -15,12 +15,11 @@ use super::CliCommands;
 use crate::{
     cli_commands::{agent_table_row::AgentTableRow, cli_table::CliTable},
     cli_error::CliError,
-    filtered_complete_state::FilteredWorkloadSpec,
     output_debug,
 };
-use std::collections::HashMap;
 
-const DEFAULT_WORKLOAD_COUNT: u32 = 0;
+use common::objects::WorkloadStatesMap;
+
 const EMPTY_FILTER_MASK: [String; 0] = [];
 
 impl CliCommands {
@@ -32,13 +31,7 @@ impl CliCommands {
             .get_complete_state(&EMPTY_FILTER_MASK)
             .await?;
 
-        let workloads = filtered_complete_state
-            .desired_state
-            .and_then(|desired_state| desired_state.workloads)
-            .unwrap_or_default()
-            .into_values();
-
-        let workload_count_per_agent = count_workloads_per_agent(workloads);
+        let workload_states_map = filtered_complete_state.workload_states.unwrap_or_default();
 
         let connected_agents = filtered_complete_state
             .agents
@@ -46,8 +39,7 @@ impl CliCommands {
             .unwrap_or_default()
             .into_keys();
 
-        let agent_table_rows =
-            transform_into_table_rows(connected_agents, workload_count_per_agent);
+        let agent_table_rows = transform_into_table_rows(connected_agents, &workload_states_map);
 
         output_debug!("Got agents of complete state: {:?}", agent_table_rows);
 
@@ -56,30 +48,19 @@ impl CliCommands {
     }
 }
 
-fn count_workloads_per_agent(
-    workload_specs: impl Iterator<Item = FilteredWorkloadSpec>,
-) -> HashMap<String, u32> {
-    workload_specs.fold(HashMap::new(), |mut init, workload| {
-        if let Some(agent) = workload.agent {
-            let count = init.entry(agent).or_insert(DEFAULT_WORKLOAD_COUNT);
-            *count += 1;
-        }
-        init
-    })
-}
-
 fn transform_into_table_rows(
     agents_map: impl Iterator<Item = String>,
-    mut workload_count_per_agent: HashMap<String, u32>,
+    workload_states_map: &WorkloadStatesMap,
 ) -> Vec<AgentTableRow> {
     let mut agent_table_rows: Vec<AgentTableRow> = agents_map
         .map(|agent_name| {
-            let workload_count = workload_count_per_agent
-                .remove(&agent_name)
-                .unwrap_or(DEFAULT_WORKLOAD_COUNT);
+            let workload_states_count = workload_states_map
+                .get_workload_state_for_agent(&agent_name)
+                .len() as u32;
+
             AgentTableRow {
                 agent_name,
-                workloads: workload_count,
+                workloads: workload_states_count,
             }
         })
         .collect();
@@ -107,7 +88,8 @@ mod tests {
     use common::{
         objects::{
             generate_test_agent_map, generate_test_agent_map_from_specs,
-            generate_test_workload_spec_with_param, AgentMap,
+            generate_test_workload_spec_with_param, generate_test_workload_states_map_with_data,
+            AgentMap, ExecutionState,
         },
         test_utils,
     };
@@ -271,6 +253,39 @@ mod tests {
                 ]);
 
                 complete_state.agents = generate_test_agent_map_from_specs(&[workload1]);
+                Ok(ank_base::CompleteState::from(complete_state).into())
+            });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        let table_output_result = cmd.get_agents().await;
+
+        let expected_table_output = ["NAME      WORKLOADS", "agent_A   1        "].join("\n");
+
+        assert_eq!(Ok(expected_table_output), table_output_result);
+    }
+
+    // [utest->swdd~cli-processes-complete-state-to-provide-connected-agents~1]
+    #[tokio::test]
+    async fn test_get_agents_count_the_workload_states() {
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| {
+                let mut complete_state = test_utils::generate_test_complete_state(vec![]);
+                complete_state.agents = generate_test_agent_map(AGENT_A_NAME);
+                // workload1 is deleted from the complete state already but delete not scheduled yet
+                complete_state.workload_states = generate_test_workload_states_map_with_data(
+                    AGENT_A_NAME,
+                    WORKLOAD_NAME_1,
+                    "some workload id",
+                    ExecutionState::waiting_to_stop(),
+                );
                 Ok(ank_base::CompleteState::from(complete_state).into())
             });
 

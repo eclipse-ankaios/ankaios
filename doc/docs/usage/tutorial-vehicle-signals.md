@@ -136,6 +136,28 @@ Now we have two agents runnings in the Ankaios cluster, `agent_A` and `infotainm
 
 For the next steps we need to keep this terminal untouched in order to keep the agent running.
 
+## List the connected agents
+
+Let's verify that the new `infotainment` agent has connected to the Ankaios server by running the following command, which will list all Ankaios agents currently connected to the Ankaios server, along with their number of workloads:
+
+```shell
+ank -k get agents
+```
+
+It should print:
+
+```text
+NAME           WORKLOADS
+agent_A        2
+infotainment   0
+```
+
+Since `agent_A` is already managing the `databroker` and the `speed-provider` workloads, the `WORKLOADS` column contains the number `2`. The Ankaios agent `infotainment` has recently been started and does not yet manage any workloads.
+
+!!! note
+
+    The currently connected Ankaios agents are part of the CompleteState and can also be retrieved [working with the CompleteState](../reference/complete-state.md).
+
 ## Start the speed consumer
 
 Now we can start a speed-consumer workload on the new agent:
@@ -200,6 +222,8 @@ The output should be:
  speed-consumer   infotainment   podman    Running(Ok)
  speed-provider   agent_A        podman    Running(Ok)
 ```
+
+Optionally, you can re-run the previous `ank -k get agents` command again, to verify that the number of workloads managed by the `infotainment` agent has now increased.
 
 ## Reading workload logs
 

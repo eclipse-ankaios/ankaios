@@ -34,8 +34,7 @@ deactivate server_connection
 cli_commands <<- server_connection --: complete state
 
 cli_commands -> cli_commands ++: count workloads per agent\nin complete state
-cli_commands -> cli_commands ++: extract connected agents\nof complete state
-cli_commands -> cli_commands ++: for each connected agent\nassign workload counter
+cli_commands -> cli_commands ++: for each connected agent\nassign number of workload states\nof workloads it manages
 cli_commands -> cli_commands ++: format output text
 main <<-- cli_commands -- : output text
 deactivate cli_commands
