@@ -15,6 +15,12 @@ workloads:
     agent: agent_B
     dependencies:
       filesystem_init: ADD_COND_SUCCEEDED
+    controlInterfaceAccess:
+      allowRules:
+      - type: StateRule
+        operation: Read
+        filterMask:
+        - desiredState
     runtimeConfig: |
       image: alpine:latest
       commandOptions: [ "--rm"]
