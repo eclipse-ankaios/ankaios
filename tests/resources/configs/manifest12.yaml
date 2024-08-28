@@ -5,12 +5,12 @@ workloads:
     restartPolicy: NEVER
     agent: agent_A
     runtimeConfig: |
-      image: docker.io/nginx:latest
+      image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
       commandOptions: ["-p", "8081:80"]
   nginx_from_manifest2:
     runtime: podman
     agent: agent_A
     restartPolicy: NEVER
     runtimeConfig: |
-      image: docker.io/nginx:latest
+      image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
       commandOptions: ["-p", "8082:80"]
