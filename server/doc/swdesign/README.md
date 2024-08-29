@@ -365,7 +365,7 @@ Needs:
 - utest
 
 #### ServerState stores agent inside the CompleteState
-`swdd~swdd-server-state-stores-agent-in-complete-state~1`
+`swdd~server-state-stores-agent-in-complete-state~1`
 
 Status: approved
 
