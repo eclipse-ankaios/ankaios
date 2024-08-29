@@ -65,5 +65,5 @@ Test Ankaios workload restart after update with a Control Interface access
     # Actions
     When user triggers "ank apply ${CONFIGS_DIR}/startConfig.yaml"
     # Asserts
-    Then Run Keyword And Expect Error    the mount point has been generated    the mount point has not been generated for ${agent_name}
+    Then the mount point has been generated for ${agent_name}
     [Teardown]    Clean up Ankaios
