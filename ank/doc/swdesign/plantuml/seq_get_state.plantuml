@@ -38,7 +38,6 @@ deactivate cli_commands
 deactivate cli_commands
 
 main -> main ++: print text
-user <- main -- : exit
-deactivate main
+user <<-- main -- : exit
 
 @enduml
