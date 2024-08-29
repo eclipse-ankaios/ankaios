@@ -369,7 +369,7 @@ Needs:
 
 Status: approved
 
-When the ServerState is triggered to store the agent, the ServerState shall create an entry of the agent in the `agents` field part of the `CompleteState`.
+When the ServerState is triggered to store the agent, the ServerState shall create an entry of the agent in the `agents` field of the `CompleteState`.
 
 Tags:
 - ServerState
