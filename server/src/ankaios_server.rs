@@ -275,9 +275,7 @@ impl AnkaiosServer {
 
                                 // [impl->swdd~server-handles-deleted-workload-for-empty-and-not-connected-agent~1]
                                 let retained_deleted_workloads = self
-                                    .handle_unscheduled_and_pending_initial_deleted_workloads(
-                                        deleted_workloads,
-                                    )
+                                    .handle_not_started_deleted_workloads(deleted_workloads)
                                     .await;
 
                                 let from_server_command =
@@ -355,7 +353,7 @@ impl AnkaiosServer {
     }
 
     // [impl->swdd~server-handles-deleted-workload-for-empty-and-not-connected-agent~1]
-    async fn handle_unscheduled_and_pending_initial_deleted_workloads(
+    async fn handle_not_started_deleted_workloads(
         &mut self,
         mut deleted_workloads: Vec<DeletedWorkload>,
     ) -> Vec<DeletedWorkload> {
@@ -1717,7 +1715,7 @@ mod tests {
         let deleted_workloads = vec![deleted_workload_with_not_connected_agent.clone()];
 
         let retained_deleted_workloads = server
-            .handle_unscheduled_and_pending_initial_deleted_workloads(deleted_workloads)
+            .handle_not_started_deleted_workloads(deleted_workloads)
             .await;
 
         assert!(retained_deleted_workloads.is_empty());
