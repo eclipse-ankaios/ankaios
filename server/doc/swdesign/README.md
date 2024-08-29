@@ -860,7 +860,7 @@ Needs:
 
 Status: approved
 
-When the ServerState is triggered to remove the agent from its state, the ServerState shall remove the entry of the agent in the `agents` field part of the `CompleteState`.
+When the ServerState is triggered to remove the agent from its state, the ServerState shall remove the entry of the agent in the `agents` field of the `CompleteState`.
 
 Tags:
 - ServerState
