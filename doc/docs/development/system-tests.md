@@ -26,7 +26,7 @@ The [Robot test framework](https://robotframework.org/), often referred to as ju
 
 ## System tests structure
 
-```bash
+```text
 ankaios                              # Ankaios root
   |--tests                           # Location for system tests and their resources
   |  |--resources                    # Location for test resources
@@ -44,7 +44,6 @@ ankaios                              # Ankaios root
   |  |  |  |--list_workloads.robot   # A test suite testing "list workloads"
   |  |  |  |--... <----------------  # Add more tests related to "workloads" here!
   |  |  |... <---------------------  # Add test subject focus here!
-
 ```
 
 ## System test creation
@@ -111,6 +110,11 @@ Test Ankaios CLI get workloads
     And the workload "hello3" shall have the execution state "Succeeded" on agent "agent_B"
     [Teardown]    Clean up Ankaios
 ```
+
+!!! note
+
+    For Ankaios manifests that are used for system tests, only images from ghcr.io should be used.
+    A lot of other registries (docker.io, quay.io) apply rate limits which might cause failures when executing the system tests.
 
 ### Run long-runtime system tests upon merge into main
 
