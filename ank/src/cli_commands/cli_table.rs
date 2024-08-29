@@ -70,7 +70,7 @@ where
     ) -> Result<String, CliTableError> {
         self.style_blank();
         self.disable_surrounding_padding();
-        let available_column_width = self.terminal_width_for_column(column_position)?;
+        let available_column_width = self.column_width_for_terminal(column_position)?;
 
         self.table.with(
             Modify::new(Columns::single(column_position)).with(Width::wrap(available_column_width)),
@@ -86,7 +86,7 @@ where
         self.style_blank();
         self.disable_surrounding_padding();
 
-        let available_column_width = self.terminal_width_for_column(column_position)?;
+        let available_column_width = self.column_width_for_terminal(column_position)?;
         self.table.with(
             Modify::new(Columns::single(column_position)).with(
                 Width::truncate(available_column_width).suffix(Self::TRUNCATED_COLUMN_SUFFIX),
@@ -130,7 +130,7 @@ where
     }
 
     // [impl->swdd~cli-table-wrapped-truncated-column-width-depends-on-terminal-width~1]
-    fn terminal_width_for_column(&self, column_position: usize) -> Result<usize, CliTableError> {
+    fn column_width_for_terminal(&self, column_position: usize) -> Result<usize, CliTableError> {
         const DEFAULT_CONTENT_LENGTH: usize = 0;
         let column_name_length = RowType::headers()
             .get(column_position)
@@ -291,7 +291,7 @@ mod tests {
         let column_position = 2;
         let expected_terminal_width = Ok(58); // 80 (terminal width) - (37 - 15 (column name 'ANOTHER COLUMN3')) = 58
         assert_eq!(
-            table.terminal_width_for_column(column_position),
+            table.column_width_for_terminal(column_position),
             expected_terminal_width
         );
     }
@@ -310,7 +310,7 @@ mod tests {
         // 80 (terminal width) - (40 (table width) - 15 (column name 'ANOTHER COLUMN3')) = 55
         let expected_terminal_width = Ok(55);
         assert_eq!(
-            table.terminal_width_for_column(column_position),
+            table.column_width_for_terminal(column_position),
             expected_terminal_width
         );
     }
@@ -328,7 +328,7 @@ mod tests {
         let column_position = 2;
 
         // not fulfilled: 80 (terminal width) - 15 (column name 'ANOTHER COLUMN3') >= 70 (total table width other columns)
-        let table_output_result = table.terminal_width_for_column(column_position);
+        let table_output_result = table.column_width_for_terminal(column_position);
 
         assert!(table_output_result.is_err());
 
