@@ -781,7 +781,7 @@ Needs:
 - utest
 
 #### Server handles deleted workloads for empty and not connected agent
-`swdd~server-handles-deleted-workload-for-empty-and-not-connected-agent~1`
+`swdd~server-handles-not-started-deleted-workloads~1`
 
 Status: approved
 

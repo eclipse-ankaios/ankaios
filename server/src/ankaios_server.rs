@@ -273,7 +273,7 @@ impl AnkaiosServer {
                                     .map(|x| x.instance_name.to_string())
                                     .collect();
 
-                                // [impl->swdd~server-handles-deleted-workload-for-empty-and-not-connected-agent~1]
+                                // [impl->swdd~server-handles-not-started-deleted-workloads~1]
                                 let retained_deleted_workloads = self
                                     .handle_not_started_deleted_workloads(deleted_workloads)
                                     .await;
@@ -352,7 +352,7 @@ impl AnkaiosServer {
         }
     }
 
-    // [impl->swdd~server-handles-deleted-workload-for-empty-and-not-connected-agent~1]
+    // [impl->swdd~server-handles-not-started-deleted-workloads~1]
     async fn handle_not_started_deleted_workloads(
         &mut self,
         mut deleted_workloads: Vec<DeletedWorkload>,
@@ -1587,7 +1587,7 @@ mod tests {
         server_task.abort();
     }
 
-    // [utest->swdd~server-handles-deleted-workload-for-empty-and-not-connected-agent~1]
+    // [utest->swdd~server-handles-not-started-deleted-workloads~1]
     #[tokio::test]
     async fn utest_server_handles_deleted_workload_on_empty_agent() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -1678,7 +1678,7 @@ mod tests {
         assert!(comm_middle_ware_receiver.try_recv().is_err());
     }
 
-    // [utest->swdd~server-handles-deleted-workload-for-empty-and-not-connected-agent~1]
+    // [utest->swdd~server-handles-not-started-deleted-workloads~1]
     #[tokio::test]
     async fn utest_server_handles_pending_initial_deleted_workload_on_not_connected_agent() {
         let _ = env_logger::builder().is_test(true).try_init();
