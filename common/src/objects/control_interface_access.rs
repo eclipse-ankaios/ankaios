@@ -135,3 +135,25 @@ impl From<ReadWriteEnum> for i32 {
         }
     }
 }
+
+//////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_control_interface_access() -> ControlInterfaceAccess {
+    ControlInterfaceAccess {
+        allow_rules: vec![AccessRightsRule::StateRule(StateRule {
+            operation: ReadWriteEnum::ReadWrite,
+            filter_mask: vec!["desiredState".to_string()],
+        })],
+        deny_rules: vec![AccessRightsRule::StateRule(StateRule {
+            operation: ReadWriteEnum::Write,
+            filter_mask: vec!["desiredState.workload.watchDog".to_string()],
+        })],
+    }
+}

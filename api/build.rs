@@ -28,6 +28,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .field_attribute("ExecutionsStatesForId.idStateMap", "#[serde(flatten)]")
         .field_attribute("WorkloadMap.workloads", "#[serde(flatten)]")
         .field_attribute("AgentMap.agents", "#[serde(flatten)]")
+        .field_attribute(
+            "ControlInterfaceAccess.allowRules",
+            "#[serde(with = \"serde_yaml::with::singleton_map_recursive\")]",
+        )
+        .field_attribute("ControlInterfaceAccess.allowRules", "#[serde(default)]")
+        .field_attribute(
+            "ControlInterfaceAccess.denyRules",
+            "#[serde(with = \"serde_yaml::with::singleton_map_recursive\")]",
+        )
+        .field_attribute("ControlInterfaceAccess.denyRules", "#[serde(default)]")
         .compile(&["proto/control_api.proto"], &["proto"])
         .unwrap();
     Ok(())

@@ -302,9 +302,9 @@ mod tests {
     use common::{
         commands::CompleteStateRequest,
         objects::{
-            generate_test_agent_map, generate_test_stored_workload_spec,
-            generate_test_workload_spec_with_param, AgentMap, CompleteState, DeletedWorkload,
-            State, WorkloadSpec, WorkloadStatesMap,
+            generate_test_agent_map, generate_test_control_interface_access,
+            generate_test_stored_workload_spec, generate_test_workload_spec_with_param, AgentMap,
+            CompleteState, DeletedWorkload, State, WorkloadSpec, WorkloadStatesMap,
         },
         test_utils::{self, generate_test_complete_state},
     };
@@ -401,11 +401,13 @@ mod tests {
     // [utest->swdd~server-filters-get-complete-state-result~2]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask() {
-        let w1 = generate_test_workload_spec_with_param(
+        let mut w1 = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
             WORKLOAD_NAME_1.to_string(),
             RUNTIME.to_string(),
         );
+
+        w1.control_interface_access = generate_test_control_interface_access();
 
         let w2 = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
