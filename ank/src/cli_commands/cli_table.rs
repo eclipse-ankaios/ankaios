@@ -104,8 +104,7 @@ where
     }
 
     fn disable_surrounding_padding(&mut self) {
-        let column_count = self.table.count_columns();
-        let last_column_pos = column_count - 1;
+        let last_column_pos = self.table.count_columns() - 1;
 
         let first_column_default_padding = self
             .table
