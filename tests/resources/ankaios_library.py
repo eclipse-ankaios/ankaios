@@ -350,33 +350,22 @@ def internal_check_all_control_interface_requests_failed(tmp_folder):
 def empty_keyword():
     pass
 
-def check_if_files_have_been_generated_for(agent_name: str) -> None:
-    """
-    Function used to check if input and output files have not been generated inside the directory
-
-    Args:
-        agent_name: str
-
-    Returns:
-        None
-    """
-
-    agent_name = agent_name[2:-2]
-    TMP_DIRECTORY = path.join(path.sep, f"tmp/ankaios/{agent_name}_io")
+def check_if_mount_point_has_not_been_generated_for(agent_name):
+    AGENT_NAME = agent_name
+    TMP_DIRECTORY = path.join(path.sep, f"tmp/ankaios/{AGENT_NAME}_io")
     WORKLOAD_STATES_LEVEL = "workloadStates"
 
-    result = popen("target/x86_64-unknown-linux-musl/debug/ank -k get state -o json").read()
+    result = popen("target/x86_64-unknown-linux-musl/debug/ank get state -o json").read()
     json_result = json.loads(result)
 
-    workloads_list = list(json_result[WORKLOAD_STATES_LEVEL][agent_name])
-    state_sha_encoding = list(json_result[WORKLOAD_STATES_LEVEL][agent_name][workloads_list[0]].keys())[0]
-    control_interface_name = f"{workloads_list[0]}.{state_sha_encoding}"
+    workloads_list = list(json_result[WORKLOAD_STATES_LEVEL][AGENT_NAME].keys())
+    state_sha_encoding = list(json_result[WORKLOAD_STATES_LEVEL][AGENT_NAME][workloads_list[0]].keys())[0]
 
+    control_interface_name = f"{workloads_list[0]}.{state_sha_encoding}"
     control_interface_path = path.join(TMP_DIRECTORY, control_interface_name)
 
     assert not path.exists(control_interface_path), "the mount point has been generated"
 
 
-
-if __name__ == '__main__':
-    check_if_files_have_been_generated_for('""agent_A""')
+if __name__ == "__main__":
+    check_if_mount_point_has_not_been_generated_for("agent_A")

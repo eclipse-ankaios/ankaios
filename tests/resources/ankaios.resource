@@ -546,6 +546,9 @@ The controller workload requests shall all fail
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
     internal_check_all_control_interface_requests_failed    ${ankaios_config_folder.name}
 
+the mount point has not been generated for ${agent_name}
+    check_if_mount_point_has_not_been_generated_for    ${agent_name}
+
 
 # ALIASES
 
@@ -590,6 +593,3 @@ the last command shall finish with an error
 
 the last command shall finish with exit code "${exit_code}"
     the last command finished with exit code "${exit_code}"
-
-the input and output files have not been generated for "${agent_name}"
-    check_if_files_have_been_generated_for    "${agent_name}"
