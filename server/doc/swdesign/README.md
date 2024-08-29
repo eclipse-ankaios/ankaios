@@ -454,7 +454,7 @@ The following diagram shows the sequence of GetCompleteState request from the ag
 ![Get complete state sequence](plantuml/seq_get_complete_state.svg)
 
 ##### Server provides interface GetCompleteState
-`swdd~server-provides-interface-get-complete-state~1`
+`swdd~server-provides-interface-get-complete-state~2`
 
 Status: approved
 
