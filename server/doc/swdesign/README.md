@@ -347,7 +347,7 @@ Needs:
 - utest
 
 #### Server stores a newly connected agent
-`swdd~swdd-server-stores-newly-connected-agent~1`
+`swdd~server-stores-newly-connected-agent~1`
 
 Status: approved
 
