@@ -354,18 +354,16 @@ def check_if_mount_point_has_not_been_generated_for(agent_name):
     AGENT_NAME = agent_name
     TMP_DIRECTORY = path.join(path.sep, f"tmp/ankaios/{AGENT_NAME}_io")
     WORKLOAD_STATES_LEVEL = "workloadStates"
+    SHA_ENCODING_LEVEL = 0
 
     result = popen("target/x86_64-unknown-linux-musl/debug/ank get state -o json").read()
     json_result = json.loads(result)
 
     workloads_list = list(json_result[WORKLOAD_STATES_LEVEL][AGENT_NAME].keys())
-    state_sha_encoding = list(json_result[WORKLOAD_STATES_LEVEL][AGENT_NAME][workloads_list[0]].keys())[0]
+    for idx, _ in enumerate(workloads_list):
+        state_sha_encoding = list(json_result[WORKLOAD_STATES_LEVEL][AGENT_NAME][workloads_list[idx]].keys())[SHA_ENCODING_LEVEL]
 
-    control_interface_name = f"{workloads_list[0]}.{state_sha_encoding}"
-    control_interface_path = path.join(TMP_DIRECTORY, control_interface_name)
+        control_interface_name = f"{workloads_list[0]}.{state_sha_encoding}"
+        control_interface_path = path.join(TMP_DIRECTORY, control_interface_name)
 
-    assert not path.exists(control_interface_path), "the mount point has been generated"
-
-
-if __name__ == "__main__":
-    check_if_mount_point_has_not_been_generated_for("agent_A")
+        assert not path.exists(control_interface_path), "the mount point has been generated"
