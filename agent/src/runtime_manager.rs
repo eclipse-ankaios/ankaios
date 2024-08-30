@@ -29,9 +29,6 @@ use common::{
 };
 
 #[cfg_attr(test, mockall_double::double)]
-use crate::control_interface::ControlInterface;
-
-#[cfg_attr(test, mockall_double::double)]
 use crate::control_interface::control_interface_info::ControlInterfaceInfo;
 
 #[cfg_attr(test, mockall_double::double)]
@@ -224,32 +221,12 @@ impl RuntimeManager {
 
                             // [impl->swdd~agent-existing-workloads-resume-existing~2]
                             if Self::is_resumable_workload(&workload_state, &new_instance_name) {
-                                let control_interface = if new_workload_spec.has_access() {
-                                    match ControlInterface::new(
-                                        &self.run_folder,
-                                        &new_workload_spec.instance_name,
-                                        self.control_interface_tx.clone(),
-                                        Authorizer::from(
-                                            &new_workload_spec.control_interface_access,
-                                        ),
-                                    ) {
-                                        Ok(result) => Some(result),
-                                        Err(err) => {
-                                            log::warn!(
-                                                        "Could not reuse or create control interface when resuming workload '{}': '{}'",
-                                                        new_workload_spec.instance_name,
-                                                        err
-                                                    );
-                                            None
-                                        }
-                                    }
-                                } else {
-                                    log::info!(
-                                            "No control interface access rights specified for workload '{}'. Skipping creation of control interface.",
-                                            new_instance_name.workload_name()
-                                        );
-                                    None
-                                };
+                                let control_interface_info = Some(ControlInterfaceInfo::new(
+                                    &self.run_folder,
+                                    self.control_interface_tx.clone(),
+                                    &new_instance_name,
+                                    Authorizer::from(&new_workload_spec.control_interface_access),
+                                ));
 
                                 log::info!(
                                     "Resuming workload '{}'",
@@ -261,7 +238,7 @@ impl RuntimeManager {
                                     new_instance_name.workload_name().to_owned(),
                                     runtime.resume_workload(
                                         new_workload_spec,
-                                        control_interface,
+                                        control_interface_info,
                                         &self.update_state_tx,
                                     ),
                                 );
@@ -407,7 +384,7 @@ impl RuntimeManager {
 
     async fn add_workload(&mut self, workload_spec: WorkloadSpec) {
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
-        let control_interface_info = if workload_spec.has_access() {
+        let control_interface_info = if workload_spec.has_control_interface_access_rules() {
             Some(ControlInterfaceInfo::new(
                 &self.run_folder,
                 self.control_interface_tx.clone(),
@@ -477,7 +454,7 @@ impl RuntimeManager {
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
 
         if let Some(workload) = self.workloads.get_mut(&workload_name) {
-            let control_interface_info = if workload_spec.has_access() {
+            let control_interface_info = if workload_spec.has_control_interface_access_rules() {
                 Some(ControlInterfaceInfo::new(
                     &self.run_folder,
                     self.control_interface_tx.clone(),
@@ -544,9 +521,10 @@ mod tests {
     use crate::workload_state::WorkloadStateReceiver;
     use ank_base::response::ResponseContent;
     use common::objects::{
-        generate_test_control_interface_access, generate_test_workload_spec_with_dependencies,
-        generate_test_workload_spec_with_param, AddCondition, WorkloadInstanceNameBuilder,
-        WorkloadState,
+        generate_test_control_interface_access,
+        generate_test_workload_spec_with_control_interface_access,
+        generate_test_workload_spec_with_dependencies, generate_test_workload_spec_with_param,
+        AddCondition, WorkloadInstanceNameBuilder, WorkloadState,
     };
     use common::test_utils::{
         self, generate_test_complete_state, generate_test_deleted_workload,
@@ -610,25 +588,25 @@ mod tests {
         let control_interface_info_mock = MockControlInterfaceInfo::new_context();
         control_interface_info_mock
             .expect()
-            .times(2)
+            .times(1)
             .returning(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let new_workload_1 = generate_test_workload_spec_with_param(
+        let new_workload_access = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
 
-        let new_workload_2 = generate_test_workload_spec_with_param(
+        let new_workload_no_access = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),
             WORKLOAD_2_NAME.to_string(),
             RUNTIME_NAME_2.to_string(),
         );
 
-        let added_workloads = vec![new_workload_1.clone(), new_workload_2.clone()];
+        let added_workloads = vec![new_workload_access.clone(), new_workload_no_access.clone()];
         let workload_operations = vec![
-            WorkloadOperation::Create(new_workload_1),
-            WorkloadOperation::Create(new_workload_2),
+            WorkloadOperation::Create(new_workload_access),
+            WorkloadOperation::Create(new_workload_no_access),
         ];
 
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
@@ -699,11 +677,12 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let workload_with_unknown_runtime = generate_test_workload_spec_with_param(
-            AGENT_NAME.to_string(),
-            WORKLOAD_1_NAME.to_string(),
-            "unknown_runtime1".to_string(),
-        );
+        let workload_with_unknown_runtime =
+            generate_test_workload_spec_with_control_interface_access(
+                AGENT_NAME.to_string(),
+                WORKLOAD_1_NAME.to_string(),
+                "unknown_runtime1".to_string(),
+            );
         let added_workloads = vec![workload_with_unknown_runtime.clone()];
 
         let workload_operations = vec![WorkloadOperation::Create(workload_with_unknown_runtime)];
@@ -757,7 +736,7 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let workload = generate_test_workload_spec_with_param(
+        let workload = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -826,11 +805,11 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let control_interface_new_context = MockControlInterface::new_context();
-        control_interface_new_context
+        let control_interface_info_new_context = MockControlInterfaceInfo::new_context();
+        control_interface_info_new_context
             .expect()
             .once()
-            .returning(move |_, _, _, _| Ok(MockControlInterface::default()));
+            .returning(move |_, _, _, _| MockControlInterfaceInfo::default());
 
         let workload_operations = vec![];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
@@ -845,13 +824,11 @@ mod tests {
             .once()
             .return_once(|_| mock_workload_scheduler);
 
-        let mut existing_workload = generate_test_workload_spec_with_param(
+        let existing_workload = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
-
-        existing_workload.control_interface_access = generate_test_control_interface_access();
 
         let existing_workload_instance_name = existing_workload.instance_name.clone();
         let workload_state_running = WorkloadState {
@@ -895,7 +872,7 @@ mod tests {
             .get_lock_async()
             .await;
 
-        let existing_workload = generate_test_workload_spec_with_param(
+        let existing_workload = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1196,7 +1173,7 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let new_workload = generate_test_workload_spec_with_param(
+        let new_workload = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1292,7 +1269,7 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let new_workload = generate_test_workload_spec_with_param(
+        let new_workload = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_2_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1382,7 +1359,7 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let new_workload = generate_test_workload_spec_with_param(
+        let new_workload = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1440,7 +1417,7 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let new_workload = generate_test_workload_spec_with_param(
+        let new_workload = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1528,7 +1505,7 @@ mod tests {
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let new_workload = generate_test_workload_spec_with_param(
+        let new_workload = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -1957,20 +1934,21 @@ mod tests {
             .await;
         let _from_authorizer_context = setup_from_authorizer();
 
-        let control_interface_mock = MockControlInterfaceInfo::new_context();
-        control_interface_mock
+        let control_interface_info_mock = MockControlInterfaceInfo::new_context();
+        control_interface_info_mock
             .expect()
             .once()
             .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
-        let next_workload_operations = vec![WorkloadOperation::Create(
-            generate_test_workload_spec_with_dependencies(
-                AGENT_NAME,
-                WORKLOAD_1_NAME,
-                RUNTIME_NAME,
-                HashMap::from([(WORKLOAD_2_NAME.to_string(), AddCondition::AddCondRunning)]),
-            ),
-        )];
+        let mut workload_spec = generate_test_workload_spec_with_dependencies(
+            AGENT_NAME,
+            WORKLOAD_1_NAME,
+            RUNTIME_NAME,
+            HashMap::from([(WORKLOAD_2_NAME.to_string(), AddCondition::AddCondRunning)]),
+        );
+        workload_spec.control_interface_access = generate_test_control_interface_access();
+
+        let next_workload_operations = vec![WorkloadOperation::Create(workload_spec)];
         let mut mock_workload_scheduler = MockWorkloadScheduler::default();
         mock_workload_scheduler
             .expect_next_workload_operations()
@@ -2299,7 +2277,7 @@ mod tests {
                 )
                 .build();
 
-        let new_workload = generate_test_workload_spec_with_param(
+        let new_workload = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_owned(),
             WORKLOAD_1_NAME.to_owned(),
             RUNTIME_NAME.to_owned(),
@@ -2401,12 +2379,6 @@ mod tests {
             WORKLOAD_1_NAME.to_owned(),
             RUNTIME_NAME.to_owned(),
         );
-
-        let control_interface_info_mock = MockControlInterfaceInfo::new_context();
-        control_interface_info_mock
-            .expect()
-            .once()
-            .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
 
         let mut workload_mock = MockWorkload::default();
         workload_mock

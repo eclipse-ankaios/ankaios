@@ -141,7 +141,8 @@ impl Workload {
         if self.is_control_interface_changed(&control_interface_info) {
             self.exchange_control_interface(
                 control_interface_info,
-                spec.clone().map_or(false, |spec| !spec.has_access()),
+                spec.clone()
+                    .map_or(false, |spec| !spec.has_control_interface_access_rules()),
             );
         }
 
@@ -207,8 +208,8 @@ mod tests {
     use common::{
         from_server_interface::FromServer,
         objects::{
-            generate_test_control_interface_access, generate_test_workload_spec_with_param,
-            CompleteState,
+            generate_test_workload_spec_with_control_interface_access,
+            generate_test_workload_spec_with_param, CompleteState,
         },
         test_utils::generate_test_complete_state,
     };
@@ -357,7 +358,8 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        test_workload.exchange_control_interface(None, workload_spec.has_access());
+        test_workload
+            .exchange_control_interface(None, workload_spec.has_control_interface_access_rules());
 
         assert!(test_workload.control_interface.is_none());
     }
@@ -377,13 +379,11 @@ mod tests {
             .once()
             .return_const(());
 
-        let mut workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
-
-        workload_spec.control_interface_access = generate_test_control_interface_access();
 
         let mut new_control_interface_mock = MockControlInterface::default();
         new_control_interface_mock
@@ -472,13 +472,11 @@ mod tests {
             .once()
             .return_const(PIPES_LOCATION);
 
-        let mut workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
         );
-
-        workload_spec.control_interface_access = generate_test_control_interface_access();
 
         let mut new_control_interface_info_mock = MockControlInterfaceInfo::default();
         new_control_interface_info_mock
