@@ -167,14 +167,8 @@ where
 
         let terminal_width = terminal_width();
 
-        let is_reasonable_terminal_width = terminal_width
-            .checked_sub(column_name_length)
-            .ok_or_else(|| {
-                CliTableError("overflow when calculating reasonable terminal width.".to_string())
-            })?
-            >= table_width_other_columns;
-
-        if is_reasonable_terminal_width {
+        // check if at least the column name fits in the terminal
+        if table_width_other_columns + column_name_length <= terminal_width {
             terminal_width
                 .checked_sub(table_width_other_columns)
                 .ok_or_else(|| {
