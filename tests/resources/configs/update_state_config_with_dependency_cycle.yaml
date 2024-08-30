@@ -12,5 +12,5 @@ desiredState:
         - key: owner
           value: Ankaios team
       runtimeConfig: |
-        image: alpine:latest
+        image: ghcr.io/eclipse-ankaios/tests/alpine:latest
         commandArgs: [ "echo", "Hello Ankaios"]

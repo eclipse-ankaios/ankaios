@@ -11,7 +11,7 @@ desiredState:
       restartPolicy: NEVER
       runtime: podman
       runtimeConfig: |
-        image: docker.io/alpine:latest
+        image: ghcr.io/eclipse-ankaios/tests/alpine:latest
         commandArgs: ["echo", "Changed runtime config."]
     backend:
       agent: agent_A
@@ -22,6 +22,6 @@ desiredState:
       restartPolicy: NEVER
       runtime: podman
       runtimeConfig: |
-        image: docker.io/alpine:latest
+        image: ghcr.io/eclipse-ankaios/tests/alpine:latest
         commandArgs: ["echo", "backend succeeded"]
 workloadStates: []

@@ -10,7 +10,7 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: docker.io/nginx:latest
+      image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
       commandOptions: ["-p", "8083:80"]
   backend:
     runtime: podman
@@ -22,7 +22,7 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: docker.io/nginx:latest
+      image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
       commandOptions: ["-p", "8082:80"]
   init_backend:
     runtime: podman
@@ -32,5 +32,5 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: docker.io/alpine:latest
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandArgs: ["echo", "init_backend"]

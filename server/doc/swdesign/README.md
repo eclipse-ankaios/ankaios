@@ -347,7 +347,7 @@ Needs:
 - utest
 
 #### Server stores a newly connected agent
-`swdd~swdd-server-stores-newly-connected-agent~1`
+`swdd~server-stores-newly-connected-agent~1`
 
 Status: approved
 
@@ -365,11 +365,11 @@ Needs:
 - utest
 
 #### ServerState stores agent inside the CompleteState
-`swdd~swdd-server-state-stores-agent-in-complete-state~1`
+`swdd~server-state-stores-agent-in-complete-state~1`
 
 Status: approved
 
-When the ServerState is triggered to store the agent, the ServerState shall create an entry of the agent in the `agents` field part of the `CompleteState`.
+When the ServerState is triggered to store the agent, the ServerState shall create an entry of the agent in the `agents` field of the `CompleteState`.
 
 Tags:
 - ServerState
@@ -454,7 +454,7 @@ The following diagram shows the sequence of GetCompleteState request from the ag
 ![Get complete state sequence](plantuml/seq_get_complete_state.svg)
 
 ##### Server provides interface GetCompleteState
-`swdd~server-provides-interface-get-complete-state~1`
+`swdd~server-provides-interface-get-complete-state~2`
 
 Status: approved
 
@@ -860,21 +860,7 @@ Needs:
 
 Status: approved
 
-When the ServerState is triggered to remove the agent from its state, the ServerState shall remove the entry of the agent in the `agents` field part of the `CompleteState`.
-
-Tags:
-- ServerState
-
-Needs:
-- impl
-- utest
-
-#### ServerState provides check for existence of an connected agent inside the complete state
-`swdd~server-state-provides-connected-agent-exists-check~1`
-
-Status: approved
-
-When the ServerState is triggered to check if an agent is part of its state, the ServerState shall check if the `agents` field of the `CompleteState` contains the agent name passed as argument.
+When the ServerState is triggered to remove the agent from its state, the ServerState shall remove the entry of the agent in the `agents` field of the `CompleteState`.
 
 Tags:
 - ServerState

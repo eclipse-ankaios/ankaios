@@ -70,9 +70,7 @@ where
     ) -> Result<String, CliTableError> {
         self.style_blank();
         self.disable_surrounding_padding();
-        let total_table_width: usize = self.table.total_width();
-        let available_column_width =
-            self.terminal_width_for_column(column_position, total_table_width)?;
+        let available_column_width = self.column_width_for_terminal(column_position)?;
 
         self.table.with(
             Modify::new(Columns::single(column_position)).with(Width::wrap(available_column_width)),
@@ -88,9 +86,7 @@ where
         self.style_blank();
         self.disable_surrounding_padding();
 
-        let total_table_width: usize = self.table.total_width();
-        let available_column_width =
-            self.terminal_width_for_column(column_position, total_table_width)?;
+        let available_column_width = self.column_width_for_terminal(column_position)?;
         self.table.with(
             Modify::new(Columns::single(column_position)).with(
                 Width::truncate(available_column_width).suffix(Self::TRUNCATED_COLUMN_SUFFIX),
@@ -104,8 +100,7 @@ where
     }
 
     fn disable_surrounding_padding(&mut self) {
-        let column_count = self.table.count_columns();
-        let last_column_pos = column_count - 1;
+        let last_column_pos = self.table.count_columns() - 1;
 
         let first_column_default_padding = self
             .table
@@ -135,11 +130,7 @@ where
     }
 
     // [impl->swdd~cli-table-wrapped-truncated-column-width-depends-on-terminal-width~1]
-    fn terminal_width_for_column(
-        &self,
-        column_position: usize,
-        total_table_width: usize,
-    ) -> Result<usize, CliTableError> {
+    fn column_width_for_terminal(&self, column_position: usize) -> Result<usize, CliTableError> {
         const DEFAULT_CONTENT_LENGTH: usize = 0;
         let column_name_length = RowType::headers()
             .get(column_position)
@@ -166,6 +157,7 @@ where
         // the min length shall be the header column name length
         let column_width = max_content_length.max(column_name_length);
 
+        let total_table_width: usize = self.table.total_width();
         let table_width_other_columns =
             total_table_width.checked_sub(column_width).ok_or_else(|| {
                 CliTableError(
@@ -175,14 +167,8 @@ where
 
         let terminal_width = terminal_width();
 
-        let is_reasonable_terminal_width = terminal_width
-            .checked_sub(column_name_length)
-            .ok_or_else(|| {
-                CliTableError("overflow when calculating reasonable terminal width.".to_string())
-            })?
-            >= table_width_other_columns;
-
-        if is_reasonable_terminal_width {
+        // check if at least the column name fits in the terminal
+        if table_width_other_columns + column_name_length <= terminal_width {
             terminal_width
                 .checked_sub(table_width_other_columns)
                 .ok_or_else(|| {
@@ -296,18 +282,17 @@ mod tests {
     fn utest_terminal_width_for_column_no_table_entries() {
         let empty_rows: [TestRow; 0] = [];
         let table = CliTable::new(&empty_rows);
-        let table_width: usize = 70; // empty table but all header column names
         let column_position = 2;
-        let expected_terminal_width = Ok(25); // 80 (terminal width) - (70 - 15 (column name 'ANOTHER COLUMN3')) = 25
+        let expected_terminal_width = Ok(58); // 80 (terminal width) - (37 - 15 (column name 'ANOTHER COLUMN3')) = 58
         assert_eq!(
-            table.terminal_width_for_column(column_position, table_width),
+            table.column_width_for_terminal(column_position),
             expected_terminal_width
         );
     }
 
     // [utest->swdd~cli-table-wrapped-truncated-column-width-depends-on-terminal-width~1]
     #[test]
-    fn utest_terminal_width_for_column_column_name_bigger_than_info_msg() {
+    fn utest_terminal_width_for_column_column_name_bigger_than_column_content() {
         let table_rows = [TestRow {
             col1: "some name1".to_string(),
             col2: "text2".to_string(),
@@ -316,10 +301,10 @@ mod tests {
 
         let table = CliTable::new(&table_rows);
         let column_position = 2;
-        let table_width: usize = 70;
-        let expected_terminal_width = Ok(25); // 80 (terminal width) - (70 - 15 (column name 'ANOTHER COLUMN3')) = 25
+        // 80 (terminal width) - (40 (table width) - 15 (column name 'ANOTHER COLUMN3')) = 55
+        let expected_terminal_width = Ok(55);
         assert_eq!(
-            table.terminal_width_for_column(column_position, table_width),
+            table.column_width_for_terminal(column_position),
             expected_terminal_width
         );
     }
@@ -329,15 +314,15 @@ mod tests {
     fn utest_terminal_width_for_column_no_reasonable_terminal_width_left() {
         let table_rows = [TestRow {
             col1: "some name1".to_string(),
-            col2: "text2".to_string(),
+            col2: "text2".repeat(10),
             col3: "medium length message".to_string(),
         }];
 
         let table = CliTable::new(&table_rows);
         let column_position = 2;
-        let table_width: usize = 100; // table bigger than terminal width
 
-        let table_output_result = table.terminal_width_for_column(column_position, table_width);
+        // not fulfilled: 80 (terminal width) - 15 (column name 'ANOTHER COLUMN3') >= 70 (total table width other columns)
+        let table_output_result = table.column_width_for_terminal(column_position);
 
         assert!(table_output_result.is_err());
 

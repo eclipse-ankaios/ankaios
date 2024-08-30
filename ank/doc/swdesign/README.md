@@ -901,7 +901,7 @@ Needs:
 
 Status: approved
 
-When the Ankaios CLI presents connected Ankaios agents to the user, the Ankaios CLI shall present the agents as table containing each agent in a row with the following data:
+When the Ankaios CLI presents connected Ankaios agents to the user, the Ankaios CLI shall present the agents as rows in a table with the following content:
 
 | NAME                     | WORKLOADS                        |
 | ------------------------ | -------------------------------- |
@@ -924,7 +924,7 @@ When the user invokes the CLI with a request to provide the list of connected An
 * create a table row for each Ankaios agent listed inside the CompleteState's `agents` field with the agent name and the amount of workload states of its managed workloads
 
 Rationale:
-Counting the workload states rather than the assigned workloads in the desired state for each agent ensures the correct number of workloads, even if a workload has been deleted from the desired state but the actual deletion has not yet been scheduled.
+Counting the workload states, rather than the assigned workloads in the desired state for each agent, ensures the correct number of workloads, even if a workload has been deleted from the desired state, but the actual deletion has not yet been scheduled.
 
 Tags:
 - CliCommands

@@ -20,6 +20,9 @@
         "editor.defaultFormatter": "rust-lang.rust-analyzer",
         "editor.formatOnSave": true
     },
+    "[makefile]": {
+        "editor.detectIndentation": false,
+    },
     "rust-analyzer.cargo.loadOutDirsFromCheck": true,
     "rust-analyzer.cargo.unsetTest": [
         "api",
