@@ -898,13 +898,13 @@ Needs:
 
 Status: approved
 
-When typing a CLI command, the shell shall provide completions for arguments including static completions and dynamic completions for workloads, object field masks and agents.
+When the user starts typing an Ankaios CLI command, the zsh and bash shell shall propose completions for arguments including dynamic completions for workload names, object field masks and agents.
 
 Rationale:
-A users productivity is increased when command completions are provided which reduces lookups.
+A user's productivity is increased when command completions are provided which reduces lookups for the user.
 
 Comment:
-Completions shall be provided at least for zsh and bash.
+If possible more shells shall be supported as well.
 
 Tags:
 - CliCommands
