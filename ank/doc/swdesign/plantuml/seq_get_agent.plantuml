@@ -42,10 +42,6 @@ deactivate cli_commands
 deactivate cli_commands
 
 main -> main: print text
-<<<<<<< HEAD
-user <- main -- : exit
-=======
 user <<-- main -- : exit
->>>>>>> main
 
 @enduml
