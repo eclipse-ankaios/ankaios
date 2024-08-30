@@ -16,8 +16,6 @@ use std::env;
 
 mod cli;
 mod cli_commands;
-use clap::CommandFactory;
-use clap_complete::CompleteEnv;
 use cli_commands::CliCommands;
 use common::std_extensions::GracefulExitResult;
 use grpc::security::TLSConfig;
@@ -31,8 +29,6 @@ pub mod test_helper;
 // [impl->swdd~cli-standalone-application~1]
 #[tokio::main]
 async fn main() {
-    CompleteEnv::with_factory(cli::AnkCli::command).complete();
-
     let args = cli::parse();
 
     let cli_name = "ank-cli";
