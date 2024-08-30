@@ -1011,6 +1011,33 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#agentattributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      AgentAttributes
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agentmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      AgentMap
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agentmapagentsentry" class="md-nav__link">
+    <span class="md-ellipsis">
+      AgentMap.AgentsEntry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#completestate" class="md-nav__link">
     <span class="md-ellipsis">
       CompleteState
@@ -1801,6 +1828,33 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#agentattributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      AgentAttributes
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agentmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      AgentMap
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#agentmapagentsentry" class="md-nav__link">
+    <span class="md-ellipsis">
+      AgentMap.AgentsEntry
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#completestate" class="md-nav__link">
     <span class="md-ellipsis">
       CompleteState
@@ -2185,6 +2239,9 @@
 <p><a href="#ank_base-proto">ank_base.proto</a></p>
 <ul>
 <li><a href="#ank_base-AccessRightsRule">AccessRightsRule</a></li>
+<li><a href="#ank_base-AgentAttributes">AgentAttributes</a></li>
+<li><a href="#ank_base-AgentMap">AgentMap</a></li>
+<li><a href="#ank_base-AgentMap-AgentsEntry">AgentMap.AgentsEntry</a></li>
 <li><a href="#ank_base-CompleteState">CompleteState</a></li>
 <li><a href="#ank_base-CompleteStateRequest">CompleteStateRequest</a></li>
 <li><a href="#ank_base-ControlInterfaceAccess">ControlInterfaceAccess</a></li>
@@ -2313,6 +2370,57 @@
 </tr>
 </tbody>
 </table>
+<p><a name="ank_base-AgentAttributes"></a></p>
+<h3 id="agentattributes">AgentAttributes<a class="headerlink" href="#agentattributes" title="Permanent link">&para;</a></h3>
+<p>A message that has not yet been implemented but will contain attributes of the agent in the future.</p>
+<p><a name="ank_base-AgentMap"></a></p>
+<h3 id="agentmap">AgentMap<a class="headerlink" href="#agentmap" title="Permanent link">&para;</a></h3>
+<p>A nested map that provides the names of the connected agents and their optional attributes.
+The first level allows searches by agent name.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>agents</td>
+<td><a href="#ank_base-AgentMap-AgentsEntry">AgentMap.AgentsEntry</a></td>
+<td>repeated</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><a name="ank_base-AgentMap-AgentsEntry"></a></p>
+<h3 id="agentmapagentsentry">AgentMap.AgentsEntry<a class="headerlink" href="#agentmapagentsentry" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Label</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>key</td>
+<td><a href="#string">string</a></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>value</td>
+<td><a href="#ank_base-AgentAttributes">AgentAttributes</a></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
 <p><a name="ank_base-CompleteState"></a></p>
 <h3 id="completestate">CompleteState<a class="headerlink" href="#completestate" title="Permanent link">&para;</a></h3>
 <p>A message containing the complete state of the Ankaios system.
@@ -2338,6 +2446,12 @@ This is a response to the <a href="#completestaterequest">CompleteStateRequest</
 <td><a href="#ank_base-WorkloadStatesMap">WorkloadStatesMap</a></td>
 <td></td>
 <td>The current execution states of the workloads.</td>
+</tr>
+<tr>
+<td>agents</td>
+<td><a href="#ank_base-AgentMap">AgentMap</a></td>
+<td></td>
+<td>The agents currently connected to the Ankaios cluster.</td>
 </tr>
 </tbody>
 </table>

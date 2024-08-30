@@ -618,6 +618,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#list-the-connected-agents" class="md-nav__link">
+    <span class="md-ellipsis">
+      List the connected agents
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#start-the-speed-consumer" class="md-nav__link">
     <span class="md-ellipsis">
       Start the speed consumer
@@ -1434,6 +1443,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#list-the-connected-agents" class="md-nav__link">
+    <span class="md-ellipsis">
+      List the connected agents
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#start-the-speed-consumer" class="md-nav__link">
     <span class="md-ellipsis">
       Start the speed consumer
@@ -1579,135 +1597,150 @@ The second agent is started by a non-root user and therefore also uses podman in
 Ankaios does not need root privileges and can be started as any user.</p>
 <p>Now we have two agents runnings in the Ankaios cluster, <code>agent_A</code> and <code>infotainment</code>.</p>
 <p>For the next steps we need to keep this terminal untouched in order to keep the agent running.</p>
+<h2 id="list-the-connected-agents">List the connected agents<a class="headerlink" href="#list-the-connected-agents" title="Permanent link">&para;</a></h2>
+<p>Let's verify that the new <code>infotainment</code> agent has connected to the Ankaios server by running the following command, which will list all Ankaios agents currently connected to the Ankaios server, along with their number of workloads:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>agents
+</code></pre></div>
+<p>It should print:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>NAME           WORKLOADS
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>agent_A        2
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>infotainment   0
+</code></pre></div>
+<p>Since <code>agent_A</code> is already managing the <code>databroker</code> and the <code>speed-provider</code> workloads, the <code>WORKLOADS</code> column contains the number <code>2</code>. The Ankaios agent <code>infotainment</code> has recently been started and does not yet manage any workloads.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The currently connected Ankaios agents are part of the CompleteState and can also be retrieved <a href="../../reference/complete-state/">working with the CompleteState</a>.</p>
+</div>
 <h2 id="start-the-speed-consumer">Start the speed consumer<a class="headerlink" href="#start-the-speed-consumer" title="Permanent link">&para;</a></h2>
 <p>Now we can start a speed-consumer workload on the new agent:</p>
-<div class="highlight"><span class="filename">speed-consumer.yaml</span><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="nt">workloads</span><span class="p">:</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span><span class="nt">speed-consumer</span><span class="p">:</span>
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">      </span><span class="no">image: ghcr.io/eclipse-ankaios/speed-consumer:0.1.2</span>
-<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">      </span><span class="no">commandOptions:</span>
-<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="w">        </span><span class="no">- &quot;--net=host&quot;</span>
-<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">        </span><span class="no">- &quot;-e&quot;</span>
-<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="w">        </span><span class="no">- &quot;KUKSA_DATA_BROKER_ADDR=127.0.0.1&quot;</span>
+<div class="highlight"><span class="filename">speed-consumer.yaml</span><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="nt">workloads</span><span class="p">:</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="nt">speed-consumer</span><span class="p">:</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">      </span><span class="no">image: ghcr.io/eclipse-ankaios/speed-consumer:0.1.2</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">      </span><span class="no">commandOptions:</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">        </span><span class="no">- &quot;--net=host&quot;</span>
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">        </span><span class="no">- &quot;-e&quot;</span>
+<a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="w">        </span><span class="no">- &quot;KUKSA_DATA_BROKER_ADDR=127.0.0.1&quot;</span>
 </code></pre></div>
 <p>In case the speed-consumer workload is not running on the same host as the databroker you need to adjust the <code>KUKSA_DATA_BROKER_ADDR</code>.</p>
 <p>Note that this time the image does not specify the agent.
 While we could add <code>agent: infotainment</code>, this time we pass the agent name when the workload starts:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>apply<span class="w"> </span>--agent<span class="w"> </span>infotainment<span class="w"> </span>speed-consumer.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>apply<span class="w"> </span>--agent<span class="w"> </span>infotainment<span class="w"> </span>speed-consumer.yaml
 </code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>If you are running the ank command on a host that is different from the host
 on which the Ankaios server is running, you need to add a parameter <code>-s &lt;SERVER_URL&gt;</code> like:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>ank -k apply -s http://127.0.0.1:25551 --agent infotainment speed-consumer.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>ank -k apply -s http://127.0.0.1:25551 --agent infotainment speed-consumer.yaml
 </code></pre></div>
 <p>Optionally the server URL can also be provided via environment variable:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>export ANK_SERVER_URL=http://127.0.0.1:25551
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>ank -k apply --agent infotainment speed-consumer.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>export ANK_SERVER_URL=http://127.0.0.1:25551
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>ank -k apply --agent infotainment speed-consumer.yaml
 </code></pre></div>
 </div>
 <p>The command waits until speed consumer is running.
 It should print:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a> WORKLOAD NAME    AGENT          RUNTIME     EXECUTION STATE   ADDITIONAL INFO
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a> speed-consumer   infotainment   podman      Running(Ok)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a> WORKLOAD NAME    AGENT          RUNTIME     EXECUTION STATE   ADDITIONAL INFO
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a> speed-consumer   infotainment   podman      Running(Ok)
 </code></pre></div>
 <p>We can check all running workloads with</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>workloads
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>workloads
 </code></pre></div>
 <p>The output should be:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a> WORKLOAD NAME    AGENT          RUNTIME   EXECUTION STATE   ADDITIONAL INFO
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a> databroker       agent_A        podman    Running(Ok)
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a> speed-consumer   infotainment   podman    Running(Ok)
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a> speed-provider   agent_A        podman    Running(Ok)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a> WORKLOAD NAME    AGENT          RUNTIME   EXECUTION STATE   ADDITIONAL INFO
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a> databroker       agent_A        podman    Running(Ok)
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a> speed-consumer   infotainment   podman    Running(Ok)
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a> speed-provider   agent_A        podman    Running(Ok)
 </code></pre></div>
+<p>Optionally, you can re-run the previous <code>ank -k get agents</code> command again, to verify that the number of workloads managed by the <code>infotainment</code> agent has now increased.</p>
 <h2 id="reading-workload-logs">Reading workload logs<a class="headerlink" href="#reading-workload-logs" title="Permanent link">&para;</a></h2>
 <p>The speed-consumer workload subscribes to the vehicle speed signal and prints it to stdout.
 Use the web UI of the speed-provider to send a few vehicle speed values and watch the log messages of the speed-consumer.
 As the logs are specific for a runtime, we use Podman to read the logs:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>podman<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span><span class="k">$(</span>podman<span class="w"> </span>ps<span class="w"> </span>-a<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>speed-consumer<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;{print $1}&#39;</span><span class="k">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>podman<span class="w"> </span>logs<span class="w"> </span>-f<span class="w"> </span><span class="k">$(</span>podman<span class="w"> </span>ps<span class="w"> </span>-a<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>speed-consumer<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">&#39;{print $1}&#39;</span><span class="k">)</span>
 </code></pre></div>
 <div class="admonition info">
 <p class="admonition-title">Info</p>
 <p>If you want to see the logs of the databroker or speed-provider you need to use <code>sudo podman</code> instead of <code>podman</code> (two occurences) as those workloads run on podman as root on agent_A.</p>
 </div>
 <p>Now, we want to change the existing Ankaios manifest of the speed-provider to use auto mode which sends a new speed limit value every second.</p>
-<div class="highlight"><span class="filename">speed-provider.yaml</span><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="nt">workloads</span><span class="p">:</span>
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">  </span><span class="nt">speed-provider</span><span class="p">:</span>
-<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
-<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="w">    </span><span class="nt">agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent_A</span>
-<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="w">      </span><span class="no">image: ghcr.io/eclipse-ankaios/speed-provider:0.1.1</span>
-<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="w">      </span><span class="no">commandOptions:</span>
-<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="w">        </span><span class="no">- &quot;--net=host&quot;</span>
-<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="hll"><span class="w">        </span><span class="no">- &quot;-e&quot;</span>
-</span><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="hll"><span class="w">        </span><span class="no">- &quot;SPEED_PROVIDER_MODE=auto&quot;</span>
+<div class="highlight"><span class="filename">speed-provider.yaml</span><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="nt">workloads</span><span class="p">:</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span><span class="nt">speed-provider</span><span class="p">:</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">    </span><span class="nt">agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent_A</span>
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="w">      </span><span class="no">image: ghcr.io/eclipse-ankaios/speed-provider:0.1.1</span>
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="w">      </span><span class="no">commandOptions:</span>
+<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a><span class="w">        </span><span class="no">- &quot;--net=host&quot;</span>
+<a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a><span class="hll"><span class="w">        </span><span class="no">- &quot;-e&quot;</span>
+</span><a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a><span class="hll"><span class="w">        </span><span class="no">- &quot;SPEED_PROVIDER_MODE=auto&quot;</span>
 </span></code></pre></div>
 <p>We apply the changes with:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>apply<span class="w"> </span>speed-provider.yaml
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>apply<span class="w"> </span>speed-provider.yaml
 </code></pre></div>
 <p>and recognize that we get a new speed value every 1 second.</p>
 <h2 id="ankaios-state">Ankaios state<a class="headerlink" href="#ankaios-state" title="Permanent link">&para;</a></h2>
 <p>Previously we have used <code>ank -k get workloads</code> to a get list of running workloads.
 Ankaios also maintains a current state which can be retrieved with:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>state
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>state
 </code></pre></div>
 <p>Let's delete all workloads and check the state again:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>delete<span class="w"> </span>workload<span class="w"> </span>databroker<span class="w"> </span>speed-provider<span class="w"> </span>speed-consumer
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>state
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>ank<span class="w"> </span>-k<span class="w"> </span>delete<span class="w"> </span>workload<span class="w"> </span>databroker<span class="w"> </span>speed-provider<span class="w"> </span>speed-consumer
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>ank<span class="w"> </span>-k<span class="w"> </span>get<span class="w"> </span>state
 </code></pre></div>
 <p>If we want to start the three workloads on startup of the Ankaios server and agents we need to create a startup manifest file.
 In the default installation this file is <code>/etc/ankaios/state.yaml</code> as we can see in the systemd until file of the Ankaios server:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>$<span class="w"> </span>systemctl<span class="w"> </span>cat<span class="w"> </span>ank-server
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="c1"># /etc/systemd/system/ank-server.service</span>
-<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="o">[</span>Unit<span class="o">]</span>
-<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="nv">Description</span><span class="o">=</span>Ankaios<span class="w"> </span>server
-<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>
-<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="o">[</span>Service<span class="o">]</span>
-<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="nv">Environment</span><span class="o">=</span><span class="s2">&quot;RUST_LOG=info&quot;</span>
-<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="nv">ExecStart</span><span class="o">=</span>/usr/local/bin/ank-server<span class="w"> </span>--insecure<span class="w"> </span>--startup-config<span class="w"> </span>/etc/ankaios/state.yaml
-<a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a>
-<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="o">[</span>Install<span class="o">]</span>
-<a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a><span class="nv">WantedBy</span><span class="o">=</span>default.target
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>$<span class="w"> </span>systemctl<span class="w"> </span>cat<span class="w"> </span>ank-server
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="c1"># /etc/systemd/system/ank-server.service</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="o">[</span>Unit<span class="o">]</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="nv">Description</span><span class="o">=</span>Ankaios<span class="w"> </span>server
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>
+<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a><span class="o">[</span>Service<span class="o">]</span>
+<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a><span class="nv">Environment</span><span class="o">=</span><span class="s2">&quot;RUST_LOG=info&quot;</span>
+<a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a><span class="nv">ExecStart</span><span class="o">=</span>/usr/local/bin/ank-server<span class="w"> </span>--insecure<span class="w"> </span>--startup-config<span class="w"> </span>/etc/ankaios/state.yaml
+<a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a>
+<a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a><span class="o">[</span>Install<span class="o">]</span>
+<a id="__codelineno-23-11" name="__codelineno-23-11" href="#__codelineno-23-11"></a><span class="nv">WantedBy</span><span class="o">=</span>default.target
 </code></pre></div>
 <p>Now we create a startup manifest file containing all three workloads:</p>
-<div class="highlight"><span class="filename">/etc/ankaios/state.yaml</span><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
-<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="nt">workloads</span><span class="p">:</span>
-<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">  </span><span class="nt">databroker</span><span class="p">:</span>
-<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
-<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="w">    </span><span class="nt">agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent_A</span>
-<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="w">      </span><span class="no">image: ghcr.io/eclipse/kuksa.val/databroker:0.4.1</span>
-<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a><span class="w">      </span><span class="no">commandArgs: [&quot;--insecure&quot;]</span>
-<a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a><span class="w">      </span><span class="no">commandOptions: [&quot;--net=host&quot;]</span>
-<a id="__codelineno-22-10" name="__codelineno-22-10" href="#__codelineno-22-10"></a><span class="w">  </span><span class="nt">speed-provider</span><span class="p">:</span>
-<a id="__codelineno-22-11" name="__codelineno-22-11" href="#__codelineno-22-11"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
-<a id="__codelineno-22-12" name="__codelineno-22-12" href="#__codelineno-22-12"></a><span class="w">    </span><span class="nt">agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent_A</span>
-<a id="__codelineno-22-13" name="__codelineno-22-13" href="#__codelineno-22-13"></a><span class="hll"><span class="w">    </span><span class="nt">dependencies</span><span class="p">:</span>
-</span><a id="__codelineno-22-14" name="__codelineno-22-14" href="#__codelineno-22-14"></a><span class="hll"><span class="w">      </span><span class="nt">databroker</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ADD_COND_RUNNING</span>
-</span><a id="__codelineno-22-15" name="__codelineno-22-15" href="#__codelineno-22-15"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<a id="__codelineno-22-16" name="__codelineno-22-16" href="#__codelineno-22-16"></a><span class="w">      </span><span class="no">image: ghcr.io/eclipse-ankaios/speed-provider:0.1.1</span>
-<a id="__codelineno-22-17" name="__codelineno-22-17" href="#__codelineno-22-17"></a><span class="w">      </span><span class="no">commandOptions:</span>
-<a id="__codelineno-22-18" name="__codelineno-22-18" href="#__codelineno-22-18"></a><span class="w">        </span><span class="no">- &quot;--net=host&quot;</span>
-<a id="__codelineno-22-19" name="__codelineno-22-19" href="#__codelineno-22-19"></a><span class="w">        </span><span class="no">- &quot;-e&quot;</span>
-<a id="__codelineno-22-20" name="__codelineno-22-20" href="#__codelineno-22-20"></a><span class="w">        </span><span class="no">- &quot;SPEED_PROVIDER_MODE=auto&quot;</span>
-<a id="__codelineno-22-21" name="__codelineno-22-21" href="#__codelineno-22-21"></a><span class="w">  </span><span class="nt">speed-consumer</span><span class="p">:</span>
-<a id="__codelineno-22-22" name="__codelineno-22-22" href="#__codelineno-22-22"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
-<a id="__codelineno-22-23" name="__codelineno-22-23" href="#__codelineno-22-23"></a><span class="w">    </span><span class="nt">agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">infotainment</span>
-<a id="__codelineno-22-24" name="__codelineno-22-24" href="#__codelineno-22-24"></a><span class="hll"><span class="w">    </span><span class="nt">dependencies</span><span class="p">:</span>
-</span><a id="__codelineno-22-25" name="__codelineno-22-25" href="#__codelineno-22-25"></a><span class="hll"><span class="w">      </span><span class="nt">databroker</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ADD_COND_RUNNING</span>
-</span><a id="__codelineno-22-26" name="__codelineno-22-26" href="#__codelineno-22-26"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<a id="__codelineno-22-27" name="__codelineno-22-27" href="#__codelineno-22-27"></a><span class="w">      </span><span class="no">image: ghcr.io/eclipse-ankaios/speed-consumer:0.1.2</span>
-<a id="__codelineno-22-28" name="__codelineno-22-28" href="#__codelineno-22-28"></a><span class="w">      </span><span class="no">commandOptions:</span>
-<a id="__codelineno-22-29" name="__codelineno-22-29" href="#__codelineno-22-29"></a><span class="w">        </span><span class="no">- &quot;--net=host&quot;</span>
-<a id="__codelineno-22-30" name="__codelineno-22-30" href="#__codelineno-22-30"></a><span class="w">        </span><span class="no">- &quot;-e&quot;</span>
-<a id="__codelineno-22-31" name="__codelineno-22-31" href="#__codelineno-22-31"></a><span class="w">        </span><span class="no">- &quot;KUKSA_DATA_BROKER_ADDR=127.0.0.1&quot;</span>
+<div class="highlight"><span class="filename">/etc/ankaios/state.yaml</span><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v0.1</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="nt">workloads</span><span class="p">:</span>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="w">  </span><span class="nt">databroker</span><span class="p">:</span>
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
+<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a><span class="w">    </span><span class="nt">agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent_A</span>
+<a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a><span class="w">      </span><span class="no">image: ghcr.io/eclipse/kuksa.val/databroker:0.4.1</span>
+<a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a><span class="w">      </span><span class="no">commandArgs: [&quot;--insecure&quot;]</span>
+<a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a><span class="w">      </span><span class="no">commandOptions: [&quot;--net=host&quot;]</span>
+<a id="__codelineno-24-10" name="__codelineno-24-10" href="#__codelineno-24-10"></a><span class="w">  </span><span class="nt">speed-provider</span><span class="p">:</span>
+<a id="__codelineno-24-11" name="__codelineno-24-11" href="#__codelineno-24-11"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
+<a id="__codelineno-24-12" name="__codelineno-24-12" href="#__codelineno-24-12"></a><span class="w">    </span><span class="nt">agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">agent_A</span>
+<a id="__codelineno-24-13" name="__codelineno-24-13" href="#__codelineno-24-13"></a><span class="hll"><span class="w">    </span><span class="nt">dependencies</span><span class="p">:</span>
+</span><a id="__codelineno-24-14" name="__codelineno-24-14" href="#__codelineno-24-14"></a><span class="hll"><span class="w">      </span><span class="nt">databroker</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ADD_COND_RUNNING</span>
+</span><a id="__codelineno-24-15" name="__codelineno-24-15" href="#__codelineno-24-15"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<a id="__codelineno-24-16" name="__codelineno-24-16" href="#__codelineno-24-16"></a><span class="w">      </span><span class="no">image: ghcr.io/eclipse-ankaios/speed-provider:0.1.1</span>
+<a id="__codelineno-24-17" name="__codelineno-24-17" href="#__codelineno-24-17"></a><span class="w">      </span><span class="no">commandOptions:</span>
+<a id="__codelineno-24-18" name="__codelineno-24-18" href="#__codelineno-24-18"></a><span class="w">        </span><span class="no">- &quot;--net=host&quot;</span>
+<a id="__codelineno-24-19" name="__codelineno-24-19" href="#__codelineno-24-19"></a><span class="w">        </span><span class="no">- &quot;-e&quot;</span>
+<a id="__codelineno-24-20" name="__codelineno-24-20" href="#__codelineno-24-20"></a><span class="w">        </span><span class="no">- &quot;SPEED_PROVIDER_MODE=auto&quot;</span>
+<a id="__codelineno-24-21" name="__codelineno-24-21" href="#__codelineno-24-21"></a><span class="w">  </span><span class="nt">speed-consumer</span><span class="p">:</span>
+<a id="__codelineno-24-22" name="__codelineno-24-22" href="#__codelineno-24-22"></a><span class="w">    </span><span class="nt">runtime</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">podman</span>
+<a id="__codelineno-24-23" name="__codelineno-24-23" href="#__codelineno-24-23"></a><span class="w">    </span><span class="nt">agent</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">infotainment</span>
+<a id="__codelineno-24-24" name="__codelineno-24-24" href="#__codelineno-24-24"></a><span class="hll"><span class="w">    </span><span class="nt">dependencies</span><span class="p">:</span>
+</span><a id="__codelineno-24-25" name="__codelineno-24-25" href="#__codelineno-24-25"></a><span class="hll"><span class="w">      </span><span class="nt">databroker</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ADD_COND_RUNNING</span>
+</span><a id="__codelineno-24-26" name="__codelineno-24-26" href="#__codelineno-24-26"></a><span class="w">    </span><span class="nt">runtimeConfig</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<a id="__codelineno-24-27" name="__codelineno-24-27" href="#__codelineno-24-27"></a><span class="w">      </span><span class="no">image: ghcr.io/eclipse-ankaios/speed-consumer:0.1.2</span>
+<a id="__codelineno-24-28" name="__codelineno-24-28" href="#__codelineno-24-28"></a><span class="w">      </span><span class="no">commandOptions:</span>
+<a id="__codelineno-24-29" name="__codelineno-24-29" href="#__codelineno-24-29"></a><span class="w">        </span><span class="no">- &quot;--net=host&quot;</span>
+<a id="__codelineno-24-30" name="__codelineno-24-30" href="#__codelineno-24-30"></a><span class="w">        </span><span class="no">- &quot;-e&quot;</span>
+<a id="__codelineno-24-31" name="__codelineno-24-31" href="#__codelineno-24-31"></a><span class="w">        </span><span class="no">- &quot;KUKSA_DATA_BROKER_ADDR=127.0.0.1&quot;</span>
 </code></pre></div>
 <p>As the speed-provider and the speed-consumer shall only be started after the databroker is running, we have added dependencies:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="nt">dependencies</span><span class="p">:</span>
-<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="w">  </span><span class="nt">databroker</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ADD_COND_RUNNING</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="nt">dependencies</span><span class="p">:</span>
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="w">  </span><span class="nt">databroker</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ADD_COND_RUNNING</span>
 </code></pre></div>
 <p>The next time the Ankaios server and the two agents will be started, this startup config will be applied.</p>
 
