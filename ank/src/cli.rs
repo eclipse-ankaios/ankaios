@@ -48,7 +48,7 @@ fn completions_workloads(state: Vec<u8>) -> Vec<CompletionCandidate> {
     result
 }
 
-// [impl->swdd-cli-shell-completion~1]
+// [impl->swdd~cli-shell-completion~1]
 fn workload_completer(_: &OsStr) -> Vec<CompletionCandidate> {
     completions_workloads(state_from_command("desiredState.workloads"))
 }
@@ -97,7 +97,7 @@ fn completions_object_field_mask(state: Vec<u8>) -> Vec<CompletionCandidate> {
     result
 }
 
-// [impl->swdd-cli-shell-completion~1]
+// [impl->swdd~cli-shell-completion~1]
 fn object_field_mask_completer(_: &OsStr) -> Vec<CompletionCandidate> {
     completions_object_field_mask(state_from_command(""))
 }
@@ -325,7 +325,7 @@ mod tests {
 
     use super::{completions_object_field_mask, completions_workloads};
 
-    // [utest->swdd-cli-shell-completion~1]
+    // [utest->swdd~cli-shell-completion~1]
     #[test]
     fn utest_completions_workloads() {
         let state = r#"
@@ -367,7 +367,7 @@ mod tests {
         );
     }
 
-    // [utest->swdd-cli-shell-completion~1]
+    // [utest->swdd~cli-shell-completion~1]
     #[test]
     fn utest_completions_object_field_mask() {
         let state = r#"
