@@ -1,4 +1,4 @@
-@startuml seq_get_workload
+@startuml seq_get_agent
 !include ../../../../resources/doc/plantuml/clean.skin
 
 box "Ankaios Ank"
@@ -13,7 +13,7 @@ box "Ankaios Server"
     participant "Ankaios Server" as server
 end box
 
--> main ++ : get workloads
+-> main ++ : get agents
 
 == startup ==
 
@@ -21,7 +21,7 @@ end box
 
 == command ==
 
-main -> cli_commands ++ : get workloads
+main -> cli_commands ++ : get agents
 
 cli_commands -> server_connection ++: request complete state
 server_connection ->> communications_client++: request complete state
@@ -33,7 +33,8 @@ server_connection <<- communications_client --: complete state
 deactivate server_connection
 cli_commands <<-- server_connection --: complete state
 
-cli_commands -> cli_commands ++: filter workloads
+cli_commands -> cli_commands ++: count workloads per agent\nin complete state
+cli_commands -> cli_commands ++: for each connected agent\nassign number of workloads\n calculated from workload states
 cli_commands -> cli_commands ++: format output text
 main <<-- cli_commands -- : output text
 deactivate cli_commands

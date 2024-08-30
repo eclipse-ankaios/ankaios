@@ -52,12 +52,17 @@ pub fn generate_test_proto_complete_state(
             }),
         }),
         workload_states: None,
+        agents: None,
     }
 }
 
 pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> crate::objects::CompleteState {
-    use crate::objects::{generate_test_workload_states_map_from_specs, CompleteState};
+    use crate::objects::{
+        generate_test_agent_map_from_specs, generate_test_workload_states_map_from_specs,
+        CompleteState,
+    };
 
+    let agents = generate_test_agent_map_from_specs(&workloads);
     CompleteState {
         desired_state: State {
             api_version: API_VERSION.into(),
@@ -68,6 +73,7 @@ pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> crate::obje
                 .collect(),
         },
         workload_states: generate_test_workload_states_map_from_specs(workloads),
+        agents,
     }
 }
 
