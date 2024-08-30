@@ -363,7 +363,7 @@ def check_if_mount_point_has_not_been_generated_for(agent_name):
     for idx, _ in enumerate(workloads_list):
         state_sha_encoding = list(json_result[WORKLOAD_STATES_LEVEL][AGENT_NAME][workloads_list[idx]].keys())[SHA_ENCODING_LEVEL]
 
-        control_interface_name = f"{workloads_list[0]}.{state_sha_encoding}"
+        control_interface_name = f"{workloads_list[idx]}.{state_sha_encoding}"
         control_interface_path = path.join(TMP_DIRECTORY, control_interface_name)
 
         assert not path.exists(control_interface_path), "the mount point has been generated"
