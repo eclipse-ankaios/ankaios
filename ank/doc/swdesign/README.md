@@ -894,7 +894,7 @@ Needs:
 - utest
 
 ### Shell completion
-`swdd-cli-shell-completion~1`
+`swdd~cli-shell-completion~1`
 
 Status: approved
 
