@@ -17,4 +17,17 @@
 # It is also recommended to activate traces with ```RUST_LOG=debug``` before you generate the report.
 # This way the trace report also includes trace lines.
 # Without activated traces, the report complains that the trace lines are not covered by any test.
-RUST_LOG=debug cargo llvm-cov nextest --ignore-filename-regex "/main.rs|/test_utils.rs|/cli.rs|/objects/agent_map.rs" "$@"
+RUST_LOG=debug cargo llvm-cov nextest --ignore-filename-regex "$(cat << 'EOF' | grep -v -P '^#|^[[:space:]]*$|^$' | paste -sd '|'
+/main.rs
+
+# Test utilities not part of production code
+/test_utils.rs
+
+# Command line interface definition defined with third-party library
+/cli.rs
+
+# Primitive operations already tested in higher level components
+/objects/agent_map.rs
+
+EOF
+)" "$@"
