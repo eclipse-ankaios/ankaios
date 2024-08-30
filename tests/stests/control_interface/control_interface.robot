@@ -20,12 +20,7 @@ Resource            ../../resources/ankaios.resource
 Resource            ../../resources/variables.resource
 
 *** Variables ***
-${simple_yaml_file}      ${EMPTY}
-${config_path}           ${EMPTY}
 ${agent_name}            agent_A
-${workload_name}         "nginx"
-${directory}             ${EMPTY}
-${manifest_yaml_file}    ${CONFIGS_DIR}/default.yaml
 
 *** Test Cases ***
 
@@ -49,7 +44,7 @@ Test Ankaios workload restart after update without a Control Interface access
     And Ankaios agent is started with name "${agent_name}"
     And all workloads of agent "{agent_name}" have an initial execution state
     # Actions
-    When user triggers "ank -k apply ${manifest_yaml_file}"
+    When user triggers "ank -k apply ${CONFIGS_DIR}/default.yaml"
     # Asserts
     Then the mount point has not been generated for ${agent_name}
     [Teardown]    Clean up Ankaios
