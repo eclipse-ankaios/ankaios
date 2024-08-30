@@ -184,7 +184,7 @@ impl AnkaiosServer {
                         .await
                         .unwrap_or_illegal_state();
 
-                    // [impl->swdd~swdd-server-stores-newly-connected-agent~1]
+                    // [impl->swdd~server-stores-newly-connected-agent~1]
                     self.server_state.add_agent(agent_name);
                 }
                 ToServer::AgentGone(method_obj) => {
@@ -686,7 +686,7 @@ mod tests {
     // [utest->swdd~server-sends-all-workloads-on-start~1]
     // [utest->swdd~agent-from-agent-field~1]
     // [utest->swdd~server-starts-without-startup-config~1]
-    // [utest->swdd~swdd-server-stores-newly-connected-agent~1]
+    // [utest->swdd~server-stores-newly-connected-agent~1]
     #[tokio::test]
     async fn utest_server_sends_workloads_and_workload_states() {
         let _ = env_logger::builder().is_test(true).try_init();

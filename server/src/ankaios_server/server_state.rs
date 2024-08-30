@@ -269,7 +269,7 @@ impl ServerState {
         }
     }
 
-    // [impl->swdd~swdd-server-state-stores-agent-in-complete-state~1]
+    // [impl->swdd~server-state-stores-agent-in-complete-state~1]
     pub fn add_agent(&mut self, agent_name: String) {
         self.state.agents.entry(agent_name).or_default();
     }
@@ -1055,7 +1055,7 @@ mod tests {
         server_state.cleanup_state(&workload_states);
     }
 
-    // [utest->swdd~swdd-server-state-stores-agent-in-complete-state~1]
+    // [utest->swdd~server-state-stores-agent-in-complete-state~1]
     #[test]
     fn utest_add_agent() {
         let mut server_state = ServerState::default();
