@@ -499,4 +499,13 @@ mod tests {
         assert_eq!(RestartPolicy::OnFailure.to_string(), "OnFailure");
         assert_eq!(RestartPolicy::Always.to_string(), "Always");
     }
+
+    #[test]
+    fn utest_has_control_interface_access_rules() {
+        let mut workload_spec = generate_test_workload_spec();
+        assert!(!workload_spec.has_control_interface_access_rules());
+
+        workload_spec.control_interface_access = generate_test_control_interface_access();
+        assert!(workload_spec.has_control_interface_access_rules());
+    }
 }

@@ -506,12 +506,90 @@ mod tests {
 
     // [utest->swdd~agent-resume-workload~2]
     #[tokio::test]
-    async fn utest_runtime_facade_resume_workload() {
+    async fn utest_runtime_facade_resume_workload_with_control_interface_access() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mut control_interface_info_mock = MockControlInterfaceInfo::default();
+        control_interface_info_mock
+            .expect_get_run_folder()
+            .once()
+            .return_const(PIPES_LOCATION.into());
+        control_interface_info_mock
+            .expect_get_to_server_sender()
+            .once()
+            .return_const(tokio::sync::mpsc::channel::<common::to_server_interface::ToServer>(1).0);
+        control_interface_info_mock
+            .expect_get_instance_name()
+            .once()
+            .return_const(
+                WorkloadInstanceName::builder()
+                    .workload_name(WORKLOAD_1_NAME)
+                    .build(),
+            );
+        control_interface_info_mock
+            .expect_move_authorizer()
+            .once()
+            .return_once(MockAuthorizer::default);
+
+        let control_interface_new_context = MockControlInterface::new_context();
+        control_interface_new_context
+            .expect()
+            .once()
+            .return_once(|_, _, _, _| Ok(MockControlInterface::default()));
+
+        let workload_spec = generate_test_workload_spec_with_control_interface_access(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        let (wl_state_sender, _wl_state_receiver) =
+            tokio::sync::mpsc::channel(TEST_CHANNEL_BUFFER_SIZE);
+
+        let mock_control_loop = MockWorkloadControlLoop::run_context();
+        mock_control_loop
+            .expect()
+            .once()
+            .return_once(|_: ControlLoopState<String, StubStateChecker>| ());
+
+        let mock_workload = MockWorkload::default();
+        let new_workload_context = MockWorkload::new_context();
+        new_workload_context
+            .expect()
+            .once()
+            .return_once(|_, _, _| mock_workload);
+
+        let runtime_mock = MockRuntimeConnector::new();
+
+        let ownable_runtime_mock: Box<dyn OwnableRuntime<String, StubStateChecker>> =
+            Box::new(runtime_mock.clone());
+        let test_runtime_facade = Box::new(GenericRuntimeFacade::<String, StubStateChecker>::new(
+            ownable_runtime_mock,
+        ));
+
+        let (task_handle, _workload) = test_runtime_facade.resume_workload_non_blocking(
+            workload_spec.clone(),
+            Some(control_interface_info_mock),
+            &wl_state_sender,
+        );
+
+        tokio::task::yield_now().await;
+        assert!(task_handle.await.is_ok());
+        runtime_mock.assert_all_expectations().await;
+    }
+
+    #[tokio::test]
+    async fn utest_runtime_facade_resume_workload_without_control_interface_access() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
             .get_lock_async()
             .await;
 
         let control_interface_info_mock = MockControlInterfaceInfo::default();
+
+        let control_interface_new_context = MockControlInterface::new_context();
+        control_interface_new_context.expect().never();
 
         let workload_spec = generate_test_workload_spec_with_param(
             AGENT_NAME.to_string(),

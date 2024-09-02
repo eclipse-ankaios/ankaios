@@ -795,6 +795,57 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
+    #[tokio::test]
+    async fn utest_update_workload_test_control_interface_creation() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mut mock_workload_scheduler = MockWorkloadScheduler::default();
+        mock_workload_scheduler
+            .expect_enqueue_filtered_workload_operations()
+            .never();
+
+        let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
+        mock_workload_scheduler_context
+            .expect()
+            .once()
+            .return_once(|_| mock_workload_scheduler);
+
+        let authorizer_mock = MockAuthorizer::from_context();
+        authorizer_mock
+            .expect()
+            .once()
+            .returning(|_| MockAuthorizer::new());
+
+        let control_interface_info_new_context = MockControlInterfaceInfo::new_context();
+
+        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default().build();
+
+        control_interface_info_new_context
+            .expect()
+            .once()
+            .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
+        let workload_spec_no_access = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+        runtime_manager
+            .update_workload(workload_spec_no_access)
+            .await;
+
+        control_interface_info_new_context.expect().never();
+        let workload_spec_has_access = generate_test_workload_spec_with_control_interface_access(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+        runtime_manager
+            .update_workload(workload_spec_has_access)
+            .await;
+    }
+
     // [utest->swdd~agent-existing-workloads-resume-existing~2]
     // [utest->swdd~agent-existing-workloads-starts-new-if-not-found~1]
     // [utest->swdd~agent-stores-running-workload~1]
@@ -1088,6 +1139,53 @@ mod tests {
 
         assert!(runtime_manager.initial_workload_list_received);
         assert!(runtime_manager.workloads.is_empty());
+    }
+
+    #[tokio::test]
+    async fn utest_add_workload_test_control_interface_creation() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let mut mock_workload_scheduler = MockWorkloadScheduler::default();
+        mock_workload_scheduler
+            .expect_enqueue_filtered_workload_operations()
+            .never();
+
+        let mock_workload_scheduler_context = MockWorkloadScheduler::new_context();
+        mock_workload_scheduler_context
+            .expect()
+            .once()
+            .return_once(|_| mock_workload_scheduler);
+
+        let authorizer_mock = MockAuthorizer::from_context();
+        authorizer_mock
+            .expect()
+            .once()
+            .returning(|_| MockAuthorizer::new());
+
+        let control_interface_info_new_context = MockControlInterfaceInfo::new_context();
+
+        let (_, mut runtime_manager, _) = RuntimeManagerBuilder::default().build();
+
+        control_interface_info_new_context
+            .expect()
+            .once()
+            .return_once(|_, _, _, _| MockControlInterfaceInfo::default());
+        let workload_spec_no_access = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+        runtime_manager.add_workload(workload_spec_no_access).await;
+
+        control_interface_info_new_context.expect().never();
+        let workload_spec_has_access = generate_test_workload_spec_with_control_interface_access(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+        runtime_manager.add_workload(workload_spec_has_access).await;
     }
 
     // [utest->swdd~agent-existing-workloads-replace-updated~2]
