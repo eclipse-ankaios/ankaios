@@ -701,8 +701,7 @@ mod tests {
             Some(FromServerEnum::Response(ank_base::Response {
                 request_id,
                 response_content: Some(ank_base::response::ResponseContent::CompleteState(ank_base::CompleteState{
-                    desired_state: Some(desired_state),
-                    workload_states: _}))
+                    desired_state: Some(desired_state), ..}))
 
             })) if request_id == my_request_id
             && desired_state == test_complete_state.desired_state.unwrap()

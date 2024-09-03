@@ -111,6 +111,15 @@ async fn main() {
                     Err(error) => output_and_error!("Failed to get workloads: '{}'", error),
                 }
             }
+            // [impl->swdd~cli-provides-list-of-agents~1]
+            Some(cli::GetCommands::Agent {}) => {
+                output_debug!("Received get agent.");
+
+                match cmd.get_agents().await {
+                    Ok(out_text) => output_and_exit!("{}", out_text),
+                    Err(error) => output_and_error!("Failed to get agents: '{}'", error),
+                }
+            }
             None => unreachable!("Unreachable code."),
         },
         cli::Commands::Set(set_args) => match set_args.command {

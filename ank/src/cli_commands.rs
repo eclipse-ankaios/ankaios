@@ -16,16 +16,18 @@ use std::{collections::HashSet, time::Duration};
 pub mod server_connection;
 mod wait_list;
 use grpc::security::TLSConfig;
-mod workload_table;
+mod cli_table;
 use tokio::time::interval;
 use wait_list::WaitList;
 mod workload_table_row;
 use workload_table_row::WorkloadTableRow;
+mod agent_table_row;
 mod wait_list_display;
 
 // CLI commands implemented in another files
 mod apply_manifests;
 mod delete_workloads;
+mod get_agents;
 mod get_state;
 mod get_workloads;
 mod run_workload;
@@ -157,7 +159,10 @@ impl CliCommands {
                 .iter()
                 .find(|&(wl_name, wl_spec)| {
                     *wl_name == table_row.name
-                        && wl_spec.agent.as_deref().map_or(false, |x| x == table_row.agent)
+                        && wl_spec
+                            .agent
+                            .as_deref()
+                            .map_or(false, |x| x == table_row.agent)
                         && wl_spec.runtime.as_ref().is_some()
                 })
                 // runtime is valid because the filter above has found one

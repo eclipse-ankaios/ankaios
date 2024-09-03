@@ -346,6 +346,38 @@ Needs:
 - impl
 - utest
 
+#### Server stores a newly connected agent
+`swdd~server-stores-newly-connected-agent~1`
+
+Status: approved
+
+When an Agent connects to the Ankaios server, the Ankaios server shall instruct the ServerState to store the newly connected agent within its state.
+
+Rationale:
+Storing the connected Ankaios agents allows a workload to retrieve the connected agents via the Control Interface and the Ankaios CLI to list the connected agents to the user.
+
+Tags:
+- AnkaiosServer
+- ServerState
+
+Needs:
+- impl
+- utest
+
+#### ServerState stores agent inside the CompleteState
+`swdd~server-state-stores-agent-in-complete-state~1`
+
+Status: approved
+
+When the ServerState is triggered to store the agent, the ServerState shall create an entry of the agent in the `agents` field of the `CompleteState`.
+
+Tags:
+- ServerState
+
+Needs:
+- impl
+- utest
+
 ### Distribution of Workload State update sequence
 The following diagram shows the sequence of the distribution and storage of Workload States:
 
@@ -422,7 +454,7 @@ The following diagram shows the sequence of GetCompleteState request from the ag
 ![Get complete state sequence](plantuml/seq_get_complete_state.svg)
 
 ##### Server provides interface GetCompleteState
-`swdd~server-provides-interface-get-complete-state~1`
+`swdd~server-provides-interface-get-complete-state~2`
 
 Status: approved
 
@@ -431,6 +463,10 @@ The CompleteState includes:
 
 - DesiredState
 - WorkloadState
+- Agents
+
+Comment:
+The field `Agents` is an associative data structure with the name of a connected agent as key and an associative data structure as value to store attributes of the agent by key/value pairs.
 
 Tags:
 - AnkaiosServer
@@ -799,6 +835,35 @@ The entry should not exist after the workload has actually been deleted.
 Tags:
 - ServerState
 - DeleteGraph
+
+Needs:
+- impl
+- utest
+
+#### Server removes disconnected agents from its state
+`swdd~server-removes-disconnected-agents-from-state~1`
+
+Status: approved
+
+When the ToServer message AgentGone is received by the Ankaios server from an Ankaios agent, the AnkaiosServer shall instruct the ServerState to remove the agent from its internal state.
+
+Tags:
+- AnkaiosServer
+- ServerState
+
+Needs:
+- impl
+- utest
+
+#### ServerState removes agent from CompleteState
+`swdd~server-state-removes-agent-from-complete-state~1`
+
+Status: approved
+
+When the ServerState is triggered to remove the agent from its state, the ServerState shall remove the entry of the agent in the `agents` field of the `CompleteState`.
+
+Tags:
+- ServerState
 
 Needs:
 - impl
