@@ -24,6 +24,7 @@ ${agent_name}            agent_A
 
 *** Test Cases ***
 
+# [stest->swdd~agent-control-interface-optional-creation~1]
 Test Ankaios workload successful start-up without a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
 
@@ -36,6 +37,7 @@ Test Ankaios workload successful start-up without a Control Interface access
     Then the mount point has not been generated for ${agent_name}
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~agent-control-interface-optional-creation~1]
 Test Ankaios workload restart after update without a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
 
@@ -49,6 +51,7 @@ Test Ankaios workload restart after update without a Control Interface access
     Then the mount point has not been generated for ${agent_name}
     [Teardown]    Clean up Ankaios
 
+# [stest->swdd~agent-control-interface-optional-creation~1]
 Test Ankaios workload restart after update with a Control Interface access
     [Setup]           Run Keywords    Setup Ankaios
 

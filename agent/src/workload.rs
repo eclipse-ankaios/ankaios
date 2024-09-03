@@ -139,6 +139,7 @@ impl Workload {
         log::info!("Updating workload '{}'.", self.name);
 
         if self.is_control_interface_changed(&control_interface_info) {
+            // [impl->swdd~agent-control-interface-optional-creation~1]
             self.exchange_control_interface(
                 control_interface_info,
                 spec.clone()
@@ -345,6 +346,7 @@ mod tests {
             .is_control_interface_changed(&Some(control_interface_info_mock)));
     }
 
+    // [utest->swdd~agent-control-interface-optional-creation~1]
     #[test]
     fn utest_exchange_control_interface_not_created() {
         let (workload_command_sender, _) = WorkloadCommandSender::new();
