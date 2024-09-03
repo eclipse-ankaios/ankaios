@@ -105,6 +105,11 @@ This also includes error handling when the user enters unsupported command or fo
 The CliCommands implements the commands.
 It uses FromServer Channel and ToServer Channel to interact with the server.
 
+### CliTable
+
+The CliTable provides an interface for creating different table output formats.
+It unifies the creation of table layouts in different places in the Ankaios CLI by abstracting the table row types through generalization.
+
 ### External Libraries
 
 #### Communication Middleware
@@ -871,6 +876,63 @@ Needs:
 - utest
 - stest
 
+### `ank get agents`
+
+![Get agents](plantuml/seq_get_agent.svg)
+
+#### CLI provides the list of connected agents
+`swdd~cli-provides-list-of-agents~1`
+
+Status: approved
+
+The Ankaios CLI shall provide a function to get the list of Ankaios agents connected to the Ankaios server.
+
+Tags:
+- Cli
+- CliCommands
+
+Needs:
+- impl
+- utest
+- stest
+
+#### CLI shall present connected agents as table
+`swdd~cli-presents-connected-agents-as-table~1`
+
+Status: approved
+
+When the Ankaios CLI presents connected Ankaios agents to the user, the Ankaios CLI shall present the agents as rows in a table with the following content:
+
+| NAME                     | WORKLOADS                        |
+| ------------------------ | -------------------------------- |
+| `<agent_name>` as text   | `<assigned_workloads>` as number |
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
+#### CLI processes CompleteState to provide connected Ankaios agents
+`swdd~cli-processes-complete-state-to-provide-connected-agents~1`
+
+Status: approved
+
+When the user invokes the CLI with a request to provide the list of connected Ankaios agents, the Ankaios CLI shall:
+* request the whole CompleteState of Ankaios server
+* create a table row for each Ankaios agent listed inside the CompleteState's `agents` field with the agent name and the amount of workload states of its managed workloads
+
+Rationale:
+Counting the workload states, rather than the assigned workloads in the desired state for each agent, ensures the correct number of workloads, even if a workload has been deleted from the desired state, but the actual deletion has not yet been scheduled.
+
+Tags:
+- CliCommands
+
+Needs:
+- impl
+- utest
+
 ### Handling other message while waiting for response
 
 ![Store unexpected messages](plantuml/seq_store_missed_messages.svg)
@@ -908,6 +970,77 @@ If possible more shells shall be supported as well.
 
 Tags:
 - CliCommands
+
+Needs:
+- impl
+- utest
+
+### CliTable allows creation of different table output formats
+
+#### CliTable provides default table output
+`swdd~cli-table-provides-default-table-output~1`
+
+Status: approved
+
+The CliTable shall provide a function to create a table output with the following table layout:
+* table style blank
+* no padding on the left and right side of the table
+
+Tags:
+- CliTable
+
+Needs:
+- impl
+- utest
+
+#### CliTable provides table output with a wrapped column
+`swdd~cli-table-provides-table-output-with-wrapped-column~1`
+
+Status: approved
+
+The CliTable shall provide a function to create a table output with wrapping a specific column to the remaining terminal width with the following table layout:
+* table style blank
+* no padding on the left and right side of the table
+
+Tags:
+- CliTable
+
+Needs:
+- impl
+- utest
+
+#### CliTable provides table output with a truncated column
+`swdd~cli-table-provides-table-output-with-truncated-column~1`
+
+Status: approved
+
+The CliTable shall provide a function to create a table output with truncating a specific column to the remaining terminal width with the following table layout:
+* table style blank
+* no padding on the left and right side of the table
+* truncated column content suffixed by `...`
+
+Tags:
+- CliTable
+
+Needs:
+- impl
+- utest
+
+#### CliTable calculates wrapped/truncated column width according to terminal width
+`swdd~cli-table-wrapped-truncated-column-width-depends-on-terminal-width~1`
+
+Status: approved
+
+When the CliTable is requested to create a table with a wrapped or truncated column, the CliTable shall:
+* determine the column name length of this column
+* determine the length of the longest content of this column otherwise zero as the longest length if the whole column is empty
+* calculate the maximum between the longest content length and the column name length
+* calculate the total table width of all other columns by subtracting the calculated maximum length from the total table width
+* check if the remaining terminal width is reasonable by comparing if the difference between the current terminal width and column name length is greater or equal to the total table width of the other columns
+* return the available column width by subtracting the total table width of all other columns from the terminal width if the terminal width is reasonable otherwise an error
+
+Tags:
+- CliTable
 
 Needs:
 - impl

@@ -1845,6 +1845,11 @@ mod tests {
                 },
             )]),
         });
+
+        complete_state.agents = Some(ank_base::AgentMap {
+            agents: HashMap::from([(AGENT_NAME.to_owned(), Default::default())]),
+        });
+
         let expected_response = ank_base::Response {
             request_id,
             response_content: Some(ResponseContent::CompleteState(complete_state)),

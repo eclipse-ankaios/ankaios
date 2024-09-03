@@ -5,7 +5,7 @@ workloads:
     agent: agent_A
     restartPolicy: ALWAYS
     runtimeConfig: |
-      image: alpine:latest
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sh" ]
       commandArgs: [ "-c", "echo 'Always restarted.'; sleep 2"]
   restarted_never:
@@ -13,14 +13,14 @@ workloads:
     agent: agent_A
     restartPolicy: NEVER
     runtimeConfig: |
-      image: alpine:latest
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sh" ]
       commandArgs: [ "-c", "echo 'Explicitly never restarted.'; sleep 2"]
   default_restarted_never: # default restart value = NEVER
     runtime: podman
     agent: agent_A
     runtimeConfig: |
-      image: alpine:latest
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sh" ]
       commandArgs: [ "-c", "echo 'Implicitly never restarted.'; sleep 2"]
   restarted_on_failure:
@@ -28,7 +28,7 @@ workloads:
     agent: agent_A
     restartPolicy: ON_FAILURE
     runtimeConfig: |
-      image: alpine:latest
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sh" ]
       commandArgs: [ "-c", "echo 'Restarted on failure.'; sleep 2; exit 1"]
   kube_restarted_always:
@@ -45,5 +45,5 @@ workloads:
           restartPolicy: Never
           containers:
           - name: failing_container
-            image: docker.io/alpine:latest
+            image: ghcr.io/eclipse-ankaios/tests/alpine:latest
             command: ["/bin/sh", "-c", 'echo "kube container always restarted."; sleep 2; exit 1']

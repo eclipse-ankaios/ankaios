@@ -166,6 +166,7 @@ impl ServerState {
         let current_complete_state: ank_base::CompleteState = CompleteState {
             desired_state: self.state.desired_state.clone(),
             workload_states: workload_states_map.clone(),
+            agents: self.state.agents.clone(),
         }
         .into();
 
@@ -204,7 +205,7 @@ impl ServerState {
     }
 
     // [impl->swdd~agent-from-agent-field~1]
-    pub fn get_workloads_for_agent(&self, agent_name: &String) -> Vec<WorkloadSpec> {
+    pub fn get_workloads_for_agent(&self, agent_name: &str) -> Vec<WorkloadSpec> {
         self.state
             .desired_state
             .workloads
@@ -268,6 +269,16 @@ impl ServerState {
         }
     }
 
+    // [impl->swdd~server-state-stores-agent-in-complete-state~1]
+    pub fn add_agent(&mut self, agent_name: String) {
+        self.state.agents.entry(agent_name).or_default();
+    }
+
+    // [impl->swdd~server-state-removes-agent-from-complete-state~1]
+    pub fn remove_agent(&mut self, agent_name: &str) {
+        self.state.agents.remove(agent_name);
+    }
+
     // [impl->swdd~server-cleans-up-state~1]
     pub fn cleanup_state(&mut self, new_workload_states: &[WorkloadState]) {
         // [impl->swdd~server-removes-obsolete-delete-graph-entires~1]
@@ -291,7 +302,8 @@ mod tests {
     use common::{
         commands::CompleteStateRequest,
         objects::{
-            generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
+            generate_test_agent_map, generate_test_control_interface_access,
+            generate_test_stored_workload_spec, generate_test_workload_spec_with_param, AgentMap,
             CompleteState, DeletedWorkload, State, WorkloadSpec, WorkloadStatesMap,
         },
         test_utils::{self, generate_test_complete_state},
@@ -380,6 +392,7 @@ mod tests {
         let expected_complete_state = ank_base::CompleteState {
             desired_state: Some(server_state.state.desired_state.clone().into()),
             workload_states: None,
+            agents: None,
         };
         assert_eq!(received_complete_state, expected_complete_state);
     }
@@ -388,11 +401,13 @@ mod tests {
     // [utest->swdd~server-filters-get-complete-state-result~2]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask() {
-        let w1 = generate_test_workload_spec_with_param(
+        let mut w1 = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
             WORKLOAD_NAME_1.to_string(),
             RUNTIME.to_string(),
         );
+
+        w1.control_interface_access = generate_test_control_interface_access();
 
         let w2 = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),
@@ -459,7 +474,8 @@ mod tests {
                 },
             ),
         ];
-        let expected_complete_state = test_utils::generate_test_proto_complete_state(&expected_workloads);
+        let expected_complete_state =
+            test_utils::generate_test_proto_complete_state(&expected_workloads);
 
         assert_eq!(expected_complete_state, complete_state);
     }
@@ -490,7 +506,7 @@ mod tests {
             ..Default::default()
         };
 
-        let mut workloads = server_state.get_workloads_for_agent(&AGENT_A.to_string());
+        let mut workloads = server_state.get_workloads_for_agent(AGENT_A);
         workloads.sort_by(|left, right| {
             left.instance_name
                 .workload_name()
@@ -498,10 +514,10 @@ mod tests {
         });
         assert_eq!(workloads, vec![w1, w2]);
 
-        let workloads = server_state.get_workloads_for_agent(&AGENT_B.to_string());
+        let workloads = server_state.get_workloads_for_agent(AGENT_B);
         assert_eq!(workloads, vec![w3]);
 
-        let workloads = server_state.get_workloads_for_agent(&"unknown_agent".to_string());
+        let workloads = server_state.get_workloads_for_agent("unknown_agent");
         assert_eq!(workloads.len(), 0);
     }
 
@@ -1037,6 +1053,34 @@ mod tests {
         let workload_states = vec![];
 
         server_state.cleanup_state(&workload_states);
+    }
+
+    // [utest->swdd~server-state-stores-agent-in-complete-state~1]
+    #[test]
+    fn utest_add_agent() {
+        let mut server_state = ServerState::default();
+        server_state.add_agent(AGENT_A.to_string());
+
+        let expected_agent_map = generate_test_agent_map(AGENT_A);
+
+        assert_eq!(server_state.state.agents, expected_agent_map);
+    }
+
+    // [utest->swdd~server-state-removes-agent-from-complete-state~1]
+    #[test]
+    fn utest_remove_agent() {
+        let mut server_state = ServerState {
+            state: CompleteState {
+                agents: generate_test_agent_map(AGENT_A),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        server_state.remove_agent(AGENT_A);
+
+        let expected_agent_map = AgentMap::default();
+        assert_eq!(server_state.state.agents, expected_agent_map);
     }
 
     fn generate_test_old_state() -> CompleteState {

@@ -22,6 +22,11 @@ pub use state::State;
 mod complete_state;
 pub use complete_state::CompleteState;
 
+mod agent_map;
+#[cfg(any(feature = "test_utils", test))]
+pub use agent_map::{generate_test_agent_map, generate_test_agent_map_from_specs};
+pub use agent_map::{AgentAttributes, AgentMap};
+
 mod workload_states_map;
 pub use workload_states_map::WorkloadStatesMap;
 #[cfg(any(feature = "test_utils", test))]
@@ -73,6 +78,8 @@ mod agent_name;
 pub use agent_name::AgentName;
 
 mod control_interface_access;
+#[cfg(any(feature = "test_utils", test))]
+pub use control_interface_access::generate_test_control_interface_access;
 pub use control_interface_access::{
     AccessRightsRule, ControlInterfaceAccess, ReadWriteEnum, StateRule,
 };

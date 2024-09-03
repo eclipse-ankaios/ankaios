@@ -14,16 +14,6 @@
 
 use tabled::Tabled;
 
-pub trait MaxAdditionalInfo {
-    fn length_of_longest_additional_info(&self) -> Option<usize>;
-}
-
-pub trait ColumnPosition {
-    const FIRST_COLUMN_POS: usize;
-    const EXECUTION_STATE_POS: usize;
-    const ADDITIONAL_INFO_POS: usize;
-}
-
 #[derive(Debug, Tabled, Clone)]
 #[tabled(rename_all = "UPPERCASE")]
 pub struct WorkloadTableRow {
@@ -37,16 +27,9 @@ pub struct WorkloadTableRow {
     pub additional_info: String,
 }
 
-impl MaxAdditionalInfo for Vec<WorkloadTableRow> {
-    fn length_of_longest_additional_info(&self) -> Option<usize> {
-        self.iter().map(|row| row.additional_info.len()).max()
-    }
-}
-
-impl ColumnPosition for WorkloadTableRow {
-    const FIRST_COLUMN_POS: usize = 0;
-    const EXECUTION_STATE_POS: usize = 3;
-    const ADDITIONAL_INFO_POS: usize = 4;
+impl WorkloadTableRow {
+    pub const EXECUTION_STATE_POS: usize = 3;
+    pub const ADDITIONAL_INFO_POS: usize = 4;
 }
 
 pub struct WorkloadTableRowWithSpinner<'a> {
@@ -54,16 +37,8 @@ pub struct WorkloadTableRowWithSpinner<'a> {
     pub spinner: &'a str,
 }
 
-impl MaxAdditionalInfo for Vec<WorkloadTableRowWithSpinner<'_>> {
-    fn length_of_longest_additional_info(&self) -> Option<usize> {
-        self.iter().map(|row| row.data.additional_info.len()).max()
-    }
-}
-
-impl ColumnPosition for WorkloadTableRowWithSpinner<'_> {
-    const FIRST_COLUMN_POS: usize = WorkloadTableRow::FIRST_COLUMN_POS;
-    const EXECUTION_STATE_POS: usize = WorkloadTableRow::EXECUTION_STATE_POS;
-    const ADDITIONAL_INFO_POS: usize = WorkloadTableRow::ADDITIONAL_INFO_POS;
+impl WorkloadTableRowWithSpinner<'_> {
+    pub const ADDITIONAL_INFO_POS: usize = WorkloadTableRow::ADDITIONAL_INFO_POS;
 }
 
 impl<'a> Tabled for WorkloadTableRowWithSpinner<'a> {

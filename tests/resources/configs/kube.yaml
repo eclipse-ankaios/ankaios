@@ -16,7 +16,7 @@ workloads:
         spec:
           containers:
           - name: hello-container
-            image: docker.io/alpine:latest
+            image: ghcr.io/eclipse-ankaios/tests/alpine:latest
             command:
             - sleep
             - 50000

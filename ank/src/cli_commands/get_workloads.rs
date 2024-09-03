@@ -11,10 +11,10 @@
 // under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-
+use crate::output_warn;
 use crate::{cli_error::CliError, output_debug};
 
-use super::workload_table::WorkloadTable;
+use super::cli_table::CliTable;
 use super::workload_table_row::WorkloadTableRow;
 use super::CliCommands;
 
@@ -55,15 +55,16 @@ impl CliCommands {
         let table_rows: Vec<WorkloadTableRow> = workload_infos.into_iter().map(|x| x.1).collect();
 
         // [impl->swdd~cli-shall-present-workloads-as-table~1]
-        let workload_table_infos = WorkloadTable::new(table_rows);
-
-        Ok(workload_table_infos
-            .create_table_wrapped_additional_info()
-            .unwrap_or_else(|| {
-                output_debug!(
-                    "Failed to create wrapped table output. Continue with default table layout."
+        Ok(CliTable::new(&table_rows)
+            .table_with_wrapped_column_to_remaining_terminal_width(
+                WorkloadTableRow::ADDITIONAL_INFO_POS,
+            )
+            .unwrap_or_else(|err| {
+                output_warn!(
+                    "Could not create wrapped table: '{}'. Continue with default table.",
+                    err
                 );
-                workload_table_infos.create_default_table()
+                CliTable::new(&table_rows).create_default_table()
             }))
     }
 }
