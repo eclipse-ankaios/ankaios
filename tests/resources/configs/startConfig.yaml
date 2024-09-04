@@ -8,7 +8,7 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: docker.io/nginx:latest
+      image: ghcr.io/eclipse-ankaios/tests/nginx:alpine-slim
       commandOptions: ["-p", "8081:80"]
     controlInterfaceAccess:
       allowRules:
@@ -28,7 +28,7 @@ workloads:
     dependencies:
       filesystem_init: ADD_COND_SUCCEEDED
     runtimeConfig: |
-      image: alpine:latest
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandOptions: [ "--rm"]
       commandArgs: [ "echo", "Hello Ankaios"]
   hello2:
@@ -39,7 +39,7 @@ workloads:
       - key: owner
         value: Ankaios team
     runtimeConfig: |
-      image: alpine:latest
+      image: ghcr.io/eclipse-ankaios/tests/alpine:latest
       commandOptions: [ "--entrypoint", "/bin/sh" ]
       commandArgs: [ "-c", "echo 'Restarted on failure.'; sleep 2"]
   hello-pod:
@@ -59,12 +59,12 @@ workloads:
           restartPolicy: Never
           containers:
           - name: looper
-            image: alpine:latest
+            image: ghcr.io/eclipse-ankaios/tests/alpine:latest
             command:
             - sleep
             - 50000
           - name: greater
-            image: alpine:latest
+            image: ghcr.io/eclipse-ankaios/tests/alpine:latest
             command:
             - echo
             - "Hello from a container in a pod"
