@@ -317,6 +317,7 @@ def internal_add_get_state_command(field_mask):
 
 def create_control_interface_config_for_test():
     tmp = TemporaryDirectory()
+    assert path.isdir(tmp.name) and path.exists(tmp.name), f"The temporary directory at {tmp.name} has not been created"
     write_yaml(new_yaml=control_interface_workload_config, path=path.join(tmp.name, "commands.yaml"))
 
     for manifest in manifest_files_location:
@@ -343,7 +344,10 @@ def internal_check_all_control_interface_requests_succeeded(tmp_folder):
 def internal_check_all_control_interface_requests_failed(tmp_folder):
     output = read_yaml(path.join(tmp_folder, "output.yaml"))
     for test_number,test_result in enumerate(output):
-        test_result = test_result["result"]["value"]["type"] != "Ok"
+        try:
+            test_result = test_result["result"]["value"]["type"] != "Ok"
+        except:
+            test_result["result"] != "Ok"
         assert test_result, \
             f"Expected request {test_number + 1} to fail, but it succeeded"
 
