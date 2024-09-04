@@ -552,7 +552,8 @@ The controller workload requests shall all fail
     internal_check_all_control_interface_requests_failed    ${ankaios_config_folder.name}
 
 the mount point has not been generated for ${agent_name}
-    check_if_mount_point_has_not_been_generated_for    ${agent_name}
+    ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get state -o json
+    check_if_mount_point_has_not_been_generated_for    ${agent_name}    ${command_result}
 
 the mount point has been generated for ${agent_name}
     Run Keyword And Expect Error    the mount point has been generated    the mount point has not been generated for ${agent_name}

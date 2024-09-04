@@ -354,14 +354,13 @@ def internal_check_all_control_interface_requests_failed(tmp_folder):
 def empty_keyword():
     pass
 
-def check_if_mount_point_has_not_been_generated_for(agent_name):
+def check_if_mount_point_has_not_been_generated_for(agent_name, command_result):
     AGENT_NAME = agent_name
     TMP_DIRECTORY = path.join(path.sep, f"tmp/ankaios/{AGENT_NAME}_io")
     WORKLOAD_STATES_LEVEL = "workloadStates"
     SHA_ENCODING_LEVEL = 0
 
-    result = popen("target/x86_64-unknown-linux-musl/debug/ank get state -o json").read()
-    json_result = json.loads(result)
+    json_result = json.loads(command_result.stdout)
 
     workloads_list = list(json_result[WORKLOAD_STATES_LEVEL][AGENT_NAME].keys())
     for idx, _ in enumerate(workloads_list):
