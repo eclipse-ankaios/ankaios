@@ -236,7 +236,7 @@ def json_to_dict(raw):
 
 def find_control_interface_test_tag():
     global control_interface_tester_tag
-    control_interface_tester_tag = "manual-build-1"
+    control_interface_tester_tag = "manual-build-2"
 
 def prepare_test_control_interface_workload():
     global control_interface_workload_config
