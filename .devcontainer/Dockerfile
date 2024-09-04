@@ -28,7 +28,7 @@ RUN echo 'alias cov="/workspaces/ankaios/tools/generate_test_coverage_report.sh"
 # add aliases for development scripts and tools
 RUN echo 'alias ankaios-start="/workspaces/ankaios/tools/dev_scripts/ankaios-start"' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
 RUN echo 'alias ankaios-clean="/workspaces/ankaios/tools/dev_scripts/ankaios-clean"' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
-RUN echo 'alias ank="/workspaces/ankaios/target/x86_64-unknown-linux-musl/debug/ank"' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
+RUN echo 'export PATH=$PATH:/workspaces/ankaios/target/x86_64-unknown-linux-musl/debug' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
 
 # work in insecure mode in the dev container
 RUN echo 'export ANKAGENT_INSECURE=true' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
@@ -39,6 +39,10 @@ RUN echo 'export ANK_INSECURE=true' | tee -a /home/${USERNAME}/.bashrc /home/${U
 RUN echo 'alias ll="ls -la"' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
 RUN echo 'alias ..="cd .."' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
 RUN echo 'alias ...="cd ../.."' | tee -a /home/${USERNAME}/.bashrc /home/${USERNAME}/.zshrc
+
+# shell completion
+RUN echo 'if command -v ank &> /dev/null; then source <(COMPLETE=bash ank); fi' >> /home/${USERNAME}/.bashrc
+RUN echo 'if command -v ank &> /dev/null; then source <(COMPLETE=zsh ank); fi' >> /home/${USERNAME}/.zshrc
 
 USER ${USERNAME}
 
