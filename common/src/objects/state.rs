@@ -12,6 +12,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
@@ -75,8 +76,33 @@ impl TryFrom<ank_base::State> for State {
 }
 
 impl State {
-    pub fn is_compatible_format(api_version: &String) -> bool {
-        api_version == CURRENT_API_VERSION
+    pub fn verify_format(provided_state: &State) -> Result<(), String> {
+        if provided_state.api_version != CURRENT_API_VERSION {
+            return Err(format!(
+                "Unsupported API version. Received '{}', expected '{}'",
+                provided_state.api_version,
+                State::default().api_version
+            ));
+        }
+
+        let re = Regex::new(r"^[a-zA-Z0-9_-]+[a-zA-Z0-9_-]*$").unwrap();
+
+        for (workload_name, workload_spec) in &provided_state.workloads {
+            if !re.is_match(workload_name.as_str()) {
+                return Err(format!(
+                    "Unsupported workload name. Received '{}', expected to have characters in [a-zA-Z0-9_-]",
+                    workload_name
+                ));
+            }
+            if !re.is_match(workload_spec.agent.as_str()) {
+                return Err(format!(
+                    "Unsupported agent name. Received '{}', expected to have characters in [a-zA-Z0-9_-]",
+                    workload_name
+                ));
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -99,7 +125,7 @@ mod tests {
     use api::ank_base;
 
     use crate::{
-        objects::State,
+        objects::{State, StoredWorkloadSpec},
         test_utils::{generate_test_proto_state, generate_test_state},
     };
 
@@ -140,20 +166,40 @@ mod tests {
         let state_compatible_version = State {
             ..Default::default()
         };
-        assert!(State::is_compatible_format(
-            &state_compatible_version.api_version
-        ));
+        assert_eq!(State::verify_format(&state_compatible_version), Ok(()));
     }
 
     #[test]
-    fn utest_state_rejects_incompatible_state() {
+    fn utest_state_rejects_incompatible_state_on_api_version() {
         let state_incompatible_version = State {
             api_version: "incompatible_version".to_string(),
             ..Default::default()
         };
-        assert!(!State::is_compatible_format(
-            &state_incompatible_version.api_version
-        ));
+        assert_ne!(State::verify_format(&state_incompatible_version), Ok(()));
+    }
+
+    #[test]
+    fn utest_state_rejects_incompatible_state_on_workload_name() {
+        let state_incompatible_version = State {
+            api_version: Default::default(),
+            workloads: HashMap::from([("nginx.test".to_string(), StoredWorkloadSpec::default())]),
+        };
+        assert_ne!(State::verify_format(&state_incompatible_version), Ok(()));
+    }
+
+    #[test]
+    fn utest_state_rejects_incompatible_state_on_agent_name() {
+        let state_incompatible_version = State {
+            api_version: Default::default(),
+            workloads: HashMap::from([(
+                "nginx.test".to_string(),
+                StoredWorkloadSpec {
+                    agent: "agent_A.test".to_string(),
+                    ..Default::default()
+                },
+            )]),
+        };
+        assert_ne!(State::verify_format(&state_incompatible_version), Ok(()));
     }
 
     #[test]

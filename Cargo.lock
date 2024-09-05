@@ -469,6 +469,7 @@ dependencies = [
  "api",
  "async-trait",
  "log",
+ "regex",
  "serde",
  "serde_yaml",
  "sha256",
