@@ -43,8 +43,7 @@
                 "EditorConfig.EditorConfig",
                 "ms-vsliveshare.vsliveshare",
                 "BarbossHack.crates-io",
-                "PKief.material-icon-theme",
-                "nefrob.vscode-just-syntax"
+                "PKief.material-icon-theme"
             ]
         }
     },
