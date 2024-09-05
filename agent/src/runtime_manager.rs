@@ -64,7 +64,6 @@ pub struct RuntimeManager {
     agent_name: AgentName,
     run_folder: PathBuf,
     control_interface_tx: ToServerSender,
-    initial_workload_list_received: bool,
     workloads: HashMap<String, Workload>,
     // [impl->swdd~agent-supports-multiple-runtime-connectors~1]
     runtime_map: HashMap<String, Box<dyn RuntimeFacade>>,
@@ -85,7 +84,6 @@ impl RuntimeManager {
             agent_name,
             run_folder,
             control_interface_tx,
-            initial_workload_list_received: false,
             workloads: HashMap::new(),
             runtime_map,
             update_state_tx: update_state_tx.clone(),
@@ -108,10 +106,39 @@ impl RuntimeManager {
         }
     }
 
+    // [impl->swdd~agent-initial-list-existing-workloads~1]
+    pub async fn handle_server_hello(
+        &mut self,
+        mut added_workloads: Vec<WorkloadSpec>,
+        workload_state_db: &WorkloadStateStore,
+    ) {
+        log::info!(
+            "Received the server hello with '{}' added workloads.",
+            added_workloads.len()
+        );
+
+        added_workloads = self
+            .resume_and_remove_from_added_workloads(added_workloads)
+            .await;
+
+        let workload_operations: Vec<WorkloadOperation> =
+            self.transform_into_workload_operations(added_workloads, vec![]);
+
+        // [impl->swdd~agent-handles-new-workload-operations]
+        // [impl->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
+        let ready_workload_operations = self
+            .workload_queue
+            .enqueue_filtered_workload_operations(workload_operations, workload_state_db)
+            .await;
+
+        self.execute_workload_operations(ready_workload_operations)
+            .await;
+    }
+
     // [impl->swdd~agent-handles-update-workload-requests~1]
     pub async fn handle_update_workload(
         &mut self,
-        mut added_workloads: Vec<WorkloadSpec>,
+        added_workloads: Vec<WorkloadSpec>,
         deleted_workloads: Vec<DeletedWorkload>,
         workload_state_db: &WorkloadStateStore,
     ) {
@@ -120,21 +147,6 @@ impl RuntimeManager {
             added_workloads.len(),
             deleted_workloads.len()
         );
-
-        if !self.initial_workload_list_received {
-            self.initial_workload_list_received = true;
-            if !deleted_workloads.is_empty() {
-                log::error!(
-                    "Received an initial workload list with delete workload commands: '{:?}'",
-                    deleted_workloads
-                );
-            }
-
-            // [impl->swdd~agent-initial-list-existing-workloads~1]
-            added_workloads = self
-                .resume_and_remove_from_added_workloads(added_workloads)
-                .await;
-        }
 
         let workload_operations: Vec<WorkloadOperation> =
             self.transform_into_workload_operations(added_workloads, deleted_workloads);
@@ -650,10 +662,9 @@ mod tests {
             .build();
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
+            .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
             .await;
 
-        assert!(runtime_manager.initial_workload_list_received);
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_2_NAME));
     }
@@ -709,10 +720,9 @@ mod tests {
             .build();
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
+            .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
             .await;
 
-        assert!(runtime_manager.initial_workload_list_received);
         assert!(runtime_manager.workloads.is_empty());
     }
 
@@ -781,11 +791,10 @@ mod tests {
                 .build();
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
+            .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
             .await;
         server_receiver.close();
 
-        assert!(runtime_manager.initial_workload_list_received);
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
@@ -852,10 +861,9 @@ mod tests {
 
         let added_workloads = vec![existing_workload];
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
+            .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
             .await;
 
-        assert!(runtime_manager.initial_workload_list_received);
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
@@ -1027,10 +1035,9 @@ mod tests {
             .build();
 
         runtime_manager
-            .handle_update_workload(vec![], vec![], &MockWorkloadStateStore::default())
+            .handle_server_hello(vec![], &MockWorkloadStateStore::default())
             .await;
 
-        assert!(runtime_manager.initial_workload_list_received);
         assert!(runtime_manager.workloads.is_empty());
     }
 
@@ -1077,10 +1084,9 @@ mod tests {
                 .build();
 
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
+            .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
             .await;
 
-        assert!(runtime_manager.initial_workload_list_received);
         assert!(runtime_manager.workloads.is_empty());
     }
 
@@ -1151,10 +1157,9 @@ mod tests {
 
         let added_workloads = vec![existing_workload];
         runtime_manager
-            .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
+            .handle_server_hello(added_workloads, &MockWorkloadStateStore::default())
             .await;
 
-        assert!(runtime_manager.initial_workload_list_received);
         assert!(!runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
@@ -1207,8 +1212,6 @@ mod tests {
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
-
-        runtime_manager.initial_workload_list_received = true;
 
         let mut workload_mock = MockWorkload::default();
         workload_mock
@@ -1317,8 +1320,6 @@ mod tests {
                 )
                 .build();
 
-        runtime_manager.initial_workload_list_received = true;
-
         runtime_manager
             .workloads
             .insert(WORKLOAD_1_NAME.to_string(), workload_mock);
@@ -1388,7 +1389,6 @@ mod tests {
                     Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
                 )
                 .build();
-        runtime_manager.initial_workload_list_received = true;
 
         let added_workloads = vec![new_workload];
         let deleted_workloads = vec![deleted_workload];
@@ -1452,8 +1452,6 @@ mod tests {
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
-
-        runtime_manager.initial_workload_list_received = true;
 
         let mut workload_mock = MockWorkload::default();
         workload_mock
@@ -1537,8 +1535,6 @@ mod tests {
                 )
                 .build();
 
-        runtime_manager.initial_workload_list_received = true;
-
         let added_workloads = vec![new_workload];
         runtime_manager
             .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
@@ -1586,8 +1582,6 @@ mod tests {
             RUNTIME_NAME.to_string(),
         )];
 
-        runtime_manager.initial_workload_list_received = true;
-
         runtime_manager
             .handle_update_workload(added_workloads, vec![], &MockWorkloadStateStore::default())
             .await;
@@ -1634,8 +1628,6 @@ mod tests {
                 Box::new(runtime_facade_mock) as Box<dyn RuntimeFacade>,
             )
             .build();
-
-        runtime_manager.initial_workload_list_received = true;
 
         let mut workload_mock = MockWorkload::default();
         workload_mock
@@ -1689,8 +1681,6 @@ mod tests {
 
         let (mut server_receiver, mut runtime_manager, _wl_state_receiver) =
             RuntimeManagerBuilder::default().build();
-
-        runtime_manager.initial_workload_list_received = true;
 
         let mut workload_mock = MockWorkload::default();
         workload_mock.expect_delete().never();
