@@ -35,7 +35,7 @@ pub enum InstanceNameParts {
 pub const INSTANCE_NAME_PARTS_COUNT: usize = 3;
 pub const INSTANCE_NAME_SEPARATOR: &str = ".";
 
-#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[serde(default, rename_all = "camelCase")]
 pub struct WorkloadInstanceName {
     agent_name: String,

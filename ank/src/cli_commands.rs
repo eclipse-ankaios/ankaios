@@ -12,7 +12,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{collections::HashSet, time::Duration};
+use std::{
+    collections::{BTreeMap, HashMap, HashSet},
+    time::Duration,
+};
 pub mod server_connection;
 mod wait_list;
 use grpc::security::TLSConfig;
@@ -44,7 +47,8 @@ use wait_list_display::WaitListDisplay;
 #[cfg_attr(test, mockall_double::double)]
 use self::server_connection::ServerConnection;
 use crate::{
-    cli_commands::wait_list::ParsedUpdateStateSuccess, cli_error::CliError, output, output_debug,
+    cli_commands::wait_list::ParsedUpdateStateSuccess, cli_error::CliError,
+    filtered_complete_state::FilteredWorkloadSpec, output, output_debug,
 };
 
 #[cfg(test)]
@@ -92,6 +96,46 @@ pub fn get_input_sources(manifest_files: &[String]) -> Result<Vec<InputSourcePai
 
 pub type InputSourcePair = (String, Box<dyn std::io::Read + Send + Sync + 'static>);
 
+#[derive(Debug)]
+pub struct WorkloadInfos(Vec<(WorkloadInstanceName, WorkloadTableRow)>);
+
+impl WorkloadInfos {
+    pub fn get_mut(&mut self) -> &mut Vec<(WorkloadInstanceName, WorkloadTableRow)> {
+        &mut self.0
+    }
+}
+
+impl IntoIterator for WorkloadInfos {
+    type Item = (WorkloadInstanceName, WorkloadTableRow);
+    type IntoIter = <Vec<(WorkloadInstanceName, WorkloadTableRow)> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl From<Vec<WorkloadState>> for WorkloadInfos {
+    fn from(workload_states: Vec<WorkloadState>) -> Self {
+        WorkloadInfos(
+            workload_states
+                .into_iter()
+                .map(|wl_state| {
+                    (
+                        wl_state.instance_name.clone(),
+                        WorkloadTableRow::new(
+                            wl_state.instance_name.workload_name(),
+                            wl_state.instance_name.agent_name(),
+                            String::default(),
+                            wl_state.execution_state.state.to_string(),
+                            wl_state.execution_state.additional_info.to_string(),
+                        ),
+                    )
+                })
+                .collect(),
+        )
+    }
+}
+
 // The CLI commands are implemented in the modules included above. The rest are the common function.
 pub struct CliCommands {
     // Left here for the future use.
@@ -123,39 +167,33 @@ impl CliCommands {
         self.server_connection.shut_down().await
     }
 
-    async fn get_workloads(
-        &mut self,
-    ) -> Result<Vec<(WorkloadInstanceName, WorkloadTableRow)>, CliError> {
+    async fn get_workloads(&mut self) -> Result<WorkloadInfos, CliError> {
         let res_complete_state = self
             .server_connection
             .get_complete_state(&Vec::new())
             .await?;
 
         let wl_states = res_complete_state.workload_states.unwrap_or_default();
-        let mut workload_infos: Vec<(WorkloadInstanceName, WorkloadTableRow)> =
-            Vec::<WorkloadState>::from(wl_states)
-                .into_iter()
-                .map(|wl_state| {
-                    (
-                        wl_state.instance_name.clone(),
-                        WorkloadTableRow::new(
-                            wl_state.instance_name.workload_name(),
-                            wl_state.instance_name.agent_name(),
-                            String::default(),
-                            wl_state.execution_state.state.to_string(),
-                            wl_state.execution_state.additional_info.to_string(),
-                        ),
-                    )
-                })
-                .collect();
+        let workload_infos = WorkloadInfos::from(Vec::<WorkloadState>::from(wl_states));
 
         // [impl->swdd~cli-shall-filter-list-of-workloads~1]
         let desired_state_workloads = res_complete_state
             .desired_state
             .and_then(|desired_state| desired_state.workloads)
             .unwrap_or_default();
-        for (_, table_row) in &mut workload_infos {
-            let runtime_name = desired_state_workloads
+
+        let workload_infos_with_runtime =
+            self.add_runtime_name_to_workload_infos(workload_infos, desired_state_workloads);
+        Ok(workload_infos_with_runtime)
+    }
+
+    fn add_runtime_name_to_workload_infos(
+        &self,
+        mut workload_infos: WorkloadInfos,
+        workloads: HashMap<String, FilteredWorkloadSpec>,
+    ) -> WorkloadInfos {
+        for (_, table_row) in workload_infos.get_mut() {
+            let runtime_name = workloads
                 .iter()
                 .find(|&(wl_name, wl_spec)| {
                     *wl_name == table_row.name
@@ -172,8 +210,7 @@ impl CliCommands {
                 table_row.runtime.clone_from(runtime);
             }
         }
-
-        Ok(workload_infos)
+        workload_infos
     }
 
     // [impl->swdd~cli-requests-update-state-with-watch~1]
@@ -182,6 +219,9 @@ impl CliCommands {
         new_state: CompleteState,
         update_mask: Vec<String>,
     ) -> Result<(), CliError> {
+        let current_workload_infos: BTreeMap<WorkloadInstanceName, WorkloadTableRow> =
+            self.get_workloads().await?.into_iter().collect();
+
         let update_state_success = self
             .server_connection
             .update_state(new_state, update_mask)
@@ -201,7 +241,8 @@ impl CliCommands {
             Ok(())
         } else {
             // [impl->swdd~cli-requests-update-state-with-watch-success~1]
-            self.wait_for_complete(update_state_success).await
+            self.wait_for_complete(update_state_success, current_workload_infos)
+                .await
         }
     }
 
@@ -209,7 +250,10 @@ impl CliCommands {
     async fn wait_for_complete(
         &mut self,
         update_state_success: ParsedUpdateStateSuccess,
+        current_workload_infos: BTreeMap<WorkloadInstanceName, WorkloadTableRow>,
     ) -> Result<(), CliError> {
+        output_debug!("updated state success: {:?}", update_state_success);
+
         let mut changed_workloads =
             HashSet::from_iter(update_state_success.added_workloads.iter().cloned());
         changed_workloads.extend(update_state_success.deleted_workloads.iter().cloned());
@@ -221,11 +265,24 @@ impl CliCommands {
             output!("Successfully applied the manifest(s).\nWaiting for workload(s) to reach desired states (press Ctrl+C to interrupt).\n");
         }
 
-        let states_of_all_workloads = self.get_workloads().await?;
-        let states_of_changed_workloads = states_of_all_workloads
+        let added_workload_infos: Vec<(WorkloadInstanceName, WorkloadTableRow)> = self
+            .get_workloads()
+            .await?
+            .into_iter()
+            .filter(|new_workload_info| {
+                update_state_success
+                    .added_workloads
+                    .contains(&new_workload_info.0)
+                    && !current_workload_infos.contains_key(&new_workload_info.0)
+            })
+            .collect();
+
+        let mut states_of_changed_workloads = current_workload_infos
             .into_iter()
             .filter(|x| changed_workloads.contains(&x.0))
             .collect::<Vec<_>>();
+
+        states_of_changed_workloads.extend(added_workload_infos);
 
         let mut wait_list = WaitList::new(
             update_state_success,
@@ -249,7 +306,13 @@ impl CliCommands {
             })
             .flat_map(|u| u.workload_states);
 
+        output_debug!(
+            "Got update workload state before waiting: {:?}",
+            missed_workload_states
+        );
+
         wait_list.update(missed_workload_states);
+
         let mut spinner_interval = interval(Duration::from_millis(100));
 
         while !wait_list.is_empty() {
