@@ -23,6 +23,7 @@ use mockall::mock;
 
 use crate::output_update;
 
+#[derive(Debug)]
 pub struct ParsedUpdateStateSuccess {
     pub added_workloads: Vec<WorkloadInstanceName>,
     pub deleted_workloads: Vec<WorkloadInstanceName>,
