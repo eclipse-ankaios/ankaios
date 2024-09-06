@@ -126,34 +126,28 @@ pub async fn forward_from_ankaios_to_proto(
 
                 let agent_name = method_obj.agent_name.unwrap_or(String::default());
 
-                if !agent_senders.get_all_agent_names().contains(&agent_name) {
-                    log::warn!(
-                        "Could not send added workloads to started agent. Unknown agent: '{}'",
-                        agent_name
-                    );
-                    return;
-                }
-
-                let result = agent_senders
-                    .get(agent_name.as_str())
-                    .unwrap() // Safe to unwrap. Checked before.
-                    .send(Ok(grpc_api::FromServer {
-                        from_server_enum: Some(FromServerEnum::ServerHello(
-                            grpc_api::ServerHello {
-                                added_workloads: method_obj
-                                    .added_workloads
-                                    .into_iter()
-                                    .map(|x| x.into())
-                                    .collect(),
-                            },
-                        )),
-                    }))
-                    .await;
-                if result.is_err() {
-                    log::warn!(
-                        "Could not send added workloads to started agent '{}'",
-                        agent_name,
-                    );
+                if let Some(sender) = agent_senders.get(&agent_name) {
+                    let result = sender
+                        .send(Ok(grpc_api::FromServer {
+                            from_server_enum: Some(FromServerEnum::ServerHello(
+                                grpc_api::ServerHello {
+                                    added_workloads: method_obj
+                                        .added_workloads
+                                        .into_iter()
+                                        .map(|x| x.into())
+                                        .collect(),
+                                },
+                            )),
+                        }))
+                        .await;
+                    if result.is_err() {
+                        log::warn!(
+                            "Could not send added workloads to started agent '{}'",
+                            agent_name,
+                        );
+                    }
+                } else {
+                    log::warn!("Unknown agent with name: '{}'", agent_name);
                 }
             }
             FromServer::UpdateWorkload(method_obj) => {

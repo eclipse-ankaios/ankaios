@@ -56,10 +56,10 @@ message ToServer {
 */
 message FromServer {
     oneof FromServerEnum {
-        ServerHello serverHello = 1; /// A message containing information about the workloads to be added after the agent connects.
-        UpdateWorkload updateWorkload = 2; /// A message containing lists of workloads to be added or deleted.
-        UpdateWorkloadState updateWorkloadState = 3; /// A message containing list of workload execution states.
-        ank_base.Response response = 4; /// A message containing a response to a previous request.
+        UpdateWorkload updateWorkload = 1; /// A message containing lists of workloads to be added or deleted.
+        UpdateWorkloadState updateWorkloadState = 2; /// A message containing list of workload execution states.
+        ank_base.Response response = 3; /// A message containing a response to a previous request.
+        ServerHello serverHello = 4; /// A message containing information about the workloads to be added after the agent connects.
     }
 }
 
@@ -79,7 +79,7 @@ message Goodbye {
 }
 
 /**
-* A message providing information about the workloads to be added after the agent connects.
+* A message representing the response to the AgentHello message from agent. It provides information about the added workloads of the agent.
 */
 message ServerHello {
     repeated AddedWorkload addedWorkloads = 1; /// A list of messages containing information about a workload to be added by an Ankaios agent.

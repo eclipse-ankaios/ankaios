@@ -106,6 +106,26 @@ impl RuntimeManager {
         }
     }
 
+    pub async fn execute_workloads(
+        &mut self,
+        added_workloads: Vec<WorkloadSpec>,
+        deleted_workloads: Vec<DeletedWorkload>,
+        workload_state_db: &WorkloadStateStore,
+    ) {
+        let workload_operations: Vec<WorkloadOperation> =
+            self.transform_into_workload_operations(added_workloads, deleted_workloads);
+
+        // [impl->swdd~agent-handles-new-workload-operations]
+        // [impl->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
+        let ready_workload_operations = self
+            .workload_queue
+            .enqueue_filtered_workload_operations(workload_operations, workload_state_db)
+            .await;
+
+        self.execute_workload_operations(ready_workload_operations)
+            .await;
+    }
+
     // [impl->swdd~agent-initial-list-existing-workloads~1]
     pub async fn handle_server_hello(
         &mut self,
@@ -121,17 +141,7 @@ impl RuntimeManager {
             .resume_and_remove_from_added_workloads(added_workloads)
             .await;
 
-        let workload_operations: Vec<WorkloadOperation> =
-            self.transform_into_workload_operations(added_workloads, vec![]);
-
-        // [impl->swdd~agent-handles-new-workload-operations]
-        // [impl->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
-        let ready_workload_operations = self
-            .workload_queue
-            .enqueue_filtered_workload_operations(workload_operations, workload_state_db)
-            .await;
-
-        self.execute_workload_operations(ready_workload_operations)
+        self.execute_workloads(added_workloads, vec![], workload_state_db)
             .await;
     }
 
@@ -148,17 +158,7 @@ impl RuntimeManager {
             deleted_workloads.len()
         );
 
-        let workload_operations: Vec<WorkloadOperation> =
-            self.transform_into_workload_operations(added_workloads, deleted_workloads);
-
-        // [impl->swdd~agent-handles-new-workload-operations]
-        // [impl->swdd~agent-handles-workloads-with-fulfilled-dependencies~1]
-        let ready_workload_operations = self
-            .workload_queue
-            .enqueue_filtered_workload_operations(workload_operations, workload_state_db)
-            .await;
-
-        self.execute_workload_operations(ready_workload_operations)
+        self.execute_workloads(added_workloads, deleted_workloads, workload_state_db)
             .await;
     }
 
