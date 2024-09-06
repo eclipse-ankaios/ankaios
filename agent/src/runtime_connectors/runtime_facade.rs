@@ -165,10 +165,16 @@ impl<
             let authorizer = info.move_authorizer();
             match ControlInterface::new(&run_folder, &instance_name, output_pipe_sender, authorizer)
             {
-                Ok(result) => (
-                    Some(workload_spec.instance_name.pipes_folder_name(&run_folder)),
-                    Some(result),
-                ),
+                Ok(result) => {
+                    log::info!(
+                        "Successfully created control interface for workload '{}'.",
+                        workload_name
+                    );
+                    (
+                        Some(workload_spec.instance_name.pipes_folder_name(&run_folder)),
+                        Some(result),
+                    )
+                }
                 Err(err) => {
                     log::warn!(
                         "Could not create control interface when creating workload '{}': '{}'",
@@ -179,7 +185,7 @@ impl<
                 }
             }
         } else {
-            log::info!(
+            log::debug!(
                 "Skipping creation of control interface for workload '{}'.",
                 workload_name
             );
@@ -238,7 +244,7 @@ impl<
         );
 
         // [impl->swdd~agent-control-interface-optional-creation~1]
-        let control_interface = control_interface_info.and_then(|info| { if workload_spec.has_control_interface_access_rules() {
+        let control_interface = control_interface_info.and_then(|info| { if workload_spec.needs_control_interface() {
             let run_folder = info.get_run_folder().clone();
             let output_pipe_sender = info.get_to_server_sender();
             let instance_name = info.get_instance_name().clone();

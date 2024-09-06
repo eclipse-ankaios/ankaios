@@ -385,7 +385,7 @@ impl RuntimeManager {
     async fn add_workload(&mut self, workload_spec: WorkloadSpec) {
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
         // [impl->swdd~agent-control-interface-optional-creation~1]
-        let control_interface_info = if workload_spec.has_control_interface_access_rules() {
+        let control_interface_info = if workload_spec.needs_control_interface() {
             Some(ControlInterfaceInfo::new(
                 &self.run_folder,
                 self.control_interface_tx.clone(),
@@ -456,7 +456,7 @@ impl RuntimeManager {
 
         if let Some(workload) = self.workloads.get_mut(&workload_name) {
             // [impl->swdd~agent-control-interface-optional-creation~1]
-            let control_interface_info = if workload_spec.has_control_interface_access_rules() {
+            let control_interface_info = if workload_spec.needs_control_interface() {
                 Some(ControlInterfaceInfo::new(
                     &self.run_folder,
                     self.control_interface_tx.clone(),

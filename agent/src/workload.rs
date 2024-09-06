@@ -143,7 +143,7 @@ impl Workload {
             self.exchange_control_interface(
                 control_interface_info,
                 spec.clone()
-                    .map_or(false, |spec| !spec.has_control_interface_access_rules()),
+                    .map_or(false, |spec| !spec.needs_control_interface()),
             );
         }
 
@@ -360,8 +360,7 @@ mod tests {
             RUNTIME_NAME.to_string(),
         );
 
-        test_workload
-            .exchange_control_interface(None, workload_spec.has_control_interface_access_rules());
+        test_workload.exchange_control_interface(None, workload_spec.needs_control_interface());
 
         assert!(test_workload.control_interface.is_none());
     }

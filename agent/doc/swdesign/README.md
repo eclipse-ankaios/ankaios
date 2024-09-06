@@ -543,12 +543,15 @@ Needs:
 - impl
 - utest
 
-#### Control Interface is optionally created
+#### Control Interface created for eligible workloads
 `swdd~agent-control-interface-optional-creation~1`
 
 Status: approved
 
 When the workload has control interface access rules configured, the Control Interface shall be created for that workload.
+
+Comment:
+Due to the logic that by default, the pipes are restricted, it makes sense to check only the allowed rules.
 
 Rationale:
 Creating a control interface affects the start-up time of a workload and thus it should be created only if it's used.

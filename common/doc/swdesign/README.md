@@ -297,18 +297,15 @@ Needs:
 - impl
 - utest
 
-#### Provide method that check if there are access rules configured
-`swdd~common-access-rules-configured~1`
+#### Provide method that check if there are allowed access rules configured
+`swdd~common-workload-needs-control-interface~1`
 
 Status: approved
 
-The Common library shall provide a method that provides whether the workload has access rules configured.
-
-Rationale:
-The method is necessary in order to be able to chose whether the Control Interface must be created or not.
+When allow rules for the Control Interface access are specified in the workload specification, the Common library shall approve the creation of a Control Interface.
 
 Tags:
-- WorkloadSpec
+- Objects
 
 Needs:
 - impl
