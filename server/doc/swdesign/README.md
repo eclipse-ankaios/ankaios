@@ -305,7 +305,7 @@ Needs:
 - impl
 
 #### AnkaiosServer sends all workloads on start
-`swdd~server-sends-all-workloads-on-start~1`
+`swdd~server-sends-all-workloads-on-start~2`
 
 Status: approved
 

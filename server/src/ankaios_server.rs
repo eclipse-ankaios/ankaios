@@ -174,7 +174,7 @@ impl AnkaiosServer {
                         added_workloads,
                     );
 
-                    // [impl->swdd~server-sends-all-workloads-on-start~1]
+                    // [impl->swdd~server-sends-all-workloads-on-start~2]
                     self.to_agents
                         .server_hello(Some(agent_name.clone()), added_workloads)
                         .await
@@ -681,7 +681,7 @@ mod tests {
     }
 
     // [utest->swdd~server-uses-async-channels~1]
-    // [utest->swdd~server-sends-all-workloads-on-start~1]
+    // [utest->swdd~server-sends-all-workloads-on-start~2]
     // [utest->swdd~agent-from-agent-field~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     // [utest->swdd~server-stores-newly-connected-agent~1]
