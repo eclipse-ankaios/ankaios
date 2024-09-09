@@ -551,6 +551,13 @@ The controller workload requests shall all fail
     And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
     internal_check_all_control_interface_requests_failed    ${ankaios_config_folder.name}
 
+The controller workload has no access to Control Interface
+    ${ankaios_config_folder}=    create_control_interface_config_for_test
+    Ankaios server is started with config "${ankaios_config_folder.name}${/}startup_config.yaml"
+    Ankaios agent is started with name "agent_A"
+    And the workload "controller" shall have the execution state "Succeeded(Ok)" on agent "agent_A" within "20" seconds
+    internal_check_no_access_to_control_interface    ${ankaios_config_folder.name}
+
 the mount point has not been generated for ${agent_name}
     ${command_result}=    Run Command    %{ANK_BIN_DIR}${/}ank get state -o json
     check_if_mount_point_has_not_been_generated_for    ${agent_name}    ${command_result}

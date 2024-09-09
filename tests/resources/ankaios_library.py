@@ -344,12 +344,14 @@ def internal_check_all_control_interface_requests_succeeded(tmp_folder):
 def internal_check_all_control_interface_requests_failed(tmp_folder):
     output = read_yaml(path.join(tmp_folder, "output.yaml"))
     for test_number,test_result in enumerate(output):
-        try:
-            test_result = test_result["result"]["value"]["type"] != "Ok"
-        except:
-            test_result["result"] != "Ok"
+        test_result = test_result["result"]["value"]["type"] != "Ok"
         assert test_result, \
             f"Expected request {test_number + 1} to fail, but it succeeded"
+
+def internal_check_no_access_to_control_interface(tmp_folder):
+    output = read_yaml(path.join(tmp_folder, "output.yaml"))
+    for _, test_result in enumerate(output):
+        assert test_result["result"]["type"] == "NoApi", "Expect type is different to NoApi"
 
 def empty_keyword():
     pass
