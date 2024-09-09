@@ -35,6 +35,7 @@ pub fn generate_test_state_from_workloads(workloads: Vec<WorkloadSpec>) -> State
             .into_iter()
             .map(|v| (v.instance_name.workload_name().to_owned(), v.into()))
             .collect(),
+        configs: HashMap::new(),
     }
 }
 
@@ -50,6 +51,7 @@ pub fn generate_test_proto_complete_state(
                     .map(|(x, y)| (x.to_string(), y.clone()))
                     .collect(),
             }),
+            configs: Some(Default::default()),
         }),
         workload_states: None,
         agents: None,
@@ -71,6 +73,7 @@ pub fn generate_test_complete_state(workloads: Vec<WorkloadSpec>) -> crate::obje
                 .into_iter()
                 .map(|v| (v.instance_name.workload_name().to_owned(), v.into()))
                 .collect(),
+            configs: HashMap::new(),
         },
         workload_states: generate_test_workload_states_map_from_specs(workloads),
         agents,
@@ -101,6 +104,7 @@ pub fn generate_test_state() -> State {
     State {
         api_version: API_VERSION.into(),
         workloads: ankaios_workloads,
+        configs: HashMap::new(),
     }
 }
 
@@ -116,6 +120,7 @@ pub fn generate_test_proto_state() -> ank_base::State {
     ank_base::State {
         api_version: API_VERSION.into(),
         workloads: proto_workloads,
+        configs: Some(Default::default()),
     }
 }
 

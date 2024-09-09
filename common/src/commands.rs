@@ -239,6 +239,7 @@ mod tests {
                 desired_state: ankaios::State {
                     api_version: "v0.1".into(),
                     workloads: HashMap::from([("desired".into(), workload!(ankaios))]),
+                    configs: HashMap::new(),
                 }
                 .into(),
                 workload_states: workload_states_map!(ankaios),
@@ -252,6 +253,7 @@ mod tests {
                     workloads: Some(ank_base::WorkloadMap {
                         workloads: HashMap::from([("desired".to_string(), workload!(ank_base))]),
                     }),
+                    configs: Some(Default::default()),
                 }),
                 workload_states: workload_states_map!(ank_base),
                 agents: agent_map!(ank_base),
@@ -362,6 +364,7 @@ mod tests {
                 workloads: Some(ank_base::WorkloadMap {
                     workloads: HashMap::new(),
                 }),
+                configs: Some(Default::default()),
             }),
             ..Default::default()
         });
@@ -403,6 +406,7 @@ mod tests {
             workloads: Some(ank_base::WorkloadMap {
                 workloads: HashMap::new(),
             }),
+            configs: Some(Default::default()),
         });
 
         let ankaios::RequestContent::UpdateStateRequest(ankaios_request_content) =

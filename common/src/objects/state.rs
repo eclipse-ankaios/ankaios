@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::helpers::serialize_to_ordered_map;
+use crate::objects::ConfigItem;
 use crate::objects::StoredWorkloadSpec;
 
 use api::ank_base;
@@ -31,6 +32,8 @@ pub struct State {
     pub api_version: String,
     #[serde(default, serialize_with = "serialize_to_ordered_map")]
     pub workloads: HashMap<String, StoredWorkloadSpec>,
+    #[serde(default)]
+    pub configs: HashMap<String, ConfigItem>,
 }
 
 impl Default for State {
@@ -38,6 +41,7 @@ impl Default for State {
         Self {
             api_version: CURRENT_API_VERSION.into(),
             workloads: Default::default(),
+            configs: Default::default(),
         }
     }
 }
@@ -51,6 +55,13 @@ impl From<State> for ank_base::State {
                     .workloads
                     .into_iter()
                     .map(|(k, v)| (k, v.into()))
+                    .collect(),
+            }),
+            configs: Some(ank_base::ConfigMap {
+                configs: item
+                    .configs
+                    .into_iter()
+                    .map(|(key, config_item)| (key, config_item.into()))
                     .collect(),
             }),
         }
@@ -70,6 +81,13 @@ impl TryFrom<ank_base::State> for State {
                 .into_iter()
                 .map(|(k, v)| Ok((k.to_owned(), v.try_into()?)))
                 .collect::<Result<HashMap<String, StoredWorkloadSpec>, String>>()?,
+            configs: item
+                .configs
+                .ok_or("Missing config map")?
+                .configs
+                .into_iter()
+                .map(|(k, v)| (k, v.into()))
+                .collect(),
         })
     }
 }
@@ -162,6 +180,9 @@ mod tests {
             api_version: "".into(),
             workloads: Some(ank_base::WorkloadMap {
                 workloads: HashMap::new(),
+            }),
+            configs: Some(ank_base::ConfigMap {
+                configs: HashMap::new(),
             }),
         };
         let state_ankaios_no_version = State::try_from(state_proto_no_version).unwrap();

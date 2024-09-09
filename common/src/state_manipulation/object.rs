@@ -769,6 +769,7 @@ mod tests {
                             ),
                     ),
                 )
+                .entry("configs", Mapping::default())
         }
 
         pub fn generate_test_value_object() -> Value {

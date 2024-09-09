@@ -389,11 +389,15 @@ mod tests {
             .get_complete_state_by_field_mask(request_complete_state, &workload_state_map)
             .unwrap();
 
-        let expected_complete_state = ank_base::CompleteState {
+        let mut expected_complete_state = ank_base::CompleteState {
             desired_state: Some(server_state.state.desired_state.clone().into()),
             workload_states: None,
             agents: None,
         };
+        if let Some(expected_desired_state) = &mut expected_complete_state.desired_state {
+            expected_desired_state.configs = None;
+        }
+
         assert_eq!(received_complete_state, expected_complete_state);
     }
 
@@ -474,8 +478,11 @@ mod tests {
                 },
             ),
         ];
-        let expected_complete_state =
+        let mut expected_complete_state =
             test_utils::generate_test_proto_complete_state(&expected_workloads);
+        if let Some(expected_desired_state) = &mut expected_complete_state.desired_state {
+            expected_desired_state.configs = None;
+        }
 
         assert_eq!(expected_complete_state, complete_state);
     }
