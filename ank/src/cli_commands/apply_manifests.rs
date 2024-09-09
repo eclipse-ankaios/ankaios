@@ -101,7 +101,7 @@ pub fn update_request_obj(
             .check_if_provided_path_exists(workload_path)
             .map_err(|err| {
                 format!(
-                    "Got error `{}`. This may be caused by improper naming. Ankaios supports names defined by [a-zA-Z0-9_-].",
+                    "Got error `{}`. This may be caused by improper naming. Ankaios supports names defined by '^[a-zA-Z0-9_-]+[a-zA-Z0-9_-]*$'.",
                     err
                 )
             })?;

@@ -91,7 +91,7 @@ impl State {
         for (workload_name, workload_spec) in &provided_state.workloads {
             if !re.is_match(workload_name.as_str()) {
                 return Err(format!(
-                    "Unsupported workload name. Received '{}', expected to have characters in [a-zA-Z0-9_-]",
+                    "Unsupported workload name. Received '{}', expected to have characters in ^[a-zA-Z0-9_-]+[a-zA-Z0-9_-]*$",
                     workload_name
                 ));
             }
@@ -104,7 +104,7 @@ impl State {
             }
             if !re.is_match(workload_spec.agent.as_str()) {
                 return Err(format!(
-                    "Unsupported agent name. Received '{}', expected to have characters in [a-zA-Z0-9_-]",
+                    "Unsupported agent name. Received '{}', expected to have characters in ^[a-zA-Z0-9_-]+[a-zA-Z0-9_-]*$",
                     workload_spec.agent
                 ));
             }
