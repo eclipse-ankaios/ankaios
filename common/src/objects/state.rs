@@ -23,6 +23,7 @@ use crate::objects::StoredWorkloadSpec;
 use api::ank_base;
 
 const CURRENT_API_VERSION: &str = "v0.1";
+const MAX_CHARACTERS_WORKLOAD_NAME: usize = 63;
 
 // [impl->swdd~common-object-representation~1]
 // [impl->swdd~common-object-serialization~1]
@@ -94,10 +95,17 @@ impl State {
                     workload_name
                 ));
             }
+            if workload_name.len() > MAX_CHARACTERS_WORKLOAD_NAME {
+                return Err(format!(
+                    "Workload name length {} exceeds the maximum limit of {} characters",
+                    workload_name.len(),
+                    MAX_CHARACTERS_WORKLOAD_NAME
+                ));
+            }
             if !re.is_match(workload_spec.agent.as_str()) {
                 return Err(format!(
                     "Unsupported agent name. Received '{}', expected to have characters in [a-zA-Z0-9_-]",
-                    workload_name
+                    workload_spec.agent
                 ));
             }
         }
@@ -120,9 +128,9 @@ impl State {
 #[cfg(test)]
 mod tests {
 
-    use std::collections::HashMap;
-
+    use super::{CURRENT_API_VERSION, MAX_CHARACTERS_WORKLOAD_NAME};
     use api::ank_base;
+    use std::collections::HashMap;
 
     use crate::{
         objects::{State, StoredWorkloadSpec},
@@ -171,35 +179,67 @@ mod tests {
 
     #[test]
     fn utest_state_rejects_incompatible_state_on_api_version() {
+        let api_version = "incompatible_version".to_string();
         let state_incompatible_version = State {
-            api_version: "incompatible_version".to_string(),
+            api_version: api_version.clone(),
             ..Default::default()
         };
-        assert_ne!(State::verify_format(&state_incompatible_version), Ok(()));
+        assert_eq!(
+            State::verify_format(&state_incompatible_version),
+            Err(format!(
+                "Unsupported API version. Received '{}', expected '{}'",
+                api_version, CURRENT_API_VERSION
+            ))
+        );
     }
 
     #[test]
     fn utest_state_rejects_incompatible_state_on_workload_name() {
+        let workload_name = "nginx.test".to_string();
         let state_incompatible_version = State {
-            api_version: Default::default(),
-            workloads: HashMap::from([("nginx.test".to_string(), StoredWorkloadSpec::default())]),
+            api_version: "v0.1".to_string(),
+            workloads: HashMap::from([(workload_name.clone(), StoredWorkloadSpec::default())]),
         };
-        assert_ne!(State::verify_format(&state_incompatible_version), Ok(()));
+        assert_eq!(State::verify_format(&state_incompatible_version), Err(format!("Unsupported workload name. Received '{}', expected to have characters in [a-zA-Z0-9_-]", "nginx.test")));
+    }
+
+    #[test]
+    fn utest_state_rejects_incompatible_state_on_inordinately_long_workload_name() {
+        let workload_name = "workload_name_is_too_long_for_ankaios_to_accept_it_and_I_don_t_know_what_else_to_write".to_string();
+        let state_incompatible_version = State {
+            api_version: "v0.1".to_string(),
+            workloads: HashMap::from([(workload_name.clone(), StoredWorkloadSpec::default())]),
+        };
+        assert_eq!(
+            State::verify_format(&state_incompatible_version),
+            Err(format!(
+                "Workload name length {} exceeds the maximum limit of {} characters",
+                workload_name.len(),
+                MAX_CHARACTERS_WORKLOAD_NAME
+            ))
+        );
     }
 
     #[test]
     fn utest_state_rejects_incompatible_state_on_agent_name() {
+        let agent_name = "agent_A.test".to_string();
         let state_incompatible_version = State {
-            api_version: Default::default(),
+            api_version: "v0.1".to_string(),
             workloads: HashMap::from([(
-                "nginx.test".to_string(),
+                "sample".to_string(),
                 StoredWorkloadSpec {
-                    agent: "agent_A.test".to_string(),
+                    agent: agent_name.clone(),
                     ..Default::default()
                 },
             )]),
         };
-        assert_ne!(State::verify_format(&state_incompatible_version), Ok(()));
+        assert_eq!(
+            State::verify_format(&state_incompatible_version),
+            Err(format!(
+                "Unsupported agent name. Received '{}', expected to have characters in [a-zA-Z0-9_-]",
+                agent_name
+            ))
+        );
     }
 
     #[test]

@@ -788,4 +788,109 @@ mod tests {
             .await;
         assert!(apply_result.is_ok());
     }
+
+    #[tokio::test]
+    async fn utest_apply_manifest_invalid_names() {
+        let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
+            .get_lock_async()
+            .await;
+
+        let manifest_content = io::Cursor::new(
+            b"apiVersion: \"v0.1\"\nworkloads:
+            simple.manifest1:
+              runtime: podman
+              agent: agent_A
+              runtimeConfig: \"\"
+                ",
+        );
+
+        let mut manifest_data = String::new();
+        let _ = manifest_content.clone().read_to_string(&mut manifest_data);
+
+        let updated_state = CompleteState {
+            desired_state: serde_yaml::from_str(&manifest_data).unwrap(),
+            ..Default::default()
+        };
+
+        let mut mock_server_connection = MockServerConnection::default();
+        mock_server_connection
+            .expect_update_state()
+            .with(
+                eq(updated_state.clone()),
+                eq(vec!["desiredState.workloads.simple.manifest1".to_string()]),
+            )
+            .return_once(|_, _| {
+                Ok(UpdateStateSuccess {
+                    added_workloads: vec!["simple_manifest1.abc.agent_B".to_string()],
+                    deleted_workloads: vec![],
+                })
+            });
+        mock_server_connection
+            .expect_get_complete_state()
+            .with(eq(vec![]))
+            .return_once(|_| {
+                Ok((ank_base::CompleteState::from(CompleteState {
+                    desired_state: updated_state.desired_state,
+                    ..Default::default()
+                }))
+                .into())
+            });
+        mock_server_connection
+            .expect_take_missed_from_server_messages()
+            .return_once(|| {
+                vec![
+                    FromServer::Response(ank_base::Response {
+                        request_id: OTHER_REQUEST_ID.into(),
+                        response_content: Some(ank_base::response::ResponseContent::Error(
+                            Default::default(),
+                        )),
+                    }),
+                    FromServer::UpdateWorkloadState(UpdateWorkloadState {
+                        workload_states: vec![WorkloadState {
+                            instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
+                            execution_state: ExecutionState {
+                                state: objects::ExecutionStateEnum::Running(RunningSubstate::Ok),
+                                ..Default::default()
+                            },
+                        }],
+                    }),
+                ]
+            });
+        mock_server_connection
+            .expect_read_next_update_workload_state()
+            .return_once(|| {
+                Ok(UpdateWorkloadState {
+                    workload_states: vec![WorkloadState {
+                        instance_name: "simple_manifest1.abc.agent_B".try_into().unwrap(),
+                        execution_state: ExecutionState {
+                            state: objects::ExecutionStateEnum::Running(RunningSubstate::Ok),
+                            ..Default::default()
+                        },
+                    }],
+                })
+            });
+
+        let mut cmd = CliCommands {
+            _response_timeout_ms: RESPONSE_TIMEOUT_MS,
+            no_wait: false,
+            server_connection: mock_server_connection,
+        };
+
+        FAKE_GET_INPUT_SOURCE_MOCK_RESULT_LIST
+            .lock()
+            .unwrap()
+            .push_back(Ok(vec![(
+                "manifest.yml".to_string(),
+                Box::new(manifest_content),
+            )]));
+
+        let apply_result = cmd
+            .apply_manifests(ApplyArgs {
+                agent_name: None,
+                delete_mode: false,
+                manifest_files: vec!["manifest_yaml".to_string()],
+            })
+            .await;
+        assert!(apply_result.is_err());
+    }
 }
