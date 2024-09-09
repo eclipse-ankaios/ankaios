@@ -96,7 +96,16 @@ pub fn update_request_obj(
 ) -> Result<(), String> {
     for workload_path in paths.iter() {
         let workload_name = &workload_path.parts()[1];
-        let cur_workload_spec = cur_obj.get(workload_path).unwrap().clone();
+        cur_obj
+            .clone()
+            .check_if_provided_path_exists(workload_path)
+            .map_err(|err| {
+                format!(
+                    "Got error `{}`. This may be caused by improper naming. Ankaios supports names defined by [a-zA-Z0-9_-].",
+                    err
+                )
+            })?;
+        let cur_workload_spec = cur_obj.get(workload_path).unwrap();
         if req_obj.get(workload_path).is_none() {
             let _ = req_obj.set(workload_path, cur_workload_spec.clone());
         } else {
