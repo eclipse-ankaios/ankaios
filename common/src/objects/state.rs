@@ -24,6 +24,8 @@ use api::ank_base;
 
 const CURRENT_API_VERSION: &str = "v0.1";
 const MAX_CHARACTERS_WORKLOAD_NAME: usize = 63;
+const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]+[a-zA-Z0-9_-]*$";
+const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]*$";
 
 // [impl->swdd~common-object-representation~1]
 // [impl->swdd~common-object-serialization~1]
@@ -86,14 +88,14 @@ impl State {
             ));
         }
 
-        let re_workloads = Regex::new(r"^[a-zA-Z0-9_-]+[a-zA-Z0-9_-]*$").unwrap();
-        let re_agent = Regex::new(r"^[a-zA-Z0-9_-]*$").unwrap();
+        let re_workloads = Regex::new(STR_RE_WORKLOAD).unwrap();
+        let re_agent = Regex::new(STR_RE_AGENT).unwrap();
 
         for (workload_name, workload_spec) in &provided_state.workloads {
             if !re_workloads.is_match(workload_name.as_str()) {
                 return Err(format!(
-                    "Unsupported workload name. Received '{}', expected to have characters in ^[a-zA-Z0-9_-]+[a-zA-Z0-9_-]*$",
-                    workload_name
+                    "Unsupported workload name. Received '{}', expected to have characters in {}",
+                    workload_name, STR_RE_WORKLOAD
                 ));
             }
             if workload_name.len() > MAX_CHARACTERS_WORKLOAD_NAME {
@@ -105,8 +107,8 @@ impl State {
             }
             if !re_agent.is_match(workload_spec.agent.as_str()) {
                 return Err(format!(
-                    "Unsupported agent name. Received '{}', expected to have characters in ^[a-zA-Z0-9_-]*$",
-                    workload_spec.agent
+                    "Unsupported agent name. Received '{}', expected to have characters in {}",
+                    workload_spec.agent, STR_RE_AGENT
                 ));
             }
         }
@@ -129,7 +131,7 @@ impl State {
 #[cfg(test)]
 mod tests {
 
-    use super::{CURRENT_API_VERSION, MAX_CHARACTERS_WORKLOAD_NAME};
+    use super::{CURRENT_API_VERSION, MAX_CHARACTERS_WORKLOAD_NAME, STR_RE_AGENT, STR_RE_WORKLOAD};
     use api::ank_base;
     use std::collections::HashMap;
 
@@ -201,7 +203,13 @@ mod tests {
             api_version: "v0.1".to_string(),
             workloads: HashMap::from([(workload_name.clone(), StoredWorkloadSpec::default())]),
         };
-        assert_eq!(State::verify_format(&state_incompatible_version), Err(format!("Unsupported workload name. Received '{}', expected to have characters in ^[a-zA-Z0-9_-]+[a-zA-Z0-9_-]*$", "nginx.test")));
+        assert_eq!(
+            State::verify_format(&state_incompatible_version),
+            Err(format!(
+                "Unsupported workload name. Received '{}', expected to have characters in {}",
+                workload_name, STR_RE_WORKLOAD
+            ))
+        );
     }
 
     #[test]
@@ -237,8 +245,8 @@ mod tests {
         assert_eq!(
             State::verify_format(&state_incompatible_version),
             Err(format!(
-                "Unsupported agent name. Received '{}', expected to have characters in ^[a-zA-Z0-9_-]*$",
-                agent_name
+                "Unsupported agent name. Received '{}', expected to have characters in {}",
+                agent_name, STR_RE_AGENT
             ))
         );
     }
