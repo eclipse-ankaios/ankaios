@@ -76,6 +76,7 @@ struct TestResult {
 enum TestResultEnum {
     UpdateStateResult(TagSerializedResult<UpdateStateResult>),
     GetStateResult(TagSerializedResult<Option<State>>),
+    NoApi,
 }
 
 #[derive(Serialize)]
@@ -122,15 +123,21 @@ fn main() {
         exit(1)
     });
 
-    let mut connection = Connection::new().unwrap_or_else(|err| {
-        logging::log(&format!("Could not open control interface: '{}'", err));
-        exit(1)
-    });
-
-    let result = commands
-        .into_iter()
-        .map(|x| connection.handle_command(x))
-        .collect::<Result<Vec<_>, _>>();
+    let result = if let Ok(mut connection) = Connection::new() {
+        commands
+            .into_iter()
+            .map(|x| connection.handle_command(x))
+            .collect::<Result<Vec<_>, _>>()
+    } else {
+        commands
+            .into_iter()
+            .map(|_| {
+                Ok(TestResult {
+                    result: TestResultEnum::NoApi,
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()
+    };
 
     match result {
         Ok(result) => {

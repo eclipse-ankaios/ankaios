@@ -543,6 +543,27 @@ Needs:
 - impl
 - utest
 
+#### Control Interface created for eligible workloads
+`swdd~agent-control-interface-created-for-eligible-workloads~1`
+
+Status: approved
+
+When the workload has control interface access rules configured, the Control Interface shall be created for that workload.
+
+Comment:
+Due to the logic that by default, the pipes are restricted, it makes sense to check only the allowed rules.
+
+Rationale:
+Creating a control interface affects the start-up time of a workload and thus it should be created only if it's used.
+
+Tags:
+- ControlInterface
+
+Needs:
+- impl
+- utest
+- stest
+
 #### Agent skips unknown runtime
 `swdd~agent-skips-unknown-runtime~1`
 
@@ -658,7 +679,7 @@ Status: approved
 
 When the RuntimeFacade gets a requests to create a workload, the RuntimeFacade shall:
 * start the WorkloadControlLoop waiting for WorkloadCommands
-* create a new ControlInterface instance for the new workload
+* create a new ControlInterface instance for the new workload if the workload has access rules configured
 * request the create of the workload by sending a create command to the WorkloadControlLoop
 * return a new workload object containing a WorkloadCommandSender to communicate with the WorkloadControlLoop
 
@@ -866,8 +887,8 @@ Status: approved
 When the WorkloadObject receives a trigger to update the workload, it:
 * triggers a comparison of the existing and new control interface metadata
 * stops the old control interface if the comparison returns that the metadata has changed
-* creates a new ControlInterface instance if the comparison returns that the metadata has changed
-* stores the new ControlInterface instance after the creation
+* creates a new ControlInterface instance if the comparison returns that the metadata has changed and if access rules are configured
+* stores the new ControlInterface instance instead of the old one
 * sends a command via the WorkloadCommandSender to the WorkloadControlLoop to update the workload
 
 Tags:
