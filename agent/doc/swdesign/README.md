@@ -544,7 +544,7 @@ Needs:
 - utest
 
 #### Control Interface created for eligible workloads
-`swdd~agent-control-interface-optional-creation~1`
+`swdd~agent-control-interface-created-for-eligible-workloads~1`
 
 Status: approved
 

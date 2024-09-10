@@ -243,7 +243,7 @@ impl<
             workload_name,
         );
 
-        // [impl->swdd~agent-control-interface-optional-creation~1]
+        // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
         let control_interface = control_interface_info.and_then(|info| { if workload_spec.needs_control_interface() {
             let run_folder = info.get_run_folder().clone();
             let output_pipe_sender = info.get_to_server_sender();
@@ -512,7 +512,7 @@ mod tests {
     }
 
     // [utest->swdd~agent-resume-workload~2]
-    // [utest->swdd~agent-control-interface-optional-creation~1]
+    // [utest->swdd~agent-control-interface-created-for-eligible-workloads~1]
     #[tokio::test]
     async fn utest_runtime_facade_resume_workload_with_control_interface_access() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -588,7 +588,7 @@ mod tests {
         runtime_mock.assert_all_expectations().await;
     }
 
-    // [utest->swdd~agent-control-interface-optional-creation~1]
+    // [utest->swdd~agent-control-interface-created-for-eligible-workloads~1]
     #[tokio::test]
     async fn utest_runtime_facade_resume_workload_without_control_interface_access() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

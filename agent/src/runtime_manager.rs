@@ -384,7 +384,7 @@ impl RuntimeManager {
 
     async fn add_workload(&mut self, workload_spec: WorkloadSpec) {
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
-        // [impl->swdd~agent-control-interface-optional-creation~1]
+        // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
         let control_interface_info = if workload_spec.needs_control_interface() {
             Some(ControlInterfaceInfo::new(
                 &self.run_folder,
@@ -455,7 +455,7 @@ impl RuntimeManager {
         let workload_name = workload_spec.instance_name.workload_name().to_owned();
 
         if let Some(workload) = self.workloads.get_mut(&workload_name) {
-            // [impl->swdd~agent-control-interface-optional-creation~1]
+            // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
             let control_interface_info = if workload_spec.needs_control_interface() {
                 Some(ControlInterfaceInfo::new(
                     &self.run_folder,
@@ -797,7 +797,7 @@ mod tests {
         assert!(runtime_manager.workloads.contains_key(WORKLOAD_1_NAME));
     }
 
-    // [utest->swdd~agent-control-interface-optional-creation~1]
+    // [utest->swdd~agent-control-interface-created-for-eligible-workloads~1]
     #[tokio::test]
     async fn utest_update_workload_test_control_interface_creation() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC
@@ -1144,7 +1144,7 @@ mod tests {
         assert!(runtime_manager.workloads.is_empty());
     }
 
-    // [utest->swdd~agent-control-interface-optional-creation~1]
+    // [utest->swdd~agent-control-interface-created-for-eligible-workloads~1]
     #[tokio::test]
     async fn utest_add_workload_test_control_interface_creation() {
         let _guard = crate::test_helper::MOCKALL_CONTEXT_SYNC

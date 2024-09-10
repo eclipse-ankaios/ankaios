@@ -297,7 +297,7 @@ Needs:
 - impl
 - utest
 
-#### Provide method that check if there are allowed access rules configured
+#### Provide a method that checks if the workload requires control interface
 `swdd~common-workload-needs-control-interface~1`
 
 Status: approved
