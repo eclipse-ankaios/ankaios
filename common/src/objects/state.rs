@@ -86,10 +86,11 @@ impl State {
             ));
         }
 
-        let re = Regex::new(r"^[a-zA-Z0-9_-]+[a-zA-Z0-9_-]*$").unwrap();
+        let re_workloads = Regex::new(r"^[a-zA-Z0-9_-]+[a-zA-Z0-9_-]*$").unwrap();
+        let re_agent = Regex::new(r"^[a-zA-Z0-9_-]*$").unwrap();
 
         for (workload_name, workload_spec) in &provided_state.workloads {
-            if !re.is_match(workload_name.as_str()) {
+            if !re_workloads.is_match(workload_name.as_str()) {
                 return Err(format!(
                     "Unsupported workload name. Received '{}', expected to have characters in ^[a-zA-Z0-9_-]+[a-zA-Z0-9_-]*$",
                     workload_name
@@ -102,9 +103,9 @@ impl State {
                     MAX_CHARACTERS_WORKLOAD_NAME
                 ));
             }
-            if !re.is_match(workload_spec.agent.as_str()) {
+            if !re_agent.is_match(workload_spec.agent.as_str()) {
                 return Err(format!(
-                    "Unsupported agent name. Received '{}', expected to have characters in ^[a-zA-Z0-9_-]+[a-zA-Z0-9_-]*$",
+                    "Unsupported agent name. Received '{}', expected to have characters in ^[a-zA-Z0-9_-]*$",
                     workload_spec.agent
                 ));
             }
@@ -200,7 +201,7 @@ mod tests {
             api_version: "v0.1".to_string(),
             workloads: HashMap::from([(workload_name.clone(), StoredWorkloadSpec::default())]),
         };
-        assert_eq!(State::verify_format(&state_incompatible_version), Err(format!("Unsupported workload name. Received '{}', expected to have characters in [a-zA-Z0-9_-]", "nginx.test")));
+        assert_eq!(State::verify_format(&state_incompatible_version), Err(format!("Unsupported workload name. Received '{}', expected to have characters in ^[a-zA-Z0-9_-]+[a-zA-Z0-9_-]*$", "nginx.test")));
     }
 
     #[test]
@@ -236,7 +237,7 @@ mod tests {
         assert_eq!(
             State::verify_format(&state_incompatible_version),
             Err(format!(
-                "Unsupported agent name. Received '{}', expected to have characters in [a-zA-Z0-9_-]",
+                "Unsupported agent name. Received '{}', expected to have characters in ^[a-zA-Z0-9_-]*$",
                 agent_name
             ))
         );
