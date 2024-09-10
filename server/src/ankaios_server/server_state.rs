@@ -156,7 +156,7 @@ impl ServerState {
     const API_VERSION_FILTER_MASK: &'static str = "desiredState.apiVersion";
     const DESIRED_STATE_FIELD_MASK_PART: &'static str = "desiredState";
 
-    // [impl->swdd~server-provides-interface-get-complete-state~1]
+    // [impl->swdd~server-provides-interface-get-complete-state~2]
     // [impl->swdd~server-filters-get-complete-state-result~2]
     pub fn get_complete_state_by_field_mask(
         &self,
@@ -320,7 +320,7 @@ mod tests {
     const WORKLOAD_NAME_4: &str = "workload_4";
     const RUNTIME: &str = "runtime";
 
-    // [utest->swdd~server-provides-interface-get-complete-state~1]
+    // [utest->swdd~server-provides-interface-get-complete-state~2]
     // [utest->swdd~server-filters-get-complete-state-result~2]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask_empty_mask() {
@@ -360,7 +360,7 @@ mod tests {
         assert_eq!(received_complete_state, expected_complete_state);
     }
 
-    // [utest->swdd~server-provides-interface-get-complete-state~1]
+    // [utest->swdd~server-provides-interface-get-complete-state~2]
     // [utest->swdd~server-filters-get-complete-state-result~2]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask_continue_on_invalid_mask() {
@@ -397,7 +397,7 @@ mod tests {
         assert_eq!(received_complete_state, expected_complete_state);
     }
 
-    // [utest->swdd~server-provides-interface-get-complete-state~1]
+    // [utest->swdd~server-provides-interface-get-complete-state~2]
     // [utest->swdd~server-filters-get-complete-state-result~2]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask() {

@@ -212,7 +212,7 @@ impl AnkaiosServer {
                     request_id,
                     request_content,
                 }) => match request_content {
-                    // [impl->swdd~server-provides-interface-get-complete-state~1]
+                    // [impl->swdd~server-provides-interface-get-complete-state~2]
                     // [impl->swdd~server-includes-id-in-control-interface-response~1]
                     common::commands::RequestContent::CompleteStateRequest(
                         complete_state_request,
@@ -1062,7 +1062,7 @@ mod tests {
     }
 
     // [utest->swdd~server-uses-async-channels~1]
-    // [utest->swdd~server-provides-interface-get-complete-state~1]
+    // [utest->swdd~server-provides-interface-get-complete-state~2]
     // [utest->swdd~server-includes-id-in-control-interface-response~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
@@ -1136,7 +1136,7 @@ mod tests {
     }
 
     // [utest->swdd~server-uses-async-channels~1]
-    // [utest->swdd~server-provides-interface-get-complete-state~1]
+    // [utest->swdd~server-provides-interface-get-complete-state~2]
     // [utest->swdd~server-includes-id-in-control-interface-response~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
