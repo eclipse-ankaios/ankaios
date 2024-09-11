@@ -24,7 +24,7 @@ use api::ank_base;
 
 const CURRENT_API_VERSION: &str = "v0.1";
 const MAX_CHARACTERS_WORKLOAD_NAME: usize = 63;
-const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]+[a-zA-Z0-9_-]*$";
+const STR_RE_WORKLOAD: &str = r"^[a-zA-Z0-9_-]+*$";
 const STR_RE_AGENT: &str = r"^[a-zA-Z0-9_-]*$";
 
 // [impl->swdd~common-object-representation~1]
