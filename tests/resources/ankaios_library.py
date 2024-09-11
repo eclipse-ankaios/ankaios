@@ -20,7 +20,7 @@ import re
 from robot.api import logger
 from robot.libraries.BuiltIn import BuiltIn
 from tempfile import TemporaryDirectory
-from os import path
+from os import path, popen
 import shutil
 
 import re
@@ -236,7 +236,7 @@ def json_to_dict(raw):
 
 def find_control_interface_test_tag():
     global control_interface_tester_tag
-    control_interface_tester_tag = "manual-build-1"
+    control_interface_tester_tag = "manual-build-2"
 
 def prepare_test_control_interface_workload():
     global control_interface_workload_config
@@ -317,6 +317,7 @@ def internal_add_get_state_command(field_mask):
 
 def create_control_interface_config_for_test():
     tmp = TemporaryDirectory()
+    assert path.isdir(tmp.name) and path.exists(tmp.name), f"The temporary directory at {tmp.name} has not been created"
     write_yaml(new_yaml=control_interface_workload_config, path=path.join(tmp.name, "commands.yaml"))
 
     for manifest in manifest_files_location:
@@ -347,5 +348,27 @@ def internal_check_all_control_interface_requests_failed(tmp_folder):
         assert test_result, \
             f"Expected request {test_number + 1} to fail, but it succeeded"
 
+def internal_check_no_access_to_control_interface(tmp_folder):
+    output = read_yaml(path.join(tmp_folder, "output.yaml"))
+    for _, test_result in enumerate(output):
+        assert test_result["result"]["type"] == "NoApi", "Expect type is different to NoApi"
+
 def empty_keyword():
     pass
+
+def check_if_mount_point_has_not_been_generated_for(agent_name, command_result):
+    AGENT_NAME = agent_name
+    TMP_DIRECTORY = path.join(path.sep, f"tmp/ankaios/{AGENT_NAME}_io")
+    WORKLOAD_STATES_LEVEL = "workloadStates"
+    SHA_ENCODING_LEVEL = 0
+
+    json_result = json.loads(command_result.stdout)
+
+    workloads_list = list(json_result[WORKLOAD_STATES_LEVEL][AGENT_NAME].keys())
+    for idx, _ in enumerate(workloads_list):
+        state_sha_encoding = list(json_result[WORKLOAD_STATES_LEVEL][AGENT_NAME][workloads_list[idx]].keys())[SHA_ENCODING_LEVEL]
+
+        control_interface_name = f"{workloads_list[idx]}.{state_sha_encoding}"
+        control_interface_path = path.join(TMP_DIRECTORY, control_interface_name)
+
+        assert not path.exists(control_interface_path), "the mount point has been generated"

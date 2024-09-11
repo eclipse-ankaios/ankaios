@@ -20,7 +20,7 @@ jobs:
     name: Build and run system tests Linux amd64
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.1
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.2
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
@@ -51,7 +51,7 @@ jobs:
     name: Run unit tests Linux amd64
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.1
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.2
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
@@ -80,7 +80,7 @@ jobs:
     name: Create code coverage report
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.1
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.2
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
@@ -98,7 +98,7 @@ jobs:
     name: Build Linux amd64 debian package
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.1
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.2
       options: --privileged
     steps:
       - uses: actions/checkout@v4.1.1
@@ -129,7 +129,7 @@ jobs:
     name: Build Linux arm64 debian package
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.1
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.2
       options: --user root
     steps:
       - uses: actions/checkout@v4.1.1
@@ -156,7 +156,7 @@ jobs:
     name: Build requirements tracing
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.1
+      image: ghcr.io/eclipse-ankaios/devcontainer-base:0.10.2
       options: --user root
     steps:
       - uses: actions/checkout@v4.1.1
