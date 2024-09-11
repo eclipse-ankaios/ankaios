@@ -100,6 +100,23 @@ Test Ankaios Podman Update workload with invalid workload name
 
     [Teardown]    Clean up Ankaios
 
+Test Ankaios Podman Update workload with lengthy workload name
+    [Setup]    Run Keywords    Setup Ankaios
+
+    # Preconditions
+    # This test assumes that all containers in the podman have been created with this test -> clean it up first
+    Given Podman has deleted all existing containers
+    And Ankaios server is started without config
+    And Ankaios agent is started with name "agent_A"
+    # Actions
+    When user triggers "ank -k get workloads"
+    Then list of workloads shall be empty
+    When user triggers "ank -k set state ${CONFIGS_DIR}/update_state_long_names.yaml desiredState"
+    And user triggers "ank -k get workloads"
+    Then list of workloads shall be empty
+
+    [Teardown]    Clean up Ankaios
+
 Test Ankaios Podman Update workload with invalid agent name
     [Setup]    Run Keywords    Setup Ankaios
 
