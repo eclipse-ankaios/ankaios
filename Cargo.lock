@@ -468,6 +468,7 @@ version = "0.4.0"
 dependencies = [
  "api",
  "async-trait",
+ "common",
  "log",
  "serde",
  "serde_yaml",
