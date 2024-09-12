@@ -337,9 +337,13 @@ Needs:
 
 Status: approved
 
-The Common library shall provide functionality for enforcing a workload name that matches <^[a-zA-Z0-9_-]+[a-zA-Z0-9_-]*$> and has a length of maximum 63 characters.
+The Common library shall provide functionality for enforcing a workload name to:
+* contain only regular upper and lowercase characters (a-z and A-Z), numbers and the symbols "-" and "_"
+* have a minimal length of 1 character
+* have a maximal length of 63 characters
 
-Rationale: A consistent naming manner assures stability in usage, compatibility with Ankaios internal structure and compliance to internet standards (RFC-1123).
+Rationale:
+A consistent naming manner assures stability in usage, compatibility with Ankaios internal structure and compliance to internet standards (RFC-1123).
 
 Tags:
 - Objects
@@ -350,7 +354,7 @@ Needs:
 - stest
 
 #### Agent naming convention
-`swdd~common-workload-naming-convention~1`
+`swdd~common-agent-naming-convention~1`
 
 Status: approved
 
