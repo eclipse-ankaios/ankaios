@@ -146,13 +146,9 @@ impl AnkaiosServer {
                         added_workloads,
                     );
 
-                    // [impl->swdd~server-sends-all-workloads-on-start~1]
+                    // [impl->swdd~server-sends-all-workloads-on-start~2]
                     self.to_agents
-                        .update_workload(
-                            added_workloads,
-                            // It's a newly connected agent, no need to delete anything.
-                            vec![],
-                        )
+                        .server_hello(Some(agent_name.clone()), added_workloads)
                         .await
                         .unwrap_or_illegal_state();
 
@@ -184,7 +180,7 @@ impl AnkaiosServer {
                     request_id,
                     request_content,
                 }) => match request_content {
-                    // [impl->swdd~server-provides-interface-get-complete-state~1]
+                    // [impl->swdd~server-provides-interface-get-complete-state~2]
                     // [impl->swdd~server-includes-id-in-control-interface-response~1]
                     common::commands::RequestContent::CompleteStateRequest(
                         complete_state_request,
@@ -410,7 +406,9 @@ mod tests {
 
     use super::ank_base;
     use api::ank_base::WorkloadMap;
-    use common::commands::{CompleteStateRequest, UpdateWorkload, UpdateWorkloadState};
+    use common::commands::{
+        CompleteStateRequest, ServerHello, UpdateWorkload, UpdateWorkloadState,
+    };
     use common::from_server_interface::FromServer;
     use common::objects::{
         generate_test_stored_workload_spec, generate_test_workload_spec_with_param,
@@ -695,7 +693,7 @@ mod tests {
     }
 
     // [utest->swdd~server-uses-async-channels~1]
-    // [utest->swdd~server-sends-all-workloads-on-start~1]
+    // [utest->swdd~server-sends-all-workloads-on-start~2]
     // [utest->swdd~agent-from-agent-field~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     // [utest->swdd~server-stores-newly-connected-agent~1]
@@ -764,9 +762,9 @@ mod tests {
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
-            FromServer::UpdateWorkload(UpdateWorkload {
+            FromServer::ServerHello(ServerHello {
+                agent_name: Some(AGENT_A.to_string()),
                 added_workloads: vec![w1],
-                deleted_workloads: vec![],
             }),
             from_server_command
         );
@@ -807,9 +805,9 @@ mod tests {
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
 
         assert_eq!(
-            FromServer::UpdateWorkload(UpdateWorkload {
+            FromServer::ServerHello(ServerHello {
+                agent_name: Some(AGENT_B.to_string()),
                 added_workloads: vec![w2],
-                deleted_workloads: vec![]
             }),
             from_server_command
         );
@@ -1074,7 +1072,7 @@ mod tests {
     }
 
     // [utest->swdd~server-uses-async-channels~1]
-    // [utest->swdd~server-provides-interface-get-complete-state~1]
+    // [utest->swdd~server-provides-interface-get-complete-state~2]
     // [utest->swdd~server-includes-id-in-control-interface-response~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
@@ -1148,7 +1146,7 @@ mod tests {
     }
 
     // [utest->swdd~server-uses-async-channels~1]
-    // [utest->swdd~server-provides-interface-get-complete-state~1]
+    // [utest->swdd~server-provides-interface-get-complete-state~2]
     // [utest->swdd~server-includes-id-in-control-interface-response~1]
     // [utest->swdd~server-starts-without-startup-config~1]
     #[tokio::test]
@@ -1382,18 +1380,18 @@ mod tests {
 
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
-            FromServer::UpdateWorkload(UpdateWorkload {
-                added_workloads: vec![w1.clone()],
-                deleted_workloads: vec![]
+            FromServer::ServerHello(ServerHello {
+                agent_name: Some(AGENT_A.to_string()),
+                added_workloads: vec![w1.clone()]
             }),
             from_server_command
         );
 
         let from_server_command = comm_middle_ware_receiver.recv().await.unwrap();
         assert_eq!(
-            FromServer::UpdateWorkload(UpdateWorkload {
+            FromServer::ServerHello(ServerHello {
+                agent_name: Some(AGENT_B.to_string()),
                 added_workloads: vec![w2],
-                deleted_workloads: vec![]
             }),
             from_server_command
         );

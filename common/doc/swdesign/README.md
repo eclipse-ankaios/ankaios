@@ -297,6 +297,20 @@ Needs:
 - impl
 - utest
 
+#### Provide a method that checks if the workload requires control interface
+`swdd~common-workload-needs-control-interface~1`
+
+Status: approved
+
+When allow rules for the Control Interface access are specified in the workload specification, the Common library shall approve the creation of a Control Interface.
+
+Tags:
+- Objects
+
+Needs:
+- impl
+- utest
+
 #### Naming of Workload execution instances
 `swdd~common-workload-execution-instance-naming~1`
 

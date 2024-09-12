@@ -46,6 +46,13 @@ pub struct WorkloadSpec {
     pub control_interface_access: ControlInterfaceAccess,
 }
 
+// [impl->swdd~common-workload-needs-control-interface~1]
+impl WorkloadSpec {
+    pub fn needs_control_interface(&self) -> bool {
+        !self.control_interface_access.allow_rules.is_empty()
+    }
+}
+
 pub type AgentWorkloadMap = HashMap<String, (WorkloadCollection, DeletedWorkloadCollection)>;
 
 pub fn get_workloads_per_agent(
@@ -204,6 +211,9 @@ impl TryFrom<i32> for DeleteCondition {
 //////////////////////////////////////////////////////////////////////////////
 
 #[cfg(any(feature = "test_utils", test))]
+use crate::objects::generate_test_control_interface_access;
+
+#[cfg(any(feature = "test_utils", test))]
 fn generate_test_dependencies() -> HashMap<String, AddCondition> {
     HashMap::from([
         (String::from("workload A"), AddCondition::AddCondRunning),
@@ -257,6 +267,21 @@ pub fn generate_test_workload_spec_with_runtime_config(
         runtime_config,
         control_interface_access: Default::default(),
     }
+}
+
+#[cfg(any(feature = "test_utils", test))]
+pub fn generate_test_workload_spec_with_control_interface_access(
+    agent_name: String,
+    workload_name: String,
+    runtime_name: String,
+) -> WorkloadSpec {
+    let mut workload_spec = generate_test_workload_spec_with_param(
+        agent_name.to_owned(),
+        workload_name.to_owned(),
+        runtime_name.to_owned(),
+    );
+    workload_spec.control_interface_access = generate_test_control_interface_access();
+    workload_spec
 }
 
 #[cfg(any(feature = "test_utils", test))]
@@ -473,5 +498,15 @@ mod tests {
         assert_eq!(RestartPolicy::Never.to_string(), "Never");
         assert_eq!(RestartPolicy::OnFailure.to_string(), "OnFailure");
         assert_eq!(RestartPolicy::Always.to_string(), "Always");
+    }
+
+    // [utest->swdd~common-workload-needs-control-interface~1]
+    #[test]
+    fn utest_needs_control_interface() {
+        let mut workload_spec = generate_test_workload_spec();
+        assert!(!workload_spec.needs_control_interface());
+
+        workload_spec.control_interface_access = generate_test_control_interface_access();
+        assert!(workload_spec.needs_control_interface());
     }
 }

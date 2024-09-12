@@ -305,11 +305,11 @@ Needs:
 - impl
 
 #### AnkaiosServer sends all workloads on start
-`swdd~server-sends-all-workloads-on-start~1`
+`swdd~server-sends-all-workloads-on-start~2`
 
 Status: approved
 
-When an Agent connects to the Server, the Ankaios Server shall send a list of all scheduled Workloads to this Agent as `AddedWorkload` message.
+When an Agent connects to the Server, the Ankaios Server shall send a list of all scheduled Workloads to this Agent as `ServerHello` message.
 
 Tags:
 - AnkaiosServer

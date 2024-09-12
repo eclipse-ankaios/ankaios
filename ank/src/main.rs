@@ -190,6 +190,5 @@ async fn main() {
             }
         }
     }
-
     cmd.shut_down().await;
 }

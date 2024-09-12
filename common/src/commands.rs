@@ -146,6 +146,12 @@ impl TryFrom<ank_base::UpdateStateRequest> for UpdateStateRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
+pub struct ServerHello {
+    pub agent_name: Option<String>,
+    pub added_workloads: Vec<WorkloadSpec>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct UpdateWorkload {
     pub added_workloads: Vec<WorkloadSpec>,
     pub deleted_workloads: Vec<DeletedWorkload>,

@@ -85,6 +85,18 @@ impl AgentManager {
         log::debug!("Process command received from server.");
 
         match from_server_msg {
+            FromServer::ServerHello(method_obj) => {
+                log::debug!(
+                    "Agent '{}' received ServerHello:\n\tAdded workloads: {:?}",
+                    self.agent_name,
+                    method_obj.added_workloads
+                );
+
+                self.runtime_manager
+                    .handle_server_hello(method_obj.added_workloads, &self.workload_state_store)
+                    .await;
+                Some(())
+            }
             FromServer::UpdateWorkload(method_obj) => {
                 log::debug!("Agent '{}' received UpdateWorkload:\n\tAdded workloads: {:?}\n\tDeleted workloads: {:?}",
                     self.agent_name,

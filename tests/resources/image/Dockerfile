@@ -1,18 +1,6 @@
-FROM docker.io/alpine:3.18.4 as compile
-ENV PATH="/root/.cargo/bin:${PATH}"
+FROM ghcr.io/eclipse-ankaios/devcontainer-base:0.10.1 as compile
 
 ARG WORKSPACE_DIR=/workspaces/build
-
-RUN apk update && apk add --update-cache \
-    curl \
-    # Development tools
-    protobuf \
-    protobuf-dev \
-    protoc \
-    build-base \
-    && rm -rf /var/cache/apk/*
-
-RUN curl --proto '=https' --tlsv1.2 -sS https://sh.rustup.rs | sh -s -- -y > /dev/null
 
 WORKDIR ${WORKSPACE_DIR}
 ARG SRC_HASH

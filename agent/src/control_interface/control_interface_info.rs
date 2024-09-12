@@ -26,10 +26,10 @@ use crate::control_interface::ControlInterface;
 
 pub struct ControlInterfaceInfo {
     run_folder: PathBuf,
-    pub workload_instance_name: WorkloadInstanceName,
+    workload_instance_name: WorkloadInstanceName,
     #[cfg_attr(test, allow(dead_code))]
-    pub control_interface_to_server_sender: ToServerSender,
-    pub authorizer: Authorizer,
+    control_interface_to_server_sender: ToServerSender,
+    authorizer: Authorizer,
 }
 
 #[cfg_attr(test, automock)]

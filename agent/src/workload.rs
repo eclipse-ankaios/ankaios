@@ -88,9 +88,18 @@ impl Workload {
         }
     }
 
-    fn exchange_control_interface(&mut self, control_interface_info: Option<ControlInterfaceInfo>) {
+    fn exchange_control_interface(
+        &mut self,
+        control_interface_info: Option<ControlInterfaceInfo>,
+        control_interface_access: bool,
+    ) {
         if let Some(control_interface) = self.control_interface.take() {
             control_interface.abort_control_interface_task()
+        }
+
+        if control_interface_access {
+            self.control_interface = None;
+            return;
         }
 
         self.control_interface = control_interface_info.and_then(|info| {
@@ -130,7 +139,12 @@ impl Workload {
         log::info!("Updating workload '{}'.", self.name);
 
         if self.is_control_interface_changed(&control_interface_info) {
-            self.exchange_control_interface(control_interface_info);
+            // [impl->swdd~agent-control-interface-created-for-eligible-workloads~1]
+            self.exchange_control_interface(
+                control_interface_info,
+                spec.clone()
+                    .map_or(false, |spec| !spec.needs_control_interface()),
+            );
         }
 
         let control_interface_path = self
@@ -194,7 +208,10 @@ mod tests {
     use super::ank_base::{self, response::ResponseContent, Response};
     use common::{
         from_server_interface::FromServer,
-        objects::{generate_test_workload_spec_with_param, CompleteState},
+        objects::{
+            generate_test_workload_spec_with_control_interface_access,
+            generate_test_workload_spec_with_param, CompleteState,
+        },
         test_utils::generate_test_complete_state,
     };
     use tokio::{sync::mpsc, time::timeout};
@@ -329,6 +346,25 @@ mod tests {
             .is_control_interface_changed(&Some(control_interface_info_mock)));
     }
 
+    // [utest->swdd~agent-control-interface-created-for-eligible-workloads~1]
+    #[test]
+    fn utest_exchange_control_interface_not_created() {
+        let (workload_command_sender, _) = WorkloadCommandSender::new();
+
+        let mut test_workload =
+            Workload::new(WORKLOAD_1_NAME.to_string(), workload_command_sender, None);
+
+        let workload_spec = generate_test_workload_spec_with_param(
+            AGENT_NAME.to_string(),
+            WORKLOAD_1_NAME.to_string(),
+            RUNTIME_NAME.to_string(),
+        );
+
+        test_workload.exchange_control_interface(None, workload_spec.needs_control_interface());
+
+        assert!(test_workload.control_interface.is_none());
+    }
+
     // [utest->swdd~agent-workload-obj-update-command~2]
     #[tokio::test]
     async fn utest_workload_obj_update_success() {
@@ -344,7 +380,7 @@ mod tests {
             .once()
             .return_const(());
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),
@@ -437,7 +473,7 @@ mod tests {
             .once()
             .return_const(PIPES_LOCATION);
 
-        let workload_spec = generate_test_workload_spec_with_param(
+        let workload_spec = generate_test_workload_spec_with_control_interface_access(
             AGENT_NAME.to_string(),
             WORKLOAD_1_NAME.to_string(),
             RUNTIME_NAME.to_string(),

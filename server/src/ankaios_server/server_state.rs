@@ -156,7 +156,7 @@ impl ServerState {
     const API_VERSION_FILTER_MASK: &'static str = "desiredState.apiVersion";
     const DESIRED_STATE_FIELD_MASK_PART: &'static str = "desiredState";
 
-    // [impl->swdd~server-provides-interface-get-complete-state~1]
+    // [impl->swdd~server-provides-interface-get-complete-state~2]
     // [impl->swdd~server-filters-get-complete-state-result~2]
     pub fn get_complete_state_by_field_mask(
         &self,
@@ -307,8 +307,9 @@ mod tests {
     use common::{
         commands::CompleteStateRequest,
         objects::{
-            generate_test_agent_map, generate_test_control_interface_access,
-            generate_test_stored_workload_spec, generate_test_workload_spec_with_param, AgentMap,
+            generate_test_agent_map, generate_test_stored_workload_spec, 
+            generate_test_workload_spec_with_control_interface_access, 
+            generate_test_workload_spec_with_param, AgentMap,
             CompleteState, DeletedWorkload, State, WorkloadSpec, WorkloadStatesMap,
         },
         test_utils::{self, generate_test_complete_state},
@@ -325,7 +326,7 @@ mod tests {
     const WORKLOAD_NAME_4: &str = "workload_4";
     const RUNTIME: &str = "runtime";
 
-    // [utest->swdd~server-provides-interface-get-complete-state~1]
+    // [utest->swdd~server-provides-interface-get-complete-state~2]
     // [utest->swdd~server-filters-get-complete-state-result~2]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask_empty_mask() {
@@ -365,7 +366,7 @@ mod tests {
         assert_eq!(received_complete_state, expected_complete_state);
     }
 
-    // [utest->swdd~server-provides-interface-get-complete-state~1]
+    // [utest->swdd~server-provides-interface-get-complete-state~2]
     // [utest->swdd~server-filters-get-complete-state-result~2]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask_continue_on_invalid_mask() {
@@ -402,17 +403,15 @@ mod tests {
         assert_eq!(received_complete_state, expected_complete_state);
     }
 
-    // [utest->swdd~server-provides-interface-get-complete-state~1]
+    // [utest->swdd~server-provides-interface-get-complete-state~2]
     // [utest->swdd~server-filters-get-complete-state-result~2]
     #[test]
     fn utest_server_state_get_complete_state_by_field_mask() {
-        let mut w1 = generate_test_workload_spec_with_param(
+        let w1 = generate_test_workload_spec_with_control_interface_access(
             AGENT_A.to_string(),
             WORKLOAD_NAME_1.to_string(),
             RUNTIME.to_string(),
         );
-
-        w1.control_interface_access = generate_test_control_interface_access();
 
         let w2 = generate_test_workload_spec_with_param(
             AGENT_A.to_string(),

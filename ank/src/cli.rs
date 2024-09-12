@@ -12,13 +12,97 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-use std::error::Error;
+use std::{error::Error, ffi::OsStr};
 
-use clap::{command, Parser, Subcommand};
+use clap::{command, CommandFactory, Parser, Subcommand, ValueHint};
 
+use clap_complete::{ArgValueCompleter, CompleteEnv, CompletionCandidate};
 use common::DEFAULT_SERVER_ADDRESS;
 
+use crate::filtered_complete_state::FilteredCompleteState;
+
 const ANK_SERVER_URL_ENV_KEY: &str = "ANK_SERVER_URL";
+
+fn state_from_command(object_field_mask: &str) -> Vec<u8> {
+    std::process::Command::new("sh")
+        .arg("-c")
+        .arg(format!("ank get state -o json {}", object_field_mask))
+        .output()
+        .expect("failed to execute process")
+        .stdout
+}
+
+fn completions_workloads(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandidate> {
+    let mut result = Vec::new();
+
+    let Ok(state) = serde_json::from_slice::<FilteredCompleteState>(&state) else {
+        return vec![];
+    };
+
+    if let Some(desired_state) = state.desired_state {
+        if let Some(workloads) = desired_state.workloads {
+            for workload_name in workloads.keys() {
+                result.push(workload_name.clone());
+            }
+        }
+    }
+
+    let cur = current.to_str().unwrap_or("");
+    result
+        .into_iter()
+        .filter(|s| s.to_string().starts_with(cur))
+        .map(CompletionCandidate::new)
+        .collect()
+}
+
+// [impl->swdd~cli-shell-completion~1]
+fn workload_completer(current: &OsStr) -> Vec<CompletionCandidate> {
+    completions_workloads(state_from_command("desiredState.workloads"), current)
+}
+
+fn completions_object_field_mask(state: Vec<u8>, current: &OsStr) -> Vec<CompletionCandidate> {
+    const DESIRED_STATE: &str = "desiredState";
+    const WORKLOADS: &str = "workloads";
+    const WORKLOAD_STATES: &str = "workloadStates";
+
+    let mut result = Vec::new();
+
+    let Ok(state) = serde_json::from_slice::<FilteredCompleteState>(&state) else {
+        return vec![];
+    };
+
+    if let Some(desired_state) = state.desired_state {
+        result.push(DESIRED_STATE.to_string());
+        if let Some(workloads) = desired_state.workloads {
+            result.push(format!("{}.{}", DESIRED_STATE, WORKLOADS));
+            for workload_name in workloads.keys() {
+                result.push(format!("{}.{}.{}", DESIRED_STATE, WORKLOADS, workload_name));
+            }
+        }
+    }
+
+    if let Some(workload_states) = state.workload_states {
+        result.push(WORKLOAD_STATES.to_string());
+        for (agent, workloads) in workload_states.into_iter() {
+            result.push(format!("{}.{}", WORKLOAD_STATES, agent));
+            for workload_name in workloads.keys() {
+                result.push(format!("{}.{}.{}", WORKLOAD_STATES, agent, workload_name));
+            }
+        }
+    }
+
+    let cur = current.to_str().unwrap_or("");
+    result
+        .into_iter()
+        .filter(|s| s.to_string().starts_with(cur))
+        .map(CompletionCandidate::new)
+        .collect()
+}
+
+// [impl->swdd~cli-shell-completion~1]
+fn object_field_mask_completer(current: &OsStr) -> Vec<CompletionCandidate> {
+    completions_object_field_mask(state_from_command(""), current)
+}
 
 // [impl->swdd~cli-supports-server-url-cli-argument~1]
 // [impl->swdd~cli-supports-pem-file-paths-as-cli-arguments~1]
@@ -103,6 +187,7 @@ pub enum GetCommands {
         #[arg(short = 'o', value_enum, default_value_t = OutputFormat::Yaml)]
         output_format: OutputFormat,
         /// Select which parts of the state object shall be output e.g. 'desiredState.workloads.nginx' [default: empty = the complete state]
+        #[arg(add = ArgValueCompleter::new(object_field_mask_completer))]
         object_field_mask: Vec<String>,
     },
     /// Information about workloads of the Ankaios system
@@ -116,6 +201,7 @@ pub enum GetCommands {
         #[arg(short = 's', long = "state", required = false)]
         state: Option<String>,
         /// Select which workload(s) shall be returned [default: empty = all workloads]
+        #[arg(add = ArgValueCompleter::new(workload_completer))]
         workload_name: Vec<String>,
     },
     /// Information about the Ankaios agents connected to the Ankaios server
@@ -138,10 +224,10 @@ pub enum SetCommands {
     /// State information of Ankaios system
     State {
         /// Select which parts of the state object shall be updated e.g. 'desiredState.workloads.nginx'
-        #[arg(required = true)]
+        #[arg(required = true, add = ArgValueCompleter::new(object_field_mask_completer))]
         object_field_mask: Vec<String>,
         /// A file containing the new State Object Description in yaml format
-        #[arg(required = true)]
+        #[arg(required = true, value_hint = ValueHint::FilePath)]
         state_object_file: String,
     },
 }
@@ -160,7 +246,7 @@ pub enum DeleteCommands {
     #[clap(visible_alias("workloads"))]
     Workload {
         /// One or more workload(s) to be deleted
-        #[arg(required = true)]
+        #[arg(required = true, add = ArgValueCompleter::new(workload_completer))]
         workload_name: Vec<String>,
     },
 }
@@ -203,7 +289,7 @@ pub enum RunCommands {
 /// Apply Ankaios manifest content or file(s)
 #[derive(clap::Args, Debug)]
 pub struct ApplyArgs {
-    #[arg(value_name = "Ankaios manifest file(s) or '-' for stdin")]
+    #[arg(value_name = "Ankaios manifest file(s) or '-' for stdin", value_hint = ValueHint::FilePath)]
     pub manifest_files: Vec<String>,
     /// Specify on which agent to apply the Ankaios manifests.
     /// If not specified, the agent(s) must be specified in the Ankaios manifest(s)
@@ -228,5 +314,190 @@ where
 }
 
 pub fn parse() -> AnkCli {
+    CompleteEnv::with_factory(AnkCli::command).complete();
     AnkCli::parse()
+}
+
+/////////////////////////////////////////////////////////////////////////////
+//                 ########  #######    #########  #########                //
+//                    ##     ##        ##             ##                    //
+//                    ##     #####     #########      ##                    //
+//                    ##     ##                ##     ##                    //
+//                    ##     #######   #########      ##                    //
+//////////////////////////////////////////////////////////////////////////////
+#[cfg(test)]
+mod tests {
+
+    use super::{completions_object_field_mask, completions_workloads};
+    use clap_complete::CompletionCandidate;
+    use std::ffi::OsStr;
+
+    static WORKLOAD_STATE: &str = r#"
+        {
+          "desiredState": {
+            "apiVersion": "v0.1",
+            "workloads": {
+              "databroker": {
+                "agent": "agent_A",
+                "tags": [],
+                "dependencies": {},
+                "restartPolicy": "ALWAYS",
+                "runtime": "podman",
+                "runtimeConfig": "image: ghcr.io/eclipse/kuksa.val/databroker:0.4.1\ncommandArgs: [\"--insecure\"]\ncommandOptions: [\"--net=host\"]\n"
+              },
+              "speed-provider": {
+                  "agent": "agent_A",
+                  "tags": [],
+                  "dependencies": {
+                  "databroker": "ADD_COND_RUNNING"
+                  },
+                  "restartPolicy": "ALWAYS",
+                  "runtime": "podman",
+                  "runtimeConfig": "image: ghcr.io/eclipse-ankaios/speed-provider:0.1.1\ncommandOptions:\n  - \"--net=host\"\n  - \"-e\"\n  - \"SPEED_PROVIDER_MODE=auto\"\n"
+              }
+            }
+          }
+        }
+    "#;
+
+    // [utest->swdd~cli-shell-completion~1]
+    #[test]
+    fn utest_completions_workloads() {
+        let state = WORKLOAD_STATE.as_bytes();
+
+        let mut completions = completions_workloads(state.to_vec(), OsStr::new(""));
+        completions.sort();
+        assert_eq!(
+            completions,
+            vec![
+                CompletionCandidate::new("databroker"),
+                CompletionCandidate::new("speed-provider")
+            ],
+            "Completions do not match"
+        );
+    }
+
+    // [utest->swdd~cli-shell-completion~1]
+    #[test]
+    fn utest_completions_workloads_with_current() {
+        let state = WORKLOAD_STATE.as_bytes();
+
+        let mut completions = completions_workloads(state.to_vec(), OsStr::new("d"));
+        completions.sort();
+        assert_eq!(
+            completions,
+            vec![CompletionCandidate::new("databroker"),],
+            "Completions do not match"
+        );
+    }
+
+    // [utest->swdd~cli-shell-completion~1]
+    #[test]
+    fn utest_completions_workloads_invalid_input() {
+        let state = "".as_bytes();
+
+        let mut completions = completions_workloads(state.to_vec(), OsStr::new("d"));
+        completions.sort();
+        assert_eq!(completions, vec![], "Completions do not match");
+    }
+
+    static OBJECT_FIELD_MASK_STATE: &str = r#"
+        {
+          "desiredState": {
+            "apiVersion": "v0.1",
+            "workloads": {
+              "databroker": {
+                "agent": "agent_A",
+                "tags": [],
+                "dependencies": {},
+                "restartPolicy": "ALWAYS",
+                "runtime": "podman",
+                "runtimeConfig": "image: ghcr.io/eclipse/kuksa.val/databroker:0.4.1\ncommandArgs: [\"--insecure\"]\ncommandOptions: [\"--net=host\"]\n"
+              },
+              "speed-provider": {
+                "agent": "agent_A",
+                "tags": [],
+                "dependencies": {
+                  "databroker": "ADD_COND_RUNNING"
+                },
+                "restartPolicy": "ALWAYS",
+                "runtime": "podman",
+                "runtimeConfig": "image: ghcr.io/eclipse-ankaios/speed-provider:0.1.1\ncommandOptions:\n  - \"--net=host\"\n  - \"-e\"\n  - \"SPEED_PROVIDER_MODE=auto\"\n"
+              }
+            }
+          },
+          "workloadStates": {
+            "agent_A": {
+              "databroker": {
+                "211c1e7c1170508711b76bb9be19ad73af7a2b11e3c2a4fb895d0ce5f4894eaa": {
+                  "state": "Running",
+                  "subState": "Ok",
+                  "additionalInfo": ""
+                }
+              },
+              "speed-provider": {
+                "4bc1b2047e6a67b60b7a6c3b07955a2f29040ab7a2b6bc7d1bee78efc81a48d9": {
+                  "state": "Running",
+                  "subState": "Ok",
+                  "additionalInfo": ""
+                }
+              }
+            }
+          }
+        }
+    "#;
+
+    // [utest->swdd~cli-shell-completion~1]
+    #[test]
+    fn utest_completions_object_field_mask() {
+        let state = OBJECT_FIELD_MASK_STATE.as_bytes();
+
+        let mut completions = completions_object_field_mask(state.to_vec(), OsStr::new(""));
+        completions.sort();
+        assert_eq!(
+            completions,
+            vec![
+                CompletionCandidate::new("desiredState"),
+                CompletionCandidate::new("desiredState.workloads"),
+                CompletionCandidate::new("desiredState.workloads.databroker"),
+                CompletionCandidate::new("desiredState.workloads.speed-provider"),
+                CompletionCandidate::new("workloadStates"),
+                CompletionCandidate::new("workloadStates.agent_A"),
+                CompletionCandidate::new("workloadStates.agent_A.databroker"),
+                CompletionCandidate::new("workloadStates.agent_A.speed-provider"),
+            ],
+            "Completions do not match"
+        );
+    }
+
+    // [utest->swdd~cli-shell-completion~1]
+    #[test]
+    fn utest_completions_object_field_mask_with_current() {
+        let state = OBJECT_FIELD_MASK_STATE.as_bytes();
+
+        let mut completions =
+            completions_object_field_mask(state.to_vec(), OsStr::new("workloadStates"));
+        completions.sort();
+        assert_eq!(
+            completions,
+            vec![
+                CompletionCandidate::new("workloadStates"),
+                CompletionCandidate::new("workloadStates.agent_A"),
+                CompletionCandidate::new("workloadStates.agent_A.databroker"),
+                CompletionCandidate::new("workloadStates.agent_A.speed-provider"),
+            ],
+            "Completions do not match"
+        );
+    }
+
+    // [utest->swdd~cli-shell-completion~1]
+    #[test]
+    fn utest_completions_object_field_mask_invalid_input() {
+        let state = "".as_bytes();
+
+        let mut completions =
+            completions_object_field_mask(state.to_vec(), OsStr::new("workloadStates"));
+        completions.sort();
+        assert_eq!(completions, vec![], "Completions do not match");
+    }
 }
